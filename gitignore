@@ -1,0 +1,95 @@
+# ============================================================
+# OS & system files
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Editor & IDE
+# ============================================================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains (Rider, IDEA, etc.)
+.idea/
+*.iml
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+Session.vim
+
+# Emacs
+\#*\#
+*.elc
+auto-save-list
+tramp
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================
+# Writing tools
+# ============================================================
+
+# Scrivener
+*.scriv/
+*.scrivx
+
+# Ulysses
+*.ulysses/
+
+# Final Draft
+*.fdr
+*.fdx
+
+# ============================================================
+# Claude Code & AI agent working files
+# ============================================================
+.claude/
+*.agent-scratch
+agent_outputs/
+_handoff_staging/
+_proof_batch/
+
+# ============================================================
+# Node / npm (Astro site tooling if co-located)
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.env
+.env.*
+dist/
+.astro/
+
+# ============================================================
+# Misc
+# ============================================================
+
+# Backup files
+*.bak
+*.backup
+*.orig
+*.tmp
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# PDF exports (generated; not source)
+exports/
+*.export.pdf
