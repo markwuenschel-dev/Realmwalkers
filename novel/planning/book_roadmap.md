@@ -1,0 +1,48 @@
+# Dominion Realm — Book 1 Roadmap
+
+> Act/theme structure. Defers to `book1_chapter_timeline.md` (chapters), `master_timeline.md` (chronology), `unresolved_character_threads.md` (open items). Precedence: see `canon_index.md`.
+
+## Working Title
+**Dominion Realm: Book 1** (subtitle options: *The Thread City · First Threads · The Invisible Stranger*).
+
+## Series Identity
+Interface fantasy disguised as LitRPG. The Realm is real; the UI is Marcus's implant translating metaphysical law into game logic. Stats, skills, vows, names = interpretation, not proof the world is a game.
+
+## Core Question
+When the old guild begins to find each other again, are they still people who belong together?
+
+## Emotional Spine
+Marcus begins as a gamer-scientist who survives by analyzing, optimizing, joking. The deeper lesson: understanding a system is not belonging to a world. He must learn — warmth is not loyalty; seeing patterns is not knowing truth; responsibility is not self-erasure; the interface is not the world; the team he lost may not return as the team he remembers. The emotional center is **Marcus and Serra** — the unaddressed Earth Thing and what separation and changed paths do to it.
+
+---
+
+## Act 1 — Earth & the False Choice
+**Purpose:** establish Astria, the guild, the implant deception, the coercive offer. *(Mostly drafted.)*
+Beats: neuroquantum announcement → 404:Aim Not Found vs. Dead Hand scrim (**Serra (Serra Hawthorne) — Dead Hand's star rogue — logs in late and duels Marcus on-page; Mara is 404's hidden sixth, present but unnoticed**) → Roth-voiced hijack interrupts the duel → manufactured tornado boss forces consent → Seb's brother dies during the scrim (his consent becomes grief, not rescue) → facility, LeBlanc/Roth/Withers pitch (Serra also took the deal; Mara arrives late) → unanimous consent → surgery → **LeBlanc hidden-voice scene on-page** ("we will take the reins…") → transport.
+*Notes:* Earth name **Marcus**; Realm alias target **Soren**. Serra = self-made social anchor (**no SWAT**). Seed the implant as receiver/translator, not upgrade.
+
+## Act 2 — Scattering
+**Purpose:** break the guild; force separate trajectories. *(Partially drafted through resurrection/Ayla.)*
+Beats: wake in the void → voice sends them toward Eriadne → scattered → Marcus wakes level 1 → UI interprets, doesn't create → paladin/Mallev/Xazzidiuk/Zazriel → mindscape bargain → **gains the Eyes of Meszkhal (item); Zazriel gives nothing (no Angelic Fortitude)** → Xazzidiuk kills him → resurrects → **Ayla attaches**; the native **Neurochromatic Eyes interface** begins emerging → **rejects Phoenix, chooses Soren** → moves toward survival and Eriadne.
+**Function:** Marcus stops being a player and becomes an exile.
+
+## Act 3 — First Threads / False Rescue
+**Purpose:** the Realm becomes socially and morally real; the Marcus/Serra dynamic is established then interrupted. *(Locked sequence — see `scene_queue.md`.)*
+Beats: survival/water → road → **finds Serra (both lost)** → caravan + toll-gang + **first Eyes-interface use** → Iron Vultures → travel (Serra's **Warrior fundamentals** surface; False Rescue system explained) → **Maera's warmth trap** → magistrate-guild + **namebinding** of the elven child → pursuit + pitch → **the operation + the split** (Serra kills the magistrate, learns he's a node not the source, takes a registry-fragment, leaves toward a larger faction's seat) → Marcus travels on with the Vultures.
+
+## Act 4 — Eriadne
+**Purpose:** Marcus reaches the thread city and becomes useful before powerful. *(Planned.)*
+Beats: first sight (melting pot; **ruins on the outskirts**; no governance) → claims the **ruin-fringe** (personal before political) → ruins respond to his ocular interface → useful to the ignored → **Brent** and **Mara** converge → Under-City stirs; ley-knot significance → first signs Xyloryn/Zalgoran care about Eriadne.
+
+## Act 5 — Convergence & Fracture
+**Purpose:** the guild reappears changed; reunion becomes tension, not comfort. *(Planned; finale choreography pending.)*
+Beats: satellite arcs mature (Serra's hunt ends **unfinished**; Seb's Reaver/Threshold-Cascade fall; Mara's court reframe; Mathias's warning; Brent's discovery) → Marcus's position turns politically vulnerable → **Serra returns → the reunion** (he reads what it cost her; she won't confirm) → reunion becomes tension → **the Xyloryn invasion attempt**: ruins-portal opens (city largely unaware), swarm visible beyond, **one Myrmidon** nearly beats all six; **Mathias injured proving his warning (he lives)** → old guild identity dies → **the severance** (he names the Earth Thing; she severs the thread to free him).
+**Function:** reunion becomes tension. Ending: *the team can find each other again, but belonging together is no longer guaranteed.*
+
+---
+
+## Open Decisions
+All open items live in `unresolved_character_threads.md` (the registry). Current blockers: Seb's disclosed cost vs. hidden dependency (SB-02), Brent's first practical discovery (BR-02), Mara's second council (MA-01), and the Act-5 finale choreography. Resolved decisions are recorded there and in `canon_index.md`.
+---
+
+*Last updated: working draft — change history in `CHANGELOG.md`.*
