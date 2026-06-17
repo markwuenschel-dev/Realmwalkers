@@ -13,7 +13,7 @@ status: canon
 
 - **These ladders are independent.** "Divine," "Mythic," "Legendary," "Exceptional," "Rare," "Common" recur across several ladders — a Divine *soul* ≠ a Divine *item* ≠ a Divine *spell-skill tier*. Don't conflate them.
 - **Soul Level is load-bearing for the story.** It governs resistance to being altered, erased, bound, possessed, or overwritten — the engine under **true-names / namebinding** (Serra's arc; low/average souls are what the namebinding faction can bind), **death & resurrection** (Marcus), **the broker holding Seb's brother's soul**, and **vow enforcement** (Xazzidiuk/Zazriel). Cross-ref from `core_rules.md` (Naming) and `relationship_map.md`.
-- **Spell Skill Mastery composes with affinity, not against it.** Affinity = the *chance* a skill levels (Marcus's Chaotic Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). See `core_rules.md` → Skills and Affinities.
+- **Spell Skill Mastery composes with affinity, not against it.** Affinity = the *chance* a skill levels (Marcus's Unbound Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). See `core_rules.md` → Skills and Affinities.
 - **The Eyes of Meszkhal is a _Unique_ item** (Item Rarity, below). Its copycat / +100%-skill-XP is the *item's* power, billed in mana; the Neurochromatic interface is separate and bills in the body.
 
 ---
@@ -340,3 +340,22 @@ At the highest levels, a soul becomes an anchor upon reality. Such beings are ex
 # Class Rarity
 
 Class rarity uses the same seven-tier ladder — **Common · Uncommon · Rare · Exceptional · Legendary · Mythic · Unique** — but its authoritative home is `core_rules.md` (Class Tiers); the class taxonomy is in `classes.md`. Rarer classes cost more XP **and** more energy per level — the rule that leaves Marcus's Legendary **Riftwalker** unaffordable at low level.
+
+
+---
+
+# Attributes, Derived Pools & Growth *(owner)*
+
+**Derived pools** (canonical formulas; Marcus starts 5 in each → 50/50/50):
+- **Health** = Constitution×6 + Endurance×2 + Strength×2 — Con is structural durability; a high-Strength build can hold a big pool without Con's tissue/poison resilience.
+- **Mana** = Intelligence×6 + Wisdom×3 + Charisma×1 — Int = capacity/processing, Wis = control/stability, Cha = force of presence into the substrate (not attractiveness).
+- **Stamina** = Endurance×5 + Constitution×2 + Strength + Agility + Dexterity.
+- **Luck** feeds none of the pools; it tilts unresolved margins (which plausible outcome wins), never makes the impossible happen.
+
+**What attributes physically do** — real biology, immediate effect + slower adaptation, never an instant finished body:
+Strength (force output → denser fibres/tendons) · Agility (balance/direction change → refined movement) · Dexterity (precision/steady hands → fine-motor pathways) · Constitution (stress tolerance → denser tissue, bone, organ/toxin resilience) · Endurance (slow fatigue/recovery → cardiovascular/metabolic gains) · Intelligence (processing/working memory → learning efficiency; **does not grant knowledge**) · Wisdom (regulation/judgment/mana control → mental-disruption resistance) · Charisma (projection/presence → aura/leadership; **does not make people agree**).
+
+**Leveling & racial growth:**
+- **Humans: 4 free attribute points per level, no forced allocation.** The human advantage isn't raw power — it's being *less constrained* in what they can become.
+- **Specialized races** get some forced points + fewer free (e.g. Wood Elf: +1 Agi, +1 Dex, 2 free).
+- **Exotic races** may total more than four but mostly fixed (e.g. Stone Behemothkin: +1 Str, +2 Con, +2 End, 1 free). Tradeoff: humans = adaptability; specialized = greater total growth, narrower shape.

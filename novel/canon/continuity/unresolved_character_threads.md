@@ -45,8 +45,8 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| SB-01 | 🟡 | What power source tempts him in the Realm? | Must feel noble on the surface — helps people, saves lives — before it asks for unacceptable costs. |
-| SB-02 | 🟡 | Does he know the full cost when he accepts it? | Affects whether his arc is tragedy or corruption. |
+| SB-01 | ✅ RESOLVED | What power source tempts him? | The **Broker's** offer to restore his dead brother — genuinely possible, not a bluff. Path: Aetherfall **Warlord** → Realm **Reaver** + **Threshold Cascade**. See INV-6, `seb.md`. |
+| SB-02 | ✅ RESOLVED | Does he know the full cost? | **No.** The wording is honest; Seb hears *"whole and alive"* in it. He doesn't see the cost is **self-transformation** (he must *become the mechanism*) or that restoration ≠ continuity → **tragedy, not corruption.** INV-6. |
 | SB-03 | 🟡 | Is his brother still reachable from Earth, or does the motive transform in the Realm? | If the brother can't be reached, what does Seb's drive become? |
 | SB-04 | 🟢 | Does Seb become antagonist, antihero, or tragic rival? | Doesn't need to be decided early, but should be tracked as his choices accumulate. |
 | SB-05 | 🟢 | What would make him impossible to follow — the line that turns him? | The specific moment or decision that defines his fall. |
@@ -62,7 +62,8 @@
 | M-03 | ✅ RESOLVED (reframed) | Her trajectory is the court-arc **authorship of attention** (Psion / Mirror-Salience) — **not** a biotech/community role. | The old "frontline rogue → biotech/community" framing is retired (`mara.md`). |
 | M-04 | 🟢 | What does she refuse to sacrifice? | Her line. |
 | M-05 | 🟢 | What does she eventually sacrifice anyway? | Her arc's cost. |
-| MA-01 | 🟡 | Mara's second council — the body that notices her at court and routes her toward Eriadne. | Name + goal open (offshoot of a larger power; `cosmology.md`). Cited by `scene_queue.md`. |
+| MA-01 | ✅ RESOLVED | Mara's post-court arc / what routes her to Eriadne | **The Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth**; a **salience-suppression** threat there (the community has normalized ignoring one region of the creature) is the perfect Mirror-Salience foil — her climax is making them *perceive the danger at once* (stop ignoring a truth, not believe a falsehood); the behemoth's wound/migration routes her to Eriadne. See `mara.md`. |
+| MA-02 | 🟡 | Nature of the Walking Grove threat | Mundane parasite / Xyloryn-seed / thematically-rhyming-but-unrelated. **Do not imply an N'hal link.** Open — Mark's call. |
 
 ---
 
@@ -72,7 +73,7 @@
 |---|---|---|---|
 | MT-01 | ✅ RESOLVED | Does he survive Book 1? | **Survives; injured at the finale** proving the Xyloryn/ruins-portal warning (`mathias.md`, `master_timeline.md`). The earlier "thematic death" is retired. |
 | MT-02 | 🟡 | What exactly is the warning he is **injured proving** (not dies for)? | Must be specific and demonstrably true in hindsight — the Xyloryn/ruins-portal threat others ignore until the finale. |
-| MT-03 | 🟢 | Does he discover the first sign of Zalgoran interface consumption? | Could be his unique contribution before death. |
+| MT-03 | 🟢 | Does he discover the first sign of N'hal interface consumption? | Could be his unique contribution before death. |
 
 ---
 
@@ -112,8 +113,14 @@
 | # | Priority | Thread | Notes |
 |---|---|---|---|
 | W-01 | 🟡 | What ancient civilization built or sealed the Eriadne ley-line knot? | Affects what Soren finds in the ruins and what it means for the larger threat. |
-| W-02 | 🟡 | Are Zalgorans and Xyloryn confirmed as separate threat layers? | Current recommendation: Option B (Xyloryn as immune response gone wrong). Needs final decision. |
-| W-03 | 🟢 | What does interface annihilation look like visually when Zalgorans advance? | Needed before any Zalgoran scene is written. |
+| W-02 | 🟡 | Are N'hal and Xyloryn confirmed as separate threat layers? | Current recommendation: Option B (Xyloryn as immune response gone wrong). Needs final decision. |
+| W-03 | 🟢 | What does interface annihilation look like visually when N'hal advance? | Needed before any N'hal scene is written. The *mechanic* is now canon (`cosmology.md`: the legible interface layer — skills/levels/bars — degrades near them); only the on-page *visual* is open. |
+| W-05 | 🟡 | Who/what forces the finale portal open / summons the Myrmidon? | Agent, the Xyloryn themselves, or the eight-leyline convergence destabilizing. Open. `cosmology.md`, `eriadne.md`. |
+| W-04 | ✅ RESOLVED | Who brought the six? | **The Nightbound** (client) → Soulkeepers' Exchange (contractor) → the Broker (operator) → Astria. See `nightbound.md`, `cosmology.md`. |
+| NB-01 | 🟡 | The Nightbound founder's identity, nature, history; is the secrecy tactical or self-serving? | Open by design; the founder is the ideological center. `nightbound.md`. |
+| NB-02 | 🟡 | What does the inheritance the six may unlock actually do? | Weapon/refuge/path/anchor/evidence — **undefined; members disagree.** Sufficient to draft B1 as 'something that might matter.' Lock only when a scene needs it. `nightbound.md`. |
+| NB-03 | 🟢 | The seven Nightbound members (species/powers/roles), oath, symbol, HQ, recruitment; is 'seven' permanent? | Open. `nightbound.md`. |
+| NB-04 | 🟢 | Is a Realm Walker among the Nightbound (pathfinder)? Founder = former Realm Walker? | Preferred: a member-pathfinder, founder's history kept independent. `nightbound.md`, `cosmology.md`. |
 
 ---
 
@@ -138,7 +145,7 @@
 |---|---|---|
 | S-01 | Earth name | Marcus |
 | W-Xyloryn-name | Swarm name | **Xyloryn** — locked. Not Xylorane. |
-| W-Zalgoran-name | Cosmic threat name | **Zalgoran** — working placeholder, not locked |
+| W-N'hal-name | Cosmic threat name | **N'hal** — LOCKED |
 | LeBlanc-scene | Hidden voice conversation | Shown on page — not backstory |
 | Eriadne-shape | City physical design | Ruins on outskirts, not beneath; settlement grew from trade crossroads over ley convergence; not Arcane-aesthetic |
 | Realm-calendar | Calendar system | Canon — see `novel/canon/world/realm_calendar.md` |

@@ -20,7 +20,7 @@
 | An ancient civilization builds the Under-City / ley-line hub at what becomes Eriadne's outskirts | Thousands of years prior; identity unresolved (W-01). |
 | Ley network fails / civilization falls; the ruins go dormant but not dead | Unknown date. |
 | Eriadne accretes over the ruins at a trade crossroads | Settlers build without understanding the convergence. |
-| Zalgorans first contact the Realm | Deep history. |
+| N'hal first contact the Realm | Deep history. |
 | Xyloryn emerge | Origin (engineered immune response) **UNCONFIRMED** — do not write as canon. |
 | Astria founded; the **cross-world broker** shapes its research from early on | The broker exists beyond the Realm and uses it to further its faction. |
 | Iron Vultures coalesce from survivors | Recent — within a year or two of story-present. |
@@ -62,8 +62,8 @@
 ### Day 1 — Scattering & the Mindscape
 | Event | POV |
 |---|---|
-| Marcus wakes alone; AWAKEN notification; Chaotic Affinity noted | Marcus |
-| Encounters the paladin vs. blood mage Mallev; learns Insight; Mallev's self-sacrifice (crimson sphere) | Marcus |
+| Marcus wakes alone; AWAKEN notification; Unbound Affinity noted; **learns Insight** (his first read-skill) — *before* the mindscape descent | Marcus |
+| Encounters the paladin vs. blood mage Mallev; uses the new Insight on them; Mallev's self-sacrifice (crimson sphere) | Marcus |
 | Archdemon **Xazzidiuk** (6623 HP) erupts; archangels contain it; Marcus wounded (37 HP) then healed | Marcus |
 | The prison fails; the dual possession attempt; mindscape torture (HP → 9) | Marcus (internal) |
 | Marcus wins the **boulder bargain**; Xazzidiuk's vow grants the **Eyes of Meszkhal (item)**; **Zazriel is present and gives nothing** (no Angelic Fortitude) | Marcus (internal) |
@@ -113,7 +113,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 | **Brent** converges (civil engineer; Adventurer; Keystone Integrity) | ~Day 54 |
 | **Mara** converges (Psion; Mirror-Salience) — challenges treating people as systems | ~Day 58 |
 | The Under-City partially activates; ley-knot significance clarifies; Ayla's gap surfaces | Days ~60–64 |
-| Something the interface **cannot classify** (first Zalgoran denaturation hint) | Days ~74–78 |
+| The ruin/ley-convergence significance deepens; the dormant portal registers to Marcus's ocular read (Xyloryn only — N'hal stay off-page in B1) | Days ~74–78 |
 
 ---
 
@@ -123,7 +123,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 | Threat becomes more than rumor; Marcus's position turns politically vulnerable | Days ~80–90 |
 | **Serra returns — the reunion** (changed; he reads what it cost her; she won't confirm) | ~Day 95 |
 | Reunion becomes tension — her mission vs. his fragile position | Days ~95–98 |
-| ⚠ **Finale (choreography pending):** the **ruins-portal opens** (separate from the city, which stays largely unaware); the swarm is visible beyond; **one Myrmidon** steps through and nearly beats all six at once. **Mathias is badly injured proving his warning — he lives.** The crisis briefly reunites the six as a team. | Days ~98–104 |
+| ⚠ **Finale (choreography pending):** the **dormant portal at the eight-leyline convergence is forced open** (separate from the city, which stays largely unaware); the swarm is visible beyond; **one Myrmidon comes through it** and nearly beats all six at once. **A Realm Walker, drawn by the breach, witnesses it** (first contact with Marcus here/just after — recruitment seed). **Mathias is badly injured proving his warning — he lives.** The crisis briefly reunites the six as a team. | Days ~98–104 |
 | The old guild identity is explicitly dead | Days ~104–108 |
 | **The severance** (second parting): Marcus names the Earth Thing → Serra severs the thread to free him, breaking her one rule. Ending image: *they can find each other again, but belonging together is no longer guaranteed.* | ~Day 110 |
 
@@ -135,7 +135,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 |---|---|
 | **Serra** | Splits during the False Rescue → solo arc hunting one **independent namebound stranger** (recognition of kind); learns the registry runs higher; carries a registry-fragment toward a larger faction's seat; ends **unfinished**; returns for the reunion/severance. |
 | **Seb** | Lands desolate → enslaved/tortured/labor → kills his captor barehanded → *then* the broker speaks ("you can have more") → **shortest solo arc**, slaver camp straight to Eriadne. Reaver + Threshold Cascade; among the most powerful. |
-| **Mara** | Lands in a stratified **court nation-state**; taken in for her beauty by a decent patron; a predatory courtier targets her; she goes un-salient (the ball), then exposes him before the full court (room-scale Mirror-Salience). Stays at court; noticed by a **second council** (offshoot of a larger power); routed toward Eriadne. Does not meet Serra before Eriadne. |
+| **Mara** | Lands in a stratified **court nation-state**; taken in for her beauty by a decent patron; a predatory courtier targets her; she goes un-salient (the ball), then exposes him before the full court (room-scale Mirror-Salience). Leaves the court for the **Walking Grove** (a moving civilization on a sick ancient behemoth); a salience-suppression threat there is the perfect Mirror-Salience foil — she makes the community perceive the danger at once; the behemoth's wound/migration routes her toward Eriadne. Does not meet Serra before Eriadne. |
 | **Mathias** | Solo near the **ruins**; discovers the Xyloryn and the **portal**; fights a single Skirmisher-tier drone; loads his Scout class through research; becomes the group's warning. **Lives** (injured at the finale). Combat ranking: Seb > Mathias ≈ Mara > Soren. |
 | **Brent** | Converges earliest with Marcus's Eriadne arc; the builder/fortifier of the ruin-fringe. |
 
@@ -143,7 +143,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 
 ## Open Questions
 - Day-spacing (Day 3 → Eriadne) is proposed, not locked. *(timeline-local)*
-- All other open items (finale choreography, Mara's second council, CAL-02/03, W-01, Xyloryn origin) are tracked in `unresolved_character_threads.md`.
+- All other open items (finale choreography, CAL-02/03, W-01, Xyloryn origin) are tracked in `unresolved_character_threads.md`.
 ---
 
 *Last updated: consolidated rewrite for the consistency overhaul — Angelic Fortitude removed; Eyes item/interface split; Ashblade→Warrior; Serra arc locked; Mathias lives; finale = Xyloryn invasion (Myrmidon); redundant stacked "Act 3 update" sections merged into one clean sequence.* <!-- propagated: CCR-001 -->

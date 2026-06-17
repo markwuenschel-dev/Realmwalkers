@@ -87,7 +87,10 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 - Ocular **interface = Neurochromatic Eyes** (perception; six stages Limbal Shift→Prism Coherence)
 - **Item = Eyes of Meszkhal** (interpretation/certainty overlay; demon-biased; "certainty that lies with confidence")
 - Swarm = **Xyloryn** (never Xylorane/Xylorin)
-- Cosmic threat = **Zalgoran** (working placeholder, not locked)
+- Cosmic threat = **N'hal** (locked)
+- Marcus's progression trait = **Unbound Affinity** (renamed from *Chaotic Affinity*; inversion mechanic unchanged — do not use the old name)
+- Seb Aetherfall class = **Warlord** (locked)
+- **Insight** = baseline read-skill, learned *before* the mindscape
 - Per-character Realm classes & interfaces → `character_power_architecture.md` (cast table) owns these; not restated here, to keep one source of truth.
 - **Aetherfall: Genesis** = full/proper name (first reference, formal contexts); **Aetherfall** = shorthand in prose/conversation.
 
@@ -107,7 +110,7 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 **Ready to draft now (canon locked):** the **opening** — Act 1 (Earth / Astria / scrim / coerced consent / LeBlanc hidden-voice) and Act 2 (mindscape → death → resurrection → Ayla → naming = Soren). The Marcus–Serra Earth Thing is locked, so the early emotional charge can be written.
 → **Gate cleared (Batch 2):** the series bible is now consistent, so an agent can be pointed at the opening. (Batch 3 files are planning/tracking docs, not character/world references — they won't poison drafting, but should be finished before deep Act 3+ work.)
 
-**Not yet draft-ready (open):** Act 5 **finale choreography** (Xyloryn invasion × reunion × severance); Seb's disclosed cost vs. hidden dependency; Mara's second council name.
+**Not yet draft-ready (open):** Act 5 **finale choreography** (Xyloryn invasion × reunion × severance) and who forces the portal (W-05); Brent's first practical discovery (BR-02). *(Resolved: Seb = Warlord + disclosed-vs-hidden cost; Mara's post-court arc = the Walking Grove.)*
 
 ---
 

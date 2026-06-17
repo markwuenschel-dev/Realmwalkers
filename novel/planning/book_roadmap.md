@@ -32,17 +32,17 @@ Beats: survival/water → road → **finds Serra (both lost)** → caravan + tol
 
 ## Act 4 — Eriadne
 **Purpose:** Marcus reaches the thread city and becomes useful before powerful. *(Planned.)*
-Beats: first sight (melting pot; **ruins on the outskirts**; no governance) → claims the **ruin-fringe** (personal before political) → ruins respond to his ocular interface → useful to the ignored → **Brent** and **Mara** converge → Under-City stirs; ley-knot significance → first signs Xyloryn/Zalgoran care about Eriadne.
+Beats: first sight (melting pot; **ruins on the outskirts**; no governance) → claims the **ruin-fringe** (personal before political) → ruins respond to his ocular interface → useful to the ignored → **Brent** and **Mara** converge → Under-City stirs; ley-knot significance → first signs the **Xyloryn** care about Eriadne (the ley-convergence and its dormant portal). *(N'hal are not referenced on-page in Book 1.)*
 
 ## Act 5 — Convergence & Fracture
 **Purpose:** the guild reappears changed; reunion becomes tension, not comfort. *(Planned; finale choreography pending.)*
-Beats: satellite arcs mature (Serra's hunt ends **unfinished**; Seb's Reaver/Threshold-Cascade fall; Mara's court reframe; Mathias's warning; Brent's discovery) → Marcus's position turns politically vulnerable → **Serra returns → the reunion** (he reads what it cost her; she won't confirm) → reunion becomes tension → **the Xyloryn invasion attempt**: ruins-portal opens (city largely unaware), swarm visible beyond, **one Myrmidon** nearly beats all six; **Mathias injured proving his warning (he lives)** → old guild identity dies → **the severance** (he names the Earth Thing; she severs the thread to free him).
+Beats: satellite arcs mature (Serra's hunt ends **unfinished**; Seb's Reaver/Threshold-Cascade fall; Mara's court reframe; Mathias's warning; Brent's discovery) → Marcus's position turns politically vulnerable → **Serra returns → the reunion** (he reads what it cost her; she won't confirm) → reunion becomes tension → **the Xyloryn invasion attempt**: the dormant portal at the **eight-leyline convergence** is forced open (city largely unaware), swarm visible beyond, **one Myrmidon** comes through and nearly beats all six; **a Realm Walker, drawn by the breach, witnesses it** (Marcus's recruitment seed); **Mathias injured proving his warning (he lives)** → old guild identity dies → **the severance** (he names the Earth Thing; she severs the thread to free him).
 **Function:** reunion becomes tension. Ending: *the team can find each other again, but belonging together is no longer guaranteed.*
 
 ---
 
 ## Open Decisions
-All open items live in `unresolved_character_threads.md` (the registry). Current blockers: Seb's disclosed cost vs. hidden dependency (SB-02), Brent's first practical discovery (BR-02), Mara's second council (MA-01), and the Act-5 finale choreography. Resolved decisions are recorded there and in `canon_index.md`.
+All open items live in `unresolved_character_threads.md` (the registry). Current blockers: Brent's first practical discovery (BR-02) and the Act-5 finale choreography (incl. who forces the portal, W-05). *(Resolved this batch: Seb = Warlord + his disclosed-vs-hidden cost; Mara's post-court arc = the Walking Grove.)* Resolved decisions are recorded there and in `canon_index.md`.
 ---
 
 *Last updated: working draft — change history in `CHANGELOG.md`.*

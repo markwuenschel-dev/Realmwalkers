@@ -35,7 +35,7 @@
 | CH-005 | Serra | Self-made; driven to belong *to herself* | active | Solo arc strips every scoreboard; no SWAT, no justice-from-trauma. |
 | CH-006 | Serra | Power scales with commitment → dangerous to those near her | active | Cutting a namebind costs the person she's saving (SE-05). |
 | CH-007 | Serra | Keeps the real stuff guarded | active | Reunion: she's visibly changed; he reads it, she won't confirm. |
-| CH-008 | Seb | Brother dies during the Day 0 scrim — the rescue lever collapses in real time | seeded | Consent becomes grief, not rescue. Later accepts broker power (Reaver + Threshold Cascade) on the half-truth that the brother is recoverable; amplifies his gray fall. |
+| CH-008 | Seb | Brother dies during the Day 0 scrim — the rescue lever collapses in real time | seeded | Consent becomes grief, not rescue. Later accepts the Broker's power (Aetherfall **Warlord** → Realm **Reaver** + **Threshold Cascade**) on wording that is **honest but misread**: restoration is genuinely possible, but the hidden cost is that Seb must *become the mechanism* — and becoming capable may destroy the brother he'd want back (a body without guaranteed identity/memory/continuity). Tragedy, not corruption. INV-6. |
 | CH-009 | Mara | Creative/observer; authorship of attention | seeded | Court-exposure reframe (Psion + Mirror-Salience). **Not** the sole biologist. |
 | CH-010 | Mathias | Connection/systems sense | seeded | Reads the Xyloryn as one organism; warns the group. **Survives** (injured at finale). |
 | CH-011 | Brent | Practical competence | seeded | Civil engineer; Adventurer + Keystone Integrity; fortifies the fragile position. |
@@ -57,9 +57,9 @@
 | WF-001 | One substrate, many interfaces | active | Visible across cultures in Eriadne. |
 | WF-002 | Eriadne as thread city | active | Roads/factions/ley/ruins/paths converge. |
 | WF-003 | Ruins on Eriadne's outskirts | active | Marcus's ruin-fringe foothold; settlement hook. |
-| WF-004 | Ley-line knot under the ruins | active | Xyloryn/Zalgoran/factions want it for different reasons. |
+| WF-004 | Ley-line knot under the ruins | active | Xyloryn/N'hal/factions want it for different reasons. |
 | WF-005 | Xyloryn assimilate interface *expression* | active | First diagnostic attack reveals sampling; finale = invasion attempt. |
-| WF-006 | Zalgorans denature meaning | planned | First anchor-loss/impossible-failure sign; reality horror, not army. |
+| WF-006 | N'hal denature meaning | planned (**Book 2+**) | Reality horror, not an army. **Not referenced on-page in Book 1** — series-level seed only. |
 | WF-007 | Xyloryn = failed immune response | needs_decision | **Unconfirmed** — do not write as canon. |
 | WF-008 | Iron Vultures: opportunistic survivors | active | Guides/brokers; later friction over the ruin-fringe's desperate people. |
 | WF-009 | The **False Rescue** system (manufactured rescue → debt → namebinding) | active | Eriadne's power structures echo it at larger scale. |
@@ -73,7 +73,7 @@
 
 | ID | Setup | Status | Payoff |
 |---|---|---|---|
-| SYS-001 | Chaotic Affinity inverts progression | seeded | Marcus's growth is unpredictable, not pure advantage. |
+| SYS-001 | Unbound Affinity inverts progression | seeded | Marcus's growth is unpredictable, not pure advantage. |
 | SYS-002 | Insight gives limited info | seeded | He overvalues incomplete data. |
 | SYS-005 | Names/status can be hidden | active | Name mechanics become threat/defense (namebinding). |
 | SYS-006 | The Eyes (interface) cost reserve/mana/stability | active | Overuse → feedback-lock, social tell, physical damage. |

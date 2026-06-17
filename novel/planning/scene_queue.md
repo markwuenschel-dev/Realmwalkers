@@ -93,7 +93,7 @@ Seb faces the broker's offer framed around his recently-dead brother (genuine so
 3. **Crest** — ends **unfinished**; warm surface, harder underneath; bends back toward Marcus. The one thread she won't sever: him.
 
 ### Mara: The Court `[Mara]`
-Stratified court nation-state; taken in for her beauty by a decent patron; a predatory courtier targets her. She goes **un-salient** (the ball), driving him to escalate openly, then **exposes him before the full court** (room-scale Mirror-Salience). Stays at court; noticed by a second council; routed toward Eriadne. *(Psion class; MA-01 council goal open.)*
+Stratified court nation-state; taken in for her beauty by a decent patron; a predatory courtier targets her. She goes **un-salient** (the ball), driving him to escalate openly, then **exposes him before the full court** (room-scale Mirror-Salience). Leaves court for the **Walking Grove** (moving civilization on a sick behemoth); a salience-suppression threat is the perfect Mirror-Salience foil — climax = the community perceives the danger at once; the behemoth's wound/migration routes her to Eriadne. *(Psion. Open MA-02: nature of the Grove threat — mundane / Xyloryn-seed / rhyming-unrelated; no N'hal link.)*
 
 ### Mathias: The Ruins `[Mt]`
 Solo near the ruins; **Enteric Lattice** reads the swarm as one organism and the portal lighting up the lattice; fights a single drone; loads his Scout class through research; becomes the warning. **Lives** (injured at the finale).
@@ -103,13 +103,13 @@ Solo near the ruins; **Enteric Lattice** reads the swarm as one organism and the
 ## Act 5 — Finale ⚠ *(choreography pending — see `master_timeline.md` Act 5 / `book_roadmap.md` Act 5)*
 
 - **Reunion** `[M]`+`[S]` — changed; relief + the unaddressed Earth Thing, heavier now.
-- **The invasion** — ruins-portal opens (city largely unaware); swarm visible beyond; **one Myrmidon** steps through and nearly beats all six; Mathias injured. The crisis briefly reunites the six as a team.
+- **The invasion** — the dormant portal at the **eight-leyline convergence** is forced open (city largely unaware); swarm visible beyond; **one Myrmidon** comes through and nearly beats all six; Mathias injured. A **Realm Walker, drawn by the breach, witnesses it** (recruitment seed). The crisis briefly reunites the six as a team.
 - **The severance** `[M]`+`[S]` — Marcus names the Earth Thing → Serra severs the thread to free him (breaks her one rule). Ending image: *they can find each other again, but belonging together is no longer guaranteed.*
 
 ---
 
 ## Backlog
-Astria executive hidden-influence expansion · Brent practical Realm-material discovery (BR-02) · first Iron Vultures friction over the ruin-fringe · first Eriadne faction council/market · first Zalgoran meaning-denaturation sign · Marcus's first Eyes-of-Meszkhal *item* temptation (recommend Eriadne politics) · Marcus's eventual Realm-class earning moment.
+Astria executive hidden-influence expansion · Brent practical Realm-material discovery (BR-02) · first Iron Vultures friction over the ruin-fringe · first Eriadne faction council/market · *(Book 2)* first N'hal meaning-denaturation sign · Marcus's first Eyes-of-Meszkhal *item* temptation (recommend Eriadne politics) · Marcus's eventual Realm-class earning moment.
 
 ---
 
