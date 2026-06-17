@@ -1,0 +1,153 @@
+"""Bootstrap + enqueue a scene job, with the beat content inline (Phase 1 helper).
+
+One command: create book -> chapter -> beat -> run -> queued job. Pass the beat prose with
+--beat-text or --beat-file (so you don't author it in a second psql round-trip); re-running with new
+text upserts the existing beat. Add --draft to draft the scene immediately after enqueueing. In the
+full flow, beats come from the gate-1 plan call (DESIGN §4); this is the manual path for early scenes.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import uuid
+from pathlib import Path
+
+from sqlalchemy import select
+
+from dominion.shared.config import settings
+from dominion.shared.db import SessionFactory
+from dominion.shared.enums import BeatStatus, GateMode, JobKind, JobStatus
+from dominion.shared.models import Beat, Book, Chapter, Job, Run
+
+_PLACEHOLDER = "TODO: write this beat (gate 1)."
+
+
+async def enqueue_scene(
+    book_title: str,
+    chapter_no: int,
+    scene_no: int,
+    pov: str,
+    *,
+    beat_text: str | None = None,
+    characters: list[str] | None = None,
+    tags: list[str] | None = None,
+) -> uuid.UUID | None:
+    """Upsert the beat and queue a draft job. Returns the job id (or None if one was already queued)."""
+    async with SessionFactory() as s:
+        book = (await s.execute(select(Book).where(Book.title == book_title))).scalar_one_or_none()
+        if book is None:
+            book = Book(title=book_title)
+            s.add(book)
+            await s.flush()
+
+        chapter = (await s.execute(
+            select(Chapter).where(Chapter.book_id == book.id, Chapter.chapter_no == chapter_no)
+        )).scalar_one_or_none()
+        if chapter is None:
+            chapter = Chapter(book_id=book.id, chapter_no=chapter_no, pov=pov)
+            s.add(chapter)
+            await s.flush()
+
+        # Upsert the beat: create it, or update the fields you actually supplied.
+        beat = (await s.execute(
+            select(Beat).where(Beat.chapter_id == chapter.id, Beat.scene_no == scene_no)
+        )).scalar_one_or_none()
+        if beat is None:
+            beat = Beat(
+                chapter_id=chapter.id,
+                scene_no=scene_no,
+                tags=tags or [],
+                characters_present=characters,
+                status=BeatStatus.APPROVED,
+                beat_text=beat_text or _PLACEHOLDER,
+            )
+            s.add(beat)
+        else:
+            if beat_text is not None:
+                beat.beat_text = beat_text
+            if characters is not None:
+                beat.characters_present = characters
+            if tags is not None:
+                beat.tags = tags
+            beat.status = BeatStatus.APPROVED
+        await s.flush()
+
+        # Don't stack un-drafted jobs: if one is already queued for this scene, just keep the
+        # beat edit and reuse it (so "edit beat -> re-run enqueue" is idempotent).
+        existing = (await s.execute(
+            select(Job).join(Run, Job.run_id == Run.id).where(
+                Run.book_id == book.id,
+                Job.chapter_no == chapter_no,
+                Job.scene_no == scene_no,
+                Job.status == JobStatus.QUEUED,
+            )
+        )).scalars().first()
+        if existing is not None:
+            await s.commit()
+            note = "beat updated" if beat_text is not None else "beat unchanged"
+            print(f"{note}; reusing queued job {existing.id} for ch{chapter_no} sc{scene_no}")
+            return existing.id
+
+        run = Run(
+            book_id=book.id,
+            scope_json={"chapter": chapter_no, "scene": scene_no},
+            gate_mode=GateMode.PAUSE_EACH,
+            token_budget=settings.scene_token_budget,
+        )
+        s.add(run)
+        await s.flush()
+
+        job = Job(
+            run_id=run.id, kind=JobKind.DRAFT, chapter_no=chapter_no, scene_no=scene_no,
+            token_budget=settings.scene_token_budget, status=JobStatus.QUEUED,
+        )
+        s.add(job)
+        await s.commit()
+        has_text = beat_text is not None and beat_text != _PLACEHOLDER
+        beat_note = "real beat" if has_text else "PLACEHOLDER beat (pass --beat-text/--beat-file)"
+        print(f"queued job {job.id} for ch{chapter_no} sc{scene_no} "
+              f"(book='{book.title}', pov={pov}, {beat_note})")
+        return job.id
+
+
+def _split(value: str | None) -> list[str] | None:
+    if not value:
+        return None
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+async def _run(args: argparse.Namespace) -> None:
+    beat_text: str | None = None
+    if args.beat_file:
+        beat_text = Path(args.beat_file).read_text(encoding="utf-8").strip()
+    elif args.beat_text:
+        beat_text = args.beat_text
+
+    await enqueue_scene(
+        args.book, args.chapter, args.scene, args.pov,
+        beat_text=beat_text, characters=_split(args.characters), tags=_split(args.tags),
+    )
+
+    if args.draft:
+        from dominion.workers.worker import run_once  # local import: avoids LLM deps unless drafting
+        drafted = await run_once()
+        print("drafted; check the inbox" if drafted else "nothing drafted (no queued job)")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Enqueue a scene job with its beat, then optionally draft it.")
+    parser.add_argument("--book", required=True)
+    parser.add_argument("--chapter", type=int, required=True)
+    parser.add_argument("--scene", type=int, required=True)
+    parser.add_argument("--pov", default="Soren")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--beat-text", help="the beat prose, inline")
+    group.add_argument("--beat-file", help="path to a file containing the beat prose")
+    parser.add_argument("--characters", help="comma-separated, e.g. 'Soren,Mara'")
+    parser.add_argument("--tags", help="comma-separated enrichment tags (Phase 3), e.g. 'combat,dialogue'")
+    parser.add_argument("--draft", action="store_true", help="draft the scene immediately after enqueueing")
+    asyncio.run(_run(parser.parse_args()))
+
+
+if __name__ == "__main__":
+    main()
