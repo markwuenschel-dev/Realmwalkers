@@ -1,0 +1,101 @@
+"""Continuity: the standalone advisory reviewer (DESIGN §6).
+
+Two-step by design: an LLM EXTRACTS the explicit factual claims the prose makes, then DETERMINISTIC
+code compares them to the Oracle's ledger. The decision (is this a contradiction?) is code, never an
+LLM. It is advisory — it records flags and never blocks the inbox. Until the ledger has state to
+protect (Phase 2 commits it on approval), there is nothing to contradict, so it stays silent.
+"""
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING, Any
+
+from dominion.shared.config import settings
+from dominion.shared.enums import Severity
+from dominion.workers import llm
+from dominion.workers.reviewers.base import Flag
+
+if TYPE_CHECKING:
+    from dominion.workers.context import SceneContext
+
+_EXTRACT_MAX_TOKENS = 1500
+
+_SYSTEM = (
+    "You extract only EXPLICIT, asserted facts about characters from a scene of prose, for a "
+    "continuity check. Report only values the prose states outright. Do not infer, guess, or "
+    "normalize. If the scene does not state a value, omit it."
+)
+
+
+def _extract_prompt(prose: str, watched: dict[str, list[str]]) -> str:
+    lines = ["For each character and attribute below, if the SCENE explicitly states a value, report it."]
+    for character, attrs in watched.items():
+        lines.append(f"- {character}: {', '.join(attrs)}")
+    lines.append(
+        '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
+        '{"character": str, "attribute": str, "value": str, "context_sentence": str}. '
+        "Omit anything the scene does not explicitly state."
+    )
+    lines.append("\nSCENE:\n" + prose)
+    return "\n".join(lines)
+
+
+def _strip_fences(s: str) -> str:
+    s = s.strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else ""
+        if s.rstrip().endswith("```"):
+            s = s.rstrip()[:-3]
+    return s.strip()
+
+
+def _parse(raw: str) -> list[dict[str, Any]]:
+    try:
+        data = json.loads(_strip_fences(raw))
+    except (json.JSONDecodeError, ValueError):
+        return []
+    return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
+
+
+class ContinuityReviewer:
+    name = "continuity"
+
+    async def review(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
+        # Nothing canonical to contradict yet -> skip (and spend no tokens).
+        watched = {char: sorted(stats.keys()) for char, stats in ctx.ledger.items() if stats}
+        if not watched:
+            return []
+
+        raw, _usage = await llm.complete(
+            model=settings.review_model,
+            system=_SYSTEM,
+            user=_extract_prompt(scene_prose, watched),
+            max_tokens=_EXTRACT_MAX_TOKENS,
+            budget=ctx.budget,
+        )
+
+        flags: list[Flag] = []
+        for claim in _parse(raw):
+            character = str(claim.get("character", ""))
+            attribute = str(claim.get("attribute", ""))
+            prose_value = str(claim.get("value", ""))
+            canon = ctx.ledger.get(character, {})
+            if attribute in canon and str(canon[attribute]) != prose_value:
+                flags.append(Flag(
+                    reviewer=self.name,
+                    severity=Severity.HARD,
+                    note=f"{character} {attribute}: scene says {prose_value!r}, "
+                         f"ledger says {str(canon[attribute])!r}",
+                    payload={
+                        "character": character,
+                        "attribute": attribute,
+                        "prose_value": prose_value,
+                        "ledger_value": str(canon[attribute]),
+                        "context_sentence": str(claim.get("context_sentence", "")),
+                    },
+                ))
+        # TODO(Phase 2): POV-knowledge check — flag references absent from ctx.pov_summary.
+        return flags
+
+
+continuity_reviewer = ContinuityReviewer()

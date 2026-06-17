@@ -1,0 +1,243 @@
+"""Phase 2 integration tests against real Postgres: ledger, RAG, summaries, auto-advance,
+revise pipeline, continuity resolution. LLM calls (drafter/summaries) are mocked."""
+from __future__ import annotations
+
+from sqlalchemy import select
+
+from dominion.api.routers import reviews
+from dominion.shared.enums import (
+    BeatStatus,
+    Decision,
+    GateMode,
+    JobKind,
+    JobStatus,
+    RunStatus,
+    SceneStatus,
+)
+from dominion.shared.models import (
+    Beat,
+    Book,
+    Chapter,
+    CharacterState,
+    Critique,
+    Job,
+    Run,
+    Scene,
+    Summary,
+)
+from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
+from dominion.workers import llm, worker
+from dominion.workers.budget import Usage
+from dominion.workers.memory import canon_rag, ledger, summaries
+from dominion.workers.specialists import drafter as drafter_mod
+
+
+async def _book(s, title="Dominion Realm"):
+    book = Book(title=title)
+    s.add(book)
+    await s.flush()
+    return book
+
+
+async def _chapter(s, book, no=1, pov="Soren"):
+    ch = Chapter(book_id=book.id, chapter_no=no, pov=pov)
+    s.add(ch)
+    await s.flush()
+    return ch
+
+
+async def _run(s, book, gate=GateMode.PAUSE_EACH):
+    run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode=gate,
+              token_budget=40_000, status=RunStatus.ACTIVE)
+    s.add(run)
+    await s.flush()
+    return run
+
+
+async def _beat(s, ch, scene_no=1, *, esc=None, chars=("Soren",), text="Soren wakes."):
+    b = Beat(chapter_id=ch.id, scene_no=scene_no, tags=[], characters_present=list(chars),
+             expected_state_changes=esc, status=BeatStatus.APPROVED, beat_text=text)
+    s.add(b)
+    await s.flush()
+    return b
+
+
+async def _scene(s, ch, scene_no=1, *, status=SceneStatus.PENDING_REVIEW, prose="Prose.", version=1):
+    sc = Scene(chapter_id=ch.id, scene_no=scene_no, version=version, status=status,
+               prose=prose, prose_source="agent", passes_run=["drafter"])
+    s.add(sc)
+    await s.flush()
+    return sc
+
+
+async def test_ledger_commits_and_accumulates(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        await _beat(s, ch, 1, esc={"Soren": {"level": "+1", "hp": 100, "items": ["sword"]}})
+        sc = await _scene(s, ch, 1)
+        await ledger.commit_declared_deltas(s, scene_id=sc.id)
+        await s.commit()
+        row = (await s.execute(select(CharacterState))).scalar_one()
+        assert row.stats_json == {"level": 1, "hp": 100, "items": ["sword"]}
+
+    async with db_factory() as s:
+        ch = (await s.execute(select(Chapter))).scalars().first()
+        await _beat(s, ch, 2, esc={"Soren": {"level": "+2"}})
+        sc2 = await _scene(s, ch, 2)
+        await ledger.commit_declared_deltas(s, scene_id=sc2.id)
+        await s.commit()
+        row = (await s.execute(select(CharacterState))).scalar_one()
+        assert row.stats_json["level"] == 3  # relative delta applied on top
+
+
+async def test_canon_rag_retrieves_relevant(db_factory, tmp_path):
+    (tmp_path / "eyes.md").write_text(
+        "The Eyes of Meszkhal let their bearer perceive spectral seams threaded through reality."
+    )
+    (tmp_path / "home.md").write_text(
+        "Soren grew up gutting cod in the cold fishing village of Dunmoor."
+    )
+    async with db_factory() as s:
+        book = await _book(s)
+        n = await canon_rag.ingest_path(s, book_id=book.id, root=tmp_path)
+        await s.commit()
+        assert n >= 2
+        hits = await canon_rag.retrieve(s, book_id=book.id, query="spectral seams Meszkhal eyes", k=2)
+        assert hits and "Meszkhal" in hits[0]
+        hits2 = await canon_rag.retrieve(s, book_id=book.id, query="fishing village cod Dunmoor", k=2)
+        assert hits2 and "Dunmoor" in hits2[0]
+
+
+async def test_summaries_refresh_and_read(db_factory, monkeypatch):
+    calls: list[str] = []
+
+    async def fake_complete(**kwargs):
+        calls.append(kwargs["user"])
+        return "ROLLING SUMMARY: Soren woke in the Realm.", Usage(50, 50)
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        sc = await _scene(s, ch, 1, status=SceneStatus.APPROVED,
+                          prose="Soren opened his eyes to a humming sky.")
+        await summaries.refresh_on_approval(s, scene_id=sc.id)
+        await s.commit()
+        assert await summaries.pov_summary(s, book_id=book.id, pov="Soren") == \
+            "ROLLING SUMMARY: Soren woke in the Realm."
+        rows = (await s.execute(select(Summary))).scalars().all()
+        assert sorted(r.scope for r in rows) == ["omniscient", "pov"]
+    assert len(calls) == 2  # one pov-scoped, one omniscient
+
+
+async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monkeypatch):
+    async def fake_complete(**kwargs):
+        return "summary", Usage(10, 10)
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        await _run(s, book, GateMode.PAUSE_EACH)
+        await _beat(s, ch, 1, esc={"Soren": {"level": "+1"}})
+        await _beat(s, ch, 2)  # the next scene's beat exists -> auto-advance fires
+        sc1 = await _scene(s, ch, 1, prose="Soren wakes.")
+        result = await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s)
+        await s.commit()
+        assert result["status"] == "approved"
+        assert result["next_job"] is not None
+        assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 1
+        job = (await s.execute(
+            select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)
+        )).scalar_one()
+        assert job.kind == JobKind.DRAFT
+
+    async with db_factory() as s:  # auto-advance is idempotent
+        sc1 = (await s.execute(select(Scene).where(Scene.scene_no == 1))).scalars().first()
+        await reviews._auto_advance(s, sc1)
+        await reviews._auto_advance(s, sc1)
+        await s.commit()
+        jobs = (await s.execute(
+            select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)
+        )).scalars().all()
+        assert len(jobs) == 1
+
+
+async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
+    async def fake_draft(self, prose, ctx):
+        assert ctx.revise_feedback == "Cut the throat-clearing; open mid-action."
+        assert "slowly woke" in (ctx.prior_prose or "")
+        return "Revised: Soren was already on his feet when the sky screamed."
+
+    monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        await _run(s, book)
+        await _beat(s, ch, 1)
+        sc1 = await _scene(s, ch, 1, prose="Soren slowly woke up. It was a sky.")
+        out = await reviews.decide(
+            sc1.id,
+            DecisionIn(decision=Decision.REVISE, feedback="Cut the throat-clearing; open mid-action."),
+            s,
+        )
+        await s.commit()
+        assert out["status"] == "revision_requested" and out["next_job"] is not None
+        job = (await s.execute(select(Job).where(Job.kind == JobKind.REVISE_FULL))).scalar_one()
+        assert job.target_scene_id == sc1.id
+
+    assert await worker.run_once(session_factory=db_factory) is True
+
+    async with db_factory() as s:
+        scenes = (await s.execute(
+            select(Scene).where(Scene.scene_no == 1).order_by(Scene.version)
+        )).scalars().all()
+        assert len(scenes) == 2
+        assert scenes[0].version == 1 and scenes[0].status == SceneStatus.SUPERSEDED
+        assert scenes[1].version == 2 and scenes[1].status == SceneStatus.PENDING_REVIEW
+        assert scenes[1].parent_scene_id == scenes[0].id
+        assert "Revised" in (scenes[1].prose or "")
+
+
+async def test_continuity_resolve_use_prose_corrects_ledger(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        sc = await _scene(s, ch, 1)
+        crit = Critique(
+            scene_id=sc.id, version=1, reviewer="continuity", severity="hard",
+            payload={"character": "Soren", "attribute": "level", "prose_value": "7", "ledger_value": "5"},
+        )
+        s.add(crit)
+        await s.flush()
+        out = await reviews.resolve_continuity(
+            sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_prose"), s
+        )
+        await s.commit()
+        assert out["resolved"] == "ledger_updated"
+        assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 7
+        assert (await s.execute(select(Critique))).scalar_one_or_none() is None  # flag cleared
+
+
+async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        await _run(s, book)
+        sc = await _scene(s, ch, 1)
+        crit = Critique(
+            scene_id=sc.id, version=1, reviewer="continuity", severity="hard",
+            payload={"character": "Soren", "attribute": "level", "prose_value": "9", "ledger_value": "5"},
+        )
+        s.add(crit)
+        await s.flush()
+        out = await reviews.resolve_continuity(
+            sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_ledger"), s
+        )
+        await s.commit()
+        assert out["resolved"] == "revision_enqueued" and out["job"] is not None
+        assert (await s.get(Scene, sc.id)).status == SceneStatus.REVISION_REQUESTED
+        job = (await s.execute(select(Job).where(Job.kind == JobKind.REVISE_FULL))).scalar_one()
+        assert job.target_scene_id == sc.id
+        assert (await s.execute(select(Critique))).scalar_one_or_none() is None  # flag cleared
