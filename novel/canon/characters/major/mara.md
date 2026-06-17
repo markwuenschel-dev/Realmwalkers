@@ -324,6 +324,14 @@ Reserved, observant, competent, quietly carrying the accumulated fatigue of bein
 
 Mara's solo path takes her into a status-by-display city-state (**Halcyon** — placeholder name, not final). A socially affluent, well-regarded man in a position of power pursues her romantically/sexually; she says no, and the *no* is the ignition. Unused to refusal (or relishing the challenge), he weaponizes the one thing that city runs on: **regard.** He moves to rewrite how she is *seen* — isolate her socially, make her the whispered-about one. It is his fatal miscalculation: controlling how a room sees someone is precisely Mara's power. She goes un-salient, lets him expose himself, and turns the court's attention back onto him in front of everyone — he loses the only thing he has, how he is perceived. **Her interface unlocks for real when she actually sways the court.** *(Predator's exact rank and how dark it escalates: OPEN.)*
 
+### The Walking Grove (second arc)
+
+After the court, Mara does not simply move to another city — she crosses the **Walking Grove**: a moving civilization living on and around an ancient **behemoth** so vast that parts of its body are terrain (forests along its back, villages between armored ridges, springs in hollows of its hide, shrines built into horn and plate). A mixed society — humans, elves, beast-speakers, healers, druids, stoneworkers, refugees — in negotiated dependence with a creature they do not control.
+
+The behemoth is sickening, and no one agrees why. The hidden threat survives by a kind of **salience suppression** — a region of the creature everyone has normalized ignoring (animals avoid one grove, children refuse a tunnel, fungi grow wrong, a stream runs warm, conversations about the area keep being forgotten). That makes it the **perfect foil for Mirror-Salience**: she doesn't detect it with a special scan — she notices the *pattern of collective neglect.* Her climax is making the whole community perceive the danger at once — *not making them believe something false; making them stop ignoring what is already true* — likely her first large-scale reframe. The behemoth's wound / migration / ley-connection then points her toward **Eriadne**.
+
+*(Open — MA-02: nature of the hidden threat — mundane parasite, a Xyloryn seed, or thematically-rhyming-but-unrelated. Do **not** imply an N'hal link. Mark's call.)*
+
 ### End Direction
 
 Book 1 leaves Mara somewhere in the middle of understanding what she is. She has used the transduction enough to know it is real and to have felt the projection load start to build. She has not yet lost herself in it — but she has had moments where she was not sure what she actually thought versus what she had been performing for someone else's salience map. The question of identity — what she is when she is not shifting how she is perceived — is becoming urgent.

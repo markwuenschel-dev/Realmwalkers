@@ -36,7 +36,7 @@ status: working
 ## ACT 2 — THE MINDSCAPE & RESURRECTION (Realm Days 1–3) · *Marcus*
 
 **Ch 4 — Awaken** · Day 1
-- Marcus wakes alone; AWAKEN notification; **Chaotic Affinity** noted (inverts the affinity dice — see `mechanics.md`). Encounters the paladin vs. blood-mage **Mallev**; learns **Insight**; Mallev's self-sacrifice (crimson sphere).
+- Marcus wakes alone; AWAKEN notification; **Unbound Affinity** noted (inverts the affinity dice — see `mechanics.md`); **learns Insight** here, *before* the mindscape descent, so he carries a read-skill into it. Then the paladin vs. blood-mage **Mallev** (he reads them with Insight); Mallev's self-sacrifice (crimson sphere).
 
 **Ch 5 — The Bargain** · Day 1 (internal)
 - Archdemon **Xazzidiuk** erupts; archangels contain it; Marcus wounded then healed. The prison fails; the dual-possession attempt; mindscape torture.
@@ -89,18 +89,18 @@ status: working
 
 ## ACT 4 — ERIADNE (Days ~45–78) · *Marcus, then the convergence*
 
-**Ch 18 — The Thread City** · ~Day 45 · Marcus reaches Eriadne; claims the **ruin-fringe**; the ruins *respond* to his ocular interface (the first hint he reads translation-layers others can't — the Realm-Walker tell).
+**Ch 18 — The Thread City** · ~Day 45 · Marcus reaches Eriadne; claims the **ruin-fringe**; the ruins *respond* to his ocular interface — the first hint he reads translation-layers others can't (the Realm-Walker tell). They sit on the **convergence of the eight elemental ley lines**, a **dormant natural portal** at the knot (he resolves this in Ch 23).
 
 **Ch 19 — Useful to the Ignored** · Days ~47–53 · He becomes useful to the people the city overlooks; first faction friction (the Iron Vultures see competition).
 
 **Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Adventurer**; **Keystone Integrity**) — the builder/fortifier of the ruin-fringe; the "he actually saw me" recognition with Marcus.
 
 **Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Mirror-Salience), arriving from her court arc — challenges Marcus for treating people as systems.
-- **⟢ INTERLUDE (Mara, just prior):** the predatory courtier weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Mirror-Salience); a **second council** notices her and routes her toward Eriadne. *(She does not meet Serra before Eriadne.)*
+- **⟢ INTERLUDE (Mara, just prior):** the predatory courtier weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Mirror-Salience); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Mirror-Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
 
 **Ch 22 — The Under-City** · Days ~60–64 · The Under-City partially activates; the ley-knot significance clarifies; **Ayla's gap surfaces** (the limit of her damaged knowledge).
 
-**Ch 23 — The Unclassifiable** · Days ~74–78 · The interface meets something it **cannot classify** — the first **Zalgoran denaturation** hint (names/places refusing to resolve). Kept quiet and wrong.
+**Ch 23 — The Convergence** · Days ~74–78 · Marcus's ocular read of the ruins resolves the shape: the ruins sit on the **convergence of the eight elemental ley lines**, and a **dormant natural portal** sits at the knot. He doesn't grasp the full stakes, but the structure is now legible to him in a way it is to no one else in the city. *(No N'hal on-page — the unsettling-classification beat is retired.)*
 
 ---
 
@@ -112,7 +112,8 @@ status: working
 - **⟢ INTERLUDE (Mathias):** confirms the **Xyloryn and the portal** near the ruins; becomes the group's warning no one wants to hear.
 
 **Ch 26–28 — The Myrmidon** · Days ~98–104 · ⚠ *finale choreography pending* · *Ensemble*
-- The **ruins-portal opens** (separate from the city, which stays largely unaware); the swarm visible beyond. **One Myrmidon** steps through and nearly beats all six at once.
+- The **dormant portal at the eight-leyline convergence is forced open** (separate from the city, which stays largely unaware); the swarm visible beyond. **One Myrmidon comes through it** and nearly beats all six at once.
+- **Drawn by the breach**, a **Realm Walker** arrives and *witnesses* the fight — first contact with Marcus here or just after (the recruitment seed → `cosmology.md`, Riftwalker).
 - **Shared interface ignition:** Serra's pressure builds; Seb already cycling (Reaver/Threshold Cascade); **Brent's Keystone Integrity exposes the Myrmidon's structural keystone** (the swarm adapts to *interfaces* but he reads it as a *structure*); **Marcus's eyes turn on.**
 - **The kill:** Marcus holds an opening at lethal risk; **Serra lands it but misses the depth and brushes off his danger** — he barely survives. His eyes read her **conflict**; the **Meszkhal item lies** ("doubling down"); he reads her right and doesn't blame her.
 - **Mathias is badly injured proving his warning — he lives.** The crisis briefly reunites the six as a team.
@@ -136,6 +137,6 @@ status: working
 ## Open Questions
 - Chapter **count & boundaries** are proposed — reconcile with the live chapter file. *(file-local)*
 - The **Act 5 finale staging** in Ch 26–28 is the most-developed *proposal* and remains **pending / not locked** (see the ⚠ at that chapter).
-- All other open items (day-spacing, Mara's second council, CAL-02/03, W-01, who loosed the Xyloryn) are tracked in `unresolved_character_threads.md`.
+- All other open items (day-spacing, CAL-02/03, W-01, who loosed the Xyloryn) are tracked in `unresolved_character_threads.md`.
 
 *Last updated: working draft — Sarah→Serra rename and INV-1 duel reframe applied; change history in `CHANGELOG.md`.*

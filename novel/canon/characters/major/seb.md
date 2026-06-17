@@ -132,13 +132,13 @@ Seb sees Marcus as someone who could be more if he stopped second-guessing himse
 The collision point: Seb's path eventually puts him in direct conflict with what Marcus is building. Unresolved — when and how is an open question.
 
 ### His Brother
-The dead center of his arc. **The brother dies during the Day 0 scrim — before Seb ever consents.** The medical-cost lever Astria built the offer around collapses in real time: the person he came to save is gone before he signs, and he signs anyway, from grief and freefall. Later the **cross-world broker** — an agent of the **Soulkeepers' Exchange** (the mercantile continuity-power; see `cosmology.md`) reveals he has *grabbed the brother's soul* and dangles a **soul-recall** through half-truths. The truth Seb does not know: the broker **cannot currently return the soul to life — he is bluffing.** Seb pays and pays toward a thing that was never deliverable; the leash is the hope.
+The dead center of his arc. **The brother dies during the Day 0 scrim — before Seb ever consents.** The medical-cost lever Astria built the offer around collapses in real time: the person he came to save is gone before he signs, and he signs anyway, from grief and freefall. Later the **cross-world Broker** — an agent of the **Soulkeepers' Exchange** (the mercantile continuity-power; its client is the **Nightbound**, `nightbound.md`; see `cosmology.md`) reveals he has *grabbed the brother's soul* and offers a path back. **The Broker does not lie:** restoration is genuinely possible — *"your brother can be restored," "death is not the wall your world believed."* The deception is in what Seb assumes away. The real price is **what he must *become*** — to reach his brother he has to turn himself into the *mechanism* (survive states that should kill him, draw vitality/soul-force from others, deepen his bond to death and thresholds, grow less anchored to ordinary life). And **"restored" does not guarantee continuity** — resurrection can return a body without identity, memory, sanity, or the person his brother was. The tragedy: *becoming capable of the rescue may destroy the kind of person his brother would have wanted back.* The leash is not a bluff — it is a true thing with a cost Seb refuses to look at. (INV-6, `relationship_invariants.md`.)
 
 ---
 
-## Aetherfall Class
+## Aetherfall Class — Warlord
 
-TBD — likely a support/command class that enables teammates at the cost of personal output. The class that looks selfless and is.
+**Warlord** (command/leadership). On Earth, the leader who coordinates and elevates others — the visible, collective "we" captain. The Realm bends it cruelly: the same man becomes someone whose power is built around surviving pain, crossing thresholds, and *taking* power from enemies (Reaver + Threshold Cascade). The contrast is the point — the commander who raised others becomes the one who consumes them and himself.
 
 ---
 
@@ -170,8 +170,8 @@ Book 1 ends with Seb having accepted or approached a power source that looks nob
 
 ## Open Questions
 
-- What specifically is the power source that tempts him?
-- Does he know the full cost when he accepts it?
+- ~~What specifically is the power source that tempts him?~~ **RESOLVED:** the Broker's *genuine* offer to restore his dead brother — path: Aetherfall **Warlord** → Realm **Reaver** + **Threshold Cascade**. (SB-01, INV-6.)
+- ~~Does he know the full cost when he accepts it?~~ **RESOLVED:** No — the wording is honest; he hears "whole and alive." He doesn't see the cost is self-transformation, or that restoration ≠ continuity → **tragedy, not corruption.** (SB-02, INV-6.)
 - Is his brother still reachable, or has that motive already transformed?
 - Does he become antagonist, antihero, or tragic rival — or does that remain ambiguous through Book 1?
 - What is the specific moment that makes him impossible to follow?

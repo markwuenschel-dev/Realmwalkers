@@ -42,7 +42,7 @@ Examples:
 - Serra: Assassin, disruptor specialization — tandem with Mara
 - Mara: Rogue, setup/precision specialization — tandem with Serra
 - Brent: Healer/Support — practical, not sentimental
-- Seb: TBD — command/leadership class likely
+- Seb: Warlord (command/leadership)
 
 ---
 
@@ -134,7 +134,7 @@ The eyes are his interface; the Riftwalker class is his planar-crossing path. Th
 | Marcus (Soren) | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Riftwalker** (Legendary) | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
 | Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** | Pressure-Severance |
 | Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Mirror-Salience Transduction |
-| Seb Rainier | Guild leader | TBD — command class likely | **Warrior → Reaver** | Threshold Cascade |
+| Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Threshold Cascade |
 | Brent Donovan | Civil engineer | Healer/Support | **Adventurer** (Troubleshooter) | Keystone Integrity |
 | Mathias Sterling | TBD (IT/infrastructure lean) | Ranger (Scout) | **Scout** | Enteric Lattice |
 | Ayla | N/A — celestial | N/A | N/A | Ancient celestial interface |

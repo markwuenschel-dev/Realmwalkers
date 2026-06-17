@@ -126,7 +126,23 @@ Marcus has **two** distinct things; canon keeps them strictly apart:
 
 **Emergence:** the **item comes first**; using it more *brings out* the Neurochromatic interface; the interface eventually **hijacks the item's mechanisms and rewrites his ocular biology** — borrowed false sight becoming earned true sight. The eyes first truly ignite at the Act-5 finale.
 
-**The item-distrust turn (Book 1 → 2):** in the finale the item **lies about Serra** (reads her conflicted body as "doubling down" when his true perception reads conflict). He trusts his own eyes; the lie leaves a bad taste; he turns toward the interface, away from the item. (See `relationship_map.md`.)
+**The item-distrust turn (Book 1 → 2):** in the finale the item **lies about Serra** (reads her conflicted body as "doubling down" when his true perception reads conflict). He trusts his own eyes; the lie leaves a bad taste; he turns toward the interface, away from the item. (INV-1, `relationship_invariants.md`.)
+
+### Eyes of Meszkhal — cost, damage, and tells *(item)*
+
+**Mana:** **20 to activate**, then **1% of maximum mana per second** sustained (at 50 mana ≈ 0.5/sec; ~60s drains him). Prolonged reads are possible but expensive, and it bills in mana — it *competes with his casting.*
+
+**It channels through the physical eye; mana running out does NOT stop bodily damage:** *Brief* — warmth, pressure, light sensitivity, minor headache. *Moderate* — burning, bloodshot eyes, blurred/color-distorted vision, eyelid twitch, migraine. *Heavy* — ruptured vessels, blood-tears, tunnel vision, lost depth perception, severe nausea, partial blindness. *Extreme/repeated* — tissue damage, temporary blindness, long-term distortion, permanent damage if abused.
+
+**Visible tells (he can't secretly inspect anyone):** unnatural iris illumination, darkened/colored scleral veins, altered pupil shape, bloodshot eyes, a shimmer or pressure around the gaze, predatory fixation, blood at the tear ducts. There is always a social cost to using it.
+
+### Unbound Affinity *(progression trait)*
+
+His growth is **not confined to standard progression routes** — the affinity inversion (renamed from *Chaotic Affinity*; mechanic unchanged, `mechanics.md`) makes his development run unpredictably: where a normal build follows roads, his actions open *paths where roads don't exist.* Powerful and hard to steer — skills can branch sideways or merge unexpectedly; the same method may not repeat the same result. It rewards exactly his improvisational, systems-reading style.
+
+### Insight *(first read-skill)*
+
+`Insight. Cost: 5 Mana. Focus on a being to discern available information.` Surfaces only what the interface can currently resolve (`????` for the rest). **He learns it before the mindscape**, so he carries a read into the Mallev/Xazzidiuk descent. Insight is the cheap, honest baseline; the Meszkhal item is the expensive, biased overlay — the contrast seeds his whole perception-vs-interpretation arc.
 
 *(The terms below describe the Neurochromatic interface.)*
 
@@ -217,7 +233,7 @@ There was a moment on Earth that neither of them addressed. It didn't damage wha
 
 He will read her accurately when they reunite — she's changed, and he'll know it, and she won't say how. He ruminates on what he reads. She's already decided. He wants warmth without conditions. She gives warmth freely but not the inside. They are good for each other and hard for each other.
 
-**The finale severance (late Book 1):** during the Myrmidon fight Marcus holds an opening at lethal risk; Serra lands the kill but brushes off his danger and he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he chooses correctly and doesn't hold it against her. Being seen in that moment — plus the faction she hunts and the still-unresolved party thing — sends her off. (`relationship_map.md` is tiebreak.)
+**The finale severance (late Book 1):** during the Myrmidon fight Marcus holds an opening at lethal risk; Serra lands the kill but brushes off his danger and he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he chooses correctly and doesn't hold it against her. Being seen in that moment — plus the faction she hunts and the still-unresolved party thing — sends her off. (Governed by INV-1, `relationship_invariants.md`; precedence `canon_index.md`.)
 
 *Current status:* Separated. The Earth thing still unaddressed.
 

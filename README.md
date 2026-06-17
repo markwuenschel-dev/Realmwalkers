@@ -1,48 +1,85 @@
-# Dominion Realm
+# Dominion Realm — novel-writing system
 
-> **Interface fantasy disguised as LitRPG.**
+A human-gated, scene-by-scene writing system for *The Dominion Realm*. It is a **workflow, not an
+agent**: a worker drafts exactly one scene, writes it to Postgres as `pending_review`, and exits.
+Nothing runs between approvals — so there is nothing to boot and nothing to re-verify. You approve
+(or edit, or reject) each scene from a small React inbox. Full rationale: [`docs/DESIGN.md`](docs/DESIGN.md).
 
-![Status](https://img.shields.io/badge/Book%201-active%20development-blue)
-![License](https://img.shields.io/badge/license-CC%20BY--NC--ND%204.0-lightgrey)
-
-Six elite gamers receive experimental neuroquantum implants and wake in a world that isn't a game. The **Dominion Realm** is real — metaphysical, dangerous, and indifferent to the interface in their heads. The guild fractures, each of the six is changed by a separate path, and Marcus has to survive long enough to learn whether the people he lost are still people he belongs with.
-
-📖 **Read the story bible →** [markwuenschel-dev.github.io/dominion-realm](https://markwuenschel-dev.github.io/dominion-realm/)
-
----
-
-## The World
-
-One substrate — **Aether, the Prime Force** — accessed through radically different personal interfaces. The implant doesn't grant power; it *translates* metaphysical law into game logic, because the wearer's mind is a gamer's mind and reaches for that framework.
-
-The Realm predates the interface by centuries. The stats, skills, names, and warnings are an interpretation layer, not the truth of the place — and they can be wrong, incomplete, or fail entirely. Every visible threat is the limb of something larger and not yet seeable.
-
-## Book 1
-
-Six people scattered across a world they were never meant to enter, changed by trajectories that pull in different directions, forced to reckon with a question the game never asked them: not whether they can survive, but whether they still belong together.
-
----
-
-## About This Repository
-
-The working canon and manuscript for *Dominion Realm*, Book 1 — series bible, character dossiers, world lore, system rules, and draft.
+## Architecture
 
 ```
-novel/
-├── canon/        series truth — characters, world, cosmology, litRPG system
-├── planning/     roadmap, chapter map, scene queue, calendar
-├── style/        prose, voice, and consistency rules
-└── manuscript/   scene drafts
+React (Vite) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Python worker (drafts scenes)
+  review inbox          thin boundary   source of truth        the ~minutes of real work
 ```
 
-Canon follows a single-owner rule: every fact has one authoritative file, and everything else references it. `novel/canon/canon_index.md` is the front door.
+- **Coordination is deterministic code** (`workers/router.py`): a lookup table + a loop decide which
+  passes run. No LLM sits in the control path — that seat is what spiraled in the previous build.
+- **Reviewers advise; they never block.** The human inbox is the only gate.
+- **Versioning is rows, not Git branches.** A revision inserts a new `scenes` row and supersedes its
+  parent. Runtime exhaust (logs, job state) never enters the repo.
 
----
+## Layout
 
-## Status
+```
+src/dominion/
+  shared/     config, enums, async DB session, ORM schema (models.py), Pydantic DTOs (schemas.py)
+  api/        FastAPI app + routers (health, scenes, reviews, runs)
+  workers/    worker.py (claim→draft→exit), pipeline.py, router.py, context.py, oracle.py,
+              budget.py, llm.py, enqueue.py
+              specialists/  drafter + combat/sensory/dialogue enrichment passes
+              reviewers/    continuity (always) + pacing/voice
+              memory/       canon_rag, summaries, ledger
+frontend/     Vite + React + TS review app (Inbox → Scene → continuity panel)
+scripts/      init_db.py
+tests/        deterministic router tests + import smoke
+docs/         DESIGN.md
+```
 
-**Book 1 — active development.**
+## Quickstart (bash)
 
-## License
+```bash
+cp .env.example .env                 # fill in ANTHROPIC_API_KEY
+docker compose up -d                 # Postgres + pgvector on :5432
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+python scripts/init_db.py            # create extension + tables
 
-© Mark Wuenschel. Licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — share with attribution for non-commercial purposes; no adaptations or derivative works.
+uvicorn dominion.api.main:app --reload --port 8000   # terminal 1: API
+cd frontend && npm install && npm run dev            # terminal 2: review app on :5173
+```
+
+A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker-once`, …) if you use `just`.
+
+> Drafting one scene (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`
+> then `python -m dominion.workers.worker --once`) is **Phase 1** — the Drafter raises
+> `NotImplementedError` until then, by design (no fake prose written to the DB).
+
+## State: what's real vs. scaffolded
+
+| Real now | Stubbed (raises `NotImplementedError`, phase-tagged) |
+|---|---|
+| Full ORM schema + Pydantic DTOs | Drafter (Phase 1) |
+| Deterministic router (`passes_for` / `reviewers_for`) — tested | Continuity reviewer (Phase 1) |
+| Worker loop: atomic job claim, wall-clock budget, claim→draft→exit | Enrichment passes: combat/sensory/dialogue (Phase 3) |
+| Token-budget + LLM wrapper (usage-charged) | Pacing/voice reviewers (Phase 3) |
+| Oracle read-authority over `character_state` | Canon RAG / summaries / ledger (Phase 2) |
+| FastAPI: health, `/scenes/pending`, `/scenes/{id}` | `/runs` + continuity-resolve endpoints (Phase 1/2) |
+| Decision endpoint: approve/deny/revise + hand-edit | Memory hooks on approval (Phase 2) |
+| React inbox, scene review, continuity panel | History/version browsing (Phase 2) |
+
+## Build phases (DESIGN §14)
+
+1. **One approved scene, end to end** — implement the Drafter + continuity reviewer; draft a scene
+   from a hand-written beat, review it in the inbox, approve it.
+2. **Auto-advance + memory** — RAG over canon, per-POV + omniscient summaries, the stat ledger,
+   pause-each auto-enqueue of the next scene.
+3. **Enrichment specialists** — combat/sensory/dialogue passes + pacing/voice reviewers, routed by beat tags.
+4. **`draft_ahead` + parallelism** — provisional ledger, multiple workers.
+
+## Dev
+
+```bash
+pytest -q              # tests
+ruff check src tests   # lint (F-codes catch real bugs: undefined names, unused vars)
+mypy src               # strict type check — currently clean
+```

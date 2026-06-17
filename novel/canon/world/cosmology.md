@@ -22,7 +22,7 @@ status: canon
 | **The Court of Want** *(Chaos / Desire)* | Life must *want.* |
 | **The Aurelian Sovereignty** *(Order / Covenant)* | Life must be *defined.* |
 | **Soulkeepers' Exchange** | Continuity can be *transacted.* |
-| **Zalgorans** | Life, meaning, and reality can be *erased.* |
+| **N'hal** | Life, meaning, and reality can be *erased.* |
 
 Each is *right* about something — which is exactly why people join them, and why the reader can't dismiss any as "the bad guys."
 
@@ -49,16 +49,22 @@ The four ideological empires (the Concord, the Pale Imperium, the Court of Want,
 Not an empire — a **mercantile, cross-cosmic power** that deals in *continuity*: souls, memories, identity fragments, death-transit, preserved consciousness, lost names, impossible inheritances, bargains made at the edge of extinction. They don't care who wins; they care that the contract is honored. Their philosophy: *nothing metaphysical is priceless if someone desperate enough will pay.*
 
 - **The Broker** (Seb's tempter) is a **Soulkeepers' agent — independent mercantile**, loyal to no ideological empire.
-- **They are who "brought the six"** — acquired as valuable cross-world assets (the Broker hired/used by a TBA collective force), **not** chosen champions of any faction. This is *why* the six aren't a faction's anointed team.
+- **They are who "brought the six" — as contractor, not client.** A coherent seven-member order, **the Nightbound** (`nightbound.md`), conceived and funded the operation; they hired the Exchange to execute the cross-world acquisition, and the Exchange assigned the Broker. The six were **acquired as keys, not anointed as champions** — which is *why* they aren't any faction's chosen team.
 - **They are not casual resurrection merchants** — that would cheapen death and undercut Marcus's exceptional resurrection. They can *locate, preserve, transport, ransom, conceal, or trade* what remains of a person. The lie they sell Seb is precise: **"we can recover him" is true-ish; "we can resurrect him cleanly" is the lie.** (See `seb.md`.)
 
-### Zalgorans — the thing *outside* the argument
-Not an empire, not a faction, not a rival civilization. Every other power *disagrees about what reality should become.* The Zalgorans erase the premise that reality can stay coherent enough to become anything. They don't conquer worlds — they **denature** them: names detach, places stay visible but stop being locatable, oaths go static, gods lose addressability, interfaces fail because the conditions that let anything *mean* anything begin to rot. **Ontological predators, not a monster army.** Keep them distinct from Chaos: Chaos offers desire; the Zalgorans remove the frame in which desire, identity, law, death, or progress can matter at all.
+### N'hal — the thing *outside* the argument
+Not an empire, not a faction, not a rival civilization. Every other power *disagrees about what reality should become.* The N'hal erase the premise that reality can stay coherent enough to become anything. They don't conquer worlds — they **denature** them: names detach, places stay visible but stop being locatable, oaths go static, gods lose addressability, interfaces fail because the conditions that let anything *mean* anything begin to rot. **Ontological predators, not a monster army.** Keep them distinct from Chaos: Chaos offers desire; the N'hal remove the frame in which desire, identity, law, death, or progress can matter at all.
 
-- **The hidden existential threat.** The Xyloryn are the *known* apocalypse everyone prepares for; the Zalgorans are what almost nobody understands exists.
-- **What wakes them:** something damages or **overdraws the substrate at scale** — mass resurrection, extreme soul manipulation, reality-layer piercing, forced interface unification, artificial godhood, or Xyloryn-scale ecological/interface conversion. Dormant until reality is disturbed in a specific way. *(Quiet leash on the cast's own escalation — the more reality they bend, the closer the frame gets to fraying.)*
+- **The hidden existential threat.** The Xyloryn are the *known* apocalypse everyone prepares for; the N'hal are what almost nobody understands exists.
+- **They erase the structure, then erase you.** Near the N'hal the *legible layer* fails first. For the implant-bearers the **interface itself degrades** — skills, levels, mastery tiers, the stat/resource bars, the notifications stop meaning what they read, because those are translation-structures and structure is exactly what the N'hal denature. What's left is instinct and whatever a person can do *underneath* the readout. This is why refined, structure-dependent power fails against them — and why Marcus's hard-won lesson, *the interface is not the world*, is a survival skill, not just a theme. (Ties `core_rules.md`: the interface cannot render N'hal and goes dark or wrong in their presence — a story event.)
+- **Why here, why now — open, on purpose.** The N'hal are not *summoned* by an act; they advance on their own gradual, episodic schedule for reasons no one fully grasps, and that slowness is the only reason anyone has time to prepare. The Realm appears to be in their path or to have *registered* to them — leading guess: it matured into a strategic ley/resource/planar nexus — but this is **not** a trigger the cast or the empires can simply avoid. Even the one who knows most, the Nightbound's founder (`nightbound.md`), holds it as a working hypothesis, not a fact.
+- **Beatable only by an impossibility.** Not invulnerable: if every cosmic power's apex beings stood together, they could likely put one down — at ruinous cost. No one will ever unify like that in time. That gap is the entire premise the **Nightbound** is built on.
+
+### The Nightbound — interventionist order *(→ `nightbound.md`)*
+A small, coherent order of seven powerful individuals — exiles, scholars, survivors, apostates — gathered around a founder who holds **evidentiary** (not prophetic) knowledge that the N'hal are real, are coming to the Realm, and that every prior civilization prepared for the wrong war. They are **not** a cosmic empire and do not seek to rule; they seek to *force preparation before consensus is possible*, and will violate consent, law, and sovereignty to do it — Machiavellian anti-villains whose most dangerous trait is that their reasoning is coherent. **They are the client above the Broker** (see Soulkeepers, above): the Nightbound hired the Exchange to bring the six, whom they selected as **keys** capable of inheriting six necessary interfaces. Their ideological foil is the **Realm Walkers** — witnesses vs. interventionists; one Realm Walker may even serve the Nightbound as pathfinder. Full file: `nightbound.md`.
 
 ### Realm Walkers — cross-realm operators *(keep mysterious until Book 2)*
+**Book-1 contact (locked shape):** the Eriadne ruins sit on the **convergence of the eight elemental ley lines**, with a **dormant natural portal** at the knot. When the portal is forced open at the finale and the Xyloryn Myrmidon comes *through* it, a **Realm Walker is drawn by the breach itself**, witnesses the fight, and makes first contact with Marcus shortly after (post-Myrmidon / at Eriadne) — the seed of his late-B1 recruitment and Riftwalker path. *(Open: who or what forces the portal / summons the Myrmidon — an agent, the Xyloryn themselves, or the convergence destabilizing — is unresolved.)*
 Not just travelers: **rare operators who move through and between interface realities without being fully claimed by one.** They likely oppose any single cosmic philosophy becoming total — balance-keepers. **Marcus/Soren may qualify** because his implant/interface combination lets him *read the translation layers others mistake for reality.* (This is the faction that recruits him late Book 1 → his **Riftwalker** class; the class and the faction are distinct — see `classes.md`, `mc.md`.)
 
 ---
@@ -94,7 +100,7 @@ So: **aether is the clay, diagnosis is the retrieval-and-tuning, the Genome is t
 - **Seb** — tempted by the **Soulkeepers' Exchange** through his dead brother's soul; the **Court of Want** offers him *salvation at any cost.* The recovery/resurrection lie is his leash.
 - **Mara** — Xyloryn forms as readable fossils (her court arc is elsewhere, but this is her cosmic-tier role when the swarm arrives).
 - **Mathias** — detects the **Xyloryn**/ruins-portal at the Act-5 finale (injured, survives).
-- **The cast as a whole** — their own escalation (resurrection, interface ignition, reality-bending) is the quiet trigger condition for the **Zalgorans.**
+- **The cast as a whole** — their own escalation (resurrection, interface ignition, reality-bending) is the quiet trigger condition for the **N'hal.**
 
 ---
 
@@ -103,7 +109,7 @@ So: **aether is the clay, diagnosis is the retrieval-and-tuning, the Genome is t
 | Slot | Status | Candidates / note |
 |---|---|---|
 | ~~Empire / faction names~~ | ✅ LOCKED | **The Aurelian Sovereignty** (Order/Covenant) · **The Court of Want** (Chaos/Desire) · **The Harmonic Concord** → "the Concord" · **The Court of Seals** (Serra's namebinding parent — a limb of the Aurelian Sovereignty). |
-| **Who brought the six** (the collective behind the Broker) | ⚠ TBA | A "TBA collective force" that hired/used the Soulkeepers' Broker. |
+| **Who brought the six** | ✅ RESOLVED | **The Nightbound** (client) → Soulkeepers' Exchange (contractor) → the Broker (operator) → Astria (infrastructure). See `nightbound.md`. |
 | **Who loosed the Xyloryn** | 🔒 intentionally unresolved | A rival power broke quarantine / opened a route — culprit stays a mystery. |
 
 ---

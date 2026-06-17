@@ -30,7 +30,7 @@ Marcus is an ocular/interface user who sees connections others cannot. Eriadne i
 
 Eriadne was not built. It accumulated.
 
-The ruins came first — ancient structures on the outskirts of what is now the city, left behind by a civilization that no longer exists. For a long time they were simply ruins: dangerous, occasionally explored by treasure hunters, mostly ignored. The ruins sat at a location that turned out to be significant for reasons that had nothing to do with treasure — a natural crossroads where several major trade and travel routes converged, and beneath the surface, a convergence of ley lines whose full significance most people never understood.
+The ruins came first — ancient structures on the outskirts of what is now the city, left behind by a civilization that no longer exists. For a long time they were simply ruins: dangerous, occasionally explored by treasure hunters, mostly ignored. The ruins sat at a location that turned out to be significant for reasons that had nothing to do with treasure — a natural crossroads where several major trade and travel routes converged, and beneath the surface, the **convergence of the eight elemental ley lines** — which holds a dormant natural portal — whose full significance most people never understood.
 
 The settlement came because of the crossroads. Traders needed a stopping point. Then merchants built permanent stalls. Then craftsmen followed the merchants. Then people who served the craftsmen. Then people who had nowhere else to go and found that this particular crossroads was easier to survive near than most places. The ruins on the outskirts drew their own visitors — historians, scavengers, the curious, the desperate. Some of those visitors stayed.
 
@@ -66,9 +66,11 @@ This is where Marcus establishes his first foothold. Not in the city proper — 
 
 ## The Ley-Line Convergence
 
-Beneath Eriadne — and specifically beneath the ruins on its outskirts — ley lines converge. This is not widely understood. Most residents know the city has a certain energy: magic works differently here, certain places feel wrong, the ruins have a reputation that exceeds their visible danger. The academic understanding of what is actually happening underground belongs to very few people.
+Beneath Eriadne — and specifically beneath the ruins on its outskirts — the **eight elemental ley lines** converge. This is not widely understood. Most residents know the city has a certain energy: magic works differently here, certain places feel wrong, the ruins have a reputation that exceeds their visible danger. The academic understanding of what is actually happening underground belongs to very few people.
 
 The ruins were built by an ancient civilization that understood the convergence and built deliberately on top of it. What they built it for — transit hub, gate lock, regulatory mechanism, weapon, archive — is unknown. The ruins are partially active in ways that suggest the original system was never fully shut down, only abandoned.
+
+The convergence holds a **dormant natural portal** at its knot — not built, but *formed* by the eight elemental lines meeting; the ancient builders raised their structures around it. **At the Book-1 finale this portal is forced open and a Xyloryn Myrmidon comes *through* it; the breach itself draws a Realm Walker, who witnesses the fight and makes first contact with Marcus shortly after** (→ `cosmology.md`, `master_timeline.md`). Who or what forces it open is unresolved (**W-05**).
 
 The ley-line convergence is why Eriadne sits where it does. Not because the founders chose this location for strategic reasons — they chose it because it was a trade crossroads. The convergence is underneath the reason they came, older than the reason, indifferent to it.
 
@@ -127,7 +129,8 @@ Marcus's claim on the ruin-fringe is not strategic at first. He needs a place th
 ## Open Questions
 
 - What ancient civilization built the ruins / ley-line hub? What did they intend?
-- What is the convergence actually for?
+- What is the convergence actually for? *(Now canon: it is the meeting of the **eight elemental ley lines** and holds a **dormant natural portal**; what the ancient builders made of it remains open.)*
+- Who or what forces the portal open at the finale / summons the Myrmidon through it? (**W-05** — agent, the Xyloryn themselves, or the convergence destabilizing.)
 - Which Eriadne faction presents the first political obstacle for Marcus?
 - What is in the sealed deeper sections of the ruins?
 - Does Eclipsia — the rare solar eclipse day — have visible effects on the convergence?

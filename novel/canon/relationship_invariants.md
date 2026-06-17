@@ -65,9 +65,9 @@ Shared shape: **each foil corrects a Marcus strength that is also his blind spot
 ## INV-6 — Seb ⇄ his brother ⇄ the Soulkeepers' Exchange (temptation)
 
 - **Axis A — Consent origin. [FIXED]** Seb took Astria's deal out of grief/desperation about his brother; the brother dies in the opening event → consent is **grief, not rescue.**
-- **Axis B — The Exchange's offer. [FIXED · BLUFF]** They hold/claim the brother's soul and imply they can return it. The implication is a bluff — the tragedy depends on it not being a clean, deliverable trade.
-- **Axis C — Mechanism. [PROVISIONAL — pending take-a-name sheet]** The danger is **surrender, not theft** — Seb is led to *give* his true name (a consensual catastrophe), distinct from **extraction** (the Court of Seals' method, Serra's arc). See take-a-name rules (forthcoming) and `cosmology.md`.
-- **Both poles:** the Exchange written as able to straightforwardly deliver (kills the tragedy); and Seb written as duped/stupid (he is desperate and rationalizing, not naive).
+- **Axis B — The Broker's offer. [FIXED · HONEST WORDING, MISREAD]** The Broker does **not** lie: restoration is genuinely possible — *"your brother can be restored," "death is not the wall your world believed."* The deception lives in the gap between the words and what Seb hears — he assumes **restored = whole, unchanged, truly alive**, when resurrection can return a body without guaranteeing identity, memory, sanity, or continuity. The tragedy needs the offer to be *real*, not a bluff.
+- **Axis C — The hidden cost. [FIXED]** The price isn't a thing Seb hands over; it's what he must **become**. To reach his brother he must turn himself into the *mechanism* — surviving states that should kill him, drawing vitality/soul-force from others, deepening his bond to death and thresholds, growing less anchored to ordinary life. Core tragedy: **becoming capable of the rescue may destroy the kind of person his brother would have wanted back.** (His Aetherfall **Warlord** + Realm **Reaver** + **Threshold Cascade** are this transformation made mechanical. This supersedes the earlier provisional "surrender your true name" framing.)
+- **Both poles:** the offer written as an outright lie/bluff (kills the tragedy — it must be genuinely possible); and Seb written as duped/stupid (he is desperate and rationalizing, hearing "whole and alive" in honest words that never promised it).
 
 ---
 

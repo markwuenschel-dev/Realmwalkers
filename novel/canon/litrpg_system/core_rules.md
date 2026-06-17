@@ -61,9 +61,10 @@ Nine primary attributes plus two that appear after Marcus's hybrid transformatio
 | Occult | Post-hybrid; demonic/chaos resonance |
 
 **Derived stats:**
-- Health = Constitution × 10
-- Mana = Intelligence × modifier (same pattern)
-- Stamina = Endurance × modifier (same pattern)
+- **Health** = Constitution×6 + Endurance×2 + Strength×2  *(start 5/5/5 → 50)*
+- **Mana** = Intelligence×6 + Wisdom×3 + Charisma×1  *(→ 50)*
+- **Stamina** = Endurance×5 + Constitution×2 + Strength + Agility + Dexterity  *(→ 50)*
+- Luck does not feed the pools; it tilts unresolved outcomes. Full per-attribute effects and the leveling/racial-growth model live in `mechanics.md`.
 
 ### Skills and Affinities
 
@@ -73,11 +74,28 @@ Skills are learned through use. Each skill has an affinity — a percentage repr
 - Affinity is the chance of leveling a skill upon reaching 100% experience at the current level
 - If you don't level up, you lose all experience at that level but keep the affinity
 - If you do level up, affinity decreases by an amount tied to natural ability for that skill
-- Chaotic Affinity (Marcus's ability) inverts this: affinity increases instead of decreasing on level-up
+- Unbound Affinity (Marcus's ability) inverts this: affinity increases instead of decreasing on level-up
 
-**What this means narratively:** Some people hit natural ceilings — the genius factor. Marcus's Chaotic Affinity means he doesn't have that ceiling, but the increase is random. His growth is unpredictable rather than constrained.
+**What this means narratively:** Some people hit natural ceilings — the genius factor. Marcus's Unbound Affinity means he doesn't have that ceiling, but the increase is random. His growth is unpredictable rather than constrained.
 
 **Spell Skill Mastery (per discipline).** Separate from a skill's affinity (the *chance* it levels) and its raw level, each magical discipline carries a **mastery tier** (Novice → Divine) granting escalating Spell Strength and resistance bonuses. Affinity is the dice; mastery is the payoff; the full ladder lives in `mechanics.md`. Marcus's Meszkhal +100% skill XP just means he climbs it twice as fast — when he can afford the mana.
+
+### Insight — the baseline read-skill
+
+> `Congratulations! You have learned the skill: Insight. Cost: 5 Mana. Focus on a being to discern available information.`
+
+The load-bearing phrase is **available information** — Insight is *not* omniscience. At low level it resolves only what the interface currently can, and surfaces `????` for the rest:
+
+```
+Name: ????
+Level: ????
+Health: 1,890 / 1,890
+Mana: ????
+Stamina: ????
+Race: Human
+```
+
+As it levels it may reveal condition, injuries, emotional state, resistances, class, affiliations, active effects — but never automatically everything important. Blocked names, hidden classes, disguised races, appraisal-resistance, and over-level targets all read as `????`. This preserves mystery and keeps wrong interpretation possible. Marcus **learns Insight before the mindscape**, so he carries a read into it. (Distinct from the Eyes: Insight is the cheap baseline; the Meszkhal item is the expensive interpretive overlay.)
 
 ### Levels
 
@@ -126,7 +144,7 @@ Seven rarity tiers — and rarity sets cost, not just prestige:
 
 ## Marcus's Specific Abilities
 
-### Chaotic Affinity
+### Unbound Affinity
 *Passive — always active*
 
 Affinities for skills increase instead of decrease upon leveling. The amount of increase is random.
@@ -138,7 +156,7 @@ Affinities for skills increase instead of decrease upon leveling. The amount of 
 Marcus has two distinct ocular systems; **never conflate them** (full detail in `mc.md`):
 
 **Eyes of Meszkhal — _Unique item_** (archdemon Xazzidiuk's gift; Item Rarity **Unique**, see `mechanics.md`).
-*Active — costs 20% maximum mana to activate, then 1% per second.*
+*Active — costs **20 mana** to activate, then **1% of maximum mana per second** while sustained (at 50 mana ≈ 0.5/sec; ~60s fully drains him). See `mechanics.md` / `mc.md` for the cost curve, the physical damage progression, and the visible-activation tells.*
 By actively watching combat actions, Marcus absorbs the muscle memory required to replicate them; **skill experience +100% while active** (it accelerates his climb up the skill-mastery ladder). The item also *interprets* — collapsing ambiguity into one confident, demon-biased verdict that can be wrong. It bills in **mana**, so it competes with his casting.
 
 **Neurochromatic Eyes — _interface_** (emergent, biological; six stages → Prism Coherence / Prism Fracture).
@@ -166,7 +184,7 @@ See `style/system_message_rules.md` for complete formatting spec. Summary:
 
 The interface cannot:
 - Classify something it has never encountered before
-- Accurately render Zalgoran entities — they damage the conditions that make classification possible
+- Accurately render N'hal entities — they damage the conditions that make classification possible
 - Access true names — these exist below the layer the implant reads
 - Override Marcus's instincts when his instincts are wrong
 - Tell him what a number means in context — it can give him the stat, not the wisdom to interpret it
@@ -202,7 +220,7 @@ His victories come from:
 - Accepting the cost of what the interface demands
 - The gap between what the interface tells him and what he figures out himself
 
-His growth is not linear. Chaotic Affinity means some skills jump unexpectedly. The Eyes mean he can develop certain abilities faster than his level would suggest — but only if he's actively watching and learning. Progress has a price: the ocular reserve, the mana cost, the risk of false certainty.
+His growth is not linear. Unbound Affinity means some skills jump unexpectedly. The Eyes mean he can develop certain abilities faster than his level would suggest — but only if he's actively watching and learning. Progress has a price: the ocular reserve, the mana cost, the risk of false certainty.
 
 **The rule:** every significant progression moment should cost something real or require something genuinely clever. Nothing should feel like a reward delivered by the story for reaching a checkpoint.
 
