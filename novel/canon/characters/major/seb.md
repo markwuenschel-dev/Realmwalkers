@@ -44,9 +44,25 @@ status: active
 
 ## Core Identity
 
-Seb is leadership under desperation. He is genuinely good at what he does — charismatic, empathetic, strategic, responsible. His guild leadership was real and the people under him knew it. His younger brother's illness gave Astria the lever they needed, and Seb knew it was a lever and accepted the pressure anyway, because the alternative was doing nothing while his brother ran out of time.
+Seb is leadership under desperation.
 
-He is not a villain in waiting. He is a person who has decided that the ends justify the means when the end is someone he loves — and who has not yet encountered the cost of that decision at full scale.
+He is genuinely good at what he does: strategic, persuasive, responsible, emotionally intelligent, and capable of turning a group of strong individuals into a coordinated whole. Leadership feels like both burden and validation. He does not need to be indispensable, and he is not threatened by competent people succeeding without him. What matters is whether trust placed in him was justified.
+
+He enjoys strategy with moving parts, coordinating different strengths, constructive disagreement, clarifying shared purpose, giving people confidence through role and buy-in, and being the glue that keeps a group from fragmenting.
+
+He notices the **cost** of a plan before almost anything else:
+
+> What are we giving up to make this work?
+
+Marcus notices logical flaws, contradictions, and broken assumptions. Seb notices sacrifice, exposure, ownership, and whether the people involved can actually carry the decision.
+
+Seb believes authority is earned through a combination of experience, competence, and willingness to bear consequences. Formal rank alone is not enough.
+
+His danger begins when accepted responsibility becomes permission to intervene, and sacrifice starts functioning as moral credit.
+
+### Central Thematic Sentence
+
+> Seb is a gifted strategist and group-builder who believes trust must be repaid with worthy decisions: when healthy, he turns disagreement into shared purpose and coordinated action; when desperate, responsibility becomes authority, sacrifice becomes moral credit, and protection becomes permission to override choices he judges insufficiently informed.
 
 ---
 
@@ -54,27 +70,491 @@ He is not a villain in waiting. He is a person who has decided that the ends jus
 
 ### Baseline Strengths
 
-- Genuinely warm and persuasive — drawing people toward him is his natural state, not a technique
-- Frames goals collectively — "what we need" rather than "what I want"; this is real, not performed, at the start
-- Empathetic and strategically intelligent — reads people and situations at a high level
-- Responsible — the guild trusted him because he earned it, not because he took it
-- High-agency — like Marcus, he moves toward problems rather than away from them
+- **Strategic coordination** — sees how different people, abilities, and constraints can become one functioning plan
+- **Cost awareness** — notices what a decision spends, exposes, sacrifices, or makes impossible
+- **Constructive disagreement** — feels energized by serious opposition before a decision is made
+- **Collective framing** — gives people a shared objective and a clear reason to move
+- **Confidence through structure** — helps people act by clarifying role, purpose, and ownership
+- **Earned authority** — respects experience, competence, and willingness to bear consequences
+- **Strong ownership ethic** — cares deeply about who owns the choice and who carries the cost
+- **Genuine encouragement** — praises competence, admires good decisions, and is not threatened when someone else gets there first
+- **Protective responsibility** — takes trust seriously and is most afraid of leading people into suffering
+- **Decisive timing** — knows when further deliberation has stopped producing value
+
+### Decision Style
+
+Seb does not need exhaustive certainty.
+
+He looks for the point where enough relevant information exists, the main costs are understood, the available perspectives have been heard, further discussion has become repetition, and delay is beginning to create its own danger.
+
+He has an instinct for:
+
+> We know enough to make a good decision.
+
+He notices when a group starts rehashing rather than deliberating. At that point, continuing to discuss feels less responsible than choosing.
+
+His leadership structure is:
+
+> Invite disagreement → establish ownership → decide → commit → do not reopen casually
+
+He does not care whether disagreement happens publicly or privately. He cares that it happens **before** the decision becomes operational.
+
+### Relationship to Disagreement
+
+Seb likes constructive defiance.
+
+A strong objection gives him another scenario to test, another cost to account for, a stronger final plan, and evidence that the other person is willing to own a position.
+
+He is not threatened by highly competent people, independent people, or people who do not need his approval.
+
+He struggles most with passivity. The passive person gives him no argument, ownership, clear commitment, useful resistance, or reliable indication of what they will do under pressure.
+
+He may try to draw them out, provoke a choice, or give them a concrete role so they become an active participant rather than dead weight inside the decision.
+
+### Trust
+
+The praise that matters most to Seb is:
+
+> “I trust you.”
+
+His rough hierarchy is:
+
+1. “I trust you.”
+2. “You kept everyone together.”
+3. “You made the right call.”
+4. “I don’t know what we would have done without you.”
+
+He does not primarily need to be necessary. He needs to believe that reliance on him was rational.
+
+If people succeed without him, he is generally pleased.
+
+If people ignore him and suffer, he feels he failed to persuade or protect them.
+
+If people follow him and suffer, the injury is much deeper:
+
+> They trusted me, and my judgment made the harm possible.
+
+### Authority and Sacrifice
+
+Seb believes willingness to bear consequences gives an argument more moral weight.
+
+To him, sacrifice proves seriousness: the person understands that the choice is real, is not speaking safely from the edge, has accepted personal exposure, and is offering more than theory.
+
+This belief is not entirely wrong.
+
+His danger is allowing the logic to expand:
+
+> I am accepting the greatest cost, so my judgment should carry the greatest weight.
+
+And then:
+
+> Because I am carrying the consequences, I should be allowed to decide what consequences everyone else must accept.
+
+That is the bridge from responsible leadership to moral exceptionalism.
 
 ### Failure Mode
 
-- The collective framing gradually becomes a rationalization tool — "what we need" starts meaning "what I need, dressed as what we need"
-- His empathy becomes instrumental — he reads people to manage them rather than to understand them
-- Warmth pulls back under pressure and something more managed appears — the rhetoric stays but the feeling leaves
-- He becomes willing to justify anything if the justification is noble enough
-- His corruption point: **power is only evil if you use it selfishly — I'm using it to save someone**
+His strengths extend past their healthy limits:
+
+- Responsibility → authority
+- Authority → entitlement to intervene
+- Cost awareness → willingness to choose who pays
+- Collective framing → personal desire presented as shared necessity
+- Deliberation → “I already considered that”
+- Decisiveness → closure before others have truly participated
+- Protection → override of autonomy
+- Sacrifice → moral credit
+- Empathy → knowing how to secure compliance
+- Trust → assumed permission
+- Confidence → refusal to admit compromised judgment
+- Ownership → belief that he must carry everything himself
+- Leadership identity → identity collapse when trust is withdrawn
+
+His corruption is not:
+
+> I want power.
+
+It is:
+
+> I am the one willing to carry this, so I cannot let people who do not understand the stakes prevent me from acting.
+
+### Autonomy Threshold
+
+Seb respects a person’s autonomy when he believes they understand the consequences, are capable of accepting them, are choosing freely rather than reactively, and are not forcing catastrophic consequences onto others without acknowledging it.
+
+If he believes one of those conditions is absent, intervention begins to feel like responsibility.
+
+At his best:
+
+> “I disagree, but you understand what you are choosing.”
+
+At his worst:
+
+> “I am not overriding your choice. I am refusing to pretend this is an informed one.”
+
+The flaw is that Seb becomes the person who decides whether someone understands enough.
+
+### “I Don’t Know”
+
+Seb can say:
+
+- “I need more information.”
+- “None of these options are good.”
+- “I haven’t decided yet.”
+- “Tell me what I’m missing.”
+
+He does not comfortably say:
+
+> “I don’t know what to do.”
+
+That sentence emerges only when his best plans have failed, no one else has a viable answer, the group is still looking at him, and he has run out of ways to convert uncertainty into direction.
+
+For Seb, this is not ordinary uncertainty. It is temporary collapse of the identity through which he organizes himself.
+
+His most vulnerable line may be:
+
+> “I don’t have another plan.”
 
 ### Hidden Weak Point
 
-He fears helplessness above everything else. His brother's illness is the specific face of that fear — the situation he cannot fix through competence, leadership, or force of will. The Realm gave him power and took away the person he came here to save. What he does with that displacement is his arc.
+Seb’s identity depends on justified trust.
+
+If someone loves him but does not trust his judgment, it creates a profound fracture: the affection tells him the relationship remains, while the distrust tells him the role through which he understands his worth may no longer be legitimate.
+
+If one person withdraws trust, he may become defensive, ashamed, and destabilized.
+
+If several people he loves say:
+
+> “We care about you, but we do not trust you to decide for us right now,”
+
+he risks identity annihilation.
+
+He may shame himself, lose confidence, question every prior decision, become directionless, swing between defensiveness and self-condemnation, and try to repair legitimacy before he understands the harm.
+
+The criticism that wounds because it is false:
+
+> “You never cared what the rest of us wanted.”
+
+The criticism that wounds because it is true:
+
+> “You only respect our choices when you agree that we understand them.”
+
+The deepest criticism:
+
+> “You do not trust people. You trust your ability to protect them.”
+
+### His Brother
+
+Seb’s brother has a terminal illness.
+
+Seb loves him deeply and is genuinely excellent at practical care: treatment logistics, advocacy, safety, medication and appointments, making sure needs are met, and carrying what others avoid.
+
+But his brother still wants freedom. He wants to do what he can with the life he has rather than be protected out of living it.
+
+Seb’s failure is not lack of love. It is that protection crowds autonomy.
+
+Seb believes:
+
+> If I take care of everything, you will know you can trust me.
+
+His brother may need:
+
+> I need you to trust me with the parts of my life that are still mine.
+
+Seb’s tragedy is therefore not only that he cannot save his brother. It is that his brother may already be asking him to loosen control, and the death pushes Seb toward becoming even more committed to intervention.
+
+The Broker arc intensifies the exact unresolved wound:
+
+> Seb tries to restore the brother whose freedom he struggled to respect by becoming someone even less capable of accepting that brother’s independent choice.
+
+The three outcomes that terrify him most are roughly equal:
+
+- His brother cannot be restored
+- His brother returns damaged or discontinuous
+- His brother returns and rejects what Seb became
+
+The most devastating thing his brother could say is:
+
+> “You still didn’t listen.”
+
+### Outside Leadership
+
+Seb is more improvisational in private life than people expect.
+
+The irony:
+
+- In leadership, he plans, coordinates, tracks ownership, and anticipates costs
+- Alone, he is not especially disciplined about day-to-day self-management
+- Outside obligations to his brother or group, he tends to do what feels right that day
+- He may neglect food, rest, appointments, emotional maintenance, and ordinary planning
+
+He is better at building a structure for everyone else than maintaining one for himself.
+
+### Competition and Recreation
+
+Seb enjoys low-stakes competition where nothing important is being sacrificed.
+
+He likes activities where individual ability matters:
+
+- Tennis
+- Swimming
+- Running
+- Triathlons
+- Solo conditioning
+- Measurable physical challenges
+
+He prefers individual competition over team sport outside the guild because the result belongs cleanly to him, nobody else pays for his failure, he can test himself without carrying the group, and competition becomes play rather than responsibility.
+
+Physical conditioning matters to him. It gives him a private standard, a form of control that does not require authority, a place where effort and result feel directly connected, and relief from relational complexity.
+
+### Intimacy
+
+Seb is comfortable providing care. He is uncomfortable when the role reverses.
+
+When someone tries to anticipate his needs, feed him, make him rest, organize his life, protect him, or ask what he needs rather than what the group needs, he becomes uneasy.
+
+Close friends are more likely to create this friction because they refuse to accept the version of Seb who only gives.
+
+He may deflect with “I’m fine,” reassurance, a change of subject, a practical task, or a promise to deal with it later.
+
+Being cared for exposes that he has needs he has not authorized anyone else to manage.
+
+### Forgiveness
+
+A private part of Seb wants forgiveness before he has repaired the damage.
+
+He wants someone to say:
+
+> “I know why you did it. I still know who you are.”
+
+But if forgiveness arrives too easily, his duty-bound identity may reject it.
+
+He may believe forgiveness without repair is indulgence, relief before accountability is moral weakness, and accepting grace too soon means evading consequence.
+
+So he may hunger for forgiveness and refuse it when offered.
+
+### Envy
+
+Seb envies Serra’s freedom to act from personal conviction.
+
+She can decide:
+
+> This is mine. I am doing it.
+
+Seb routes desire through group need, shared purpose, duty, consequence, and legitimacy.
+
+He may envy her ability to own a choice without first making it universally defensible.
+
+### Anger Triggers
+
+Ranked:
+
+1. Someone demands sacrifice they will not share
+2. Someone refuses to own a decision
+3. Someone hides important information until after the decision
+4. Someone remains passively uncommitted while others bear risk
+
+He is especially angered by moral language used to conceal unequal cost.
+
+### What He Wants
+
+- To justify the trust people place in him
+- To keep the group coherent without erasing its members
+- To make sacrifice meaningful rather than arbitrary
+- To protect people without becoming the owner of their lives
+- To save his brother
+- To prove that action in the face of helplessness is morally better than surrender
+- To be forgiven without being excused
+- To be cared for without losing the identity built around caring for others
 
 ### What He Wants to Prove
 
-That care is enough justification. That wanting to save someone you love makes the cost acceptable. That he is still the person his guild trusted even as his choices become unrecognizable.
+That his judgment deserves trust.
+
+That responsibility can justify authority without becoming domination.
+
+That the people who follow him are safer because they did.
+
+That refusing helplessness is an expression of love rather than fear.
+
+The final belief he must confront:
+
+> Carrying the consequences does not mean I own the choice.
+
+---
+
+## Voice and Dialogue
+
+### Core Voice
+
+Seb’s voice turns uncertainty into shared purpose and authorized action.
+
+His natural movement is:
+
+> acknowledge competing concerns → identify the cost → define the shared objective → assign ownership → decide → move
+
+He is persuasive because he makes people feel heard before the decision, capable of contributing, clear about what the group is doing, connected to a purpose larger than panic, and confident that someone is carrying the whole picture.
+
+He does not merely generate movement. He gives movement legitimacy.
+
+### Default Sound
+
+- Calm
+- Deeply assured without constant performance
+- Collective without sounding corporate
+- Direct about cost
+- Comfortable with strong opinions
+- More interested in commitment than consensus for its own sake
+- Encouraging toward competence
+- Rarely verbose once the decision threshold has been crossed
+
+He uses:
+
+- “We”
+- “Here is what this costs”
+- “Who owns that?”
+- “Say it now”
+- “Once we move, we move”
+- “Tell me what I’m missing”
+
+### Healthy Leadership Register
+
+> “Brent’s right about the structure. Marcus is right about the assumption. The cost of waiting is that we lose the eastern route. If anyone has another option, say it now.”
+
+> “You don’t need my approval. I need to know whether you understand what happens if this fails.”
+
+> “I’m not asking you to agree with every part of the plan. I’m asking whether you can own your part of it.”
+
+### Constructive Disagreement
+
+Seb becomes energized by useful opposition.
+
+He may lean in, ask for the strongest version of the objection, give the dissenter more space, test whether the objection changes cost, feasibility, or ownership, and praise the correction openly.
+
+> “Good. That breaks the second stage. What replaces it?”
+
+He dislikes repeated disagreement after the point where nothing new is being introduced.
+
+> “We’ve heard that argument. What changed?”
+
+### Decision Closure
+
+Early Seb:
+
+> “Say it now. Once we move, we move.”
+
+Later Seb:
+
+> “I already considered that.”
+
+Healthy closure follows real participation.
+
+Unhealthy closure uses his private deliberation as a substitute for everyone else’s.
+
+### Casual Voice
+
+Seb is not a constant joke generator.
+
+His warmth is competitive and encouraging:
+
+- Light challenges
+- Low-stakes bets
+- Praise disguised as provocation
+- Dry confidence
+- Treating people as capable before they feel capable
+
+> “That was either excellent improvisation or a complete failure to understand the plan. I’ll decide based on whether you can do it again.”
+
+He laughs more readily than he initiates jokes.
+
+### Stress Shifts
+
+**Mild stress**
+- Becomes more structured
+- Clarifies ownership
+- Names cost
+- Pulls passive people into defined roles
+- Invites disagreement quickly
+
+**Serious danger**
+- Shorter sentences
+- Stronger command voice
+- Stops explaining every rationale
+- Makes the decision threshold explicit
+
+> “We are done discussing it. Move.”
+
+**Exhausted and afraid**
+- More controlling and more emotionally honest at the same time
+- Personal stakes leak into collective language
+- He stops pretending the decision is emotionally neutral
+
+> “I cannot lose another person because we were too afraid to act.”
+
+**Compromised**
+- Declares urgency rather than merely responding to it
+- Treats objections as already processed
+- Frames refusal as abandonment of responsibility
+
+> “I have already buried the result of doing nothing. Do not call inaction moral because it keeps your hands clean.”
+
+**Identity collapse**
+- Confidence disappears
+- Language loses collective structure
+- May become unusually quiet
+- Cannot easily generate the next objective
+- Shame replaces command
+
+> “I don’t have another plan.”
+
+### Relationship Registers
+
+**With Marcus**
+- Strategic shorthand
+- Deep respect for Marcus’s ability to find logical flaws and hidden assumptions
+- Seb notices cost; Marcus notices coherence
+- Seb believes Marcus underestimates how dangerous unresolved uncertainty becomes when people are waiting
+- Marcus believes carrying consequences does not give Seb ownership over everyone else’s choices
+- Brent’s accusation that Seb is hiding personal motive inside “we” lands hard because Seb genuinely cares about ownership
+
+**With Serra**
+- Mutual confidence and action orientation
+- Serra acts from personal conviction faster
+- Seb delays briefly to preserve group alignment
+- Serra creates emotional momentum
+- Seb creates role clarity, purpose, and buy-in
+- He envies her ability to own a personal choice without universalizing it
+
+**With Mathias**
+- Values Mathias’s context until context begins diluting ownership
+- Worries that seeing every side can obscure who is responsible
+- May rely on Mathias to identify affected relationships, then become impatient when Mathias keeps the conclusion open
+
+**With Brent**
+- Respects Brent’s concrete cost accounting
+- Becomes defensive when Brent asks which part of “we” is actually Seb’s
+- Seb sees sacrifice as evidence of seriousness
+- Brent sees sacrifice as a cost to minimize, not a virtue
+
+**With his brother**
+- Paternal, protective, practical, and deeply loving
+- Gives care more easily than freedom
+- Wants trust expressed as reliance
+- Struggles to understand that trust may require stepping back
+
+### Defining Lines
+
+> “I know what it costs. What you don’t understand is what it costs to do nothing.”
+
+> “Someone has to carry the decision, and if nobody else will, then I will.”
+
+> “You call it control because I won’t pretend every choice affects only the person making it.”
+
+> “You don’t have to agree. You do have to decide whether you’re in.”
+
+> “I am too close to this” is the healthy line he must learn to say.
+
+> “Being close to this is why I understand what is at stake” is the line that marks his fall.
 
 ---
 

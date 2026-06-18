@@ -45,7 +45,17 @@ status: active
 
 ## Core Identity
 
-Serra is warmth with an edge underneath it. She is the person everyone gravitates toward — the one who remembers your name, pulls the quiet person into the conversation, makes a room feel like it has a center. That warmth is real, not performed. But underneath it is someone who has been fighting to belong at a level most people never reach since before anyone was watching, and who keeps the inside of herself more guarded than anyone who has spent an evening with her would guess.
+Serra is not socially timid. She is **selectively permeable**.
+
+She can be animated, magnetic, playful, attentive, and capable of making a room feel more alive without granting everyone equal access to her interior life. Her warmth is genuine. It is not a performance, a strategy, or a promise about what a relationship will become. She opens through familiarity, shared momentum, and repeated comfort more readily than through explicit emotional definition.
+
+She regulates relationships through access. At her best, she gives people real presence, practical care, remembered details, and specific attention without making the interaction heavy. At her worst, she assumes that changes in access should communicate what she has not said directly. If she concludes that softness has created more ambiguity rather than less, she overcorrects into decisive closure and removes every opening for reinterpretation.
+
+She came from an ordinary background and built herself through competence, social intelligence, and mastery. She wants to belong at the top because she earned it, but her deeper struggle is learning who she is when there is no scoreboard, no group to anchor, and no external structure proving she belongs.
+
+### Central Thematic Sentence
+
+> Serra is a selectively open social anchor whose warmth creates genuine intimacy without necessarily implying commitment: when resourced, she energizes people, notices what matters, and moves decisively; when strained, she assumes her behavioral limits should have been understood, interprets clarification as negotiation, and preserves certainty through severance at the cost of connection.
 
 ---
 
@@ -53,27 +63,238 @@ Serra is warmth with an edge underneath it. She is the person everyone gravitate
 
 ### Baseline Strengths
 
-- Genuinely warm and extroverted — people orbit her naturally and she's good at making them feel it
-- Processes fast and moves on — decides privately, doesn't ruminate, faces forward
-- Reads people by instinct, not analysis — fast, wordless, usually right
-- Driven by mastery — performs best when she's genuinely good, not just winning
-- Handles conflict well without seeking it — composed under pressure, goes all in when she commits
-- Generous despite a hard road — doesn't hold her background against people who had it easier; that's their loss
+- **Selective social openness** — highly animated and magnetic once engaged, but careful about who receives deeper access
+- **Genuine warmth** — remembers details, includes people, gives focused attention, and makes others feel specifically seen
+- **Social momentum** — energizes small groups, keeps interactions moving, and creates ease without needing to dominate
+- **Fast intuitive reads** — understands people and room dynamics quickly, usually without explaining the full chain
+- **Practical empathy** — shows care through attention, remembered details, relevant suggestions, and useful action
+- **Decisiveness** — processes privately, commits quickly, and does not linger once she believes the direction is clear
+- **Mastery drive** — wants her position to rest on real ability rather than luck, favoritism, or social capital
+- **Conflict composure** — can remain measured and controlled even when her actual decision is severe
+
+### Social Layers
+
+**Public / social Serra**
+- Animated, story-driven, responsive, and physically expressive
+- Comfortable contributing energy without necessarily initiating intimacy
+- Makes individuals feel included and can noticeably raise a group's emotional temperature
+- Gives strong eye contact and attention that may feel more intimate than she intends
+
+**Personally comfortable Serra**
+- More playful, disclosing, and person-specific
+- Uses tailored banter rather than generic charm
+- Shares ordinary vulnerability and personal detail once familiarity makes it feel natural
+- Creates conversational ease without automatically treating that ease as a developing commitment
+- May still initiate less than the other person even when she genuinely enjoys them
+
+**Closed Serra**
+- Brief, controlled, procedural, and emotionally contained
+- Removes interpretive openings rather than arguing every point
+- Treats continued explanation as renewed negotiation
+- Communicates finality through access, attention, and behavior more strongly than through dramatic language
 
 ### Failure Mode
 
-- Fast decisions made without anyone to push back can calcify into decisions made before she's considered the real cost
-- The instinct she trusts is accurate until the Realm gives her something her instincts weren't shaped for
-- Her warmth is real but the guardedness underneath means the people closest to her often don't know she needs something until it's too late to give it
-- Her power scales with emotional commitment — the more she cares, the more dangerous she becomes to the people she's fighting for
+Her best traits extend past their healthy limits:
+
+- Warmth → creates meaningful ease → may generate implications she never intended
+- Social intuition → reads others quickly → assumes others should read her behavioral limits just as quickly
+- Practical empathy → helps solve what can be acted on → may avoid sitting inside unresolved emotion
+- Decisiveness → protects against prolonged ambiguity → can become relational amputation
+- Self-sufficiency → carries pain without demanding rescue → may disclose only after help is no longer possible
+- Momentum → keeps people moving → may treat emotional definition as stagnation or pressure
+- Selective trust → makes access meaningful → can make revoked access feel like total disappearance
+- Commitment → gives her extraordinary force → makes her most dangerous when she cares most
+
+Her central relational error is not excessive warmth. It is assuming that once she has decided what something means, further discussion can only distort, pressure, or reopen the decision.
 
 ### Hidden Weak Point
 
-She is lonely in a way she cannot articulate or fix. She is surrounded by people, competent at warmth, the center of every room — and almost never fully known by anyone in it. Being the social anchor means everyone leans on her. It does not produce someone who leans back. She has learned to live with the quiet ache of this, but she has not solved it.
+She is lonely in a way that social success does not solve. She can be surrounded, valued, and genuinely connected in the moment while remaining only partially known.
+
+Her loneliness is structural: she is skilled at becoming the person others lean toward, but less practiced at revealing need while help can still matter. She does not necessarily hide because she distrusts everyone. Often she simply experiences disclosure as something that belongs after she has already handled the problem.
+
+She can still value someone after closing access to them. What she does not believe is that private value creates an obligation to preserve contact.
 
 ### What She Wants to Prove
 
-That she belongs at the top — that every rank she holds she earned, that her presence at the level she operates at is not luck or accident or someone's favor. She came from nothing. She got here herself. She needs the world to know it, and she needs — more privately — to finally believe it herself.
+On the surface, she wants to prove that she belongs at the top because she earned it.
+
+More deeply, she wants to know that she can be fully herself without being defined by a scoreboard, a role, another person's interpretation, or the social gravity she creates. She wants to be seen accurately without having to surrender authorship over what that access means.
+
+---
+
+## Voice and Dialogue
+
+### Default Sound
+
+Serra's voice is warm, socially responsive, and easy to enter once she is engaged. She does not usually sound analytical even when she has read the situation correctly. She speaks from the conclusion her intuition has already reached.
+
+Her natural movement is:
+
+> notice the person → establish ease → give specific attention → state or imply direction → move
+
+She often makes people feel included by treating their relevance as already established rather than asking them to justify speaking.
+
+> "Mathias, you've been staring at that wall for two minutes. What did the rest of us miss?"
+
+Her speech is more relational than conceptual. She uses names, remembered details, tailored callbacks, and person-specific teasing. She is capable of strong eye contact and focused attention without experiencing those behaviors as promises of intimacy.
+
+### Humor
+
+Her humor is:
+- Specific to the person
+- Affectionate or lightly challenging
+- Social rather than abstract
+- More likely to create momentum than stop the scene for a punchline
+- Often delivered with enough confidence that the other person feels invited to play back
+
+She is not universally playful. Banter increases with comfort.
+
+> "You're allowed to panic, Marcus. You're just not allowed to turn it into everyone else's scheduling problem."
+
+### Initiative and Engagement
+
+Serra may contribute substantial energy without being the person who initiates most often. Once engaged, she can be vivid, attentive, and highly responsive. Lack of initiation does not automatically mean lack of enjoyment, but it does matter: she is more comfortable inhabiting connection than defining or advancing it.
+
+This distinction is central to how others can overread her.
+
+### Practical Empathy
+
+She tends to care through attention and usefulness:
+- Remembers details
+- Offers relevant suggestions
+- Notices discomfort
+- Includes the quiet person
+- Helps make the next step easier
+
+She may be better at responding to a problem than remaining inside an emotion that has no immediate action.
+
+### Disagreement
+
+Serra does not usually litigate every premise. She states the read she trusts and acts from it.
+
+Regulated disagreement:
+- Brief
+- Direct without unnecessary cruelty
+- Oriented toward what happens next
+- Willing to acknowledge the other person's feeling without surrendering the decision
+
+> "I understand why you need another answer. I don't have a different one."
+
+Under strain, she may interpret further explanation as pressure rather than information.
+
+### Refusal and Boundary Style
+
+Her early refusals may be softened, indirect, or embedded in behavior because she dislikes making social moments heavier than necessary and expects context to carry meaning.
+
+She may:
+- Initiate less
+- Shorten conversations
+- Reduce playfulness
+- Become less available
+- Introduce practical or role-based boundaries
+- Hope the pattern communicates enough
+
+Her blind spot is believing that a socially perceptive person should understand the withdrawal before she has to state it directly.
+
+Once she concludes that softness is sustaining ambiguity, she becomes controlled and final:
+- Minimal emotional leakage
+- No extra rationale that could be treated as negotiable
+- No dramatic accusation
+- Access removed more completely than the spoken language alone would suggest
+
+She experiences the final boundary as the end of a long communication process. The other person may experience it as a sudden transformation.
+
+### Stress Shifts
+
+**Mild stress**
+- More task-oriented
+- Keeps the mood moving
+- Uses practical care and light humor
+- May disclose just enough to explain behavior, not enough to ask for support
+
+**Serious danger**
+- Quiet, short, decisive
+- Fewer social cushions
+- Gives direct movement instructions
+- Trusts instinct and commitment
+
+> "Behind me."
+> "Not that door."
+> "I know. We're still going."
+
+**Emotional ambiguity**
+- Becomes less expansive
+- Relies more heavily on behavior than explicit definition
+- May assume the other person has already noticed the change
+
+**Hard boundary**
+- Controlled and procedural
+- Removes openings
+- Treats continued clarification as attempted negotiation
+- May preserve private care while ending visible access
+
+**Grief or private need**
+- Often remains functional
+- Discloses late
+- Gives facts after she has already decided what to do
+- May accept care more easily when it does not require her to become uncertain in front of someone
+
+### Relationship Registers
+
+**With Soren**
+- Easy rhythm, tailored teasing, strong mutual attention
+- More subtext than either admits
+- She gives genuine warmth; he assigns future meaning to its repetition
+- He asks for definitions; she hears pressure
+- She may answer a narrower question truthfully while refusing the larger emotional frame
+
+**With Mara**
+- Compressed tactical shorthand
+- Trust expressed through timing rather than reassurance
+- Less need to explain instinct because Mara has already built the setup
+
+> "Left?"
+> "Not yet."
+> "Now?"
+> "Now."
+
+**With Seb**
+- Respects decisive leadership while watching for when collective language stops matching collective consent
+- Challenges through a clean practical question rather than a speech
+
+**With Brent**
+- Responds well to plain language
+- More willing to accept care when it arrives as competent action rather than emotional excavation
+
+**With strangers**
+- Warm enough to lower tension
+- Personally attentive without automatically opening herself
+- Quickly notices who is excluded, posturing, or trying to control the room
+
+### Drafting Guardrails
+
+- Do not write her as secretly cold.
+- Do not treat warmth as manipulation.
+- Do not treat disclosure as automatic evidence of romantic or relational commitment.
+- Do not make every refusal perfectly explicit from the beginning; her indirectness is a real blind spot.
+- Do not make final closure melodramatic. The severity is in reduced access, not raised volume.
+- Do not assume strong eye contact, playfulness, or personal detail means she has internally changed the relationship's category.
+- Do not excuse Soren crossing stated boundaries. Their reciprocal misread creates tragedy, not permission.
+- Let her remain capable of valuing someone after deciding contact cannot continue.
+
+### Representative Lines
+
+> "You're not being ignored. You're being dramatic in a very visible location."
+
+> "I meant what I said then. That doesn't mean it promised what happens next."
+
+> "I know you're trying to understand. From where I'm standing, it still feels like you're trying to keep the door open."
+
+> "You don't need to convince me you're hurting. I believe you. The answer is still no."
+
+> "I noticed three exits, two liars, and the fact that you haven't eaten. Deal with the third one first."
 
 ---
 
@@ -224,11 +445,30 @@ The parallel to Soren's ocular system: **Soren sees the weak point. Serra makes 
 ## Relationships
 
 ### Soren (MC)
-There was a moment on Earth — something almost happened, then didn't, and neither of them addressed it. It didn't poison what they were to each other. It made it more charged. When they find each other in the Realm, that unaddressed thing is still sitting exactly where they left it, except now all the comfortable reasons to leave it alone have been stripped away.
+There was a moment on Earth — something almost happened, then didn't, and neither of them addressed it. It did not poison what they were to each other. It created a mutual misread that neither corrected.
 
-They work well together — naturally, efficiently, the shorthand of people who've run tandem long enough. He sees too much and she keeps the real stuff guarded. He ruminates on what he reads and she's already decided. He wants warmth without conditions and she gives warmth freely but not the inside.
+Their deeper mismatch is not that Serra's warmth is false or that Soren invents it. He accurately perceives attention, ease, disclosure, remembered details, play, and focused care. His mistake is treating repeated warmth as evidence of trajectory.
 
-They are genuinely good for each other and genuinely hard for each other. That is not a problem to solve. That is the relationship.
+For Soren, repeated warmth accumulates into relational meaning:
+
+> This keeps happening, so it is becoming something.
+
+For Serra, repeated warmth may remain fully genuine without implying a future category:
+
+> I am comfortable with you here. That does not automatically define what comes next.
+
+Soren mistakes experiential intimacy for relational commitment. Serra mistakes his need for definitional certainty as a disguised attempt to negotiate the outcome.
+
+This creates a self-reinforcing trap:
+- Soren asks for clarity because ambiguity destabilizes him.
+- Serra hears another attempt to preserve an opening.
+- Serra withdraws to remove the opening.
+- Soren experiences the withdrawal as unexplained evidence requiring interpretation.
+- His continued interpretation confirms her belief that explanation prolongs pursuit.
+
+Sometimes Serra's read will be correct: part of him may still hope that clarity changes the outcome. Sometimes he genuinely needs to understand which reality he is standing in. Her failure is assuming those motives are always the same.
+
+They remain naturally effective together. He sees weak points; she acts before hesitation closes the window. He analyzes what a signal means; she trusts the signal and moves. Their compatibility is real. So is the danger in how differently they assign meaning to access, warmth, and uncertainty.
 
 **The finale severance (late Book 1):** reunited for the Myrmidon fight, the kill requires Marcus to hold an opening at lethal risk while she lands the blow — she misses the depth, brushes off his danger, finishes it; he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he reads her right and doesn't hold it against her. Being seen in that moment — plus the faction she's hunting and the still-unresolved party thing — is what sends her off. She owns the choice and can't look at him. (`relationship_map.md` is tiebreak.)
 

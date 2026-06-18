@@ -1,10 +1,3 @@
----
-id: brent
-name: Brent
-aliases: [brent, brent donovan]
-kind: character
-status: active
----
 # Brent Donovan — Character File
 
 > **Status:** Active — alone for significant stretch, finds separate group, solo arc in progress
@@ -21,38 +14,40 @@ status: active
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
 | Age | TBD |
-| Origin | Large, outcome-obsessed family; civil-engineering background |
+| Origin | Large, outcome-obsessed family; IT support tech background |
 | Guild Role (Earth) | Healer/Support — Aetherfall roster |
-| Realm Role | Adventurer (Realm class) / Keystone Integrity interface |
-| Power Interface | Keystone Integrity (bone-piezoelectric mend/shatter) |
+| Realm Role | TBD — healer is not confirmed for Realm; class and power path open |
+| Power Interface | TBD — open; three candidate directions identified |
 | Current Location | Separated — alone for significant stretch, then finds a different group (not the Iron Vultures) |
 | Current Allegiance | Unknown group encountered in solo arc |
 
 ---
 
-## Physical / Appearance
-
-> *First impression: practical problem-solver.*
-
-Looks like the guy you call when something is broken and everyone else has already made it worse. Grounded, practical, physically present without heroic proportions. Broad hands, sturdy frame, workmanlike posture, a face unimpressed by grand explanations. Stocky or solidly built rather than conventionally athletic — a body shaped by hauling equipment across job sites, crawling through culverts and crawlspaces, and carrying his own tools because waiting for someone competent takes too long.
-
-**Earth.** Dresses plainly: jeans, t-shirts, work boots, utility jacket, a tool bag or backpack that has everything except the thing he actually needs because someone borrowed it and lied. Not sloppy — unconcerned with presentation unless it affects function. Expression sits between dry amusement and "please explain why this was necessary." Whatever attractiveness he has isn't polished; it comes from competence and the sense that he'll keep moving while everyone else argues.
-
-**Realm.** Field-medic-engineer, not holy healer: rugged gear, reinforced gloves, braces, splints, tools, salvaged materials, straps, medical wraps, practical armor pieces that look repaired because they are. Keystone Integrity shows through bone-deep amber-blue charge lines in active states — knuckles, forearms, ribs, spine, jaw. The visuals read as *load, pressure, fracture, repair* — never lightning mage or paladin.
-
----
-
 ## Core Identity
 
-Brent is the blue-collar, down-to-earth, quietly competent person who has spent his life being useful but not especially valued. His defining trait is not crafting, not crisis competence, not tactical brilliance. It is **anti-abstraction practicality**.
+Brent is a grounded realist whose defining instinct is to strip away language that obscures consequence.
 
-He distrusts theory — not because he is unintelligent, but because theory has been used against him. Legal theory, estate planning, corporate language, family "potential" logic — all of it has functioned, in his experience, as cleaner language for taking from ordinary people. His instinctive question is:
+He is practical, direct, down-to-earth, and deeply suspicious of explanations that make reality harder to see. His civil-engineering background informs how he thinks, but it does not consume his personality. He is not compulsively searching for something to repair. He can relax, socialize, cook, fish, watch sports or action movies, play cards, drink with friends, and enjoy a quiet day without turning leisure into maintenance.
 
-> **"Say it in plain English. What actually happens?"**
+His instinctive question remains:
 
-He is not opposed to intelligence. He is opposed to language that makes consequences harder to see.
+> **“Say it in plain English. What actually happens?”**
 
-He likes his work. He is good at his work. The problem has never been the work — it has been that his competence prevents problems, which means nobody notices his competence. He is only visible when something breaks.
+He does not distrust theory because he lacks intelligence. He distrusts any language that separates a decision from who pays for it.
+
+Brent experiences usefulness as the safest form of belonging. He trusts conditional relationships because their logic is visible:
+
+> You need this. I can do it. Therefore I have a place here.
+
+Unconditional care is harder for him to believe.
+
+His deepest need is:
+
+> Choose me when nothing is broken.
+
+### Central Thematic Sentence
+
+> Brent is a grounded realist who expresses care through competence, clarity, and dependable action: when healthy, he names the actual consequence and refuses to romanticize preventable harm; when strained, practicality becomes contempt, usefulness becomes counterfeit belonging, and anger turns the person who caused the damage into the damage itself.
 
 ---
 
@@ -60,50 +55,537 @@ He likes his work. He is good at his work. The problem has never been the work �
 
 ### Baseline Strengths
 
-- Plainspoken — says what he means, expects others to do the same
-- Grounded — the least hypnotized person in any room full of grand explanations
-- Dry humor that arrives without announcement — he says the true thing that happens to be funny
-- Reliable under pressure — his hands don't stop moving because he's upset
-- Good diagnostic instinct — finds what's actually broken rather than what looks broken
-- Direct and clinical under high stakes — tells people exactly what's happening, no softening
+- **Grounded realism** — sees what is actually happening beneath ceremony, panic, or abstraction
+- **Practical judgment** — focuses on consequences, feasibility, and what changes action
+- **Direct communication** — speaks efficiently and leaves little room for misinterpretation
+- **Specific competence** — notices failures others miss and understands why they matter
+- **Reliable care** — shows up, acts, and remains useful under pressure
+- **Anti-romanticization** — respects courage but distrusts suffering treated as virtue
+- **Behavior-based trust** — believes changed actions more readily than emotional declarations
+- **Casual sociability** — comfortable in familiar groups, low-stakes competition, teasing, sports, cards, drinks, and shared silence
+- **Emotional privacy** — socially straightforward without revealing much of his vulnerable interior
+- **Capacity for presence** — can stay with pain once he accepts that there is no clean solution
+
+### What He Is Not
+
+- Not a walking engineering metaphor
+- Not compulsively repairing things whenever the group is safe
+- Not socially inept or shy
+- Not emotionally numb
+- Not incapable of accepting unsolvable pain
+- Not a sentimental healer
+- Not someone who requires constant praise
+- Not a humorless blue-collar stereotype
+- Not automatically loyal to anyone who needs him
+
+### Usefulness and Belonging
+
+Brent does not need constant work.
+
+He can enjoy being unnecessary for a while:
+- Cooking
+- Fishing
+- Sports
+- Contemporary action movies
+- Cards and low-stakes games
+- Sitting outside with a drink
+- Casual group camaraderie
+- Choosing his own leisure without making it meaningful
+
+The wound appears when he suspects usefulness is the **only** reason he remains included.
+
+Early Brent often believes:
+
+> Usefulness earns belonging.
+
+Experience teaches him:
+
+> Usefulness often earns access.
+
+People may let him into the room because he can help without ever knowing him, choosing him, or staying after the problem is gone.
+
+### Recognition
+
+Brent cares about outcomes first, but specific recognition matters.
+
+His rough hierarchy:
+
+1. “You saw the failure before anyone else.”
+2. “I wanted you here before anything broke.”
+3. “I trust your judgment.”
+4. “You saved us.”
+
+The most difficult praise to accept is:
+
+> “I wanted you here before anything broke.”
+
+It reaches the part of him that does not believe someone will choose him without a practical reason.
+
+He dislikes:
+- Generic hero language
+- Exaggerated gratitude
+- Praise that replaces changed behavior
+- “We couldn’t do this without you” from people who refuse to reduce his burden
+- Being thanked and then ignored
+- Gratitude that turns preventable harm into a noble story
+
+His response:
+
+> “You can thank me by not doing that again.”
+
+### Practical Care
+
+Brent experiences care as something that should remain connected to reality.
+
+He does not believe all emotional pain can be fixed. He does believe it should not be made worse by:
+- False reassurance
+- Avoidable confusion
+- Someone disappearing when staying matters
+- People pretending the pain has a clean lesson
+
+If someone says:
+
+> “I don’t need you to fix this. I just need you to stay.”
+
+his first reaction is discomfort because the request has no clear standard for success.
+
+He may wonder:
+- Am I helping?
+- Should I speak?
+- Does silence make this worse?
+- How will I know when I have done the right thing?
+
+But he can remain.
+
+> “All right. I’m here. Tell me if you want me to talk.”
+
+His mature form can say:
+
+> “I don’t have anything that makes this better. I’m not going anywhere.”
+
+### Help and Refusal
+
+When someone refuses help, Brent prioritizes:
+
+1. Do they understand the risk?
+2. Does their decision endanger others?
+3. Are they choosing freely?
+4. Is their judgment materially impaired?
+5. Has his effort been treated as disposable?
+
+He can feel furious that someone is undoing hours of work without believing that effort gives him ownership over them.
+
+He overrides refusal only under narrow emergency conditions:
+- Unconsciousness
+- Delirium
+- Clear incapacity
+- Immediate life-threatening danger
+- Direct danger to others
+
+A competent, informed refusal may infuriate him, but he can respect it.
 
 ### Failure Mode
 
-- Equates being needed with being valued — if people depend on him, he can tolerate bad treatment
-- Can overextend because usefulness feels like belonging
-- Stays in situations he should leave because someone still needs him
-- Fixes symptoms rather than causes — the field-engineer brain looking for the immediate problem, not the systemic one
+His strengths extend past their healthy limits:
 
-### Bedside Manner
+- Realism → cynicism
+- Directness → cruelty
+- Practicality → contempt for ambiguity
+- Reliability → staying where he is exploited
+- Usefulness → counterfeit belonging
+- Behavior-based trust → dismissal of verbal vulnerability
+- Anti-romanticization → inability to recognize meaning in sacrifice
+- Care → pressure over how someone should recover
+- Anger at transferred consequences → treating the person as the problem
+- Emotional privacy → inability to ask for support
+- Conditional logic → distrust of unconditional love
+- Low tolerance for misinterpretation → assumption that directness solves every relational problem
 
-Direct and clinical. No softening. He tells people exactly what's happening.
+His central mistake is not believing everything can be fixed.
 
-> "You're fine."
-> "My ribs are broken."
-> "Yeah, and you've got extras."
+It is believing that what cannot be stated cleanly or demonstrated behaviorally is less trustworthy.
 
-He is not praying over wounds. He is not delivering soft speeches. He is muttering curses while doing the work because someone ignored his warning. His manner is probably terrible by conventional standards. It is effective.
+### Anger
 
-### Hidden Weak Point
+Brent is more prone to anger than the rest of the group may initially realize.
 
-He has been alone and unnoticed for long enough that he does not fully believe someone will choose him specifically — not someone like him, but him. The family wound is not anger. It is the specific ache of having been quietly written off.
+The fastest trigger is:
+
+> preventability + entitlement + transferred cost + refusal to own it
+
+He is most likely to explode when someone:
+- Ignored a clear warning
+- Created predictable harm
+- Expected others to absorb the consequence
+- Minimized what happened
+- Romanticized the sacrifice
+- Demanded a cost they would not personally share
+- Repeatedly undid work and treated rescue as automatic
+
+His escalation often moves through:
+
+1. Irritation
+2. Blunt warning
+3. Sharper explanation
+4. Direct accusation
+5. Open resentment
+6. Loud, explosive rage
+
+Early warning signs:
+- Humor disappears
+- Sentences shorten
+- Tone flattens
+- He puts down whatever he is holding carefully
+- He stops helping automatically
+- He names the exact unfairness
+
+Pushed far enough, the control breaks.
+
+His rage is:
+- Loud
+- Profane
+- Concrete
+- Focused on who did what and who paid
+- Difficult to interrupt
+- Uninterested in rhetorical elegance
+
+> “I told you exactly what would happen. You did it anyway, and now she’s the one bleeding. Don’t stand there and tell me you had no choice.”
+
+His healthy anger names reality.
+
+His unhealthy anger reduces the person to their worst act.
+
+### After an Outburst
+
+Brent usually does not regret the core grievance.
+
+He regrets:
+- Saying something crueler than necessary
+- Reducing someone to a single decision
+- Frightening uninvolved people
+- Making the truth easier to dismiss because of how he delivered it
+- Using accuracy as a weapon because he wanted the other person to hurt
+
+His apology is specific:
+
+> “I shouldn’t have said you don’t care. I meant you acted like the consequences belonged to somebody else.”
+
+### Forgiveness
+
+Brent forgives changed behavior faster than emotional performance.
+
+He needs:
+- The behavior to stop
+- Responsibility without excuses
+- Help repairing the damage
+- Evidence that the warning will matter next time
+
+His rule:
+
+> “I don’t need you to feel bad forever. I need you to stop doing it.”
+
+### Family Wound
+
+His family wound is ranked:
+
+1. Being cheated
+2. Being quietly discounted
+3. Being treated as the person who would “figure it out” without support
+4. Being underestimated
+
+The estate betrayal matters because complicated language was used to dispossess him while preserving the appearance of legitimacy.
+
+The emotional conclusion was:
+
+> They did not think protecting me mattered.
+
+This is why he asks:
+
+> Who benefits from this being hard to understand?
+
+### Social Style
+
+Brent is socially comfortable and emotionally private.
+
+He can:
+- Talk to strangers
+- Join a group
+- Argue openly
+- Tease friends
+- Speak directly in a room
+- Participate in casual camaraderie
+- Enjoy competition without needing to dominate
+
+He is probably the least socially interpretive of the six, but not socially bad.
+
+He reads well:
+- Real pain
+- False claims of being fine
+- Entitlement
+- Responsibility avoidance
+- Who is doing the actual work
+- Whether a promise has practical substance
+
+He is weaker at:
+- Romantic ambiguity
+- Indirect bids for reassurance
+- Layered social implication
+- Symbolic gestures
+- Changes in relational meaning that were never stated
+- Knowing whether someone wants advice, validation, or company unless they clarify
+
+The useful contrast:
+
+> Marcus can overread. Brent can underread.
+
+### Intimacy and Romantic Relationships
+
+Brent is socially and sexually confident, but emotionally guarded.
+
+His romantic history tends toward:
+- Sexual chemistry
+- Direct attraction
+- Shorter or shallower relationships
+- Low emotional dependency
+- Clearer roles and expectations
+- Walking away when the dynamic becomes disrespectful, controlling, or needlessly complicated
+
+He is highly willing to leave.
+
+He does not chase indefinitely, and he does not remain in romantic relationships merely because someone wants him, needs him, or is attractive. If the arrangement begins eroding his self-respect, his default is more likely departure than prolonged negotiation.
+
+His romantic frame is confident:
+- He responds well to direct interest
+- He dislikes ambiguity used to maintain attention without commitment
+- He is comfortable with relationships that are primarily physical if both people understand that
+- He is less practiced at sustained emotional vulnerability than sexual or social intimacy
+
+Unconditional emotional intimacy is more threatening than sex because sex has comprehensible conditions. Love without utility or transaction does not.
+
+### Asking Someone to Stay
+
+Brent rarely asks directly.
+
+He may create a reason:
+
+> “I could use another set of hands.”
+
+Even if the task does not actually require help.
+
+His growth requires learning to say:
+
+> “You don’t have to do anything. Stay anyway.”
+
+### Leisure
+
+Brent enjoys uncomplicated pleasures:
+- Cooking
+- Fishing
+- Sports
+- Current action movies
+- Cookouts
+- Bars or drinks with a familiar group
+- Low-stakes cards and games
+- Casual competition
+- Sitting outside
+- Shared silence
+- College-style camaraderie
+
+He can plan his own leisure easily.
+
+He is worse at planning emotionally symbolic events for other people.
+
+### What He Is Bad At
+
+- Asking for emotional support
+- Recognizing loneliness early
+- Accepting help
+- Responding to praise
+- Formal social presentation
+- Planning emotionally meaningful events for others
+- Naming what he wants when there is no practical need attached
+- Believing care that has no visible condition
+- Recognizing relational meaning that was implied rather than stated
 
 ### What He Wants
 
-- Money. Security. Breathing room.
-- Recognition that is specific — not "we need a healer," but "we need Brent."
-- To stop feeling like one long uphill shove.
-- To be chosen for something, not just available for something.
+- Money and security
+- Breathing room
+- Specific recognition
+- Clear relationships
+- Respect for his time and effort
+- People who own their choices
+- To stop being treated as automatic support
+- To be wanted when he is not useful
+- To believe that care can remain when no one needs anything from him
 
-### False Beliefs
+### What He Wants to Prove
 
-**Philosophical:** If something is real, it should be simple enough to prove.
+That ordinary competence matters.
 
-**Emotional:** If people need me, then I matter.
+That plain language can expose what status and abstraction try to hide.
 
-Both are understandable. Both are incomplete. The Realm challenges the first because invisible things are often real. His relationships challenge the second because being needed is not always love — sometimes it is dependency, sometimes exploitation, sometimes panic.
+That helping people does not make him their property.
 
-**Mature belief he is growing toward:** Real things do not always explain themselves plainly, and being valued means more than being useful.
+That he can leave situations where need has replaced respect.
+
+That someone can choose him without requiring him.
+
+His mature belief:
+
+> Being needed gives me a role. Being wanted gives me a relationship.
+
+---
+
+## Voice and Dialogue
+
+### Core Voice
+
+Brent’s voice is plain, efficient, consequence-based, and difficult to misinterpret.
+
+His natural movement is:
+
+> strip away the framing → identify what is actually happening → name who pays → state the next relevant fact
+
+He is blunt primarily because direct language is efficient.
+
+> “I said what I meant. Now nobody has to guess.”
+
+### Humor
+
+Brent’s humor must remain distinct from Marcus’s.
+
+**Marcus creates a new comic frame.**
+
+**Brent punctures the existing frame.**
+
+> grand claim → concrete translation → dry verdict
+
+Marcus elaborates absurdity.
+
+Brent reduces grandeur to fact.
+
+Examples:
+
+> “So it needs three people bleeding in a circle.”
+
+> “That’s not an ancient trial. That’s a staircase with an ego.”
+
+> “He didn’t sacrifice himself. He ignored three exits and made dying sound intentional.”
+
+> “That wasn’t bad luck. That was a decision you made several times.”
+
+His humor:
+- Grounds the room
+- Punctures self-importance
+- Releases tension through blunt truth
+- Communicates affection without sentimentality
+- Becomes more playful in relaxed groups
+
+### Flirting
+
+Brent is direct, sexually confident, and unwilling to chase ambiguity.
+
+He may flirt through:
+- Direct interest
+- Specific compliments
+- Confident teasing
+- Invitations with clear intent
+- Low-stakes competition
+- Comfortable physical presence
+
+> “You’re interested or you’re not. Either answer’s fine. I’m not doing the part where we pretend not to know.”
+
+He can underread subtle flirting, but once interest is clear, he is not especially self-conscious.
+
+His difficulty appears when attraction requires emotional exposure rather than confidence.
+
+### Stress Shifts
+
+**Mild stress**
+- Less humor
+- More direct language
+- Checks whether people understand the actual consequence
+
+**Serious danger**
+- Clinical
+- Immediate
+- Commands become physical and concrete
+
+> “Hold this.”
+>
+> “Don’t pull it out.”
+>
+> “Move now.”
+
+**Unsolvable pain**
+- Stops offering false reassurance
+- Becomes quieter
+- Can remain without turning the moment into a project
+
+> “I don’t have anything that makes this better. I’m not going anywhere.”
+
+**Anger**
+- Short warnings
+- Exact accusations
+- Rising volume
+- Profanity
+- Open hostility if the pattern continues
+
+### Relationship Registers
+
+**With Marcus**
+- Fast, grounded banter
+- Marcus finds hidden mechanisms; Brent asks what changes in practice
+- Marcus sees the sophistication beneath Brent’s practicality
+- Brent sees that Marcus makes people better by noticing what they can do
+- Marcus can calm him by naming the grievance precisely and separating it from the next damaging action
+
+**With Serra**
+- Serra is the most effective at stopping Brent from acting from rage
+- She redirects commitment toward immediate action
+- She does not debate the legitimacy of the anger before creating movement
+
+> “Brent. Look at me. Not him. What needs to happen next?”
+
+- Serra asks what must yield now
+- Brent asks what that commitment will actually cost and who deals with the aftermath
+
+**With Mara**
+- Mara is the second most effective at calming him
+- She does not soothe
+- She reframes the situation into something he can understand
+- She identifies where the disconnect, manipulation, or false frame actually is
+
+> “He is trying to make you defend your tone so nobody discusses what he did.”
+
+Brent appreciates being shown the real problem and then left to decide what to do with it.
+
+**With Seb**
+- Respects ownership and strategic clarity
+- Reacts strongly when Seb personally accepts consequence
+- Distrusts sacrifice treated as proof of necessity
+
+> “Taking the hit yourself doesn’t make the hit necessary.”
+
+**With Mathias**
+- Mathias can slow motive attribution by adding context
+- Brent may find the delay irritating
+- Their final dynamic remains provisional until Mathias is more fully developed
+
+### Defining Lines
+
+> “I don’t care what you call it. I care whether it holds.”
+
+> “You don’t get credit for suffering when the damage was preventable.”
+
+> “Next time, say you want me to listen. I thought you wanted an answer.”
+
+> “I don’t have anything that makes this better. I’m not going anywhere.”
+
+> “I know you don’t need anything fixed. I just don’t know what staying is supposed to look like.”
+
+> “Being needed tells me what I’m for. It doesn’t tell me why you stayed.”
 
 ---
 
@@ -123,11 +605,11 @@ He is estranged from most of the family now. No one waiting. No one who would no
 
 ### Earth Job
 
-Civil engineer at a large, unglamorous organization — a municipal public-works department, a transit authority, an infrastructure or construction firm. He inspects and maintains the structures everyone depends on and no one thinks about: bridges, retaining walls, foundations, drainage, load-bearing members — the things that quietly hold a place up. He is the one who reads a hairline crack and tells you whether it's cosmetic or the first sign the whole thing is coming down.
+General IT field support at a large unglamorous organization — manufacturing company, hospital system, logistics hub, or municipal office. He fixes printers, Wi-Fi, routers, cables, workstation problems, conference room screens, password lockouts, "the system is down" situations, and user-error problems nobody wants to admit are user error.
 
-He actually likes the work. That is important. The problem is not the job — it is that when he does his job well, *nothing happens*: the bridge stays up, the wall holds, the slab doesn't move. His competence prevents problems, so nobody notices it. He is only visible when something breaks — and by then it is already someone's emergency. People rarely credit him for the failures that never happened.
+He actually likes the work. That is important. The problem is not the job — it is that when he does his job well, nothing dramatic happens, which means nobody notices. He is only visible when something breaks. His competence prevents problems. People rarely credit him for problems that never happened.
 
-He is not a marquee structural-design name with a signature tower on the skyline. Not a prestige academic. Not Soren's intellectual peer in biotech terms. He is the guy in a hard hat and a hi-vis vest down in the inspection pit because someone making twice his salary signed off on a spec they didn't understand. He has made his peace with this in a way that has not quite become bitterness but is sitting in that neighborhood.
+He is not a genius hacker. Not a prestige programmer. Not Soren's intellectual peer in biotech terms. He is the guy crawling under the desk because someone making twice his salary unplugged the Ethernet cable. He has made his peace with this in a way that has not quite become bitterness but is sitting in that neighborhood.
 
 ### Why He Accepted Astria's Offer
 
@@ -149,19 +631,27 @@ He did not choose it because he sees himself as nurturing. He chose it because s
 
 His healing style in-game was direct and efficient. No flourishes. He kept people alive while telling them exactly what they'd done wrong to end up needing him.
 
-**SCENE-001 confirmed (Earth canon):** Brent is the **404 squad medic — Healer/Support**, present at the pre-Worlds scrim against Dead Hand. He is **NOT a fire mage** (retired direction; do not introduce). His on-page voice is the dry, tool-oriented one the dossier describes: "support — the squad's medic — which had never matched the rest of him; you expected someone gentle and got a guy who treated triage like a hand tool." First to do the gear-check ("Headset's hot… the chair's reading your left arm a hair slow. You'll want to know that before you blame the game"); bluntness that reads as rude until you understand it is the closest he comes to looking out for you. He names the night's plan as a tool, not an objection ("That's a player-kill night… against the best killers in the bracket").
-
 ---
 
-## Realm Class — Adventurer · Interface — Keystone Integrity
+## Realm Class and Power Path
 
-**Realm class: Adventurer** (locked) — a generalist survivor's class earned through behavior; fitting for a man with no native magic who makes himself useful by reading what's actually in front of him. Nothing from the Aetherfall healer identity carried over.
+**Status: Open. Healer is not confirmed for the Realm.**
 
-**Interface: Keystone Integrity** (locked) — bone-piezoelectric. His skeleton stores and discharges mechanical stress: he can **mend** (reinforce, hold, become harder to move than his size suggests) and **shatter** (find the load-bearing component of a structure and pull it — the keystone — so the whole thing fails). This folds in the earlier Breaker / Steadfast / Tinkerer candidates: the *diagnostic instinct* (what's actually holding this together?), the *hold*, and the *break* are all one interface. Thematic resonance: he was beaten by paperwork; his power finds the keystone and removes it.
+The Aetherfall healer identity does not automatically carry over. Skills must be learned, discovered through use, taught, or unlocked by situation. What Brent becomes in the Realm is still being determined.
 
-**Not his lane:** "draining others" is **Seb's** (Reaver). Brent acts on *structures*, not people's vitality.
+### Three Candidate Directions
 
-**Finale role:** Keystone Integrity **comes online during the Myrmidon fight** — the shock-trooper is grown to adapt to *interfaces*, but Brent reads it as a *structure* and exposes its load-bearing weakness (the keystone Marcus then holds open and Serra strikes). The mundane is what the swarm can't metabolize fast enough.
+**Breaker** — His anti-abstraction instinct made literal. The Realm's magical systems — contracts, bindings, vow structures, ritual circles, name-bindings — are systems. Systems have load-bearing components. Brent finds those components and removes them. Not through counter-magic or training. Through the same diagnostic instinct that makes him good at IT: he walks up to something complicated and asks what's actually holding this together. His hands find the answer. Thematic resonance: he was beaten by paperwork. His power undoes the paperwork.
+
+**Steadfast** — Physical commitment as a Realm interface. When Brent commits to something — holding a position, finishing a job, standing between a group and a threat — the Realm treats that consistency as structurally real. He becomes harder to move than his size suggests. He endures things that should stop him. He finishes things that should have killed him before completion. Thematic resonance: his whole life, people underestimated what he'd do. His power is the Realm validating that they were wrong.
+
+**Tinkerer / Runewright** — IT troubleshooting translated into Realm mechanics. He gets his hands on Realm artifacts, broken magical constructs, discarded ritual components and treats them the way he treats a router that's behaving wrong. He builds things, modifies things, repairs things magic users consider beyond repair because they're thinking about intended design rather than actual mechanism. Thematic resonance: he likes the work. This is that, in a setting where the problems are more interesting.
+
+**Hybrid possibility:** Breaker + Tinkerer — someone who dismantles what others constructed and builds from the pieces. The most complete expression of his psychology.
+
+⚠ Decision needed before any Realm power scene involving Brent can be drafted.
+
+---
 
 ## Relationships
 
@@ -218,7 +708,7 @@ He is not the smartest person in the room. He may be the most honest about what 
 
 ### Starting Point
 
-Estranged, unglamorous, practically competent, allergic to abstraction. No one waiting for him. Accepted an offer that promised money and the possibility of being chosen for something. Arrives in the Realm with no skills, no weapon, no context — and the same diagnostic instinct he brought to every cracked beam and failing joint.
+Estranged, unglamorous, practically competent, allergic to abstraction. No one waiting for him. Accepted an offer that promised money and the possibility of being chosen for something. Arrives in the Realm with no skills, no weapon, no context — and the same diagnostic instinct he brought to every broken router.
 
 ### End Direction
 
@@ -249,10 +739,10 @@ Book 1 leaves Brent somewhere in his solo arc — integrated into a group that n
 - Healer in Aetherfall by practical choice, not sentimental one
 - Realm class is NOT confirmed as healer — open
 - Nothing from Aetherfall carries over — skills develop through use
-- Lands separately from Marcus, Serra, and the Vultures
+- Lands separately from Marcus, Sarah, and the Vultures
 - Finds a different group during solo arc — identity of group unresolved
 - Possible death in Book 1 — not confirmed, do not execute without author direction
 
 ---
 
-*Last updated: Earth job reconciled to **civil engineer** (CCR-004) to match the canon aggregates (character_power_architecture / dominion_realm_story_bible / master_timeline / character_state_log / setup_payoff_tracker / continuity_reconciliation) — the "what holds and what breaks" framing that ties to Keystone Integrity; healer confirmed for Aetherfall only; Realm class Adventurer (locked); solo arc with unknown group; mortality unresolved*
+*Last updated: rebuilt from redesign document; healer confirmed for Aetherfall only; Realm class open; solo arc with unknown group; mortality unresolved*

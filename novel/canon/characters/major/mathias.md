@@ -44,9 +44,29 @@ Approachable before he reads as competent — the warm confidant, the balance po
 
 ## Core Identity
 
-Mathias is warm from confidence, not from need. He is curious about everything — people, systems, places, creatures, histories — and he pursues that curiosity without agenda. The Realm is not a threat to him or a game or a punishment. It is the greatest mystery he has ever encountered, and his response to that is the same response he has had to everything since he was a kid asking every adult in the room what their job was: *tell me more.*
+Mathias is a calm, free-spirited traveler, confidant, and referee whose deepest drives are novelty, trust, experience, and the pleasure of being allowed into something real.
 
-His drive is contact. Not understanding as an abstract goal, not mapping or documenting, not analysis. He wants to reach things — people, creatures, factions, ancient presences, things no one else has managed to touch. The reaching is the point.
+He is curious without being compelled, warm without being outcome-dependent, and socially open without needing to control what a connection becomes. He does not study people or systems primarily to solve, optimize, or protect himself. He enjoys discovering how things relate, what a place remembers, what a person has never said aloud, and what becomes visible when someone feels safe enough to speak honestly.
+
+He is less forceful than Marcus, Serra, or Seb not because he lacks conviction, but because he is detached from the need to make others accept his conclusion.
+
+He saw what he saw.
+
+He concluded what he concluded.
+
+He can explain it if useful, but he does not experience disagreement as a threat to the integrity of his perception.
+
+His central strength is:
+
+> He can remain calm enough to see multiple valid paths without becoming paralyzed by their existence.
+
+His central danger is:
+
+> He can preserve freedom, neutrality, and possibility long enough that other people carry the cost of the path he refused to choose.
+
+### Central Thematic Sentence
+
+> Mathias is a free-spirited traveler and trusted confidant who values novelty, honesty, and privileged access to what others rarely reveal: when healthy, his detachment gives him fairness, calm, and openness; when strained, freedom becomes noncommitment, neutrality becomes abandonment, and preserving every possible path prevents him from choosing the bond that has already become irreplaceable.
 
 ---
 
@@ -54,38 +74,719 @@ His drive is contact. Not understanding as an abstract goal, not mapping or docu
 
 ### Baseline Strengths
 
-- Warm without performance — the warmth comes from genuine interest, not social strategy
-- Curious about everything — people are one of the most fascinating things in the world, and the Realm adds several more categories
-- Confident openness — he is not open because he doesn't know better; he is open because he has seen enough of the world and chosen openness anyway
-- The question that opens an hour — he asks one thing and somehow you end up talking for an hour, and it doesn't feel like he did anything except listen
-- Finds groups fast — his solo arc in the Realm is short because he is constitutionally incapable of being around people without becoming part of something
-- Not a leader by dominance — he does not take charge, he does not compete for authority; people turn toward him when they decide to tell the truth
+- **Calm detachment** — does not become fused with every outcome, disagreement, or interpretation
+- **Genuine curiosity** — wants to experience people, places, histories, creatures, and systems from angles others miss
+- **Trustworthiness** — people feel safe revealing things they have not told anyone else
+- **Referee instinct** — can hear competing positions without treating intensity as proof
+- **Slow judgment** — distinguishes what happened from what it meant to the person involved
+- **Social ease** — can enter unfamiliar groups without needing to dominate them
+- **Self-contained confidence** — does not shrink himself to make others comfortable
+- **Novelty appetite** — seeks new places, activities, cultures, stories, and experiences
+- **Experiential intelligence** — prefers direct contact and lived context over detached theory
+- **Situational clarity** — can become unexpectedly concise when danger removes the value of open-ended exploration
+- **Relational steadiness** — makes people feel heard without immediately converting disclosure into advice or action
+- **Flexibility** — can change direction without experiencing adaptation as defeat
 
 ### What He Is Not
 
-Not naive. Not a golden retriever. Not innocent. His warmth is not the warmth of someone who hasn't been tested — it is the warmth of someone who has seen enough and chose this anyway. That distinction is important and should be felt.
+- Not conflict-avoidant
+- Not the group therapist
+- Not compelled to understand every refusal
+- Not someone who searches for ways around a clear “no”
+- Not a gentler version of Marcus
+- Not morally neutral
+- Not indecisive simply because he sees multiple perspectives
+- Not self-effacing
+- Not dependent on being needed
+- Not driven to repair every relationship
+- Not emotionally intense by default
+- Not incapable of saying, “I don’t want this”
 
-Not a therapist or group conscience. He is not in the cast to draw out other characters' arcs. He has his own thing he is after.
+### Curiosity and Experience
 
-Not the heart of the group in a sentimental sense. He is the person who makes contact possible — with new places, new people, new things. That is a function, not a personality substitute.
+Mathias’s curiosity is not organized around mastery.
 
-### The Social Superpower
+He wants:
+- The unfamiliar route
+- The place nobody in the group has seen
+- The food he has never tried
+- The historical detail omitted from the standard account
+- The private truth someone has never said aloud
+- The experience available only because he happened to be present and attentive
 
-He asks one question and somehow you end up talking for an hour.
+His informal philosophy is:
 
-Not because it's a technique. Because he is actually interested in the answer, and that interest is legible, and people feel it. When Mathias asks what's going on with you, the question doesn't land like social obligation. It lands like he actually wants to know.
+> Trying something twice means not trying something new once.
 
-The result: people tell him things they didn't plan to tell anyone. Not because he manipulated them into it. Because he made it feel safe to say the true thing.
+This is partly playful exaggeration, but the appetite is real.
 
-When someone new enters the group, everyone else asks variations of *can we trust him* or *what's his angle.* Mathias asks *what's his story.* That's the difference.
+He is drawn to:
+- Travel
+- Unfamiliar neighborhoods
+- Museums
+- Ruins
+- Historical sites
+- Local food
+- New games
+- New activities
+- Regional customs
+- People-watching
+- Spontaneous detours
+- Stories that complicate what he thought he knew
+
+He is not chasing novelty because he cannot tolerate stillness.
+
+He genuinely values breadth of experience.
+
+The danger begins when staying would require commitment and movement still offers escape.
+
+### Being Confided In
+
+Mathias enjoys being confided in.
+
+The pleasure comes from several places:
+- The connection was real
+- The other person trusted him
+- His attention had value
+- He was not merely listening into empty space
+- He received access that was not available to everyone
+- Something private crossed the distance between them
+
+The sentence:
+
+> “I haven’t told anyone else this, but…”
+
+would make him genuinely happy.
+
+Not because he collects secrets as leverage.
+
+Because it confirms privileged trust.
+
+He likes being the person someone chose for the truth.
+
+### Praise
+
+His strongest praise hierarchy is:
+
+1. “I trusted you.”
+2. “People tell you things they don’t tell anyone else.”
+3. “You were right.”
+4. “You noticed the connection nobody else saw.”
+
+He does not need to be declared brilliant.
+
+He values confirmation that:
+- His judgment was sound
+- His attention mattered
+- The connection was genuine
+- Someone trusted him specifically
+
+Praise that bothers him:
+- “You always see the best in everyone.”
+- “You’re too nice.”
+- “You’re harmless.”
+- “You could make friends with anything.”
+
+Those descriptions flatten deliberate openness into innocence.
+
+He is not open because he cannot see danger.
+
+He is open because danger does not automatically make contact worthless.
+
+### Judgment
+
+Mathias is not nonjudgmental.
+
+He is slow to judge.
+
+His instinct is:
+
+> I may know what happened. I do not yet know what it meant to the person doing it.
+
+He can hold context without treating it as exoneration.
+
+His mature form understands:
+
+> Explanation and accountability can coexist.
+
+His risk is allowing context to dilute ownership:
+- Explaining the betrayer until the betrayal loses shape
+- Treating morally unequal positions as equally arguable
+- Preserving neutrality after neutrality begins helping the stronger side
+- Remaining interested in motive after action is already required
+
+### Referee Instinct
+
+Mathias is excellent in conflict because he does not need to win the exchange.
+
+He can:
+- Identify what each person is actually arguing
+- Notice when someone changes the question
+- Separate evidence from intensity
+- Call a fair point against someone he likes
+- Refuse false equivalence
+- Keep the conversation from becoming identity combat
+
+He may say:
+
+> “Marcus is arguing about what the decision means. Serra is arguing about whether the decision is already made. You are answering different questions.”
+
+Or:
+
+> “You both agree on what happened. You disagree about whether it should matter now.”
+
+He does not mediate because harmony is sacred.
+
+He referees because inaccurate conflict wastes everyone’s time.
+
+### Detachment
+
+Mathias does not feel the need to defend every conclusion.
+
+He can say:
+
+> “That is how I read it. You can decide what to do with that.”
+
+This gives him:
+- Calm
+- Flexibility
+- Fairness
+- Resistance to emotional pressure
+- Willingness to revise without humiliation
+
+It can also make him seem cavalier.
+
+Other people may need:
+- His reasoning
+- His commitment
+- Evidence that the issue matters to him
+- Clarity about whether he is staying
+
+Mathias may underestimate those needs because he does not require the same reassurance from them.
+
+### Boundaries
+
+Mathias can accept “no.”
+
+He may remain curious, but he does not treat refusal as a puzzle or search for a hidden route around it.
+
+> “They said no. All right.”
+
+His risk is not intrusion.
+
+His risk is underestimating the consequence of his own detachment:
+- Leaving without recognizing that another person experienced the bond as permanent
+- Remaining undefined when someone else needs direction
+- Assuming others can carry ambiguity as easily as he can
+- Treating departure as neutral because no explicit promise was broken
 
 ### Failure Mode
 
-The contact drive has a dark side. He reaches toward things that don't want to be reached, and then he has to decide whether to keep going.
+His strengths extend past their healthy limits:
 
-This creates a specific kind of problem: he is bad at taking no for an answer when the thing saying no is interesting enough. Not in an aggressive way — in the way of someone who genuinely cannot believe that something doesn't want to be understood. His assumption is that contact is always possible if you approach correctly. The Realm will eventually show him something that breaks that assumption.
+- Curiosity → breadth without depth
+- Freedom → noncommitment
+- Detachment → appearing indifferent
+- Fairness → failure to take a side
+- Context → diluted accountability
+- Novelty-seeking → difficulty staying after discovery becomes ordinary
+- Social warmth → emotional intimacy without romantic or relational direction
+- Trustworthiness → carrying too many separate confidences
+- Calm → underestimating the urgency felt by others
+- Self-containment → others not realizing he needs or values them
+- Flexibility → avoidance of choosing one future
+- Referee instinct → treating participation as observation
+- Openness → creating significance without accepting responsibility for that significance
 
-The cost lands hardest when he reaches something and the reaching changes it — or changes him. Some things in the Realm resist contact for reasons. His curiosity does not naturally include the question *should I be doing this.*
+His central relational danger is:
+
+> He can make someone feel deeply known while remaining unclear about whether he is choosing them.
+
+### Choice and Commitment
+
+Mathias does not choose one person, place, or cause because duty corners him.
+
+He chooses when a connection becomes **mutually created and personally irreplaceable**.
+
+Three things force the shift:
+
+#### He becomes a participant rather than an observer
+
+He can leave something he merely discovered.
+
+He has greater difficulty leaving something his presence helped create.
+
+The internal shift is:
+
+> This is no longer something I found. This is something I helped build.
+
+That may be:
+- A settlement
+- A community
+- A relationship
+- A creature or people who now recognize him as part of their world
+- A shared structure that would materially change if he left
+
+#### Someone chooses him and asks him to choose back
+
+Mathias is accustomed to being trusted.
+
+He is less accustomed to being directly claimed as part of someone’s future.
+
+The decisive challenge is:
+
+> “I do not only trust you. I want you here.”
+
+He must decide whether the connection is an experience he values or a future he is willing to build.
+
+#### Leaving becomes a choice rather than the absence of one
+
+Early Mathias treats departure as the natural default.
+
+Staying requires justification.
+
+His growth is realizing:
+
+> Leaving also changes people. Leaving also requires ownership.
+
+His mature understanding:
+
+> Freedom is not the absence of bonds. It is the ability to choose a bond fully.
+
+He does not stay because the horizon disappears.
+
+He stays because one horizon becomes home.
+
+### What Breaks His Calm
+
+Mathias’s calm breaks when **trust is deliberately weaponized**.
+
+Ordinary disagreement does not destabilize him.
+
+Changing plans does not destabilize him.
+
+Someone choosing differently does not necessarily destabilize him.
+
+But he reacts strongly when someone:
+- Uses a private disclosure as leverage
+- Punishes someone for trusting
+- Pretends to listen in order to manipulate
+- Reveals something shared in confidence
+- Turns vulnerability into public humiliation
+- Exploits hospitality
+- Makes sincerity unsafe for everyone watching
+
+The violation is not merely harm.
+
+It is:
+
+> You taught people that trust was a mistake.
+
+That makes the issue personal.
+
+His anger becomes unusually clean and final.
+
+Normally, he contextualizes.
+
+Here, he may stop.
+
+> “She trusted you.”
+
+> “You did not misunderstand him. You waited until he trusted you and used it.”
+
+The absence of qualification signals the depth of the response.
+
+### Emotional Investment
+
+Mathias becomes genuinely invested when:
+- The trust was specific
+- His presence helped create the bond
+- The bond is endangered because openness was exploited
+- Remaining neutral would teach people that sincerity is foolish
+- Leaving would damage something he is already part of
+
+This is where curiosity becomes loyalty.
+
+The turning point is:
+
+> He realizes that refusing to choose is still a choice, and neutrality would make him complicit in the destruction of trust.
+
+### Anger
+
+Mathias is usually the calmest member of the group.
+
+His anger is rarely explosive.
+
+It appears as:
+- Sudden clarity
+- Loss of warmth
+- Shorter sentences
+- Refusal to contextualize the offender
+- A direct choice of side
+- Withdrawal of curiosity
+- Finality
+
+One of his sharpest relational lines:
+
+> “You don’t actually want to know. You want me to keep understanding you.”
+
+His anger at dehumanization remains relevant, especially:
+- Treating people as categories
+- Exploiting disclosure
+- Silencing people before they can represent themselves
+- Declaring someone’s answer irrelevant after inviting honesty
+- Using trust as evidence of weakness
+
+### Immediate Danger
+
+In danger, Mathias becomes more concise than people expect.
+
+The reason is not that his curiosity vanishes.
+
+Danger changes the value of open possibilities.
+
+He rapidly separates:
+- What is known
+- What is speculation
+- Which path remains open
+- Which option preserves freedom of movement
+- Whether more information is worth the cost of staying
+
+His scout register:
+
+> “Two ahead. One behind us. Left path is open.”
+
+> “We don’t know what that is. We do know it’s moving toward us.”
+
+> “Not enough information. We leave.”
+
+Unlike Marcus, he does not need to understand before retreating.
+
+Unlike Seb, he does not need to make the retreat philosophically unified.
+
+Unlike Serra, he does not instinctively commit into the unknown.
+
+His calm situational awareness allows him to disengage without treating retreat as failure.
+
+### Romantic Pattern
+
+Mathias is the member of the group most likely to be friend-zoned.
+
+He naturally creates:
+- Warmth
+- Trust
+- Disclosure
+- Safety
+- Long conversations
+- Emotional ease
+- The feeling of being understood
+
+He does not always create:
+- Sexual tension
+- Direction
+- Polarization
+- Explicit desire
+- A sense that he wants this specific person rather than simply enjoys knowing them
+
+His central romantic issue:
+
+> Mathias makes people feel safe enough to reveal themselves, but he does not always make them feel specifically desired.
+
+He may enjoy intimacy without creating trajectory.
+
+He can become emotionally significant while remaining relationally undefined.
+
+He is bad at:
+- Ending relationships
+- Choosing one person when several possible futures remain valid
+- Converting emotional intimacy into romantic intent
+- Staying after novelty fades
+- Recognizing when his calm is being experienced as insufficient investment
+
+He is not bad at saying:
+
+> “I don’t want this.”
+
+He is more likely to struggle with:
+
+> “I want this enough to stop keeping every other path open.”
+
+### Hidden Need
+
+Mathias wants to be pursued with the same curiosity he gives others.
+
+People confide in him.
+
+People feel known by him.
+
+People remember how he made them feel.
+
+They may not ask:
+- What has he not said?
+- What does he want?
+- What would make him stay?
+- Which part of him remains undiscovered?
+
+His need is:
+
+> Someone remains curious about him after he has made them feel understood.
+
+He may experience the asymmetry only as occasional disappointment:
+- Conversations return to the other person
+- People call when they need to talk
+- Few people ask what he has withheld
+- His openness is mistaken for complete transparency
+- Others assume calm means low investment
+
+### Loyalty and Secrecy
+
+Mathias is loyal, but his loyalty can be broad rather than exclusive.
+
+He can understand opposing people without believing that understanding equals endorsement.
+
+This can create conflict with someone who expects:
+
+> If you are with me, you should stop trying to understand them.
+
+He takes confidences seriously.
+
+His danger is keeping information the group needs because disclosure would violate one relationship.
+
+He must learn that silence is also an action affecting other connections.
+
+### What He Is Bad At
+
+- Ending relationships
+- Choosing one path when several remain valid
+- Creating romantic tension
+- Converting intimacy into explicit commitment
+- Staying after novelty becomes familiarity
+- Explaining conclusions that feel self-evident
+- Recognizing when detachment is affecting more invested people
+- Treating his own desire as reason enough to commit
+- Accepting that choosing one life closes other possible lives
+- Realizing that neutrality can influence the outcome
+- Disclosing need rather than ordinary openness
+- Asking someone to pursue him rather than waiting to see whether they do
+
+### What He Wants
+
+- New experiences
+- Travel
+- Trust
+- Honest conversation
+- The unfamiliar
+- Privileged access to something real
+- Freedom of movement
+- People who can surprise him
+- To be chosen for confidence
+- To remain curious without being controlled by curiosity
+- To find something worth staying for
+- To be known with the same attention he gives others
+
+### What He Wants to Prove
+
+That openness is not naïveté.
+
+That calm is not indifference.
+
+That understanding does not require surrendering judgment.
+
+That freedom and loyalty are not opposites.
+
+That he can choose one bond without becoming trapped inside it.
+
+His mature belief:
+
+> A connection can be freely chosen, deeply binding, and still remain freedom.
+
+---
+
+## Voice and Dialogue
+
+### Core Voice
+
+Mathias’s voice is calm, observational, lightly amused, and detached from the need to win.
+
+His natural movement is:
+
+> observe the pattern → separate the positions → state the distinction → let others decide what to do with it
+
+He does not usually litigate his conclusion.
+
+> “That is how I read it.”
+
+> “You may be right. I don’t think you’re right for the reason you think.”
+
+> “You agree on the facts. You disagree about what they require.”
+
+### Default Sound
+
+- Moderate sentence length
+- Calm cadence
+- Little urgency unless danger is immediate
+- Comfortable with silence
+- Contextual without becoming verbose
+- Direct preferences when they are truly personal
+- Less invested in defending interpretation than Marcus
+- Less directive than Seb
+- Less momentum-oriented than Serra
+- Less reductive than Brent
+- Less guarded than Mara
+
+### Humor
+
+Mathias’s humor comes from detached observation of transparent human behavior.
+
+Pattern:
+
+> emotionally invested behavior → calm external observation → understated social truth
+
+Marcus constructs an unexpected association.
+
+Brent reduces grandeur to blunt consequence.
+
+Mathias stands slightly outside the emotional performance and reports what everyone is doing.
+
+Examples:
+
+> “You two have agreed four times. You just keep changing the wording so the argument can continue.”
+
+> “Seb asked for objections. Marcus appears to have interpreted that as a subscription service.”
+
+> “Brent says he doesn’t want company. He has also made enough food for eight people.”
+
+> “Serra has already decided. The rest of this conversation is apparently for historical documentation.”
+
+His humor:
+- Includes rather than attacks
+- Reveals habits
+- Uses affectionate understatement
+- Often contains a true social observation
+- Can defuse conflict without invalidating it
+- Becomes sharper when trust has been exploited
+
+### Referee Register
+
+> “That isn’t what she said.”
+
+> “He answered the question you asked. You wanted him to answer a different one.”
+
+> “You are arguing about intent. Brent is arguing about effect.”
+
+> “One at a time. The louder version is not automatically the stronger one.”
+
+He does not need everyone to agree.
+
+He wants the disagreement to be accurate.
+
+### Immediate-Danger Register
+
+> “Left path. Move.”
+
+> “Three behind us.”
+
+> “We know enough to leave.”
+
+> “Not that one. It’s watching the others.”
+
+Short, situational, and free of theatrical command.
+
+### Trust Register
+
+Mathias becomes warmer and more attentive when someone shares something private.
+
+He does not overreact to disclosure.
+
+He makes it feel safe by treating it as meaningful without turning it into a crisis.
+
+> “All right.”
+
+> “Thank you for telling me.”
+
+> “Do you want me to keep listening, or are you asking what I think?”
+
+That last question distinguishes him from Brent, who may need the instruction after misunderstanding.
+
+Mathias may ask it naturally.
+
+### Anger Register
+
+When trust is weaponized, his warmth disappears.
+
+> “She trusted you.”
+
+> “That was not honesty. You waited until he was vulnerable and used the information.”
+
+> “I understand why you did it. I am still choosing them.”
+
+> “You don’t actually want to know. You want me to keep understanding you.”
+
+His anger is dangerous because he normally leaves interpretive space.
+
+When that space closes, the judgment feels final.
+
+### Relationship Registers
+
+**With Marcus**
+- Marcus is one of the most effective people at challenging Mathias
+- Forces him to articulate reasoning he sees no need to defend
+- Identifies when “several valid choices” is masking personal preference
+- Mathias helps Marcus distinguish understanding a person from actually being with them
+
+> Marcus: “Walk me through how you got there.”
+>
+> Mathias: “You say that like the conclusion owes you a deposition.”
+
+**With Seb**
+- Seb is the other most effective force on him
+- Compresses open possibilities into decision
+- Challenges Mathias when context begins diluting ownership
+- Mathias notices costs that continue between people after Seb’s immediate plan ends
+
+> “You’re counting what the plan spends now. You’re not counting what it teaches them about each other.”
+
+**With Serra**
+- Serra makes commitment visible
+- Mathias can recognize when her instinct is correct without pretending instinct explains everything
+- He may admire her freedom to choose while seeing the relational wake she leaves behind
+
+> “You knew what she would do. You didn’t know why she thought she had to.”
+
+**With Mara**
+- Both notice hidden social structure, but from different positions
+- Mara manages attention; Mathias observes relational movement
+- He believes being known requires allowing some interpretation outside one’s control
+- She may find his openness freeing and insufficiently defended
+
+> “You cannot be understood without letting someone misunderstand you long enough to learn.”
+
+**With Brent**
+- Brent restores the difference between context and permission
+- Mathias helps Brent see relational damage before it becomes visible consequence
+- Their final contrast remains partly provisional
+
+> Brent: “Nothing’s broken.”
+>
+> Mathias: “Not yet isn’t the same as nothing is happening.”
+
+### Defining Lines
+
+> “That is how I read it. You can decide what to do with that.”
+
+> “I trusted you” is stronger praise to him than “you were right.”
+
+> “You both agree. You just haven’t finished being angry yet.”
+
+> “Not enough information. We leave.”
+
+> “She trusted you.”
+
+> “You don’t actually want to know. You want me to keep understanding you.”
+
+> “Leaving is still a decision.”
+
+> “I don’t want every road. I want to know I chose this one.”
 
 ---
 
