@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.config import settings
 from dominion.shared.enums import Decision, SceneStatus
 from dominion.shared.models import Approval, Beat, Chapter, Job, PovProfile, Run, Scene
 from dominion.workers.budget import TokenBudget
@@ -20,6 +22,30 @@ from dominion.workers.memory import canon_rag, summaries
 from dominion.workers.oracle import Oracle
 
 _PRIOR_TAIL_CHARS = 800
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]  # …/src/dominion/workers/context.py -> repo root
+_dialogue_rules_warned = False
+
+
+def _load_dialogue_rules() -> str | None:
+    """Read the authoritative dialogue rules fresh for each draft, so edits to the file take effect
+    on the next scene. Relative paths resolve from the project root, then the CWD."""
+    global _dialogue_rules_warned
+    configured = Path(settings.dialogue_rules_path)
+    candidates = [configured] if configured.is_absolute() else [
+        _PROJECT_ROOT / configured,
+        Path.cwd() / configured,
+    ]
+    for path in candidates:
+        try:
+            text = path.read_text(encoding="utf-8").strip()
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+        return text or None
+    if not _dialogue_rules_warned:  # surface a misconfigured source-of-truth once, don't spam per scene
+        print(f"[context] dialogue rules not found at {settings.dialogue_rules_path!r}; "
+              "drafts will run without them", flush=True)
+        _dialogue_rules_warned = True
+    return None
 
 
 @dataclass
@@ -36,6 +62,7 @@ class SceneContext:
     voice_spec: str | None
     budget: TokenBudget
     exemplars: list[str] = field(default_factory=list)
+    dialogue_rules: str | None = None                           # authoritative dialogue source of truth
     canon: list[str] = field(default_factory=list)              # beat-scoped RAG over canon
     pov_summary: str | None = None                              # what this POV knows
     ledger: dict[str, dict[str, Any]] = field(default_factory=dict)  # Oracle read of hard stats
@@ -81,6 +108,7 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         knowledge_injections=list(beat.knowledge_injections or []),
         voice_spec=profile.voice_spec if profile else None,
         budget=TokenBudget(max_tokens=job.token_budget),
+        dialogue_rules=_load_dialogue_rules(),
     )
 
     # Oracle: current hard state for each character present (drives the continuity reviewer).

@@ -61,3 +61,21 @@ async def test_drafter_includes_phase2_context_when_present(monkeypatch):
     assert "Eyes of Meszkhal" in user
     assert "has just woken" in user
     assert "not the truth of the place" in user
+
+
+async def test_drafter_injects_dialogue_rules_as_authoritative(monkeypatch):
+    captured: dict[str, object] = {}
+
+    async def fake_complete(**kwargs):
+        captured.update(kwargs)
+        kwargs["budget"].charge(Usage(10, 10))
+        return "prose", Usage(10, 10)
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    ctx = _ctx(dialogue_rules="New speaker = new paragraph. Always.")
+    await drafter.run(None, ctx)
+
+    system = captured["system"]
+    assert "New speaker = new paragraph. Always." in system   # the rules are loaded into the prompt
+    assert "AUTHORITATIVE" in system                          # marked as the source of truth
+    assert system.index("Terse, sensory, wry.") < system.index("New speaker")  # rules win (placed after voice)

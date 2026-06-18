@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     draft_model: str = "claude-sonnet-4-6"
     review_model: str = "claude-haiku-4-5-20251001"
 
+    # Authoring source-of-truth docs loaded into the drafter. Relative paths resolve from the
+    # project root (falling back to CWD). dialogue_rules.md is authoritative for ALL dialogue —
+    # it wins over the per-POV voice spec where they disagree (see drafter._voice_system).
+    dialogue_rules_path: str = "novel/style/dialogue_rules.md"
+
     # Bounded execution
     scene_token_budget: int = 40_000
     scene_time_budget_s: int = 300

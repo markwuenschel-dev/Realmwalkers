@@ -20,10 +20,14 @@ Craft rules:
 - Write continuous narrative prose: action, sensation, interiority, dialogue. Dramatize; do not summarize.
 - Open inside the scene, not with throat-clearing. End when the beat's purpose is met — do not append a \
 resolution the beat does not call for.
-- No chapter or scene headers, no author notes, no markdown. Output ONLY the scene's prose.
-- This world runs on a game-like interface, but the stats and system text are an interpretation layer in \
-{pov}'s mind, not the truth of the place. If {pov} perceives system readouts, render them sparingly and \
-in-world; never dump a bare stat sheet.
+- No chapter or scene headers, no author notes, no commentary. Output ONLY the scene itself.
+- This is LitRPG: the game-like interface is real and expected on the page. When {pov} sees system output — \
+status windows, level-ups, skill or stat tables, quest or system notifications — render them as actual in-world \
+interface elements (set them off as boxed/offset blocks or simple tables), using the specific values you are \
+given. Do not omit them and do not dissolve them entirely into prose. Still filter the experience through {pov}'s \
+perception and reaction: the numbers are real, but {pov}'s reading of them can be wrong.
+- Only show system values you have actually been given (from canon, the ledger, or the beat). Do not invent \
+stats, levels, skills, or numbers you were not provided.
 - Stay consistent with every fact you are given. Do not invent named people, places, or lore that contradict them."""
 
 
@@ -34,6 +38,15 @@ def _voice_system(ctx: SceneContext) -> str:
     if ctx.exemplars:
         joined = "\n\n---\n\n".join(ctx.exemplars)
         system += f"\n\nMatch the voice of these passages:\n{joined}"
+    if ctx.dialogue_rules:
+        # The source of truth for dialogue: it wins over the per-POV voice guidance above wherever
+        # they disagree on how dialogue is written, formatted, or differentiated between characters.
+        system += (
+            "\n\nDIALOGUE RULES — AUTHORITATIVE. These are the source of truth for ALL dialogue. "
+            "Where they conflict with the voice guidance above on how dialogue is written, "
+            "formatted, or differentiated between characters, follow THESE rules:\n"
+            f"{ctx.dialogue_rules}"
+        )
     return system
 
 
