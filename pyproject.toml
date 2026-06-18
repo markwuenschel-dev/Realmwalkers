@@ -27,6 +27,7 @@ dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13"]
 [project.scripts]
 dominion-worker = "dominion.workers.worker:main"
 dominion-enqueue = "dominion.workers.enqueue:main"
+dominion-set-voice = "dominion.workers.set_voice:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dominion"]
