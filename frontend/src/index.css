@@ -50,7 +50,7 @@ textarea {
   border-radius: 8px; padding: 16px; font-family: "Spectral", Georgia, serif; font-size: 16px;
   line-height: 1.7; resize: vertical;
 }
-textarea.prose { min-height: 460px; }
+textarea.prose { min-height: 72vh; }
 textarea.feedback { min-height: 80px; margin-top: 12px; font-size: 14px; }
 
 .actions { display: flex; gap: 10px; margin-top: 14px; }
