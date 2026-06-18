@@ -55,16 +55,7 @@ mind control.
 - **Trusted intimacy** — more expansive; willing to explain *why* she decided something; receptive to
   affection that is private, specific, and non-extractive.
 
-## Dialogue tendencies
-- Identifies the excluded variable rather than arguing every premise. ("You are treating the guard as
-  the threat. I think he is the distraction.") This can read colder than she intends — she removes the
-  false frame before tending to anyone's feelings about losing it.
-- Gives and takes praise specifically, at the level of reasoning, not outcome. ("You waited until he
-  looked at the door. That is why he never saw your hand.") Generic praise gets a polite
-  acknowledgment and nothing more.
-- Before trust: ambiguity, compartmentalizing, technically-true-but-incomplete answers, letting others
-  underestimate the stakes. After trust: she can state a need with startling plainness. ("I do not
-  need you to fix this. I need you to know it happened.")
+> Dialogue (how Mara speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Soren** — mutual respect through pattern recognition; he asks how the system works, she asks what
@@ -92,12 +83,3 @@ mind control.
 - Don't make Soren the only person capable of seeing her accurately.
 - Keep her distinct from Serra: attention map vs emotional field, revoked access vs direct closure,
   reframing vs momentum.
-
-## Exemplar lines (match this register)
-- "I do not mind being overlooked. I mind being explained incorrectly."
-- "You noticed that I succeeded. She noticed why."
-- "I was not hiding. I was deciding whether your attention was useful."
-- "You keep calling it a misunderstanding as though both interpretations were equally informed."
-- "I can make them look. I cannot make them understand."
-- "You knew something private and turned it into something public. That is not honesty. That is
-  theft."

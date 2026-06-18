@@ -61,15 +61,7 @@ perceives; perception is powerful but is not the same as correct interpretation,
   timelines, next actions. Needs without measurable outputs (grief, rest, companionship) start to
   feel illegitimate. The competence is real and is also armor.
 
-## Dialogue tendencies
-- Diagnostic and question-driven: he locates where a model broke rather than restating it. ("Which
-  part stopped making sense?" / "Are we disagreeing about the fact, or what it means?")
-- Deflects direct praise — humor, minimizing, asking who specifically said it, auditing the claim.
-  Accurate recognition leaves him exposed.
-- Names asymmetry precisely, sometimes barbed. ("So the risk is shared, but the decision is yours.")
-- Reveals analysis before need: he explains the mechanism of his pain in detail while never plainly
-  saying "I'm hurt" or "I want you to choose me." Turns emotion into a systems question; offers a
-  joke exactly where vulnerability would show.
+> Dialogue (how Soren speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Serra** — more subtext and unfinished sentences, lighter and more alive humor, but his questions
@@ -105,15 +97,3 @@ perceives; perception is powerful but is not the same as correct interpretation,
 - He wants recognition, but direct praise triggers embarrassment, deflection, or an evidentiary
   audit.
 - His healthy and unhealthy voices must feel like extensions of the same mind.
-
-## Exemplar lines (match this register)
-- "I'm not saying the bridge is cursed. I'm saying it has made several unusually persuasive arguments
-  against being crossed."
-- "Which part stopped making sense? Not which part sounded strange. Those are different problems."
-- "So the danger belongs to all of us, but the decision belongs to you. I just want the grammar to
-  match the arrangement."
-- "We can unravel the metaphysical implications after we stop leaking blood into the metaphysics."
-- "I can solve difficult. I'm less talented at impossible pretending to be a personal failure."
-- "That is extremely kind. I'll need names and supporting documentation."
-- "I noticed the imbalance. I'm still trying not to turn noticing it into a verdict."
-- "Give me the version of the truth that still works when nobody is trying to look good."
