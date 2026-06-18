@@ -2,9 +2,11 @@
 revise pipeline, continuity resolution. LLM calls (drafter/summaries) are mocked."""
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import select
 
 from dominion.api.routers import reviews
+from dominion.api.routers.scenes import scene_detail
 from dominion.shared.enums import (
     BeatStatus,
     Decision,
@@ -26,7 +28,7 @@ from dominion.shared.models import (
     Summary,
 )
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
-from dominion.workers import llm, worker
+from dominion.workers import enqueue, llm, worker
 from dominion.workers.budget import Usage
 from dominion.workers.memory import canon_rag, ledger, summaries
 from dominion.workers.specialists import drafter as drafter_mod
@@ -241,3 +243,53 @@ async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
         job = (await s.execute(select(Job).where(Job.kind == JobKind.REVISE_FULL))).scalar_one()
         assert job.target_scene_id == sc.id
         assert (await s.execute(select(Critique))).scalar_one_or_none() is None  # flag cleared
+
+
+def test_enqueue_parses_expected_state_changes():
+    assert enqueue._parse_esc(None) is None
+    assert enqueue._parse_esc('{"Soren": {"level": "+1", "hp": 100}}') == {"Soren": {"level": "+1", "hp": 100}}
+    with pytest.raises(SystemExit):
+        enqueue._parse_esc("not json")
+    with pytest.raises(SystemExit):
+        enqueue._parse_esc("[1, 2, 3]")  # must be an object, not an array
+
+
+async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
+    # The model is mocked (no key here); this proves the wiring — a drafted scene whose prose asserts
+    # a value the ledger contradicts produces a persisted HARD continuity critique reachable from the
+    # inbox. The only mocked piece is the model itself.
+    extraction = (
+        '[{"character": "Soren", "attribute": "level", "value": "7", '
+        '"context_sentence": "The panel read LEVEL 7."}]'
+    )
+
+    async def fake_complete(**kwargs):
+        return extraction, Usage(10, 10)
+
+    async def fake_draft(self, prose, ctx):
+        return "Soren glanced at the status panel. LEVEL 7, it read, stark and undeniable."
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
+
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)  # pov Soren
+        run = await _run(s, book)
+        # ledger already holds Soren level 5, as if a prior scene had been approved
+        s.add(CharacterState(book_id=book.id, character="Soren", stats_json={"level": 5}))
+        await _beat(s, ch, 1, chars=("Soren",), text="Soren opens his status panel.")
+        s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
+                  token_budget=20_000, status=JobStatus.QUEUED))
+        await s.commit()
+
+    assert await worker.run_once(session_factory=db_factory) is True  # drafts + reviews the scene
+
+    async with db_factory() as s:
+        sc = (await s.execute(select(Scene).where(Scene.scene_no == 1))).scalars().first()
+        detail = await scene_detail(sc.id, s)
+        hard = [c for c in detail.critiques if c.severity == "hard" and c.reviewer == "continuity"]
+        assert len(hard) == 1  # the reviewer flagged it on its own
+        assert hard[0].payload["attribute"] == "level"
+        assert hard[0].payload["prose_value"] == "7"
+        assert hard[0].payload["ledger_value"] == "5"
