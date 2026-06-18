@@ -6,7 +6,9 @@ prior draft and the author's feedback. Context stays a few KB by design.
 """
 from __future__ import annotations
 
+import re
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -25,10 +27,42 @@ _PRIOR_TAIL_CHARS = 800
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]  # …/src/dominion/workers/context.py -> repo root
 _dialogue_rules_warned = False
 
+# In dialogue_rules.md the general craft is always-on, but each character's idiolect lives in a
+# Tool-2 profile headed by "### <Name>" (e.g. "### Marcus (Soren)"). We load the general rules
+# unconditionally and keep a character's profile only when they're in the scene — this caps the
+# always-on cost and stops an absent character's voice leaking into a POV that isn't theirs.
+_CHAR_BLOCK_RE = re.compile(
+    r"^### (?P<header>[^\n]+)\n.*?(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL
+)
+# Ayla is Soren's in-head companion; her dialogue rules ride along whenever Soren is on the page.
+_BLOCK_ALIASES: dict[str, set[str]] = {"ayla": {"ayla", "soren", "marcus"}}
 
-def _load_dialogue_rules() -> str | None:
-    """Read the authoritative dialogue rules fresh for each draft, so edits to the file take effect
-    on the next scene. Relative paths resolve from the project root, then the CWD."""
+
+def _header_names(header: str) -> set[str]:
+    """Names that pull in a profile block, parsed from its header. 'Marcus (Soren)' -> {marcus, soren}."""
+    names = {n.strip().lower() for n in re.split(r"[(),/]| and ", header) if n.strip()}
+    for name in list(names):
+        names |= _BLOCK_ALIASES.get(name, set())
+    return names
+
+
+def _scope_dialogue_rules(text: str, present: Iterable[str]) -> str:
+    """Keep the general dialogue craft; drop per-character profiles for characters not in the scene."""
+    present_l = {p.strip().lower() for p in present if p and p.strip()}
+    if not present_l:  # unknown cast — don't strip anything
+        return text
+
+    def _keep(match: re.Match[str]) -> str:
+        return match.group(0) if _header_names(match.group("header")) & present_l else ""
+
+    scoped = _CHAR_BLOCK_RE.sub(_keep, text)
+    return re.sub(r"\n{3,}", "\n\n", scoped).strip()
+
+
+def _load_dialogue_rules(present: Iterable[str]) -> str | None:
+    """Read the authoritative dialogue rules fresh for each draft (so edits take effect on the next
+    scene) and scope per-character profiles to the characters present. Relative paths resolve from
+    the project root, then the CWD."""
     global _dialogue_rules_warned
     configured = Path(settings.dialogue_rules_path)
     candidates = [configured] if configured.is_absolute() else [
@@ -40,7 +74,7 @@ def _load_dialogue_rules() -> str | None:
             text = path.read_text(encoding="utf-8").strip()
         except (FileNotFoundError, NotADirectoryError):
             continue
-        return text or None
+        return _scope_dialogue_rules(text, present) or None
     if not _dialogue_rules_warned:  # surface a misconfigured source-of-truth once, don't spam per scene
         print(f"[context] dialogue rules not found at {settings.dialogue_rules_path!r}; "
               "drafts will run without them", flush=True)
@@ -108,7 +142,8 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         knowledge_injections=list(beat.knowledge_injections or []),
         voice_spec=profile.voice_spec if profile else None,
         budget=TokenBudget(max_tokens=job.token_budget),
-        dialogue_rules=_load_dialogue_rules(),
+        # General craft is always-on; per-character profiles are scoped to the POV + cast on the page.
+        dialogue_rules=_load_dialogue_rules([chapter.pov, *(beat.characters_present or [])]),
     )
 
     # Oracle: current hard state for each character present (drives the continuity reviewer).
