@@ -42,13 +42,26 @@ status: active
 
 ---
 
-## Core Identity## Core Identity
+## Core Identity
 
-Mara is quiet, observant, and broadly intelligent — she picks things up fast across domains and connects dots others miss. She is not a specialist. She is someone who sees the whole picture and understands how the pieces relate.
+Mara does not want invisibility. She wants freedom from being seen incorrectly.
 
-In groups she is reserved. One-on-one with someone she trusts, she opens up completely. The difference between those two versions of her is significant enough that people who have only seen her in groups sometimes do not believe accounts of what she is like with people she actually knows.
+Attention has often reduced her to appearance, mystery, usefulness, or whatever interpretation another person found most convenient. Because inaccurate visibility feels more dangerous than being overlooked, she protects herself through controlled disclosure, selective presence, and careful management of interpretation.
 
-Gaming was the first space where her surface did not precede her. In a competitive environment, your reads and your decisions are the only thing that matters. Nobody cared what she looked like when she was setting up a kill. That is why she stayed and why she got good — it was the first place the right things were visible.
+She wants recognition, but not indiscriminate attention. The recognition that reaches her is specific, earned, and process-level: not merely that she succeeded, but that someone understood how and why she made the right decision.
+
+Her preferred hierarchy is:
+
+1. Accurate private recognition
+2. Accurate public recognition
+3. Useful invisibility
+4. Inaccurate visibility
+
+She would rather be overlooked than flattened, but she would rather be accurately understood than overlooked.
+
+### Central Thematic Sentence
+
+> Mara wants to be seen accurately more than she wants to be seen often: when resourced, she notices what the room is overlooking and redirects attention toward what matters; when threatened, privacy becomes concealment, perception becomes covert control, and her wish to be understood without explaining herself becomes a test no one knows they are taking.
 
 ---
 
@@ -56,33 +69,356 @@ Gaming was the first space where her surface did not precede her. In a competiti
 
 ### Baseline Strengths
 
-- Broadly intelligent — fast learner, cross-domain pattern recognition, connects things others treat as separate
-- Observational — she watches before she acts, reads situations and people with high accuracy
-- Setup instinct — she does not need to be the one who executes; she is satisfied by being the reason the execution worked
-- Quietly persistent — she does not announce her commitments but she holds them
-- One-on-one warmth — with people she trusts, she is genuinely present and attentive in a way that feels different from her group register
+- **Controlled self-disclosure** — reveals herself deliberately rather than reflexively
+- **Process intelligence** — understands not only what happened, but why a decision or system worked
+- **Attention mapping** — notices who is watching whom, what is being ignored, and which interpretation is becoming socially dominant
+- **Specific recognition** — sees the internal logic behind another person's good decision and can make them feel accurately understood
+- **One-on-one depth** — forms strong private bonds once trust exists
+- **Restraint** — does not insert herself merely to be present; waits until she has a legitimate reason to step forward
+- **Indirect influence** — changes conditions, emphasis, and attention without needing overt command
+- **Specialized usefulness** — dependable, competent, and comfortable contributing through expertise
+- **Cold precision under misrecognition** — can identify the exact false assumption and cut through it cleanly
+
+### Recognition Pattern
+
+Generic admiration tells Mara:
+
+> You noticed the outcome, or you are performing approval.
+
+Specific process-level recognition tells her:
+
+> You saw my mind work.
+
+The most intimate praise is not:
+
+> "That was impressive."
+
+It is:
+
+> "You held the spell because you knew it wanted us to react to the first movement."
+
+She wants confirmation that another mind correctly perceived hers.
+
+This is distinct from Soren. Soren wants his usefulness, originality, effort, and moral intent accurately recognized. Mara wants her judgment and internal reasoning understood without having to advertise or expose them.
+
+### Visibility and Influence
+
+Mara does not enjoy attention for its own sake. She resents spectacle, scrutiny, appearance-based attention, and being socially consumed.
+
+What she may enjoy is **effective command of attention**:
+- Directing the room toward the relevant fact
+- Being listened to because she knows something important
+- Watching her judgment change the outcome
+- Temporarily occupying authority she has earned
+- Making an ignored person, threat, or truth socially real
+
+Her insight is:
+
+> Attention does not merely reveal reality. It organizes reality.
+
+What people notice determines who receives help, who is blamed, what danger feels urgent, which evidence matters, whose pain becomes real, and which interpretation becomes the room's truth.
 
 ### Failure Mode
 
-- Withdrawal — when she clocks that someone is responding to her appearance rather than her ability, she pulls back and does not explain why; people experience this as coldness without understanding the cause
-- Over-observation — she can watch so carefully that she forgets to participate; analysis as a substitute for presence
-- Late openness — she takes longer to trust than situations sometimes require; by the time she would have opened up, the window has passed
+Her best traits extend past their healthy limits:
 
-### The Appearance Problem
+- Privacy → protects autonomy → becomes concealment even when openness would help
+- Perceptiveness → sees how attention moves → becomes covert management of what others notice
+- Accurate self-definition → resists objectification → becomes intolerance of interpretations she cannot control
+- Competence → earns meaningful respect → becomes dependence on usefulness as a safe identity
+- Restraint → avoids unnecessary exposure → becomes passivity and missed connection
+- Selective disclosure → makes trust meaningful → becomes strategic ambiguity
+- Indirect influence → changes outcomes without domination → becomes unacknowledged control
+- Recognition hunger → values genuine understanding → becomes testing whether others can "see" her without being told
+- Anger at misrecognition → protects dignity → becomes relational disappearance instead of repair
+- Comfort outside the center → creates observational power → becomes resentment when others fail to notice what she never revealed
 
-She grew up pretty and learned early what that meant in practice — a specific kind of attention from a specific kind of person that had nothing to do with what she was actually like. Repeated enough times through adolescence to become a pattern she reads instinctively.
+Her central relational error is:
 
-She resents it quietly. She has learned to clock the moment it is happening. When she clocks it, she pulls back. She does not make a scene. She simply becomes less available.
+> She wants others to understand her accurately while withholding the information that would make accurate understanding possible.
 
-The specific wound is not dramatic — there is no single betrayal, no one person who broke her trust. It is the accumulation of ordinary disappointments. Boys who thought they knew her before they did. Men who positioned themselves as exceptions and weren't. The specific fatigue of having to prove the same thing over and over to people who should not have required proof.
+### Hidden Weak Point
 
-Gaming broke the pattern. The Realm will break it differently.
+Mara is less afraid of vulnerability itself than of vulnerability being misread, trivialized, exposed, or used to define her publicly.
 
-### What She Wants
+Competence is her safest route into intimacy because it gives her a legitimate reason to be present and a controlled way to be known. But usefulness does not substitute entirely for intimacy. Once trust is real, she can remain when there is nothing to solve and can directly reveal need.
 
-To be respected for her ability — specifically, to have the respect come first, before anything else, without having to perform or prove or wait for it. She wants the thing she does to be the first visible thing about her.
+Her danger is believing that if she manages visibility precisely enough, she can prevent misrecognition.
 
-Underneath that: she wants to be known by someone who chose to know her because of what they found when they looked, not because of what they saw before they looked.
+She cannot.
+
+She can make the room look at the correct fact and still fail to control what they conclude from it.
+
+### What She Wants to Prove
+
+On the surface, she wants to be respected for her judgment, competence, and contribution before anything else about her is interpreted.
+
+More deeply, she wants evidence that she can be accurately recognized without being consumed, reduced, exposed, or trapped inside someone else's story about her.
+
+For Mara, being chosen means:
+
+> You recognized me without consuming me.
+
+---
+
+## Social and Relational Layers
+
+### In Groups
+
+- Quiet until she has a reason to speak
+- Tracks attention, authority, exits, omissions, and unacknowledged tensions
+- Contributes high-information observations rather than constant presence
+- More comfortable influencing the room than occupying its center
+- May allow others to underestimate her if correction offers no practical benefit
+
+### One-on-One
+
+- More verbally expansive
+- More emotionally direct once trust exists
+- Capable of revealing need without hiding it behind usefulness
+- Values specific, private acknowledgment
+- Can be playful in a drier, more interpretive way than Serra
+- More likely to discuss motives, patterns, and how she reached a conclusion
+
+### When Misread
+
+- First reduces access
+- Reveals less
+- Offers less useful information
+- Becomes harder to read
+- May stop correcting the false interpretation if correction would grant too much access
+- If forced, becomes cold and exact
+- If the misreading becomes socially dangerous, redirects the whole room's attention onto the source of distortion
+
+### Boundary Style
+
+Serra closes the interaction by making the limit unmistakable.
+
+Mara closes the relationship by revoking perceptual access.
+
+She becomes more invisible to the person who crossed the line:
+- Less initiation
+- Less disclosure
+- Less visible reaction
+- Less useful information
+- Less emotional legibility
+- Eventually literal absence
+
+If direct confrontation becomes necessary, anger appears because the person has forced her to expose what withdrawal was meant to protect.
+
+### Betrayal
+
+Mara experiences betrayal as:
+
+> I gave you an accurate piece of myself, and you exposed it, distorted it, reduced it, or used it to define me publicly.
+
+The likely response is concealment, retraction of disclosure, cold precision, and refusal to let the betrayer control the narrative.
+
+---
+
+## Voice and Dialogue
+
+### Default Sound
+
+Mara's voice is quiet, deliberate, and high-information. She does not speak merely because silence exists. She waits until she can change the frame.
+
+Her natural movement is:
+
+> observe the attention map → identify the omitted fact → decide what must become visible → say only enough to redirect the room
+
+She is less verbally associative than Soren and less socially momentum-driven than Serra. Her speech often sounds like a correction to what everyone else unconsciously accepted.
+
+> "He answered every question except the one you asked."
+
+> "They keep watching the exits, but none of them have tried to leave."
+
+### Vocabulary and Cadence
+
+- Short to medium sentences
+- Concrete visual and spatial language
+- Precise distinctions between what is present and what is being emphasized
+- Rarely overexplains in groups
+- More layered and complete in private
+- Uses silence intentionally
+- Does not soften every observation, but avoids unnecessary theatricality
+
+### Humor
+
+Her humor is:
+- Dry
+- Quiet
+- Based on reframing
+- Often delayed by half a beat
+- More visible one-on-one than in groups
+- Less about generating energy than revealing the absurdity of the existing frame
+
+Soren creates an unexpected connection.
+
+Mara exposes the assumption that made the situation absurd.
+
+> "That plan is excellent, provided the enemy agrees to misunderstand us in exactly the right order."
+
+### Recognition and Praise
+
+Mara gives and receives praise specifically.
+
+She is unlikely to say:
+
+> "Nice work."
+
+She is more likely to say:
+
+> "You waited until he looked at the door. That is why he never saw your hand."
+
+When praised generically, she may acknowledge it politely and move on.
+
+When someone accurately names her reasoning, she becomes more attentive because the praise proves they actually saw her.
+
+### Disagreement
+
+Mara rarely argues every premise. She identifies the excluded variable.
+
+> "That works, assuming the villagers do not get a vote."
+
+> "You are treating the guard as the threat. I think he is the distraction."
+
+Her disagreement style can feel colder than intended because she removes the false frame before attending to the other person's feelings about losing it.
+
+### Vulnerability
+
+Before trust:
+- Uses ambiguity
+- Compartmentalizes
+- Gives technically true but incomplete answers
+- Allows others to underestimate emotional stakes
+- Redirects attention toward the practical issue
+
+After trust:
+- Can state need directly
+- Does not require theatrical confession
+- May reveal something with startling plainness because the decision to trust has already been made
+
+> "I do not need you to fix this. I need you to know it happened."
+
+### Stress Shifts
+
+**Mild stress**
+- Speaks less
+- Watches more
+- Tightens control over what she reveals
+- Becomes more exact about where attention is moving
+
+**Serious danger**
+- Tactical and perceptual
+- Names what must be noticed or ignored
+- Gives minimal explanation
+
+> "Do not look at him."
+> "Watch the left hand."
+> "They want us focused on the blood."
+
+**Misrecognition**
+- Withdraws emotional legibility
+- Stops offering interpretive help
+- May become sharply literal
+- If necessary, makes the false interpretation impossible for the room to sustain
+
+**Betrayal**
+- Removes access
+- Corrects the public record if needed
+- Does not preserve intimacy merely because it once existed
+
+**Trusted intimacy**
+- More expansive
+- More willing to explain why she decided something
+- More receptive to direct affection if it is private, specific, non-demanding, and non-extractive
+
+### Relationship Registers
+
+**With Soren**
+- Mutual respect through pattern recognition
+- Soren asks how the system works; Mara asks what everyone is being made to notice
+- He recognizes behavioral isolation because it resembles his own
+- She values when he accurately reconstructs her reasoning
+- Their shared danger is overestimating interpretation as a controllable system
+
+**With Serra**
+- Strong complementary friendship potential
+- Serra reads emotional atmosphere; Mara maps attention structure
+- Serra can bring Mara into rooms and publicly credit her
+- Mara can notice when Serra's energy is covering distress and create an exit before she asks
+- Serra may advocate for Mara more publicly than Mara wants
+- Mara may alter a social frame "for Serra's benefit" without telling her
+- Serra wants direct answers; Mara assumes revocation of access should communicate enough
+
+**With Seb**
+- Watches when collective framing starts hiding individual cost
+- Difficult to persuade through rhetoric alone
+- More interested in who benefits from the frame than how inspiring it sounds
+
+**With Brent**
+- Respects concrete competence and low-drama reliability
+- Brent fixes the visible failure; Mara notices why the room kept overlooking it
+- Can communicate efficiently because neither needs ceremonial praise
+
+**With strangers**
+- Reserved but not timid
+- Lets others reveal what they think she is
+- Corrects only when the misreading matters
+- Tracks who assigns meaning to her before they have earned knowledge
+
+### Serra–Mara Distinction
+
+**Serra reads the room as an emotional field.**  
+She notices energy, comfort, hesitation, tension, and whether she can enter the current.
+
+**Mara reads the room as an attention map.**  
+She notices who watches whom, where authority sits, what is not being acknowledged, and which interpretation is becoming dominant.
+
+**Serra grants social warmth faster.**  
+She can make someone feel included almost immediately.
+
+**Mara grants private recognition more selectively.**  
+Once she trusts someone's attention as accurate and non-extractive, she may allow emotionally consequential access faster than Serra.
+
+**Serra confronts or closes.**  
+Her boundaries become unmistakable.
+
+**Mara withdraws or reframes.**  
+Her boundaries appear as revoked visibility and reduced access.
+
+**Serra can enjoy and use the center of the room.**  
+Mara uses the center when necessary but dislikes being consumed by it.
+
+**Serra creates momentum.**  
+Mara changes what the momentum organizes around.
+
+### Drafting Guardrails
+
+- Do not write Mara as simply shy.
+- Do not make invisibility her true desire.
+- Do not make her indifferent to recognition.
+- Do not reduce her to appearance-based resentment.
+- Do not make usefulness her only route to intimacy.
+- Do not make her silently expect perfect mind-reading without showing the consequences of that expectation.
+- Do not let Mirror-Salience become generic mind control.
+- Do not make her enjoy attention merely because she can command it.
+- Do not make Soren the only person capable of seeing her accurately.
+- Keep Serra and Mara distinct: emotional field versus attention map, direct closure versus revoked access, momentum versus framing.
+
+### Representative Lines
+
+> "I do not mind being overlooked. I mind being explained incorrectly."
+
+> "You noticed that I succeeded. She noticed why."
+
+> "I was not hiding. I was deciding whether your attention was useful."
+
+> "You keep calling it a misunderstanding as though both interpretations were equally informed."
+
+> "I can make them look. I cannot make them understand."
+
+> "You knew something private and turned it into something public. That is not honesty. That is theft."
 
 ---
 

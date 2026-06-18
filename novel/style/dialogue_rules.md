@@ -55,6 +55,22 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 
 **From the original draft:** "Thanks for your endearing support, sasshole. I mean Seb." and "I want you to give me something to help me survive. Give me that, and release your hold from my mind, and you'll have yourself a deal." Both are classic Soren — the first is sideways humor while scared, the second is competence under pressure making the ask sound casual.
 
+**Tendencies:**
+- Diagnostic and question-driven: he locates where a model broke rather than restating it. ("Which part stopped making sense?" / "Are we disagreeing about the fact, or what it means?")
+- Deflects direct praise — humor, minimizing, asking who specifically said it, auditing the claim. Accurate recognition leaves him exposed.
+- Names asymmetry precisely, sometimes barbed. ("So the risk is shared, but the decision is yours.")
+- Reveals analysis before need: he explains the mechanism of his pain in detail while never plainly saying "I'm hurt" or "I want you to choose me." Turns emotion into a systems question; offers a joke exactly where vulnerability would show.
+
+**Exemplar lines (match this register):**
+- "I'm not saying the bridge is cursed. I'm saying it has made several unusually persuasive arguments against being crossed."
+- "Which part stopped making sense? Not which part sounded strange. Those are different problems."
+- "So the danger belongs to all of us, but the decision belongs to you. I just want the grammar to match the arrangement."
+- "We can unravel the metaphysical implications after we stop leaking blood into the metaphysics."
+- "I can solve difficult. I'm less talented at impossible pretending to be a personal failure."
+- "That is extremely kind. I'll need names and supporting documentation."
+- "I noticed the imbalance. I'm still trying not to turn noticing it into a verdict."
+- "Give me the version of the truth that still works when nobody is trying to look good."
+
 ---
 
 ### Serra
@@ -66,6 +82,18 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 
 **Differentiation from Soren:** He thinks out loud. She thinks in private and delivers the conclusion. He finds the angle; she already chose the angle before the conversation started.
 
+**Tendencies:**
+- States the read she trusts and acts from it; she doesn't litigate every premise. Brief, direct without cruelty, oriented to what happens next; acknowledges a feeling without surrendering the decision. ("I understand why you need another answer. I don't have a different one.")
+- Early refusals come softened, indirect, or embedded in behavior — a real blind spot; she expects a perceptive person to read the withdrawal before she states it outright.
+- Final closure is quiet, not melodramatic: minimal leakage, no extra rationale that could be treated as negotiable.
+
+**Exemplar lines (match this register):**
+- "You're not being ignored. You're being dramatic in a very visible location."
+- "I meant what I said then. That doesn't mean it promised what happens next."
+- "I know you're trying to understand. From where I'm standing, it still feels like you're trying to keep the door open."
+- "You don't need to convince me you're hurting. I believe you. The answer is still no."
+- "I noticed three exits, two liars, and the fact that you haven't eaten. Deal with the third one first."
+
 ---
 
 ### Seb
@@ -75,14 +103,40 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 
 **Arc tell:** Track when "we" becomes a rationalization. The moment Seb says "we need to do this" and means "I need to do this and need you to agree" — that's the turn.
 
+**Tendencies:**
+- Makes people feel heard *before* the decision; asks for the strongest version of an objection and tests whether it changes cost, feasibility, or ownership; praises a useful correction openly. ("Good. That breaks the second stage. What replaces it?")
+- Separates owning a part from agreeing with the whole. ("I'm not asking you to agree with every part of the plan. I'm asking whether you can own your part of it.")
+- Closes decisively, but only after real participation. ("Say it now. Once we move, we move.")
+- Dislikes repeated disagreement once nothing new is being introduced. ("We've heard that argument. What changed?")
+
+**Exemplar lines (match this register):**
+- "I know what it costs. What you don't understand is what it costs to do nothing."
+- "Someone has to carry the decision, and if nobody else will, then I will."
+- "You call it control because I won't pretend every choice affects only the person making it."
+- "You don't have to agree. You do have to decide whether you're in."
+- "You don't need my approval. I need to know whether you understand what happens if this fails."
+
 ---
 
 ### Mara
-**How she talks:** Asks more questions than anyone. Genuine curiosity is her baseline. Technical precision mixed with warmth — can explain the biology of something while caring intensely about the person it's happening to. Sentences tend to finish fully. When scared or overcommitted she generates options aloud — she thinks by listing.
+**How she talks:** Quiet, deliberate, high-information — she speaks only to change the frame. Short to medium sentences; concrete visual and spatial language; precise distinctions between what is present and what is being emphasized. She rarely overexplains in a group and is more layered and complete one-on-one. She uses silence on purpose and avoids unnecessary theatricality. Her lines often land as a correction to what everyone else unconsciously accepted.
 
-**What she doesn't do:** Dismiss the human cost while analyzing the mechanism. Pretend she doesn't care about the answer to a question she just asked.
+**What she doesn't do:** Argue a premise when naming the excluded variable will do, or hand out and accept generic praise. She is not shy — she's deciding whether your attention is accurate and worth meeting.
 
-**Differentiation from Serra:** Serra asks a question when she already knows the answer. Mara asks because she genuinely doesn't and wants to.
+**Differentiation from Serra:** Attention map vs. emotional field; revoked access vs. direct closure; reframing vs. momentum. Serra reads the room's feeling; Mara maps where its attention is being moved.
+
+**Tendencies:**
+- Identifies the excluded variable rather than arguing every premise. ("You are treating the guard as the threat. I think he is the distraction.") This can read colder than she intends — she removes the false frame before tending to anyone's feelings about losing it.
+- Gives and takes praise specifically, at the level of reasoning, not outcome. ("You waited until he looked at the door. That is why he never saw your hand.") Generic praise gets a polite acknowledgment and nothing more.
+- Before trust: ambiguity, compartmentalizing, technically-true-but-incomplete answers, letting others underestimate the stakes. After trust: she can state a need with startling plainness. ("I do not need you to fix this. I need you to know it happened.")
+
+**Exemplar lines (match this register):**
+- "I do not mind being overlooked. I mind being explained incorrectly."
+- "You noticed that I succeeded. She noticed why."
+- "I was not hiding. I was deciding whether your attention was useful."
+- "You keep calling it a misunderstanding as though both interpretations were equally informed."
+- "I can make them look. I cannot make them understand."
+- "You knew something private and turned it into something public. That is not honesty. That is theft."
 
 ---
 
@@ -93,6 +147,20 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 
 **Tell when something matters to him:** The sentences get shorter. The ecological metaphor disappears. He stops reframing and just says the thing.
 
+**Tendencies:**
+- States a distinction and releases it; doesn't defend the conclusion. ("You may be right. I don't think you're right for the reason you think.")
+- Names what someone actually said versus what another person wanted them to say. ("He answered the question you asked. You wanted him to answer a different one.")
+- Asks whether someone wants listening or an answer — naturally, not after misunderstanding (this distinguishes him from Brent).
+- Prizes being trusted over being right. ("'I trusted you' is stronger praise to him than 'you were right.'")
+
+**Exemplar lines (match this register):**
+- "That is how I read it. You can decide what to do with that."
+- "You both agree. You just haven't finished being angry yet."
+- "Not enough information. We leave."
+- "She trusted you."
+- "Leaving is still a decision."
+- "I don't want every road. I want to know I chose this one."
+
 ---
 
 ### Brent
@@ -101,6 +169,19 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 **What he doesn't do:** Engage with feelings directly. He'd rather fix the practical problem adjacent to the emotional one.
 
 **Tell when something matters to him personally:** The sentences get unexpectedly longer. He doesn't translate it into physical terms. The abstract slips through.
+
+**Tendencies:**
+- Says the plain thing so no one has to guess; values whether a thing *holds* over what it's called. ("I don't care what you call it. I care whether it holds.")
+- Refuses to grant moral credit for preventable harm. ("You don't get credit for suffering when the damage was preventable.")
+- Direct and sexually confident in flirtation, unwilling to chase ambiguity ("You're interested or you're not. Either answer's fine"); falters only when attraction needs emotional exposure rather than confidence.
+- Will state the limits of his usefulness plainly when staying is the real ask. ("I know you don't need anything fixed. I just don't know what staying is supposed to look like.")
+
+**Exemplar lines (match this register):**
+- "I don't care what you call it. I care whether it holds."
+- "You don't get credit for suffering when the damage was preventable."
+- "That's not an ancient trial. That's a staircase with an ego."
+- "Next time, say you want me to listen. I thought you wanted an answer."
+- "Being needed tells me what I'm for. It doesn't tell me why you stayed."
 
 ---
 

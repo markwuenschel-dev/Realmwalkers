@@ -13,6 +13,7 @@ frontend/dist/
 .DS_Store
 .vscode/
 .idea/
+*.lnk
 # runtime exhaust — never tracked (DESIGN: keep the tree clean)
 logs/
 *.log

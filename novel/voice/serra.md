@@ -50,14 +50,7 @@ bare stat sheet.
   decided what to do; accepts care more easily when it doesn't require her to be uncertain in front
   of someone.
 
-## Dialogue tendencies
-- States the read she trusts and acts from it; she doesn't litigate every premise. Brief, direct
-  without cruelty, oriented to what happens next; acknowledges a feeling without surrendering the
-  decision. ("I understand why you need another answer. I don't have a different one.")
-- Early refusals come softened, indirect, or embedded in behavior — a real blind spot; she expects a
-  perceptive person to read the withdrawal before she states it outright.
-- Final closure is quiet, not melodramatic: minimal leakage, no extra rationale that could be treated
-  as negotiable.
+> Dialogue (how Serra speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Soren** — easy rhythm, tailored teasing, strong mutual attention, more subtext than either
@@ -82,12 +75,3 @@ bare stat sheet.
   relationship's category.
 - Don't excuse Soren crossing a stated boundary; their reciprocal misread is tragedy, not permission.
 - Let her remain capable of valuing someone after deciding contact can't continue.
-
-## Exemplar lines (match this register)
-- "You're not being ignored. You're being dramatic in a very visible location."
-- "I meant what I said then. That doesn't mean it promised what happens next."
-- "I know you're trying to understand. From where I'm standing, it still feels like you're trying to
-  keep the door open."
-- "You don't need to convince me you're hurting. I believe you. The answer is still no."
-- "I noticed three exits, two liars, and the fact that you haven't eaten. Deal with the third one
-  first."

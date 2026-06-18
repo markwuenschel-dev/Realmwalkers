@@ -48,11 +48,15 @@ status: active
 
 ## Core Identity
 
-Soren is a principled, high-agency protector-builder whose deepest drives are integrity, competence, responsibility, and meaning. He is not primarily motivated by praise, status, dominance, or winning. He wants to make things work, prevent harm, and still be able to respect himself afterward. He wants warmth first and understanding second. When someone offers kindness, his instinct is to trust it too quickly. This creates vulnerability in a world where warmth can be sincere, manipulative, transactional, or magically weaponized.
+Soren is a principled, high-agency protector-builder whose deepest drives are integrity, competence, responsibility, connection, and meaning. He is not primarily motivated by status, dominance, or winning, but recognition still matters to him: he wants his effort, usefulness, originality, and moral intent to be seen accurately.
+
+He wants to make things work, prevent harm, and still be able to respect himself afterward. He wants warmth first and understanding second. When someone offers kindness, his instinct is to trust it too quickly. This creates vulnerability in a world where warmth can be sincere, manipulative, transactional, or magically weaponized.
+
+His pride is tied to agency. He needs to believe intelligence, effort, courage, creativity, and better execution can move reality. He tolerates difficulty more easily than helplessness. A difficult problem gives him another diagnostic step. An uncontrollable loss threatens not only hope, but his trust in his own perception, judgment, and ability to adapt.
 
 ### Central Thematic Sentence
 
-> Soren is a principled, high-agency protector-builder: when resourced, he creates safety and meaning; when overloaded, ambiguity triggers control attempts and any perceived violation of his code becomes shame and identity collapse, until he rebuilds a self that does not depend on forcing outcomes.
+> Soren is a principled, high-agency protector-builder who believes effort, clarity, and courage should be able to move reality: when resourced, he creates safety, meaning, and connection; when overloaded, ambiguity becomes threat, helplessness becomes control, and perceived moral failure becomes identity collapse, until he rebuilds a self that can remain worthy and connected without forcing certainty, outcomes, or reciprocity.
 
 ---
 
@@ -62,38 +66,224 @@ Soren is a principled, high-agency protector-builder whose deepest drives are in
 
 - **High agency / builder energy** — creates structure, systems, plans, and usable order out of chaos
 - **Strong moral spine / protector energy** — cares about consent, fairness, least harm, and responsibility
-- **Honest self-audit / truth-teller energy** — names his mistakes, faces ugly truths, does not outsource accountability
-- **Intensity and sincerity / depth energy** — attaches deeply, builds deeply, cares deeply; capable of real devotion
-- **Systems intelligence** — turns chaos into workable structure; understands hidden mechanisms quickly
-- **Playful chaos at best** — warm disruption, mischievous observation, social electricity, specific humor that wakes people up
+- **Honest self-audit / truth-teller energy** — names his mistakes, faces ugly truths, and does not outsource accountability
+- **Intensity and sincerity / depth energy** — attaches deeply, builds deeply, and is capable of real devotion
+- **Systems intelligence** — turns chaos into workable structure and understands hidden mechanisms quickly
+- **Diagnostic teaching** — locates the missing link in another person's mental model and rebuilds from there
+- **Sensitivity to asymmetry** — notices imbalances in effort, risk, recognition, care, curiosity, loyalty, and authority
+- **Playful chaos at best** — warm disruption, mischievous observation, social electricity, and specific humor that wakes people up
+- **Recognition hunger without status hunger** — wants accurate acknowledgment, not applause for its own sake
 
 ### Failure Mode
 
-When isolated, ashamed, uncertain, or emotionally under-supported:
+His best traits extend past their healthy limits:
 
+- Association-making → rumination
+- Precision → litigation
+- Diagnostic teaching → intrusive problem-solving
+- Sensitivity to asymmetry → scorekeeping or motive attribution
 - High agency → closure missions
 - Moral spine → moral injury and shame spikes
 - Honest self-audit → self-prosecution
 - Intensity → outcome-bonded worth
-- Pattern-seeking → rumination
 - Warmth hunger → overattachment to rare kindness
 - Ambiguity → threat
 - Control → escape from helplessness
+- Competence → disappearance into operations
 - Humor → armor
+- Desire for recognition → evidentiary audit of praise
 
-His most dangerous inner collapse: **identity contamination.** Not "I made a mistake" — "I am the mistake."
+He is often correct that an asymmetry exists. His risk is moving from the observable imbalance to a conclusion about motive or moral meaning.
+
+His most dangerous inner collapse is **identity contamination**. Not "I made a mistake" — "I am the mistake."
 
 ### The Operator Without a Self
 
-Under prolonged survival pressure, Soren can become an operator without a self — still acts responsibly, still builds, still tries to prevent harm, but his felt self goes offline. He becomes a manager of tasks, risks, and outcomes rather than a person inhabiting a life. Others may see him functioning and assume he is fine.
+Under prolonged survival pressure, Soren can reduce himself to the part that can still function.
+
+He still acts responsibly. He still builds, organizes, solves, documents, and prevents harm. The competence is real. But his felt self narrows until he becomes a manager of tasks, risks, dependencies, and outcomes rather than a person inhabiting a life.
+
+He does not necessarily lose all contact with himself. He temporarily treats the operator as the only legitimate part of himself because needs without measurable outputs — grief, companionship, rest, uncertainty — feel too vague or dangerous to prioritize. Others may see him functioning and assume he is fine.
 
 ### Hidden Weak Point
 
-He wants warmth so badly he trusts too fast and gets burned. His real wound is not incompetence or cruelty — it is that any perceived violation of his code collapses into shame and identity crisis. He does not merely think he did wrong. He becomes the wrong.
+He wants warmth badly enough that he can overvalue rare kindness and assign it more future meaning than it carries.
+
+His deeper wound is not incompetence or cruelty. It is that any perceived violation of his code can collapse into shame, identity crisis, and distrust of his own perception. He does not merely fear having done wrong. He fears discovering that the person doing the interpreting was fundamentally unsafe, selfish, or deluded.
+
+Helplessness wounds him twice:
+
+1. He could not change the outcome.
+2. He may have misunderstood the reality badly enough that he never saw the outcome coming.
+
+### Receiving Recognition
+
+Soren wants his competence, usefulness, originality, and effort to be accurately seen. But direct praise makes him feel exposed.
+
+He may deflect with humor, minimize the achievement, ask for evidence, or quietly test whether the praise is specific or generic. He does not reject all praise. He audits praise.
+
+> "That is extremely kind. I'll need names and supporting documentation."
 
 ### What He Wants to Prove
 
-Unresolved — but structurally: he wants to be trusted, to be seen as good, to have the warmth he gives returned. The deeper drive is to be genuinely connected without losing himself.
+He wants to prove that he can be trusted, that his effort matters, that his perception is not fundamentally broken, and that he can create safety without becoming controlling.
+
+He wants the warmth he gives to be returned, but not merely out of obligation. He wants to be chosen specifically and understood accurately.
+
+The deeper drive is to remain connected without losing himself — and to remain worthy even when reality cannot be forced into a solvable shape.
+
+---
+
+## Voice and Dialogue
+
+### Core Voice
+
+Marcus has an **active, associative, slightly overclocked voice**. His mind rarely moves in a straight line. He notices one detail, links it to a prior pattern, tests the connection, catches an inconsistency, and sometimes turns that inconsistency into humor.
+
+His natural movement is:
+
+> observation → connection → test → mismatch → playful or precise conclusion
+
+He is not fundamentally a joke machine. He naturally models what is happening, and occasionally one relationship between things feels absurd enough to voice.
+
+The central rule is:
+
+> **When regulated, he clarifies. When dysregulated, he litigates.**
+
+The cognitive machinery remains the same. The emotional purpose changes.
+
+### Default Sound
+
+At his healthiest, he is curious by default, diagnostic rather than performatively authoritative, precise without sounding ceremonial, and self-aware without reflexively diminishing himself. He often enters through questions:
+
+> "What part already makes sense?"
+>
+> "Where did the explanation stop working?"
+>
+> "What distinction are we actually making?"
+
+When he believes an important distinction is being flattened, curiosity becomes forceful exactness. He is not usually performing authority for status, but he can become strongly attached to being the person whose distinctions are correct.
+
+### Diagnostic Teaching
+
+Marcus does not merely simplify information. He identifies the missing connection in another person's mental model and rebuilds from that point.
+
+His instinct is:
+
+> Do not repeat the whole explanation. Find the exact place understanding broke.
+
+At his best, this is diagnostic empathy. At his worst, it becomes intrusive problem-solving when the other person did not ask to be analyzed.
+
+### Humor
+
+His strongest humor comes from a mismatch already present in the scene:
+
+> observation → contradiction → playful accusation
+
+He notices the absurd relationship before other people consciously register it and voices the conclusion as though it is simply the responsible interpretation of the evidence.
+
+> "I'm not saying the bridge is cursed. I'm saying it has made several unusually persuasive arguments against being crossed."
+
+His humor is specific to the immediate environment, mildly theatrical, precise rather than random, often deadpan, and used to create energy, reduce stiffness, or restore agency. He naturally thinks through games, stories, and references, but references should not replace the more distinctive immediate observation.
+
+### Calibration Risk
+
+His intention is usually shared play. His internal sense of "obviously unserious" is not always visible to the other person.
+
+He can recognize absurdity faster than he assesses the other person's emotional position, status concerns, willingness to play, or whether the teasing sounds affectionate from outside his own head. Warm disruption is his best mode, not an automatic outcome. Sometimes the disruption lands before the warmth does.
+
+### Sensitivity to Asymmetry
+
+Marcus notices who initiates, who asks questions, who takes risk, who holds decision authority, who gives care, whose work is visible, and whether investment flows mostly one direction.
+
+This gives him excellent social and structural insight. It also creates lines like:
+
+> "So the danger belongs to all of us, but the decision belongs to you. I just want the grammar to match the arrangement."
+
+His risk is treating a measurable imbalance as sufficient proof of motive, disrespect, or moral meaning.
+
+### Stress Shifts
+
+**Mild stress**
+- More jokes and questions
+- Thinks aloud
+- Tests interpretations in real time
+- May use curiosity as early reassurance seeking
+
+**Serious danger**
+- Technical and procedural
+- Compresses language
+- Assembles timelines, facts, contingencies, dependencies, and next actions
+
+**Moral threat**
+- Extremely precise
+- Defines terms
+- Separates behavior from identity, intent from impact, curiosity from obsession, grief from shame, impairment from incapacity, disagreement from dishonesty, and asymmetry from disrespect
+- At his worst, behaves as though sufficiently precise definitions can remove the emotional consequence or compel another person to adopt his interpretation
+
+**Shame**
+- Self-awareness becomes prosecutorial
+- Anticipates every hostile interpretation
+- Grants ambiguous evidence to the prosecution
+- Demands near-impossible proof from the defense
+- Overexplains, revises the timeline, audits motives, or goes silent
+
+**Overload**
+- Becomes an operator
+- Issues tasks, builds systems, organizes risks, and solves what can be measured
+- May appear highly competent while emotionally absent
+
+### Recognition
+
+Praise creates a collision between pride and disbelief. Generic praise often produces deflection. Specific praise that reconstructs what he actually did reaches him more deeply — but may still trigger an evidentiary audit.
+
+> "That is flattering. Unfortunately, I now need a list of witnesses."
+
+### Disagreement
+
+Regulated Marcus asks questions, names the mechanism, separates shared facts from competing interpretations, and wants the wording to match reality.
+
+Dysregulated Marcus cross-examines, introduces every exception, revises definitions repeatedly, and treats unresolved ambiguity as an unfinished case.
+
+### Relationship Registers
+
+**With Serra** — more subtext and tailored teasing; notices tiny reactions and assigns them cumulative meaning; asks for definitions when she relies on behavioral signals; his need for clarity may sound to her like an attempt to preserve an opening.
+
+**With Mara** — mutual interest in hidden structure; he explains systems while she redirects attention; both can overestimate their ability to produce correct understanding.
+
+**With Mathias** — more willing to think aloud; Mathias's curiosity lets Marcus discover his own conclusion without feeling managed.
+
+**With Brent** — fast banter and less formal explanation; Brent cuts through recursive analysis and forces Marcus back into the room.
+
+**With Seb** — strategic shorthand and increasingly exact disagreements over whether collective framing matches individual consent.
+
+**With Ayla** — argumentative curiosity, irritated dependency, and constant testing of her wording for omissions.
+
+### Drafting Guardrails
+
+- Do not make every line a joke.
+- Do not make every joke a pop-culture reference.
+- Do not confuse precision with emotional health.
+- Do not make him generically eloquent under shame; shame makes him recursive and adversarial.
+- Do not make technical procedure emotionless. It is often how he contains emotion.
+- Do not portray every asymmetry he notices as proof that his interpretation is correct.
+- Do not make recognition irrelevant merely because status is not his primary motive.
+- Do not make him uniquely capable of understanding every other character.
+- Preserve the continuity: his virtues and failures use the same machinery.
+
+### Representative Lines
+
+> "I'm not saying the bridge is cursed. I'm saying it has made several unusually persuasive arguments against being crossed."
+
+> "What part of that explanation felt true, and what part merely arrived wearing confidence?"
+
+> "I can solve difficult. I'm less talented at impossible pretending to be a personal failure."
+
+> "So the risk is collective, the authority is private, and somehow the responsibility becomes mine. I would like the grammar corrected before we proceed."
+
+> "That is extremely kind. I'll need names and supporting documentation."
+
+> "I know what I did. I am trying to determine whether the reason I think I did it is evidence or self-defense."
 
 ---
 
