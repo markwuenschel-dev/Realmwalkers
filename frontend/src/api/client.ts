@@ -1,4 +1,19 @@
-import type { ContinuityResolveIn, DecisionIn, SceneDetail, SceneOut } from "../types";
+import type {
+  ApproveBeatsOut,
+  BeatOut,
+  BeatUpdate,
+  BookCreate,
+  BookOut,
+  ChapterOut,
+  ContinuityResolveIn,
+  DecisionIn,
+  ManuscriptOut,
+  RunPlanIn,
+  RunPlanOut,
+  SceneDetail,
+  SceneOut,
+  SceneVersionOut,
+} from "../types";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -24,4 +39,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  // Gate 1 (planning)
+  books: () => http<BookOut[]>("/books"),
+  createBook: (body: BookCreate) =>
+    http<BookOut>("/books", { method: "POST", body: JSON.stringify(body) }),
+  startRun: (body: RunPlanIn) =>
+    http<RunPlanOut>("/runs", { method: "POST", body: JSON.stringify(body) }),
+  updateBeat: (beatId: string, body: BeatUpdate) =>
+    http<BeatOut>(`/beats/${beatId}`, { method: "PUT", body: JSON.stringify(body) }),
+  approveBeats: (chapterId: string) =>
+    http<ApproveBeatsOut>(`/chapters/${chapterId}/beats/approve`, { method: "POST" }),
+
+  // History / version browsing
+  chapters: (bookId: string) =>
+    http<ChapterOut[]>(`/chapters?book_id=${encodeURIComponent(bookId)}`),
+  chapterBeats: (chapterId: string) => http<BeatOut[]>(`/chapters/${chapterId}/beats`),
+  chapterScenes: (chapterId: string) => http<SceneOut[]>(`/chapters/${chapterId}/scenes`),
+  sceneVersions: (sceneId: string) => http<SceneVersionOut[]>(`/scenes/${sceneId}/versions`),
+
+  // Manuscript reading
+  manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
 };

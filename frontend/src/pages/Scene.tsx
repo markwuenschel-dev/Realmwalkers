@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { Decision, SceneDetail } from "../types";
 import ContinuityPanel from "../components/ContinuityPanel";
+import RenderedProse from "../components/RenderedProse";
 
 export default function Scene() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +12,7 @@ export default function Scene() {
   const [edited, setEdited] = useState("");
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,12 +58,21 @@ export default function Scene() {
           {scene.model ?? "—"} · {scene.token_count ?? "—"} tokens ·{" "}
           {(scene.passes_run ?? []).join(" → ")}
         </p>
-        <textarea
-          className="prose"
-          value={edited}
-          onChange={(e) => setEdited(e.target.value)}
-          spellCheck
-        />
+        <div className="prose-toolbar">
+          <button className="toggle-edit" onClick={() => setEditing((e) => !e)}>
+            {editing ? "Done editing" : "Edit prose"}
+          </button>
+        </div>
+        {editing ? (
+          <textarea
+            className="prose"
+            value={edited}
+            onChange={(e) => setEdited(e.target.value)}
+            spellCheck
+          />
+        ) : (
+          <RenderedProse text={edited} />
+        )}
         <textarea
           className="feedback"
           placeholder="Revision notes (optional)…"

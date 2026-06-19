@@ -1,16 +1,80 @@
-"""Run + gate-1 beat proposal (DESIGN §4, §8). Stubbed until Phase 1/2."""
+"""Run + gate-1 beat proposal (DESIGN §4, §8).
+
+Starting a run outlines one chapter and fires the single bounded plan-call, which PROPOSES per-scene
+beats for your approval. Nothing is drafted here — the beats land as `proposed` for you to edit and
+approve (gate 1) before any scene-draft job is enqueued.
+"""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.schemas import RunIn
+from dominion.shared.config import settings
+from dominion.shared.enums import BeatStatus, ChapterStatus, RunStatus
+from dominion.shared.models import Beat, Chapter, Run, Summary
+from dominion.shared.schemas import BeatOut, RunStartIn, RunStartOut
+from dominion.workers import planner
+from dominion.workers.memory import canon_rag
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
 
-@router.post("", status_code=501)
-async def start_run(body: RunIn, session: SessionDep) -> dict[str, str]:
-    # DESIGN §8: create a Run, then the bounded plan-call proposes per-scene beats from the
-    # chapter outline for your approval (gate 1) before any scene-draft jobs are enqueued.
-    raise HTTPException(status_code=501, detail="Phase 1/2: start run + propose beats (gate 1).")
+@router.post("", response_model=RunStartOut)
+async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
+    token_budget = body.token_budget or settings.scene_token_budget
+    run = Run(
+        book_id=body.book_id,
+        scope_json={"chapter": body.chapter_no},
+        gate_mode=body.gate_mode,
+        token_budget=token_budget,
+        status=RunStatus.ACTIVE,
+    )
+    session.add(run)
+
+    # Upsert the chapter: this run owns its POV + outline; mark it as having beats proposed.
+    chapter = (await session.execute(
+        select(Chapter).where(Chapter.book_id == body.book_id, Chapter.chapter_no == body.chapter_no)
+    )).scalar_one_or_none()
+    if chapter is None:
+        chapter = Chapter(book_id=body.book_id, chapter_no=body.chapter_no, pov=body.pov)
+        session.add(chapter)
+    chapter.pov = body.pov
+    chapter.outline = body.outline
+    chapter.status = ChapterStatus.BEATS_PROPOSED
+    await session.flush()
+
+    # Gate-1 plan-call: grounded in beat-scoped canon + the omniscient summary (DESIGN §7).
+    omniscient = (await session.execute(
+        select(Summary.rolling_summary).where(
+            Summary.book_id == body.book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+        )
+    )).scalar_one_or_none()
+    canon = await canon_rag.retrieve(session, book_id=body.book_id, query=body.outline, k=6)
+    proposed = await planner.propose_beats(
+        outline=body.outline, pov=body.pov, omniscient_summary=omniscient, canon=canon,
+    )
+
+    beats: list[Beat] = []
+    for item in proposed:
+        beat = Beat(
+            chapter_id=chapter.id,
+            scene_no=item["scene_no"],
+            beat_text=item["beat_text"],
+            characters_present=item["characters_present"],
+            tags=item["tags"],
+            expected_state_changes=item["expected_state_changes"],
+            knowledge_injections=item["knowledge_injections"],
+            status=BeatStatus.PROPOSED,
+        )
+        session.add(beat)
+        beats.append(beat)
+    await session.flush()
+
+    return RunStartOut(
+        run_id=run.id,
+        chapter_id=chapter.id,
+        chapter_no=chapter.chapter_no,
+        pov=chapter.pov,
+        beats=[BeatOut.model_validate(b) for b in beats],
+    )

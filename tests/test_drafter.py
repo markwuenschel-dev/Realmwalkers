@@ -63,6 +63,28 @@ async def test_drafter_includes_phase2_context_when_present(monkeypatch):
     assert "not the truth of the place" in user
 
 
+async def test_drafter_system_prompt_carries_interiority_and_litrpg_craft_rules(monkeypatch):
+    captured: dict[str, object] = {}
+
+    async def fake_complete(**kwargs):
+        captured.update(kwargs)
+        kwargs["budget"].charge(Usage(10, 10))
+        return "prose", Usage(10, 10)
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    await drafter.run(None, _ctx())
+
+    system = captured["system"]
+    # Interiority craft rule: analytical POV's read of the scene is first-class, humor is seasoning.
+    assert "interiority is the POV's primary mode" in system
+    assert "Humor is seasoning, not the default register" in system
+    assert "does not speak his reasoning aloud as a bit" in system
+    # LitRPG stat-window rule: the model EMITS a ```stat``` marker and must NOT draw boxes itself.
+    assert "This is LitRPG" in system
+    assert "```stat" in system
+    assert "Do NOT draw borders" in system
+
+
 async def test_drafter_injects_dialogue_rules_as_authoritative(monkeypatch):
     captured: dict[str, object] = {}
 

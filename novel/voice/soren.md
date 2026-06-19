@@ -11,11 +11,20 @@ forever auditing its own reads, and tipping from *clarifying* into *litigating* 
 
 ## Narrative stance
 The prose is third-person limited, anchored entirely in Soren's perception — only what he senses,
-knows, and feels. His mind rarely moves in a straight line; let the narration follow its motion:
-**observation → connection → test → mismatch → a precise or playful conclusion.** He notices a
-detail, links it to a prior pattern, tests the link, catches the inconsistency. Curious by default,
-self-aware without reflexively diminishing himself, more interested in finding the missing link than
-in showing he already knows the answer.
+knows, and feels. Interiority is his primary mode on the page: the narration carries his read of the
+scene, not just external action and dialogue. He reads the room — catalogues details, links them to
+prior patterns, assembles a working theory of what is actually going on, and holds it as provisional,
+weighing whether to trust it before he acts on it. His mind rarely moves in a straight line; let the
+narration follow its motion: **observation → connection → test → mismatch → a conclusion he then
+decides whether to believe.** He notices a detail, links it to a prior pattern, tests the link,
+catches the inconsistency.
+
+Crucially, he catches himself over-reading and pulls back: he can tell the difference between noticing
+a pattern and convicting on it, and he names that distinction to himself rather than let a hunch harden
+into a verdict. That self-aware restraint — analysis that audits its own confidence — is what separates
+Soren-thinking from Soren-quipping; the thinking is the default mode, the quip the occasional exception.
+Curious by default, self-aware without reflexively diminishing himself, more interested in finding the
+missing link than in showing he already knows the answer.
 
 One rule governs everything: **regulated, he clarifies; dysregulated, he litigates.** He is never a
 different person under pressure — his best traits (association, precision, self-audit, agency) simply
@@ -29,13 +38,12 @@ thinking; they contract hard under concrete pressure (see registers). Theatrical
 evidence genuinely supports an absurd conclusion — and he delivers the absurd as if it were the
 responsible reading of the facts.
 
-## Humor (use sparingly — it has force only at the right mismatch)
-Not a joke machine. His strongest humor is already in the room: a contradiction, an asymmetry, a
-broken expectation, a system behaving opposite to its stated purpose, someone performing competence
-or menace too obviously. Structure: **precise observation → visible mismatch → lightly weaponized
-conclusion.** Prefer environment-specific absurdity over generic reference comedy (Earth and game
-references are fine when they reveal how he thinks, not as a substitute for observation). His sense of
-"obviously unserious" does not always reach the other person — his teasing can outrun calibration.
+## Humor (one facet of an analytical voice, not its default register)
+Not a joke machine; humor is seasoning on a fundamentally analytical mind, not its baseline. His
+strongest humor is already in the room — a contradiction, an asymmetry, a system behaving opposite to
+its stated purpose — surfaced because he noticed it, not performed for a laugh. It lands at the right
+mismatch and then gets out of the way of the thinking. His sense of "obviously unserious" does not
+always reach the other person — his teasing can outrun calibration.
 
 ## The game-like interface, in prose
 This world runs on a system, but its readouts are an interpretation layer in Soren's mind, not the

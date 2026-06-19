@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from dominion.workers.specialists.base import PassError
+
 if TYPE_CHECKING:
     from dominion.workers.context import SceneContext
 
@@ -11,7 +13,9 @@ class CombatPass:
     name = "combat"
 
     async def run(self, prose: str | None, ctx: SceneContext) -> str:
-        raise NotImplementedError("Phase 3: CombatPass enrichment pass.")
+        # Phase 3 will implement this. Until then, raise PassError (not NotImplementedError) so the
+        # pipeline lands the drafted spine + an advisory flag instead of hard-failing the job.
+        raise PassError("combat enrichment pass not implemented yet (Phase 3)")
 
 
 combat_pass = CombatPass()

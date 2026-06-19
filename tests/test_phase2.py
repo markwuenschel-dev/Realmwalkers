@@ -293,3 +293,48 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
         assert hard[0].payload["attribute"] == "level"
         assert hard[0].payload["prose_value"] == "7"
         assert hard[0].payload["ledger_value"] == "5"
+
+
+async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_original(
+    db_factory, monkeypatch
+):
+    # The drafter emits a ```stat``` block; the pipeline draws the box into Scene.prose and keeps the
+    # raw marker form in Scene.agent_original. Only the drafter model is mocked (no key here).
+    stat_prose = (
+        "Soren blinked the panel into focus.\n\n"
+        "```stat\nPerception: 15\nReflexes: 11\n```\n\n"
+        "He let the numbers settle."
+    )
+
+    async def fake_draft(self, prose, ctx):
+        return stat_prose
+
+    async def fake_complete(**kwargs):  # reviewers, if any fire, get a no-op empty result
+        kwargs["budget"].charge(Usage(1, 1))
+        return "[]", Usage(1, 1)
+
+    monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
+    monkeypatch.setattr(llm, "complete", fake_complete)
+
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)  # pov Soren, no PovProfile -> no voice spec
+        run = await _run(s, book)
+        await _beat(s, ch, 1, chars=("Soren",), text="Soren checks his status panel.")
+        s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
+                  token_budget=20_000, status=JobStatus.QUEUED))
+        await s.commit()
+
+    assert await worker.run_once(session_factory=db_factory) is True
+
+    async with db_factory() as s:
+        sc = (await s.execute(select(Scene).where(Scene.scene_no == 1))).scalars().first()
+        # prose carries the drawn, aligned box; the raw marker is gone from prose.
+        assert "┌" in (sc.prose or "")
+        assert "│ Perception  15 │" in (sc.prose or "")
+        assert "│ Reflexes    11 │" in (sc.prose or "")
+        assert "```stat" not in (sc.prose or "")
+        assert "Soren blinked the panel into focus." in (sc.prose or "")
+        # agent_original keeps the editable marker form, never the box.
+        assert "```stat" in (sc.agent_original or "")
+        assert "┌" not in (sc.agent_original or "")

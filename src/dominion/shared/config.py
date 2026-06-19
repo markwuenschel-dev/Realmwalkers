@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     scene_token_budget: int = 40_000
     scene_time_budget_s: int = 300
 
+    # LLM transient-error retry (DESIGN §10): retry rate-limit / 5xx / overloaded / connection errors
+    # with exponential backoff (base * 2**attempt). Non-transient errors (auth, 400/403/404) never retry.
+    llm_max_retries: int = 3
+    llm_retry_base_delay_s: float = 1.0
+
     cors_origins: str = "http://localhost:5173"
 
     @property

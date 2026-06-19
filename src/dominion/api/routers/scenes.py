@@ -9,7 +9,7 @@ from sqlalchemy import select
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import SceneStatus
 from dominion.shared.models import Critique, Scene
-from dominion.shared.schemas import CritiqueOut, SceneDetail, SceneOut
+from dominion.shared.schemas import CritiqueOut, SceneDetail, SceneOut, SceneVersionOut
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 
@@ -39,3 +39,21 @@ async def scene_detail(scene_id: uuid.UUID, session: SessionDep) -> SceneDetail:
     detail = SceneDetail.model_validate(scene)
     detail.critiques = [CritiqueOut.model_validate(c) for c in crits]
     return detail
+
+
+@router.get("/{scene_id}/versions", response_model=list[SceneVersionOut])
+async def scene_versions(scene_id: uuid.UUID, session: SessionDep) -> list[Scene]:
+    """Full lineage of a scene: every version sharing its (chapter, scene_no), oldest first."""
+    scene = (
+        await session.execute(select(Scene).where(Scene.id == scene_id))
+    ).scalar_one_or_none()
+    if scene is None:
+        raise HTTPException(status_code=404, detail="scene not found")
+    rows = (
+        await session.execute(
+            select(Scene)
+            .where(Scene.chapter_id == scene.chapter_id, Scene.scene_no == scene.scene_no)
+            .order_by(Scene.version)
+        )
+    ).scalars().all()
+    return list(rows)

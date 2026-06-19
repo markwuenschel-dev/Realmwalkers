@@ -13,17 +13,26 @@ from typing import TYPE_CHECKING, Any
 from dominion.shared.config import settings
 from dominion.shared.enums import Severity
 from dominion.workers import llm
-from dominion.workers.reviewers.base import Flag
+from dominion.workers.reviewers.base import Flag, parse_json_objects
 
 if TYPE_CHECKING:
     from dominion.workers.context import SceneContext
 
 _EXTRACT_MAX_TOKENS = 1500
+_KNOWLEDGE_MAX_TOKENS = 1200
 
 _SYSTEM = (
     "You extract only EXPLICIT, asserted facts about characters from a scene of prose, for a "
     "continuity check. Report only values the prose states outright. Do not infer, guess, or "
     "normalize. If the scene does not state a value, omit it."
+)
+
+_KNOWLEDGE_SYSTEM = (
+    "You check a POV character's narration for KNOWLEDGE the character could not have. You are given "
+    "everything this POV knows so far. Flag only concrete references — to events, names, places, or "
+    "facts — that the narration treats as known but that are absent from that knowledge. Do not flag "
+    "things a person could reasonably perceive or infer within the scene itself. If nothing is out of "
+    "bounds, report nothing."
 )
 
 
@@ -38,6 +47,15 @@ def _extract_prompt(prose: str, watched: dict[str, list[str]]) -> str:
     )
     lines.append("\nSCENE:\n" + prose)
     return "\n".join(lines)
+
+
+def _knowledge_prompt(prose: str, pov: str, pov_summary: str) -> str:
+    return (
+        f"POV character: {pov}\n\nWHAT {pov} KNOWS SO FAR:\n{pov_summary}\n\nSCENE:\n{prose}\n\n"
+        'Return ONLY a JSON array (no prose, no code fences). Each item: '
+        '{"reference": str (the out-of-bounds reference), "note": str (why it is outside what '
+        f'{pov} knows)}}. Empty array [] if nothing is out of bounds.'
+    )
 
 
 def _strip_fences(s: str) -> str:
@@ -61,6 +79,13 @@ class ContinuityReviewer:
     name = "continuity"
 
     async def review(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
+        # Two independent checks, each gated to spend no tokens when it has nothing to do:
+        # the HARD hard-number check (prose vs Oracle ledger) and the ADVISORY POV-knowledge check.
+        flags = await self._hard_number_flags(scene_prose, ctx)
+        flags.extend(await self._knowledge_flags(scene_prose, ctx))
+        return flags
+
+    async def _hard_number_flags(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
         # Nothing canonical to contradict yet -> skip (and spend no tokens).
         watched = {char: sorted(stats.keys()) for char, stats in ctx.ledger.items() if stats}
         if not watched:
@@ -94,7 +119,33 @@ class ContinuityReviewer:
                         "context_sentence": str(claim.get("context_sentence", "")),
                     },
                 ))
-        # TODO(Phase 2): POV-knowledge check — flag references absent from ctx.pov_summary.
+        return flags
+
+    async def _knowledge_flags(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
+        """POV-knowledge asymmetry (DESIGN §7): advisory-flag narration that references anything
+        outside what this POV knows. Silent (and free) when there is no POV summary to measure
+        against. Strictly advisory — never HARD, never the continuity panel."""
+        if not ctx.pov_summary or not scene_prose.strip():
+            return []
+        raw, _usage = await llm.complete(
+            model=settings.review_model,
+            system=_KNOWLEDGE_SYSTEM,
+            user=_knowledge_prompt(scene_prose, ctx.pov, ctx.pov_summary),
+            max_tokens=_KNOWLEDGE_MAX_TOKENS,
+            budget=ctx.budget,
+        )
+        flags: list[Flag] = []
+        for item in parse_json_objects(raw):
+            note = str(item.get("note", "")).strip()
+            if not note:
+                continue
+            reference = str(item.get("reference", "")).strip()
+            flags.append(Flag(
+                reviewer=self.name,
+                severity=Severity.WARN,
+                note=note,
+                payload={"kind": "knowledge", "reference": reference},
+            ))
         return flags
 
 

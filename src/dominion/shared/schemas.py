@@ -60,3 +60,92 @@ class ContinuityResolveIn(BaseModel):
     """Resolve one continuity mismatch from the panel: pick prose or ledger (DESIGN §9)."""
     critique_id: uuid.UUID
     choice: str                          # "use_prose" | "use_ledger" | "edit"
+
+
+# --- Gate 1: books, runs, chapters, beats (DESIGN §4, §8) -----------------------------------------
+
+class BookIn(BaseModel):
+    """POST body to create a book."""
+    title: str
+    premise: str | None = None
+
+
+class BookOut(_ORM):
+    id: uuid.UUID
+    title: str
+    premise: str | None = None
+    created_at: datetime
+
+
+class BeatOut(_ORM):
+    id: uuid.UUID
+    chapter_id: uuid.UUID
+    scene_no: int
+    beat_text: str | None = None
+    characters_present: list[str] | None = None
+    tags: list[str] | None = None
+    expected_state_changes: dict[str, Any] | None = None
+    knowledge_injections: list[str] | None = None
+    status: str
+
+
+class BeatUpdateIn(BaseModel):
+    """PUT body to edit a proposed beat (gate 1). Only provided fields are applied."""
+    beat_text: str | None = None
+    characters_present: list[str] | None = None
+    tags: list[str] | None = None
+    expected_state_changes: dict[str, Any] | None = None
+    knowledge_injections: list[str] | None = None
+
+
+class ChapterOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_no: int
+    pov: str
+    outline: str | None = None
+    status: str
+
+
+class RunStartIn(BaseModel):
+    """POST body to start a run: outline a chapter; the planner proposes its beats (gate 1)."""
+    book_id: uuid.UUID
+    chapter_no: int
+    pov: str
+    outline: str
+    gate_mode: GateMode = GateMode.PAUSE_EACH
+    token_budget: int | None = None
+
+
+class RunStartOut(BaseModel):
+    """Result of starting a run: the chapter and its proposed (unapproved) beats."""
+    run_id: uuid.UUID
+    chapter_id: uuid.UUID
+    chapter_no: int
+    pov: str
+    beats: list[BeatOut] = []
+
+
+# --- History + manuscript read surfaces (DESIGN §9, §13) ------------------------------------------
+
+class SceneVersionOut(SceneOut):
+    """A scene row plus its preserved pre-edit text, for version diffing in History."""
+    agent_original: str | None = None
+
+
+class ManuscriptScene(BaseModel):
+    scene_no: int
+    prose: str | None = None
+
+
+class ManuscriptChapter(BaseModel):
+    chapter_no: int
+    pov: str
+    scenes: list[ManuscriptScene] = []
+
+
+class ManuscriptOut(BaseModel):
+    """The approved manuscript, assembled in reading order (latest approved version per scene)."""
+    book_id: uuid.UUID
+    title: str
+    chapters: list[ManuscriptChapter] = []

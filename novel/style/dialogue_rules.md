@@ -46,6 +46,8 @@ Now write the scene. The surface conversation runs. The underneath conversation 
 
 Each character has a distinct spoken register. When a line of dialogue could belong to anyone, it belongs to no one. Use these profiles to differentiate.
 
+> **Exemplars are register, not script.** The **Exemplar lines** in each profile define a voice and register to MATCH — they are reference, not a script to draw from. Generate fresh dialogue in that register every time; never reproduce an exemplar verbatim or near-verbatim, and never put one character's exemplar in another character's mouth.
+
 ### Marcus (Soren)
 **How he talks:** Thinks while talking. Sentences sometimes revise themselves mid-delivery. Tends toward specificity — doesn't say "a long time," says the actual amount. Under pressure his speech compresses but stays complex. His humor is observational and sideways — the funny thing arrives unexpectedly because he noticed something true.
 

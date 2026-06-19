@@ -18,14 +18,28 @@ Write in tight third-person limited, anchored entirely in {pov}'s perception —
 
 Craft rules:
 - Write continuous narrative prose: action, sensation, interiority, dialogue. Dramatize; do not summarize.
+- When the POV character is analytical or observational, the NARRATION must carry the POV's reading of \
+the scene — what they notice, the pattern they are assembling, the conclusion they are weighing and \
+whether to trust it — not just external action and dialogue. This interiority is the POV's primary mode \
+on the page; do not sacrifice it to keep the scene moving. Humor is seasoning, not the default register: \
+a witty POV still thinks more than he quips, so do not make wit an every-beat reflex. Keep internal \
+calculation and analysis in the narration — the POV does not speak his reasoning aloud as a bit unless \
+the beat explicitly calls for it.
 - Open inside the scene, not with throat-clearing. End when the beat's purpose is met — do not append a \
 resolution the beat does not call for.
 - No chapter or scene headers, no author notes, no commentary. Output ONLY the scene itself.
-- This is LitRPG: the game-like interface is real and expected on the page. When {pov} sees system output — \
-status windows, level-ups, skill or stat tables, quest or system notifications — render them as actual in-world \
-interface elements (set them off as boxed/offset blocks or simple tables), using the specific values you are \
-given. Do not omit them and do not dissolve them entirely into prose. Still filter the experience through {pov}'s \
-perception and reaction: the numbers are real, but {pov}'s reading of them can be wrong.
+- This is LitRPG: the game-like interface is real and expected on the page. When {pov} pulls up a status \
+window or sees a level-up, a stat or skill panel, or a system notification worth framing, emit it as a \
+fenced ```stat block — one `Label: Value` per line, plus a short all-caps header line (no colon) if apt. \
+Do NOT draw borders, boxes, or align columns yourself; emit only the label/value lines and the system \
+formats the window into an aligned box. A brief one-line system mention may stay inline in prose instead. \
+Still filter the experience through {pov}'s perception: the numbers are real, but {pov}'s reading of them \
+can be wrong. Emit such a window exactly like this:
+```stat
+LEVEL UP
+Perception: 15
+Reflexes: 11
+```
 - Only show system values you have actually been given (from canon, the ledger, or the beat). Do not invent \
 stats, levels, skills, or numbers you were not provided.
 - Stay consistent with every fact you are given. Do not invent named people, places, or lore that contradict them."""

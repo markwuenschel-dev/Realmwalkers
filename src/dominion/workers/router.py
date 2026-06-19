@@ -7,6 +7,9 @@ from __future__ import annotations
 
 from dominion.workers.reviewers.base import Reviewer
 from dominion.workers.reviewers.continuity import continuity_reviewer
+from dominion.workers.reviewers.pacing import pacing_reviewer
+from dominion.workers.reviewers.state_drift import state_drift_reviewer
+from dominion.workers.reviewers.voice import voice_reviewer
 from dominion.workers.specialists.base import Specialist
 from dominion.workers.specialists.combat import combat_pass
 from dominion.workers.specialists.dialogue import dialogue_pass
@@ -20,8 +23,14 @@ DRAFT_PASSES: dict[str, Specialist] = {
     "dialogue": dialogue_pass,
 }
 
-# Continuity always runs (advisory). Phase 3 adds domain + pacing/voice reviewers here.
-ALWAYS_REVIEWERS: list[Reviewer] = [continuity_reviewer]
+# Always-on advisory reviewers (read-only). Continuity stays first; voice/pacing/state-drift each
+# gate their own LLM call and stay silent (and free) when they have nothing to assess.
+ALWAYS_REVIEWERS: list[Reviewer] = [
+    continuity_reviewer,
+    voice_reviewer,
+    pacing_reviewer,
+    state_drift_reviewer,
+]
 TAG_REVIEWERS: dict[str, list[Reviewer]] = {}
 
 
