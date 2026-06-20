@@ -22,6 +22,8 @@ The relationship is **not** Marcus rescuing Serra, restoring her to an earlier s
 
 Central irony, recurring across the series: **they recognize one another faster than they understand one another.** They can find each other in a crowd, anticipate each other in a fight, read each other's hidden pain — and still misread what the other's choices *mean*.
 
+The romance is the **delivery mechanism** for Marcus's deeper *frame-vs-reality* arc (`mc.md` → The Frame–Reality Spine): Serra is the reality that won't fit his model, and the **severance is its stage 3** — he reads her correctly and still doesn't get to author what it means.
+
 ---
 
 ## 2. The Central Romantic Conflict
