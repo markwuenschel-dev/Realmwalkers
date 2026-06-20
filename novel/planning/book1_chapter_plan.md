@@ -29,7 +29,7 @@ status: working
 - **Scenes:** `SCENE-001_earth-opening` (scrim + duel, ends on the intrusion) → the hijack/consent scene (S2).
 - **Pays:** SP-001 (implant=receiver, seed) · SP-002 (game vs real) · SP-010 (guild scattered) · CH-008 (Seb's brother → grief not rescue).
 - **End state:** all six coerced into consent; no interfaces yet; Earth Thing planted (duel).
-- **Gate:** ✅ drafted. *(Cleanup, not a block: the scene-ID namespace collides — `SCENE-001_earth-opening` vs `scene_queue` SCENE-001 = "Post-Ayla Survival." Renumber one namespace.)*
+- **Gate:** ✅ drafted.
 
 **Ch 2 — The Facility** · Marcus · Day 1 · *drafted*
 - **Function:** assemble the six in the flesh; first physical Marcus/Serra beat; lay out terms so consent is on the record.
@@ -291,9 +291,6 @@ status: working
 | Ch 24 | political fracture + item's wrong verdict | unspecified — new |
 | **Ch 26–28** | **W-05 portal-forcer** + **finale choreography** | threads / `master_timeline` Act 5 |
 | Ch 30 | the felt severance mechanic | unspecified — new |
-
-## Cleanup flagged in passing (not drafting blockers)
-- **Scene-ID collision:** `SCENE-001_earth-opening` (manuscript) vs `scene_queue` SCENE-001 ("Post-Ayla Survival"). Two scenes share an ID across the two namespaces — renumber one.
 
 ---
 
