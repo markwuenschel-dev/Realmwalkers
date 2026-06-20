@@ -740,7 +740,7 @@ Book 1 leaves Brent somewhere in his solo arc — integrated into a group that n
 - Healer in Aetherfall by practical choice, not sentimental one
 - Realm class is NOT confirmed as healer — open
 - Nothing from Aetherfall carries over — skills develop through use
-- Lands separately from Marcus, Sarah, and the Vultures
+- Lands separately from Marcus, Serra, and the Vultures
 - Finds a different group during solo arc — identity of group unresolved
 - **Survives Book 1** (BR-01 resolved); the "possible thematic death" framing is retired — no main-six character dies in Book 1
 

@@ -112,7 +112,7 @@
 ---
 
 ## Current Payoff Priorities
-1. Opening drafting-ready (SCENE-001–004, NEW-001).
+1. Opening drafting-ready (SCENE-002–004, NEW-001).
 2. Deliver warmth ≠ loyalty (Maera) and the home-building ache.
 3. The split (registry-fragment) → Serra's destination.
 4. Eriadne foothold; first item-temptation seed.

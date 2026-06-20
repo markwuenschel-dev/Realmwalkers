@@ -107,7 +107,7 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 **Dynamic:** Mathias challenges Marcus's building instincts from a different angle than Mara. Mara asks "what do these people need?" Mathias asks "what can this land survive?" When Marcus wants to grow the settlement, Mathias is the one tracking what that growth costs the ecosystem, the ley lines, the balance of the region.
 
-**Current status:** Separated. His arc runs parallel — ecological tracking, early Xyloryn/Zalgoran warning signs.
+**Current status:** Separated. His arc runs parallel — ecological tracking, early Xyloryn/N'hal warning signs.
 
 **Tension:** Injured proving a warning others ignored; **he lives** (injured at the finale, not killed). The cost of not listening to him becomes visible when the threat he flagged finally arrives.
 

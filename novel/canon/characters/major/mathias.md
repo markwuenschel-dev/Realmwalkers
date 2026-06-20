@@ -894,7 +894,7 @@ Book 1 leaves Mathias having made contact with something significant — somethi
 - What does that contact cost or change?
 - ~~Does he survive Book 1?~~ — **Yes**; injured at the finale (resolved).
 - What is his relationship to the Xyloryn threat — does his contact drive lead him toward them in a way that creates danger?
-- Does he discover something about the Zalgoran threat through contact that others couldn't access?
+- Does he discover something about the N'hal threat through contact that others couldn't access?
 
 ---
 

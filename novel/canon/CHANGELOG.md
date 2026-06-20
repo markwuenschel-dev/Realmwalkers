@@ -53,4 +53,4 @@
 - Marcus Earth identity **ML engineer at Astria** / name **Marcus Fahr** (Chad retired); hijacker **Roth**; **Seb's brother dies in the Day-0 scrim** (consent = grief).
 - **Mathias lives** (injured at finale); finale = **Xyloryn invasion, one Myrmidon**.
 - Opposing guild renamed **Dead Hand**; Aspect forms **Sentinel/Predator/Arbiter/Oracle**.
-- New owner files added: `relationship_invariants.md`, `relational_clarity_rules.md`, `classes.md`, `mechanics.md`, `cosmology.md`, `naming_magic.md`.
+- New owner files added: `relationship_invariants.md`, `relational_clarity_rules.md`, `classes.md`, `mechanics.md`, `cosmology.md`. *(Naming/true-name system is owned by `core_rules.md` → Naming System — no separate file.)*
