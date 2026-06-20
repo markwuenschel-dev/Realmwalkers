@@ -20,6 +20,7 @@ status: active
 | Earth Name | Serra Hawthorne ("Sarah" retired) |
 | Realm Name | Serra |
 | True Name | — unassigned |
+| Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
 | Origin | Self-made; ordinary background, no connections or shortcuts |
 | Guild Role (Earth) | Disruptor-Assassin; tandem with Mara Valeria |
@@ -485,7 +486,7 @@ Tandem partner from the guild. Serra is force; Mara is setup. Serra asks who mus
 
 ### Book 1 Function
 
-Intermittent major presence. Meets Soren early; they build their first real tandem during the false-rescue/naming arc and survive it together. She separates when she **kills the magistrate** running a namebinding outpost and learns who is *directing* him — a handler in the next city. That handler becomes a target she can't walk away from, and following it requires going somewhere Soren can't. She heads up the chain toward the namebinding faction's parent organization — the **Court of Seals**, a regional limb of the cosmic **Aurelian Sovereignty** (see `cosmology.md`). Her Pressure-Severance interface **unlocks for real at the magistrate kill / her move to the next city.** She returns at the Act-5 finale, changed. Her arc runs parallel to Soren's and intersects at key moments without depending on it.
+Intermittent major presence. Meets Soren early; they build their first real tandem during the false-rescue/naming arc and survive it together. She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **handler in the next city administers that registry**; that handler becomes a target she can't walk away from, and following it requires going somewhere Soren can't. She carries the fragment up the chain toward the namebinding faction's parent organization — the **Court of Seals**, a regional limb of the cosmic **Aurelian Sovereignty** (see `cosmology.md`). The **registry-fragment is her Book-1 → Book-2 bridge object.** Her Pressure-Severance interface **unlocks for real at the magistrate kill / her move to the next city.** She returns at the Act-5 finale, changed. Her arc runs parallel to Soren's and intersects at key moments without depending on it.
 
 **The wrong is namebinding** — weaponized true names as control. It cuts at her self-made identity (people never allowed to author a self), not a past trauma. Not a crusade: one face, then the chain of handlers above it.
 
@@ -506,7 +507,7 @@ Book 1 leaves her mid-hunt, changed in ways that are visible and ways that aren'
 ## Open Questions
 
 - Does her Realm name stay Serra, or does she earn/receive a new name in the Realm?
-- ~~What is the wrong / who has a face on it?~~ **Resolved:** the wrong is **namebinding**; the "face" is reframed from rescue to **enemy** — she kills the magistrate running a namebinding outpost and learns who *directs* him (a handler in the next city) she can't walk away from.
+- ~~What is the wrong / who has a face on it?~~ **Resolved:** the wrong is **namebinding**; the "face" is reframed from rescue to **enemy** — she kills the magistrate (a **node, not the source**) and learns who *directs* him: a handler in the next city who **administers the leased-name registry**. At the kill she takes a **registry-fragment** (her Book-1 → Book-2 bridge object) and follows it up the chain.
 - What does she find at the roots of it that makes her stay longer than she planned?
 - What is the moment in her solo arc where her power almost costs her something she can't recover?
 - What does she build or become during the separation that belongs entirely to her?

@@ -13,6 +13,7 @@
 | Earth Name | Brent Donovan |
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
+| Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
 | Origin | Large, outcome-obsessed family; IT support tech background |
 | Guild Role (Earth) | Healer/Support — Aetherfall roster |
@@ -712,11 +713,11 @@ Estranged, unglamorous, practically competent, allergic to abstraction. No one w
 
 ### End Direction
 
-Book 1 leaves Brent somewhere in his solo arc — integrated into a group that needs him, developing his Realm class through use, beginning to understand that the Realm's invisible systems are real even if he cannot touch them. Whether he survives Book 1 is unresolved. If he dies, the death should prove something specific — not that ordinary people can't survive, but that keeping others alive is not the same as being safe yourself.
+Book 1 leaves Brent somewhere in his solo arc — integrated into a group that needs him, developing his Realm class through use, beginning to understand that the Realm's invisible systems are real even if he cannot touch them. **He survives Book 1** (BR-01). The thematic point of his arc — *keeping others alive is not the same as being safe yourself* — is carried by survival, not death.
 
 ### Mortality Status
 
-⚠ Open. The story bible flagged a possible thematic death. Author has not confirmed whether Brent is the one who dies. Do not kill him in any scene without explicit author direction.
+**Survives Book 1** (parallels Mathias). The earlier "possible thematic death" flag is retired. (BR-01 resolved; **no main-six character dies in Book 1** — the finale's "others don't make it" refers to the captives/the operation, not the six.)
 
 ---
 
@@ -726,7 +727,7 @@ Book 1 leaves Brent somewhere in his solo arc — integrated into a group that n
 - What is the unknown group he finds in his solo arc?
 - How does his power first activate — through what specific situation?
 - Does he reconnect with Marcus before or after the Eriadne arc?
-- Does he survive Book 1?
+- ~~Does he survive Book 1?~~ — **Yes** (survives; BR-01 resolved).
 - What does he build, fix, or break that makes him specifically irreplaceable?
 - What is the moment someone says "we need Brent" and means it?
 
@@ -741,7 +742,7 @@ Book 1 leaves Brent somewhere in his solo arc — integrated into a group that n
 - Nothing from Aetherfall carries over — skills develop through use
 - Lands separately from Marcus, Sarah, and the Vultures
 - Finds a different group during solo arc — identity of group unresolved
-- Possible death in Book 1 — not confirmed, do not execute without author direction
+- **Survives Book 1** (BR-01 resolved); the "possible thematic death" framing is retired — no main-six character dies in Book 1
 
 ---
 

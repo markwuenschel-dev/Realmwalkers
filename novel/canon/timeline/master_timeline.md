@@ -17,7 +17,7 @@
 
 | Event | Notes |
 |---|---|
-| An ancient civilization builds the Under-City / ley-line hub at what becomes Eriadne's outskirts | Thousands of years prior; identity unresolved (W-01). |
+| An ancient civilization builds the Under-City / **ruins near** the **natural** ley convergence at what becomes Eriadne's outskirts | Thousands of years prior. They did **not** create the node — the convergence is natural (richer magic, better materials, more volatile); the builders raised structures *around* it. Builders' identity/purpose unresolved (W-01). |
 | Ley network fails / civilization falls; the ruins go dormant but not dead | Unknown date. |
 | Eriadne accretes over the ruins at a trade crossroads | Settlers build without understanding the convergence. |
 | N'hal first contact the Realm | Deep history. |
@@ -92,9 +92,9 @@
 | Iron Vultures arrive (were watching); offer utility; the group travels with them | Day ~9 |
 | Travel period — Serra's **Warrior fundamentals** surface (future Pressure-Severance delivery); Marcus's Eyes → Stage 2; the False Rescue system explained matter-of-factly | Days ~9–13 |
 | **Maera Vell's roadhouse** — genuine warmth; Marcus over-shares; she reports him to the magistrate-guild (off-screen) | Days ~14–15 |
-| Magistrate-guild arrives; the elven child is **namebound and taken**; *warmth ≠ loyalty* lands; Marcus's home-building ache surfaces | Days ~15–16 |
+| Magistrate-guild arrives; the elven child is **namebound and taken** (the child is a **Strong** soul — a notable catch, reinforcing "monetized rescue": the guild landing a real prize, not routine debt-resolution); *warmth ≠ loyalty* lands; Marcus's home-building ache surfaces | Days ~15–16 |
 | Pursuit; the pitch to the Vultures (join with conditions) | Days ~16–19 |
-| **The operation** — chaotic; Marcus extracts the child, others don't make it | Days ~19–20 |
+| **The operation** — chaotic; Marcus extracts the child, others don't make it (the **captives / the op**, **not** a main-six member) | Days ~19–20 |
 | **The split** — Serra kills the magistrate (off-page from Marcus's POV); learns he's a **node, not the source** (names sub-leased from a master registry); takes a **registry-fragment**; leaves toward a larger faction's seat. No speech. | Days ~20–21 |
 | Marcus travels on with the Vultures toward a larger town (Exile info; hunting the guild) | Days ~21–23 |
 
@@ -123,7 +123,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 | Threat becomes more than rumor; Marcus's position turns politically vulnerable | Days ~80–90 |
 | **Serra returns — the reunion** (changed; he reads what it cost her; she won't confirm) | ~Day 95 |
 | Reunion becomes tension — her mission vs. his fragile position | Days ~95–98 |
-| ⚠ **Finale (choreography pending):** the **dormant portal at the eight-leyline convergence is forced open** (separate from the city, which stays largely unaware); the swarm is visible beyond; **one Myrmidon comes through it** and nearly beats all six at once. **A Realm Walker, drawn by the breach, witnesses it** (first contact with Marcus here/just after — recruitment seed). **Mathias is badly injured proving his warning — he lives.** The crisis briefly reunites the six as a team. | Days ~98–104 |
+| ⚠ **Finale (choreography pending):** the **dormant portal at the eight-leyline convergence is forced open** (separate from the city, which stays largely unaware); the swarm is visible beyond; **one Myrmidon comes through it** and nearly beats all six at once. **A Realm Walker, drawn by the breach, witnesses it** (first contact with Marcus here/just after — recruitment seed). **Mathias is badly injured proving his warning — he lives.** The crisis briefly reunites the six as a team. **Structural invariant: no main-six character dies in Book 1** — both Mathias and Brent live; any "others don't make it" beat refers to the captives / the operation, never the six. | Days ~98–104 |
 | The old guild identity is explicitly dead | Days ~104–108 |
 | **The severance** (second parting): Marcus names the Earth Thing → Serra severs the thread to free him, breaking her one rule. Ending image: *they can find each other again, but belonging together is no longer guaranteed.* | ~Day 110 |
 
@@ -137,7 +137,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 | **Seb** | Lands desolate → enslaved/tortured/labor → kills his captor barehanded → *then* the broker speaks ("you can have more") → **shortest solo arc**, slaver camp straight to Eriadne. Reaver + Threshold Cascade; among the most powerful. |
 | **Mara** | Lands in a stratified **court nation-state**; taken in for her beauty by a decent patron; a predatory courtier targets her; she goes un-salient (the ball), then exposes him before the full court (room-scale Mirror-Salience). Leaves the court for the **Walking Grove** (a moving civilization on a sick ancient behemoth); a salience-suppression threat there is the perfect Mirror-Salience foil — she makes the community perceive the danger at once; the behemoth's wound/migration routes her toward Eriadne. Does not meet Serra before Eriadne. |
 | **Mathias** | Solo near the **ruins**; discovers the Xyloryn and the **portal**; fights a single Skirmisher-tier drone; loads his Scout class through research; becomes the group's warning. **Lives** (injured at the finale). Combat ranking: Seb > Mathias ≈ Mara > Soren. |
-| **Brent** | Converges earliest with Marcus's Eriadne arc; the builder/fortifier of the ruin-fringe. |
+| **Brent** | Converges earliest with Marcus's Eriadne arc; the structural reader *(fortifying/building = Book 2)*. |
 
 ---
 

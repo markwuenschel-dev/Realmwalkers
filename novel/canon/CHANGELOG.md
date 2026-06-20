@@ -2,6 +2,17 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-16 — soul/Ayla/Eriadne pass
+- **Bindability rule:** any soul bindable; **Soul Level = difficulty, not a gate** (`mechanics.md`, `core_rules.md`).
+- **Soul anchors:** elven child = **Strong**, Seb's brother = **Common**; six mains carry a **Soul Level: TBD — deferred** row.
+- **Serra:** registry-fragment folded into the dossier (the detailed form of "handler"; node-not-source; B1→B2 bridge object).
+- **S-03 mindscape five-point lock** (incl. the load-bearing "owes nothing" clause).
+- **Eriadne = B1 foothold only;** settlement-building → Book 2 (Marcus + Brent).
+- **Ley node confirmed natural** (W-01 split: node ✅ resolved / who built the ruins 🟡 open).
+- **Ayla origin:** fallen top-band soul; anchor/resurrection mechanic (she permanently expends part of her power); A-01/A-03 resolved, A-02/A-04 open.
+- **Brent survives** (BR-01) → **no main-six death in Book 1.**
+- **Marker cleanup:** SE-02/03/10, S-06, S-02 moved to resolved.
+
 ## Dossier fold-in (mc / seb / mara / eriadne)
 - **`seb.md`:** Aetherfall class set to **Warlord**; the Broker reconciled from *bluff* to **honest-but-misread** (restoration genuinely possible; real cost = self-transformation; restoration ≠ continuity) per INV-6; SB-01/SB-02 marked resolved.
 - **`mc.md`:** added the **Eyes of Meszkhal** cost (20 + 1%/sec), damage progression, and visible tells; added **Unbound Affinity** and **Insight** (learned before the mindscape); fixed a stale `relationship_map is tiebreak` line -> INV-1/canon_index.

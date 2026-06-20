@@ -41,6 +41,20 @@ Mentor, but unreliable and incomplete. She helps Marcus ask better questions rat
 
 ---
 
+## Nature & Origin
+
+- Ayla is **something like a visible / partially-physical soul** — more substantial than an ordinary disembodied soul.
+- **Before her fall she was an extremely powerful being — Soul Level top band (Resplendent → Absolute).** Her precise species, nature, and former role **remain unresolved** (A-04).
+- She lost her embodied existence through a **battle, contract, punishment, or similar major event** (which one is open — A-04), and her soul was cast into a **void / interstitial realm**, where she **drifted for an extremely long time.**
+- She **encounters Marcus's soul shortly after his death.** She **needs an anchor** to escape that state; **Marcus can serve as that anchor.**
+- Resurrecting Marcus is **easier because little time had passed** — but it still **requires genuine resurrection magic**, and she must **permanently expend part of her original power** to restore him.
+- The attachment is **mutually necessary:** he receives life; she receives an anchor back into existence.
+- **Current state:** heavily **diminished** from her former tier — fragmented memory, cannot act directly. This bounds her usefulness: she asks better questions; she does not hand answers.
+
+> *Consistency note (editor, not prose):* this is **why Marcus's resurrection is "exceptional," not casual** — it cost a fallen top-tier soul part of her permanence. See `cosmology.md`; Soul Level → `mechanics.md`.
+
+---
+
 ## Open Questions
 
 - The limit of her damaged knowledge — what can and can't she recall?

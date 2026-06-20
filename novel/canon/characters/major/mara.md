@@ -20,6 +20,7 @@ status: active
 | Earth Name | Mara Valeria |
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
+| Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
 | Origin | Semi-rural outskirts of an average-sized city; average household |
 | Guild Role (Earth) | Assassin (setup/precision) — tandem with Serra Hawthorne **(both Dead Hand)** |

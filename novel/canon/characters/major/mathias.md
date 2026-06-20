@@ -20,6 +20,7 @@ status: active
 | Earth Name | Mathias Sterling |
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
+| Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
 | Origin | Average suburban background |
 | Guild Role (Earth) | Ranger/Hunter — scout, observer, the guild's eyes |

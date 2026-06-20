@@ -121,7 +121,7 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 **Current status:** Separated. His arc likely converges with Marcus's Eriadne path sooner than the others.
 
-**Tension:** Possible death. Brent believes in solvable problems. The Realm has problems that cannot be fixed with craft or engineering. That gap between his worldview and the Realm's actual nature is where his arc ends.
+**Tension:** Brent believes in solvable problems. The Realm has problems that cannot be fixed with craft or engineering — that gap between his worldview and the Realm's actual nature is the pressure in his arc. **He survives Book 1** (BR-01); the earlier "possible death" framing is retired.
 
 ---
 
