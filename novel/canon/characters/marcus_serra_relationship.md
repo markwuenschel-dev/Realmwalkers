@@ -2,7 +2,7 @@
 id: marcus_serra_relationship
 name: Marcus & Serra — Relationship Bible
 kind: canon
-status: working — core direction locked; B1 romantic endpoint provisional-but-favored; long-series resolution deliberately open
+status: working — core direction locked; B1 romantic arc locked via CCB-007 (Earth kiss · Realm second kiss · Option-B two-movement severance); long-series resolution deliberately open
 ---
 # Marcus & Serra — Relationship Bible
 
@@ -91,6 +91,22 @@ Earth no longer performs the *work* of love — it establishes attraction, fasci
 4. **Magistrate split — Early love, no shared direction.** *We agree this is wrong; we can't agree what responsibility requires next.* Both in early, unintegrated love; not yet a couple.
 5. **Convergence — Connection without maturity.** *We can still find each other. We still don't know how to stay.*
 
+**Book 1 beat-map (the Marcus–Serra spine).** The five movements above, rendered as the working beat sequence. *Chapter integers are current pointers into `book1_chapter_timeline.md`, not locks — anchor to beat identity ("the second kiss," "the severance"), never the number.*
+1. **Ch 1 — the duel.** Equals revealed; her recognition earned and one-directional; charge live but invisible. Interrupted.
+2. **Ch 2–3 — the facility.** Staggered identity reveal (Marcus first; Serra's the larger detonation). **"See you after, Marcus"** → he dies. *Plants "the after."*
+3. **Ch 6A — Serra's arrival POV.** Altana flashback, her side, her misread; retro-charges everything.
+4. **Ch 8 — falling into step.** Earth shorthand survives. *Plants: finding each other is easy.*
+5. **Ch 9–11 — the private mode.** First Realm tandem; control-group fruit; watch rotation; decompression beside him; **height ritual established.**
+6. **Ch 12 — Maera's soup.** Marcus's solo wound; warmth ≠ loyalty; the three-warmths thread.
+7. **Ch 13 — child taken; divergence opens.** Save-the-person vs. stop-the-system.
+8. **Ch 14 — catch-up, conflict, repair, second kiss.** Serra initiates; Marcus withholds the definition question (restraint #1). Assumed "after."
+9. **Ch 15 — operation + dry-run split.** He extracts the child (others don't make it); she kills the magistrate (her POV), finds the registry, leaves with no speech. The assumed "after" is destroyed by what the op produces. *He can't follow.*
+10. **Ch 16–17 — the absence.** Each carries the unfinished thing solo; the saved-meal beat detonates (he does it automatically; no one to give it to).
+11. **Ch 25 — reunion, changed.** He reads what it cost her; she won't confirm. Relief and the old wire, both live.
+12. **Ch 26–28 — the Myrmidon.** Restored tandem becomes the wound; he holds the opening at lethal risk; she finishes without him; he nearly dies; eyes ignite and read her conflict; item lies; he reads her right. Body-rupture.
+13. **Ch 29 — unbearable proximity.** Old guild dead; alone together, unresolved; the pressure that makes the naming inevitable.
+14. **Ch 30 — the severance.** He names existence; she severs (cost-breaks her one rule); *he won't follow.* → Book 2.
+
 ---
 
 ## 6. How They Fall in Love (False Rescue must supply all six)
@@ -101,6 +117,8 @@ Earth no longer performs the *work* of love — it establishes attraction, fasci
 - **Care** — accumulation: saved food, taken watch, treated injuries, recognized exhaustion, remembered preferences, staying nearby without demanding talk.
 - **Conflict & repair** — Marcus prioritizes the individual victim; Serra sees the system and fears local rescue becomes emotional absolution. Each wounds the other because each expected to be understood. Repair: *the person in front of us matters; the structure that put them there matters too.*
 - **Choice** — each chooses the other at a cost (Marcus trusts a decision he can't supervise / sacrifices a cleaner plan to preserve her agency; Serra delays momentum / returns when leaving is easier / shares information that reduces her control). Proves specificity: *not because someone needs help — because you are you.*
+
+**The cap — the second kiss (Serra initiates).** At the end of the False-Rescue arc (placement: `book1_chapter_timeline.md` Ch 14), once the six components are in motion and after conflict/repair, Serra **initiates** a kiss on a Realm height — the quiet twin of the Earth kiss, with the polarity reversed. Two load-bearing justifications, keep both: *the knife* — she does the thing she's constitutionally unable to do (claim an uncertain thing); that she reaches is the growth, that she later leaves what she reached for is the wound. *The repair of Earth* — she answers the exact question the Earth kiss left her holding (*did he think it was a mistake?*), closing the Earth misread behaviorally. Meaning: Earth kiss = *maybe*; second kiss = *yes — but we still don't know what yes requires.* It is **present-tense authorship** (*I choose this now*, not *I promise the after*); on reread it is beautiful and heartbreaking at once — write it so the reader doesn't see the heartbreak yet. It **caps** these six components; it does **not** replace them (conflict/repair precede it on-page) and declares **no** category — no sex scene, no exclusivity, no future promise. It resolves one ambiguity (do we want each other) and **intensifies** the other (what are we building, and what does it oblige) — the fuel for the Ch 30 severance.
 
 ---
 
@@ -125,6 +143,15 @@ Marcus need not say "I love you" — that isn't the disputed fact yet. He names 
 
 Serra confirms the connection without letting it dictate her next move: *"I wasn't going to."* The later-series argument sharpens to: *repeated choosing creates shared meaning* vs *shared meaning doesn't become permission.*
 
+**The Book-1 close under Option B (two movements).** The naming is *movement two* of the finale — the word-rupture that follows the Myrmidon's body-rupture across days of forced proximity (placement: `book1_chapter_timeline.md` Ch 26–30). The beat, in meaning:
+- They return to the **height ritual** (§10) and both feel it's *hollow* now; Serra frames the next lead as logistics; Marcus realizes they're about to reconnect and leave the departure unnamed *again*, and can't, one more time.
+- He **names existence, not category** — that the repeated choosing *became something* (e.g., *"I don't think this is just where we go to be alone anymore"*) — then draws the line: *"I'm not saying you can't leave."*
+- Serra doesn't deny the pattern. Her pain is that he's right it exists, and by naming it he's claimed the right to decide what it obligates — *he's changed what leaving means.* The refuge was safe because nothing in it had to mean anything; now staying is an answer and leaving is an answer.
+- **She severs** — her agency, her choice (not Marcus pushing her out), **partly to free him.** This is where her one rule (**"I don't ask people to stay,"** R-5; `serra_hawthorne.md`) **cost-breaks**: she still doesn't ask — the rule holds in the letter — but holding it finally has a price; she cuts the bond *to keep herself from asking him to stay,* and the cut can't hide what it costs (it confesses the want the ask would have spoken). *Distinct from the Myrmidon "being seen"* (there his eyes steal her conflict involuntarily; here her own act betrays the want — keep them separate).
+- **Marcus does not follow** (restraint #2, §11). Final image: he is at the place that always meant *they could find each other*; now it means one left and the other didn't. They can find each other again; belonging together is no longer guaranteed.
+
+**Preserve-both:** the close holds **two** acts of letting go — *she* severs (agency, partly altruistic, cost-breaks her rule) **and** *he* won't follow (restraint). Dropping either half is the axis-collapse INV-1 guards (`relational_clarity_rules.md` RR11).
+
 ---
 
 ## 9. POV Architecture
@@ -147,6 +174,8 @@ Serra confirms the connection without letting it dictate her next move: *"I wasn
 - **Finding each other.** Crowd → anonymous scrim → a road in another world → a chaotic operation → larger wars. Evolves from *they keep finding each other* (early) to *finding each other is no longer the hard part* (later).
 - **Interruption.** Early conversations interrupted before resolution; growth is eventually marked by *the interruption comes, and they finish the conversation anyway.*
 - **Private language.** Tailored teasing, deliberately weak arguments, competitive challenges, tactical feints, references that mean slightly different things to each — both intimacy *and* avoidance.
+- **The after.** Marcus and Serra keep forming the relationship around an expected *after* — after surgery, after the operation, after the mission, after the war — believing the next threshold will finally give them room to define it. It never does. Anchored on the pre-surgery line **"See you after, Marcus"** (Ch 3); echoed when the post-operation "after" is destroyed by what the operation produces (Ch 15). **Reader-rule applies: never on the page.** If a character ever says "we keep doing this," the motif is dead.
+  - *Convergence with Serra's one rule (pipeline-only, never on the page):* this motif and Serra's rule **"I don't ask people to stay"** (§8; `serra_hawthorne.md`) are the **same engine at two scales** — the rule is the internal law, the motif the behavior it generates: she never *secures* the after because she never *asks* for it. Write them as one thing felt from two angles, not two devices. Guard: no character articulates the link aloud.
 
 ---
 
@@ -159,6 +188,16 @@ Serra confirms the connection without letting it dictate her next move: *"I wasn
 5. **Attempted relationship** — a genuine try that fails or strains, because attraction hasn't cured the deeper patterns.
 6. **Opposition without erasure** — they may obstruct each other while staying mutually intelligible and connected; neither becomes a simplified villain.
 7. **Chosen convergence** — *I'm not choosing the person I remember; I'm choosing the person standing here now.* Resolution requires a **third path** — not Serra abandoning her mission, not Marcus abandoning responsibility, neither subordinate.
+
+**Book 1 pursuit backbone — catch / can't / won't.** The relationship thesis (*perception and desire do not grant authority; love is not pursuit*) rendered as plot:
+- **Catch (Ch 14) — he catches up.** Serra moves first after the child is taken; Marcus chases and **reaches** her. Pursuit *succeeds* → ends in the second kiss. (The kiss exists partly to make *catch* real, so *can't* and *won't* land against it.)
+- **Can't (Ch 15) — he can't follow.** She leaves to run the registry up a chain that goes where he can't. No speech. Pursuit *impossible.*
+- **Won't (Ch 30) — he won't follow.** She severs and descends; every instinct says chase; he chooses restraint. Pursuit *refused.*
+
+**The two restraints (rhyme across the backbone).** Marcus declines to force definition twice:
+- **Restraint #1 (Ch 14, at the second kiss):** he withholds the *what does this mean* question — not because he's at peace with ambiguity, but because forcing definition would turn the kiss into a negotiation.
+- **Restraint #2 (Ch 30, the severance):** he names the connection's existence, draws the line *"I'm not saying you can't leave,"* and does **not** follow when she descends — following would prove her fear that naming a thing means he can't let her exit it.
+Stage #1 as the quiet twin of **Serra's one rule enacted** (§8; she takes the *now*, never asks the *after*): two people declining to force the after for opposite reasons.
 
 ---
 

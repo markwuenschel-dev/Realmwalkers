@@ -61,6 +61,30 @@ Who calls whom what is a relational fact, not flavor.
 
 ---
 
+## Pairing-specific checks — Marcus ⇄ Serra (CCB-007)
+
+Not general principles; these enforce the load-bearing beats CCB-007 locked. Run on any scene that touches the Earth kiss, the Realm second kiss, or the Book-1 severance.
+
+## RR9 — The Earth kiss (INV-1 Axis E)
+Kiss = **Marcus initiates**; **pullback mutual and simultaneous**; **each blind to their own half.**
+- **Broken:** Marcus is the sole pursuer / the pullback is assigned to one party (usually Serra). *(Either collapses the mutual misread.)*
+- **Fixed:** his reach, their recoil, each registering only the *other's* withdrawal.
+- **Critic check:** does the draft make Marcus the sole pursuer, or hand the pullback to one party? Flag (INV-1 Axis E, both poles).
+
+## RR10 — The second kiss caps; it does not declare
+The Realm kiss (**Serra initiates**) caps the six falling-in-love components — **conflict/repair must precede it on-page.**
+- **Broken:** a sex scene, an exclusivity/relationship label, or a future promise; the kiss made to substitute for the six components rather than cap them.
+- **Fixed:** present-tense authorship (*I choose this now* ≠ *I promise the after*) — resolves desire, *intensifies* the obligation question, establishes no category.
+- **Critic check:** does the kiss declare a category or promise an after? Does conflict/repair precede it? Flag (`marcus_serra_relationship.md` §6/§8).
+
+## RR11 — The severance holds both halves
+The Book-1 severance contains **two** acts of letting go — **Serra severs** (her agency, partly to free him, cost-breaking her one rule) **and Marcus won't follow** (restraint).
+- **Broken:** she is merely pushed out, or he passively lets her go — either half dropped.
+- **Fixed:** both acts on the page; her one rule (R-5) **cost-breaks** (she cuts the bond to keep from asking), never literally violated; never collapsed into the Myrmidon "being seen" beat.
+- **Critic check:** are both halves present? Is the rule rendered as cost, not violation, and kept off the page? Flag the missing half (the axis-collapse INV-1 exists to prevent).
+
+---
+
 ## How the agents use this
 
 **Coder:** read with `relationship_invariants.md` before any two-character scene. After drafting, self-run The One Test and RR1–RR8.

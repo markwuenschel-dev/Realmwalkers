@@ -117,6 +117,19 @@ Her loneliness is structural: she is skilled at becoming the person others lean 
 
 She can still value someone after closing access to them. What she does not believe is that private value creates an obligation to preserve contact.
 
+### The One Rule — "I don't ask people to stay" [LOCKED — CCB-007 R-5]
+
+Her oldest armor, and her entire canon in one line: she **does not ask people to stay.** It is the "after" motif (`marcus_serra_relationship.md` §10) at the character-rule level — she never asks for the *after* because she doesn't ask anyone to stay. Not a perception rule and not a Marcus-centric rule; a rule about *her own wanting.*
+
+**What it protects.** Serra never lets her wanting someone become their burden or her claim. To ask someone to stay is to expose the need and hand them its weight. Her guardedness is exactly this: *my wanting is mine; I don't make it your problem or my demand.* The rule has always been **free to keep** — because she has never wanted anyone enough to be tempted to break it.
+
+**Enacted — the second kiss.** During the false-rescue tandem she **initiates** the Realm kiss (a height vantage, the night before the magistrate operation) and takes the *now* without asking for the *after.* Performed, never stated; the quiet twin of Marcus's restraint (he withholds the *what does this mean* question). She enacts the rule precisely when she'd have the most reason to break it — which is where it is *felt/established* in-text, retro-legible after the severance.
+
+**The break — the severance. A *cost-break, not a letter-break.*** She still does **not** ask — the rule holds in the letter. What breaks is its costlessness: for the first time she *wants* to ask, and holding the line now requires an act she's never needed — she **severs the bond *to keep herself from asking him to stay.*** The rule, always free, finally breaks *her*; and the cut can't hide its cost — the severance confesses the want the ask would have spoken.
+- **Separation from "being seen":** the Myrmidon beat is his eyes reading her conflict *involuntarily* (his power steals it); the severance break is *her own act* betraying the want (her choice reveals it). Two mechanisms — keep both, keep them distinct.
+- **"Breaking her one rule" reconciled:** canon's phrase is honored as *the rule, held, finally breaks her* — not as her violating it. Cost-break is default. (Alternative on file, not chosen: a *letter-break* — she reaches the edge of an actual ask and stops; more overtly playable, but it puts the machinery on the page; use only if Mark later wants the visible crack.)
+- **Critic guard:** never stated aloud by any character; never collapsed into the "being seen" beat; the break is *cost*, not *violation* (unless Mark flips to the letter-break). (`relational_clarity_rules.md` RR11.)
+
 ### What She Wants to Prove
 
 On the surface, she wants to prove that she belongs at the top because she earned it.
@@ -471,7 +484,7 @@ Sometimes Serra's read will be correct: part of him may still hope that clarity 
 
 They remain naturally effective together. He sees weak points; she acts before hesitation closes the window. He analyzes what a signal means; she trusts the signal and moves. Their compatibility is real. So is the danger in how differently they assign meaning to access, warmth, and uncertainty.
 
-**The finale severance (late Book 1):** reunited for the Myrmidon fight, the kill requires Marcus to hold an opening at lethal risk while she lands the blow — she misses the depth, brushes off his danger, finishes it; he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he reads her right and doesn't hold it against her. Being seen in that moment — plus the faction she's hunting and the still-unresolved party thing — is what sends her off. She owns the choice and can't look at him. (`relationship_map.md` is tiebreak.)
+**The finale — two movements (late Book 1).** *Movement one — the Myrmidon (body-rupture):* reunited in tandem, the kill requires Marcus to hold an opening at lethal risk while she lands the blow — she misses the depth, brushes off his danger, finishes it; he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he reads her right and doesn't hold it against her. Being *seen* in that moment is what she can't survive — note it is **involuntary** (his power steals her conflict), **distinct** from the rule-break below. *Movement two — the severance (word-rupture), after days of forced proximity:* Marcus names the connection's *existence* (not a category); **Serra severs the bond** — her choice, partly to free him — and **Marcus does not follow.** This is where her one rule **cost-breaks** (see *The One Rule* above): she still doesn't ask him to stay, but holding the line finally costs her — she cuts the bond *to keep from asking.* The faction she still hunts and the unresolved party night compound it. She owns the choice and can't look at him. (`relationship_map.md` is tiebreak; `marcus_serra_relationship.md` §8 owns the naming.)
 
 *Current status:* Separated. She made the call. He understood why. The unaddressed thing is still unaddressed.
 
@@ -486,7 +499,7 @@ Tandem partner from the guild. Serra is force; Mara is setup. Serra asks who mus
 
 ### Book 1 Function
 
-Intermittent major presence. Meets Soren early; they build their first real tandem during the false-rescue/naming arc and survive it together. She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **handler in the next city administers that registry**; that handler becomes a target she can't walk away from, and following it requires going somewhere Soren can't. She carries the fragment up the chain toward the namebinding faction's parent organization — the **Court of Seals**, a regional limb of the cosmic **Aurelian Sovereignty** (see `cosmology.md`). The **registry-fragment is her Book-1 → Book-2 bridge object.** Her Pressure-Severance interface **unlocks for real at the magistrate kill / her move to the next city.** She returns at the Act-5 finale, changed. Her arc runs parallel to Soren's and intersects at key moments without depending on it.
+Intermittent major presence. Meets Soren early; they build their first real tandem during the false-rescue/naming arc and survive it together. During that tandem — on a Realm height the night before the magistrate operation — **she initiates the second kiss**: present-tense authorship, no category named, her one rule enacted (she takes the *now*, never asks the *after*; see *The One Rule*). She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **handler in the next city administers that registry**; that handler becomes a target she can't walk away from, and following it requires going somewhere Soren can't. She carries the fragment up the chain toward the namebinding faction's parent organization — the **Court of Seals**, a regional limb of the cosmic **Aurelian Sovereignty** (see `cosmology.md`). The **registry-fragment is her Book-1 → Book-2 bridge object.** Her Pressure-Severance interface **unlocks for real at the magistrate kill / her move to the next city.** She returns at the Act-5 finale, changed. Her arc runs parallel to Soren's and intersects at key moments without depending on it.
 
 **The wrong is namebinding** — weaponized true names as control. It cuts at her self-made identity (people never allowed to author a self), not a past trauma. Not a crusade: one face, then the chain of handlers above it.
 
@@ -523,6 +536,8 @@ Book 1 leaves her mid-hunt, changed in ways that are visible and ways that aren'
 - She makes the call to separate — circumstances create pressure, she makes the final decision.
 - Her power is strongest when the stakes are most personal to her. This is also when it's most dangerous to allies.
 - Parallel to Soren's system is explicit and intentional: he sees the weak point, she makes it fail.
+- **Earth kiss reconciles to INV-1 Axis E:** **Marcus initiates**; the pullback is **mutual and simultaneous**; each registers only the other's, blind to their own half. (Owner: `relationship_invariants.md`.)
+- **Her one rule, "I don't ask people to stay" (CCB-007 R-5):** enacted at the Realm second kiss, **cost-breaks** at the severance; never stated on the page, never collapsed into the Myrmidon "being seen" beat. (See *The One Rule*.)
 
 ---
 

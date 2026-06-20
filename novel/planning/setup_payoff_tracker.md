@@ -2,6 +2,7 @@
 
 > Tracks planted beats, promises, and required payoffs. **Status key:** `seeded` · `active` · `payoff_pending` · `paid` · `retired` · `needs_decision`.
 > Precedence: see `canon_index.md`.
+> **Marcus–Serra drafting standard (CCB-007):** every joyful Marcus–Serra beat does **two jobs** — (1) show why they enjoy each other, (2) plant a behavior, object, phrase, or expectation whose later *absence* will hurt. The later scene must **not** announce the callback; the reader should feel it.
 
 ---
 
@@ -78,6 +79,35 @@
 | SYS-005 | Names/status can be hidden | active | Name mechanics become threat/defense (namebinding). |
 | SYS-006 | The Eyes (interface) cost reserve/mana/stability | active | Overuse → feedback-lock, social tell, physical damage. |
 | SYS-007 | Pressure-Severance scales with commitment | active | Full commitment endangers allies (the field doesn't read team jerseys). |
+
+---
+
+## Marcus & Serra — CCB-007 (Ordinary-Happiness beats + Relationship promises)
+
+> Applies the **two-jobs standard** in the header. *Chapter integers are current pointers into `book1_chapter_timeline.md`, not locks.* These beats are net-new to this tracker.
+
+### "Ordinary-happiness" beats (Triss-register) — each does two jobs
+
+| ID | Beat | Ch | Status | Enjoyment (job 1) | Plant → Detonation (job 2) |
+|---|---|---|---|---|---|
+| MS-T1 | Falling into step | 8 | seeded | Earth shorthand survives the apocalypse; first banter at zero resources | *finding each other is easy* → **Ch 30**: the place that meant they could always find each other now means one left and the other didn't follow |
+| MS-T2 | The control group (fruit bit) | 9–11 | seeded | She eats first — "now you have a control group" / "I'm expanding the sample"; commits before he finishes analyzing; funny, freeing | *she acts before he can communicate* → **Ch 26–28**: she lands the kill before his warning completes, gambling his life; seeds *"you don't need complete understanding before deciding"* |
+| MS-T3 | He sees the weak point, she makes it fail | 9 | seeded | First Realm tandem (toll-gang) — his read + her movement, the click | *the tandem itself* → **Ch 26–28**: same mechanism, lethal |
+| MS-T4 | The watch rotation (fake procedural dispute) | 10–11 | seeded | Marcus invents a system; Serra claims compliance via creative interpretation; both lethally serious about nothing — against the Vultures' cold transactionalism | *the private "us" built against people who treat everything as a deal* → when Serra herself becomes transactional about leaving (**Ch 15**, then **Ch 30**) |
+| MS-T5 | The quiet after (decompression + height ritual + future fragment) | 11 | seeded | She anchors the group all day, then goes quiet beside him — the one place she doesn't perform; they idly imagine Earth food / the room each would choose; **the height ritual is established here** | *decompression-beside-him; the height as refuge* → **Ch 30**: the refuge becomes the place she can't be seen in |
+| MS-T6 | "You don't owe anyone staying" | 12–14 | seeded | Marcus frees Serra from the Vultures' transactional pull — permission to leave a thing that doesn't deserve her | *the principle, which he believes is true* → **Ch 30**: she uses his own true principle to leave *him*; he can't accuse her of betraying it |
+| MS-T7 | Maera's soup (the gift's dark rhyme) | 12 | seeded | (dark) genuine warmth after death — soup, a blanket, first rest since he died | *warmth-trust* → the misread engine: he must tell **three warmths** apart — Maera's (bait), Serra's (real but unpromising), and the kind that promises a future. "Warmth ≠ loyalty" is the lesson he must **not** misapply to Serra |
+
+> **Open dependency (flag, do not resolve):** MS-T7 (Maera) — confirm Serra's **Ch-12 blocking** before drafting the rhyme. **Off-page** for the over-share → "the liar-detector wasn't in the room"; **on-page** → "his hunger for warmth overrode even her instinct." Ch 12 reads as a rest stop with people sleeping, so off-page is plausible — but **check the live Ch 12 before drafting.** (Tracked as the remaining 🟡 in `unresolved_character_threads.md`.)
+
+### Relationship promises
+
+| ID | Setup | Status | Payoff |
+|---|---|---|---|
+| MS-after | "See you after, Marcus" (Ch 3) + the assumed post-op "after" (Ch 14→15) | seeded | The *after* never arrives; recurs as an understated motif through the series. **Reader-rule: never stated on the page** (`marcus_serra_relationship.md` §10). |
+| MS-kiss2 | Serra **initiates** the Realm kiss (Ch 14) — present-tense authorship | seeded | (a) Makes Marcus's Ch 30 naming **defensible** — the connection is real, not constructed from implication, so his *error is interpretation, not perception* (feeds the Neurochromatic-Eyes climax); (b) makes Serra's Ch 30 severance **cost more** — she cuts a bond she reached for. |
+| MS-restraint | Marcus **withholds** the "what does this mean" question after the kiss (Ch 14) — restraint #1 | seeded | He withholds **pursuit** at Ch 30 (restraint #2). The catch / can't / won't backbone (`marcus_serra_relationship.md` §11). |
+| MS-rule | Serra's one rule, **"I don't ask people to stay"** (R-5), enacted at the kiss (takes the *now*, never asks the *after*) | seeded | At the severance it **cost-breaks** — she cuts the bond to keep from asking him to stay; the rule held costlessly her whole life and finally breaks *her.* Same engine as the "after" motif (MS-after). **Reader-rule: never stated** (`serra_hawthorne.md`). |
 
 ---
 
