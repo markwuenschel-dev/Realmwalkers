@@ -41,7 +41,7 @@ async def _book(s, title="Dominion Realm"):
     return book
 
 
-async def _chapter(s, book, no=1, pov="Soren"):
+async def _chapter(s, book, no=1, pov="Marcus"):
     ch = Chapter(book_id=book.id, chapter_no=no, pov=pov)
     s.add(ch)
     await s.flush()
@@ -56,7 +56,7 @@ async def _run(s, book, gate=GateMode.PAUSE_EACH):
     return run
 
 
-async def _beat(s, ch, scene_no=1, *, esc=None, chars=("Soren",), text="Soren wakes."):
+async def _beat(s, ch, scene_no=1, *, esc=None, chars=("Marcus",), text="Marcus wakes."):
     b = Beat(chapter_id=ch.id, scene_no=scene_no, tags=[], characters_present=list(chars),
              expected_state_changes=esc, status=BeatStatus.APPROVED, beat_text=text)
     s.add(b)
@@ -76,7 +76,7 @@ async def test_ledger_commits_and_accumulates(db_factory):
     async with db_factory() as s:
         book = await _book(s)
         ch = await _chapter(s, book)
-        await _beat(s, ch, 1, esc={"Soren": {"level": "+1", "hp": 100, "items": ["sword"]}})
+        await _beat(s, ch, 1, esc={"Marcus": {"level": "+1", "hp": 100, "items": ["sword"]}})
         sc = await _scene(s, ch, 1)
         await ledger.commit_declared_deltas(s, scene_id=sc.id)
         await s.commit()
@@ -85,7 +85,7 @@ async def test_ledger_commits_and_accumulates(db_factory):
 
     async with db_factory() as s:
         ch = (await s.execute(select(Chapter))).scalars().first()
-        await _beat(s, ch, 2, esc={"Soren": {"level": "+2"}})
+        await _beat(s, ch, 2, esc={"Marcus": {"level": "+2"}})
         sc2 = await _scene(s, ch, 2)
         await ledger.commit_declared_deltas(s, scene_id=sc2.id)
         await s.commit()
@@ -98,7 +98,7 @@ async def test_canon_rag_retrieves_relevant(db_factory, tmp_path):
         "The Eyes of Meszkhal let their bearer perceive spectral seams threaded through reality."
     )
     (tmp_path / "home.md").write_text(
-        "Soren grew up gutting cod in the cold fishing village of Dunmoor."
+        "Marcus grew up gutting cod in the cold fishing village of Dunmoor."
     )
     async with db_factory() as s:
         book = await _book(s)
@@ -116,18 +116,18 @@ async def test_summaries_refresh_and_read(db_factory, monkeypatch):
 
     async def fake_complete(**kwargs):
         calls.append(kwargs["user"])
-        return "ROLLING SUMMARY: Soren woke in the Realm.", Usage(50, 50)
+        return "ROLLING SUMMARY: Marcus woke in the Realm.", Usage(50, 50)
 
     monkeypatch.setattr(llm, "complete", fake_complete)
     async with db_factory() as s:
         book = await _book(s)
         ch = await _chapter(s, book)
         sc = await _scene(s, ch, 1, status=SceneStatus.APPROVED,
-                          prose="Soren opened his eyes to a humming sky.")
+                          prose="Marcus opened his eyes to a humming sky.")
         await summaries.refresh_on_approval(s, scene_id=sc.id)
         await s.commit()
-        assert await summaries.pov_summary(s, book_id=book.id, pov="Soren") == \
-            "ROLLING SUMMARY: Soren woke in the Realm."
+        assert await summaries.pov_summary(s, book_id=book.id, pov="Marcus") == \
+            "ROLLING SUMMARY: Marcus woke in the Realm."
         rows = (await s.execute(select(Summary))).scalars().all()
         assert sorted(r.scope for r in rows) == ["omniscient", "pov"]
     assert len(calls) == 2  # one pov-scoped, one omniscient
@@ -142,9 +142,9 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
         book = await _book(s)
         ch = await _chapter(s, book)
         await _run(s, book, GateMode.PAUSE_EACH)
-        await _beat(s, ch, 1, esc={"Soren": {"level": "+1"}})
+        await _beat(s, ch, 1, esc={"Marcus": {"level": "+1"}})
         await _beat(s, ch, 2)  # the next scene's beat exists -> auto-advance fires
-        sc1 = await _scene(s, ch, 1, prose="Soren wakes.")
+        sc1 = await _scene(s, ch, 1, prose="Marcus wakes.")
         result = await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s)
         await s.commit()
         assert result["status"] == "approved"
@@ -170,7 +170,7 @@ async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
     async def fake_draft(self, prose, ctx):
         assert ctx.revise_feedback == "Cut the throat-clearing; open mid-action."
         assert "slowly woke" in (ctx.prior_prose or "")
-        return "Revised: Soren was already on his feet when the sky screamed."
+        return "Revised: Marcus was already on his feet when the sky screamed."
 
     monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
     async with db_factory() as s:
@@ -178,7 +178,7 @@ async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
         ch = await _chapter(s, book)
         await _run(s, book)
         await _beat(s, ch, 1)
-        sc1 = await _scene(s, ch, 1, prose="Soren slowly woke up. It was a sky.")
+        sc1 = await _scene(s, ch, 1, prose="Marcus slowly woke up. It was a sky.")
         out = await reviews.decide(
             sc1.id,
             DecisionIn(decision=Decision.REVISE, feedback="Cut the throat-clearing; open mid-action."),
@@ -209,7 +209,7 @@ async def test_continuity_resolve_use_prose_corrects_ledger(db_factory):
         sc = await _scene(s, ch, 1)
         crit = Critique(
             scene_id=sc.id, version=1, reviewer="continuity", severity="hard",
-            payload={"character": "Soren", "attribute": "level", "prose_value": "7", "ledger_value": "5"},
+            payload={"character": "Marcus", "attribute": "level", "prose_value": "7", "ledger_value": "5"},
         )
         s.add(crit)
         await s.flush()
@@ -230,7 +230,7 @@ async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
         sc = await _scene(s, ch, 1)
         crit = Critique(
             scene_id=sc.id, version=1, reviewer="continuity", severity="hard",
-            payload={"character": "Soren", "attribute": "level", "prose_value": "9", "ledger_value": "5"},
+            payload={"character": "Marcus", "attribute": "level", "prose_value": "9", "ledger_value": "5"},
         )
         s.add(crit)
         await s.flush()
@@ -247,7 +247,7 @@ async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
 
 def test_enqueue_parses_expected_state_changes():
     assert enqueue._parse_esc(None) is None
-    assert enqueue._parse_esc('{"Soren": {"level": "+1", "hp": 100}}') == {"Soren": {"level": "+1", "hp": 100}}
+    assert enqueue._parse_esc('{"Marcus": {"level": "+1", "hp": 100}}') == {"Marcus": {"level": "+1", "hp": 100}}
     with pytest.raises(SystemExit):
         enqueue._parse_esc("not json")
     with pytest.raises(SystemExit):
@@ -259,7 +259,7 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
     # a value the ledger contradicts produces a persisted HARD continuity critique reachable from the
     # inbox. The only mocked piece is the model itself.
     extraction = (
-        '[{"character": "Soren", "attribute": "level", "value": "7", '
+        '[{"character": "Marcus", "attribute": "level", "value": "7", '
         '"context_sentence": "The panel read LEVEL 7."}]'
     )
 
@@ -267,18 +267,18 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
         return extraction, Usage(10, 10)
 
     async def fake_draft(self, prose, ctx):
-        return "Soren glanced at the status panel. LEVEL 7, it read, stark and undeniable."
+        return "Marcus glanced at the status panel. LEVEL 7, it read, stark and undeniable."
 
     monkeypatch.setattr(llm, "complete", fake_complete)
     monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
 
     async with db_factory() as s:
         book = await _book(s)
-        ch = await _chapter(s, book)  # pov Soren
+        ch = await _chapter(s, book)  # pov Marcus
         run = await _run(s, book)
-        # ledger already holds Soren level 5, as if a prior scene had been approved
-        s.add(CharacterState(book_id=book.id, character="Soren", stats_json={"level": 5}))
-        await _beat(s, ch, 1, chars=("Soren",), text="Soren opens his status panel.")
+        # ledger already holds Marcus level 5, as if a prior scene had been approved
+        s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"level": 5}))
+        await _beat(s, ch, 1, chars=("Marcus",), text="Marcus opens his status panel.")
         s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
                   token_budget=20_000, status=JobStatus.QUEUED))
         await s.commit()
@@ -301,7 +301,7 @@ async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_or
     # The drafter emits a ```stat``` block; the pipeline draws the box into Scene.prose and keeps the
     # raw marker form in Scene.agent_original. Only the drafter model is mocked (no key here).
     stat_prose = (
-        "Soren blinked the panel into focus.\n\n"
+        "Marcus blinked the panel into focus.\n\n"
         "```stat\nPerception: 15\nReflexes: 11\n```\n\n"
         "He let the numbers settle."
     )
@@ -318,9 +318,9 @@ async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_or
 
     async with db_factory() as s:
         book = await _book(s)
-        ch = await _chapter(s, book)  # pov Soren, no PovProfile -> no voice spec
+        ch = await _chapter(s, book)  # pov Marcus, no PovProfile -> no voice spec
         run = await _run(s, book)
-        await _beat(s, ch, 1, chars=("Soren",), text="Soren checks his status panel.")
+        await _beat(s, ch, 1, chars=("Marcus",), text="Marcus checks his status panel.")
         s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
                   token_budget=20_000, status=JobStatus.QUEUED))
         await s.commit()
@@ -334,7 +334,7 @@ async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_or
         assert "│ Perception  15 │" in (sc.prose or "")
         assert "│ Reflexes    11 │" in (sc.prose or "")
         assert "```stat" not in (sc.prose or "")
-        assert "Soren blinked the panel into focus." in (sc.prose or "")
+        assert "Marcus blinked the panel into focus." in (sc.prose or "")
         # agent_original keeps the editable marker form, never the box.
         assert "```stat" in (sc.agent_original or "")
         assert "┌" not in (sc.agent_original or "")

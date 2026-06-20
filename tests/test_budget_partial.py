@@ -10,7 +10,7 @@ from dominion.workers import llm, worker
 from dominion.workers.budget import Usage
 from dominion.workers.specialists import drafter as drafter_mod
 
-SPINE = "Soren stands at the gate. The panel reads LEVEL 5, stark and certain."
+SPINE = "Marcus stands at the gate. The panel reads LEVEL 5, stark and certain."
 
 
 async def _book(s, title="Dominion Realm"):
@@ -20,7 +20,7 @@ async def _book(s, title="Dominion Realm"):
     return book
 
 
-async def _chapter(s, book, no=1, pov="Soren"):
+async def _chapter(s, book, no=1, pov="Marcus"):
     ch = Chapter(book_id=book.id, chapter_no=no, pov=pov)
     s.add(ch)
     await s.flush()
@@ -35,7 +35,7 @@ async def _run(s, book):
     return run
 
 
-async def _beat(s, ch, scene_no=1, *, chars=("Soren",), text="Soren opens his status panel."):
+async def _beat(s, ch, scene_no=1, *, chars=("Marcus",), text="Marcus opens his status panel."):
     b = Beat(chapter_id=ch.id, scene_no=scene_no, tags=[], characters_present=list(chars),
              expected_state_changes=None, status=BeatStatus.APPROVED, beat_text=text)
     s.add(b)
@@ -62,7 +62,7 @@ async def test_budget_exceeded_saves_partial_draft_with_flag(db_factory, monkeyp
         ch = await _chapter(s, book)
         run = await _run(s, book)
         # a ledger value makes the continuity reviewer actually call the model (and blow the budget)
-        s.add(CharacterState(book_id=book.id, character="Soren", stats_json={"level": 5}))
+        s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"level": 5}))
         await _beat(s, ch, 1)
         s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
                   token_budget=50, status=JobStatus.QUEUED))  # tiny budget: spine fits, reviewer doesn't
@@ -74,7 +74,7 @@ async def test_budget_exceeded_saves_partial_draft_with_flag(db_factory, monkeyp
         sc = (await s.execute(select(Scene).where(Scene.scene_no == 1))).scalars().first()
         assert sc is not None
         assert sc.status == SceneStatus.DRAFT                 # quarantined, never enters the inbox
-        assert "Soren stands at the gate" in (sc.prose or "")  # the spine was NOT lost
+        assert "Marcus stands at the gate" in (sc.prose or "")  # the spine was NOT lost
         crits = (await s.execute(select(Critique).where(Critique.scene_id == sc.id))).scalars().all()
         budget_flags = [c for c in crits if c.reviewer == "budget"]
         assert len(budget_flags) == 1 and budget_flags[0].severity == "hard"
@@ -96,7 +96,7 @@ async def test_within_budget_yields_pending_review_and_no_budget_flag(db_factory
         book = await _book(s)
         ch = await _chapter(s, book)
         run = await _run(s, book)
-        s.add(CharacterState(book_id=book.id, character="Soren", stats_json={"level": 5}))
+        s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"level": 5}))
         await _beat(s, ch, 1)
         s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
                   token_budget=40_000, status=JobStatus.QUEUED))

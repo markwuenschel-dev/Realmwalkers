@@ -22,12 +22,12 @@ async def _seed_job(factory) -> object:
         book = Book(title="Test Book")
         s.add(book)
         await s.flush()
-        chapter = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+        chapter = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(chapter)
         await s.flush()
         s.add(Beat(
             chapter_id=chapter.id, scene_no=1, tags=[], status=BeatStatus.APPROVED,
-            beat_text="Soren wakes in the Realm.",
+            beat_text="Marcus wakes in the Realm.",
         ))
         run = Run(
             book_id=book.id, scope_json={"chapter": 1, "scene": 1},
@@ -64,7 +64,7 @@ async def test_failure_path_marks_job_failed_without_secondary_error(db_factory,
 async def test_happy_path_creates_pending_review_scene(db_factory, monkeypatch):
     """A drafted scene lands as pending_review; the job is done; continuity no-ops on empty ledger."""
     async def fake_draft(self, prose, ctx):
-        return "Soren woke to a humming sky, the interface blooming behind his eyes."
+        return "Marcus woke to a humming sky, the interface blooming behind his eyes."
 
     monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
     job_id = await _seed_job(db_factory)

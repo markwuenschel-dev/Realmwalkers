@@ -19,22 +19,22 @@ def _mock(monkeypatch, response: str) -> dict[str, object]:
 
 async def test_propose_beats_parses_and_normalizes(monkeypatch):
     response = (
-        '[{"scene_no": 1, "beat_text": "Soren wakes in the Realm.", '
-        '"characters_present": ["Soren"], "tags": ["dialogue"], '
-        '"expected_state_changes": {"Soren": {"level": "+1"}}, '
+        '[{"scene_no": 1, "beat_text": "Marcus wakes in the Realm.", '
+        '"characters_present": ["Marcus"], "tags": ["dialogue"], '
+        '"expected_state_changes": {"Marcus": {"level": "+1"}}, '
         '"knowledge_injections": ["the interface is not the truth"]},'
-        '{"scene_no": 2, "beat_text": "He tests the eyes.", "characters_present": ["Soren"], '
+        '{"scene_no": 2, "beat_text": "He tests the eyes.", "characters_present": ["Marcus"], '
         '"tags": [], "expected_state_changes": null, "knowledge_injections": []}]'
     )
     captured = _mock(monkeypatch, response)
-    beats = await planner.propose_beats(outline="Soren wakes, then tests his eyes.", pov="Soren")
+    beats = await planner.propose_beats(outline="Marcus wakes, then tests his eyes.", pov="Marcus")
 
     assert [b["scene_no"] for b in beats] == [1, 2]
-    assert beats[0]["beat_text"] == "Soren wakes in the Realm."
+    assert beats[0]["beat_text"] == "Marcus wakes in the Realm."
     assert beats[0]["tags"] == ["dialogue"]
-    assert beats[0]["expected_state_changes"] == {"Soren": {"level": "+1"}}
+    assert beats[0]["expected_state_changes"] == {"Marcus": {"level": "+1"}}
     assert beats[1]["expected_state_changes"] is None
-    assert "Soren" in str(captured["user"])             # POV + outline carried into the prompt
+    assert "Marcus" in str(captured["user"])             # POV + outline carried into the prompt
 
 
 async def test_propose_beats_tolerates_fences_and_drops_unusable(monkeypatch):
@@ -54,7 +54,7 @@ async def test_propose_beats_tolerates_fences_and_drops_unusable(monkeypatch):
 
 async def test_propose_beats_returns_empty_on_garbage(monkeypatch):
     _mock(monkeypatch, "I could not produce JSON, sorry.")
-    assert await planner.propose_beats(outline="x", pov="Soren") == []
+    assert await planner.propose_beats(outline="x", pov="Marcus") == []
 
 
 async def test_propose_beats_empty_outline_skips_model(monkeypatch):
@@ -65,5 +65,5 @@ async def test_propose_beats_empty_outline_skips_model(monkeypatch):
         return "[]", Usage(0, 0)
 
     monkeypatch.setattr(llm, "complete", boom)
-    assert await planner.propose_beats(outline="   ", pov="Soren") == []
+    assert await planner.propose_beats(outline="   ", pov="Marcus") == []
     assert called["n"] == 0               # no outline -> no plan-call

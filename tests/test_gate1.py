@@ -23,10 +23,10 @@ from dominion.shared.schemas import BeatUpdateIn, RunStartIn, SceneVersionOut
 from dominion.workers import planner
 
 _PROPOSED = [
-    {"scene_no": 1, "beat_text": "Soren wakes.", "characters_present": ["Soren"],
+    {"scene_no": 1, "beat_text": "Marcus wakes.", "characters_present": ["Marcus"],
      "tags": [], "expected_state_changes": None, "knowledge_injections": []},
-    {"scene_no": 2, "beat_text": "He explores.", "characters_present": ["Soren"],
-     "tags": ["combat"], "expected_state_changes": {"Soren": {"level": "+1"}},
+    {"scene_no": 2, "beat_text": "He explores.", "characters_present": ["Marcus"],
+     "tags": ["combat"], "expected_state_changes": {"Marcus": {"level": "+1"}},
      "knowledge_injections": ["the bridge is cursed"]},
 ]
 
@@ -40,7 +40,7 @@ async def _book(s, title="Dominion Realm"):
 
 async def test_start_run_proposes_and_persists_beats(db_factory, monkeypatch):
     async def fake_propose(**kwargs):
-        assert kwargs["outline"] and kwargs["pov"] == "Soren"
+        assert kwargs["outline"] and kwargs["pov"] == "Marcus"
         return _PROPOSED
 
     monkeypatch.setattr(planner, "propose_beats", fake_propose)
@@ -48,21 +48,21 @@ async def test_start_run_proposes_and_persists_beats(db_factory, monkeypatch):
     async with db_factory() as s:
         book = await _book(s)
         out = await runs_router.start_run(
-            RunStartIn(book_id=book.id, chapter_no=1, pov="Soren", outline="Soren wakes, then explores."),
+            RunStartIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="Marcus wakes, then explores."),
             s,
         )
         await s.commit()
 
-        assert out.pov == "Soren" and len(out.beats) == 2
+        assert out.pov == "Marcus" and len(out.beats) == 2
         ch = (await s.execute(select(Chapter).where(Chapter.id == out.chapter_id))).scalar_one()
-        assert ch.outline == "Soren wakes, then explores."
+        assert ch.outline == "Marcus wakes, then explores."
         assert ch.status == ChapterStatus.BEATS_PROPOSED
         rows = (await s.execute(
             select(Beat).where(Beat.chapter_id == out.chapter_id).order_by(Beat.scene_no)
         )).scalars().all()
         assert [b.scene_no for b in rows] == [1, 2]
         assert rows[1].tags == ["combat"]
-        assert rows[1].expected_state_changes == {"Soren": {"level": "+1"}}
+        assert rows[1].expected_state_changes == {"Marcus": {"level": "+1"}}
         assert all(b.status == BeatStatus.PROPOSED for b in rows)
         # a Run was created for this book
         assert (await s.execute(select(Run).where(Run.id == out.run_id))).scalar_one()
@@ -71,7 +71,7 @@ async def test_start_run_proposes_and_persists_beats(db_factory, monkeypatch):
 async def test_update_beat_applies_only_supplied_fields(db_factory):
     async with db_factory() as s:
         book = await _book(s)
-        ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(ch)
         await s.flush()
         beat = Beat(chapter_id=ch.id, scene_no=1, beat_text="old text", tags=["dialogue"],
@@ -90,7 +90,7 @@ async def test_approve_beats_enqueues_one_job_per_beat_idempotently(db_factory):
         book = await _book(s)
         run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode="pause_each", token_budget=40_000)
         s.add(run)
-        ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(ch)
         await s.flush()
         s.add_all([
@@ -126,7 +126,7 @@ async def test_approve_beats_enqueues_one_job_per_beat_idempotently(db_factory):
 async def test_scene_versions_returns_lineage(db_factory):
     async with db_factory() as s:
         book = await _book(s)
-        ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(ch)
         await s.flush()
         v1 = Scene(chapter_id=ch.id, scene_no=1, version=1, status=SceneStatus.SUPERSEDED,
@@ -147,7 +147,7 @@ async def test_scene_versions_returns_lineage(db_factory):
 async def test_manuscript_assembles_latest_approved_in_order(db_factory):
     async with db_factory() as s:
         book = await _book(s)
-        ch1 = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+        ch1 = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         ch2 = Chapter(book_id=book.id, chapter_no=2, pov="Serra")
         s.add_all([ch1, ch2])
         await s.flush()
