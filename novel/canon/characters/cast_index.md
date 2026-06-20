@@ -14,6 +14,7 @@ known_entities: [ayla]
 - Supporting and minor characters are logged here directly until they earn a dedicated file
 - Use `_CHARACTER_TEMPLATE.md` for any new character file
 - Cross-reference `continuity/unresolved_character_threads.md` for open questions
+- The **Marcus ↔ Serra** pairing (the series-spine relationship) has a **dedicated relationship bible**: `marcus_serra_relationship.md` (conflict engine, progression, motifs, guardrails). Governs with INV-1 (`relationship_invariants.md`).
 
 ---
 
@@ -68,8 +69,8 @@ known_entities: [ayla]
 
 ## SCENE-001 Off-Page Mappings (dossier-only — keep OFF-page in the manuscript)
 
-- The **hidden sixth member of the 404 squad** = **Mara Valeria**. Present but unnoticed (Mirror-Salience suppressing her own salience); introduced by absence; never surfaced on-page in SCENE-001. (See `major/mara.md`.)
+- **Mara Valeria = the overlooked half of Dead Hand's double-assassin core** (tandem with Serra, *same team*). Present on the enemy roster but salience-suppressed (Mirror-Salience lowering her own salience) — the dark roster slot Mathias flags; never surfaced on-page in SCENE-001. Distinct from Serra, Dead Hand's late-arriving star rogue who duels Marcus on-page. (See `major/mara.md`.)
 
 ---
 
-*Last updated: SCENE-001 (T-s01) canonized — Earth-side facts added for Marcus (Astria ML engineer / control-cohort anomaly / Aetherfall Aspect / 404 guild / capture chair), Brent (404 medic, NOT fire mage), Mathias (404 Ranger flags the missing rogue), Seb (404 leader, brother lever NOT yet introduced); Serra-as-Dead-Hand-rogue (logs in late, duels Marcus on-page) and Mara-as-hidden-sixth (off-page); Kip (recurring_minor) and Roth (provisional, Astria hijacker) added; stale Realm-role index rows reconciled to current dossiers. Realm canon left intact.* <!-- propagated: CCR-007 -->
+*Last updated: SCENE-001 (T-s01) canonized — Earth-side facts added for Marcus (Astria ML engineer / control-cohort anomaly / Aetherfall Aspect / 404 guild / capture chair), Brent (404 medic, NOT fire mage), Mathias (404 Ranger flags the missing rogue), Seb (404 leader, brother lever NOT yet introduced); Serra-as-Dead-Hand-rogue (logs in late, duels Marcus on-page) and Mara-as-Dead-Hand's-overlooked-second-assassin (off-page; reframed from the earlier "404 hidden sixth" — both are Dead Hand's double-assassin core, tandem, same team); Kip (recurring_minor) and Roth (provisional, Astria hijacker) added; stale Realm-role index rows reconciled to current dossiers. Realm canon left intact.* <!-- propagated: CCR-007 -->

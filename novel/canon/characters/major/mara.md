@@ -22,7 +22,7 @@ status: active
 | True Name | — unassigned |
 | Age | TBD |
 | Origin | Semi-rural outskirts of an average-sized city; average household |
-| Guild Role (Earth) | Assassin (setup/precision) — tandem with Serra Hawthorne |
+| Guild Role (Earth) | Assassin (setup/precision) — tandem with Serra Hawthorne **(both Dead Hand)** |
 | Realm Role | Mirror-Salience Transducer — full spectrum attention operator |
 | Power Interface | Mirror-Salience Transduction |
 | Current Location | Separated — never connects with Serra before Serra's solo arc begins; own path |
@@ -621,9 +621,9 @@ Not her obvious fit. She discovered she was good at it because the setup role us
 
 In retrospect, her early-stage mirror-salience transduction was already active in Aetherfall — she was suppressing her own salience, making herself harder to notice and respond to, without knowing it was a power rather than skill. The Realm clarifies what was already happening.
 
-### SCENE-001 — The Hidden Sixth (Earth canon)
+### SCENE-001 — Dead Hand's Overlooked Assassin (Earth canon)
 
-In SCENE-001 Mara is the **hidden sixth member of the 404 squad** at the pre-Worlds scrim. She is **present but unnoticed** — her Mirror-Salience already running as what she believes is ordinary "rogue skill," lowering her own salience so the reader (and the POV, Marcus) never registers her. She is **introduced by absence**: she is *not* named or surfaced on-page in SCENE-001. The squad members Marcus clocks are Seb, Brent, Mathias, and Kip; Mara is the blind spot the reader inherits, to be paid off later. **Keep this mapping OFF-page in the manuscript** — it is a dossier-only fact. (This is distinct from Dead Hand's late-arriving star rogue, who is Serra and who duels Marcus on-page; see `serra_hawthorne.md`. Mara's introduction-by-absence is unchanged — only Serra's framing moved off the no-show.)
+In SCENE-001 Mara is the overlooked half of **Dead Hand's double-assassin core** — present on the enemy roster but salience-suppressed (her Mirror-Salience already running as what she believes is ordinary "rogue skill"), so neither the reader nor Marcus registers her. She is the **dark/unlit roster slot Mathias flags** ("where's the other one?"). **Serra** is Dead Hand's late-arriving star rogue who duels Marcus on-page; **Mara never surfaces on-page** — keep this OFF-page, dossier-only. Serra and Mara are tandem partners on the **same team**. (404 is Marcus's team — Seb, Brent, Mathias, Kip. See `serra_hawthorne.md` for Serra's on-page duel; `marcus_serra_relationship.md` §4 for the locked team fact.)
 
 ---
 
@@ -693,7 +693,7 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 - Never connects with Serra in the Realm before Serra's solo arc
 - Power develops through use — no framework for it early, no name for it until later
 - Realm class: **Psion** (rare) — Rogue/Trickster demoted to Aetherfall + instinct layer; spec TBD (Spellblade & Trickster-as-class retired)
-- In the SCENE-001 Earth scrim she is the **hidden sixth member of the 404 squad** — present but unnoticed, her Mirror-Salience suppressing her own salience as what she thinks is rogue skill; neither Marcus (POV) nor anyone else surfaces her on-page. The reader inherits the blind spot. Introduction by absence. *(Reconciled to SCENE-001: in the scrim she is on Marcus's 404 side; Serra/Serra is the star rogue on the opposing Dead Hand side (she logs in late and duels Marcus on-page). The Mara↔Serra tandem is Earth-history/Realm canon, not a same-team scrim pairing in SCENE-001.)*
+- In the SCENE-001 Earth scrim she is the **overlooked half of Dead Hand's double-assassin core** (tandem with Serra, *same team*) — present on the enemy roster but salience-suppressed, her Mirror-Salience suppressing her own salience as what she thinks is rogue skill; neither Marcus (POV) nor anyone else surfaces her on-page. The reader inherits the blind spot. Introduction by absence. *(Reconciled: Mara and Serra are both Dead Hand — Serra is the late-arriving star rogue who duels Marcus on-page; Mara is the dark roster slot Mathias flags and never surfaces. 404 is Marcus's team — Seb, Brent, Mathias, Kip. The Mara↔Serra tandem is same-team guild history, on Earth and into the Realm.)*
 - Does **not** meet Serra in the Realm before Eriadne
 - **Cosmic-tier role:** when the Xyloryn arrive, every swarm-form is a *readable fossil* — studying a corpse tells her what the swarm has already survived (`cosmology.md`)
 - Interface: Mirror-Salience Transduction — full system documented above
