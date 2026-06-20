@@ -14,11 +14,11 @@
 | # | Priority | Thread | Notes |
 |---|---|---|---|
 | S-01 | ✅ RESOLVED | Earth name | Marcus |
-| S-02 | 🟡 | Does he choose the name Soren himself, or is it given to him? | Affects the naming scene and his agency in the Realm. |
-| S-03 | 🟡 | What exactly did he bargain for in the mindscape? | Full terms of the paladin/blood mage/archdemon/archangel encounter unresolved. Affects what he owes and to whom. |
+| S-02 | ✅ RESOLVED | Does he choose the name Soren himself? | **He chooses "Soren" himself** (rejects "Phoenix"). See `book1_chapter_timeline.md` Ch 6 / `master_timeline.md`. |
+| S-03 | ✅ RESOLVED | What exactly did he bargain for in the mindscape? | **Five-point lock** (`mc.md`): (1) Xazzidiuk grants the **Eyes of Meszkhal**; (2) relinquishes the possession attempt and exits; (3) Marcus releases him from the trap; (4) Marcus owes **no future service, favor, worship, soul-claim, or continuing obligation** — bargain closed, **no demonic leverage forward**; (5) Xazzidiuk fulfills the literal bargain then **kills** Marcus (*"Nothing is free"*) → death → resurrection. The **"owes nothing" clause is load-bearing — it's why no faction owns him.** |
 | S-04 | ✅ RESOLVED | ~~Angelic Fortitude~~ | **Removed — not canon.** Zazriel gave no boon; Marcus has the Eyes only. (See A3-03.) |
-| S-05 | 🟡 | What does he build in/near Eriadne that makes him politically relevant? | Needs to be specific enough to generate plot — not just "a base." |
-| S-06 | 🟡 | What is his first serious wrong read? | Who does he trust too fast and what does it cost? Sets up the "warmth is not loyalty" lesson. |
+| S-05 | ✅ RESOLVED (reframed) | What makes him politically relevant near Eriadne? | In B1 Marcus does **not** build — he **claims a foothold** (shelter/water/unclaimed ruin-fringe ground) and earns relevance via **utility + perception + surviving the Myrmidon.** **Settlement-building is Book 2.** (`mc.md`, `book1_chapter_timeline.md`.) |
+| S-06 | ✅ RESOLVED | What is his first serious wrong read? | The **Maera Vell warmth trap** (roadhouse) — he over-shares; she reports him; *warmth ≠ loyalty.* (S-10; the Maera Vell beat lives in `master_timeline.md` / `scene_queue.md`.) |
 | S-07 | 🟢 | What is the first social moment where playful chaos prevents a fight? | Needs a specific setup — who, where, what the threat is. |
 | S-08 | 🟢 | What price does the ocular system demand first? | First real cost beyond eye strain. Should be meaningful, not just physical. |
 | S-09 | 🔴 | What is his True Name? | Do not assign casually. Metaphysically dangerous. Defer until the story needs it. Resistance to naming/binding is governed by **Soul Level** (`mechanics.md`). |
@@ -30,8 +30,8 @@
 | # | Priority | Thread | Notes |
 |---|---|---|---|
 | SE-01 | 🟡 | Does her Realm name stay Serra, or does she earn/receive a new one? | Serra is working. May stay Serra. Affects how she's addressed throughout. |
-| SE-02 | 🔴 | What specifically is the wrong she walks into at separation? | Needs a face — a specific person or group. This is the hinge of her solo arc and the separation scene. |
-| SE-03 | 🔴 | Who is the vulnerable person/group that she cannot walk away from? | Connected to SE-02. Must be specific enough to feel real, not symbolic. |
+| SE-02 | ✅ RESOLVED | What specifically is the wrong she walks into at separation? | **Namebinding** — the magistrate's outpost and the leased-name **registry** (true names sub-leased from a master registry). (`serra_hawthorne.md`.) |
+| SE-03 | ✅ RESOLVED | Who is the vulnerable person/group she cannot walk away from? | **The namebound**; the on-page instance is **the elven child** (namebound and taken). (`serra_hawthorne.md`.) |
 | SE-04 | 🟡 | What does she find at the roots of the wrong that makes her stay longer than planned? | The thing that escalates her from "fixing this" to "I can't leave until it's finished." |
 | SE-05 | 🟡 | What is the moment in her solo arc where her power almost costs her something she can't recover? | The near-catastrophic loss of control moment. Defines where the Collapse Aura path becomes real. |
 | SE-06 | 🟡 | Which Final Path does she move toward — Coherence or Saturation? | Is the choice conscious? This is her arc's end-direction question. |
@@ -81,7 +81,7 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| BR-01 | 🟡 | Does he survive Book 1? | Possible thematic death — practical skill is not enough in a world with hidden rules. |
+| BR-01 | ✅ RESOLVED | Does he survive Book 1? | **Survives Book 1** (parallels Mathias). "Possible thematic death" retired; **no main-six character dies in Book 1.** (`brent.md`, `master_timeline.md`.) |
 | BR-02 | 🟡 | What Realm material or mechanism does he understand before anyone else? | His unique contribution. Needs specificity. |
 | BR-03 | 🟢 | Does he become Soren's crafter/builder or does he have a separate path? | Affects settlement-building arc. |
 
@@ -91,9 +91,10 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| A-01 | 🟡 | What is the limit of her damaged knowledge? | What can she access and what is genuinely gone? Needs rough definition to avoid her being a convenient deus ex machina. |
+| A-01 | ✅ RESOLVED | What is the limit of her damaged knowledge? | She is a **fallen top-band soul** (Resplendent→Absolute before her fall), fragmented by the fall, the long drift in the void, and **expending part of her power to resurrect Marcus** — that bounds what she can recall/do (asks better questions, doesn't hand answers). (`ayla.md`.) |
 | A-02 | 🟢 | What is her relationship to Meszkhal — the entity the eyes are named for? | May be significant. Defer until needed. |
-| A-03 | 🟢 | Does she have an arc of her own, or is she purely in service of Soren's? | Affects her emotional weight in the story. |
+| A-03 | ✅ RESOLVED | Does she have an arc of her own? | **Yes.** She **paid permanent power** to re-anchor through Marcus; her own stakes are re-anchoring into existence and possibly recovering what she lost. (`ayla.md`.) |
+| A-04 | 🟢 | The exact cause of her fall | Battle / contract / punishment / other — open. (`ayla.md`.) |
 
 ---
 
@@ -112,7 +113,7 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| W-01 | 🟡 | What ancient civilization built or sealed the Eriadne ley-line knot? | Affects what Soren finds in the ruins and what it means for the larger threat. |
+| W-01 | ✅/🟡 SPLIT | The Eriadne ley convergence — built or natural? | **Node = natural / unbuilt (✅ RESOLVED)** — the convergence formed; no one created it. **Who built the *ruins* around it, and why = 🟡 OPEN** (builders' identity/purpose unresolved). (`master_timeline.md`, `eriadne.md`.) |
 | W-02 | 🟡 | Are N'hal and Xyloryn confirmed as separate threat layers? | Current recommendation: Option B (Xyloryn as immune response gone wrong). Needs final decision. |
 | W-03 | 🟢 | What does interface annihilation look like visually when N'hal advance? | Needed before any N'hal scene is written. The *mechanic* is now canon (`cosmology.md`: the legible interface layer — skills/levels/bars — degrades near them); only the on-page *visual* is open. |
 | W-05 | 🟡 | Who/what forces the finale portal open / summons the Myrmidon? | Agent, the Xyloryn themselves, or the eight-leyline convergence destabilizing. Open. `cosmology.md`, `eriadne.md`. |
@@ -156,7 +157,7 @@
 |---|---|---|---|
 | S-10 | ✅ RESOLVED | The warmth trap and Serra's separation — how tightly linked? | **Separate beats.** The warmth trap is **Maera Vell** (roadhouse); Serra's departure cause is the **magistrate / Court of Seals** thread (`act3_sequence.md`, `book_roadmap.md` Open Decision #3). |
 | S-11 | 🟡 | Marcus's loneliness / home-building drive — when does it surface? | Emerges from the warmth trap moment. His wanting to build a home is tied to the wrong read, not independent. First expression: claiming the ruin-fringe near Eriadne. |
-| SE-10 | 🔴 | Serra / Iron Vultures — is she with them when Marcus finds them, or does Marcus find her first? | **Resolved:** Marcus finds Serra first, then they encounter the Iron Vultures together. |
+| SE-10 | ✅ RESOLVED | Serra / Iron Vultures — is she with them when Marcus finds them, or does Marcus find her first? | Marcus finds Serra first, then they encounter the Iron Vultures together. |
 | SE-11 | ✅ RESOLVED | Does Serra stay with the Iron Vultures or take her own path? | **Her own path** — toward the Court of Seals (`serra_hawthorne.md`, `master_timeline.md`); not with the Vultures. |
 | IVF-01 | 🟡 | Iron Vultures encounter — when exactly in Act 3? | Marcus and Serra find them together during early Realm travel; Marcus leaves the Vultures before Eriadne; **Serra takes her own path, not with the Vultures — confirmed** (SE-11). Exact timing/trigger still open. |
 | IVF-02 | ✅ RESOLVED | What is the Iron Vultures' role in the warmth trap? | **None.** The Vultures are a generally-good, neutral presence; not part of the trap (the trap is Maera Vell). |
@@ -179,6 +180,6 @@
 | A3-06 | 🟡 | Do Dara and Cael become recurring characters or situational? | Affects whether they need full character files |
 | A3-07 | 🟡 | Does Serra's kill of the magistrate happen on-page or off? | Affects POV and tone of NEW-008 |
 | A3-08 | 🟢 | What are the Vultures' specific conditions for joining the operation? | Needs detail before NEW-007 can be fully drafted |
-| A3-09 | 🟢 | What is the elven child's name? | Can be deferred but needed before the child has a scene with dialogue |
+| A3-09 | 🟢 | What is the elven child's name? | Can be deferred but needed before the child has a scene with dialogue. **Soul Level = Strong** (a notable namebinding catch — reinforces "monetized rescue": the guild landing a real prize, not routine debt-resolution); name/fate still open. |
 | A3-10 | 🟢 | What does the first partial Eyes notification actually say? | Interface text for the road encounter skill unlock |
 

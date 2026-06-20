@@ -20,10 +20,11 @@ status: active
 | Earth Name | Marcus Fahr |
 | Realm Name | Soren (chosen by him in the Realm — original name Marcus) |
 | True Name | Dangerous and hidden — unassigned in canon; can be used for metaphysical control |
+| Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
 | Origin | TBD |
 | Guild Role (Earth) | Core member — high-level strategic/systems player; guild not yet explicitly named beyond Aetherfall |
-| Realm Role | Protagonist / Ocular Interface user / Settlement-builder / Eriadne anchor |
+| Realm Role | Protagonist / Ocular Interface user / Eriadne anchor / claims a ruin-fringe foothold *(settlement-building → Book 2)* |
 | Power Interface | Neurochromatic Eyes (interface — *perception*, accurate) |
 | Key Item | Eyes of Meszkhal — **Unique item** (Xazzidiuk's gift; *interpretation*/false-certainty + copycat & +100% skill-XP; SEPARATE from the interface) |
 | Realm Class | Mage (general) → **Riftwalker** (Legendary — planar-crossing), late Book 1 |
@@ -401,6 +402,20 @@ His powers externalize his psychology. He sees patterns. He sees too much. He le
 
 ---
 
+## The Mindscape Bargain — Xazzidiuk (S-03, locked)
+
+The five terms of the boulder bargain, explicit:
+
+1. Xazzidiuk grants Marcus the **Eyes of Meszkhal** (Unique item).
+2. Xazzidiuk **relinquishes the possession attempt and exits** the mindscape.
+3. Marcus **releases Xazzidiuk from the trap**.
+4. Marcus owes **no future service, favor, worship, soul-claim, or continuing obligation** — the bargain is closed; he carries **no demonic leverage forward.**
+5. Xazzidiuk **fulfills the literal bargain and then kills Marcus** — survival afterward was never part of the agreement (*"Nothing is free"*). → **Death → resurrection.**
+
+**Load-bearing:** clause 4 — *he owes nothing* — is why **no faction owns him.** (Zazriel was present and gave nothing — A3-03.)
+
+---
+
 ## Best Temptations
 
 Soren is not primarily tempted by greed or domination. He is tempted by certainty, absolution, and control over ambiguity:
@@ -448,7 +463,7 @@ Grounds Soren. Turns abstract problems into practical constraints. Useful when S
 
 ### Book 1 Function
 
-Primary narrative lens. Arrives in the Realm, survives the implant activation event, gains Eyes of Meszkhal through mindscape bargaining with Xazzidiuk, dies, resurrects, meets Ayla. The archangel Zazriel was present but gave no boon — impassive, indifferent to a mortal's fate. Moves toward Eriadne. Forms fragile base/community in a ruined district near the city. Becomes politically relevant to Eriadne's larger conflict.
+Primary narrative lens. Arrives in the Realm, survives the implant activation event, gains Eyes of Meszkhal through mindscape bargaining with Xazzidiuk, dies, resurrects, meets Ayla. The archangel Zazriel was present but gave no boon — impassive, indifferent to a mortal's fate. Moves toward Eriadne. Claims unclaimed ground on the ruin-fringe (shelter/water). Becomes politically relevant through perception and the finale — **not** construction. **Actual settlement-building is Book 2.**
 
 ### Core Arc Question
 
@@ -468,7 +483,7 @@ Book 1 ends with Soren tied to Eriadne — not in control of it, but essential t
 
 - ~~Earth name~~ — **Marcus** (resolved).
 - ~~Does he choose "Soren" himself?~~ — **Yes** (resolved).
-- What does he build in/near Eriadne that makes him politically relevant?
+- ~~What does he build in/near Eriadne that makes him politically relevant?~~ **Resolved (S-05):** in B1 he **claims a foothold only**; relevance comes from **utility + perception + the Myrmidon.** Settlement-building is **Book 2.**
 - What is his first serious wrong read — who does he trust too fast and what does it cost?
 - What price does the ocular system demand first?
 - What is the specific social moment where his playful chaos prevents a fight he couldn't win?

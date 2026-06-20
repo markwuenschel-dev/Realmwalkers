@@ -201,7 +201,7 @@ The interface sometimes:
 
 ## The Naming System
 
-True names are metaphysically dangerous — resistance is governed by **Soul Level** (`mechanics.md`): low and average souls can be bound or overwritten, which is exactly what the namebinding faction preys on. The interface enforces this:
+True names are metaphysically dangerous — resistance is governed by **Soul Level** (`mechanics.md`): **any soul can be bound or overwritten in principle; Soul Level governs the difficulty and cost, not whether it's possible** — low/average souls are cheap and routine (what the namebinding faction preys on), high souls prohibitively costly, and the top tiers (Brilliant → Absolute) approach but never quite reach true immunity. This keeps "Absolute = near-immutable identity" intact. The interface enforces this:
 - Marcus's status shows `????` for his name until he chooses a Realm alias
 - Choosing his real Earth name (Marcus Fahr) would make it visible — and usable by anyone who could read his status
 - Ayla's warning is absolute: never say your true name

@@ -12,7 +12,7 @@ status: canon
 ## Read-this-first notes
 
 - **These ladders are independent.** "Divine," "Mythic," "Legendary," "Exceptional," "Rare," "Common" recur across several ladders — a Divine *soul* ≠ a Divine *item* ≠ a Divine *spell-skill tier*. Don't conflate them.
-- **Soul Level is load-bearing for the story.** It governs resistance to being altered, erased, bound, possessed, or overwritten — the engine under **true-names / namebinding** (Serra's arc; low/average souls are what the namebinding faction can bind), **death & resurrection** (Marcus), **the broker holding Seb's brother's soul**, and **vow enforcement** (Xazzidiuk/Zazriel). Cross-ref from `core_rules.md` (Naming) and `relationship_map.md`.
+- **Soul Level is load-bearing for the story.** It governs resistance to being altered, erased, bound, possessed, or overwritten — the engine under **true-names / namebinding** (Serra's arc; **any soul can be bound in principle — Soul Level sets the difficulty and cost, not a yes/no.** Low and average souls are cheap and routine — what the faction preys on; high souls are prohibitively costly; the top tiers (Brilliant → Absolute) approach but never reach true immunity), **death & resurrection** (Marcus), **the broker holding Seb's brother's soul**, and **vow enforcement** (Xazzidiuk/Zazriel). Cross-ref from `core_rules.md` (Naming) and `relationship_map.md`.
 - **Spell Skill Mastery composes with affinity, not against it.** Affinity = the *chance* a skill levels (Marcus's Unbound Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). See `core_rules.md` → Skills and Affinities.
 - **The Eyes of Meszkhal is a _Unique_ item** (Item Rarity, below). Its copycat / +100%-skill-XP is the *item's* power, billed in mana; the Neurochromatic interface is separate and bills in the body.
 
@@ -334,6 +334,8 @@ Powerful souls possess greater **staying power**. Their actions, creations, ench
 At the highest levels, a soul becomes an anchor upon reality. Such beings are extraordinarily difficult to dominate, rewrite, forget, or remove from existence entirely.
 
 **"A soul determines not how hard you can strike reality, but how long reality remembers the strike."**
+
+*Worked anchors:* the namebound **elven child** (Act 3) is a **Strong** soul — a notable catch, harder than average; **Seb's brother** is a **Common** soul — routine for the Exchange to hold.
 
 ---
 

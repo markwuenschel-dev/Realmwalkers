@@ -79,7 +79,7 @@ status: working
 
 **Ch 12 — Maera Vell** · Days ~14–15 · The roadhouse. **Genuine** warmth — soup, a blanket, the first rest since he died. Marcus over-shares. She reports him to the magistrate-guild (off-screen) because the guild pays and not reporting has consequences. *The Eyes read her correctly; the model was wrong — warmth ≠ loyalty.*
 
-**Ch 13 — The Ledger** · Days ~15–16 · The magistrate-guild arrives. **The elven child is namebound and taken** — a quiet ritual; "debt resolution," never "slavery." Serra recognizes the shape (manufactured emergency, monetized rescue) and goes still — *she grasps the system-level meaning (imposed identity / ownership) before Marcus does* (seed of her registry mission; §9). Marcus's home-building ache surfaces.
+**Ch 13 — The Ledger** · Days ~15–16 · The magistrate-guild arrives. **The elven child is namebound and taken** (**Soul Level: Strong** — a notable catch, not routine debt-resolution; reinforces the monetized-rescue read) — a quiet ritual; "debt resolution," never "slavery." Serra recognizes the shape (manufactured emergency, monetized rescue) and goes still — *she grasps the system-level meaning (imposed identity / ownership) before Marcus does* (seed of her registry mission; §9). Marcus's home-building ache surfaces.
 - **⟢ INTERLUDE (Mathias):** solo near the **ruins**; first contact with a Xyloryn drone; begins loading his **Scout** class through research.
 
 **Ch 14 — The Pursuit & The Pitch** · Days ~16–19 · All groups move the same direction. Marcus wants to *save the child*; Serra wants to *stop the wrong* — same target, different drive. The Vultures won't fight a sanctioned op for morals, so the pitch is **practical** (the magistrate's haul; the office is attached to no larger power). They join with conditions.
@@ -106,7 +106,7 @@ status: working
 
 **Ch 19 — Useful to the Ignored** · Days ~47–53 · He becomes useful to the people the city overlooks; first faction friction (the Iron Vultures see competition).
 
-**Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Adventurer**; **Keystone Integrity**) — the builder/fortifier of the ruin-fringe; the "he actually saw me" recognition with Marcus.
+**Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Adventurer**; **Keystone Integrity**) — the structural mind whose reads matter in the crisis (the Myrmidon's keystone); **his fortifying/building is Book 2.** The "he actually saw me" recognition with Marcus.
 
 **Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Mirror-Salience), arriving from her court arc — challenges Marcus for treating people as systems.
 - **⟢ INTERLUDE (Mara, just prior):** the predatory courtier weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Mirror-Salience); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Mirror-Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
@@ -146,7 +146,7 @@ status: working
 | **Seb** | Desolate → enslaved → kills captor barehanded → broker speaks → shortest arc (Reaver + Threshold Cascade) | ~Act 4/5 (off-page until late) |
 | **Mara** | Court city-state → predator weaponizes regard → un-salient exposure (Psion/Mirror-Salience) → routed out | Ch 21 |
 | **Mathias** | Solo near ruins → finds Xyloryn + portal → loads Scout → the warning; **lives** (injured finale) | Ch 25 / finale |
-| **Brent** | Alone → unknown group → Adventurer/Keystone Integrity → fortifier | Ch 20 |
+| **Brent** | Alone → unknown group → Adventurer/Keystone Integrity → structural reader *(fortifying = B2)* | Ch 20 |
 
 ## Open Questions
 - Chapter **count & boundaries** are proposed — reconcile with the live chapter file. *(file-local)*
