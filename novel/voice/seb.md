@@ -13,7 +13,7 @@ sacrifice into moral credit.
 Third-person limited, anchored in Seb's perception. His mind reads **cost and people** before almost
 anything else: what a plan gives up, who is exposed, who owns it, whether the group can actually carry
 the decision. Motion: **acknowledge competing concerns → name the cost → define the shared objective →
-assign ownership → decide → move.** Where Soren notices logical flaws and broken assumptions, Seb
+assign ownership → decide → move.** Where Marcus notices logical flaws and broken assumptions, Seb
 notices sacrifice, exposure, ownership, and whether people can bear the choice. Regulated, he turns
 disagreement into shared purpose; dysregulated, accepted responsibility becomes permission to
 override, sacrifice starts functioning as moral credit, and "we" begins hiding his personal motive.
@@ -50,8 +50,8 @@ themselves.
 > Dialogue (how Seb speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
-- **Soren** — strategic shorthand; Seb notices cost, Soren notices coherence. Seb believes Soren
-  underrates how dangerous unresolved uncertainty becomes while people wait; Soren believes carrying
+- **Marcus** — strategic shorthand; Seb notices cost, Marcus notices coherence. Seb believes Marcus
+  underrates how dangerous unresolved uncertainty becomes while people wait; Marcus believes carrying
   consequences doesn't give Seb ownership of everyone else's choices.
 - **Serra** — mutual confidence and action; he envies her ability to own a personal choice without
   universalizing it. She makes emotional momentum; he makes role clarity and buy-in.

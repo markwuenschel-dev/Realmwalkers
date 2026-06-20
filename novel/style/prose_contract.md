@@ -8,7 +8,7 @@
 
 ### 1. Interiority is the engine. Never skip it to get to the action.
 
-What happens matters less than what it costs. A fight scene without the fear, the shame, the specific thought Soren has in the middle of it is a lesser scene. Do not rush through interiority to reach the next plot beat. The interiority is the plot beat.
+What happens matters less than what it costs. A fight scene without the fear, the shame, the specific thought Marcus has in the middle of it is a lesser scene. Do not rush through interiority to reach the next plot beat. The interiority is the plot beat.
 
 **Violation looks like:** Two paragraphs of action followed by "He walked away and didn't look back."
 
@@ -27,7 +27,7 @@ What happens matters less than what it costs. A fight scene without the fear, th
 
 Characters do not feel sad. They sit down too heavily. They notice the wrong things. They make a joke at the wrong moment. The reader names the emotion. The prose provides the evidence.
 
-**Violation looks like:** "Soren felt a wave of grief wash over him."
+**Violation looks like:** "Marcus felt a wave of grief wash over him."
 
 **Correct looks like:** "He stood there a moment longer than he needed to. The fire had burned down to coals. He didn't move to feed it."
 
@@ -43,9 +43,9 @@ No decorative description. Details are load-bearing or they are cut. A detail th
 - Plant something that pays off
 - Do more than one of the above
 
-**Violation looks like:** Three sentences describing the color and texture of a market stall that Soren passes without stopping.
+**Violation looks like:** Three sentences describing the color and texture of a market stall that Marcus passes without stopping.
 
-**Correct looks like:** One detail from that market stall — the one Soren notices because it reminds him of something, or because it's wrong, or because his eyes catch on it in a way that tells us where his head is.
+**Correct looks like:** One detail from that market stall — the one Marcus notices because it reminds him of something, or because it's wrong, or because his eyes catch on it in a way that tells us where his head is.
 
 ---
 
@@ -53,7 +53,7 @@ No decorative description. Details are load-bearing or they are cut. A detail th
 
 Every act of violence costs something — physically, emotionally, morally — even when the narrative doesn't dwell on it. This cost does not have to be dramatized at length, but it must be present. A fight that ends cleanly with no mark on anyone is a lie.
 
-**Violation looks like:** Soren kills three men and walks away to think about something else.
+**Violation looks like:** Marcus kills three men and walks away to think about something else.
 
 **Correct looks like:** He kills three men. The prose acknowledges what that is, even briefly, before moving on. His hands, his breathing, one specific unwanted thought. Then it moves on.
 
@@ -61,17 +61,17 @@ Every act of violence costs something — physically, emotionally, morally — e
 
 ### 5. The Realm is not explained to the reader. It is experienced by the character.
 
-Worldbuilding enters through Soren's perception, not through authorial exposition. He does not know what things are called. He does not understand how things work. He observes and the reader observes with him. Ayla may name things, but her knowledge is fragmented and her explanations create as many questions as they answer.
+Worldbuilding enters through Marcus's perception, not through authorial exposition. He does not know what things are called. He does not understand how things work. He observes and the reader observes with him. Ayla may name things, but her knowledge is fragmented and her explanations create as many questions as they answer.
 
-**Violation looks like:** A paragraph explaining the history of ley lines in Eriadne before Soren has any reason to know it.
+**Violation looks like:** A paragraph explaining the history of ley lines in Eriadne before Marcus has any reason to know it.
 
-**Correct looks like:** Soren noticing that the ground feels different here, that the air has a specific pressure, that the ruins respond to something he does without him understanding why.
+**Correct looks like:** Marcus noticing that the ground feels different here, that the air has a specific pressure, that the ruins respond to something he does without him understanding why.
 
 ---
 
 ### 6. The LitRPG UI is a translation layer, not a gameplay system.
 
-The interface does not pause the prose for stat-checking. It interrupts — briefly, often at bad moments, never cleanly. Early in the story it appears frequently. As Soren internalizes the Realm, it appears less. By late story, it surfaces only when something changes that he couldn't have anticipated.
+The interface does not pause the prose for stat-checking. It interrupts — briefly, often at bad moments, never cleanly. Early in the story it appears frequently. As Marcus internalizes the Realm, it appears less. By late story, it surfaces only when something changes that he couldn't have anticipated.
 
 See `system_message_rules.md` for formatting. The prose contract is: the UI is never the point. It is always in service of the scene.
 
@@ -81,7 +81,7 @@ See `system_message_rules.md` for formatting. The prose contract is: the UI is n
 
 People lie, deflect, change the subject, say something easier than the true thing. When two characters are in the same room with an unresolved tension, the dialogue is about something else. The tension is in the gaps.
 
-**Violation looks like:** "Soren, I'm scared and I don't know if I trust you anymore."
+**Violation looks like:** "Marcus, I'm scared and I don't know if I trust you anymore."
 
 **Correct looks like:** A conversation about something logistical where that fear and distrust leaks through every word choice and what gets left unsaid.
 
@@ -89,17 +89,17 @@ People lie, deflect, change the subject, say something easier than the true thin
 
 ### 8. Secondary POV scenes justify their existence or they don't exist.
 
-Every chapter or section written from a POV other than Soren's must show something the primary lens cannot show — not just what is happening elsewhere, but something that recontextualizes or deepens the primary story. If a Serra POV scene could be removed without losing essential understanding, it needs to earn more.
+Every chapter or section written from a POV other than Marcus's must show something the primary lens cannot show — not just what is happening elsewhere, but something that recontextualizes or deepens the primary story. If a Serra POV scene could be removed without losing essential understanding, it needs to earn more.
 
 ---
 
 ### 9. Humor is present and functional. It is never cheap.
 
-The story takes its characters seriously. It does not take itself so seriously that humor is forbidden. Soren's playful chaos is a core trait. The humor must be specific — to the moment, to the person, to what's actually happening. Generic wit is not the same thing.
+The story takes its characters seriously. It does not take itself so seriously that humor is forbidden. Marcus's playful chaos is a core trait. The humor must be specific — to the moment, to the person, to what's actually happening. Generic wit is not the same thing.
 
 **Violation looks like:** A quip inserted to lighten the mood with no connection to character or situation.
 
-**Correct looks like:** Soren noticing the specific absurdity of this exact moment and saying the one thing that is true and funny at the same time — the comment that changes the room.
+**Correct looks like:** Marcus noticing the specific absurdity of this exact moment and saying the one thing that is true and funny at the same time — the comment that changes the room.
 
 ---
 
@@ -107,7 +107,7 @@ The story takes its characters seriously. It does not take itself so seriously t
 
 The last line of a scene is not a wrap-up. It is a pressure point — something that stays with the reader, that carries weight forward, that does not explain what just happened but instead is the last thing the scene needs to say. It can be action, image, a fragment of thought, a line of dialogue with no response. It does not explain itself.
 
-**Violation looks like:** "Soren knew then that nothing would ever be the same."
+**Violation looks like:** "Marcus knew then that nothing would ever be the same."
 
 **Correct looks like:** The specific image, action, or line that makes the reader feel that without being told it.
 
@@ -118,7 +118,7 @@ The last line of a scene is not a wrap-up. It is a pressure point — something 
 - Names emotions directly in narration (exception: deliberate irony or self-deception)
 - Describes things that don't earn their place
 - Makes violence feel clean or free
-- Explains the Realm to the reader from outside Soren's perception
+- Explains the Realm to the reader from outside Marcus's perception
 - Lets the UI pause the story for its own sake
 - Has characters say their subtext aloud when they wouldn't
 - Adds POV scenes that don't justify themselves

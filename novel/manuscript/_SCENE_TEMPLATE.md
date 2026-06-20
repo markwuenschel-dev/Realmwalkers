@@ -1,7 +1,7 @@
 ---
 scene_id:
 title:
-pov: Marcus (Soren)
+pov: Marcus
 location:
 timeline_ref:
 depends_on: []
@@ -24,7 +24,7 @@ word_target:
 WRITER NOTES (delete before considering the scene drafted):
 - Read all seven style files before drafting (voice_guide, prose_contract, dialogue_rules,
   system_message_rules, style_examples, genre_boundaries, forbidden_drift).
-- Honor naming canon: Marcus / Soren (Phoenix rejected); Sarah Hawthorne / Serra.
+- Honor naming canon: Marcus (no Realm alias; "Phoenix" rejected; "Marc" = intimates only); Sarah Hawthorne / Serra.
 - ALWAYS read serra_hawthorne.md before writing Serra. Old SWAT characterization is retired.
 - Any NEW named character must be reported in the worker_summary's new_character_candidates.
   Do NOT create or edit canon files from a scene.

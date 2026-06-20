@@ -27,7 +27,7 @@ status: active
 | Realm Class | Warrior |
 | Realm Role | Disruptor / Pressure-Severance Interface user / Intermittent — comes and goes |
 | Power Interface | Pressure-Severance Interface |
-| Current Location | Separates from Soren; solo arc in progress |
+| Current Location | Separates from Marcus; solo arc in progress |
 | Current Allegiance | Her own — no formal faction yet |
 
 ---
@@ -257,7 +257,7 @@ She experiences the final boundary as the end of a long communication process. T
 
 ### Relationship Registers
 
-**With Soren**
+**With Marcus**
 - Easy rhythm, tailored teasing, strong mutual attention
 - More subtext than either admits
 - She gives genuine warmth; he assigns future meaning to its repetition
@@ -295,7 +295,7 @@ She experiences the final boundary as the end of a long communication process. T
 - Do not make every refusal perfectly explicit from the beginning; her indirectness is a real blind spot.
 - Do not make final closure melodramatic. The severity is in reduced access, not raised volume.
 - Do not assume strong eye contact, playfulness, or personal detail means she has internally changed the relationship's category.
-- Do not excuse Soren crossing stated boundaries. Their reciprocal misread creates tragedy, not permission.
+- Do not excuse Marcus crossing stated boundaries. Their reciprocal misread creates tragedy, not permission.
 - Let her remain capable of valuing someone after deciding contact cannot continue.
 
 ### Representative Lines
@@ -452,18 +452,18 @@ The air around her doesn't distort exactly, but it behaves wrong. Dust doesn't s
 
 She is the social anchor — the person everyone orbits. Her power makes that physical and then makes it costly. The harder she fights, the more she pushes people away. Her arc is about learning to commit fully without destroying what she's committing for. This is not a power problem. It is her character problem made visible.
 
-The parallel to Soren's ocular system: **Soren sees the weak point. Serra makes it fail.** Different interfaces. Complementary and occasionally catastrophic in combination.
+The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra makes it fail.** Different interfaces. Complementary and occasionally catastrophic in combination.
 
 ---
 
 ## Relationships
 
-### Soren (MC)
+### Marcus (MC)
 There was a moment on Earth — something almost happened, then didn't, and neither of them addressed it. It did not poison what they were to each other. It created a mutual misread that neither corrected.
 
-Their deeper mismatch is not that Serra's warmth is false or that Soren invents it. He accurately perceives attention, ease, disclosure, remembered details, play, and focused care. His mistake is treating repeated warmth as evidence of trajectory.
+Their deeper mismatch is not that Serra's warmth is false or that Marcus invents it. He accurately perceives attention, ease, disclosure, remembered details, play, and focused care. His mistake is treating repeated warmth as evidence of trajectory.
 
-For Soren, repeated warmth accumulates into relational meaning:
+For Marcus, repeated warmth accumulates into relational meaning:
 
 > This keeps happening, so it is becoming something.
 
@@ -471,13 +471,13 @@ For Serra, repeated warmth may remain fully genuine without implying a future ca
 
 > I am comfortable with you here. That does not automatically define what comes next.
 
-Soren mistakes experiential intimacy for relational commitment. Serra mistakes his need for definitional certainty as a disguised attempt to negotiate the outcome.
+Marcus mistakes experiential intimacy for relational commitment. Serra mistakes his need for definitional certainty as a disguised attempt to negotiate the outcome.
 
 This creates a self-reinforcing trap:
-- Soren asks for clarity because ambiguity destabilizes him.
+- Marcus asks for clarity because ambiguity destabilizes him.
 - Serra hears another attempt to preserve an opening.
 - Serra withdraws to remove the opening.
-- Soren experiences the withdrawal as unexplained evidence requiring interpretation.
+- Marcus experiences the withdrawal as unexplained evidence requiring interpretation.
 - His continued interpretation confirms her belief that explanation prolongs pursuit.
 
 Sometimes Serra's read will be correct: part of him may still hope that clarity changes the outcome. Sometimes he genuinely needs to understand which reality he is standing in. Her failure is assuming those motives are always the same.
@@ -499,7 +499,7 @@ Tandem partner from the guild. Serra is force; Mara is setup. Serra asks who mus
 
 ### Book 1 Function
 
-Intermittent major presence. Meets Soren early; they build their first real tandem during the false-rescue/naming arc and survive it together. During that tandem — on a Realm height the night before the magistrate operation — **she initiates the second kiss**: present-tense authorship, no category named, her one rule enacted (she takes the *now*, never asks the *after*; see *The One Rule*). She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **handler in the next city administers that registry**; that handler becomes a target she can't walk away from, and following it requires going somewhere Soren can't. She carries the fragment up the chain toward the namebinding faction's parent organization — the **Court of Seals**, a regional limb of the cosmic **Aurelian Sovereignty** (see `cosmology.md`). The **registry-fragment is her Book-1 → Book-2 bridge object.** Her Pressure-Severance interface **unlocks for real at the magistrate kill / her move to the next city.** She returns at the Act-5 finale, changed. Her arc runs parallel to Soren's and intersects at key moments without depending on it.
+Intermittent major presence. Meets Marcus early; they build their first real tandem during the false-rescue/naming arc and survive it together. During that tandem — on a Realm height the night before the magistrate operation — **she initiates the second kiss**: present-tense authorship, no category named, her one rule enacted (she takes the *now*, never asks the *after*; see *The One Rule*). She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **handler in the next city administers that registry**; that handler becomes a target she can't walk away from, and following it requires going somewhere Marcus can't. She carries the fragment up the chain toward the namebinding faction's parent organization — the **Court of Seals**, a regional limb of the cosmic **Aurelian Sovereignty** (see `cosmology.md`). The **registry-fragment is her Book-1 → Book-2 bridge object.** Her Pressure-Severance interface **unlocks for real at the magistrate kill / her move to the next city.** She returns at the Act-5 finale, changed. Her arc runs parallel to Marcus's and intersects at key moments without depending on it.
 
 **The wrong is namebinding** — weaponized true names as control. It cuts at her self-made identity (people never allowed to author a self), not a past trauma. Not a crusade: one face, then the chain of handlers above it.
 
@@ -524,7 +524,7 @@ Book 1 leaves her mid-hunt, changed in ways that are visible and ways that aren'
 - What does she find at the roots of it that makes her stay longer than she planned?
 - What is the moment in her solo arc where her power almost costs her something she can't recover?
 - What does she build or become during the separation that belongs entirely to her?
-- What does she need from Soren specifically that she can't get from anyone else — and does she ever admit it?
+- What does she need from Marcus specifically that she can't get from anyone else — and does she ever admit it?
 - Does she travel with Mara, separate from Mara, or does Mara take a different path entirely?
 - Which Final Path does she move toward — Coherence or Saturation? Is the choice conscious?
 
@@ -532,10 +532,10 @@ Book 1 leaves her mid-hunt, changed in ways that are visible and ways that aren'
 
 ## Continuity Notes
 
-- The Earth moment between her and Soren is unaddressed as of their Realm reunion. Neither has named it.
+- The Earth moment between her and Marcus is unaddressed as of their Realm reunion. Neither has named it.
 - She makes the call to separate — circumstances create pressure, she makes the final decision.
 - Her power is strongest when the stakes are most personal to her. This is also when it's most dangerous to allies.
-- Parallel to Soren's system is explicit and intentional: he sees the weak point, she makes it fail.
+- Parallel to Marcus's system is explicit and intentional: he sees the weak point, she makes it fail.
 - **Earth kiss reconciles to INV-1 Axis E:** **Marcus initiates**; the pullback is **mutual and simultaneous**; each registers only the other's, blind to their own half. (Owner: `relationship_invariants.md`.)
 - **Her one rule, "I don't ask people to stay" (CCB-007 R-5):** enacted at the Realm second kiss, **cost-breaks** at the severance; never stated on the page, never collapsed into the Myrmidon "being seen" beat. (See *The One Rule*.)
 

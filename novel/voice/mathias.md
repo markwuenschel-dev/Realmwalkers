@@ -21,7 +21,7 @@ of the path he refused to choose.
 ## Rhythm & diction
 Moderate sentence length, calm cadence, little urgency unless danger is immediate. Comfortable with
 silence. Contextual without becoming verbose. Direct about preferences only when they are genuinely
-personal. Less invested in defending interpretation than Soren, less directive than Seb, less
+personal. Less invested in defending interpretation than Marcus, less directive than Seb, less
 momentum-driven than Serra, less reductive than Brent, less guarded than Mara.
 
 ## Humor
@@ -51,8 +51,8 @@ unless danger is immediate.
 > Dialogue (how Mathias speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
-- **Soren** — one of the few who can make him articulate reasoning he sees no need to defend, and can
-  catch when "several valid choices" is masking a personal preference. Mathias, in turn, helps Soren
+- **Marcus** — one of the few who can make him articulate reasoning he sees no need to defend, and can
+  catch when "several valid choices" is masking a personal preference. Mathias, in turn, helps Marcus
   tell understanding a person from actually being *with* them. ("You say that like the conclusion owes
   you a deposition.")
 - **Seb** — compresses his open possibilities into a decision and challenges him when context dilutes
@@ -67,7 +67,7 @@ unless danger is immediate.
   happening.")
 
 ## Drafting guardrails
-- Keep his humor distinct from Soren's and Brent's: Soren builds an association, Brent reduces to
+- Keep his humor distinct from Marcus's and Brent's: Marcus builds an association, Brent reduces to
   consequence, Mathias reports the performance from just outside it.
 - Don't make him forceful or argumentative; his calm is real, not weakness — he simply isn't invested
   in making others accept his conclusion.

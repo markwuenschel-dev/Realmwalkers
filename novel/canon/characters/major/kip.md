@@ -83,7 +83,7 @@ He is "broad even by frontline standards, already shifting his weight from foot 
 ### Mathias Sterling
 Foil dynamic. Mathias is the measured scout who reads the room and waits before he speaks; Kip is the impatient warrior who'd rather act. In SCENE-001 Kip dismisses Mathias's caution as "reading tea leaves" right before Mathias's read proves correct. Productive friction, not hostility.
 
-### Marcus (Soren)
+### Marcus
 Kip treats Marcus as the squad's "secret weapon" and is comfortable saying so. Easy, ribbing camaraderie ("the secret weapon does the secret weapon thing"). No deeper dynamic established yet.
 
 ### Seb

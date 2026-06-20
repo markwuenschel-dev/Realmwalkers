@@ -19,11 +19,11 @@ Marcus begins as a gamer-scientist who survives by analyzing, optimizing, joking
 ## Act 1 — Earth & the False Choice
 **Purpose:** establish Astria, the guild, the implant deception, the coercive offer. *(Mostly drafted.)*
 Beats: neuroquantum announcement → 404:Aim Not Found vs. Dead Hand scrim (**Serra (Serra Hawthorne) — Dead Hand's star rogue — logs in late and duels Marcus on-page; Mara is Dead Hand's overlooked second assassin (Serra's tandem, same team), present on the enemy roster but unnoticed**) → Roth-voiced hijack interrupts the duel → manufactured tornado boss forces consent → Seb's brother dies during the scrim (his consent becomes grief, not rescue) → facility, LeBlanc/Roth/Withers pitch (Serra also took the deal; Mara arrives late) → unanimous consent → surgery → **LeBlanc hidden-voice scene on-page** ("we will take the reins…") → transport.
-*Notes:* Earth name **Marcus**; Realm alias target **Soren**. Serra = self-made social anchor (**no SWAT**). Seed the implant as receiver/translator, not upgrade.
+*Notes:* Earth name **Marcus Vye** (public **Marcus**); **no Realm alias** — he uses his real name in the Realm. Serra = self-made social anchor (**no SWAT**). Seed the implant as receiver/translator, not upgrade.
 
 ## Act 2 — Scattering
 **Purpose:** break the guild; force separate trajectories. *(Partially drafted through resurrection/Ayla.)*
-Beats: wake in the void → voice sends them toward Eriadne → scattered → Marcus wakes level 1 → UI interprets, doesn't create → paladin/Mallev/Xazzidiuk/Zazriel → mindscape bargain → **gains the Eyes of Meszkhal (item); Zazriel gives nothing (no Angelic Fortitude)** → Xazzidiuk kills him → resurrects → **Ayla attaches**; the native **Neurochromatic Eyes interface** begins emerging → **rejects Phoenix, chooses Soren** → moves toward survival and Eriadne.
+Beats: wake in the void → voice sends them toward Eriadne → scattered → Marcus wakes level 1 → UI interprets, doesn't create → paladin/Mallev/Xazzidiuk/Zazriel → mindscape bargain → **gains the Eyes of Meszkhal (item); Zazriel gives nothing (no Angelic Fortitude)** → Xazzidiuk kills him → resurrects → **Ayla attaches**; the native **Neurochromatic Eyes interface** begins emerging → **rejects Phoenix, keeps his own name (Marcus)** → moves toward survival and Eriadne.
 **Function:** Marcus stops being a player and becomes an exile.
 
 ## Act 3 — First Threads / False Rescue

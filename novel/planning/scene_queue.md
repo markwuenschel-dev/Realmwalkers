@@ -9,9 +9,9 @@
 
 ## Act 2 — Opening (drafted/revision)
 
-### SCENE-002 — Naming (Soren) `[M]`
-Marcus reaches for "Phoenix," rejects it as performed, and **chooses "Soren"** himself. Ayla's true-name warning lands. UI accepts the alias; true-name uncertainty remains.
-*Acceptance:* alias = Soren; Earth name (Marcus) stays private; choice reads as identity protection, not posing.
+### SCENE-002 — Naming (the refusal) `[M]`
+Marcus reaches for a game-handle ("Phoenix"), rejects it as performed — and instead of authoring a new name, **keeps his own: Marcus.** The claim is refusing to perform a new self. Ayla's true-name warning lands — about his **true name** (S-09), not "Marcus," which is a safe public name. No alias; the UI shows his chosen public name.
+*Acceptance:* he does **not** rename himself; the beat reads as **refusing the frame**, not posing, not authoring an alias.
 
 ### SCENE-003 — First Water / First Cost `[M]`
 He finds water but the Realm punishes assumptions; he solves by observation, not power. First faint ecological-residue foreshadow.

@@ -14,11 +14,11 @@
 
 **Warning signs:**
 - Three or more sentences of atmospheric dread in a row with no character reaction
-- The Realm's strangeness described at length without Soren noticing or processing it
+- The Realm's strangeness described at length without Marcus noticing or processing it
 - Dread that accumulates through adjectives rather than through specific detail that matters
 - The prose enjoying the wrongness rather than the character experiencing it
 
-**Correction:** Return to Soren's interiority. What specifically does he notice and why? What does it remind him of? What does he do with the information? The atmosphere should be a byproduct of his perception, not a separate layer dropped over the scene.
+**Correction:** Return to Marcus's interiority. What specifically does he notice and why? What does it remind him of? What does he do with the information? The atmosphere should be a byproduct of his perception, not a separate layer dropped over the scene.
 
 ---
 
@@ -88,10 +88,10 @@
 **Warning signs:**
 - Ayla delivers a paragraph explaining how ley lines work
 - Marcus thinks through faction politics in complete sentences that convey information he wouldn't actually think through this way
-- A new location is described comprehensively before Soren has had a chance to notice anything about it
+- A new location is described comprehensively before Marcus has had a chance to notice anything about it
 - The prose summarizes worldbuilding in the narrative voice rather than filtering it through a character
 
-**Correction:** Everything the reader learns about the Realm should come through Soren's encounter with it. He notices one thing. He misunderstands it. Ayla corrects him incompletely. He draws a wrong conclusion. This is slower but it makes the world feel real rather than documented. See `prose_contract.md` Rule 5.
+**Correction:** Everything the reader learns about the Realm should come through Marcus's encounter with it. He notices one thing. He misunderstands it. Ayla corrects him incompletely. He draws a wrong conclusion. This is slower but it makes the world feel real rather than documented. See `prose_contract.md` Rule 5.
 
 ---
 
@@ -134,7 +134,7 @@
 - No humor anywhere in the scene
 - Every sentence is grammatically complete and appropriately weighted
 - The prose could have been written by anyone
-- Soren sounds like a narrator, not a person
+- Marcus sounds like a narrator, not a person
 
 **Correction:** Re-introduce Marcus's specific tics. He thinks in partial sentences under pressure. He finds the absurd detail in serious situations. He notices the wrong things when he's scared. He makes a structural observation when he should be feeling something. These are not errors to correct — they are characterization.
 

@@ -1,12 +1,12 @@
 ---
 scene_id: SCENE-001
 title: Aim Not Found
-pov: Marcus (Soren)
+pov: Marcus
 location: Charlotte, NC (Earth) — Astria offices, then Marcus's apartment / the scrim lobby in Aetherfall
 timeline_ref: Earth, opening — night of the 404 vs Dead Hand scrim, pre-Worlds
 depends_on: []
-characters_present: [Marcus Fahr, Seb, Brent, Mathias, Kip, "Dead Hand leader (unnamed)", Serra]
-new_character_candidates: [Marcus Fahr, Seb, Brent, Mathias, Kip, "Dead Hand leader (incidental)", Serra]
+characters_present: [Marcus Vye, Seb, Brent, Mathias, Kip, "Dead Hand leader (unnamed)", Serra]
+new_character_candidates: [Marcus Vye, Seb, Brent, Mathias, Kip, "Dead Hand leader (incidental)", Serra]
 docs_impact: true
 status: draft
 word_target: 1800-3200

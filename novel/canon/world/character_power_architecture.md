@@ -131,7 +131,7 @@ The eyes are his interface; the Riftwalker class is his planar-crossing path. Th
 
 | Character | Earth Identity | Aetherfall Class | Realm Class | Interface |
 |---|---|---|---|---|
-| Marcus (Soren) | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Riftwalker** (Legendary) | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
+| Marcus | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Riftwalker** (Legendary) | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
 | Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** | Pressure-Severance |
 | Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Mirror-Salience Transduction |
 | Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Threshold Cascade |

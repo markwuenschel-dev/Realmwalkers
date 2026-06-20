@@ -10,7 +10,7 @@
 
 **Violation — skipping interiority to reach the action:**
 
-> Soren fought the creature for several minutes. It was fast and he had to work to keep up. Eventually he got an opening and took it. The creature fell. He walked away and found shelter before dark.
+> Marcus fought the creature for several minutes. It was fast and he had to work to keep up. Eventually he got an opening and took it. The creature fell. He walked away and found shelter before dark.
 
 **Correct — interiority is the scene:**
 
@@ -30,7 +30,7 @@
 
 **Violation — naming the emotion directly:**
 
-> Soren felt grief when he saw the ruins of the settlement. It reminded him of home and of the people he might never see again.
+> Marcus felt grief when he saw the ruins of the settlement. It reminded him of home and of the people he might never see again.
 
 **Correct — behavior and sensation carry the weight:**
 
@@ -64,7 +64,7 @@
 
 **Violation — violence that's clean and free:**
 
-> Soren cut down two of them before the third got close. He handled that one too. Three bodies on the ground. He wiped his blade and kept moving.
+> Marcus cut down two of them before the third got close. He handled that one too. Three bodies on the ground. He wiped his blade and kept moving.
 
 **Correct — the cost is present:**
 
@@ -76,13 +76,13 @@
 
 ---
 
-## 5. The Realm Through Soren's Perception (Prose Contract Rule 5)
+## 5. The Realm Through Marcus's Perception (Prose Contract Rule 5)
 
 **Violation — authorial exposition:**
 
 > The ley lines beneath Eriadne had been established thousands of years ago by a civilization that no longer existed. They channeled the world's magical substrate toward a central convergence point beneath the city, which was why the ruins here were still partially active.
 
-**Correct — experienced through Soren:**
+**Correct — experienced through Marcus:**
 
 > Something was different about the ruins here.
 >
@@ -102,7 +102,7 @@
 
 **Violation — UI as pause button:**
 
-> Soren faced the creature. It raised its forelimbs.
+> Marcus faced the creature. It raised its forelimbs.
 >
 > *[SYSTEM: New creature detected. Classification: Unknown. Threat level: High.]*
 >
@@ -145,11 +145,11 @@
 
 ## 8. Dialogue With Subtext
 
-**Scene:** Soren and Serra after surviving something together. Neither has addressed what happened. Both know what the other is thinking.
+**Scene:** Marcus and Serra after surviving something together. Neither has addressed what happened. Both know what the other is thinking.
 
 **Violation — characters say the thing:**
 
-> "I missed you," Soren admitted.
+> "I missed you," Marcus admitted.
 >
 > "I missed you too," Serra said. "I thought about that night a lot. Before all of this."
 >
@@ -183,7 +183,7 @@
 
 **Same information, three different characters delivering it:**
 
-**Soren:**
+**Marcus:**
 > "The passage goes left and then — I think left, the interface gave me something earlier but it was partial, it might have been left — and there's a drop somewhere, Ayla mentioned a drop, I'm not sure what kind of drop we're talking about —"
 
 **Serra:**
@@ -198,7 +198,7 @@
 
 **Violation — summarizing:**
 
-> As Soren walked away from the ruins, he realized that everything had changed. He wasn't the same person he'd been when he arrived, and the Realm had made sure of that. Whatever came next, he would face it differently.
+> As Marcus walked away from the ruins, he realized that everything had changed. He wasn't the same person he'd been when he arrived, and the Realm had made sure of that. Whatever came next, he would face it differently.
 
 **Correct — landing:**
 

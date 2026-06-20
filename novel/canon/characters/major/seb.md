@@ -603,7 +603,7 @@ The power **amplifies** his existing gray fall — the drive that no one close t
 
 ## Relationships
 
-### Marcus (Soren)
+### Marcus
 The mirror dynamic. Both care deeply. Both are high-agency. Both fear helplessness. Seb's answer to helplessness is control — manage every variable, make every sacrifice worth it. Marcus's answer is connection — build something real with people and let the uncertainty be bearable.
 
 They are the same wound expressed as opposite strategies.

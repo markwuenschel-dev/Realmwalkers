@@ -65,7 +65,7 @@ A small, coherent order of seven powerful individuals — exiles, scholars, surv
 
 ### Realm Walkers — cross-realm operators *(keep mysterious until Book 2)*
 **Book-1 contact (locked shape):** the Eriadne ruins sit on the **convergence of the eight elemental ley lines**, with a **dormant natural portal** at the knot. When the portal is forced open at the finale and the Xyloryn Myrmidon comes *through* it, a **Realm Walker is drawn by the breach itself**, witnesses the fight, and makes first contact with Marcus shortly after (post-Myrmidon / at Eriadne) — the seed of his late-B1 recruitment and Riftwalker path. *(Open: who or what forces the portal / summons the Myrmidon — an agent, the Xyloryn themselves, or the convergence destabilizing — is unresolved.)*
-Not just travelers: **rare operators who move through and between interface realities without being fully claimed by one.** They likely oppose any single cosmic philosophy becoming total — balance-keepers. **Marcus/Soren may qualify** because his implant/interface combination lets him *read the translation layers others mistake for reality.* (This is the faction that recruits him late Book 1 → his **Riftwalker** class; the class and the faction are distinct — see `classes.md`, `mc.md`.)
+Not just travelers: **rare operators who move through and between interface realities without being fully claimed by one.** They likely oppose any single cosmic philosophy becoming total — balance-keepers. **Marcus may qualify** because his implant/interface combination lets him *read the translation layers others mistake for reality.* (This is the faction that recruits him late Book 1 → his **Riftwalker** class; the class and the faction are distinct — see `classes.md`, `mc.md`.)
 
 ---
 

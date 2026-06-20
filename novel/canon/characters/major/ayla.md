@@ -18,7 +18,7 @@ status: active
 |---|---|
 | Name | Ayla |
 | Kind | Ancient celestial consciousness — a damaged fragment |
-| Attached | To Soren's implant/core, since his death & resurrection |
+| Attached | To Marcus's implant/core, since his death & resurrection |
 | Role | Guide / commentator — fragmented memory; asks better questions, does not hand answers |
 
 ---
@@ -59,7 +59,7 @@ Mentor, but unreliable and incomplete. She helps Marcus ask better questions rat
 
 - The limit of her damaged knowledge — what can and can't she recall?
 - Her relationship, if any, to Meszkhal (the entity the *item* is named for)?
-- Does she have an arc of her own, or is she purely in service of Soren's?
+- Does she have an arc of her own, or is she purely in service of Marcus's?
 - Does she ever choose a stable form — and what would prompt that?
 
 ---

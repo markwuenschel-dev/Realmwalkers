@@ -6,7 +6,7 @@
 
 ## Core Principle
 
-The interface is not the story. It is Soren's implant rendering incomprehensible metaphysical structures into data his mind can process. It is imperfect, intermittent, occasionally wrong, and always subordinate to the scene it interrupts.
+The interface is not the story. It is Marcus's implant rendering incomprehensible metaphysical structures into data his mind can process. It is imperfect, intermittent, occasionally wrong, and always subordinate to the scene it interrupts.
 
 The UI does not pause the narrative. It intrudes on it.
 
@@ -15,17 +15,17 @@ The UI does not pause the narrative. It intrudes on it.
 ## The Arc of UI Presence
 
 ### Early Story — High Presence
-When Soren first arrives in the Realm, the interface is active and frequent. He is learning to read it, learning what it means, learning when to trust it. Notifications fire at unexpected moments. He doesn't always understand them. Some appear to be errors or mistranslations.
+When Marcus first arrives in the Realm, the interface is active and frequent. He is learning to read it, learning what it means, learning when to trust it. Notifications fire at unexpected moments. He doesn't always understand them. Some appear to be errors or mistranslations.
 
 At this stage: UI appears several times per chapter. It can interrupt scenes, arrive mid-action, surface during emotional moments. Its presence is part of the texture of the early Realm experience.
 
 ### Mid Story — Decreasing Presence
-As Soren internalizes Realm logic, he needs the interface less. It becomes background. He has learned to read the underlying patterns without needing the translation layer to spell everything out.
+As Marcus internalizes Realm logic, he needs the interface less. It becomes background. He has learned to read the underlying patterns without needing the translation layer to spell everything out.
 
 At this stage: UI appears for significant changes only — new abilities, meaningful warnings, things the interface catches that he missed. It does not narrate the fight. It notes the outcome.
 
 ### Late Story — Sparse and Significant
-By late story, a UI notification carries weight precisely because it is rare. When the interface surfaces, something has changed that Soren couldn't have anticipated. Its appearance is itself information.
+By late story, a UI notification carries weight precisely because it is rare. When the interface surfaces, something has changed that Marcus couldn't have anticipated. Its appearance is itself information.
 
 At this stage: UI appears for major events, threshold crossings, anomalies the implant registers that the narrative hasn't explained yet.
 
@@ -71,7 +71,7 @@ Cost threshold: Elevated. Monitor resource expenditure.
 ```
 
 ### Stat Panel
-Used sparingly — early story only, during moments when Soren is actively consulting the interface rather than receiving an interruption. Formatted as a discrete block, clearly separated from prose.
+Used sparingly — early story only, during moments when Marcus is actively consulting the interface rather than receiving an interruption. Formatted as a discrete block, clearly separated from prose.
 
 ```
 ┌─────────────────────────────────┐
@@ -85,7 +85,7 @@ Used sparingly — early story only, during moments when Soren is actively consu
 ```
 
 Rules:
-- Stat panels appear only when Soren deliberately consults the interface
+- Stat panels appear only when Marcus deliberately consults the interface
 - Never mid-combat — he doesn't have time
 - Maximum one per chapter in early story; zero in mid-to-late story
 - Do not use for flavor; only when the content of the stats matters to a decision he's making
@@ -111,7 +111,7 @@ Rules:
 System messages interrupt the prose. They do not float separately from it. The scene continues around them.
 
 **Wrong approach:**
-> Soren raised his sword. The creature lunged.
+> Marcus raised his sword. The creature lunged.
 >
 > *[SYSTEM: Threat detected. Recommend evasion.]*
 >
@@ -120,7 +120,7 @@ System messages interrupt the prose. They do not float separately from it. The s
 The UI break kills momentum and treats the notification as a pause button.
 
 **Correct approach:**
-> Soren raised his sword. The creature lunged — and then the interface fired across his vision, cold and clinical.
+> Marcus raised his sword. The creature lunged — and then the interface fired across his vision, cold and clinical.
 >
 > ```
 > [ WARNING ]
@@ -138,7 +138,7 @@ The UI is part of the scene. It creates information the character acts on. The p
 
 - Deliver exposition the story hasn't earned yet
 - Explain the Realm's lore in system message format
-- Level Soren up in a way that feels like a video game reward
+- Level Marcus up in a way that feels like a video game reward
 - Interrupt emotional scenes with mechanical data unless the interruption is itself the point
 - Appear so frequently in late story that it loses meaning
 - Use excited language, dramatic formatting, or aesthetic flair — the system is functional, not dramatic
@@ -156,7 +156,7 @@ The interface is imperfect. It was designed by humans who didn't fully understan
 - Go silent at the wrong moment
 - Display something that seems like an error but isn't
 
-When the interface fails or mistranslates, that is a story event. It tells Soren — and the reader — that he has encountered something outside the implant's model of the Realm. This is always significant.
+When the interface fails or mistranslates, that is a story event. It tells Marcus — and the reader — that he has encountered something outside the implant's model of the Realm. This is always significant.
 
 ---
 

@@ -33,7 +33,7 @@ The archdemon torture sequence works because it names specific places. Gums. Ear
 
 Compare to the early Earth chapters, which describe the Astria facility in general terms: "breathtaking landscaping," "clean and well-organized." Nothing sticks. No detail does work.
 
-**The rule:** one specific detail beats three general ones. The detail should be the one Soren would actually notice — because of what it reminds him of, because it's wrong, because his eyes catch on it. Not because it fills space.
+**The rule:** one specific detail beats three general ones. The detail should be the one Marcus would actually notice — because of what it reminds him of, because it's wrong, because his eyes catch on it. Not because it fills space.
 
 ### It lets logic do the work
 
@@ -41,7 +41,7 @@ The mindscape climax works because Marcus solves it through reasoning, not sudde
 
 This is the protagonist's core competency: systems intelligence. He finds the leverage point. His victories should feel earned through reasoning, not granted through power spikes.
 
-**The rule:** when Soren wins, show the thought process that got him there. The solution should feel inevitable in hindsight and surprising in the moment.
+**The rule:** when Marcus wins, show the thought process that got him there. The solution should feel inevitable in hindsight and surprising in the moment.
 
 ### It handles the strange matter-of-factly
 
@@ -69,7 +69,7 @@ Do not let Ayla become an exposition machine. The moment she starts explaining t
 
 These are lenses, not prescriptions. The actual voice comes from the writing above.
 
-**Stephen King** — Soren's interiority. Thoughts that spiral and catch on things. Dread that accumulates through specifics, not announcements. Humor as survival.
+**Stephen King** — Marcus's interiority. Thoughts that spiral and catch on things. Dread that accumulates through specifics, not announcements. Humor as survival.
 
 **Margaret Atwood** — Combat and violence. Precise, clinical, consequential. The body is observed. Nothing is gratuitous.
 
@@ -81,7 +81,7 @@ These are lenses, not prescriptions. The actual voice comes from the writing abo
 
 | Zone / Context | Feel |
 |---|---|
-| Soren's interiority | Spiraling, specific, afraid and finding the angle |
+| Marcus's interiority | Spiraling, specific, afraid and finding the angle |
 | Combat / violence | Precise, clinical, body-level detail, aftermath matters |
 | Eriadne's streets | Grounded and strange; people feel real, the city feels old |
 | Ancient ruins / ley lines | Matter-of-fact wonder; describe it and move |
@@ -95,11 +95,11 @@ These are lenses, not prescriptions. The actual voice comes from the writing abo
 
 ## POV Structure
 
-### Primary POV — Soren (Marcus)
+### Primary POV — Marcus
 The default lens. When in doubt, stay here.
 
-- The narrator does not know what Soren does not know
-- The narrator does not correct Soren's wrong reads — the reader feels the wrongness through texture
+- The narrator does not know what Marcus does not know
+- The narrator does not correct Marcus's wrong reads — the reader feels the wrongness through texture
 - His emotional state shapes what he notices and how he describes it
 - When he goes into operator mode (dissociation under pressure), the prose flattens deliberately — less texture, more task
 
@@ -108,12 +108,12 @@ Occasional shifts permitted. Rules:
 
 - POV shifts at chapter or section breaks only, never mid-scene
 - Serra's POV: tighter, faster, less interior spiral — she processes privately and speaks the output
-- Seb's POV: starts feeling like Soren's, gradually replaces warmth with justification
+- Seb's POV: starts feeling like Marcus's, gradually replaces warmth with justification
 - Every secondary POV scene must show something the primary lens cannot — not just what's happening elsewhere
 
 ### What the Narrator Never Does
 - Explains feeling when behavior can carry it
-- Corrects Soren's misreads from outside his perspective
+- Corrects Marcus's misreads from outside his perspective
 - Rushes past consequences
 - Makes violence feel clean or rewarding
 
