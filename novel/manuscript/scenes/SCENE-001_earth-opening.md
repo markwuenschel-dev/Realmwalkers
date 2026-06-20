@@ -1,7 +1,7 @@
 ---
 scene_id: SCENE-001
 title: Aim Not Found
-pov: Marcus Fahr
+pov: Marcus (Soren)
 location: Charlotte, NC (Earth) — Astria offices, then Marcus's apartment / the scrim lobby in Aetherfall
 timeline_ref: Earth, opening — night of the 404 vs Dead Hand scrim, pre-Worlds
 depends_on: []

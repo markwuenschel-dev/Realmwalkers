@@ -88,7 +88,7 @@ status: working
 **Ch 7 — Alone** · Marcus · Days 3–7 · ✅
 - **Function:** survival orientation; establish the Eyes' rules and cost; set him on the road.
 - **Beats:** water/shelter/first cost solved by **observation not power**; Eyes wake involuntarily; Ayla established with limits (not the UI/implant AI); finds the road.
-- **Scenes:** `SCENE-001` Post-Ayla Survival · `SCENE-003` First Water/First Cost.
+- **Scenes:** `SCENE-003` First Water/First Cost.
 - **Pays:** SYS-006 (Eyes cost reserve/stability) · SP-008.
 - **End state:** functional, oriented, moving; Eyes Stage 1.
 - **Gate:** ✅ draftable.

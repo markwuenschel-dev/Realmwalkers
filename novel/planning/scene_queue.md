@@ -9,10 +9,6 @@
 
 ## Act 2 — Opening (drafted/revision)
 
-### SCENE-001 — Post-Ayla Survival Orientation `[M]`
-Marcus, newly resurrected and linked to Ayla, secures water/shelter/orientation and emotional footing. Ayla clarifies she is *not* the UI or implant AI. He tests what the interface can/can't show; feels the bodily cost of death. Ends on a concrete objective + a distant sign of civilization.
-*Checks:* Ayla isn't the UI source; the implant translates; the Eyes are not a free win.
-
 ### SCENE-002 — Naming (Soren) `[M]`
 Marcus reaches for "Phoenix," rejects it as performed, and **chooses "Soren"** himself. Ayla's true-name warning lands. UI accepts the alias; true-name uncertainty remains.
 *Acceptance:* alias = Soren; Earth name (Marcus) stays private; choice reads as identity protection, not posing.

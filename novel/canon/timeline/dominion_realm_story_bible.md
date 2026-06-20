@@ -71,14 +71,14 @@ A melting-pot frontier city that **accreted** over a ley-line convergence at an 
 Two distinct existential layers — kept separate.
 
 ### The Xyloryn — interface-assimilating swarm
-A biological swarm that evolves by **metabolizing the biological/sensory/magical *expression* of an interface and growing organs that imitate it** (consume a fire-beast → combustion glands; an ocular user → false eyes/gaze-spoofing membranes). They imitate the surface; they **cannot** erase what a thing *is* (true names, divine authority, soul-bonds, ley identity, planar anchors — that is the Zalgoran lane). A **war/ecology** problem, terrifying but beatable (command-node dependence, weak grasp of symbolic meaning, reliance on sampled material).
+A biological swarm that evolves by **metabolizing the biological/sensory/magical *expression* of an interface and growing organs that imitate it** (consume a fire-beast → combustion glands; an ocular user → false eyes/gaze-spoofing membranes). They imitate the surface; they **cannot** erase what a thing *is* (true names, divine authority, soul-bonds, ley identity, planar anchors — that is the N'hal lane). A **war/ecology** problem, terrifying but beatable (command-node dependence, weak grasp of symbolic meaning, reliance on sampled material).
 - **Skirmishers:** fast, fragile-when-isolated; their attacks are partly **diagnostic** — they bite/sting to gather data for higher forms.
 - **Myrmidons:** elite shock-troops grown *after* the swarm has battlefield data — each variant a local counter to the defenders' dominant interfaces.
 - **Book 1 finale:** an invasion attempt at the ruins-portal near Eriadne; the ruins are separate enough that most of the city never learns. A **single Myrmidon** steps through and nearly beats all six at once — scale established by one unit.
-- **Origin** (engineered as a failed immune response against the Zalgorans): a leading hypothesis, **NOT confirmed** — do not write as canon.
+- **Origin** (engineered as a failed immune response against the N'hal): a leading hypothesis, **NOT confirmed** — do not write as canon.
 
-### The Zalgorans — ontological predators
-Extra-planar entities/anomalies whose presence **denatures reality** — they don't eat bodies first, they damage the conditions that let names, places, gods, spells, and identities stay coherent (land loses stable geometry; names detach; oaths go static; places remain visible but stop being locatable). **Reality horror, not an army.** "Zalgoran" is a working placeholder name. Their relationship to the Xyloryn is open.
+### The N'hal — ontological predators
+Extra-planar entities/anomalies whose presence **denatures reality** — they don't eat bodies first, they damage the conditions that let names, places, gods, spells, and identities stay coherent (land loses stable geometry; names detach; oaths go static; places remain visible but stop being locatable). **Reality horror, not an army.** Their relationship to the Xyloryn is open.
 
 ---
 

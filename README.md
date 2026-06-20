@@ -28,7 +28,7 @@ src/dominion/
               budget.py, llm.py, enqueue.py
               specialists/  drafter + combat/sensory/dialogue enrichment passes
               reviewers/    continuity (always) + pacing/voice
-              memory/       canon_rag, summaries, ledger
+              memory/       canon_rag, summaries, ledger, seed (manuscript -> approved prior state)
 frontend/     Vite + React + TS review app (Inbox → Scene → continuity panel)
 scripts/      init_db.py
 tests/        deterministic router tests + import smoke
@@ -50,31 +50,44 @@ cd frontend && npm install && npm run dev            # terminal 2: review app on
 
 A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker-once`, …) if you use `just`.
 
-> Drafting one scene (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`
-> then `python -m dominion.workers.worker --once`) is **Phase 1** — the Drafter raises
-> `NotImplementedError` until then, by design (no fake prose written to the DB).
+> Drafting one scene works end to end: enqueue a beat
+> (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`) then
+> `python -m dominion.workers.worker --once`. The only worker stubs left are the Phase 3 enrichment
+> passes (combat/sensory/dialogue), which fail *soft* (`PassError`) — the drafted spine still lands in
+> the inbox, flagged, rather than hard-failing the job.
 
 ## State: what's real vs. scaffolded
 
-| Real now | Stubbed (raises `NotImplementedError`, phase-tagged) |
+Phases 1 and 2 are built and tested. The only stubs left in the worker tree are the three Phase 3
+enrichment passes, which fail *soft* (`PassError` → the spine still lands, flagged) rather than hard.
+
+| Real now | Stubbed |
 |---|---|
-| Full ORM schema + Pydantic DTOs | Drafter (Phase 1) |
-| Deterministic router (`passes_for` / `reviewers_for`) — tested | Continuity reviewer (Phase 1) |
-| Worker loop: atomic job claim, wall-clock budget, claim→draft→exit | Enrichment passes: combat/sensory/dialogue (Phase 3) |
-| Token-budget + LLM wrapper (usage-charged) | Pacing/voice reviewers (Phase 3) |
-| Oracle read-authority over `character_state` | Canon RAG / summaries / ledger (Phase 2) |
-| FastAPI: health, `/scenes/pending`, `/scenes/{id}` | `/runs` + continuity-resolve endpoints (Phase 1/2) |
-| Decision endpoint: approve/deny/revise + hand-edit | Memory hooks on approval (Phase 2) |
-| React inbox, scene review, continuity panel | History/version browsing (Phase 2) |
+| Full ORM schema + Pydantic DTOs | Combat / sensory / dialogue **enrichment passes** (`PassError`, Phase 3) |
+| Drafter — POV-voiced spine + revise prompt | Combat / sensory / dialogue **review-lane** reviewers (Phase 3) |
+| Continuity reviewer (hard-number + POV-knowledge asymmetry) | `draft_ahead` + provisional ledger + parallel workers (Phase 4) |
+| Pacing / voice / state-drift reviewers (advisory, token-gated) | |
+| Deterministic router (`passes_for` / `reviewers_for`) — tested | |
+| Worker loop: atomic claim, wall-clock + token budget, claim→draft→exit | |
+| Canon RAG (`retrieve` + `ingest_path`) over pgvector | |
+| Per-POV + omniscient rolling summaries; stat ledger commit-on-approval | |
+| Oracle read-authority over `character_state` | |
+| FastAPI: health, scenes, reviews (decision + continuity-resolve), runs, beats, chapters, books | |
+| Approve/deny/revise + hand-edit; ledger + summary hooks; `pause_each` auto-advance | |
+| React inbox, scene review, continuity panel, history, manuscript, plan | |
 
 ## Build phases (DESIGN §14)
 
-1. **One approved scene, end to end** — implement the Drafter + continuity reviewer; draft a scene
-   from a hand-written beat, review it in the inbox, approve it.
-2. **Auto-advance + memory** — RAG over canon, per-POV + omniscient summaries, the stat ledger,
-   pause-each auto-enqueue of the next scene.
-3. **Enrichment specialists** — combat/sensory/dialogue passes + pacing/voice reviewers, routed by beat tags.
-4. **`draft_ahead` + parallelism** — provisional ledger, multiple workers.
+1. ✅ **One approved scene, end to end** — Drafter + continuity reviewer; draft from a beat, review in
+   the inbox, approve.
+2. ✅ **Auto-advance + memory** — RAG over canon, per-POV + omniscient summaries, the stat ledger,
+   `pause_each` auto-enqueue, and a manuscript seed-importer (`dominion-seed`) that loads drafted
+   scene files as `approved` prior state + rebuilds the canon index. *(Operational step remaining:
+   run it on the real manuscript and fold summaries — needs `ANTHROPIC_API_KEY`.)*
+3. ⏳ **Enrichment specialists** — combat/sensory/dialogue passes + their review-lane reviewers, routed
+   by beat tags. Pacing/voice/state-drift reviewers already live.
+4. ⬜ **`draft_ahead` + parallelism** — provisional ledger, batch invalidation, multiple workers.
+   Deferred until throughput actually hurts.
 
 ## Dev
 

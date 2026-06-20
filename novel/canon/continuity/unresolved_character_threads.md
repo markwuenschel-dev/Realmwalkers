@@ -156,7 +156,7 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| S-10 | ✅ RESOLVED | The warmth trap and Serra's separation — how tightly linked? | **Separate beats.** The warmth trap is **Maera Vell** (roadhouse); Serra's departure cause is the **magistrate / Court of Seals** thread (`act3_sequence.md`, `book_roadmap.md` Open Decision #3). |
+| S-10 | ✅ RESOLVED | The warmth trap and Serra's separation — how tightly linked? | **Separate beats.** The warmth trap is **Maera Vell** (roadhouse); Serra's departure cause is the **magistrate / Court of Seals** thread (`master_timeline.md` Act 3, `book_roadmap.md` Open Decision #3). |
 | S-11 | 🟡 | Marcus's loneliness / home-building drive — when does it surface? | Emerges from the warmth trap moment. His wanting to build a home is tied to the wrong read, not independent. First expression: claiming the ruin-fringe near Eriadne. |
 | SE-10 | ✅ RESOLVED | Serra / Iron Vultures — is she with them when Marcus finds them, or does Marcus find her first? | Marcus finds Serra first, then they encounter the Iron Vultures together. |
 | SE-11 | ✅ RESOLVED | Does Serra stay with the Iron Vultures or take her own path? | **Her own path** — toward the Court of Seals (`serra_hawthorne.md`, `master_timeline.md`); not with the Vultures. |

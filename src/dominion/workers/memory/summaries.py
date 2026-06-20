@@ -71,8 +71,11 @@ async def _summarize(previous: str | None, scene_prose: str, lens: str) -> str:
         f"New scene just approved:\n{scene_prose}\n\n"
         "Rewrite the running summary to fold in the new scene. Output only the summary."
     )
+    # Budget must fit a whole scene of *input*: a full hand-written/imported scene can be 8k+ tokens,
+    # well past a tight cap. Size it to the per-scene budget — folding a scene shouldn't cost more
+    # than drafting one — so long authored scenes (e.g. the seed import) fold instead of aborting.
     text, _usage = await llm.complete(
         model=settings.review_model, system=system, user=user,
-        max_tokens=_SUMMARY_MAX_TOKENS, budget=TokenBudget(max_tokens=8000),
+        max_tokens=_SUMMARY_MAX_TOKENS, budget=TokenBudget(max_tokens=settings.scene_token_budget),
     )
     return text.strip()
