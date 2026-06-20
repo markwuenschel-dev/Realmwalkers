@@ -5,6 +5,9 @@
 ## 2026-06-20 — Marcus naming (Vye / no alias / Marc)
 > **Marcus Fahr → Marcus Vye.** "Soren" alias **retired** — Marcus does **not** rename himself; the self-naming beat becomes a **refusal of the game-handle** (keeps his real name = the anti-frame claim). "Marc" added as the intimate short form (people he lets in). His **true name** (S-09) remains the separate, hidden, deferred name Ayla's warning protects; "Marcus Vye" is the safe public name. Voice file `soren.md` → `marcus.md`.
 
+## 2026-06-20 — Marcus thematic spine (frame vs. reality)
+> Pinned the **opening↔ending mirror** as Marcus's three-stage *frame→reality* arc: (1) *accuracy is enough* → (2) *accuracy is authority* (the Eyes of Meszkhal) → (3) *reality wins* (rejects the Eyes' interpretation; the Neurochromatic Eyes awaken). The Eyes are his opening flaw weaponized; the **romance is the delivery mechanism**, not the theme. Opening directive: plant **the crack** (the control-cohort anomaly he files away) and calibrate opening-Marcus to *"accuracy is enough,"* not *"reality should obey."* (`mc.md` → The Frame–Reality Spine; `book1_chapter_plan` Ch 1; `marcus_serra_relationship.md` §1.)
+
 ## 2026-06-16 — soul/Ayla/Eriadne pass
 - **Bindability rule:** any soul bindable; **Soul Level = difficulty, not a gate** (`mechanics.md`, `core_rules.md`).
 - **Soul anchors:** elven child = **Strong**, Seb's brother = **Common**; six mains carry a **Soul Level: TBD — deferred** row.

@@ -479,6 +479,16 @@ Survivor. Analyst. Builder. Alone. Just died and came back. Has a voice in his h
 
 Book 1 ends with Marcus tied to Eriadne — not in control of it, but essential to it. The old guild identity is dead. The new question is whether these powerful, changed people can align without becoming enemies.
 
+### The Frame–Reality Spine — opening ↔ ending mirror
+
+The book's deepest mirror is **thematic, not romantic**: it is Marcus's relationship to *the frame vs. the reality*. The romance is the **delivery mechanism** — Serra is the reality that finally refuses to fit a model. The arc runs in **three stages**, and the Eyes of Meszkhal are his own opening flaw externalized and weaponized — which is why rejecting them is rejecting *himself-at-the-start*:
+
+1. **Start — accuracy is enough.** A professional frame-builder (ML engineer, gamer): build models, find patterns, generate predictions. Credo: *"the model doesn't need to understand* why *— if the prediction is accurate, that's what matters."* He treats **being right as understanding.**
+2. **Middle — accuracy is authority** (the Eyes). The flaw escalates into *"if the prediction is true, reality owes me"* — the Eyes' voice (at the severance: *"if she leaves, she never truly chose you"*).
+3. **End — reality wins.** He rejects the Eyes' interpretation for a painful truth (*"No. Reality is more complicated than that."*), and the **Neurochromatic Eyes awaken** at the moment he chooses reality over the model. Thesis crystallized: **prediction isn't understanding; observation isn't ownership; accuracy isn't authority** (relationship form: *perception and desire do not grant authority* — `marcus_serra_relationship.md` §11).
+
+**The opening must plant the credo *and the crack.*** Opening-Marcus is **right, rewarded, and already uneasy** — never smug. The Astria control-cohort anomaly is the crack on page one: a prediction accurate *for reasons his own credo can't explain* (*"something else is doing the work, and I'm getting paid for it"*) — and **he files it away rather than look at it.** The whole book turns him back around to it. **Calibrate opening-Marcus to *"accuracy is enough,"* not *"reality should obey"*** — the latter is the *Eyes'* stage-2 position; giving it to him on page one leaves the Eyes nowhere to take him. (See `### Central Thematic Sentence`, `### Thematic Resonance`, and `dominion_realm_story_bible.md` — "accurate perception paired with a flawed interpretation model.")
+
 ---
 
 ## Open Questions
