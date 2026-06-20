@@ -25,6 +25,7 @@
 |---|---|
 | Relational invariants (standing, recognition, dynamic) | `relationship_invariants.md` |
 | Relationships; Marcus↔Serra; the Earth Thing (ordinary description; **defers to `relationship_invariants.md`** on any standing/recognition/dynamic fact) | `relationship_map.md` |
+| The **Marcus–Serra relationship** — conflict engine, progression, motifs, guardrails (the series-spine pairing; governs with INV-1/INV-3 + `forbidden_drift.md` #10; does **not** own chapter placement or days) | `characters/marcus_serra_relationship.md` |
 | How relationships are *written* (Critic enforcement; RR1–RR8) — **style**-tier, sibling to `prose_clarity_rules.md` | `relational_clarity_rules.md` |
 | Power models (Character-Origin + Realm power stack), cast power table | `character_power_architecture.md` |
 | Class taxonomy, rarity tiers, specializations | `classes.md` |
@@ -54,6 +55,7 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 | `relationship_invariants.md` | ✅ current (new) | Owner file for relational facts; INV-1…INV-6. Wins over `relationship_map.md` on standing/recognition/dynamic. |
 | `relational_clarity_rules.md` | ✅ current (new, style) | Style-tier Critic enforcement (RR1–RR8); lives in `novel/style/`, sibling to `prose_clarity_rules.md`. |
 | `relationship_map.md` | ✅ current | Ordinary relational description; **defers to `relationship_invariants.md`**. |
+| `marcus_serra_relationship.md` | ✅ current (new) | Relationship bible for the series-spine pairing (conflict engine / progression / motifs / guardrails). Governs with INV-1, INV-3, `forbidden_drift.md` #10; defers to `book1_chapter_timeline.md` on placement and `master_timeline.md` on days. |
 | `character_power_architecture.md` | ✅ current | — |
 | `canon_index.md` | ✅ this file | — |
 | `book1_chapter_timeline.md` | 🔧 updated this batch | Act 5 finale choreography pending |
@@ -102,6 +104,14 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 - **Champion / empower-others** framing for Seb (retired)
 - **Fire-mage Brent** (retired — Brent's Aetherfall role is **Healer/Support / squad medic**, confirmed on-page in SCENE-001; never a fire mage)
 - **Veilwalker / Ashblade** as Marcus's class on Earth or as live Earth vocabulary (do not leak Realm terms into Earth context)
+
+---
+
+## Project Canon Principle (applies project-wide, beyond any one pairing)
+
+> **Canon exists to preserve the strongest story decisions. Story decisions do not exist to preserve canon.** An invariant remains locked only while the narrative function it protects remains necessary and superior to the alternatives.
+
+*(Lives also in `marcus_serra_relationship.md` §12, where it was first stated.)*
 
 ---
 

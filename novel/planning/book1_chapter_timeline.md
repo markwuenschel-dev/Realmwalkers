@@ -8,7 +8,7 @@ status: working
 
 > **Purpose:** maps the confirmed event spine (`master_timeline.md`) into chapters. The master timeline owns *events & day numbers*; this file owns *chapter boundaries & POV*. Where they disagree, the master timeline wins on facts. Precedence: see `canon_index.md`.
 > **Status:** chapter **boundaries and counts are proposed**, not locked — reconcile against the live chapter file before relying on numbers. All *canon content* below is current as of the cosmology/class passes (Riftwalker, Neurochromatic Eyes + Meszkhal item, Warrior/Psion/Adventurer/Scout/Reaver, the named factions, Myrmidon finale, Mathias lives).
-> **POV:** Marcus/Soren is the spine. Scattered-cast chapters are marked **⟢ INTERLUDE (POV)**. Scope: Earth → ~Realm Day 110.
+> **POV (series split):** Marcus/Soren ~60–70% (the spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV** (genuine second-POV with her own throughline — see `marcus_serra_relationship.md` §9); the other four keep **⟢ INTERLUDE (POV)**. *Structural note: the prior "Serra trapped in interludes" tension is resolved — she is the deuteragonist with a real arc, no longer a scattered-cast interlude.* Scope: Earth → ~Realm Day 110.
 
 ---
 
@@ -16,17 +16,24 @@ status: working
 
 **Ch 1 — "Aim Not Found"** · *Marcus* · Earth Day 0
 - Ordinary world: Marcus Fahr, **ML engineer at Astria**, late on a model anomaly — a control cohort converging on outcomes it was never touched to produce. He distrusts a confident model that can't explain itself. *(The steering/selection hook — something outside the model is producing the results; it rhymes with the implant being a receiver.)*
-- The scrim: **404: Aim Not Found (#25) vs. Dead Hand (#3).** Seb (lead), Brent, Mathias present. The **Marcus/Serra duel** — skill parity is **FIXED** (equals, *revealed* not earned); recognition is **EARNED and one-directional** (Serra→Marcus); the duel is *interrupted before it resolves.* (Governed by INV-1, `relationship_invariants.md`.) **Mara is hidden in the scrim — neither Marcus nor Mathias identifies her** (introduction by absence).
+- The scrim: **404: Aim Not Found (#25) vs. Dead Hand (#3).** Seb (lead), Brent, Mathias present. The **Marcus/Serra duel** — skill parity is **FIXED** (equals, *revealed* not earned); recognition is **EARNED and one-directional** (Serra→Marcus) and lands **by play** — Marcus IDs Dead Hand's assassin through her *decision architecture* (target selection, attacking *through* interference, converting a failed entry into a second attack), **faceless, no biometric/face reveal** (that mechanic is banked — see `marcus_serra_relationship.md` §14). They also reproduce the celebration's escalating mutual attention **without** recognizing the opponent's personal identity — an *unrecognized resonance*, not a recognition (INV-1 Axis B-resonance). The duel is *interrupted before it resolves.* (Governed by INV-1, `relationship_invariants.md`.) **Mara is hidden in the scrim — neither Marcus nor Mathias identifies her** (introduction by absence; **Dead Hand's salience-suppressed second assassin, Serra's tandem — never surfaced**, the dark roster slot Mathias flags).
+- **The team cost — "one exchange too long":** the duel runs **one exchange past tactical necessity**; a gap opens and **both teams pay** (a casualty / lost objective / formation hole). **Seb calls Marcus off** — *"Marcus, break contact." "…return to formation." "Marcus."* — and Marcus hears him and **stays one exchange longer.** Plant: *their mutual attention becomes exclusionary; others absorb the cost.* (Astria's seize interrupts before it resolves; see `marcus_serra_relationship.md` §4.)
 - The hijack: Astria seizes the session. **Roth's voice** runs consent-capture as cold procedure (not a pitch); an **Astria-manufactured tornado "boss"** voids scrim logic; logout is dead. *"Participation remains voluntary."*
 - **Seb's brother dies during the scrim** — the rescue lever collapses in real time; Seb's coming consent is **grief, not rescue.** Brent says "it's a gun" once, after the coercion is concrete.
 - Marcus, Seb, Brent, Mathias verbally consent under duress.
 
+**⟢ DISCORD BRIDGE** (short — Ch 1's tail into Ch 2) · *Marcus / Serra*
+- The locked exchange continues off the scrim into a brief Discord thread: two people who clearly have prior history, each **misreading** it — *she thinks she reopened the door; he thinks she contained the kiss* (INV-1 who-knows ledger, "Discord" row). Compact and oblique; the reader feels weight without the cause.
+- *(Chronology note: the celebration/altana/kiss this misreads predate the scrim; per option C their full content is withheld until Serra's Realm-arrival flashback — Ch 6A. Marcus may decline to dig her guild via Discord because, after kissing her, it feels invasive — see `marcus_serra_relationship.md` §4.)*
+
 **Ch 2 — The Facility** · *Marcus* · Earth Day 1
 - Pickup (Eldrin, Selia); flight to the California R&D facility; meets Withers, Vail; patio reunion with Seb/Brent/Mathias.
-- **Serra Hawthorne arrives** — introduces herself from Dead Hand; the wink (first in-person Marcus/Serra beat; reader-recognition, no visible romance). **Mara arrives late.**
+- **Serra Hawthorne arrives** — introduces herself from Dead Hand; the wink (first in-person Marcus/Serra beat; reader-recognition, no visible romance) — *this surface now reads as the cover over the staggered reveal below.* **Mara arrives late.**
+- **Personal recognition — staggered (the Earth-sequence emotional climax):** identity lands *after* the scrim, here, asymmetrically — and does **not** retroactively make the in-duel recognition mutual. **(1) Marcus first:** the altana woman + the studied pro + the anonymous opponent collapse into one person — Serra *was* Dead Hand's assassin (a second dimension on someone already compelling; strong, but he stays functional). **(2) Serra second — the larger detonation:** Marcus was the anonymous Aspect; it injures a professional read she trusts (*"not incompetent — I mistook the distance between competent and dangerous"*) and means she **selected him twice without knowing.** Stage it asymmetrically and **stay with her half.** (INV-1 Axis D; `marcus_serra_relationship.md` §4 + who-knows ledger.)
 - Conference room: **LeBlanc, Roth, Withers** lay out terms and risks; unanimous formal consent; medical exams.
 
 **Ch 3 — Reins** · *Marcus → LeBlanc* · Earth Day 1, night
+- **Pre-surgery — one narrow personal beat:** acknowledges the growing shared history, **resolves nothing about the kiss, declares no relationship**, and ends on Serra's **"See you after, Marcus."** *(Weight the reader can't yet fully cash — the altana that charges it lands in Serra's Ch 6A flashback; see `marcus_serra_relationship.md` §4.)*
 - Implant surgery (all six).
 - **⟢ LeBlanc & Roth's private conversation (LeBlanc POV):** the hidden broker's voice — *"We will take the reins in the Dominion Realm."* The first on-page sign that an agent of the **Soulkeepers' Exchange** has shaped Astria from outside.
 - The six wake in the limbo void; the voice explains the Realm and the **Eriadne directive**; the mists separate them.
@@ -48,6 +55,11 @@ status: working
 - Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" and **chooses "Soren" himself.**
 - *(End of the currently drafted manuscript ≈ here.)*
 
+**⟢ SERRA POV — Ch 6A — Realm Arrival** · *Serra* · ~Days 1–3 · **(inserted; lettered to avoid renumbering Chs 7–30 — see Open Questions)**
+- Serra wakes in the Realm; **Marcus absent / presumed unreachable.** Her first true POV chapter — graduating her from interlude to deuteragonist (§9).
+- **The full altana flashback lands here — her side, her misread** (option C). The celebration / altana / **Discord origin** content is delivered now, as flashback: the reader learns she believed she'd **left an opening**, which **retro-charges "See you after, Marcus."** (`marcus_serra_relationship.md` §4, §9.)
+- Establishes what the kiss and Discord meant to her, her present-tense authorship, and the suppressed romantic charge (INV-1 Axis C) — and opens her Book-1 throughline.
+
 ---
 
 ## ACT 3 — THE FALSE RESCUE (Days ~3–23) · *Marcus + Serra*
@@ -61,19 +73,20 @@ status: working
 **Ch 10 — The Iron Vultures** · Day ~9 · The Vultures (were watching) offer **utility, not friendship.** The group travels with them.
 
 **Ch 11 — Weather** · Days ~9–13 · Travel/skill period: Serra's **Warrior fundamentals** surface (her body ahead of her training; first whisper of pressure); Marcus's Eyes → Stage 2. The Vultures explain the **False Rescue system** as *weather*, not confession. Serra goes still.
+- **⟢ SERRA POV (early False Rescue):** Marcus affecting her; what she notices about his **post-resurrection instability** (analysis as the thing holding him together); why his presence is **both grounding and dangerous.** (§9.)
 - **⟢ INTERLUDE (Seb):** lands desolate → enslaved / forced labor.
 - **⟢ INTERLUDE (Mara):** lands in a stratified **court city-state**; taken in for her beauty by a decent patron.
 
 **Ch 12 — Maera Vell** · Days ~14–15 · The roadhouse. **Genuine** warmth — soup, a blanket, the first rest since he died. Marcus over-shares. She reports him to the magistrate-guild (off-screen) because the guild pays and not reporting has consequences. *The Eyes read her correctly; the model was wrong — warmth ≠ loyalty.*
 
-**Ch 13 — The Ledger** · Days ~15–16 · The magistrate-guild arrives. **The elven child is namebound and taken** — a quiet ritual; "debt resolution," never "slavery." Serra recognizes the shape (manufactured emergency, monetized rescue) and goes still. Marcus's home-building ache surfaces.
+**Ch 13 — The Ledger** · Days ~15–16 · The magistrate-guild arrives. **The elven child is namebound and taken** — a quiet ritual; "debt resolution," never "slavery." Serra recognizes the shape (manufactured emergency, monetized rescue) and goes still — *she grasps the system-level meaning (imposed identity / ownership) before Marcus does* (seed of her registry mission; §9). Marcus's home-building ache surfaces.
 - **⟢ INTERLUDE (Mathias):** solo near the **ruins**; first contact with a Xyloryn drone; begins loading his **Scout** class through research.
 
 **Ch 14 — The Pursuit & The Pitch** · Days ~16–19 · All groups move the same direction. Marcus wants to *save the child*; Serra wants to *stop the wrong* — same target, different drive. The Vultures won't fight a sanctioned op for morals, so the pitch is **practical** (the magistrate's haul; the office is attached to no larger power). They join with conditions.
 
 **Ch 15 — The Operation & The Split** · Days ~19–21
 - Chaotic intervention. **Marcus extracts the elven child; others don't make it** — it marks him; he doesn't get to save everyone.
-- **Serra kills the magistrate** (a decision, off-page from Marcus's POV). She learns he's a **node, not the source** — names are sub-leased from a master registry — and takes a **registry-fragment.** Her interface unlocks for real here.
+- **⟢ SERRA POV — Serra kills the magistrate** (a deliberate killing; off-page from *Marcus's* POV but **on-page in hers**). The registry-fragment discovery: she learns he's a **node, not the source** — names are sub-leased from a master registry — takes a **registry-fragment**, and **chooses to pursue the network.** Her interface unlocks for real here. She leaves **not because Marcus failed her** but because she's found something she can't ignore. (§9.)
 - **The separation:** no speech. The Earth Thing at its heaviest yet. She leaves toward a larger faction's seat — the **Court of Seals**, a limb of the cosmic **Aurelian Sovereignty** (she doesn't know that name yet). Marcus can't follow.
 - **⟢ INTERLUDE (Brent):** alone for a long stretch, then finds a different group (not the Vultures); his **Adventurer/Keystone Integrity** path begins through use.
 
@@ -83,7 +96,7 @@ status: working
 
 **Ch 16–17 — The Long Road** · Compressed travel toward Eriadne: rumors of the thread city; the standalone **playful-chaos defusion** beat; the Eyes' emotional-leak social cost; a first **Xyloryn diagnostic hint**; the felt ley pull. Reaches Eriadne's outskirts ~Day 45.
 - **⟢ INTERLUDE (Seb):** kills his captor **barehanded** → *then* the broker (Soulkeepers' agent) speaks — *"you can have more,"* dangling the brother's soul. **Reaver + Threshold Cascade** ignite. Shortest arc; straight toward Eriadne; among the most powerful.
-- **⟢ INTERLUDE (Serra):** solo hunt — recognition of *one independent namebound stranger*; learns the registry runs higher; carries the fragment toward the Court of Seals; ends **unfinished.**
+- **⟢ SERRA POV — First Solo Chapter:** solo hunt — recognition of *one independent namebound stranger*; learns the registry runs higher; carries the fragment toward the Court of Seals; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. (§9.)
 
 ---
 
@@ -109,6 +122,7 @@ status: working
 **Ch 24 — Pressure** · Days ~80–90 · The threat becomes more than rumor; Marcus's position turns politically vulnerable.
 
 **Ch 25 — The Reunion** · ~Day 95 · *Marcus + Serra* · **Serra returns, changed.** He reads what it cost her; she won't confirm. Reunion becomes tension — her mission vs. his fragile position.
+- **⟢ SERRA POV (return-at-cost):** she returns at **real cost** — a lost lead, surrendered momentum, exposure; **Marcus may never fully know what she sacrificed to come back.** (Return toward convergence; §9.)
 - **⟢ INTERLUDE (Mathias):** confirms the **Xyloryn and the portal** near the ruins; becomes the group's warning no one wants to hear.
 
 **Ch 26–28 — The Myrmidon** · Days ~98–104 · ⚠ *finale choreography pending* · *Ensemble*
@@ -128,7 +142,7 @@ status: working
 
 | Character | Shape across Book 1 | Converges |
 |---|---|---|
-| **Serra** | Splits in Act 3 → solo registry-hunt (Court of Seals / Aurelian Sovereignty) → ends unfinished → returns Act 5 | Ch 25 reunion |
+| **Serra** *(⟢ SERRA POV — deuteragonist, **not** interlude)* | Realm arrival (Ch 6A, altana flashback) → early False-Rescue POV → magistrate kill (her POV, Ch 15) → first solo chapter / registry-hunt (Court of Seals / Aurelian Sovereignty; ends unfinished) → return-at-cost | Ch 25 reunion |
 | **Seb** | Desolate → enslaved → kills captor barehanded → broker speaks → shortest arc (Reaver + Threshold Cascade) | ~Act 4/5 (off-page until late) |
 | **Mara** | Court city-state → predator weaponizes regard → un-salient exposure (Psion/Mirror-Salience) → routed out | Ch 21 |
 | **Mathias** | Solo near ruins → finds Xyloryn + portal → loads Scout → the warning; **lives** (injured finale) | Ch 25 / finale |
@@ -136,6 +150,8 @@ status: working
 
 ## Open Questions
 - Chapter **count & boundaries** are proposed — reconcile with the live chapter file. *(file-local)*
+- **Earth-origin delivery (option C):** the full Earth origin (celebration / altana / Discord) is **not** an Act-1 chapter — it is delivered as **flashback in Serra's first Realm POV (Ch 6A — Realm Arrival).** Ch 1 cold-opens on the scrim; the altana never fronts a chapter.
+- **Ch 6A renumber flag:** the inserted Serra-POV arrival chapter is **lettered Ch 6A** (not renumbered) to avoid shifting Chs 7–30. If a later pass prefers sequential numbering, renumber 7→8 … 30→31 and update cross-refs.
 - The **Act 5 finale staging** in Ch 26–28 is the most-developed *proposal* and remains **pending / not locked** (see the ⚠ at that chapter).
 - All other open items (day-spacing, CAL-02/03, W-01, who loosed the Xyloryn) are tracked in `unresolved_character_threads.md`.
 
