@@ -1,11 +1,11 @@
 ---
-id: soren
-name: Soren
-aliases: [soren, marcus, marcus fahr]
+id: marcus
+name: Marcus
+aliases: [marcus, marcus vye, marc]
 kind: character
 status: active
 ---
-# Soren — Character File (Protagonist)
+# Marcus — Character File (Protagonist)
 
 > **Status:** Active — primary narrative lens
 > **Last updated:** working draft
@@ -15,10 +15,12 @@ status: active
 
 ## Identity
 
+> **Names —** **Full:** Marcus Vye · **Public / Realm:** Marcus (he uses his real name; no alias) · **Intimate short:** **Marc** (only people he lets in — e.g. Serra as she is let in, close 404 guildmates; a relationship beat, not a default) · **True name:** separate, hidden, deferred (**S-09**) — this is what Ayla's "never say your true name" warning protects, *not* "Marcus."
+
 | Field | Value |
 |---|---|
-| Earth Name | Marcus Fahr |
-| Realm Name | Soren (chosen by him in the Realm — original name Marcus) |
+| Earth Name | Marcus Vye |
+| Realm Name | **Marcus** — no alias; he keeps his real name (refusing to perform a new self) |
 | True Name | Dangerous and hidden — unassigned in canon; can be used for metaphysical control |
 | Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
@@ -43,13 +45,13 @@ status: active
 
 **Body language:** still when thinking; watches people closely; crosses his arms without realizing (reads as more guarded than he feels); animated and playful when comfortable; eyes sharpen and posture locks when stressed.
 
-**Realm (Soren):** more severe over time — leaner, more weathered, eyes increasingly uncanny; the shaved head keeps him stark. The Neurochromatic Eyes are the one beautiful/weird feature on an otherwise grounded, physical frame: under stress the limbal ring catches color first, then the iris goes opalescent/oil-slick (blue, violet, emerald, amber, crimson, white-gray by channel); at overdrive the beauty turns unsettling — vascular strain, too-sharp pupil edges, too much attention behind the gaze. *Marcus looks like a man trying to understand the world; Soren looks like a man learning that understanding is not the same as safety.*
+**Realm:** more severe over time — leaner, more weathered, eyes increasingly uncanny; the shaved head keeps him stark. The Neurochromatic Eyes are the one beautiful/weird feature on an otherwise grounded, physical frame: under stress the limbal ring catches color first, then the iris goes opalescent/oil-slick (blue, violet, emerald, amber, crimson, white-gray by channel); at overdrive the beauty turns unsettling — vascular strain, too-sharp pupil edges, too much attention behind the gaze. *On Earth he looked like a man trying to understand the world; in the Realm, like a man learning that understanding is not the same as safety.*
 
 ---
 
 ## Core Identity
 
-Soren is a principled, high-agency protector-builder whose deepest drives are integrity, competence, responsibility, connection, and meaning. He is not primarily motivated by status, dominance, or winning, but recognition still matters to him: he wants his effort, usefulness, originality, and moral intent to be seen accurately.
+Marcus is a principled, high-agency protector-builder whose deepest drives are integrity, competence, responsibility, connection, and meaning. He is not primarily motivated by status, dominance, or winning, but recognition still matters to him: he wants his effort, usefulness, originality, and moral intent to be seen accurately.
 
 He wants to make things work, prevent harm, and still be able to respect himself afterward. He wants warmth first and understanding second. When someone offers kindness, his instinct is to trust it too quickly. This creates vulnerability in a world where warmth can be sincere, manipulative, transactional, or magically weaponized.
 
@@ -57,7 +59,7 @@ His pride is tied to agency. He needs to believe intelligence, effort, courage, 
 
 ### Central Thematic Sentence
 
-> Soren is a principled, high-agency protector-builder who believes effort, clarity, and courage should be able to move reality: when resourced, he creates safety, meaning, and connection; when overloaded, ambiguity becomes threat, helplessness becomes control, and perceived moral failure becomes identity collapse, until he rebuilds a self that can remain worthy and connected without forcing certainty, outcomes, or reciprocity.
+> Marcus is a principled, high-agency protector-builder who believes effort, clarity, and courage should be able to move reality: when resourced, he creates safety, meaning, and connection; when overloaded, ambiguity becomes threat, helplessness becomes control, and perceived moral failure becomes identity collapse, until he rebuilds a self that can remain worthy and connected without forcing certainty, outcomes, or reciprocity.
 
 ---
 
@@ -100,7 +102,7 @@ His most dangerous inner collapse is **identity contamination**. Not "I made a m
 
 ### The Operator Without a Self
 
-Under prolonged survival pressure, Soren can reduce himself to the part that can still function.
+Under prolonged survival pressure, Marcus can reduce himself to the part that can still function.
 
 He still acts responsibly. He still builds, organizes, solves, documents, and prevents harm. The competence is real. But his felt self narrows until he becomes a manager of tasks, risks, dependencies, and outcomes rather than a person inhabiting a life.
 
@@ -119,7 +121,7 @@ Helplessness wounds him twice:
 
 ### Receiving Recognition
 
-Soren wants his competence, usefulness, originality, and effort to be accurately seen. But direct praise makes him feel exposed.
+Marcus wants his competence, usefulness, originality, and effort to be accurately seen. But direct praise makes him feel exposed.
 
 He may deflect with humor, minimize the achievement, ask for evidence, or quietly test whether the praise is specific or generic. He does not reject all praise. He audits praise.
 
@@ -292,7 +294,7 @@ Dysregulated Marcus cross-examines, introduces every exception, revises definiti
 
 ### Earth Life
 
-Marcus Fahr is a **machine-learning engineer at Astria** — the model-building kind, working on predictive systems (aptitude/performance/retention models among them). A systems thinker by training and a gamer by temperament: he sees structure under everything and can't stop optimizing it.
+Marcus Vye is a **machine-learning engineer at Astria** — the model-building kind, working on predictive systems (aptitude/performance/retention models among them). A systems thinker by training and a gamer by temperament: he sees structure under everything and can't stop optimizing it.
 
 His first glimpse behind Astria's curtain is professional, not dramatic — a model anomaly he can't explain: a **sealed control cohort that converges** on outcomes it was specifically built **not** to act on, as if something *outside* the model is reaching in and arranging the results to match, while the model takes the credit. He's traced it for two weeks; it isn't a leak (he knows what leaks look like — he's found three this year). He notices because noticing is the job. It is the first thread of the steering/selection truth he won't understand until much later. *(SCENE-001 — confirmed on-page: "Something else is doing the work, and I'm getting paid for it.")*
 
@@ -378,7 +380,7 @@ Finite ocular reserve: oxygen, glucose, neurotransmitter load, vascular toleranc
 
 Overuse causes: eye burning, blurred color perception, migraines, blood tears, broken vessels, damaged iris fibers, emotional feedback loops, permanent distortion if abused badly enough.
 
-Until mastery, Soren cannot fully turn the eyes off. He can only suppress, redirect, or overdrive them.
+Until mastery, Marcus cannot fully turn the eyes off. He can only suppress, redirect, or overdrive them.
 
 **Biggest internal danger:** Emotional feedback lock. The eye amplifies a state, the state changes perception, perception reinforces the state, the loop tightens.
 
@@ -398,7 +400,7 @@ Chromatic limbal ring. Opalescent iris sheen with flowing gradients. Oil-slick r
 
 His powers externalize his psychology. He sees patterns. He sees too much. He learns quickly from observation. He reads people, systems, combat, and magic. He is vulnerable to false certainty. He is tempted by powers that promise to remove ambiguity.
 
-**Parallel to Serra's system:** Soren sees the weak point. Serra makes it fail.
+**Parallel to Serra's system:** Marcus sees the weak point. Serra makes it fail.
 
 ---
 
@@ -418,7 +420,7 @@ The five terms of the boulder bargain, explicit:
 
 ## Best Temptations
 
-Soren is not primarily tempted by greed or domination. He is tempted by certainty, absolution, and control over ambiguity:
+Marcus is not primarily tempted by greed or domination. He is tempted by certainty, absolution, and control over ambiguity:
 
 - "Let me show you what they really think."
 - "Let me remove ambiguity."
@@ -443,19 +445,19 @@ He will read her accurately when they reunite — she's changed, and he'll know 
 *Current status:* Separated. The Earth thing still unaddressed.
 
 ### Sebastion "Seb" Rainier
-Mirror-rival dynamic. Both care deeply. Both are high-agency. Both fear helplessness. Seb chooses control. Soren must learn connection. They are the same drive expressed in opposite directions.
+Mirror-rival dynamic. Both care deeply. Both are high-agency. Both fear helplessness. Seb chooses control. Marcus must learn connection. They are the same drive expressed in opposite directions.
 
 ### Ayla
 Voice in his head. Ancient celestial consciousness attached to his implant after his first death. Mentor, but unreliable and incomplete. She helps him ask better questions, not hand him easy answers. She should not solve too much.
 
 ### Mara Valeria
-Mara challenges Soren's tendency to treat systems as puzzles rather than communities. She reminds him that people are not resources, projects, or variables.
+Mara challenges Marcus's tendency to treat systems as puzzles rather than communities. She reminds him that people are not resources, projects, or variables.
 
 ### Mathias Sterling
-Challenges Soren's growth and building instincts. Asks what the land can survive, not just what the settlement needs.
+Challenges Marcus's growth and building instincts. Asks what the land can survive, not just what the settlement needs.
 
 ### Brent Donovan
-Grounds Soren. Turns abstract problems into practical constraints. Useful when Soren is trapped in analysis.
+Grounds Marcus. Turns abstract problems into practical constraints. Useful when Marcus is trapped in analysis.
 
 ---
 
@@ -475,14 +477,14 @@ Survivor. Analyst. Builder. Alone. Just died and came back. Has a voice in his h
 
 ### End Direction
 
-Book 1 ends with Soren tied to Eriadne — not in control of it, but essential to it. The old guild identity is dead. The new question is whether these powerful, changed people can align without becoming enemies.
+Book 1 ends with Marcus tied to Eriadne — not in control of it, but essential to it. The old guild identity is dead. The new question is whether these powerful, changed people can align without becoming enemies.
 
 ---
 
 ## Open Questions
 
 - ~~Earth name~~ — **Marcus** (resolved).
-- ~~Does he choose "Soren" himself?~~ — **Yes** (resolved).
+- ~~Does he rename himself in the Realm?~~ — **No; he keeps his own name (Marcus)** (resolved).
 - ~~What does he build in/near Eriadne that makes him politically relevant?~~ **Resolved (S-05):** in B1 he **claims a foothold only**; relevance comes from **utility + perception + the Myrmidon.** Settlement-building is **Book 2.**
 - What is his first serious wrong read — who does he trust too fast and what does it cost?
 - What price does the ocular system demand first?
@@ -520,7 +522,7 @@ The following elements originate entirely from the author's writing and should b
 - The death and resurrection sequence
 - Ayla's introduction as a wisp — her voice, her dry contempt, "No idiot, an inanimate machine is not spontaneously talking to you"
 - The DNA/quantum computing concept: the implant uses quantum AI processing fused with human DNA as dense biological storage — this is the author's original concept and the foundation of the entire magic translation system
-- The name Phoenix being considered and rejected (useful for the naming scene — Marcus tries Phoenix, sees it appear on his status, and chooses differently)
+- The name Phoenix being considered and rejected (useful for the naming scene — Marcus tries Phoenix, sees it appear on his status, and **keeps his own name instead**, refusing the game-handle)
 
 
 ---

@@ -14,7 +14,7 @@ rather than confronting.
 Third-person limited, anchored entirely in Mara's perception. Her mind maps attention and salience:
 who is being made to look where, what everyone has silently agreed to ignore, which reading is
 becoming the room's truth. Her motion: **observe the attention map → identify the omitted fact →
-decide what must become visible → say only enough to redirect.** Less associative than Soren, less
+decide what must become visible → say only enough to redirect.** Less associative than Marcus, less
 momentum-driven than Serra; her narration notices omissions and emphasis, and treats attention as
 something that *organizes* reality rather than merely revealing it. She is not shy — she's deciding
 whether your attention is accurate and worth meeting.
@@ -32,7 +32,7 @@ land as a correction to what everyone else unconsciously accepted.
 
 ## Humor
 Dry, quiet, built on reframing — often delayed half a beat, and more visible one-on-one than in a
-group. Where Soren makes an unexpected connection, Mara exposes the assumption that made the situation
+group. Where Marcus makes an unexpected connection, Mara exposes the assumption that made the situation
 absurd. ("That plan is excellent, provided the enemy agrees to misunderstand us in exactly the right
 order.")
 
@@ -58,7 +58,7 @@ mind control.
 > Dialogue (how Mara speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
-- **Soren** — mutual respect through pattern recognition; he asks how the system works, she asks what
+- **Marcus** — mutual respect through pattern recognition; he asks how the system works, she asks what
   everyone is being made to notice. She values it when he accurately reconstructs her reasoning; their
   shared danger is treating interpretation as a controllable system.
 - **Serra** — complementary: Serra reads the emotional field, Mara maps the attention structure. Serra
@@ -80,6 +80,6 @@ mind control.
   expectation.
 - Don't let her salience ability become generic mind control, and don't make her enjoy attention
   merely because she can command it.
-- Don't make Soren the only person capable of seeing her accurately.
+- Don't make Marcus the only person capable of seeing her accurately.
 - Keep her distinct from Serra: attention map vs emotional field, revoked access vs direct closure,
   reframing vs momentum.

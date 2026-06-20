@@ -202,9 +202,23 @@ The interface sometimes:
 ## The Naming System
 
 True names are metaphysically dangerous — resistance is governed by **Soul Level** (`mechanics.md`): **any soul can be bound or overwritten in principle; Soul Level governs the difficulty and cost, not whether it's possible** — low/average souls are cheap and routine (what the namebinding faction preys on), high souls prohibitively costly, and the top tiers (Brilliant → Absolute) approach but never quite reach true immunity. This keeps "Absolute = near-immutable identity" intact. The interface enforces this:
-- Marcus's status shows `????` for his name until he chooses a Realm alias
-- Choosing his real Earth name (Marcus Fahr) would make it visible — and usable by anyone who could read his status
-- Ayla's warning is absolute: never say your true name
+- His **public name** ("Marcus," full **Marcus Vye**) is safe to speak openly — it is *not* his true name. He keeps it in the Realm; he does **not** take an alias.
+- His **true name** is separate and hidden, sitting *below* the layer the implant reads (his status shows `????` there, never "Marcus") — that is the name that could bind or overwrite him if spoken.
+- Ayla's warning is absolute: never say your true name — the hidden one, not "Marcus."
+
+The distinction, in Ayla's words:
+
+> **Marcus:** "You're saying I shouldn't tell people my name?"
+>
+> **Ayla:** "No, idiot. I'm saying you shouldn't tell people your real name."
+>
+> **Marcus:** "Marcus is my real name."
+>
+> **Ayla:** "Marcus is one of them."
+>
+> **Marcus:** "One of them?"
+>
+> **Ayla:** "You are using the vocabulary of a species that names pets and sandwiches. The distinction is important."
 
 **Narrative use:** True names are a later-story tool. The danger established early becomes plot-relevant when something needs his true name to do what it does. Do not assign casually. Track in `unresolved_character_threads.md` when it becomes relevant.
 

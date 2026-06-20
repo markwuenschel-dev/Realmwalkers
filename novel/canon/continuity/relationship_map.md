@@ -45,7 +45,7 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 **Core tension:** He sees too much and she keeps the real stuff guarded. He ruminates on what he reads; she's already decided. He wants warmth without conditions; she gives warmth freely but not the inside. They work. They are also genuinely hard for each other. This is not a problem to solve — it is the relationship.
 
-**Trajectory:** The Book 1 emotional climax is the finale fight that becomes a severance — working as a team one last time is the very thing that breaks them open. Book 2 inherits the question of whether a cut thread can be re-tied — pointed, given that Soren is the man who reads and walks threads and Serra is the woman who severs them. The romance and the plot are the same engine in two registers: **Soren builds threads; Serra cuts knots.**
+**Trajectory:** The Book 1 emotional climax is the finale fight that becomes a severance — working as a team one last time is the very thing that breaks them open. Book 2 inherits the question of whether a cut thread can be re-tied — pointed, given that Marcus is the man who reads and walks threads and Serra is the woman who severs them. The romance and the plot are the same engine in two registers: **Marcus builds threads; Serra cuts knots.**
 
 **What she gives him that no one else does:** She sees courage in him before he does. Specifically: she sees that he acts despite panic, not because he isn't afraid. He thinks his fear makes him weak. She knows otherwise.
 

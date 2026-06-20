@@ -18,7 +18,7 @@ The guild breaks. The six scatter across the Realm and are changed by separate t
 
 ## Naming & Identity
 
-- **Earth name:** Marcus. **Realm alias:** Soren — *he chooses it himself*, rejecting "Phoenix" as a performed gamer-tag. (Phoenix survives only as old handle / possible earned title.)
+- **Earth name:** Marcus Vye (public: **Marcus**). **No Realm alias** — he keeps his real name, rejecting "Phoenix" as a performed gamer-tag. His **true name** is separate, hidden, and deferred (S-09) — that, not "Marcus," is what Ayla's warning protects. (Phoenix survives only as old handle / possible earned title.)
 - **True names are metaphysically dangerous** and can be used for control. The weaponized form — **namebinding** (converting a person into a leash-able asset via their true name) — is central to the False Rescue region and Serra's solo arc. See `core_rules.md`.
 
 ---
@@ -37,7 +37,7 @@ The implant's role is **translation**: the Realm has real metaphysical laws; the
 
 *Essence only. Per-character power (Earth job · Aetherfall · Realm class · interface) is owned by `character_power_architecture.md`; psychology detail by the character dossiers. Not restated here.*
 
-### Marcus — "Soren" (primary POV)
+### Marcus (primary POV)
 A principled, high-agency protector-builder. He wants warmth first and understanding second; when someone offers kindness, he trusts it too quickly. **His core flaw is the engine of the series: accurate perception paired with a flawed interpretation model — he reads signals correctly and draws the wrong conclusion.** Resourced, he creates safety, structure, and specific, alive humor. Overloaded, his strengths invert: agency → control, accountability → self-prosecution, warmth-hunger → over-attachment, ambiguity → threat. His deepest danger is identity contamination — not "I made a mistake" but "I am the mistake." His arc: learn when to trust what he sees, when to question it, and when to stop looking and connect.
 
 ### Serra — "Serra"
@@ -84,7 +84,7 @@ Extra-planar entities/anomalies whose presence **denatures reality** — they do
 
 ## Plot Spine — Book 1
 
-Five acts: **(1) Earth & the False Choice** — Astria, the scrim hijack, coerced consent, transport. **(2) Scattering** — the mindscape; Marcus gains the Eyes of Meszkhal (item), dies, resurrects, Ayla attaches, chooses "Soren." **(3) First Threads / False Rescue** — finds Serra; the namebinding operation; the split. **(4) Eriadne** — the thread city; the ruin-fringe; Brent and Mara converge. **(5) Convergence & Fracture** — reunion → the Xyloryn invasion attempt (the Myrmidon) → the severance.
+Five acts: **(1) Earth & the False Choice** — Astria, the scrim hijack, coerced consent, transport. **(2) Scattering** — the mindscape; Marcus gains the Eyes of Meszkhal (item), dies, resurrects, Ayla attaches, **keeps his own name** (rejects "Phoenix"). **(3) First Threads / False Rescue** — finds Serra; the namebinding operation; the split. **(4) Eriadne** — the thread city; the ruin-fringe; Brent and Mara converge. **(5) Convergence & Fracture** — reunion → the Xyloryn invasion attempt (the Myrmidon) → the severance.
 
 Beat detail and chronology are owned by `master_timeline.md`; act purpose/themes by `book_roadmap.md`; scene briefs by `scene_queue.md`. Not re-narrated here.
 ---

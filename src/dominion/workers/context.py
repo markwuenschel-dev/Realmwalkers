@@ -28,18 +28,18 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]  # …/src/dominion/workers/
 _dialogue_rules_warned = False
 
 # In dialogue_rules.md the general craft is always-on, but each character's idiolect lives in a
-# Tool-2 profile headed by "### <Name>" (e.g. "### Marcus (Soren)"). We load the general rules
+# Tool-2 profile headed by "### <Name>" (e.g. "### Marcus"). We load the general rules
 # unconditionally and keep a character's profile only when they're in the scene — this caps the
 # always-on cost and stops an absent character's voice leaking into a POV that isn't theirs.
 _CHAR_BLOCK_RE = re.compile(
     r"^### (?P<header>[^\n]+)\n.*?(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL
 )
-# Ayla is Soren's in-head companion; her dialogue rules ride along whenever Soren is on the page.
-_BLOCK_ALIASES: dict[str, set[str]] = {"ayla": {"ayla", "soren", "marcus"}}
+# Ayla is Marcus's in-head companion; her dialogue rules ride along whenever Marcus is on the page.
+_BLOCK_ALIASES: dict[str, set[str]] = {"ayla": {"ayla", "marcus"}}
 
 
 def _header_names(header: str) -> set[str]:
-    """Names that pull in a profile block, parsed from its header. 'Marcus (Soren)' -> {marcus, soren}."""
+    """Names that pull in a profile block, parsed from its header. 'Marcus (Marc)' -> {marcus, marc}."""
     names = {n.strip().lower() for n in re.split(r"[(),/]| and ", header) if n.strip()}
     for name in list(names):
         names |= _BLOCK_ALIASES.get(name, set())

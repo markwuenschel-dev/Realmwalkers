@@ -839,7 +839,7 @@ He is not a Ranger because he likes killing things. He is a Ranger because Range
 
 ## Relationships
 
-### Marcus (Soren)
+### Marcus
 Natural dynamic. Marcus reads systems analytically and spirals inward. Mathias reads people experientially and moves outward. When Marcus is stuck in analysis paralysis, Mathias is probably the one who asks the single question that unlocks him — not because he diagnosed the problem, but because he was genuinely curious about what Marcus was thinking and Marcus ended up talking for an hour and figuring it out himself.
 
 Marcus's pattern-reading and Mathias's contact-making are complementary in specific ways. Marcus finds the hidden structure. Mathias makes contact with what's inside it.

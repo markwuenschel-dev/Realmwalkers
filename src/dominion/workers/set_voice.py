@@ -8,7 +8,7 @@ create the book by title, idempotent upsert (re-running with new text updates th
 second one). Scope is `voice_spec` only; exemplars are left untouched.
 
 Runnable as:
-    uv run python -m dominion.workers.set_voice --book "..." --character Soren --voice-file novel/voice/soren.md
+    uv run python -m dominion.workers.set_voice --book "..." --character Marcus --voice-file novel/voice/marcus.md
 """
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def main() -> None:
     )
     parser.add_argument("--book", required=True)
     parser.add_argument(
-        "--character", required=True, help="must EXACTLY match the chapter's pov, case-sensitive (e.g. 'Soren')"
+        "--character", required=True, help="must EXACTLY match the chapter's pov, case-sensitive (e.g. 'Marcus')"
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--voice-file", help="path to a utf-8 file holding the voice spec")

@@ -2,6 +2,9 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-20 — Marcus naming (Vye / no alias / Marc)
+> **Marcus Fahr → Marcus Vye.** "Soren" alias **retired** — Marcus does **not** rename himself; the self-naming beat becomes a **refusal of the game-handle** (keeps his real name = the anti-frame claim). "Marc" added as the intimate short form (people he lets in). His **true name** (S-09) remains the separate, hidden, deferred name Ayla's warning protects; "Marcus Vye" is the safe public name. Voice file `soren.md` → `marcus.md`.
+
 ## 2026-06-16 — soul/Ayla/Eriadne pass
 - **Bindability rule:** any soul bindable; **Soul Level = difficulty, not a gate** (`mechanics.md`, `core_rules.md`).
 - **Soul anchors:** elven child = **Strong**, Seb's brother = **Common**; six mains carry a **Soul Level: TBD — deferred** row.
@@ -50,7 +53,7 @@
 - Eyes split: **Neurochromatic Eyes** (interface, six stages) vs **Eyes of Meszkhal** (Unique item).
 - **Angelic Fortitude removed** (Zazriel gave no boon).
 - Marcus Realm class **Mage → Riftwalker** (Veilwalker retired); **Mara → Psion** (was Spellblade).
-- Marcus Earth identity **ML engineer at Astria** / name **Marcus Fahr** (Chad retired); hijacker **Roth**; **Seb's brother dies in the Day-0 scrim** (consent = grief).
+- Marcus Earth identity **ML engineer at Astria** / name **Marcus Vye** (Chad retired); hijacker **Roth**; **Seb's brother dies in the Day-0 scrim** (consent = grief).
 - **Mathias lives** (injured at finale); finale = **Xyloryn invasion, one Myrmidon**.
 - Opposing guild renamed **Dead Hand**; Aspect forms **Sentinel/Predator/Arbiter/Oracle**.
 - New owner files added: `relationship_invariants.md`, `relational_clarity_rules.md`, `classes.md`, `mechanics.md`, `cosmology.md`. *(Naming/true-name system is owned by `core_rules.md` → Naming System — no separate file.)*

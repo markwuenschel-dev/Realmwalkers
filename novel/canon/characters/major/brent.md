@@ -610,7 +610,7 @@ General IT field support at a large unglamorous organization — manufacturing c
 
 He actually likes the work. That is important. The problem is not the job — it is that when he does his job well, nothing dramatic happens, which means nobody notices. He is only visible when something breaks. His competence prevents problems. People rarely credit him for problems that never happened.
 
-He is not a genius hacker. Not a prestige programmer. Not Soren's intellectual peer in biotech terms. He is the guy crawling under the desk because someone making twice his salary unplugged the Ethernet cable. He has made his peace with this in a way that has not quite become bitterness but is sitting in that neighborhood.
+He is not a genius hacker. Not a prestige programmer. Not Marcus's intellectual peer in biotech terms. He is the guy crawling under the desk because someone making twice his salary unplugged the Ethernet cable. He has made his peace with this in a way that has not quite become bitterness but is sitting in that neighborhood.
 
 ### Why He Accepted Astria's Offer
 
@@ -656,7 +656,7 @@ The Aetherfall healer identity does not automatically carry over. Skills must be
 
 ## Relationships
 
-### Marcus (Soren)
+### Marcus
 A genuinely fun dynamic. Brent likes Marcus's playful chaos — the banter, the weird observations, the social disruption. He probably finds Marcus funnier than most people do.
 
 But Brent also thinks Marcus thinks too much.

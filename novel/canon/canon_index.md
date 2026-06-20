@@ -80,8 +80,8 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 ## Naming & Term Canon (global find/replace + do-not-use)
 
 **USE:**
-- Earth name **Marcus Fahr** (never ~~Chad~~) — the suited Astria figure may address him as "Mr. Fahr"
-- Realm alias **Soren** (Phoenix = rejected instinct / old gamer tag)
+- Earth name **Marcus Vye** (never ~~Chad~~) — the suited Astria figure may address him as "Mr. Vye"
+- **No Realm alias** — he keeps his real name, **Marcus** (rejects the gamer-tag instinct, "Phoenix" included); his **true name** is separate, hidden, deferred (S-09)
 - Earth guild = **404: Aim Not Found** (top-25 Aetherfall; "Aim Not Found" is an ironic name, NOT Marcus's role — he is an **Aspect**, four-form/adaptive, not an archer)
 - **Roth** = the suited Astria figure / the hijacker who commandeers the scrim (canon name; kept **unnamed on-page**; first on-page in SCENE-002, NOT SCENE-001)
 - **Kip** = 404 frontline warrior (recurring_minor); impatient forward-pressure foil to Mathias
@@ -117,7 +117,7 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 
 ## Drafting Readiness
 
-**Ready to draft now (canon locked):** the **opening** — Act 1 (Earth / Astria / scrim / coerced consent / LeBlanc hidden-voice) and Act 2 (mindscape → death → resurrection → Ayla → naming = Soren). The Marcus–Serra Earth Thing is locked, so the early emotional charge can be written.
+**Ready to draft now (canon locked):** the **opening** — Act 1 (Earth / Astria / scrim / coerced consent / LeBlanc hidden-voice) and Act 2 (mindscape → death → resurrection → Ayla → naming = keeps Marcus, refusing the game-handle). The Marcus–Serra Earth Thing is locked, so the early emotional charge can be written.
 → **Gate cleared (Batch 2):** the series bible is now consistent, so an agent can be pointed at the opening. (Batch 3 files are planning/tracking docs, not character/world references — they won't poison drafting, but should be finished before deep Act 3+ work.)
 
 **Not yet draft-ready (open):** Act 5 **finale choreography** (Xyloryn invasion × reunion × severance) and who forces the portal (W-05); Brent's first practical discovery (BR-02). *(Resolved: Seb = Warlord + disclosed-vs-hidden cost; Mara's post-court arc = the Walking Grove.)*

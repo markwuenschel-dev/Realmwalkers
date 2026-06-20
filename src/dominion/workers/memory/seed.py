@@ -80,7 +80,7 @@ def _extract_prose(body: str) -> str:
 
 
 def _normalize_pov(raw: str | None) -> str:
-    """Drop a parenthetical alias and collapse whitespace: 'Marcus (Soren)' -> 'Marcus'. Used
+    """Drop a parenthetical alias and collapse whitespace: 'Marcus (Marc)' -> 'Marcus'. Used
     verbatim as the chapter POV key, so it must match the voice/profile names you use elsewhere."""
     if not raw:
         return "Unknown"

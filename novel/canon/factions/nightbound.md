@@ -51,7 +51,7 @@ The six are **keys, not weapons** — capabilities required during one impossibl
 
 | Character | Interface function | Possible role in the process |
 |---|---|---|
-| Marcus / Soren | accurate perception (→ eventual bidirectional gaze) | read the hidden structure correctly |
+| Marcus / Marcus | accurate perception (→ eventual bidirectional gaze) | read the hidden structure correctly |
 | Serra | commitment → pressure → severance | cut a binding that can't otherwise be broken |
 | Seb | threshold crossing / self-consuming restoration | survive or power an otherwise fatal cost |
 | Mara | authorship of salience/attention | make the hidden perceptible; stop minds overlooking it |

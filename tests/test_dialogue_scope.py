@@ -17,8 +17,8 @@ People do not say what they mean.
 
 Intro paragraph that must always survive.
 
-### Marcus (Soren)
-Soren talks in revisions.
+### Marcus
+Marcus talks in revisions.
 
 ---
 
@@ -42,9 +42,9 @@ def _headers(text: str) -> list[str]:
 
 
 def test_header_names_parses_aliases():
-    assert _header_names("Marcus (Soren)") == {"marcus", "soren"}
+    assert _header_names("Marcus (Marc)") == {"marcus", "marc"}
     assert _header_names("Serra") == {"serra"}
-    assert _header_names("Ayla") == {"ayla", "soren", "marcus"}  # rides along with Soren
+    assert _header_names("Ayla") == {"ayla", "marcus"}  # rides along with Marcus
 
 
 def test_scope_keeps_general_and_present_drops_absent():
@@ -56,30 +56,30 @@ def test_scope_keeps_general_and_present_drops_absent():
     assert "## Tool 2: Character Voice Profiles" in scoped
     assert "Intro paragraph that must always survive." in scoped
     # absent characters' idiolect is gone
-    assert "Soren talks in revisions." not in scoped
+    assert "Marcus talks in revisions." not in scoped
     assert "Short. Dry. Off-center." not in scoped
 
 
-def test_scope_matches_pov_alias_and_ayla_rides_with_soren():
-    scoped = _scope_dialogue_rules(_DOC, ["Soren"])  # POV name, not the header's "Marcus (Soren)"
-    assert _headers(scoped) == ["Marcus (Soren)", "Ayla"]
+def test_scope_matches_pov_and_ayla_rides_with_marcus():
+    scoped = _scope_dialogue_rules(_DOC, ["Marcus"])
+    assert _headers(scoped) == ["Marcus", "Ayla"]
     assert "Serra says it and stops." not in scoped
 
 
 def test_scope_empty_present_returns_everything():
     scoped = _scope_dialogue_rules(_DOC, [])
-    assert _headers(scoped) == ["Marcus (Soren)", "Serra", "Ayla"]
+    assert _headers(scoped) == ["Marcus", "Serra", "Ayla"]
 
 
 def test_load_dialogue_rules_scopes_the_real_file():
     full = _load_dialogue_rules([])
-    soren = _load_dialogue_rules(["Soren"])
-    assert full is not None and soren is not None
-    # only the POV profile (and Ayla, bound to Soren) survive
-    assert set(_headers(soren)) == {"Marcus (Soren)", "Ayla"}
-    assert "Serra" not in _headers(soren)
+    marcus = _load_dialogue_rules(["Marcus"])
+    assert full is not None and marcus is not None
+    # only the POV profile (and Ayla, bound to Marcus) survive
+    assert set(_headers(marcus)) == {"Marcus", "Ayla"}
+    assert "Serra" not in _headers(marcus)
     # general craft is always-on
-    assert "## Formatting" in soren
-    assert "The Fundamental Rule" in soren
+    assert "## Formatting" in marcus
+    assert "The Fundamental Rule" in marcus
     # scoping actually shrinks the always-on payload
-    assert len(soren) < len(full)
+    assert len(marcus) < len(full)

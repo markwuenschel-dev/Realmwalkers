@@ -36,7 +36,7 @@ status: active
 
 Roth is being canonized **ahead of his first on-page appearance** because SCENE-002 / SCENE-003 need him. He is the **suited Astria figure** who hijacks the 404 vs Dead Hand scrim — the launch-teaser face who appears in place of the Dead Hand leader when the match screens snow over and commandeers the match. **He is NOT in SCENE-001:** SCENE-001 ends *on the brink of* the hijack (the unseen rogue still hasn't shown); the intrusion itself is the start of SCENE-002. Do not retroactively place Roth on-page in SCENE-001.
 
-> **On-page naming rule:** the canon name is **Roth**, but he is kept **unnamed in the manuscript prose** (referred to as the suited Astria figure / "Mr. Fahr"'s interlocutor). Track the name here; do not surface it on-page unless a later scene establishes it.
+> **On-page naming rule:** the canon name is **Roth**, but he is kept **unnamed in the manuscript prose** (referred to as the suited Astria figure / "Mr. Vye"'s interlocutor). Track the name here; do not surface it on-page unless a later scene establishes it.
 
 ---
 
@@ -78,7 +78,7 @@ Astria. He is on the side of the building "you needed a different badge to enter
 
 ## Relationships
 
-### Marcus (Marcus Fahr / Soren)
+### Marcus (Marcus Vye / Marcus)
 Antagonistic-institutional. Roth is the one who turns Astria from a distant employer into a personal violation — breaking into the scrim, addressing Marcus. The dynamic is the powerful institution reaching into the one place Marcus kept private. *Specifics develop in SCENE-002/003.*
 
 ### Seb

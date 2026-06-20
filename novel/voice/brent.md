@@ -23,7 +23,7 @@ Plain, efficient, consequence-based, concrete. Short declaratives. Names the act
 to romanticize preventable harm. Avoids abstraction not from dimness but from suspicion of it.
 
 ## Humor
-Dry, deflating. **Brent punctures the existing frame** (where Soren builds a new comic frame): **grand
+Dry, deflating. **Brent punctures the existing frame** (where Marcus builds a new comic frame): **grand
 claim → concrete translation → dry verdict.** He reduces grandeur to fact. It grounds the room,
 punctures self-importance, releases tension through blunt truth, and shows affection without
 sentiment; it gets more playful in relaxed groups.
@@ -46,8 +46,8 @@ mystique.
 > Dialogue (how Brent speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
-- **Soren** — fast, grounded banter; Soren finds the hidden mechanism, Brent asks what changes in
-  practice. Soren can calm him by naming the grievance precisely and separating it from the next
+- **Marcus** — fast, grounded banter; Marcus finds the hidden mechanism, Brent asks what changes in
+  practice. Marcus can calm him by naming the grievance precisely and separating it from the next
   damaging action.
 - **Serra** — the most effective at stopping him acting from rage; she doesn't debate the legitimacy
   of the anger, she creates movement. ("Brent. Look at me. Not him. What needs to happen next?")
@@ -59,8 +59,8 @@ mystique.
   irritating.
 
 ## Drafting guardrails
-- Keep his humor distinct from Soren's: Brent *punctures* a frame, Soren *builds* one. Don't give him
-  Soren-style associative riffs.
+- Keep his humor distinct from Marcus's: Brent *punctures* a frame, Marcus *builds* one. Don't give him
+  Marcus-style associative riffs.
 - He is not a man compulsively looking for something to fix; don't reduce him to the fixer.
 - His failure mode is specific: practicality → contempt, usefulness → counterfeit belonging, anger →
   collapsing the person into the damage. After an outburst he can own it plainly.

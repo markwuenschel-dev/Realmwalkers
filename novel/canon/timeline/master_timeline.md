@@ -75,7 +75,7 @@
 | Void interlude; the approaching light | Marcus |
 | Day 3: wakes in new terrain; **Ayla** negotiates attachment; deal struck | Marcus |
 | Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item) | Marcus |
-| Rejects "Phoenix"; **chooses "Soren"** himself | Marcus |
+| Rejects "Phoenix"; **keeps his own name** (refuses the game-handle) | Marcus |
 
 *(End of currently drafted manuscript ≈ here.)*
 
@@ -136,7 +136,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 | **Serra** | Splits during the False Rescue → solo arc hunting one **independent namebound stranger** (recognition of kind); learns the registry runs higher; carries a registry-fragment toward a larger faction's seat; ends **unfinished**; returns for the reunion/severance. |
 | **Seb** | Lands desolate → enslaved/tortured/labor → kills his captor barehanded → *then* the broker speaks ("you can have more") → **shortest solo arc**, slaver camp straight to Eriadne. Reaver + Threshold Cascade; among the most powerful. |
 | **Mara** | Lands in a stratified **court nation-state**; taken in for her beauty by a decent patron; a predatory courtier targets her; she goes un-salient (the ball), then exposes him before the full court (room-scale Mirror-Salience). Leaves the court for the **Walking Grove** (a moving civilization on a sick ancient behemoth); a salience-suppression threat there is the perfect Mirror-Salience foil — she makes the community perceive the danger at once; the behemoth's wound/migration routes her toward Eriadne. Does not meet Serra before Eriadne. |
-| **Mathias** | Solo near the **ruins**; discovers the Xyloryn and the **portal**; fights a single Skirmisher-tier drone; loads his Scout class through research; becomes the group's warning. **Lives** (injured at the finale). Combat ranking: Seb > Mathias ≈ Mara > Soren. |
+| **Mathias** | Solo near the **ruins**; discovers the Xyloryn and the **portal**; fights a single Skirmisher-tier drone; loads his Scout class through research; becomes the group's warning. **Lives** (injured at the finale). Combat ranking: Seb > Mathias ≈ Mara > Marcus. |
 | **Brent** | Converges earliest with Marcus's Eriadne arc; the structural reader *(fortifying/building = Book 2)*. |
 
 ---

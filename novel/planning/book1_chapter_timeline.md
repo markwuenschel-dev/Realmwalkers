@@ -8,14 +8,14 @@ status: working
 
 > **Purpose:** maps the confirmed event spine (`master_timeline.md`) into chapters. The master timeline owns *events & day numbers*; this file owns *chapter boundaries & POV*. Where they disagree, the master timeline wins on facts. Precedence: see `canon_index.md`.
 > **Status:** chapter **boundaries and counts are proposed**, not locked — reconcile against the live chapter file before relying on numbers. All *canon content* below is current as of the cosmology/class passes (Riftwalker, Neurochromatic Eyes + Meszkhal item, Warrior/Psion/Adventurer/Scout/Reaver, the named factions, Myrmidon finale, Mathias lives).
-> **POV (series split):** Marcus/Soren ~60–70% (the spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV** (genuine second-POV with her own throughline — see `marcus_serra_relationship.md` §9); the other four keep **⟢ INTERLUDE (POV)**. *Structural note: the prior "Serra trapped in interludes" tension is resolved — she is the deuteragonist with a real arc, no longer a scattered-cast interlude.* Scope: Earth → ~Realm Day 110.
+> **POV (series split):** Marcus ~60–70% (the spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV** (genuine second-POV with her own throughline — see `marcus_serra_relationship.md` §9); the other four keep **⟢ INTERLUDE (POV)**. *Structural note: the prior "Serra trapped in interludes" tension is resolved — she is the deuteragonist with a real arc, no longer a scattered-cast interlude.* Scope: Earth → ~Realm Day 110.
 
 ---
 
 ## ACT 1 — EARTH (June 2035)
 
 **Ch 1 — "Aim Not Found"** · *Marcus* · Earth Day 0
-- Ordinary world: Marcus Fahr, **ML engineer at Astria**, late on a model anomaly — a control cohort converging on outcomes it was never touched to produce. He distrusts a confident model that can't explain itself. *(The steering/selection hook — something outside the model is producing the results; it rhymes with the implant being a receiver.)*
+- Ordinary world: Marcus Vye, **ML engineer at Astria**, late on a model anomaly — a control cohort converging on outcomes it was never touched to produce. He distrusts a confident model that can't explain itself. *(The steering/selection hook — something outside the model is producing the results; it rhymes with the implant being a receiver.)*
 - The scrim: **404: Aim Not Found (#25) vs. Dead Hand (#3).** Seb (lead), Brent, Mathias, Kip present. The **Marcus/Serra duel** — skill parity is **FIXED** (equals, *revealed* not earned); recognition is **EARNED and one-directional** (Serra→Marcus) and lands **by play** — Marcus IDs Dead Hand's assassin through her *decision architecture* (target selection, attacking *through* interference, converting a failed entry into a second attack), **faceless, no biometric/face reveal** (that mechanic is banked — see `marcus_serra_relationship.md` §14). They also reproduce the celebration's escalating mutual attention **without** recognizing the opponent's personal identity — an *unrecognized resonance*, not a recognition (INV-1 Axis B-resonance). The duel is *interrupted before it resolves.* (Governed by INV-1, `relationship_invariants.md`.) **Mara is hidden in the scrim — neither Marcus nor Mathias identifies her** (introduction by absence; **Dead Hand's salience-suppressed second assassin, Serra's tandem — never surfaced**, the dark roster slot Mathias flags).
 - **The team cost — "one exchange too long":** the duel runs **one exchange past tactical necessity**; a gap opens and **both teams pay** (a casualty / lost objective / formation hole). **Seb calls Marcus off** — *"Marcus, break contact." "…return to formation." "Marcus."* — and Marcus hears him and **stays one exchange longer.** Plant: *their mutual attention becomes exclusionary; others absorb the cost.* (Astria's seize interrupts before it resolves; see `marcus_serra_relationship.md` §4.)
 - The hijack: Astria seizes the session. **Roth's voice** runs consent-capture as cold procedure (not a pitch); an **Astria-manufactured tornado "boss"** voids scrim logic; logout is dead. *"Participation remains voluntary."*
@@ -50,9 +50,9 @@ status: working
 - Marcus wins the **boulder bargain.** Xazzidiuk's vow grants the **Eyes of Meszkhal (Unique item)**; **Zazriel is present and gives nothing** — *no Angelic Fortitude.*
 - The vow is fulfilled by impaling him — *"Nothing is free."* **Death.**
 
-**Ch 6 — The Light / Soren** · Days 1–3
+**Ch 6 — The Light** · Days 1–3
 - Void interlude; the approaching light. Day 3: wakes in new terrain; **Ayla** negotiates attachment — the deal is struck.
-- Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" and **chooses "Soren" himself.**
+- Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" (the game-handle) and **keeps his own name — Marcus —** refusing to perform a new self; Ayla's true-name warning lands (his true name, S-09, stays hidden).
 - *(End of the currently drafted manuscript ≈ here.)*
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · *Serra* · ~Days 1–3 · **(inserted; lettered to avoid renumbering Chs 7–30 — see Open Questions)**

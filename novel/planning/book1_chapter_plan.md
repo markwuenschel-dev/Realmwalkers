@@ -9,7 +9,7 @@ status: working
 > **Purpose:** the *build layer* over the chapter spine. For each chapter: what it must accomplish, the scenes and payoffs inside it, the state of the world by the end, and the **open decisions that block drafting it.** This is the "what do I actually do" document.
 > **Defers to:** `book1_chapter_timeline.md` (chapter order/POV) · `scene_queue.md` (scene briefs) · `setup_payoff_tracker.md` (plant/payoff IDs) · `unresolved_character_threads.md` (open-thread IDs) · `master_timeline.md` (facts/days). Precedence: `canon_index.md`.
 > **Frontier:** drafted manuscript currently ends **≈ Ch 6**. Everything from **Ch 6A** (new Serra-POV arrival) and **Ch 7** on is unwritten — that's the drafting frontier.
-> **POV (series split):** Marcus/Soren ~60–70% (spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV**; the other four keep **⟢ INTERLUDE**. *The earlier "Serra trapped in interludes" structural tension is resolved — she is the deuteragonist with her own throughline (`marcus_serra_relationship.md` §9).*
+> **POV (series split):** Marcus ~60–70% (spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV**; the other four keep **⟢ INTERLUDE**. *The earlier "Serra trapped in interludes" structural tension is resolved — she is the deuteragonist with her own throughline (`marcus_serra_relationship.md` §9).*
 
 **Per-entry legend**
 - **Function** — why the chapter exists (the job it does no other chapter can).
@@ -63,12 +63,12 @@ status: working
 - **End state:** Marcus dead; carries the item; owes nothing.
 - **Gate:** ✅ drafted.
 
-**Ch 6 — The Light / Soren** · Days 1–3 · *drafted*
+**Ch 6 — The Light** · Days 1–3 · *drafted*
 - **Function:** resurrection with a cost; Ayla bound; self-naming as identity, not pose.
-- **Beats:** void interlude → light; Day 3 wakes; **Ayla negotiates attachment** (fallen, diminished top-band soul; needs an *anchor*; **spends permanent power** to resurrect him; mutual — life for a foothold; this is why his resurrection is *exceptional*, not cheap); status review (Human Hybrid, Chaotic Neutral); **Neurochromatic Eyes interface begins emerging** (separate from the item); rejects "Phoenix," **chooses "Soren" himself.**
-- **Scenes:** `SCENE-002` Naming (Soren).
+- **Beats:** void interlude → light; Day 3 wakes; **Ayla negotiates attachment** (fallen, diminished top-band soul; needs an *anchor*; **spends permanent power** to resurrect him; mutual — life for a foothold; this is why his resurrection is *exceptional*, not cheap); status review (Human Hybrid, Chaotic Neutral); **Neurochromatic Eyes interface begins emerging** (separate from the item); rejects "Phoenix" (the game-handle), **keeps his own name — Marcus.**
+- **Scenes:** `SCENE-002` Naming (the refusal).
 - **Pays:** SP-008 (Ayla = questions not answers) · SP-002 (accepts the Realm is real) · SP-007.
-- **End state:** Soren, alive, Eyes Stage 1 emerging, Ayla attached.
+- **End state:** Marcus, alive, Eyes Stage 1 emerging, Ayla attached.
 - **Gate:** ✅ drafted. *(Open, non-blocking: A-02 Ayla↔Meszkhal link; A-04 the exact cause of her fall.)*
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · Serra · ~Days 1–3 · ⚠ *(new; lettered to avoid renumbering 7–30)*

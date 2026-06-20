@@ -100,7 +100,7 @@ It is:
 
 She wants confirmation that another mind correctly perceived hers.
 
-This is distinct from Soren. Soren wants his usefulness, originality, effort, and moral intent accurately recognized. Mara wants her judgment and internal reasoning understood without having to advertise or expose them.
+This is distinct from Marcus. Marcus wants his usefulness, originality, effort, and moral intent accurately recognized. Mara wants her judgment and internal reasoning understood without having to advertise or expose them.
 
 ### Visibility and Influence
 
@@ -227,7 +227,7 @@ Her natural movement is:
 
 > observe the attention map → identify the omitted fact → decide what must become visible → say only enough to redirect the room
 
-She is less verbally associative than Soren and less socially momentum-driven than Serra. Her speech often sounds like a correction to what everyone else unconsciously accepted.
+She is less verbally associative than Marcus and less socially momentum-driven than Serra. Her speech often sounds like a correction to what everyone else unconsciously accepted.
 
 > "He answered every question except the one you asked."
 
@@ -253,7 +253,7 @@ Her humor is:
 - More visible one-on-one than in groups
 - Less about generating energy than revealing the absurdity of the existing frame
 
-Soren creates an unexpected connection.
+Marcus creates an unexpected connection.
 
 Mara exposes the assumption that made the situation absurd.
 
@@ -336,9 +336,9 @@ After trust:
 
 ### Relationship Registers
 
-**With Soren**
+**With Marcus**
 - Mutual respect through pattern recognition
-- Soren asks how the system works; Mara asks what everyone is being made to notice
+- Marcus asks how the system works; Mara asks what everyone is being made to notice
 - He recognizes behavioral isolation because it resembles his own
 - She values when he accurately reconstructs her reasoning
 - Their shared danger is overestimating interpretation as a controllable system
@@ -404,7 +404,7 @@ Mara changes what the momentum organizes around.
 - Do not make her silently expect perfect mind-reading without showing the consequences of that expectation.
 - Do not let Mirror-Salience become generic mind control.
 - Do not make her enjoy attention merely because she can command it.
-- Do not make Soren the only person capable of seeing her accurately.
+- Do not make Marcus the only person capable of seeing her accurately.
 - Keep Serra and Mara distinct: emotional field versus attention map, direct closure versus revoked access, momentum versus framing.
 
 ### Representative Lines
@@ -633,7 +633,7 @@ In SCENE-001 Mara is the overlooked half of **Dead Hand's double-assassin core**
 ### Serra Hawthorne
 They never connect in the Realm before Serra's solo arc begins. Their tandem exists entirely as Earth history — a working relationship built over guild time that the Realm has not had a chance to strain or test yet. When they eventually find each other, they will both be different people operating in a world the guild structure never prepared them for. The question of whether the tandem still works — whether Mara's setup instinct and Serra's entry instinct still point at the same targets — is unresolved.
 
-### Marcus (Soren)
+### Marcus
 No Realm contact yet. In the eventual dynamic, Marcus's pattern-recognition and Mara's salience-reading will create an interesting overlap — he sees hidden structure, she shifts what structures feel important. They could be complementary or they could create a feedback problem. Her challenge to him — that people are not variables — remains in the file as a future dynamic.
 
 ### The Cast Generally

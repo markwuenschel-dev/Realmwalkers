@@ -22,13 +22,13 @@ known_entities: [ayla]
 
 | Name | Earth Name | Realm Name | Role | Status | File |
 |---|---|---|---|---|---|
-| Soren | Marcus Fahr | Soren | Protagonist / Astria ML engineer (Earth) / Aetherfall Aspect / Mage → Riftwalker / Neurochromatic Eyes | Active | `major/mc.md` |
+| Marcus | Marcus Vye | Marcus (no alias; **Marc** to intimates) | Protagonist / Astria ML engineer (Earth) / Aetherfall Aspect / Mage → Riftwalker / Neurochromatic Eyes | Active | `major/mc.md` |
 | Serra Hawthorne | Serra Hawthorne | Serra (TBD / may keep Serra) | Romantic interest / Disruptor-Assassin / Warrior / Pressure-Severance Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
-| Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Threshold Cascade / Mirror-rival to Soren | Active | `major/seb.md` |
+| Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Threshold Cascade / Mirror-rival to Marcus | Active | `major/seb.md` |
 | Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Mirror-Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
 | Mathias Sterling | Mathias Sterling | TBD | Aetherfall Ranger/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
 | Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Adventurer / Keystone Integrity | Active — possible death in Book 1 (unconfirmed) | `major/brent.md` |
-| Ayla | N/A | Ayla | Ancient celestial consciousness / Attached to Soren's implant | Active — internal | `major/ayla.md` |
+| Ayla | N/A | Ayla | Ancient celestial consciousness / Attached to Marcus's implant | Active — internal | `major/ayla.md` |
 
 ---
 
@@ -61,7 +61,7 @@ known_entities: [ayla]
 
 ## Naming Notes
 
-- **Soren** is the protagonist's Realm name. Earth name is **Marcus Fahr** (resolved; never ~~Chad~~).
+- **Marcus** is the protagonist's name in both worlds — **no Realm alias** (he keeps his real name; no self-rename). Full name **Marcus Vye**; **Marc** is the intimate short form (people he lets in); his **true name** is separate, hidden, deferred (S-09). (Never ~~Chad~~.)
 - **Serra** is Serra Hawthorne's working Realm name. May stay Serra. Unresolved.
 - No other characters have confirmed Realm names yet.
 - True names are metaphysically dangerous in the Realm. Track separately when assigned.

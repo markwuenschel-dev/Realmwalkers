@@ -30,12 +30,12 @@ Before writing any significant dialogue scene, answer these five questions. You 
 4. **What is each character unwilling to say?**
 5. **What accidentally gets said that shouldn't?**
 
-Example — Soren and Serra after surviving something together:
+Example — Marcus and Serra after surviving something together:
 
 1. Surface: she's checking his shoulder injury
 2. Underneath: whether she's staying or leaving, and neither of them wants to name it
-3. Soren wants her to say she's staying. Serra wants him to not ask.
-4. Soren won't say "please don't go." Serra won't say "I have to."
+3. Marcus wants her to say she's staying. Serra wants him to not ask.
+4. Marcus won't say "please don't go." Serra won't say "I have to."
 5. She asks how long he's been here. The question implies she's calculating how long she can stay. He hears it. Neither acknowledges it.
 
 Now write the scene. The surface conversation runs. The underneath conversation runs simultaneously through what gets said, what doesn't, and where the pauses fall.
@@ -48,14 +48,16 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 
 > **Exemplars are register, not script.** The **Exemplar lines** in each profile define a voice and register to MATCH — they are reference, not a script to draw from. Generate fresh dialogue in that register every time; never reproduce an exemplar verbatim or near-verbatim, and never put one character's exemplar in another character's mouth.
 
-### Marcus (Soren)
+### Marcus
 **How he talks:** Thinks while talking. Sentences sometimes revise themselves mid-delivery. Tends toward specificity — doesn't say "a long time," says the actual amount. Under pressure his speech compresses but stays complex. His humor is observational and sideways — the funny thing arrives unexpectedly because he noticed something true.
 
 **What he doesn't do:** Announce his feelings directly. Say the romantic thing when he could say something functionally adjacent to it. Stop being funny when things get bad — the humor is a survival mechanism, not a mood.
 
+**How he's addressed:** "Marcus" by default and in public; **"Marc"** only from people he has let in — Serra as she is let in, close 404 guildmates. "Marc" signals earned closeness, so its *first* use is a relationship beat, never a default. His true name is never spoken.
+
 **Tell when he's performing:** He sounds more certain than he is. A careful reader hears the seam — the slightly-too-clean sentence, the answer that came a beat too fast.
 
-**From the original draft:** "Thanks for your endearing support, sasshole. I mean Seb." and "I want you to give me something to help me survive. Give me that, and release your hold from my mind, and you'll have yourself a deal." Both are classic Soren — the first is sideways humor while scared, the second is competence under pressure making the ask sound casual.
+**From the original draft:** "Thanks for your endearing support, sasshole. I mean Seb." and "I want you to give me something to help me survive. Give me that, and release your hold from my mind, and you'll have yourself a deal." Both are classic Marcus — the first is sideways humor while scared, the second is competence under pressure making the ask sound casual.
 
 **Tendencies:**
 - Diagnostic and question-driven: he locates where a model broke rather than restating it. ("Which part stopped making sense?" / "Are we disagreeing about the fact, or what it means?")
@@ -82,7 +84,7 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 
 **Tell when something is real:** She uses first names. Not "hey" — the actual name. When Serra says "Marcus," the sentence it's attached to matters.
 
-**Differentiation from Soren:** He thinks out loud. She thinks in private and delivers the conclusion. He finds the angle; she already chose the angle before the conversation started.
+**Differentiation from Marcus:** He thinks out loud. She thinks in private and delivers the conclusion. He finds the angle; she already chose the angle before the conversation started.
 
 **Tendencies:**
 - States the read she trusts and acts from it; she doesn't litigate every premise. Brief, direct without cruelty, oriented to what happens next; acknowledges a feeling without surrendering the decision. ("I understand why you need another answer. I don't have a different one.")
@@ -204,7 +206,7 @@ Characters occasionally say more than they intended. Not confessions — a singl
 
 This is one of the most powerful moves in dialogue and one of the hardest to write deliberately. The trick: pick a moment where a character has just made a decision privately that they haven't announced. Then find the single line they'd say that contains that decision without naming it.
 
-Example: Serra has already decided she's leaving tomorrow. She doesn't say it. But when she asks "do you know how far Eriadne is from here?" — the question means something. Soren hears it. He doesn't ask what she's planning. She doesn't explain. The reader does the math.
+Example: Serra has already decided she's leaving tomorrow. She doesn't say it. But when she asks "do you know how far Eriadne is from here?" — the question means something. Marcus hears it. He doesn't ask what she's planning. She doesn't explain. The reader does the math.
 
 ---
 

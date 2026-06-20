@@ -53,7 +53,7 @@ bare stat sheet.
 > Dialogue (how Serra speaks) is governed by novel/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
-- **Soren** — easy rhythm, tailored teasing, strong mutual attention, more subtext than either
+- **Marcus** — easy rhythm, tailored teasing, strong mutual attention, more subtext than either
   admits. She gives genuine warmth; he assigns future meaning to its repetition. He asks for
   definitions; she hears pressure. She'll answer a narrower question truthfully while refusing the
   larger emotional frame.
@@ -73,5 +73,5 @@ bare stat sheet.
 - Don't make final closure melodramatic; the severity is in reduced access, not raised volume.
 - Don't assume strong eye contact, playfulness, or personal detail means she's internally changed the
   relationship's category.
-- Don't excuse Soren crossing a stated boundary; their reciprocal misread is tragedy, not permission.
+- Don't excuse Marcus crossing a stated boundary; their reciprocal misread is tragedy, not permission.
 - Let her remain capable of valuing someone after deciding contact can't continue.

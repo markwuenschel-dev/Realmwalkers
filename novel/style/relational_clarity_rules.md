@@ -55,8 +55,8 @@ Each non-POV character must want something not about Marcus.
 
 ## RR8 — Standing is encoded in address (names and forms)
 Who calls whom what is a relational fact, not flavor.
-- **Broken:** a Realm native calls Marcus "Marcus"; "Sarah" appears anywhere; an Earth teammate calls him "Soren" before that line is crossed.
-- **Fixed:** Earth circle → "Marcus"; Realm → "Soren"; Serra is "Serra" throughout; a Realm native using anything but "Brent" for Brent would itself be a *story event*.
+- **Broken:** a Realm native calls Marcus "Marcus"; "Sarah" appears anywhere; an Earth teammate calls him "Marcus" before that line is crossed.
+- **Fixed:** Earth circle → "Marcus"; Realm → "Marcus"; Serra is "Serra" throughout; a Realm native using anything but "Brent" for Brent would itself be a *story event*.
 - **Critic check:** does every term of address match the speaker's relationship and story phase? Flag leaks (cross-ref `prose_clarity_rules.md` R7, `canon_index.md` naming canon).
 
 ---

@@ -14,7 +14,7 @@ This means the story operates in the intersection of:
 
 - **LitRPG / progression fantasy** — a character grows in measurable ways, those measurements matter, the system has rules and costs
 - **Portal fantasy** — real people transported into a real other world; the contrast between where they came from and where they are is load-bearing
-- **Interface fantasy** — magic is a substrate accessed through different interfaces; the interface shapes what you can do and what you cannot; Soren's interface is ocular and the implant translates it
+- **Interface fantasy** — magic is a substrate accessed through different interfaces; the interface shapes what you can do and what you cannot; Marcus's interface is ocular and the implant translates it
 - **Character-driven progression** — powers externalize psychology; growth is earned through reasoning and cost, not granted through power spikes
 
 The emotional register is **sincere, grounded, and occasionally darkly funny**. The story takes its characters seriously without taking itself so seriously that humor is forbidden.

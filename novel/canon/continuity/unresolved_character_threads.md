@@ -9,12 +9,12 @@
 
 ---
 
-## Soren (MC)
+## Marcus (MC)
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
 | S-01 | ✅ RESOLVED | Earth name | Marcus |
-| S-02 | ✅ RESOLVED | Does he choose the name Soren himself? | **He chooses "Soren" himself** (rejects "Phoenix"). See `book1_chapter_timeline.md` Ch 6 / `master_timeline.md`. |
+| S-02 | ✅ RESOLVED | Does he rename himself in the Realm? | **No — he keeps his own name (Marcus).** He rejects the game-handle ("Phoenix") and refuses to perform a new self; there is no Realm alias. The hidden **true name** is the separate, deferred thread (S-09). See `book1_chapter_timeline.md` Ch 6 / `master_timeline.md`. |
 | S-03 | ✅ RESOLVED | What exactly did he bargain for in the mindscape? | **Five-point lock** (`mc.md`): (1) Xazzidiuk grants the **Eyes of Meszkhal**; (2) relinquishes the possession attempt and exits; (3) Marcus releases him from the trap; (4) Marcus owes **no future service, favor, worship, soul-claim, or continuing obligation** — bargain closed, **no demonic leverage forward**; (5) Xazzidiuk fulfills the literal bargain then **kills** Marcus (*"Nothing is free"*) → death → resurrection. The **"owes nothing" clause is load-bearing — it's why no faction owns him.** |
 | S-04 | ✅ RESOLVED | ~~Angelic Fortitude~~ | **Removed — not canon.** Zazriel gave no boon; Marcus has the Eyes only. (See A3-03.) |
 | S-05 | ✅ RESOLVED (reframed) | What makes him politically relevant near Eriadne? | In B1 Marcus does **not** build — he **claims a foothold** (shelter/water/unclaimed ruin-fringe ground) and earns relevance via **utility + perception + surviving the Myrmidon.** **Settlement-building is Book 2.** (`mc.md`, `book1_chapter_timeline.md`.) |
@@ -35,8 +35,8 @@
 | SE-04 | 🟡 | What does she find at the roots of the wrong that makes her stay longer than planned? | The thing that escalates her from "fixing this" to "I can't leave until it's finished." |
 | SE-05 | 🟡 | What is the moment in her solo arc where her power almost costs her something she can't recover? | The near-catastrophic loss of control moment. Defines where the Collapse Aura path becomes real. |
 | SE-06 | 🟡 | Which Final Path does she move toward — Coherence or Saturation? | Is the choice conscious? This is her arc's end-direction question. |
-| SE-07 | 🟢 | What does she build or become during the separation that belongs entirely to her? | Not connected to Soren. Her own thing. Needed before her return scene. |
-| SE-08 | 🟢 | What does she need from Soren that she can't get from anyone else — and does she ever admit it? | The inside of the relationship. Affects reunion scenes. |
+| SE-07 | 🟢 | What does she build or become during the separation that belongs entirely to her? | Not connected to Marcus. Her own thing. Needed before her return scene. |
+| SE-08 | 🟢 | What does she need from Marcus that she can't get from anyone else — and does she ever admit it? | The inside of the relationship. Affects reunion scenes. |
 | SE-09 | 🟢 | Does she travel with Mara after separation, or do they go different ways? | Affects both characters' solo arcs. |
 
 ---
@@ -83,7 +83,7 @@
 |---|---|---|---|
 | BR-01 | ✅ RESOLVED | Does he survive Book 1? | **Survives Book 1** (parallels Mathias). "Possible thematic death" retired; **no main-six character dies in Book 1.** (`brent.md`, `master_timeline.md`.) |
 | BR-02 | 🟡 | What Realm material or mechanism does he understand before anyone else? | His unique contribution. Needs specificity. |
-| BR-03 | 🟢 | Does he become Soren's crafter/builder or does he have a separate path? | Affects settlement-building arc. |
+| BR-03 | 🟢 | Does he become Marcus's crafter/builder or does he have a separate path? | Affects settlement-building arc. |
 
 ---
 
@@ -102,10 +102,10 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| R-01 | ✅ RESOLVED | The Earth moment between Soren and Serra — what specifically happened? | **The kiss with mutual protective pullback — each misreading the other's pullback as rejection** (`relationship_map.md`). **Marcus initiates; pullback mutual and simultaneous; each blind to their own half** — INV-1 Axis E (CCB-007). |
+| R-01 | ✅ RESOLVED | The Earth moment between Marcus and Serra — what specifically happened? | **The kiss with mutual protective pullback — each misreading the other's pullback as rejection** (`relationship_map.md`). **Marcus initiates; pullback mutual and simultaneous; each blind to their own half** — INV-1 Axis E (CCB-007). |
 | R-02 | 🟡 | When Serra returns — what is the first scene between them? | The reunion scene. Carries all the unaddressed weight. Must not resolve too easily. |
-| R-03 | 🟡 | At what point does Seb's path put him in direct conflict with Soren? | The mirror-rival dynamic needs a collision point. |
-| R-04 | 🟢 | Does Serra ever tell Soren what the solo arc cost her? | Affects intimacy arc. May be a late-series beat. |
+| R-03 | 🟡 | At what point does Seb's path put him in direct conflict with Marcus? | The mirror-rival dynamic needs a collision point. |
+| R-04 | 🟢 | Does Serra ever tell Marcus what the solo arc cost her? | Affects intimacy arc. May be a late-series beat. |
 | R-05 | ✅ RESOLVED | **Serra's one rule** — the single armor-line that governs the kiss and the severance | **"I don't ask people to stay" (CCB-007 R-5).** Her oldest armor; the "after" motif at the character-rule level. *Enacted* at the second kiss (takes the *now*, never asks the *after*); *cost-breaks* at the severance (she cuts the bond to keep from asking — the rule, held, finally breaks her). **Never stated on the page; never collapse into the Myrmidon "being seen" beat.** Owner: `serra_hawthorne.md` (+ `marcus_serra_relationship.md` §8). |
 
 ---

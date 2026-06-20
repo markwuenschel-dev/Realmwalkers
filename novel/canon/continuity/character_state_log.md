@@ -6,7 +6,7 @@
 
 ## Checkpoint: Pre-Realm (Earth — just before transport)
 
-- **Marcus (Soren):** Astria facility; baseline human, implant just received; coerced participation; unaddressed moment with Serra; full guild intact (Seb, Serra, Mara, Mathias, Brent). No ocular activation.
+- **Marcus:** Astria facility; baseline human, implant just received; coerced participation; unaddressed moment with Serra; full guild intact (Seb, Serra, Mara, Mathias, Brent). No ocular activation.
 - **Serra:** baseline; guarded-warm; tandem with Mara; the unaddressed Earth moment; no interface yet.
 - **Seb:** baseline; his brother died during the Day 0 scrim — consent given from grief, not rescue; the loss is the wound the broker will later exploit. Trusts the opportunity more than he should.
 - **Mara / Mathias / Brent:** baseline; latent.

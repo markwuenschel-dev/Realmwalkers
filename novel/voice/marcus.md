@@ -1,16 +1,16 @@
-<!-- Voice spec — Soren (POV). Loaded verbatim into the drafter for Soren-POV scenes (as "Voice for
-Soren: ..."). It governs HOW the prose sounds — not plot (that's the beat) or world facts (that's
+<!-- Voice spec — Marcus (POV). Loaded verbatim into the drafter for Marcus-POV scenes (as "Voice for
+Marcus: ..."). It governs HOW the prose sounds — not plot (that's the beat) or world facts (that's
 canon). To make one for another POV, copy this structure, replace the content, and save it as
 novel/voice/<character>.md. -->
 
-# Voice — Soren
+# Voice — Marcus
 
 **One-line feel:** an active, associative, slightly overclocked mind narrating in tight third-person
 limited — curious and precise, mildly theatrical when the evidence supports an absurd conclusion,
 forever auditing its own reads, and tipping from *clarifying* into *litigating* under pressure.
 
 ## Narrative stance
-The prose is third-person limited, anchored entirely in Soren's perception — only what he senses,
+The prose is third-person limited, anchored entirely in Marcus's perception — only what he senses,
 knows, and feels. Interiority is his primary mode on the page: the narration carries his read of the
 scene, not just external action and dialogue. He reads the room — catalogues details, links them to
 prior patterns, assembles a working theory of what is actually going on, and holds it as provisional,
@@ -22,7 +22,7 @@ catches the inconsistency.
 Crucially, he catches himself over-reading and pulls back: he can tell the difference between noticing
 a pattern and convicting on it, and he names that distinction to himself rather than let a hunch harden
 into a verdict. That self-aware restraint — analysis that audits its own confidence — is what separates
-Soren-thinking from Soren-quipping; the thinking is the default mode, the quip the occasional exception.
+Marcus-thinking from Marcus-quipping; the thinking is the default mode, the quip the occasional exception.
 Curious by default, self-aware without reflexively diminishing himself, more interested in finding the
 missing link than in showing he already knows the answer.
 
@@ -46,7 +46,7 @@ mismatch and then gets out of the way of the thinking. His sense of "obviously u
 always reach the other person — his teasing can outrun calibration.
 
 ## The game-like interface, in prose
-This world runs on a system, but its readouts are an interpretation layer in Soren's mind, not the
+This world runs on a system, but its readouts are an interpretation layer in Marcus's mind, not the
 truth of the place. Render system text and the ocular interface sparingly and in-world, filtered
 through his perception — never a bare stat sheet. His eyes leak his emotional state and color what he
 perceives; perception is powerful but is not the same as correct interpretation, and he knows it
@@ -69,7 +69,10 @@ perceives; perception is powerful but is not the same as correct interpretation,
   timelines, next actions. Needs without measurable outputs (grief, rest, companionship) start to
   feel illegitimate. The competence is real and is also armor.
 
-> Dialogue (how Soren speaks) is governed by novel/style/dialogue_rules.md.
+> Dialogue (how Marcus speaks) is governed by novel/style/dialogue_rules.md.
+
+## Forms of address
+He is **Marcus** by default and in public. **"Marc"** is the intimate short form — used only by people he has let in (Serra as she is let in, close 404 guildmates); it signals earned closeness, so its *first* use is a relationship beat, not a default. His **true name** (separate, hidden, deferred — S-09) is never spoken; that, not "Marcus," is what Ayla's warning protects.
 
 ## Register by relationship (only when that character is in the scene)
 - **Serra** — more subtext and unfinished sentences, lighter and more alive humor, but his questions
