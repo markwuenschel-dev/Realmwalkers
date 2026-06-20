@@ -17,7 +17,7 @@ _SCENE_FILE = """\
 ---
 scene_id: SCENE-001
 title: Aim Not Found
-pov: Marcus (Soren)
+pov: Marcus (POV)
 characters_present: [Marcus, Serra]
 status: draft
 ---
@@ -49,7 +49,7 @@ def test_split_frontmatter_reads_scalar_keys():
     meta, body = seed._split_frontmatter(_SCENE_FILE)
     assert meta["scene_id"] == "SCENE-001"
     assert meta["title"] == "Aim Not Found"
-    assert meta["pov"] == "Marcus (Soren)"
+    assert meta["pov"] == "Marcus (POV)"
     assert body.lstrip().startswith("# Aim Not Found")
 
 
@@ -78,8 +78,8 @@ def test_extract_prose_empty_when_only_scaffold():
 
 
 def test_normalize_pov_drops_parenthetical():
-    assert seed._normalize_pov("Marcus (Soren)") == "Marcus"
-    assert seed._normalize_pov("Marcus Fahr") == "Marcus Fahr"
+    assert seed._normalize_pov("Marcus (POV)") == "Marcus"
+    assert seed._normalize_pov("Marcus Vye") == "Marcus Vye"
     assert seed._normalize_pov(None) == "Unknown"
 
 
