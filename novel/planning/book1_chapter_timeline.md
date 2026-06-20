@@ -83,6 +83,8 @@ status: working
 - **⟢ INTERLUDE (Mathias):** solo near the **ruins**; first contact with a Xyloryn drone; begins loading his **Scout** class through research.
 
 **Ch 14 — The Pursuit & The Pitch** · Days ~16–19 · All groups move the same direction. Marcus wants to *save the child*; Serra wants to *stop the wrong* — same target, different drive. The Vultures won't fight a sanctioned op for morals, so the pitch is **practical** (the magistrate's haul; the office is attached to no larger power). They join with conditions.
+- **Pursuit — *catch* (he catches up):** after the child is taken, Serra moves first; Marcus chases and **reaches** her. Pursuit *succeeds* (backbone catch → can't → won't; `marcus_serra_relationship.md` §11).
+- **The second kiss (end of chapter — the height ritual).** With the plan settled and the operation set for dawn — a quiet interval, **not** an adrenaline beat (no bleeding, no enemies near; they have time to leave and don't) — on an elevated open-air vantage over the magistrate's compound (ridge / ruined watch-post / survey tower: a **height**, rhyming forward to Ch 30). **Serra initiates** — she does the thing she's constitutionally unable to do (claim an uncertain thing) and answers the question the Earth kiss left her holding (*did he think it was a mistake?*). **Present-tense authorship** (*I choose this now*, not *I promise the after*): confirms mutual desire, declares **no** relationship category, *intensifies* the obligation question that fuels Ch 30. **Caps** the six falling-in-love components — conflict/repair precede it on-page; **no** sex scene, label, or future promise. **Marcus's restraint #1:** he withholds the *what does this mean* question (forcing definition would make the kiss a negotiation) — rhymes to his Ch 30 restraint. **Serra's one rule, enacted (R-5):** she takes the *now* and does **not** ask for the *after* — "I don't ask people to stay," performed, never stated; the quiet twin of Marcus's restraint. **Aftermath (no label):** touch eases, Serra seeks him more openly, teasing softens, companions notice a shift but get no confirmation — and **both privately assume an "after"** that Ch 15 destroys. (INV-1 Axis E reconcile; `marcus_serra_relationship.md` §6/§8; `setup_payoff_tracker.md` MS-kiss2 / MS-restraint / MS-rule.)
 
 **Ch 15 — The Operation & The Split** · Days ~19–21
 - Chaotic intervention. **Marcus extracts the elven child; others don't make it** — it marks him; he doesn't get to save everyone.
@@ -134,7 +136,21 @@ status: working
 
 **Ch 29 — The Old Guild Is Dead** · Days ~104–108 · The Aetherfall identity is explicitly over; what they are now is unsettled.
 
-**Ch 30 — The Severance** · ~Day 110 · *Marcus + Serra* · Marcus **names the Earth Thing**; Serra **severs the thread to free him**, breaking her one rule. Being seen + the faction she still has to hunt + the unresolved party night send her off. Ending image: *they can find each other again, but belonging together is no longer guaranteed.* Marcus turns toward the interface and away from the lying item — the bridge into Book 2.
+**Ch 30 — The Severance** · ~Day 110 · *Marcus + Serra* · **Finale movement two — the word-rupture** (movement one = the Myrmidon body-rupture, Ch 26–28; the two separated by the forced-proximity interval, Ch 29). The Earth Thing is finally named; the thread is cut. *Pursuit — **won't** (he won't follow):* every instinct says chase; he chooses restraint (backbone catch → can't → won't). Scene order:
+  1. One of them goes to the **height** (the ritual from Ch 11); the other knows to come — no invitation; that was always the rule of the place.
+  2. They **perform** the ritual and both feel it's **hollow** now. Open on the hollow performance, not real decompression.
+  3. Serra mentions the next lead / the faction she still hunts — as if leaving is logistics.
+  4. Marcus realizes they're about to do it again — reconnect, steady each other, leave the departure unnamed. He can't, one more time.
+  5. He **names existence, not category** (not "I love you," not "we're together"): that the repeated choosing *became something* (e.g., *"I don't think this is just where we go to be alone anymore"*).
+  6. Serra doesn't deny the pattern. Her pain: he's right it exists, and by naming it he's claimed the right to decide what it obligates.
+  7. He draws the line: *"I'm not saying you can't leave."*
+  8. She answers that he's already **changed what leaving means** — the refuge was safe because nothing in it had to mean anything; now staying is an answer and leaving is an answer.
+  9. **She severs** — her agency, her choice (not Marcus pushing her out), **partly to free him.** Her **one rule cost-breaks (R-5):** she still doesn't ask him to stay (the rule holds in the letter), but holding it finally costs her — she cuts the bond *to keep from asking;* the cut can't hide the want. *(Distinct from the Myrmidon "being seen": there his eyes steal her conflict involuntarily; here her own act betrays the want.)*
+  10. She **descends alone.**
+  11. **Marcus does not follow** (restraint #2; rhymes with the Ch 14 restraint) — following would prove her fear that naming a connection means he can't let her exit it.
+  12. Final image: he is at the place that always meant *they could find each other*; now it means one left and the other didn't. They can find each other again; belonging together is no longer guaranteed.
+  13. **Book 2 tag:** Marcus turns toward his own Neurochromatic Eyes and away from the Meszkhal item that lied about her in the fight.
+- **Preserve-both (Critic):** the chapter holds **two** acts of letting go — *she* severs (agency, partly altruistic, cost-breaks her rule) **and** *he* won't follow (restraint). Collapsing to either alone is the axis-collapse INV-1 guards (`relational_clarity_rules.md` RR11; `relationship_map.md` rescope; `marcus_serra_relationship.md` §8).
 
 ---
 
@@ -155,4 +171,4 @@ status: working
 - The **Act 5 finale staging** in Ch 26–28 is the most-developed *proposal* and remains **pending / not locked** (see the ⚠ at that chapter).
 - All other open items (day-spacing, CAL-02/03, W-01, who loosed the Xyloryn) are tracked in `unresolved_character_threads.md`.
 
-*Last updated: working draft — Sarah→Serra rename and INV-1 duel reframe applied; change history in `CHANGELOG.md`.*
+*Last updated: working draft — Sarah→Serra rename and INV-1 duel reframe applied; CCB-007 second-kiss (Ch 14) + Option-B two-movement severance (Ch 30) applied; change history in `CHANGELOG.md`.*

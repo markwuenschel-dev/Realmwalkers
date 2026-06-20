@@ -102,10 +102,11 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| R-01 | ✅ RESOLVED | The Earth moment between Soren and Serra — what specifically happened? | **The kiss with mutual protective pullback — each misreading the other's pullback as rejection** (see `relationship_map.md`). |
+| R-01 | ✅ RESOLVED | The Earth moment between Soren and Serra — what specifically happened? | **The kiss with mutual protective pullback — each misreading the other's pullback as rejection** (`relationship_map.md`). **Marcus initiates; pullback mutual and simultaneous; each blind to their own half** — INV-1 Axis E (CCB-007). |
 | R-02 | 🟡 | When Serra returns — what is the first scene between them? | The reunion scene. Carries all the unaddressed weight. Must not resolve too easily. |
 | R-03 | 🟡 | At what point does Seb's path put him in direct conflict with Soren? | The mirror-rival dynamic needs a collision point. |
 | R-04 | 🟢 | Does Serra ever tell Soren what the solo arc cost her? | Affects intimacy arc. May be a late-series beat. |
+| R-05 | ✅ RESOLVED | **Serra's one rule** — the single armor-line that governs the kiss and the severance | **"I don't ask people to stay" (CCB-007 R-5).** Her oldest armor; the "after" motif at the character-rule level. *Enacted* at the second kiss (takes the *now*, never asks the *after*); *cost-breaks* at the severance (she cuts the bond to keep from asking — the rule, held, finally breaks her). **Never stated on the page; never collapse into the Myrmidon "being seen" beat.** Owner: `serra_hawthorne.md` (+ `marcus_serra_relationship.md` §8). |
 
 ---
 
@@ -182,4 +183,5 @@
 | A3-08 | 🟢 | What are the Vultures' specific conditions for joining the operation? | Needs detail before NEW-007 can be fully drafted |
 | A3-09 | 🟢 | What is the elven child's name? | Can be deferred but needed before the child has a scene with dialogue. **Soul Level = Strong** (a notable namebinding catch — reinforces "monetized rescue": the guild landing a real prize, not routine debt-resolution); name/fate still open. |
 | A3-10 | 🟢 | What does the first partial Eyes notification actually say? | Interface text for the road encounter skill unlock |
+| A3-11 | 🟡 | **Is Serra on- or off-page during Maera's over-share (Ch 12)?** | Gates the dark rhyme of the warmth-trap beat (`setup_payoff_tracker.md` MS-T7). **Off-page** → "the liar-detector wasn't in the room"; **on-page** → "his hunger for warmth overrode even her instinct." Ch 12 reads as a rest stop with people sleeping (off-page plausible) — **check the live Ch 12 before drafting.** The remaining open dependency from CCB-007. |
 
