@@ -12,8 +12,8 @@ from dominion.workers.reviewers.continuity import continuity_reviewer
 
 def _ctx(ledger: dict[str, dict[str, object]]) -> SceneContext:
     return SceneContext(
-        book_id=uuid.uuid4(), chapter_id=uuid.uuid4(), pov="Soren", scene_no=1,
-        tags=[], characters_present=["Soren"], beat_text="x",
+        book_id=uuid.uuid4(), chapter_id=uuid.uuid4(), pov="Marcus", scene_no=1,
+        tags=[], characters_present=["Marcus"], beat_text="x",
         expected_state_changes=None, knowledge_injections=[], voice_spec=None,
         budget=TokenBudget(max_tokens=40_000), ledger=ledger,
     )
@@ -36,12 +36,12 @@ async def test_empty_ledger_skips_extraction_entirely(monkeypatch):
 async def test_flags_numeric_contradiction_as_hard(monkeypatch):
     async def fake_complete(**kwargs):
         return (
-            '[{"character":"Soren","attribute":"level","value":"7",'
+            '[{"character":"Marcus","attribute":"level","value":"7",'
             '"context_sentence":"His interface blinked LEVEL 7."}]'
         ), Usage(10, 10)
 
     monkeypatch.setattr(llm, "complete", fake_complete)
-    flags = await continuity_reviewer.review("...", _ctx({"Soren": {"level": 5}}))
+    flags = await continuity_reviewer.review("...", _ctx({"Marcus": {"level": 5}}))
 
     assert len(flags) == 1
     flag = flags[0]
@@ -55,10 +55,10 @@ async def test_flags_numeric_contradiction_as_hard(monkeypatch):
 
 async def test_consistent_value_produces_no_flag(monkeypatch):
     async def fake_complete(**kwargs):
-        return '[{"character":"Soren","attribute":"level","value":"5","context_sentence":"."}]', Usage(10, 10)
+        return '[{"character":"Marcus","attribute":"level","value":"5","context_sentence":"."}]', Usage(10, 10)
 
     monkeypatch.setattr(llm, "complete", fake_complete)
-    flags = await continuity_reviewer.review("...", _ctx({"Soren": {"level": 5}}))
+    flags = await continuity_reviewer.review("...", _ctx({"Marcus": {"level": 5}}))
     assert flags == []
 
 
@@ -67,5 +67,5 @@ async def test_malformed_extraction_is_swallowed(monkeypatch):
         return "sorry, I can't do that", Usage(5, 5)   # not JSON
 
     monkeypatch.setattr(llm, "complete", fake_complete)
-    flags = await continuity_reviewer.review("...", _ctx({"Soren": {"level": 5}}))
+    flags = await continuity_reviewer.review("...", _ctx({"Marcus": {"level": 5}}))
     assert flags == []        # advisory: a bad extraction never crashes review

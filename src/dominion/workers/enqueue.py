@@ -123,7 +123,7 @@ def _split(value: str | None) -> list[str] | None:
 
 
 def _parse_esc(raw: str | None) -> dict[str, Any] | None:
-    """Parse --expected-state-changes JSON, e.g. '{"Soren": {"level": "+1"}}'."""
+    """Parse --expected-state-changes JSON, e.g. '{"Marcus": {"level": "+1"}}'."""
     if not raw:
         return None
     try:
@@ -131,7 +131,7 @@ def _parse_esc(raw: str | None) -> dict[str, Any] | None:
     except json.JSONDecodeError as exc:
         raise SystemExit(f"--expected-state-changes is not valid JSON: {exc}") from exc
     if not isinstance(data, dict):
-        raise SystemExit("--expected-state-changes must be a JSON object, e.g. '{\"Soren\": {\"level\": \"+1\"}}'")
+        raise SystemExit("--expected-state-changes must be a JSON object, e.g. '{\"Marcus\": {\"level\": \"+1\"}}'")
     return data
 
 
@@ -159,16 +159,16 @@ def main() -> None:
     parser.add_argument("--book", required=True)
     parser.add_argument("--chapter", type=int, required=True)
     parser.add_argument("--scene", type=int, required=True)
-    parser.add_argument("--pov", default="Soren")
+    parser.add_argument("--pov", default="Marcus")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--beat-text", help="the beat prose, inline")
     group.add_argument("--beat-file", help="path to a file containing the beat prose")
-    parser.add_argument("--characters", help="comma-separated, e.g. 'Soren,Mara'")
+    parser.add_argument("--characters", help="comma-separated, e.g. 'Marcus,Mara'")
     parser.add_argument("--tags", help="comma-separated enrichment tags (Phase 3), e.g. 'combat,dialogue'")
     parser.add_argument(
         "--expected-state-changes",
         help="JSON stat deltas committed to the ledger on approval, "
-             "e.g. '{\"Soren\": {\"level\": \"+1\", \"hp\": 100}}'",
+             "e.g. '{\"Marcus\": {\"level\": \"+1\", \"hp\": 100}}'",
     )
     parser.add_argument("--draft", action="store_true", help="draft the scene immediately after enqueueing")
     asyncio.run(_run(parser.parse_args()))

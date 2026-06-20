@@ -16,8 +16,8 @@ from dominion.workers.reviewers.voice import voice_reviewer
 
 def _ctx(**overrides: object) -> SceneContext:
     base: dict[str, object] = dict(
-        book_id=uuid.uuid4(), chapter_id=uuid.uuid4(), pov="Soren", scene_no=1,
-        tags=[], characters_present=["Soren"], beat_text="Soren tests his eyes.",
+        book_id=uuid.uuid4(), chapter_id=uuid.uuid4(), pov="Marcus", scene_no=1,
+        tags=[], characters_present=["Marcus"], beat_text="Marcus tests his eyes.",
         expected_state_changes=None, knowledge_injections=[], voice_spec=None,
         budget=TokenBudget(max_tokens=40_000),
     )
@@ -85,15 +85,15 @@ async def test_pacing_never_hard(monkeypatch):
 # --- state drift ----------------------------------------------------------------------------------
 
 async def test_state_drift_flags_undeclared_change(monkeypatch):
-    _mock(monkeypatch, '[{"character": "Soren", "change": "gains a sword", '
+    _mock(monkeypatch, '[{"character": "Marcus", "change": "gains a sword", '
                        '"note": "prose shows him pocketing a blade", "severity": "warn"}]')
     flags = await state_drift_reviewer.review(
-        "Soren slid the blade into his belt.",
-        _ctx(expected_state_changes={"Soren": {"level": "+1"}}),
+        "Marcus slid the blade into his belt.",
+        _ctx(expected_state_changes={"Marcus": {"level": "+1"}}),
     )
     assert len(flags) == 1 and flags[0].reviewer == "state_drift"
     assert flags[0].severity in (Severity.INFO, Severity.WARN)
-    assert flags[0].payload == {"character": "Soren", "change": "gains a sword"}
+    assert flags[0].payload == {"character": "Marcus", "change": "gains a sword"}
 
 
 async def test_state_drift_noops_without_declared_changes(monkeypatch):
@@ -104,18 +104,18 @@ async def test_state_drift_noops_without_declared_changes(monkeypatch):
 
 async def test_state_drift_tolerates_garbage(monkeypatch):
     _mock(monkeypatch, "```\noops\n```")
-    flags = await state_drift_reviewer.review("Prose.", _ctx(expected_state_changes={"Soren": {"hp": 1}}))
+    flags = await state_drift_reviewer.review("Prose.", _ctx(expected_state_changes={"Marcus": {"hp": 1}}))
     assert flags == []
 
 
 # --- continuity POV-knowledge (additive; hard-number path unaffected) ------------------------------
 
 async def test_continuity_knowledge_flags_are_advisory(monkeypatch):
-    _mock(monkeypatch, '[{"reference": "the queen\'s death", "note": "Soren never learned this"}]')
+    _mock(monkeypatch, '[{"reference": "the queen\'s death", "note": "Marcus never learned this"}]')
     # ledger empty -> hard-number path no-ops; pov_summary present -> knowledge path runs.
     flags = await continuity_reviewer.review(
         "He thought of the queen's death.",
-        _ctx(pov_summary="Soren has woken in the Realm and met no royalty."),
+        _ctx(pov_summary="Marcus has woken in the Realm and met no royalty."),
     )
     assert len(flags) == 1
     assert flags[0].reviewer == "continuity" and flags[0].severity == Severity.WARN
