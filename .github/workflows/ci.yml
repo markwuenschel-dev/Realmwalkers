@@ -1,0 +1,102 @@
+name: CI
+
+# Mirrors the local gates (justfile: lint / typecheck / test + frontend build). The one thing CI adds
+# over a laptop run is a real Postgres+pgvector, so the DB-backed tests actually execute instead of
+# self-skipping (see tests/conftest.py + DOMINION_REQUIRE_DB below).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to a branch cancels the previous in-flight run for that branch — don't burn minutes on
+# stale commits. Each main push still runs to completion (ref is unique per push group).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---- static analysis: ruff + mypy. No DB, no network, one interpreter (config targets py312). ----
+  static:
+    name: lint + types
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"   # pin every uv command (sync AND run) to one interpreter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --extra dev
+      - name: ruff
+        run: uv run --no-sync ruff check src tests
+      - name: mypy (strict)
+        run: uv run --no-sync mypy src
+
+  # ---- tests: real Postgres+pgvector, across the supported floor (3.12) and the pinned dev version. ----
+  tests:
+    name: tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.14"]
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16   # same image as docker-compose.yml — pgvector preinstalled
+        env:
+          POSTGRES_USER: dominion
+          POSTGRES_PASSWORD: dominion
+          POSTGRES_DB: dominion
+        ports:
+          - 5432:5432
+        # The job won't start steps until this reports healthy, so tests never race the DB coming up.
+        options: >-
+          --health-cmd "pg_isready -U dominion"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      # Pin every uv command to the matrix interpreter. Without this, `uv sync --python X` builds the
+      # env, then a bare `uv run` falls back to .python-version (3.14), rebuilds the env WITHOUT the
+      # dev extra, and the tools vanish ("Failed to spawn: pytest").
+      UV_PYTHON: ${{ matrix.python }}
+      # conftest.py points the app at a dedicated test DB it creates/truncates itself.
+      DOMINION_TEST_DATABASE_URL: postgresql+asyncpg://dominion:dominion@127.0.0.1:5432/dominion_test
+      # Turn the "Postgres unreachable -> skip" fixture behaviour into a hard failure in CI, so a
+      # broken DB service can never produce a falsely-green run.
+      DOMINION_REQUIRE_DB: "1"
+      # llm.py builds the Anthropic client lazily and tests mock complete(); a deliberately-fake key
+      # means any accidental real call fails fast with an auth error instead of hanging.
+      ANTHROPIC_API_KEY: sk-ant-ci-not-a-real-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --extra dev
+      - name: pytest
+        # --no-sync runs in the env we just synced (no rebuild); -rs surfaces skips, which
+        # DOMINION_REQUIRE_DB forbids.
+        run: uv run --no-sync pytest -q -rs
+
+  # ---- frontend: tsc type-check + vite build (the only checks the frontend defines). ----
+  frontend:
+    name: frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: build (tsc -b && vite build)
+        run: npm run build

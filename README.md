@@ -78,6 +78,9 @@ enrichment passes, which fail *soft* (`PassError` → the spine still lands, fla
 
 ## Build phases (DESIGN §14)
 
+The current execution plan — finishing Phase 3, then wiring the Writers' Desk to the live API — is
+tracked in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 1. ✅ **One approved scene, end to end** — Drafter + continuity reviewer; draft from a beat, review in
    the inbox, approve.
 2. ✅ **Auto-advance + memory** — RAG over canon, per-POV + omniscient summaries, the stat ledger,
