@@ -3,8 +3,13 @@
 // view-models declared in ../types.ts. Import the live API as `import { api } from "../api/client"`.
 export { api } from "../../legacy/api/client";
 export type {
+  AnnotationIn,
+  AnnotationOut,
+  BeatOut,
   BookOut,
+  CanonOut,
   ChapterOut,
+  CharacterOut,
   Critique,
   ContinuityResolveIn,
   DecisionIn,
@@ -14,4 +19,7 @@ export type {
   SceneDetail,
   SceneOut,
   SceneVersionOut,
+  SuggestionIn,
+  SuggestionOut,
+  ThreadOut,
 } from "../../legacy/types";

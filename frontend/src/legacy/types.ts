@@ -131,3 +131,87 @@ export interface ManuscriptOut {
   title: string;
   chapters: ManuscriptChapter[];
 }
+
+// --- Ledger read surfaces (PR-B) -----------------------------------------------------------------
+
+export interface CharacterOut {
+  character: string;
+  role?: string | null;
+  stats: Record<string, unknown>;
+}
+
+export interface CanonOut {
+  id: string;
+  kind?: string | null;
+  name?: string | null;
+  body?: string | null;
+}
+
+// --- Curated / write surfaces (PR-C) -------------------------------------------------------------
+
+export interface ThreadOut {
+  id: string;
+  book_id: string;
+  name: string;
+  kind?: string | null;
+  state?: string | null;
+  note?: string | null;
+  beats?: Array<Record<string, unknown>> | null;   // [{scene_no,label,flag}]
+}
+
+export interface ThreadIn {
+  name: string;
+  kind?: string | null;
+  state?: string | null;
+  note?: string | null;
+  beats?: Array<Record<string, unknown>> | null;
+}
+
+export interface ThreadUpdateIn {
+  name?: string | null;
+  kind?: string | null;
+  state?: string | null;
+  note?: string | null;
+  beats?: Array<Record<string, unknown>> | null;
+}
+
+export interface AnnotationOut {
+  id: string;
+  scene_id: string;
+  version?: number | null;
+  quote?: string | null;
+  author?: string | null;
+  note?: string | null;
+  created_at: string;
+}
+
+export interface AnnotationIn {
+  quote?: string | null;
+  author?: string | null;
+  note: string;
+  version?: number | null;
+}
+
+export interface SuggestionOut {
+  id: string;
+  scene_id: string;
+  version?: number | null;
+  quote?: string | null;
+  new_text?: string | null;
+  author?: string | null;
+  why?: string | null;
+  status: string;          // pending | accepted | rejected
+  created_at: string;
+}
+
+export interface SuggestionIn {
+  quote?: string | null;
+  new_text?: string | null;
+  author?: string | null;
+  why?: string | null;
+  version?: number | null;
+}
+
+export interface SuggestionDecisionIn {
+  status: string;          // accepted | rejected
+}

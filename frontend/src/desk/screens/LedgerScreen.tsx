@@ -1,18 +1,39 @@
 import { css } from "../css";
 import { useDesk } from "../state";
-import { LEDGER_CATS, LEDGER_CHARS, LEDGER_THREADS } from "../data";
+import { api } from "../api/client";
+import { useFetch, useSelectedBook } from "../api/hooks";
+import { ledgerCats, toCanonCard, toLedgerChar, toLedgerThread } from "../api/adapters.ledger";
 
 export default function LedgerScreen() {
   const { t, ledgerCat, selectedThread, setLedgerCat, selectThread } = useDesk();
+  const { bookId } = useSelectedBook();
+
+  const charsState = useFetch(() => (bookId ? api.characters(bookId) : Promise.resolve([])), [bookId]);
+  const threadsState = useFetch(() => (bookId ? api.threads(bookId) : Promise.resolve([])), [bookId]);
+  const canonState = useFetch(() => (bookId ? api.canon(bookId) : Promise.resolve([])), [bookId]);
+
+  const chars = (charsState.data ?? []).map(toLedgerChar);
+  const threads = (threadsState.data ?? []).map(toLedgerThread);
+  const canon = canonState.data ?? [];
+  const locations = canon.filter((c) => c.kind === "location").map(toCanonCard);
+  const items = canon.filter((c) => c.kind === "item").map(toCanonCard);
+  const cats = ledgerCats({
+    characters: chars.length, threads: threads.length,
+    locations: locations.length, items: items.length,
+  });
 
   const isCharCat = ledgerCat === "characters";
   const isThreadsCat = ledgerCat === "threads";
   const isOtherCat = !isCharCat && !isThreadsCat;
+  const otherCards = ledgerCat === "items" ? items : locations;
+
+  const loading = charsState.loading || threadsState.loading || canonState.loading;
+  const error = charsState.error || threadsState.error || canonState.error;
 
   const threadKinds: Record<string, string> = {
     relationship: t.bad, mentorship: t.info, system: t.accent, power: t.warn,
   };
-  const threadCards = LEDGER_THREADS.map((th) => {
+  const threadCards = threads.map((th) => {
     const sel = selectedThread === th.id;
     const kindColor = threadKinds[th.kind] || t.dim;
     return {
@@ -26,6 +47,10 @@ export default function LedgerScreen() {
     };
   });
 
+  const empty = (msg: string) => (
+    <div style={css("background:var(--bg2);border:1px dashed var(--line);border-radius:var(--r);padding:40px;text-align:center;font-family:var(--mono);font-size:12.5px;color:var(--dim)")}>{msg}</div>
+  );
+
   return (
     <div>
       <div style={css("margin-bottom:22px")}>
@@ -34,7 +59,7 @@ export default function LedgerScreen() {
       </div>
       <div style={css("display:grid;grid-template-columns:184px 1fr;gap:22px;align-items:start")}>
         <div style={css("display:flex;flex-direction:column;gap:3px;position:sticky;top:84px")}>
-          {LEDGER_CATS.map((cat) => {
+          {cats.map((cat) => {
             const active = ledgerCat === cat.id;
             return (
               <button
@@ -50,9 +75,12 @@ export default function LedgerScreen() {
         </div>
 
         <div style={css("min-width:0")}>
-          {isCharCat && (
+          {loading && empty("Loading the ledger…")}
+          {error && empty(`Couldn't load the ledger — ${error}`)}
+          {!loading && !error && isCharCat && (
+            chars.length === 0 ? empty("No characters in the ledger yet.") : (
             <div style={css("display:grid;grid-template-columns:1fr 1fr;gap:14px")}>
-              {LEDGER_CHARS.map((ch) => (
+              {chars.map((ch) => (
                 <div key={ch.name} style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden")}>
                   <div style={css("display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line);background:var(--bg2b)")}>
                     <div style={css("width:38px;height:38px;border-radius:9px;background:var(--accentSoft);border:1px solid var(--accentLine);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:17px;color:var(--accent);flex:none")}>{ch.initial}</div>
@@ -72,9 +100,11 @@ export default function LedgerScreen() {
                 </div>
               ))}
             </div>
+            )
           )}
 
-          {isThreadsCat && (
+          {!loading && !error && isThreadsCat && (
+            threadCards.length === 0 ? empty("No threads curated yet.") : (
             <div style={css("display:flex;flex-direction:column;gap:12px")}>
               <p style={css("margin:0 0 4px;font-size:13px;color:var(--dim);line-height:1.5")}>Follow a relationship or plot thread across every scene it touches. Flagged beats carry an open continuity conflict.</p>
               {threadCards.map((th) => (
@@ -99,10 +129,20 @@ export default function LedgerScreen() {
                 </div>
               ))}
             </div>
+            )
           )}
 
-          {isOtherCat && (
-            <div style={css("background:var(--bg2);border:1px dashed var(--line);border-radius:var(--r);padding:40px;text-align:center;font-family:var(--mono);font-size:12.5px;color:var(--dim)")}>This ledger section isn't populated in the prototype yet.</div>
+          {!loading && !error && isOtherCat && (
+            otherCards.length === 0 ? empty("Nothing in this ledger section yet.") : (
+            <div style={css("display:grid;grid-template-columns:1fr 1fr;gap:14px")}>
+              {otherCards.map((c) => (
+                <div key={c.id} style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px")}>
+                  <div style={css("font-family:var(--display);font-size:16px;color:var(--ink);margin-bottom:6px")}>{c.name}</div>
+                  <div style={css("font-size:13px;color:var(--dim);line-height:1.55")}>{c.body}</div>
+                </div>
+              ))}
+            </div>
+            )
           )}
         </div>
       </div>
