@@ -6,8 +6,11 @@ executes instantly for zero tokens and cannot spiral.
 from __future__ import annotations
 
 from dominion.workers.reviewers.base import Reviewer
+from dominion.workers.reviewers.combat import combat_reviewer
 from dominion.workers.reviewers.continuity import continuity_reviewer
+from dominion.workers.reviewers.dialogue import dialogue_reviewer
 from dominion.workers.reviewers.pacing import pacing_reviewer
+from dominion.workers.reviewers.sensory import sensory_reviewer
 from dominion.workers.reviewers.state_drift import state_drift_reviewer
 from dominion.workers.reviewers.voice import voice_reviewer
 from dominion.workers.specialists.base import Specialist
@@ -31,7 +34,13 @@ ALWAYS_REVIEWERS: list[Reviewer] = [
     pacing_reviewer,
     state_drift_reviewer,
 ]
-TAG_REVIEWERS: dict[str, list[Reviewer]] = {}
+# Tag-gated review lanes — same tags as the enrichment passes (OPEN-8: novel runs combat/sensory/
+# dialogue as BOTH a pass and a review lane). reviewers_for() merges these onto ALWAYS_REVIEWERS.
+TAG_REVIEWERS: dict[str, list[Reviewer]] = {
+    "combat": [combat_reviewer],
+    "physical_description": [sensory_reviewer],
+    "dialogue": [dialogue_reviewer],
+}
 
 
 def passes_for(tags: list[str]) -> list[Specialist]:

@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
     draft_model: str = "claude-sonnet-4-6"
     review_model: str = "claude-haiku-4-5-20251001"
+    # Enrichment passes are generative like the drafter, so they default to the draft model; kept as a
+    # separate knob so the enrichment tier can be tuned without a code change (DESIGN §5-6).
+    enrich_model: str = "claude-sonnet-4-6"
 
     # Authoring source-of-truth docs loaded into the drafter. Relative paths resolve from the
     # project root (falling back to CWD). dialogue_rules.md is authoritative for ALL dialogue —
