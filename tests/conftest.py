@@ -42,7 +42,12 @@ async def db_factory():
         conn = await maint.connect()
     except Exception as exc:  # noqa: BLE001
         await maint.dispose()
-        pytest.skip(f"Postgres not reachable for DB tests ({type(exc).__name__}): {exc}")
+        msg = f"Postgres not reachable for DB tests ({type(exc).__name__}): {exc}"
+        # Locally, no Postgres -> skip (DB tests are opt-in). In CI we set DOMINION_REQUIRE_DB so an
+        # unreachable DB fails loudly instead of producing a falsely-green run.
+        if os.environ.get("DOMINION_REQUIRE_DB"):
+            pytest.fail(msg, pytrace=False)
+        pytest.skip(msg)
     try:
         exists = await conn.scalar(
             text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": dbname}
