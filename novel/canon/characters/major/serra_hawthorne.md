@@ -24,7 +24,7 @@ status: active
 | Age | TBD |
 | Origin | Self-made; ordinary background, no connections or shortcuts |
 | Guild Role (Earth) | Disruptor-Assassin; tandem with Mara Valeria |
-| Realm Class | Warrior |
+| Realm Class | Warrior (base, Book 1) → Worldbreaker (Legendary-lane evolved direction; Book 2) |
 | Realm Role | Disruptor / Pressure-Severance Interface user / Intermittent — comes and goes |
 | Power Interface | Pressure-Severance Interface |
 | Current Location | Separates from Marcus; solo arc in progress |
@@ -454,6 +454,10 @@ She is the social anchor — the person everyone orbits. Her power makes that ph
 
 The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra makes it fail.** Different interfaces. Complementary and occasionally catastrophic in combination.
 
+### Class Direction — Worldbreaker (Book 2)
+
+**Warrior** (base, Book 1) → **Worldbreaker** (Legendary-lane evolved direction; **Book 2**). Worldbreaker is the *severance-at-scale* expression of Pressure-Severance — it "breaks the impossible opposition," a parallel-not-copy to Marcus's Riftwalker ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
+
 ---
 
 ## Relationships
@@ -499,7 +503,11 @@ Tandem partner from the guild. Serra is force; Mara is setup. Serra asks who mus
 
 ### Book 1 Function
 
-Intermittent major presence. Meets Marcus early; they build their first real tandem during the false-rescue/naming arc and survive it together. During that tandem — on a Realm height the night before the magistrate operation — **she initiates the second kiss**: present-tense authorship, no category named, her one rule enacted (she takes the *now*, never asks the *after*; see *The One Rule*). She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **handler in the next city administers that registry**; that handler becomes a target she can't walk away from, and following it requires going somewhere Marcus can't. She carries the fragment up the chain toward the namebinding faction's parent organization — the **Court of Seals**, a regional limb of the cosmic **Aurelian Sovereignty** (see `cosmology.md`). The **registry-fragment is her Book-1 → Book-2 bridge object.** Her Pressure-Severance interface **unlocks for real at the magistrate kill / her move to the next city.** She returns at the Act-5 finale, changed. Her arc runs parallel to Marcus's and intersects at key moments without depending on it.
+Intermittent major presence. Meets Marcus early; they build their first real tandem during the false-rescue/naming arc and survive it together. During that tandem — on a Realm height the night before the magistrate operation — **she initiates the second kiss**: present-tense authorship, no category named, her one rule enacted (she takes the *now*, never asks the *after*; see *The One Rule*). She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **registry-fragment becomes a *cold* lead** she carries — her **Book-1 → Book-2 bridge object** — that does **not** drive her Book-1 solo arc. The hunt up the chain toward the namebinding faction's parent organization — the **Court of Seals** (a regional limb of the cosmic **Aurelian Sovereignty**, `cosmology.md`), and the cosmology beat where she learns the Sovereignty exists — is **Book 2**, not Book 1.
+
+**Book-1 solo arc — the dungeon.** After the split she takes the road alone and is held by a small town built beside a delve. She means to move on; something keeps her (reason TBD — see Open Questions). The dungeon runs underground: old buried trade-road infrastructure, chitinous/insect and webbed-tunnel ecology, corpse-insects, level-appropriate danger and loot. The boss is **the Toll-King** *(proposed, not locked)* — an undead road-lord / toll authority still collecting passage-debt after death, tied to the old Eriadne trade route. The dungeon is where her **Warrior** combat identity hardens (toward the **Worldbreaker** direction — Book 2). **Her Eriadne pull is her own:** the delve yields a marker/toll-seal/road-pass the locals recognize — *“that came from Eriadne”* — and the trade-route trail points her there. She goes because her arc points there, not because Marcus or the Broker told her to.
+
+Her Pressure-Severance interface **activates/realizes at the Act-5 finale severance** — under full emotional pressure, the same event as the relationship rupture (parallel to Marcus's Neurochromatic Eyes igniting in the Myrmidon movement). It is *not* unlocked at the magistrate kill; through her solo arc she develops as a **Warrior**, interface still dormant. She returns at the Act-5 finale, changed. Her arc runs parallel to Marcus's and intersects at key moments without depending on it.
 
 **The wrong is namebinding** — weaponized true names as control. It cuts at her self-made identity (people never allowed to author a self), not a past trauma. Not a crusade: one face, then the chain of handlers above it.
 
@@ -520,13 +528,14 @@ Book 1 leaves her mid-hunt, changed in ways that are visible and ways that aren'
 ## Open Questions
 
 - Does her Realm name stay Serra, or does she earn/receive a new name in the Realm?
-- ~~What is the wrong / who has a face on it?~~ **Resolved:** the wrong is **namebinding**; the "face" is reframed from rescue to **enemy** — she kills the magistrate (a **node, not the source**) and learns who *directs* him: a handler in the next city who **administers the leased-name registry**. At the kill she takes a **registry-fragment** (her Book-1 → Book-2 bridge object) and follows it up the chain.
+- ~~What is the wrong / who has a face on it?~~ **Resolved:** the wrong is **namebinding**; the "face" is reframed from rescue to **enemy** — she kills the magistrate (a **node, not the source**) and learns who *directs* him: a handler in the next city who **administers the leased-name registry**. At the kill she takes a **registry-fragment** (her Book-1 → Book-2 bridge object, a *cold* lead); the up-the-chain hunt (Court of Seals → Aurelian Sovereignty) is **Book 2**, not her Book-1 solo arc — which is **the dungeon** (see Book 1 Function).
 - What does she find at the roots of it that makes her stay longer than she planned?
-- What is the moment in her solo arc where her power almost costs her something she can't recover?
+- What is the moment where her power almost costs her something she can't recover? (Not the solo arc — her interface is dormant until the Act-5 finale; this lands at/after the finale activation, or in Book 2.)
 - What does she build or become during the separation that belongs entirely to her?
 - What does she need from Marcus specifically that she can't get from anyone else — and does she ever admit it?
 - Does she travel with Mara, separate from Mara, or does Mara take a different path entirely?
 - Which Final Path does she move toward — Coherence or Saturation? Is the choice conscious?
+- Why does Serra stay in the dungeon town? (must be specific — the town helps her first / earned local delver culture / a young delver she can't dismiss / practical courage she respects). ⚠ open.
 
 ---
 

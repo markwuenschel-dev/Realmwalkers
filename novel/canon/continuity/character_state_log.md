@@ -39,9 +39,9 @@
 ## Checkpoint: Eriadne Arrival (Marcus)
 
 - **Marcus:** Eriadne ruin-fringe; building a fragile community; Eyes genuinely useful in social/combat reads; beginning to read ley structure; Serra's absence present.
-- **Brent:** converges; civil engineer; **Adventurer** + **Keystone Integrity** (Load-Ache active); the fortifier of the fringe.
+- **Brent:** converges; civil engineer; **Warden → Reckoner** (Book-2 dir.) + **Keystone Integrity** (open); the structural reader of the fringe (fortifying = Book 2).
 - **Mara:** converges from her court arc; **Psion** + **Mirror-Salience**; challenges Marcus treating people as systems.
-- **Serra:** solo arc in progress — hunting the one namebound stranger; going deeper than planned; ends **unfinished**.
+- **Serra:** Book-1 solo arc in progress — **the dungeon** (delve + Toll-King + Eriadne trade-clue); develops as a Warrior, interface dormant until the Act-5 finale; going deeper than planned; ends **unfinished** (Court-of-Seals hunt = Book 2).
 - **Seb:** approaching/holding the broker's power (Reaver + Threshold Cascade); gray fall deepening; shortest arc → near Eriadne.
 - **Mathias:** near the ruins; **Scout** + **Enteric Lattice**; discovering the Xyloryn and the portal.
 

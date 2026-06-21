@@ -15,10 +15,10 @@
 | True Name | — unassigned |
 | Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
-| Origin | Large, outcome-obsessed family; IT support tech background |
+| Origin | Large, outcome-obsessed family; civil-engineering background |
 | Guild Role (Earth) | Healer/Support — Aetherfall roster |
-| Realm Role | TBD — healer is not confirmed for Realm; class and power path open |
-| Power Interface | TBD — open; three candidate directions identified |
+| Realm Role | Warden (base) → Reckoner (specialization; Book-2 direction) — protects people/systems/boundaries, makes transferred cost visible and demands it be answered |
+| Power Interface | TBD — open (specialization mechanics still to define) |
 | Current Location | Separated — alone for significant stretch, then finds a different group (not the Iron Vultures) |
 | Current Allegiance | Unknown group encountered in solo arc |
 
@@ -606,11 +606,7 @@ He is estranged from most of the family now. No one waiting. No one who would no
 
 ### Earth Job
 
-General IT field support at a large unglamorous organization — manufacturing company, hospital system, logistics hub, or municipal office. He fixes printers, Wi-Fi, routers, cables, workstation problems, conference room screens, password lockouts, "the system is down" situations, and user-error problems nobody wants to admit are user error.
-
-He actually likes the work. That is important. The problem is not the job — it is that when he does his job well, nothing dramatic happens, which means nobody notices. He is only visible when something breaks. His competence prevents problems. People rarely credit him for problems that never happened.
-
-He is not a genius hacker. Not a prestige programmer. Not Marcus's intellectual peer in biotech terms. He is the guy crawling under the desk because someone making twice his salary unplugged the Ethernet cable. He has made his peace with this in a way that has not quite become bitterness but is sitting in that neighborhood.
+Civil/structural engineering at an unglamorous outfit — a municipal works department, a regional construction firm, a bridge-and-roads contractor, an inspection agency. He does load calculations, materials specs, site inspections, failure analysis, the drawings nobody reads until something cracks. He actually likes the work. That matters. The problem is that when he does it well, nothing happens — no collapse, no flood, no headline — so nobody notices. He is only visible when something fails. His competence prevents failures. People rarely credit the disaster that didn't occur. He is not a celebrity architect or a prestige engineer; he is the one walking the site in a hard hat telling someone making twice his salary why their shortcut will kill people in ten years. He has made his peace with this in a way that has not quite become bitterness but is sitting in that neighborhood.
 
 ### Why He Accepted Astria's Offer
 
@@ -636,21 +632,17 @@ His healing style in-game was direct and efficient. No flourishes. He kept peopl
 
 ## Realm Class and Power Path
 
-**Status: Open. Healer is not confirmed for the Realm.**
+**Status: Warden (base) → Reckoner (specialization; Book-2 direction). Healer was an Aetherfall role only — not his Realm class.**
 
-The Aetherfall healer identity does not automatically carry over. Skills must be learned, discovered through use, taught, or unlocked by situation. What Brent becomes in the Realm is still being determined.
+The Aetherfall healer identity does not automatically carry over. Skills must be learned, discovered through use, taught, or unlocked by situation. His Realm direction is **Warden → Reckoner** (below).
 
-### Three Candidate Directions
+### Realm Class — Warden → Reckoner
 
-**Breaker** — His anti-abstraction instinct made literal. The Realm's magical systems — contracts, bindings, vow structures, ritual circles, name-bindings — are systems. Systems have load-bearing components. Brent finds those components and removes them. Not through counter-magic or training. Through the same diagnostic instinct that makes him good at IT: he walks up to something complicated and asks what's actually holding this together. His hands find the answer. Thematic resonance: he was beaten by paperwork. His power undoes the paperwork.
+**Warden** (base; `classes.md`). For Brent, Warden is not "tank." It is responsibility over what must not be allowed to fail — people, systems, places, boundaries, infrastructure. It runs on what he already is: load-path thinking, failure-first instinct, margins and tolerances, materials realism, field improvisation, plain-language consequence. He asks *what actually happens, what breaks first, who pays if this fails.*
 
-**Steadfast** — Physical commitment as a Realm interface. When Brent commits to something — holding a position, finishing a job, standing between a group and a threat — the Realm treats that consistency as structurally real. He becomes harder to move than his size suggests. He endures things that should stop him. He finishes things that should have killed him before completion. Thematic resonance: his whole life, people underestimated what he'd do. His power is the Realm validating that they were wrong.
+**Reckoner** (specialization; **Book-2 direction**, planted in Book 1, not unlocked in it). Warden with a hard edge: a Reckoner accounts for cost, consequence, debt, transferred risk — who caused the harm and who is being made to pay for someone else's decision — and makes that cost impossible for the room to ignore. He does not merely defend; he forces the bill to be answered. This is the literal Realm-expression of "he was beaten by paperwork": his power names who benefits from the damage being hard to see.
 
-**Tinkerer / Runewright** — IT troubleshooting translated into Realm mechanics. He gets his hands on Realm artifacts, broken magical constructs, discarded ritual components and treats them the way he treats a router that's behaving wrong. He builds things, modifies things, repairs things magic users consider beyond repair because they're thinking about intended design rather than actual mechanism. Thematic resonance: he likes the work. This is that, in a setting where the problems are more interesting.
-
-**Hybrid possibility:** Breaker + Tinkerer — someone who dismantles what others constructed and builds from the pieces. The most complete expression of his psychology.
-
-⚠ Decision needed before any Realm power scene involving Brent can be drafted.
+Book 1 plants the behavior (he protects a crew/system under stress, identifies the real failure point, refuses heroic abstraction, sees who is carrying someone else's cost). The Reckoner *name* is trajectory, not a Book-1 ability unlock.
 
 ---
 
@@ -709,7 +701,7 @@ He is not the smartest person in the room. He may be the most honest about what 
 
 ### Starting Point
 
-Estranged, unglamorous, practically competent, allergic to abstraction. No one waiting for him. Accepted an offer that promised money and the possibility of being chosen for something. Arrives in the Realm with no skills, no weapon, no context — and the same diagnostic instinct he brought to every broken router.
+Estranged, unglamorous, practically competent, allergic to abstraction. No one waiting for him. Accepted an offer that promised money and the possibility of being chosen for something. Arrives in the Realm with no skills, no weapon, no context — and the same diagnostic instinct he brought to every failing structure he ever inspected.
 
 ### End Direction
 
@@ -723,7 +715,7 @@ Book 1 leaves Brent somewhere in his solo arc — integrated into a group that n
 
 ## Open Questions
 
-- What is his Realm class and power path? ⚠ Blocking for any power scene.
+- ~~Realm class and power path~~ — **Warden → Reckoner** (Warden base now; Reckoner is Book-2 direction). Specialization mechanics still TBD.
 - What is the unknown group he finds in his solo arc?
 - How does his power first activate — through what specific situation?
 - Does he reconnect with Marcus before or after the Eriadne arc?
@@ -746,4 +738,4 @@ Book 1 leaves Brent somewhere in his solo arc — integrated into a group that n
 
 ---
 
-*Last updated: rebuilt from redesign document; healer confirmed for Aetherfall only; Realm class open; solo arc with unknown group; mortality unresolved*
+*Last updated: Realm class set to Warden → Reckoner (Warden base now; Reckoner = Book-2 direction); profession corrected to civil/structural engineering (IT-support framing retired); Breaker/Steadfast/Tinkerer candidates retired; healer remains Aetherfall-only; solo arc with unknown group; survives Book 1.*

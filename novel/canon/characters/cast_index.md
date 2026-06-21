@@ -27,7 +27,7 @@ known_entities: [ayla]
 | Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Threshold Cascade / Mirror-rival to Marcus | Active | `major/seb.md` |
 | Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Mirror-Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
 | Mathias Sterling | Mathias Sterling | TBD | Aetherfall Ranger/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
-| Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Adventurer / Keystone Integrity | Active — possible death in Book 1 (unconfirmed) | `major/brent.md` |
+| Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Warden → Reckoner (Book-2 dir.) / Keystone Integrity (open) | Active — survives Book 1 | `major/brent.md` |
 | Ayla | N/A | Ayla | Ancient celestial consciousness / Attached to Marcus's implant | Active — internal | `major/ayla.md` |
 
 ---

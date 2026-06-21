@@ -126,8 +126,23 @@ Marcus's claim on the ruin-fringe is not strategic at first. He needs a place th
 
 ---
 
+## W-01 — The Builders, or a Corpse? (PROPOSED alternative — not locked)
+
+The current **builder** framing (an ancient civilization raised structures around the natural convergence) **stays in place but is flagged disliked / for-replacement.** The **leading proposed alternative** (unlocked — do not assert): the "ruins" are not architecture at all but the dormant **corpse of a N'hal** — *structure = anatomy, not masonry; the portal = a wound / aperture, not a built gate.*
+
+If adopted, the implications (captured, not asserted — all **PROPOSED**):
+- **(i)** The ruins "recognizing" Marcus reframes to: this is the one place his interface shows him the **seams** — glitches that *mean* something; "**interface ≠ world**" rendered as geography.
+- **(ii)** A dead N'hal is the **Nightbound founder's *evidentiary* proof**, and the reason the Realm "registered" to the N'hal — the civilization that **killed** it is the one that "prepared for the wrong war."
+- **(iii)** "People come back changed" from the deep ruins = **residual denaturing.**
+- **(iv)** The finale agent forces open the **corpse's wound-aperture** (the breach).
+
+**Dosage:** even if adopted, the corpse is present on-page as a dead *place* — **not *named* N'hal until Book 2** (preserves the "distant weather" rule). Tracked as **W-01** (`unresolved_character_threads.md`, `master_timeline.md`, `cosmology.md` → N'hal).
+
+---
+
 ## Open Questions
 
+- **W-01 — builders vs. corpse:** the leading proposed alternative is the **corpse of a N'hal** (see the W-01 section above). Unlocked; the author's final ruling is owed.
 - What ancient civilization built the ruins / ley-line hub? What did they intend?
 - What is the convergence actually for? *(Now canon: it is the meeting of the **eight elemental ley lines** and holds a **dormant natural portal**; what the ancient builders made of it remains open.)*
 - Who or what forces the portal open at the finale / summons the Myrmidon through it? (**W-05** — agent, the Xyloryn themselves, or the convergence destabilizing.)

@@ -93,6 +93,32 @@ So: **aether is the clay, diagnosis is the retrieval-and-tuning, the Genome is t
 
 ---
 
+## Scale, Apex Beings & the Ley Network
+
+> Net-new worldbuilding (Convergence/Class/Finale pass). The cast can defeat a **group-finale** threat (the Myrmidon). They do **not** defeat the world-scale beings below.
+
+### The Sea Dominion — the water-aligned apex beings (a category)
+**"Sea Dominion" is a *category of creature*, not a thing.** It refers to the **water-aligned apex beings** — leviathans, storm-dragons, oceanic apex entities — taken *as a class.* It is **not** a single entity, **not** a label for one creature, **not** a nation, region, faction, polity, or ship-origin. It exists to show *scale.* A character may **witness, survive, or be routed by** one of these beings; no one in the cast **fights** one or is **"rescued by"** one, and there is **no such thing as a "Sea Dominion vessel"** (the term names a *kind of being*, never a ship or a power). (Brent's sea arc: an *ordinary* crew rescues him; a leviathan / storm-dragon sighting is witnessed / survived / routed, never defeated. See `brent.md`, `master_timeline.md`.)
+*(The **term** "Sea Dominion" is a provisional concept-name; what's fixed is the **meaning** — the water-aligned apex beings as a category, never a polity, vessel, or single entity. Same provisional status for "Toll-King.")*
+
+### Scale hierarchy
+| Tier | Example | What it is |
+|---|---|---|
+| Cosmic trauma / impossible scale | archdemon / archangel (Xazzidiuk, Zazriel) | beings the story does not "beat" |
+| Civilization-scale wonder | the **behemoth** (the Walking Grove) | a living world, not a boss |
+| Apex ecological / mythic scale | **storm-dragon / leviathan (Sea Dominion)** | witnessed, survived, routed — not defeated |
+| Local adventure-scale threat | a **dungeon** | the regional, beatable danger |
+| **Group-finale threat** | the **Myrmidon** | the one the six can actually defeat — together |
+
+The cast does **not** defeat the world-scale beings.
+
+### Eight Great Ley Lines & their tributaries → regional dungeons
+There are **eight Great Ley Lines, one per foundational element** (Fire, Water, Earth, Air/Wind, Light, Shadow, Life, Death). **Eriadne sits at a rare full / near-full convergence of all eight** (`eriadne.md` owns the Eriadne-specific detail; not duplicated here). Elsewhere, smaller **branches, tributaries, eddies, and local intersections** exist — enabling **regional dungeons** and local anomalies without making other locations magically irrelevant.
+
+**Dungeons are ley-reactive pressure systems** that pool in caves, tombs, old roads, ruins, and buried infrastructure, and can **absorb local history** — which is what lets Serra's underground delve carry old trade-route architecture, **the Toll-King**, and Eriadne references (a **local ley intersection**, not the full eight-line knot). See `serra_hawthorne.md`.
+
+---
+
 ## Book-1 Story Hooks (where the cosmos touches the cast)
 
 - **Marcus** — the **Concord** is the empire he'd admire first (it looks like science, progress, competence). the **Court of Want** offers him *certainty* (the forbidden path his Meszkhal item already whispers). The **Realm Walkers** recruit him.

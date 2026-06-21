@@ -153,8 +153,8 @@ status: working
 
 **Ch 15 — The Operation & The Split** · Marcus + Serra · Days ~19–21 · ⚠
 - **Function:** the act's hinge — Marcus saves the child at cost; Serra kills and learns the registry; the pair splits without words.
-- **Beats:** chaotic intervention; **Marcus extracts the child, others don't make it** (marked by a correct choice that still cost); **⟢ SERRA POV — Serra kills the magistrate** (off-page from Marcus, **on-page in hers**) → learns he's a **node, not the source** (names sub-leased from a master registry) → takes a **registry-fragment**; her interface unlocks for real; **the split — no speech**, Earth Thing at its heaviest; she leaves **not because Marcus failed her** but because she's found something she can't ignore — toward the **Court of Seals** (limb of the Aurelian Sovereignty, name unknown to her).
-- **Interlude:** ⟢ Brent (alone, then a different group; Adventurer/Keystone Integrity begins through use).
+- **Beats:** chaotic intervention; **Marcus extracts the child, others don't make it** (marked by a correct choice that still cost); **⟢ SERRA POV — Serra kills the magistrate** (off-page from Marcus, **on-page in hers**) → learns he's a **node, not the source** (names sub-leased from a master registry) → takes a **registry-fragment** (a *cold* Book-2 lead; **her interface does NOT unlock here — it stays dormant until the Act-5 finale**); **the split — no speech**, Earth Thing at its heaviest; she leaves **not because Marcus failed her** but because she's found something she can't ignore. **Her Book-1 solo arc is the dungeon**; the **Court of Seals** (limb of the Aurelian Sovereignty) is where the cold lead points — **Book 2.**
+- **Interlude:** ⟢ Brent (alone, then a different group; Warden/Reckoner direction + Keystone Integrity (open) begin through use).
 - **Scenes:** `NEW-008` · `NEW-009` (after-split) · `Brent` launch.
 - **Pays:** CH-016 (saves child / others don't) · CH-018 (Serra kills — a decision) · WF-010 / WF-012 (registry → Court of Seals) · SE-05/SE-06 latent.
 - **End state:** pair split; Serra solo with the fragment; Marcus marked; child extracted (fate pending).
@@ -167,9 +167,9 @@ status: working
 **Ch 16–17 — The Long Road** · Marcus · Days ~23–44 · ⚠
 - **Function:** travel to Eriadne; show non-combat power; first Xyloryn diagnostic; ignite Seb; advance Serra solo.
 - **Beats:** rumors of the thread city; **playful-chaos defusion** (turns a crowd, gives a face-saving exit — non-combat power); **Eyes emotional-leak social cost** (Stage-2 tells betray him; data ≠ truth); first **Xyloryn diagnostic hint** (sampling, not just killing); felt ley pull; reach outskirts ~Day 45.
-- **Interludes:** ⟢ Seb — kills his captor **barehanded** → **then** the broker speaks (*"you can have more,"* the brother's soul dangled — **a real offer, not a bluff**; the lie is "restored *cleanly*") → **Reaver + Threshold Cascade ignite**; shortest, among the most powerful. **⟢ SERRA POV — solo hunt** (first solo chapter): the **one independent namebound stranger**; learns the registry runs higher; carries the fragment; ends **unfinished**; the **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants) — she continues anyway; the one thread she won't sever is him.
+- **Interludes:** ⟢ Seb — kills his captor **barehanded** → **then** the broker speaks (*"you can have more,"* the brother's soul dangled — **a real offer, not a bluff**; the lie is "restored *cleanly*") → **Reaver + Threshold Cascade ignite**; shortest, among the most powerful. **⟢ SERRA POV — the dungeon** (first solo chapter): held by a small town beside a delve; the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed); the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished**; the **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants) — she continues anyway; the one thread she won't sever is him. *(Court of Seals hunt = Book 2; interface still dormant.)*
 - **Scenes:** `SCENE-010` (Xyloryn first hint) · `SCENE-009` deepen (Seb noble cost) · `Serra solo` deepen/crest.
-- **Pays:** CH-001 (playful-chaos) · SYS-006 (Eyes leak) · WF-005 (Xyloryn) · CH-008 (Seb cost payoff) · SE-05/SE-06 (Serra collateral; Coherence vs Saturation).
+- **Pays:** CH-001 (playful-chaos) · SYS-006 (Eyes leak) · WF-005 (Xyloryn) · CH-008 (Seb cost payoff) · SE-06 latent (Coherence vs Saturation = Book 2); SE-05 deferred to the finale (interface dormant in the solo arc).
 - **End state:** Marcus at Eriadne's edge; Seb powered + leashed; Serra deep in her hunt.
 - **Gate:** ⚠ **Decide SB-01** (Seb's disclosed cost vs hidden dependency — *the cost is locked as real per INV-6; the open piece is which warning he rationalizes first*). Draftable; lock SB-01 before Seb's late-book convergence.
 
@@ -195,7 +195,7 @@ status: working
 
 **Ch 20 — Brent** · ~Day 54 · ✅
 - **Function:** first convergence; the "he actually saw me" recognition.
-- **Beats:** **Brent converges** (Adventurer; Keystone Integrity) — in B1 the **structural mind whose reads matter in a crisis** (fortifying/settlement = Book 2); the recognition beat with Marcus.
+- **Beats:** **Brent converges** (Warden → Reckoner dir.; Keystone Integrity, open) — in Book 1 the **structural mind whose reads matter in a crisis** (fortifying/settlement = Book 2); the recognition beat with Marcus.
 - **Pays:** CH-011 (Brent practical competence).
 - **End state:** Marcus + Brent; first of the six back.
 - **Gate:** ⚠ **Decide BR-02 — Brent's first practical Realm-material/mechanism discovery** (what he reads before anyone). Draftable around it; lock before the finale where his keystone-read pays off.

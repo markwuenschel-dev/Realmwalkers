@@ -164,8 +164,8 @@ Serra confirms the connection without letting it dictate her next move: *"I wasn
 - **Realm arrival** — Marcus absent/presumed unreachable; the **altana flashback** (her side) establishes what the kiss and Discord meant to her; the reader learns she believed she'd left an opening. *(This is where the full Earth-origin content lands — option C.)*
 - **Early False Rescue** — a POV chapter: Marcus affecting her, what she notices about his post-resurrection instability, why his presence is both grounding and dangerous.
 - **Child's capture / namebinding** — she grasps the system-level meaning before Marcus does; her interface direction begins aligning against imposed identity and ownership.
-- **Magistrate kill — Serra POV** — confrontation, deliberate killing, the registry-fragment discovery, the realization that the magistrate is a replaceable node, the choice to pursue the network. She leaves not because Marcus failed her but because she's found something she can't ignore.
-- **First solo chapter** — the cost of leaving (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants). She continues anyway.
+- **Magistrate kill — Serra POV** — confrontation, deliberate killing, the registry-fragment discovery (a *cold* Book-2 lead), the realization that the magistrate is a replaceable node, the choice to keep going on her own. She leaves not because Marcus failed her but because she's found something she can't ignore. *(Her Book-1 solo arc is the dungeon; the network / Court-of-Seals hunt is Book 2; her interface activates at the Act-5 finale, not here.)*
+- **First solo chapter (the dungeon)** — the cost of leaving (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants). She continues anyway.
 - **Return toward convergence** — she returns at real cost (a lost lead, surrendered momentum, exposure); Marcus may never fully know what she sacrificed to come back.
 
 ---
