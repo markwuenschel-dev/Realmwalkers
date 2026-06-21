@@ -15,6 +15,7 @@ export interface SceneOut {
   id: string;
   chapter_id: string;
   scene_no: number;
+  title?: string | null;
   version: number;
   status: string;
   prose?: string | null;
@@ -59,6 +60,7 @@ export interface ChapterOut {
   id: string;
   book_id: string;
   chapter_no: number;
+  title?: string | null;
   pov: string;
   outline?: string | null;
   status: string;
@@ -113,11 +115,13 @@ export interface SceneVersionOut extends SceneOut {
 
 export interface ManuscriptScene {
   scene_no: number;
+  title?: string | null;
   prose: string;
 }
 
 export interface ManuscriptChapter {
   chapter_no: number;
+  title?: string | null;
   pov: string;
   scenes: ManuscriptScene[];
 }

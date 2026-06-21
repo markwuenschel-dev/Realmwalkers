@@ -26,6 +26,7 @@ class SceneOut(_ORM):
     id: uuid.UUID
     chapter_id: uuid.UUID
     scene_no: int
+    title: str | None = None             # optional; UI falls back to "Scene N"
     version: int
     status: str
     prose: str | None = None
@@ -102,6 +103,7 @@ class ChapterOut(_ORM):
     id: uuid.UUID
     book_id: uuid.UUID
     chapter_no: int
+    title: str | None = None             # optional; UI falls back to "Chapter N"
     pov: str
     outline: str | None = None
     status: str
@@ -135,11 +137,13 @@ class SceneVersionOut(SceneOut):
 
 class ManuscriptScene(BaseModel):
     scene_no: int
+    title: str | None = None
     prose: str | None = None
 
 
 class ManuscriptChapter(BaseModel):
     chapter_no: int
+    title: str | None = None
     pov: str
     scenes: list[ManuscriptScene] = []
 

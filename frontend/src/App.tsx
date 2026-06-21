@@ -1,5 +1,6 @@
 import { css } from "./desk/css";
 import { DeskProvider, useDesk, useDeskState } from "./desk/state";
+import { SelectedBookProvider } from "./desk/api/hooks";
 import { themeRootStyle } from "./desk/theme";
 import TopBar from "./desk/components/TopBar";
 import CommandPalette from "./desk/components/CommandPalette";
@@ -15,7 +16,9 @@ export default function App() {
   const desk = useDeskState();
   return (
     <DeskProvider value={desk}>
-      <Desk />
+      <SelectedBookProvider>
+        <Desk />
+      </SelectedBookProvider>
     </DeskProvider>
   );
 }

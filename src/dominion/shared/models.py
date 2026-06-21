@@ -35,6 +35,7 @@ class Chapter(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     chapter_no: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)  # optional; UI falls back to "Chapter N"
     pov: Mapped[str] = mapped_column(Text)                       # single narrating character
     outline: Mapped[str | None] = mapped_column(Text, nullable=True)  # input to beat-proposal
     status: Mapped[str] = mapped_column(Text, default="planned")
@@ -99,6 +100,7 @@ class Scene(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
     scene_no: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)  # optional; UI falls back to "Scene N"
     version: Mapped[int] = mapped_column(Integer, default=1)
     parent_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     status: Mapped[str] = mapped_column(Text, default="draft")

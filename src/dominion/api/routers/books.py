@@ -63,9 +63,10 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
             continue
         out_chapters.append(ManuscriptChapter(
             chapter_no=chapter.chapter_no,
+            title=chapter.title,
             pov=chapter.pov,
             scenes=[
-                ManuscriptScene(scene_no=no, prose=latest[no].prose)
+                ManuscriptScene(scene_no=no, title=latest[no].title, prose=latest[no].prose)
                 for no in sorted(latest)
             ],
         ))
