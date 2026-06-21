@@ -58,7 +58,7 @@ Examples:
 - Marcus: Mage → Riftwalker (Legendary; planar-crossing) — *Veilwalker design retired*
 - Serra: Warrior
 - Mara: Psion (rare; synergizes with Mirror-Salience)
-- Brent: Adventurer (Troubleshooter-lean)
+- Brent: Warden → Reckoner (Book-2 dir.)
 - Seb: Warrior → Reaver (broker-granted early)
 
 ---
@@ -77,7 +77,7 @@ Examples:
 - Marcus: Neurochromatic Eyes (interface — six stages → Prism Coherence/Fracture) **+** Eyes of Meszkhal (separate **Unique item** — interpretation/copycat)
 - Serra: Pressure-Severance Interface (commitment externalizes as environmental pressure; pressure finds weak structure; weak structure yields; two final paths — Coherence/Sanctuary or Saturation/Collapse)
 - Mara: Mirror-Salience Transduction (authorship of attention; biological anchor in mirror-neuron networks, salience network, social display systems; six stages from Felt Gaze to Sovereign Witness or Captive Frame)
-- Brent: Keystone Integrity (bone-piezoelectric)
+- Brent: Keystone Integrity (open — proposed mechanism: bone-piezoelectric)
 - Seb: Threshold Cascade (vago-adrenal self-consumption)
 
 ---
@@ -135,7 +135,7 @@ The eyes are his interface; the Riftwalker class is his planar-crossing path. Th
 | Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** | Pressure-Severance |
 | Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Mirror-Salience Transduction |
 | Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Threshold Cascade |
-| Brent Donovan | Civil engineer | Healer/Support | **Adventurer** (Troubleshooter) | Keystone Integrity |
+| Brent Donovan | Civil engineer | Healer/Support | **Warden** → **Reckoner** (Book-2 dir.) | Keystone Integrity (open) |
 | Mathias Sterling | TBD (IT/infrastructure lean) | Ranger (Scout) | **Scout** | Enteric Lattice |
 | Ayla | N/A — celestial | N/A | N/A | Ancient celestial interface |
 

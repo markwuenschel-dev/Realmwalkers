@@ -84,8 +84,8 @@ He claims the neglected ruin-fringe — personal before political; first act is 
 Seb faces the broker's offer framed around his recently-dead brother (genuine soul-recall dangled via half-truths). He accepts knowing he may be steered; the power **amplifies** his gray fall. First disclosed cost seems acceptable; a warning sign is rationalized away. *(Reaver class + Threshold Cascade interface; SB-01 cost/dependency open.)*
 
 ### Serra solo `[S]` (×2–3, interleaved)
-1. **Launch** — reveals what she learned from the magistrate (registry runs higher); the **one independent namebound stranger** (recognition of kind); toward the offshoot's seat.
-2. **Deepen** — the collateral moment: cutting a namebind with Pressure-Severance **costs the person she's saving** (SE-05); Coherence vs. Saturation (SE-06).
+1. **Launch** — after the magistrate kill she takes the road alone and is held by a small town beside a **delve**; the registry-fragment is a *cold* Book-2 lead; her Book-1 arc is **the dungeon** (the **Toll-King**, proposed; a trade-clue pointing to Eriadne). *(The offshoot's seat / Court of Seals = Book 2.)*
+2. **Deepen** — the dungeon hardens her **Warrior** identity; her **interface stays dormant** (it activates at the Act-5 finale). The Pressure-Severance collateral cost (SE-05) and the Coherence-vs-Saturation question (SE-06) are **finale / Book-2** beats, foreshadowed here only.
 3. **Crest** — ends **unfinished**; warm surface, harder underneath; bends back toward Marcus. The one thread she won't sever: him.
 
 ### Mara: The Court `[Mara]`

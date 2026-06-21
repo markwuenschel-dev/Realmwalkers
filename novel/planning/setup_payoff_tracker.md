@@ -39,7 +39,7 @@
 | CH-008 | Seb | Brother dies during the Day 0 scrim — the rescue lever collapses in real time | seeded | Consent becomes grief, not rescue. Later accepts the Broker's power (Aetherfall **Warlord** → Realm **Reaver** + **Threshold Cascade**) on wording that is **honest but misread**: restoration is genuinely possible, but the hidden cost is that Seb must *become the mechanism* — and becoming capable may destroy the brother he'd want back (a body without guaranteed identity/memory/continuity). Tragedy, not corruption. INV-6. |
 | CH-009 | Mara | Creative/observer; authorship of attention | seeded | Court-exposure reframe (Psion + Mirror-Salience). **Not** the sole biologist. |
 | CH-010 | Mathias | Connection/systems sense | seeded | Reads the Xyloryn as one organism; warns the group. **Survives** (injured at finale). |
-| CH-011 | Brent | Practical competence | seeded | Civil engineer; Adventurer + Keystone Integrity; fortifies the fragile position. |
+| CH-011 | Brent | Practical competence | seeded | Civil engineer; Warden → Reckoner (Book-2 dir.) + Keystone Integrity (open); the structural reader (fortifying = Book 2). |
 | CH-012 | Ayla | Ancient but damaged guide | seeded | Her gap causes a costly wrong assumption; questions not answers. |
 | CH-013 | Marcus | Home-building drive | active | Surfaces *from* the warmth-trap; the ruin-fringe claim is personal before political. |
 | CH-014 | Marcus | First Eyes-interface use (partial) | active | By Eriadne the Eyes are genuinely useful in social/combat reads. |

@@ -88,9 +88,9 @@ status: working
 
 **Ch 15 — The Operation & The Split** · Days ~19–21
 - Chaotic intervention. **Marcus extracts the elven child; others don't make it** — it marks him; he doesn't get to save everyone.
-- **⟢ SERRA POV — Serra kills the magistrate** (a deliberate killing; off-page from *Marcus's* POV but **on-page in hers**). The registry-fragment discovery: she learns he's a **node, not the source** — names are sub-leased from a master registry — takes a **registry-fragment**, and **chooses to pursue the network.** Her interface unlocks for real here. She leaves **not because Marcus failed her** but because she's found something she can't ignore. (§9.)
-- **The separation:** no speech. The Earth Thing at its heaviest yet. She leaves toward a larger faction's seat — the **Court of Seals**, a limb of the cosmic **Aurelian Sovereignty** (she doesn't know that name yet). Marcus can't follow.
-- **⟢ INTERLUDE (Brent):** alone for a long stretch, then finds a different group (not the Vultures); his **Adventurer/Keystone Integrity** path begins through use.
+- **⟢ SERRA POV — Serra kills the magistrate** (a deliberate killing; off-page from *Marcus's* POV but **on-page in hers**). The registry-fragment discovery: she learns he's a **node, not the source** — names are sub-leased from a master registry — takes a **registry-fragment** (a *cold* Book-2 lead). **Her interface does NOT unlock here — it stays dormant until the Act-5 finale.** She leaves **not because Marcus failed her** but because she's found something she can't ignore. (§9.)
+- **The separation:** no speech. The Earth Thing at its heaviest yet. She leaves on her own road — **her Book-1 solo arc is the dungeon**; the cold registry-lead points up the chain to the **Court of Seals** (a limb of the cosmic **Aurelian Sovereignty**, name unknown to her), but **that hunt is Book 2.** Marcus can't follow.
+- **⟢ INTERLUDE (Brent):** alone for a long stretch, then finds a different group (not the Vultures); his **Warden/Reckoner + Keystone Integrity** (open) path begins through use.
 
 ---
 
@@ -98,7 +98,7 @@ status: working
 
 **Ch 16–17 — The Long Road** · Compressed travel toward Eriadne: rumors of the thread city; the standalone **playful-chaos defusion** beat; the Eyes' emotional-leak social cost; a first **Xyloryn diagnostic hint**; the felt ley pull. Reaches Eriadne's outskirts ~Day 45.
 - **⟢ INTERLUDE (Seb):** kills his captor **barehanded** → *then* the broker (Soulkeepers' agent) speaks — *"you can have more,"* dangling the brother's soul. **Reaver + Threshold Cascade** ignite. Shortest arc; straight toward Eriadne; among the most powerful.
-- **⟢ SERRA POV — First Solo Chapter:** solo hunt — recognition of *one independent namebound stranger*; learns the registry runs higher; carries the fragment toward the Court of Seals; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. (§9.)
+- **⟢ SERRA POV — First Solo Chapter (the dungeon):** held by a small town beside a **delve**; the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed); the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. *(Court of Seals hunt = Book 2; interface still dormant.)* (§9.)
 
 ---
 
@@ -108,7 +108,7 @@ status: working
 
 **Ch 19 — Useful to the Ignored** · Days ~47–53 · He becomes useful to the people the city overlooks; first faction friction (the Iron Vultures see competition).
 
-**Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Adventurer**; **Keystone Integrity**) — the structural mind whose reads matter in the crisis (the Myrmidon's keystone); **his fortifying/building is Book 2.** The "he actually saw me" recognition with Marcus.
+**Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Warden → Reckoner** dir.; **Keystone Integrity**, open) — the structural mind whose reads matter in the crisis (the Myrmidon's keystone); **his fortifying/building is Book 2.** The "he actually saw me" recognition with Marcus.
 
 **Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Mirror-Salience), arriving from her court arc — challenges Marcus for treating people as systems.
 - **⟢ INTERLUDE (Mara, just prior):** the predatory courtier weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Mirror-Salience); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Mirror-Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
@@ -158,11 +158,11 @@ status: working
 
 | Character | Shape across Book 1 | Converges |
 |---|---|---|
-| **Serra** *(⟢ SERRA POV — deuteragonist, **not** interlude)* | Realm arrival (Ch 6A, altana flashback) → early False-Rescue POV → magistrate kill (her POV, Ch 15) → first solo chapter / registry-hunt (Court of Seals / Aurelian Sovereignty; ends unfinished) → return-at-cost | Ch 25 reunion |
+| **Serra** *(⟢ SERRA POV — deuteragonist, **not** interlude)* | Realm arrival (Ch 6A, altana flashback) → early False-Rescue POV → magistrate kill (her POV, Ch 15) → first solo chapter / **the dungeon** (delve + Toll-King + Eriadne trade-clue; Court-of-Seals hunt = Book 2; interface dormant); ends unfinished → return-at-cost | Ch 25 reunion |
 | **Seb** | Desolate → enslaved → kills captor barehanded → broker speaks → shortest arc (Reaver + Threshold Cascade) | ~Act 4/5 (off-page until late) |
 | **Mara** | Court city-state → predator weaponizes regard → un-salient exposure (Psion/Mirror-Salience) → routed out | Ch 21 |
 | **Mathias** | Solo near ruins → finds Xyloryn + portal → loads Scout → the warning; **lives** (injured finale) | Ch 25 / finale |
-| **Brent** | Alone → unknown group → Adventurer/Keystone Integrity → structural reader *(fortifying = B2)* | Ch 20 |
+| **Brent** | Alone → unknown group → Warden/Reckoner + Keystone Integrity (open) → structural reader *(fortifying = Book 2)* | Ch 20 |
 
 ## Open Questions
 - Chapter **count & boundaries** are proposed — reconcile with the live chapter file. *(file-local)*

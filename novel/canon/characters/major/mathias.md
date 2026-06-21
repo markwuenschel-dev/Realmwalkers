@@ -907,7 +907,7 @@ Book 1 leaves Mathias having made contact with something significant — somethi
 - Lands and finds a group fast — solo arc is short by design
 - Contact drive is the engine — reaching things no one else has managed to reach
 - Dark side: reaches things that don't want to be reached, has to decide whether to keep going
-- Possible death in Book 1 — not confirmed, do not execute without author direction
+- **Survives Book 1** (injured at the finale; MT-01 resolved) — **no main-six character dies in Book 1.**
 - Four-layer architecture: Earth (curious suburban kid) → Aetherfall (Ranger/scout) → Realm (TBD) → Interface (TBD)
 
 ---
