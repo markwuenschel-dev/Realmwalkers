@@ -171,3 +171,45 @@ class Approval(Base):
     target_pass: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Thread(Base):
+    """A plot/relationship thread the author curates and tracks across scenes (Ledger 'Threads').
+
+    Authored, not auto-derived: the desk reads + curates these; nothing populates them automatically.
+    """
+    __tablename__ = "threads"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    name: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str | None] = mapped_column(Text, nullable=True)   # relationship|mentorship|system|power|…
+    state: Mapped[str | None] = mapped_column(Text, nullable=True)  # sealed|active|contested|rising|…
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    beats: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)  # [{scene_no,label,flag}]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Annotation(Base):
+    """A margin note anchored to a quote in a scene version (Notes tab + inline `anno` markers)."""
+    __tablename__ = "annotations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)   # the anchored substring of the prose
+    author: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Suggestion(Base):
+    """A track-changes suggestion on a scene version (Changes tab + inline `sugg` markers)."""
+    __tablename__ = "suggestions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)      # the old text to replace
+    new_text: Mapped[str | None] = mapped_column(Text, nullable=True)   # replacement ("" = deletion)
+    author: Mapped[str | None] = mapped_column(Text, nullable=True)
+    why: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="pending")        # pending|accepted|rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

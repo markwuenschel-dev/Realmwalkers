@@ -42,7 +42,8 @@ def _extract_prompt(prose: str, watched: dict[str, list[str]]) -> str:
         lines.append(f"- {character}: {', '.join(attrs)}")
     lines.append(
         '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
-        '{"character": str, "attribute": str, "value": str, "context_sentence": str}. '
+        '{"character": str, "attribute": str, "value": str, "context_sentence": str, '
+        '"span": str (the exact phrase from the scene that states this value, copied verbatim)}. '
         "Omit anything the scene does not explicitly state."
     )
     lines.append("\nSCENE:\n" + prose)
@@ -117,6 +118,8 @@ class ContinuityReviewer:
                         "prose_value": prose_value,
                         "ledger_value": str(canon[attribute]),
                         "context_sentence": str(claim.get("context_sentence", "")),
+                        # verbatim prose substring, so the desk can anchor the inline conflict marker
+                        "span": str(claim.get("span", "")),
                     },
                 ))
         return flags

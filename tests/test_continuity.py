@@ -37,7 +37,7 @@ async def test_flags_numeric_contradiction_as_hard(monkeypatch):
     async def fake_complete(**kwargs):
         return (
             '[{"character":"Marcus","attribute":"level","value":"7",'
-            '"context_sentence":"His interface blinked LEVEL 7."}]'
+            '"context_sentence":"His interface blinked LEVEL 7.","span":"LEVEL 7"}]'
         ), Usage(10, 10)
 
     monkeypatch.setattr(llm, "complete", fake_complete)
@@ -51,6 +51,7 @@ async def test_flags_numeric_contradiction_as_hard(monkeypatch):
     assert flag.payload["prose_value"] == "7"
     assert flag.payload["ledger_value"] == "5"
     assert flag.payload["context_sentence"] == "His interface blinked LEVEL 7."
+    assert flag.payload["span"] == "LEVEL 7"   # verbatim anchor for the desk's inline conflict marker
 
 
 async def test_consistent_value_produces_no_flag(monkeypatch):

@@ -12,10 +12,12 @@ from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import SceneStatus
-from dominion.shared.models import Book, Chapter, Scene
+from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState, Scene
 from dominion.shared.schemas import (
     BookIn,
     BookOut,
+    CanonOut,
+    CharacterOut,
     ManuscriptChapter,
     ManuscriptOut,
     ManuscriptScene,
@@ -72,3 +74,34 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
         ))
 
     return ManuscriptOut(book_id=book_id, title=book.title, chapters=out_chapters)
+
+
+@router.get("/{book_id}/characters", response_model=list[CharacterOut])
+async def characters(book_id: uuid.UUID, session: SessionDep) -> list[CharacterOut]:
+    """Each character's latest hard state from the Oracle ledger (powers entity cards + Ledger)."""
+    rows = (await session.execute(
+        select(CharacterState)
+        .where(CharacterState.book_id == book_id)
+        .order_by(CharacterState.character, CharacterState.id.desc())
+    )).scalars().all()
+    latest: dict[str, CharacterState] = {}
+    for cs in rows:                       # newest id per character wins (first seen)
+        latest.setdefault(cs.character, cs)
+    out: list[CharacterOut] = []
+    for name in sorted(latest):
+        stats = dict(latest[name].stats_json or {})
+        role = stats.pop("role", None)    # role, if recorded, is metadata not a stat row
+        out.append(CharacterOut(character=name, role=role, stats=stats))
+    return out
+
+
+@router.get("/{book_id}/canon", response_model=list[CanonOut])
+async def canon(
+    book_id: uuid.UUID, session: SessionDep, kind: str | None = None
+) -> list[CanonEntity]:
+    """Canon entities for the book, optionally filtered by kind (location|item|faction|lore|…)."""
+    stmt = select(CanonEntity).where(CanonEntity.book_id == book_id)
+    if kind:
+        stmt = stmt.where(CanonEntity.kind == kind)
+    rows = (await session.execute(stmt.order_by(CanonEntity.name))).scalars().all()
+    return list(rows)

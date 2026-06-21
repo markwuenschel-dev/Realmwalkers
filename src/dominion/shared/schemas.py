@@ -153,3 +153,93 @@ class ManuscriptOut(BaseModel):
     book_id: uuid.UUID
     title: str
     chapters: list[ManuscriptChapter] = []
+
+
+# --- Ledger read surfaces: characters + canon (PR-B) ----------------------------------------------
+
+class CharacterOut(BaseModel):
+    """A character's hard state, from the Oracle ledger. `role` is read from stats if present."""
+    character: str
+    role: str | None = None
+    stats: dict[str, Any] = {}
+
+
+class CanonOut(_ORM):
+    id: uuid.UUID
+    kind: str | None = None
+    name: str | None = None
+    body: str | None = None
+
+
+# --- Curated/write surfaces: threads, annotations, suggestions (PR-C) ------------------------------
+
+class ThreadOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    name: str
+    kind: str | None = None
+    state: str | None = None
+    note: str | None = None
+    beats: list[dict[str, Any]] | None = None
+
+
+class ThreadIn(BaseModel):
+    """POST body to create a thread (author-curated)."""
+    name: str
+    kind: str | None = None
+    state: str | None = None
+    note: str | None = None
+    beats: list[dict[str, Any]] | None = None
+
+
+class ThreadUpdateIn(BaseModel):
+    """PUT body to curate a thread. Only provided fields are applied."""
+    name: str | None = None
+    kind: str | None = None
+    state: str | None = None
+    note: str | None = None
+    beats: list[dict[str, Any]] | None = None
+
+
+class AnnotationOut(_ORM):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    version: int | None = None
+    quote: str | None = None
+    author: str | None = None
+    note: str | None = None
+    created_at: datetime
+
+
+class AnnotationIn(BaseModel):
+    """POST body to add a margin note anchored to a quote in the scene."""
+    quote: str | None = None
+    author: str | None = None
+    note: str
+    version: int | None = None
+
+
+class SuggestionOut(_ORM):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    version: int | None = None
+    quote: str | None = None
+    new_text: str | None = None
+    author: str | None = None
+    why: str | None = None
+    status: str
+    created_at: datetime
+
+
+class SuggestionIn(BaseModel):
+    """POST body to add a track-changes suggestion (replace `quote` with `new_text`)."""
+    quote: str | None = None
+    new_text: str | None = None
+    author: str | None = None
+    why: str | None = None
+    version: int | None = None
+
+
+class SuggestionDecisionIn(BaseModel):
+    """POST body to accept/reject a suggestion."""
+    status: str                          # "accepted" | "rejected"

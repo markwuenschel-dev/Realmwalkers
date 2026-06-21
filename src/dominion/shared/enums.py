@@ -62,6 +62,12 @@ class Decision(StrEnum):
     REVISE = "revise"
 
 
+class SuggestionStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
 class ReviewerKind(StrEnum):
     CONTINUITY = "continuity"
     COMBAT = "combat"
