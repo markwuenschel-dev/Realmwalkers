@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
@@ -9,21 +10,21 @@ import type { Marker } from "../types";
 import { api } from "../api/client";
 import { useFetch, useSelectedBook } from "../api/hooks";
 import {
+  annoMarkers,
+  annotationCards,
   beatForScene,
   conflictSpan,
   continuityConflicts,
+  entityCards,
+  entityMarkers,
   pipelinePasses,
   reviewerNotes,
   stateChanges,
+  suggMarkers,
+  suggestionCards,
   wordCount,
 } from "../api/adapters.scene";
 import type { ConflictCard } from "../api/adapters.scene";
-import {
-  ANNOTATION,
-  ENTITIES,
-  MARKERS,
-  SUGGESTIONS,
-} from "../data";
 
 const KEEP_BTN =
   "flex:1;padding:8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:11.5px;cursor:pointer";
@@ -58,6 +59,19 @@ export default function SceneScreen() {
   );
   const beat = beatForScene(beatsFetch.data, scene?.scene_no ?? -1);
 
+  // 4. live entity cards (book-scoped) + annotations & suggestions (scene-scoped).
+  const charsFetch = useFetch(() => (bookId ? api.characters(bookId) : Promise.resolve([])), [bookId]);
+  const annFetch = useFetch(() => (sceneId ? api.annotations(sceneId) : Promise.resolve([])), [sceneId]);
+  const suggFetch = useFetch(() => (sceneId ? api.suggestions(sceneId) : Promise.resolve([])), [sceneId]);
+
+  const entityMap = entityCards(charsFetch.data ?? []);
+  const entMarks = entityMarkers(charsFetch.data ?? []);
+  const noteCards = annotationCards(annFetch.data ?? []);
+  const annoMarks = annoMarkers(annFetch.data ?? []);
+  const suggCards = suggestionCards(suggFetch.data ?? []);
+  const suggMarks = suggMarkers(suggFetch.data ?? []);
+  const suggById = new Map(suggCards.map((s) => [s.id, s]));
+
   const loading = pending.loading || sceneFetch.loading;
   const error = pending.error || sceneFetch.error;
 
@@ -81,6 +95,45 @@ export default function SceneScreen() {
         });
     }
     desk.resolve(critiqueId, choice);
+  };
+
+  // Effective suggestion status: an optimistic local override (this session) wins; otherwise the
+  // server's persisted decision. Undo drops the local override and reveals the server's truth.
+  const effStatus = (id: string, server: string): "accepted" | "rejected" | undefined => {
+    const local = desk.suggStatus[id];
+    if (local) return local;
+    return server === "accepted" || server === "rejected" ? server : undefined;
+  };
+
+  // Accept/reject → POST /suggestions/{id}/decision, plus the optimistic local UI state.
+  const decideSugg = (id: string, status: "accepted" | "rejected") => {
+    void api.decideSuggestion(id, { status }).catch(() => {
+      /* optimistic: the local state already reflects the choice; reloads reconcile with the server */
+    });
+    if (status === "accepted") desk.acceptSugg(id);
+    else desk.rejectSugg(id);
+  };
+
+  // --- create a margin note (quote-anchored) → POST /scenes/{id}/annotations --------------------
+  const [noteDraft, setNoteDraft] = useState("");
+  const [quoteDraft, setQuoteDraft] = useState("");
+  const addNote = () => {
+    if (!sceneId || !noteDraft.trim()) return;
+    void api
+      .createAnnotation(sceneId, {
+        quote: quoteDraft.trim() || null,
+        note: noteDraft.trim(),
+        author: "You",
+        version: scene?.version ?? null,
+      })
+      .then(() => {
+        setNoteDraft("");
+        setQuoteDraft("");
+        annFetch.reload();
+      })
+      .catch(() => {
+        /* surface nothing on failure; the draft stays so the user can retry */
+      });
   };
 
   // active scene meta (live, with graceful fallbacks while the detail loads from the queue row).
@@ -110,21 +163,20 @@ export default function SceneScreen() {
   const showMarks = !editing;
 
   // The prose the desk renders. Live scene.prose is the rendered form; desk.rawProse is the editing
-  // buffer (fixture-seeded until the user edits). Inline markers below anchor against this text.
+  // buffer (empty until the user edits). Inline markers below anchor against this text.
   const proseText = scene?.prose ?? desk.rawProse;
 
   // Live continuity conflicts keyed by critique id; the inline card + rail share these.
   const conflictById = new Map(conflicts.map((c) => [c.id, c]));
 
-  // canon hover-card model. Entities stay fixture-backed (PR-B); conflicts are live critiques.
+  // canon hover-card model — entities from the live ledger, conflicts from live critiques.
   const makeCard = (kind: "entity" | "conflict", id: string): CardModel => {
     if (kind === "entity") {
-      const e = ENTITIES[id];
-      // Entity→conflict linkage is fixture-only (PR-B); show the entity facts without a live flag.
+      const e = entityMap.get(id);
       return {
-        title: e.name,
-        subtitle: e.role,
-        rows: e.rows.map(([k, v]) => ({ k, v })),
+        title: e?.name ?? id,
+        subtitle: e?.role ?? "",
+        rows: (e?.rows ?? []).map((r) => ({ k: r.k, v: r.v })),
         hasFlag: false,
         open: false,
         resolved: false,
@@ -152,25 +204,18 @@ export default function SceneScreen() {
     };
   };
 
-  // Per-paragraph inline markers. Entity/annotation/suggestion markers stay fixture-backed (PR-B/PR-C)
-  // and only render where the fixture substring happens to occur in the live prose (tokenize skips
-  // misses). Continuity conflict markers are LIVE: anchored on the critique's span/context_sentence
-  // when present, dropped gracefully when absent (no span field on the wire yet).
+  // Per-paragraph inline markers, all from live data: entity names (ledger), continuity conflict
+  // spans (critique.span/context_sentence), annotation quotes, and suggestion old-text. tokenize
+  // anchors each by substring within the paragraph and silently skips any that aren't present.
   const conflictMarkers: Marker[] = scene
     ? scene.critiques.flatMap((c) => {
         const cf = conflictById.get(c.id);
         if (!cf) return [];
         const find = conflictSpan(c);
-        if (!find) return [];
-        return [{ find, kind: "conflict", id: c.id } as Marker];
+        return find ? [{ find, kind: "conflict", id: c.id } as Marker] : [];
       })
     : [];
-
-  const markersFor = (n: number): Marker[] => {
-    // Fixture entity/sugg/anno markers minus their fixture conflicts (those are replaced by live ones).
-    const fixture = (MARKERS[n] ?? []).filter((m) => m.kind !== "conflict");
-    return n === 0 ? [...fixture, ...conflictMarkers] : fixture;
-  };
+  const allMarkers: Marker[] = [...entMarks, ...conflictMarkers, ...annoMarks, ...suggMarks];
 
   const renderToken = (tok: Token, key: string): ReactNode => {
     if (tok.kind === "text") return <span key={key} style={css("color:inherit")}>{tok.text}</span>;
@@ -210,9 +255,10 @@ export default function SceneScreen() {
       );
     }
 
-    // suggestion (track-changes) — fixture-backed (PR-C). Only renders where the fixture span occurs.
-    const s = SUGGESTIONS[tok.id];
-    const st = desk.suggStatus[tok.id];
+    // suggestion (track-changes) — live. Renders del/ins per its effective status.
+    const s = suggById.get(tok.id);
+    if (!s) return <span key={key} style={css("color:inherit")}>{tok.text}</span>;
+    const st = effStatus(tok.id, s.status);
     let showDel = false, showIns = false, showPlain = false, plainText = "";
     if (st === "accepted") {
       if (s.neu) { showPlain = true; plainText = s.neu; }
@@ -251,7 +297,7 @@ export default function SceneScreen() {
         ? "float:left;font-family:var(--display);font-size:60px;line-height:.74;padding:9px 12px 0 0;color:var(--accent)"
         : "font:inherit;color:inherit";
     }
-    const parts = tokenize(text, markersFor(b.n)).map((tok) => renderToken(tok, "tk" + pkey++));
+    const parts = tokenize(text, allMarkers).map((tok) => renderToken(tok, "tk" + pkey++));
     return (
       <p key={`b${bi}`} style={css("font-family:var(--prose);font-size:18px;line-height:1.86;color:var(--ink);margin:0 0 1.05em")}>
         {isLead && <span style={css(leadStyle)}>{lead}</span>}
@@ -267,12 +313,11 @@ export default function SceneScreen() {
     { id: "editing", label: "Editing" },
   ];
 
-  // gutter suggestion cards — fixture-backed (PR-C).
-  const suggList = Object.keys(SUGGESTIONS).map((id) => {
-    const s = SUGGESTIONS[id];
-    const st = desk.suggStatus[id];
+  // gutter suggestion cards — live, with effective (local-over-server) status.
+  const suggList = suggCards.map((s) => {
+    const st = effStatus(s.id, s.status);
     return {
-      id,
+      id: s.id,
       author: s.author,
       why: s.why,
       oldText: s.old.trim() || "—",
@@ -403,6 +448,9 @@ export default function SceneScreen() {
                 {suggesting && (
                   <div style={css("display:flex;flex-direction:column;gap:9px;margin-bottom:6px")}>
                     <span style={css("font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)")}>Suggestions</span>
+                    {suggList.length === 0 && (
+                      <span style={css("font-size:11.5px;color:var(--dim);font-style:italic")}>No suggestions on this scene.</span>
+                    )}
                     {suggList.map((g) => (
                       <div key={g.id} style={css(g.cardStyle)}>
                         <div style={css("font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-bottom:6px")}>{g.author}</div>
@@ -413,8 +461,8 @@ export default function SceneScreen() {
                         <div style={css("font-size:11px;color:var(--dim);font-style:italic;margin-bottom:9px")}>{g.why}</div>
                         {g.pending && (
                           <div style={css("display:flex;gap:6px")}>
-                            <button onClick={() => desk.acceptSugg(g.id)} style={css("flex:1;padding:6px;border-radius:6px;border:1px solid color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 12%,var(--bg3));color:var(--good);font-size:11px;cursor:pointer;font-family:var(--ui)")}>Accept</button>
-                            <button onClick={() => desk.rejectSugg(g.id)} style={css("flex:1;padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:11px;cursor:pointer;font-family:var(--ui)")}>Reject</button>
+                            <button onClick={() => decideSugg(g.id, "accepted")} style={css("flex:1;padding:6px;border-radius:6px;border:1px solid color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 12%,var(--bg3));color:var(--good);font-size:11px;cursor:pointer;font-family:var(--ui)")}>Accept</button>
+                            <button onClick={() => decideSugg(g.id, "rejected")} style={css("flex:1;padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:11px;cursor:pointer;font-family:var(--ui)")}>Reject</button>
                           </div>
                         )}
                         {g.accepted && (
@@ -434,13 +482,41 @@ export default function SceneScreen() {
                   </div>
                 )}
                 <span style={css("font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)")}>Margin notes</span>
-                <div
-                  onClick={() => desk.highlightAnn(ANNOTATION.id)}
-                  style={css(`background:${desk.selectedAnn === ANNOTATION.id ? "var(--accentSoft)" : "var(--bg2)"};border:1px solid ${desk.selectedAnn === ANNOTATION.id ? "var(--accentLine)" : "var(--line)"};border-radius:9px;padding:11px 13px;cursor:pointer`)}
-                >
-                  <div style={css("font-family:var(--prose);font-size:12.5px;color:var(--accent);font-style:italic;margin-bottom:6px")}>"{ANNOTATION.quote}"</div>
-                  <p style={css("margin:0 0 6px;font-size:12px;line-height:1.5;color:var(--ink)")}>{ANNOTATION.note}</p>
-                  <div style={css("font-family:var(--mono);font-size:9.5px;color:var(--dim)")}>— {ANNOTATION.author}</div>
+                {noteCards.length === 0 && (
+                  <span style={css("font-size:11.5px;color:var(--dim);font-style:italic")}>No margin notes yet.</span>
+                )}
+                {noteCards.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => desk.highlightAnn(n.id)}
+                    style={css(`background:${desk.selectedAnn === n.id ? "var(--accentSoft)" : "var(--bg2)"};border:1px solid ${desk.selectedAnn === n.id ? "var(--accentLine)" : "var(--line)"};border-radius:9px;padding:11px 13px;cursor:pointer`)}
+                  >
+                    {n.quote && <div style={css("font-family:var(--prose);font-size:12.5px;color:var(--accent);font-style:italic;margin-bottom:6px")}>"{n.quote}"</div>}
+                    <p style={css("margin:0 0 6px;font-size:12px;line-height:1.5;color:var(--ink)")}>{n.note}</p>
+                    <div style={css("font-family:var(--mono);font-size:9.5px;color:var(--dim)")}>— {n.author}</div>
+                  </div>
+                ))}
+                {/* add a margin note */}
+                <div style={css("display:flex;flex-direction:column;gap:6px;border:1px dashed var(--line);border-radius:9px;padding:10px 11px")}>
+                  <input
+                    value={quoteDraft}
+                    onChange={(e) => setQuoteDraft(e.target.value)}
+                    placeholder="anchor quote (optional)"
+                    style={css("background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:11.5px;font-family:var(--prose)")}
+                  />
+                  <textarea
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    placeholder="add a margin note…"
+                    style={css("background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;line-height:1.5;min-height:48px;resize:vertical")}
+                  />
+                  <button
+                    onClick={addNote}
+                    disabled={!noteDraft.trim()}
+                    style={css(`align-self:flex-start;padding:5px 12px;border-radius:6px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--accent);font-size:11px;cursor:${noteDraft.trim() ? "pointer" : "default"};opacity:${noteDraft.trim() ? "1" : ".5"};font-family:var(--ui)`)}
+                  >
+                    Add note
+                  </button>
                 </div>
               </div>
             </div>

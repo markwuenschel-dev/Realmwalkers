@@ -10,7 +10,6 @@ import type {
   SuggStatus,
   Tab,
 } from "./types";
-import { INITIAL_BOARD, INITIAL_PROSE, QUEUE } from "./data";
 
 // The whole interactive surface — the prototype's `state` object, its methods, and its keyboard
 // handler — rebuilt as a single hook. Screens read it through DeskContext via useDesk().
@@ -85,9 +84,9 @@ export function useDeskState(): DeskValue {
   const [chaptersView, setChaptersViewState] = useState<ChaptersView>("board");
   const [selectedThread, setSelectedThread] = useState("t1");
   const [activeScene, setActiveScene] = useState(0);
-  const [board, setBoard] = useState<string[]>(INITIAL_BOARD);
+  const [board, setBoard] = useState<string[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
-  const [rawProse, setRawProse] = useState(INITIAL_PROSE);
+  const [rawProse, setRawProse] = useState("");
 
   const go = useCallback((s: Screen) => {
     setScreen(s);
@@ -128,7 +127,8 @@ export function useDeskState(): DeskValue {
   }, []);
   const nextScene = useCallback(() => {
     setScreen("scene");
-    setActiveScene((a) => Math.min(QUEUE.length - 1, a + 1));
+    // The live pending queue length isn't held in state; SceneScreen clamps the index to its data.
+    setActiveScene((a) => a + 1);
   }, []);
   const openScene = useCallback((index: number) => {
     setScreen("scene");

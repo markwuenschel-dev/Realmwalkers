@@ -2,10 +2,17 @@
 // the same boundary discipline as ./adapters.ts (shared helpers re-exported from there). These map a
 // live `GET /scenes/{id}` SceneDetail + its beat into the rail's conflict cards, the Notes list, the
 // Changes list, and the review-pipeline rows that replace SceneScreen's old hardcoded fixtures.
-import type { Critique, SceneDetail } from "./client";
+import type {
+  AnnotationOut,
+  CharacterOut,
+  Critique,
+  SceneDetail,
+  SuggestionOut,
+} from "./client";
 // BeatOut is not re-exported by the desk client; pull it from the same legacy DTO source the client
 // re-exports from, keeping the wire-type boundary in one place.
 import type { BeatOut } from "../../legacy/types";
+import type { Marker } from "../types";
 // Reuse the shared word-count helper (ignores rendered stat-box glyphs) rather than re-deriving it.
 import { wordCount } from "./adapters";
 
@@ -207,4 +214,81 @@ export function conflictSpan(c: Critique): string | null {
 export function beatForScene(beats: BeatOut[] | null, sceneNo: number): BeatOut | null {
   if (!beats) return null;
   return beats.find((b) => b.scene_no === sceneNo) ?? null;
+}
+
+// --- entity hover-cards (PR-B) --------------------------------------------------------------------
+
+export interface EntityCard {
+  id: string;
+  name: string;
+  role: string;
+  rows: { k: string; v: string }[];
+}
+
+/** Live characters -> hover-card models, keyed by the name we anchor markers on. */
+export function entityCards(characters: CharacterOut[]): Map<string, EntityCard> {
+  const m = new Map<string, EntityCard>();
+  for (const c of characters) {
+    m.set(c.character, {
+      id: c.character,
+      name: c.character,
+      role: c.role || "",
+      rows: Object.entries(c.stats).map(([k, v]) => ({ k, v: String(v) })),
+    });
+  }
+  return m;
+}
+
+/** Entity markers, assembled client-side from character names — anchored wherever the name occurs. */
+export function entityMarkers(characters: CharacterOut[]): Marker[] {
+  return characters
+    .filter((c) => c.character.trim())
+    .map((c) => ({ find: c.character, kind: "entity", id: c.character }));
+}
+
+// --- annotations (PR-C) ---------------------------------------------------------------------------
+
+export interface NoteCard {
+  id: string;
+  quote: string;
+  author: string;
+  note: string;
+}
+
+export function annotationCards(anns: AnnotationOut[]): NoteCard[] {
+  return anns.map((a) => ({
+    id: a.id, quote: a.quote || "", author: a.author || "—", note: a.note || "",
+  }));
+}
+
+/** `anno` markers anchored on each annotation's quote (skips quote-less notes). */
+export function annoMarkers(anns: AnnotationOut[]): Marker[] {
+  return anns
+    .filter((a) => (a.quote || "").trim())
+    .map((a) => ({ find: a.quote as string, kind: "anno", id: a.id }));
+}
+
+// --- suggestions / track-changes (PR-C) -----------------------------------------------------------
+
+export interface SuggestionCard {
+  id: string;
+  author: string;
+  why: string;
+  old: string;
+  neu: string;
+  status: string;   // pending | accepted | rejected (server truth)
+}
+
+export function suggestionCards(suggs: SuggestionOut[]): SuggestionCard[] {
+  return suggs.map((s) => ({
+    id: s.id, author: s.author || "—", why: s.why || "",
+    old: s.quote || "", neu: s.new_text || "", status: s.status,
+  }));
+}
+
+/** `sugg` markers anchored on each suggestion's old text (skips suggestions with no anchor). */
+export function suggMarkers(suggs: SuggestionOut[]): Marker[] {
+  return suggs
+    .filter((s) => (s.quote || "").trim())
+    .map((s) => ({ find: s.quote as string, kind: "sugg", id: s.id }));
 }
