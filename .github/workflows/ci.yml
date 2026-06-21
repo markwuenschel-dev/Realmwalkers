@@ -23,16 +23,18 @@ jobs:
   static:
     name: lint + types
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"   # pin every uv command (sync AND run) to one interpreter
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - run: uv sync --extra dev --frozen --python 3.12
+      - run: uv sync --frozen --extra dev
       - name: ruff
-        run: uv run ruff check src tests
+        run: uv run --no-sync ruff check src tests
       - name: mypy (strict)
-        run: uv run mypy src
+        run: uv run --no-sync mypy src
 
   # ---- tests: real Postgres+pgvector, across the supported floor (3.12) and the pinned dev version. ----
   tests:
@@ -58,6 +60,10 @@ jobs:
           --health-timeout 3s
           --health-retries 15
     env:
+      # Pin every uv command to the matrix interpreter. Without this, `uv sync --python X` builds the
+      # env, then a bare `uv run` falls back to .python-version (3.14), rebuilds the env WITHOUT the
+      # dev extra, and the tools vanish ("Failed to spawn: pytest").
+      UV_PYTHON: ${{ matrix.python }}
       # conftest.py points the app at a dedicated test DB it creates/truncates itself.
       DOMINION_TEST_DATABASE_URL: postgresql+asyncpg://dominion:dominion@127.0.0.1:5432/dominion_test
       # Turn the "Postgres unreachable -> skip" fixture behaviour into a hard failure in CI, so a
@@ -71,10 +77,11 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - run: uv sync --extra dev --frozen --python ${{ matrix.python }}
+      - run: uv sync --frozen --extra dev
       - name: pytest
-        # -rs surfaces skip reasons in the log; with DOMINION_REQUIRE_DB the DB tests can't skip.
-        run: uv run pytest -q -rs
+        # --no-sync runs in the env we just synced (no rebuild); -rs surfaces skips, which
+        # DOMINION_REQUIRE_DB forbids.
+        run: uv run --no-sync pytest -q -rs
 
   # ---- frontend: tsc type-check + vite build (the only checks the frontend defines). ----
   frontend:
