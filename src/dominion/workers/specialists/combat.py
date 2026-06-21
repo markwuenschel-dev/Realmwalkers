@@ -3,19 +3,24 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from dominion.workers.specialists.base import PassError
+from dominion.workers.specialists.enrich import run_enrichment
 
 if TYPE_CHECKING:
     from dominion.workers.context import SceneContext
+
+_DIMENSION = (
+    "Sharpen the fight choreography. Make every exchange spatially clear — who is where, what moves, "
+    "what connects and what misses, the order of blows, how the space and bodies shift — and keep it "
+    "consistent with the combatants' established stats, skills, and abilities. Preserve the beat's "
+    "outcome (who prevails, who is hurt, what is won or lost); only make the action legible and physical."
+)
 
 
 class CombatPass:
     name = "combat"
 
     async def run(self, prose: str | None, ctx: SceneContext) -> str:
-        # Phase 3 will implement this. Until then, raise PassError (not NotImplementedError) so the
-        # pipeline lands the drafted spine + an advisory flag instead of hard-failing the job.
-        raise PassError("combat enrichment pass not implemented yet (Phase 3)")
+        return await run_enrichment(prose, ctx, name=self.name, dimension=_DIMENSION)
 
 
 combat_pass = CombatPass()

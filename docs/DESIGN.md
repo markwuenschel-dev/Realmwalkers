@@ -391,9 +391,9 @@ Astro, own repo, GH Pages + Netlify, hand-authored MDX (about / story / characte
 
 | Phase | Active machinery | Done when |
 |---|---|---|
-| **1** | schema + chapters/pov_profiles + Drafter (POV-voiced) + Continuity reviewer + Oracle + review-app inbox (incl. continuity panel + hand-edit) + gate-1 beat proposal/approval + manual `--once` start. Seams present (router, tags, runs/gate, budgets, capture). | you approve **one** scene through the app and the next job appears |
-| **2** | worker auto-advances (`pause_each` loop); RAG + per-POV & omniscient summaries + ledger commit-on-approval wired; import existing chapters as `approved` seed + extract canon | 3–5 consecutive scenes stay continuous with prior canon and stay in-POV |
-| **3** | activate Combat / Sensory / Dialogue enrichment + their reviewers + pacing/voice reviewers (all advisory) | enrichment measurably reduces your revision requests |
+| **1** ✅ | schema + chapters/pov_profiles + Drafter (POV-voiced) + Continuity reviewer + Oracle + review-app inbox (incl. continuity panel + hand-edit) + gate-1 beat proposal/approval + manual `--once` start. Seams present (router, tags, runs/gate, budgets, capture). | you approve **one** scene through the app and the next job appears |
+| **2** ✅ | worker auto-advances (`pause_each` loop); RAG + per-POV & omniscient summaries + ledger commit-on-approval wired; import existing chapters as `approved` seed + extract canon | 3–5 consecutive scenes stay continuous with prior canon and stay in-POV |
+| **3** ✅ | Combat / Sensory / Dialogue enrichment passes (transform-only, stat-safe, soft-fail) + their tag-gated review lanes; pacing/voice reviewers already live (all advisory) | enrichment measurably reduces your revision requests |
 | **4** | `draft_ahead` + provisional-ledger invalidation; parallel workers across runs. *(deferred: preference model / fine-tune; showcase published-canon endpoint)* | only if scale/throughput actually hurts |
 
 ---

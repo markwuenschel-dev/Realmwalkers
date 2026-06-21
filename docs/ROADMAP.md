@@ -16,7 +16,7 @@ live API (no desk feature left on fixtures).
 
 ---
 
-## Workstream 1 — Phase 3: enrichment passes + review lanes  ⏳
+## Workstream 1 — Phase 3: enrichment passes + review lanes  ✅
 
 DESIGN §14 Phase 3 / §15 OPEN-8 (lanes), OPEN-10 (partial-pass failure). **Done when:** enrichment
 measurably reduces revision requests. One PR.
@@ -24,7 +24,7 @@ measurably reduces revision requests. One PR.
 The router already maps tags→passes in fixed order and the pipeline lands the spine + a WARN flag on
 `PassError` (`workers/pipeline.py:36-45`). Only the `run()` bodies and the reviewers are missing.
 
-- [ ] **1a. Enrichment passes** — `workers/specialists/{combat,sensory,dialogue}.py`. Replace each
+- [x] **1a. Enrichment passes** — `workers/specialists/{combat,sensory,dialogue}.py`. Replace each
   `PassError` stub with a transform modeled on `specialists/drafter.py` (LLM-call shape) and
   `reviewers/pacing.py` (token-gating). Each: `llm.complete(model=settings.enrich_model, …,
   budget=ctx.budget)` → the transformed full scene. Transform-only system prompt — deepen one
@@ -33,23 +33,23 @@ The router already maps tags→passes in fixed order and the pipeline lands the 
   Lanes: combat = fight choreography/spatial clarity/stat-consistent; sensory (tag
   `physical_description`) = concrete grounded sense detail; dialogue = voice/subtext, honoring
   `ctx.dialogue_rules` as authoritative.
-- [ ] **Failure contract:** let `BudgetExceeded` propagate (pipeline keeps the spine, aborts remaining
+- [x] **Failure contract:** let `BudgetExceeded` propagate (pipeline keeps the spine, aborts remaining
   passes); wrap any other exception and empty/degenerate output as `PassError` so the spine still lands
   flagged. `except BudgetExceeded: raise` / `except Exception as e: raise PassError(...) from e`.
-- [ ] **1b. Review lanes** — new `workers/reviewers/{combat,sensory,dialogue}.py` mirroring
+- [x] **1b. Review lanes** — new `workers/reviewers/{combat,sensory,dialogue}.py` mirroring
   `reviewers/pacing.py`: token-gate on `_MIN_PROSE_CHARS`, `llm.complete(model=settings.review_model)`,
   parse via `reviewers/base.py` helpers (`parse_json_objects`, `advisory_severity`, `Flag`). Advisory
   only — INFO/WARN, never HARD, never mutate.
-- [ ] **1c. Router + config** — register the three lanes in `router.TAG_REVIEWERS` keyed by the same
+- [x] **1c. Router + config** — register the three lanes in `router.TAG_REVIEWERS` keyed by the same
   tags as the passes (`combat`, `physical_description`, `dialogue`); `reviewers_for()` already merges
   onto `ALWAYS_REVIEWERS`. Add `enrich_model: str = "claude-sonnet-4-6"` to `shared/config.py`
   (generative → defaults to the draft model; separate knob to tune without code change).
-- [ ] **1d. Tests** — rewrite `tests/test_enrichment_passes.py` (currently asserts `PassError` with
+- [x] **1d. Tests** — rewrite `tests/test_enrichment_passes.py` (currently asserts `PassError` with
   `ctx=None`): mock `llm.complete` (mirror `tests/test_drafter.py`); assert transformed prose, a
   preserved ```stat``` block, `PassError` on empty output, `BudgetExceeded` propagation. Add
   `tests/test_review_lanes.py` (mirror `test_reviewers_advisory.py`). Extend `tests/test_router.py`
   (`reviewers_for(["combat"])` includes the lane; `passes_for` order unchanged).
-- [ ] **1e. Docs** — flip Phase 3 → ✅ in `README.md` (build-phases + real/stubbed table), `BUILD.md`,
+- [x] **1e. Docs** — flip Phase 3 → ✅ in `README.md` (build-phases + real/stubbed table), `BUILD.md`,
   and DESIGN §14; Phase 4 (`draft_ahead` + parallelism) becomes the only remaining stub.
 
 ---

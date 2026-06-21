@@ -53,20 +53,24 @@ A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker
 
 > Drafting one scene works end to end: enqueue a beat
 > (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`) then
-> `python -m dominion.workers.worker --once`. The only worker stubs left are the Phase 3 enrichment
-> passes (combat/sensory/dialogue), which fail *soft* (`PassError`) — the drafted spine still lands in
-> the inbox, flagged, rather than hard-failing the job.
+> `python -m dominion.workers.worker --once`. The combat/sensory/dialogue enrichment passes and their
+> review lanes are live; a pass that fails still fails *soft* (`PassError`) — the drafted spine lands in
+> the inbox, flagged, rather than hard-failing the job. The only remaining worker stub is Phase 4
+> (`draft_ahead` + parallelism).
 
 ## State: what's real vs. scaffolded
 
-Phases 1 and 2 are built and tested. The only stubs left in the worker tree are the three Phase 3
-enrichment passes, which fail *soft* (`PassError` → the spine still lands, flagged) rather than hard.
+Phases 1–3 are built and tested. The only stub left in the worker tree is Phase 4 (`draft_ahead` +
+parallelism, deferred until throughput hurts); a failed enrichment pass still fails *soft* (`PassError`
+→ the spine lands, flagged) rather than hard.
 
 | Real now | Stubbed |
 |---|---|
-| Full ORM schema + Pydantic DTOs | Combat / sensory / dialogue **enrichment passes** (`PassError`, Phase 3) |
-| Drafter — POV-voiced spine + revise prompt | Combat / sensory / dialogue **review-lane** reviewers (Phase 3) |
-| Continuity reviewer (hard-number + POV-knowledge asymmetry) | `draft_ahead` + provisional ledger + parallel workers (Phase 4) |
+| Full ORM schema + Pydantic DTOs | `draft_ahead` + provisional ledger + parallel workers (Phase 4) |
+| Drafter — POV-voiced spine + revise prompt | |
+| Combat / sensory / dialogue **enrichment passes** (transform-only, stat-safe, soft-fail) | |
+| Combat / sensory / dialogue **review lanes** (advisory, tag-gated) | |
+| Continuity reviewer (hard-number + POV-knowledge asymmetry) | |
 | Pacing / voice / state-drift reviewers (advisory, token-gated) | |
 | Deterministic router (`passes_for` / `reviewers_for`) — tested | |
 | Worker loop: atomic claim, wall-clock + token budget, claim→draft→exit | |
