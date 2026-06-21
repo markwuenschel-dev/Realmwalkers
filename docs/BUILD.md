@@ -24,12 +24,12 @@ React (Vite) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Pyth
 ```
 src/dominion/
   shared/     config, enums, async DB session, ORM schema (models.py), Pydantic DTOs (schemas.py)
-  api/        FastAPI app + routers (health, scenes, reviews, runs)
-  workers/    worker.py (claim→draft→exit), pipeline.py, router.py, context.py, oracle.py,
+  api/        FastAPI app + routers (health, scenes, reviews, runs, beats, chapters, books)
+  workers/    worker.py (claim→draft→exit), pipeline.py, planner.py, router.py, context.py, oracle.py,
               budget.py, llm.py, enqueue.py
               specialists/  drafter + combat/sensory/dialogue enrichment passes
-              reviewers/    continuity (always) + pacing/voice
-              memory/       canon_rag, summaries, ledger
+              reviewers/    continuity (always) + pacing/voice/state-drift
+              memory/       canon_rag, summaries, ledger, seed
 frontend/     Vite + React + TS review app (Inbox → Scene → continuity panel)
 scripts/      init_db.py
 tests/        deterministic router tests + import smoke
@@ -51,30 +51,43 @@ cd frontend && npm install && npm run dev            # terminal 2: review app on
 
 A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker-once`, …).
 
-> Drafting one scene (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`
-> then `python -m dominion.workers.worker --once`) is **Phase 1** — the Drafter raises
-> `NotImplementedError` until then, by design (no fake prose written to the DB).
+> Drafting one scene works end to end: enqueue a beat
+> (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`) then
+> `python -m dominion.workers.worker --once`. The only worker stubs left are the Phase 3 enrichment
+> passes (combat/sensory/dialogue), which fail *soft* (`PassError`) — the drafted spine still lands in
+> the inbox, flagged, rather than hard-failing the job.
 
 ## State: what's real vs. scaffolded
 
-| Real now | Stubbed (raises `NotImplementedError`, phase-tagged) |
+Phases 1 and 2 are built and tested. The only stubs left in the worker tree are the three Phase 3
+enrichment passes, which fail *soft* (`PassError` → the spine still lands, flagged) rather than hard.
+
+| Real now | Stubbed |
 |---|---|
-| Full ORM schema + Pydantic DTOs | Drafter (Phase 1) |
-| Deterministic router (`passes_for` / `reviewers_for`) — tested | Continuity reviewer (Phase 1) |
-| Worker loop: atomic job claim, wall-clock budget, claim→draft→exit | Enrichment passes: combat/sensory/dialogue (Phase 3) |
-| Token-budget + LLM wrapper (usage-charged) | Pacing/voice reviewers (Phase 3) |
-| Oracle read-authority over `character_state` | Canon RAG / summaries / ledger (Phase 2) |
-| FastAPI: health, `/scenes/pending`, `/scenes/{id}` | `/runs` + continuity-resolve endpoints (Phase 1/2) |
-| Decision endpoint: approve/deny/revise + hand-edit | Memory hooks on approval (Phase 2) |
-| React inbox, scene review, continuity panel | History/version browsing (Phase 2) |
+| Full ORM schema + Pydantic DTOs | Combat / sensory / dialogue **enrichment passes** (`PassError`, Phase 3) |
+| Drafter — POV-voiced spine + revise prompt | Combat / sensory / dialogue **review-lane** reviewers (Phase 3) |
+| Continuity reviewer (hard-number + POV-knowledge asymmetry) | `draft_ahead` + provisional ledger + parallel workers (Phase 4) |
+| Pacing / voice / state-drift reviewers (advisory, token-gated) | |
+| Deterministic router (`passes_for` / `reviewers_for`) — tested | |
+| Worker loop: atomic claim, wall-clock + token budget, claim→draft→exit | |
+| Canon RAG (`retrieve` + `ingest_path`) over pgvector | |
+| Per-POV + omniscient rolling summaries; stat ledger commit-on-approval | |
+| Oracle read-authority over `character_state` | |
+| FastAPI: health, scenes, reviews (decision + continuity-resolve), runs, beats, chapters, books | |
+| Approve/deny/revise + hand-edit; ledger + summary hooks; `pause_each` auto-advance | |
+| React inbox, scene review, continuity panel, history, manuscript, plan | |
 
 ## Build phases (DESIGN §14)
+
+The concrete, checkable execution plan for the current effort (finish Phase 3, then wire the Writers'
+Desk to the live API) lives in [`ROADMAP.md`](ROADMAP.md).
 
 1. **One approved scene, end to end** — implement the Drafter + continuity reviewer; draft a scene
    from a hand-written beat, review it in the inbox, approve it.
 2. **Auto-advance + memory** — RAG over `novel/canon/`, per-POV + omniscient summaries, the stat
    ledger, pause-each auto-enqueue of the next scene.
-3. **Enrichment specialists** — combat/sensory/dialogue passes + pacing/voice reviewers, by beat tags.
+3. **Enrichment specialists** — combat/sensory/dialogue passes + their review-lane reviewers, by beat
+   tags. Pacing/voice/state-drift reviewers already live.
 4. **`draft_ahead` + parallelism** — provisional ledger, multiple workers.
 
 ## Checks (all currently clean)
@@ -85,6 +98,27 @@ ruff check src tests   # lint (F-codes catch real bugs: undefined names, unused 
 mypy src               # strict type check
 ```
 
-Biggest current gap: nothing exercises code that touches Postgres yet (no test database wired).
-Closing that — a pytest fixture that stands up an ephemeral Postgres — is the first thing to add
-alongside Phase 1, so a scene landing in the DB is *proven*, not just plausible.
+DB-backed tests get a real database from the `db_factory` fixture (`tests/conftest.py`), which forces
+a dedicated `dominion_test` DB, creates the `vector` extension + schema, and truncates between tests.
+Locally, if Postgres isn't running those tests **skip** (they're opt-in) — run `just db-up` first to
+exercise them. Tests that don't need a DB run regardless.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request, in three parallel jobs:
+
+| Job | What runs | Notes |
+|---|---|---|
+| **lint + types** | `ruff check src tests`, `mypy src` (strict) | one interpreter; config targets py312 |
+| **tests** | `pytest -q` against a real `pgvector/pgvector:pg16` service | matrix: Python 3.12 (the supported floor) + 3.14 (the pinned dev version) |
+| **frontend build** | `npm ci && npm run build` (`tsc -b && vite build`) | Node 20; reproducible install from `package-lock.json` |
+
+Installs are reproducible: backend via `uv sync --frozen` (honours `uv.lock`), frontend via `npm ci`.
+The CI sets **`DOMINION_REQUIRE_DB=1`**, which flips the conftest "Postgres unreachable → skip" into a
+hard failure — so a broken DB service can never produce a falsely-green run (the gap this CI closes).
+`ANTHROPIC_API_KEY` is set to a deliberately-fake value; tests mock the model, and a real call would
+fail fast rather than spend tokens.
+
+Recommended: protect `main` so these checks are **required** to merge (Settings → Branches, or
+`gh api -X PUT repos/:owner/:repo/branches/main/protection …`). The repo already merges via PRs, so
+required checks make the gate real.
