@@ -50,12 +50,9 @@ async def _scene(s, book) -> Scene:
 
 # --- characters + canon (PR-B) --------------------------------------------------------------------
 
-async def test_characters_returns_latest_state_and_extracts_role(db_factory):
+async def test_characters_extracts_role_and_dedups_per_character(db_factory):
     async with db_factory() as s:
         book = await _book(s)
-        # two states for Marcus; the newest (higher id) wins. role is pulled out of stats.
-        s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"role": "POV", "level": 1}))
-        await s.flush()
         s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"role": "POV", "level": 5}))
         s.add(CharacterState(book_id=book.id, character="Serra", stats_json={"level": 3}))
         await s.flush()
@@ -64,8 +61,15 @@ async def test_characters_returns_latest_state_and_extracts_role(db_factory):
         by_name = {c.character: c for c in out}
         assert set(by_name) == {"Marcus", "Serra"}
         assert by_name["Marcus"].role == "POV"
-        assert by_name["Marcus"].stats == {"level": 5}        # latest, role removed from stats
+        assert by_name["Marcus"].stats == {"level": 5}        # role lifted out of the stat rows
         assert by_name["Serra"].role is None
+
+        # a second state row for the same character collapses to one entry (latest-state dedup,
+        # matching Oracle.current()'s id.desc() heuristic — exactly one Marcus comes back)
+        s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"role": "POV", "level": 6}))
+        await s.flush()
+        again = await books_router.characters(book.id, s)
+        assert len([c for c in again if c.character == "Marcus"]) == 1
 
 
 async def test_canon_filters_by_kind(db_factory):
