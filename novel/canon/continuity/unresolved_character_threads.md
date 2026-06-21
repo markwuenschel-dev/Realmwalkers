@@ -33,7 +33,7 @@
 | SE-02 | ✅ RESOLVED | What specifically is the wrong she walks into at separation? | **Namebinding** — the magistrate's outpost and the leased-name **registry** (true names sub-leased from a master registry). (`serra_hawthorne.md`.) |
 | SE-03 | ✅ RESOLVED | Who is the vulnerable person/group she cannot walk away from? | **The namebound**; the on-page instance is **the elven child** (namebound and taken). (`serra_hawthorne.md`.) |
 | SE-04 | 🟡 | What does she find at the roots of the wrong that makes her stay longer than planned? | The thing that escalates her from "fixing this" to "I can't leave until it's finished." |
-| SE-05 | 🟡 | What is the moment in her solo arc where her power almost costs her something she can't recover? | The near-catastrophic loss of control moment. Defines where the Collapse Aura path becomes real. |
+| SE-05 | 🟡 | What is the moment where her power almost costs her something she can't recover? | The near-catastrophic loss-of-control moment. **Not the solo arc** — her interface is **dormant until the Act-5 finale**, so this lands at/after the finale activation (or Book 2). Defines where the Collapse Aura path becomes real. |
 | SE-06 | 🟡 | Which Final Path does she move toward — Coherence or Saturation? | Is the choice conscious? This is her arc's end-direction question. |
 | SE-07 | 🟢 | What does she build or become during the separation that belongs entirely to her? | Not connected to Marcus. Her own thing. Needed before her return scene. |
 | SE-08 | 🟢 | What does she need from Marcus that she can't get from anyone else — and does she ever admit it? | The inside of the relationship. Affects reunion scenes. |
@@ -114,7 +114,7 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| W-01 | ✅/🟡 SPLIT | The Eriadne ley convergence — built or natural? | **Node = natural / unbuilt (✅ RESOLVED)** — the convergence formed; no one created it. **Who built the *ruins* around it, and why = 🟡 OPEN** (builders' identity/purpose unresolved). (`master_timeline.md`, `eriadne.md`.) |
+| W-01 | ✅/🟡 SPLIT | The Eriadne ley convergence — built or natural? | **Node = natural / unbuilt (✅ RESOLVED)** — the convergence formed; no one created it. **Who built the *ruins* around it, and why = 🟡 OPEN** (builders' identity/purpose unresolved). **Leading proposed alternative (unlocked): the "ruins" are the dormant *corpse of a N'hal* — anatomy not architecture, the portal a wound/aperture; PROPOSED, not locked; final ruling owed to the author.** (`master_timeline.md`, `eriadne.md`, `cosmology.md`.) |
 | W-02 | 🟡 | Are N'hal and Xyloryn confirmed as separate threat layers? | Current recommendation: Option B (Xyloryn as immune response gone wrong). Needs final decision. |
 | W-03 | 🟢 | What does interface annihilation look like visually when N'hal advance? | Needed before any N'hal scene is written. The *mechanic* is now canon (`cosmology.md`: the legible interface layer — skills/levels/bars — degrades near them); only the on-page *visual* is open. |
 | W-05 | 🟡 | Who/what forces the finale portal open / summons the Myrmidon? | Agent, the Xyloryn themselves, or the eight-leyline convergence destabilizing. Open. `cosmology.md`, `eriadne.md`. |

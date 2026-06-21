@@ -10,7 +10,7 @@ status: canon
 > **Model:** Base class = *method* · Specialization = *refined role* · Affinity = *power domain* · Legendary/Mythic/Unique titles = *rare evolved expression*.
 > **Rarity ladder:** Common → Uncommon → Rare → Exceptional → Legendary → Mythic → Unique. **Rarer classes cost more XP _and_ more energy per level** (see `core_rules.md` → The Class System / Class Tiers).
 > **Classes are earned through behavior, not selected.**
-> **Cast quick-ref:** Marcus = Mage → **Riftwalker** (Legendary); Serra = **Warrior**; Seb = Warrior → **Reaver** (spec, broker grants it *early*); Mara = **Psion** (rare); Mathias = **Scout**; Brent = **Adventurer** (Troubleshooter-lean).
+> **Cast quick-ref:** Marcus = Mage → **Riftwalker** (Legendary); Serra = **Warrior** → **Worldbreaker** (Legendary-lane; Book-2 dir.); Seb = Warrior → **Reaver** (spec, broker grants it *early*); Mara = **Psion** (rare) → **Arbiter** *(placeholder spec; Book-2 dir.)*; Mathias = **Scout** → **Emissary** *(spec; Book-2 dir.)*; Brent = **Warden** → **Reckoner** *(spec; Book-2 dir.)*.
 
 ---
 
@@ -124,6 +124,7 @@ This is where you can keep the juicy stuff without breaking the base-class table
 | **Star Marshal** | Commander \+ Celestial | Leads through heavenly mandate, omens, and cosmic authority |
 | **Gatewarden Prime** | Warden \+ Planar | Guardian of major interplanar thresholds |
 | **Dragonbound Sovereign** | Tamer/Summoner/Commander \+ Life/Fire/Spirit | Bonded to a dragon-level entity and recognized as a force of history |
+| **Worldbreaker** | Warrior \+ severance/force | **Warrior Legendary-lane evolved form** (Serra; **Book-2 direction**). Breaks the impossible opposition — *severance-at-scale*; parallel-not-copy to **Riftwalker** ("crosses the impossible gap"). Folds precise Pressure-Severance into overwhelming frontline force; **not** a generic bruiser. |
 
 ---
 
@@ -164,6 +165,19 @@ These should be one-of-one, usually tied to artifacts, interfaces, gods, breache
 | **The Aether Scar** | Someone wounded by Aether synthesis and permanently leaking impossible power |
 | **The One Who Was Not Summoned** | A being/person who entered the Realm without any valid gate, ritual, or cause |
 | **The Silence After Names** | A Void/Namekeeper entity who erases identity at the conceptual level |
+
+## Cast-Linked Specializations (net-new)
+
+Specializations / evolved directions tied to the main cast. **Book-2 trajectory unless noted** — planted in Book 1, not unlocked in it. (Marcus's **Riftwalker** and Seb's **Reaver** are the two that *are* Book-1 unlocks; see their files.)
+
+| Spec | Base → | Concept | Cast |
+|---|---|---|---|
+| **Reckoner** | Warden specialization | Accounts for **cost / consequence / debt / transferred risk**; makes the bill visible and **forces it answered**. Not "tank" — responsibility over what must not fail, with a hard edge that names who benefits from harm being hard to see. | Brent |
+| **Worldbreaker** | Warrior → Legendary lane | Breaks the impossible opposition; **severance-at-scale**; parallel to **Riftwalker**. Folds precise Pressure-Severance into overwhelming frontline force (not a generic bruiser). *(Also in Legendary Options above.)* | Serra |
+| **Emissary** | Scout specialization | **Contact / diplomacy / first-contact**; opens doors socially, politically, culturally where others trigger rejection. **Class spec only — unrelated to Mathias's Enteric Lattice interface, which is unchanged.** | Mathias |
+| **Arbiter** *(placeholder; rename on lock)* | Psion specialization | Determines **which interpretation survives the room**; **Mindblade-like** combat expression (psychic cutting, severing mental bindings, precision execution). **Name is a placeholder** — it collides with Marcus's Mage "**Arbiter Aspect**" (`mc.md`, Book-1 canon, kept as-is); rename Mara's spec when it locks. | Mara |
+
+---
 
 # **Class and Affinity Design Philosophy**
 
