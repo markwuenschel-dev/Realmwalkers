@@ -68,7 +68,7 @@ status: working
 
 **Ch 8 — The Road** · Day ~7 · **Marcus nearly walks into Serra** — both at zero, she has a blade and he has nothing, the Earth Thing immediately present and unaddressed. They fall into step.
 
-**Ch 9 — The Caravan** · Day ~8 · Dara, Cael, the **elven child** (injured, early interface sensitivity). A **toll-gang** stops them. **First live use of the Neurochromatic interface** — partial, strange notification; Marcus's social puncture + Serra's repositioning; the gang retreats *having gotten what it needed* (false-rescue seed).
+**Ch 9 — The Caravan** · Day ~8 · Dara, Cael, **Vaeli** (the elven child — injured, early interface sensitivity). A **toll-gang** stops them. **First live use of the Neurochromatic interface** — partial, strange notification; Marcus's social puncture + Serra's repositioning; the gang retreats *having gotten what it needed* (false-rescue seed).
 
 **Ch 10 — The Iron Vultures** · Day ~9 · The Vultures (were watching) offer **utility, not friendship.** The group travels with them.
 
@@ -87,18 +87,18 @@ status: working
 - **The second kiss (end of chapter — the height ritual).** With the plan settled and the operation set for dawn — a quiet interval, **not** an adrenaline beat (no bleeding, no enemies near; they have time to leave and don't) — on an elevated open-air vantage over the magistrate's compound (ridge / ruined watch-post / survey tower: a **height**, rhyming forward to Ch 30). **Serra initiates** — she does the thing she's constitutionally unable to do (claim an uncertain thing) and answers the question the Earth kiss left her holding (*did he think it was a mistake?*). **Present-tense authorship** (*I choose this now*, not *I promise the after*): confirms mutual desire, declares **no** relationship category, *intensifies* the obligation question that fuels Ch 30. **Caps** the six falling-in-love components — conflict/repair precede it on-page; **no** sex scene, label, or future promise. **Marcus's restraint #1:** he withholds the *what does this mean* question (forcing definition would make the kiss a negotiation) — rhymes to his Ch 30 restraint. **Serra's one rule, enacted (R-5):** she takes the *now* and does **not** ask for the *after* — "I don't ask people to stay," performed, never stated; the quiet twin of Marcus's restraint. **Aftermath (no label):** touch eases, Serra seeks him more openly, teasing softens, companions notice a shift but get no confirmation — and **both privately assume an "after"** that Ch 15 destroys. (INV-1 Axis E reconcile; `marcus_serra_relationship.md` §6/§8; `setup_payoff_tracker.md` MS-kiss2 / MS-restraint / MS-rule.)
 
 **Ch 15 — The Operation & The Split** · Days ~19–21
-- Chaotic intervention. **Marcus extracts the elven child; others don't make it** — it marks him; he doesn't get to save everyone.
+- Chaotic intervention. **Marcus extracts Vaeli; others don't make it** — it marks him; he doesn't get to save everyone.
 - **⟢ SERRA POV — Serra kills the magistrate** (a deliberate killing; off-page from *Marcus's* POV but **on-page in hers**). The registry-fragment discovery: she learns he's a **node, not the source** — names are sub-leased from a master registry — takes a **registry-fragment** (a *cold* Book-2 lead). **Her interface does NOT unlock here — it stays dormant until the Act-5 finale.** She leaves **not because Marcus failed her** but because she's found something she can't ignore. (§9.)
 - **The separation:** no speech. The Earth Thing at its heaviest yet. She leaves on her own road — **her Book-1 solo arc is the dungeon**; the cold registry-lead points up the chain to the **Court of Seals** (a limb of the cosmic **Aurelian Sovereignty**, name unknown to her), but **that hunt is Book 2.** Marcus can't follow.
-- **⟢ INTERLUDE (Brent):** alone for a long stretch, then finds a different group (not the Vultures); his **Warden/Reckoner + Keystone Integrity** (open) path begins through use.
+- **⟢ INTERLUDE (Brent):** alone for a long stretch, then finds a different group (not the Vultures); his **Warden/Reckoner + Piezoelectric Bones** (open) path begins through use.
 
 ---
 
 ## TRANSIT BRIDGE (Days ~23–44) · *Marcus + Vultures*
 
 **Ch 16–17 — The Long Road** · Compressed travel toward Eriadne: rumors of the thread city; the standalone **playful-chaos defusion** beat; the Eyes' emotional-leak social cost; a first **Xyloryn diagnostic hint**; the felt ley pull. Reaches Eriadne's outskirts ~Day 45.
-- **⟢ INTERLUDE (Seb):** kills his captor **barehanded** → *then* the broker (Soulkeepers' agent) speaks — *"you can have more,"* dangling the brother's soul. **Reaver + Threshold Cascade** ignite. Shortest arc; straight toward Eriadne; among the most powerful.
-- **⟢ SERRA POV — First Solo Chapter (the dungeon):** held by a small town beside a **delve**; the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed); the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. *(Court of Seals hunt = Book 2; interface still dormant.)* (§9.)
+- **⟢ INTERLUDE (Seb):** kills his captor **barehanded** → *then* the broker (Soulkeepers' agent) speaks — *"you can have more,"* dangling the brother's soul. **Reaver + Pyric Blood** ignite. Shortest arc; straight toward Eriadne; among the most powerful.
+- **⟢ SERRA POV — First Solo Chapter (the dungeon):** held by a small town beside a **delve**; **Vessa** (a 13-yo tunnel-runner — the young-Serra mirror) is why she stays (`vessa.md`); the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed); the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. *(Court of Seals hunt = Book 2; interface still dormant.)* (§9.)
 
 ---
 
@@ -108,10 +108,10 @@ status: working
 
 **Ch 19 — Useful to the Ignored** · Days ~47–53 · He becomes useful to the people the city overlooks; first faction friction (the Iron Vultures see competition).
 
-**Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Warden → Reckoner** dir.; **Keystone Integrity**, open) — the structural mind whose reads matter in the crisis (the Myrmidon's keystone); **his fortifying/building is Book 2.** The "he actually saw me" recognition with Marcus.
+**Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Warden → Reckoner** dir.; **Piezoelectric Bones**, open) — the structural mind whose reads matter in the crisis (the Myrmidon's keystone); **his fortifying/building is Book 2.** The "he actually saw me" recognition with Marcus.
 
-**Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Mirror-Salience), arriving from her court arc — challenges Marcus for treating people as systems.
-- **⟢ INTERLUDE (Mara, just prior):** the predatory courtier weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Mirror-Salience); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Mirror-Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
+**Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Specular Salience), arriving from her court arc — challenges Marcus for treating people as systems.
+- **⟢ INTERLUDE (Mara, just prior):** the predatory courtier weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Specular Salience); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Specular Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
 
 **Ch 22 — The Under-City** · Days ~60–64 · The Under-City partially activates; the ley-knot significance clarifies; **Ayla's gap surfaces** (the limit of her damaged knowledge).
 
@@ -128,9 +128,9 @@ status: working
 - **⟢ INTERLUDE (Mathias):** confirms the **Xyloryn and the portal** near the ruins; becomes the group's warning no one wants to hear.
 
 **Ch 26–28 — The Myrmidon** · Days ~98–104 · ⚠ *finale choreography pending* · *Ensemble*
-- The **dormant portal at the eight-leyline convergence is forced open** (separate from the city, which stays largely unaware); the swarm visible beyond. **One Myrmidon comes through it** and nearly beats all six at once.
+- The **dormant portal at the eight-leyline convergence is forced open by a Nightbound agent** (a controlled breach-*test*; separate from the city, which stays largely unaware); the swarm visible beyond. **One Myrmidon comes through it** and nearly beats all six at once.
 - **Drawn by the breach**, a **Realm Walker** arrives and *witnesses* the fight — first contact with Marcus here or just after (the recruitment seed → `cosmology.md`, Riftwalker).
-- **Shared interface ignition:** Serra's pressure builds; Seb already cycling (Reaver/Threshold Cascade); **Brent's Keystone Integrity exposes the Myrmidon's structural keystone** (the swarm adapts to *interfaces* but he reads it as a *structure*); **Marcus's eyes turn on.**
+- **Shared interface ignition:** Serra's pressure builds; Seb already cycling (Reaver/Pyric Blood); **Brent's Piezoelectric Bones exposes the Myrmidon's structural keystone** (the swarm adapts to *interfaces* but he reads it as a *structure*); **Marcus's eyes turn on.**
 - **The kill:** Marcus holds an opening at lethal risk; **Serra lands it but misses the depth and brushes off his danger** — he barely survives. His eyes read her **conflict**; the **Meszkhal item lies** ("doubling down"); he reads her right and doesn't blame her.
 - **Mathias is badly injured proving his warning — he lives.** The crisis briefly reunites the six as a team.
 
@@ -159,10 +159,10 @@ status: working
 | Character | Shape across Book 1 | Converges |
 |---|---|---|
 | **Serra** *(⟢ SERRA POV — deuteragonist, **not** interlude)* | Realm arrival (Ch 6A, altana flashback) → early False-Rescue POV → magistrate kill (her POV, Ch 15) → first solo chapter / **the dungeon** (delve + Toll-King + Eriadne trade-clue; Court-of-Seals hunt = Book 2; interface dormant); ends unfinished → return-at-cost | Ch 25 reunion |
-| **Seb** | Desolate → enslaved → kills captor barehanded → broker speaks → shortest arc (Reaver + Threshold Cascade) | ~Act 4/5 (off-page until late) |
-| **Mara** | Court city-state → predator weaponizes regard → un-salient exposure (Psion/Mirror-Salience) → routed out | Ch 21 |
+| **Seb** | Desolate → enslaved → kills captor barehanded → broker speaks → shortest arc (Reaver + Pyric Blood) | ~Act 4/5 (off-page until late) |
+| **Mara** | Court city-state → predator weaponizes regard → un-salient exposure (Psion/Specular Salience) → routed out | Ch 21 |
 | **Mathias** | Solo near ruins → finds Xyloryn + portal → loads Scout → the warning; **lives** (injured finale) | Ch 25 / finale |
-| **Brent** | Alone → unknown group → Warden/Reckoner + Keystone Integrity (open) → structural reader *(fortifying = Book 2)* | Ch 20 |
+| **Brent** | Alone → unknown group → Warden/Reckoner + Piezoelectric Bones (open) → structural reader *(fortifying = Book 2)* | Ch 20 |
 
 ## Open Questions
 - Chapter **count & boundaries** are proposed — reconcile with the live chapter file. *(file-local)*

@@ -31,7 +31,7 @@
 |---|---|---|---|
 | SE-01 | 🟡 | Does her Realm name stay Serra, or does she earn/receive a new one? | Serra is working. May stay Serra. Affects how she's addressed throughout. |
 | SE-02 | ✅ RESOLVED | What specifically is the wrong she walks into at separation? | **Namebinding** — the magistrate's outpost and the leased-name **registry** (true names sub-leased from a master registry). (`serra_hawthorne.md`.) |
-| SE-03 | ✅ RESOLVED | Who is the vulnerable person/group she cannot walk away from? | **The namebound**; the on-page instance is **the elven child** (namebound and taken). (`serra_hawthorne.md`.) |
+| SE-03 | ✅ RESOLVED | Who is the vulnerable person/group she cannot walk away from? | **The namebound**; the on-page instance is **Vaeli, the elven child** (namebound and taken). (`serra_hawthorne.md`.) |
 | SE-04 | 🟡 | What does she find at the roots of the wrong that makes her stay longer than planned? | The thing that escalates her from "fixing this" to "I can't leave until it's finished." |
 | SE-05 | 🟡 | What is the moment where her power almost costs her something she can't recover? | The near-catastrophic loss-of-control moment. **Not the solo arc** — her interface is **dormant until the Act-5 finale**, so this lands at/after the finale activation (or Book 2). Defines where the Collapse Aura path becomes real. |
 | SE-06 | 🟡 | Which Final Path does she move toward — Coherence or Saturation? | Is the choice conscious? This is her arc's end-direction question. |
@@ -45,7 +45,7 @@
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| SB-01 | ✅ RESOLVED | What power source tempts him? | The **Broker's** offer to restore his dead brother — genuinely possible, not a bluff. Path: Aetherfall **Warlord** → Realm **Reaver** + **Threshold Cascade**. See INV-6, `seb.md`. |
+| SB-01 | ✅ RESOLVED | What power source tempts him? | The **Broker's** offer to restore his dead brother — genuinely possible, not a bluff. Path: Aetherfall **Warlord** → Realm **Reaver** + **Pyric Blood**. See INV-6, `seb.md`. |
 | SB-02 | ✅ RESOLVED | Does he know the full cost? | **No.** The wording is honest; Seb hears *"whole and alive"* in it. He doesn't see the cost is **self-transformation** (he must *become the mechanism*) or that restoration ≠ continuity → **tragedy, not corruption.** INV-6. |
 | SB-03 | 🟡 | Is his brother still reachable from Earth, or does the motive transform in the Realm? | If the brother can't be reached, what does Seb's drive become? |
 | SB-04 | 🟢 | Does Seb become antagonist, antihero, or tragic rival? | Doesn't need to be decided early, but should be tracked as his choices accumulate. |
@@ -59,10 +59,10 @@
 |---|---|---|---|
 | M-01 | 🟡 | Does she separate with Serra or take a different path? | Affects Serra's solo arc texture significantly. |
 | M-02 | 🟡 | What does she **read** in Xyloryn forms — each form a *readable fossil* of what the swarm has already survived — that makes her contribution unique? | Salience/observation, **not** biology (`cosmology.md`, `mara.md`). |
-| M-03 | ✅ RESOLVED (reframed) | Her trajectory is the court-arc **authorship of attention** (Psion / Mirror-Salience) — **not** a biotech/community role. | The old "frontline rogue → biotech/community" framing is retired (`mara.md`). |
+| M-03 | ✅ RESOLVED (reframed) | Her trajectory is the court-arc **authorship of attention** (Psion / Specular Salience) — **not** a biotech/community role. | The old "frontline rogue → biotech/community" framing is retired (`mara.md`). |
 | M-04 | 🟢 | What does she refuse to sacrifice? | Her line. |
 | M-05 | 🟢 | What does she eventually sacrifice anyway? | Her arc's cost. |
-| MA-01 | ✅ RESOLVED | Mara's post-court arc / what routes her to Eriadne | **The Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth**; a **salience-suppression** threat there (the community has normalized ignoring one region of the creature) is the perfect Mirror-Salience foil — her climax is making them *perceive the danger at once* (stop ignoring a truth, not believe a falsehood); the behemoth's wound/migration routes her to Eriadne. See `mara.md`. |
+| MA-01 | ✅ RESOLVED | Mara's post-court arc / what routes her to Eriadne | **The Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth**; a **salience-suppression** threat there (the community has normalized ignoring one region of the creature) is the perfect Specular Salience foil — her climax is making them *perceive the danger at once* (stop ignoring a truth, not believe a falsehood); the behemoth's wound/migration routes her to Eriadne. See `mara.md`. |
 | MA-02 | 🟡 | Nature of the Walking Grove threat | Mundane parasite / Xyloryn-seed / thematically-rhyming-but-unrelated. **Do not imply an N'hal link.** Open — Mark's call. |
 
 ---
@@ -117,7 +117,7 @@
 | W-01 | ✅/🟡 SPLIT | The Eriadne ley convergence — built or natural? | **Node = natural / unbuilt (✅ RESOLVED)** — the convergence formed; no one created it. **Who built the *ruins* around it, and why = 🟡 OPEN** (builders' identity/purpose unresolved). **Leading proposed alternative (unlocked): the "ruins" are the dormant *corpse of a N'hal* — anatomy not architecture, the portal a wound/aperture; PROPOSED, not locked; final ruling owed to the author.** (`master_timeline.md`, `eriadne.md`, `cosmology.md`.) |
 | W-02 | 🟡 | Are N'hal and Xyloryn confirmed as separate threat layers? | Current recommendation: Option B (Xyloryn as immune response gone wrong). Needs final decision. |
 | W-03 | 🟢 | What does interface annihilation look like visually when N'hal advance? | Needed before any N'hal scene is written. The *mechanic* is now canon (`cosmology.md`: the legible interface layer — skills/levels/bars — degrades near them); only the on-page *visual* is open. |
-| W-05 | 🟡 | Who/what forces the finale portal open / summons the Myrmidon? | Agent, the Xyloryn themselves, or the eight-leyline convergence destabilizing. Open. `cosmology.md`, `eriadne.md`. |
+| W-05 | ✅ | Who/what forces the finale portal open / summons the Myrmidon? | **RESOLVED: the Nightbound force the breach directly** — a controlled breach-*test* (no intermediary, **not through Seb**), exploiting the convergence lock the six's Book-1 plot destabilized. Seb keeps his finale combat role but is **not** the trigger. The precise *physical* trigger stays flexible (W-01). `finale_spine.md` §A, `nightbound.md`, `cosmology.md`. |
 | W-04 | ✅ RESOLVED | Who brought the six? | **The Nightbound** (client) → Soulkeepers' Exchange (contractor) → the Broker (operator) → Astria. See `nightbound.md`, `cosmology.md`. |
 | NB-01 | 🟡 | The Nightbound founder's identity, nature, history; is the secrecy tactical or self-serving? | Open by design; the founder is the ideological center. `nightbound.md`. |
 | NB-02 | 🟡 | What does the inheritance the six may unlock actually do? | Weapon/refuge/path/anchor/evidence — **undefined; members disagree.** Sufficient to draft B1 as 'something that might matter.' Lock only when a scene needs it. `nightbound.md`. |
@@ -177,11 +177,11 @@
 | A3-02 | ✅ RESOLVED | Which city or faction is Serra heading toward after the split? | The **Court of Seals** (regional namebinding offshoot) → up the chain to the cosmic **Aurelian Sovereignty** (`cosmology.md`, `serra_hawthorne.md`). |
 | A3-03 | ✅ RESOLVED | Angelic Fortitude removed | Not canon. Zazriel gave no boon. Marcus has Eyes only. |
 | A3-04 | 🟡 | What specific skill does Marcus unlock from the road encounter? | First Eyes use in a live situation — what does the interface log? Should be partial and imperfect. |
-| A3-05 | 🟡 | What happens to the elven child after rescue? | Does the child stay with Marcus, with the Vultures, with Dara and Cael? |
-| A3-06 | 🟡 | Do Dara and Cael become recurring characters or situational? | Affects whether they need full character files |
+| A3-05 | ✅ | What happens to the elven child after rescue? | **RESOLVED [LOCKED]: Vaeli initially leaves with Dara & Cael** (keeps Marcus's road clear of a child-companion); **circumstances later force the three toward Marcus / Eriadne** — the Book-2 home-building payoff arrives as a *return*, not a tag-along. Hook: a **Strong** soul, so the registry chain comes for her again, and Marcus is the one who broke its grip once. Nudges A3-06 → recurring. |
+| A3-06 | 🟢 | Do Dara and Cael become recurring characters or situational? | **Leaning recurring** (per A3-05 — Vaeli returns toward Marcus *with* Dara & Cael); they'll need fuller files when they recur in Book 2. |
 | A3-07 | 🟡 | Does Serra's kill of the magistrate happen on-page or off? | Affects POV and tone of NEW-008 |
-| A3-08 | 🟢 | What are the Vultures' specific conditions for joining the operation? | Needs detail before NEW-007 can be fully drafted |
-| A3-09 | 🟢 | What is the elven child's name? | Can be deferred but needed before the child has a scene with dialogue. **Soul Level = Strong** (a notable namebinding catch — reinforces "monetized rescue": the guild landing a real prize, not routine debt-resolution); name/fate still open. |
+| A3-08 | ✅ | What are the Vultures' specific conditions for joining the operation? | **RESOLVED.** (1) **Op funds itself** (the outpost's seizable assets — Marcus is pre-foothold). (2) **Capped risk + exit** (intel first; the job, not a last stand; right to pull out; can't replace the dead). (3) **One job, not an oath** (independence kept). (4) **Their name stays off it** (a local node, not war on a chain that can reach them). Lever: survivors *want* to gut a namebinding op (feeds IVF-01, A3-06). `factions/iron_vultures.md`. |
+| A3-09 | ✅ | What is the elven child's name? | **RESOLVED: Vaeli.** **Soul Level = Strong** (stays — the notable namebinding catch; reinforces "monetized rescue": a real prize, not routine debt-resolution). **Vaeli is rescued and lives** (false rescue = systemic failure, not literal death); plants a Book-2 thread (Strong soul). Propagate "elven child" → "Vaeli" where a name reads better; **keep "the child"** in the namebinding-as-commodity beat where the anonymity is deliberate. |
 | A3-10 | 🟢 | What does the first partial Eyes notification actually say? | Interface text for the road encounter skill unlock |
 | A3-11 | 🟡 | **Is Serra on- or off-page during Maera's over-share (Ch 12)?** | Gates the dark rhyme of the warmth-trap beat (`setup_payoff_tracker.md` MS-T7). **Off-page** → "the liar-detector wasn't in the room"; **on-page** → "his hunger for warmth overrode even her instinct." Ch 12 reads as a rest stop with people sleeping (off-page plausible) — **check the live Ch 12 before drafting.** The remaining open dependency from CCB-007. |
 

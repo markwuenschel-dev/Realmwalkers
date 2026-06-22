@@ -124,7 +124,7 @@ This is where you can keep the juicy stuff without breaking the base-class table
 | **Star Marshal** | Commander \+ Celestial | Leads through heavenly mandate, omens, and cosmic authority |
 | **Gatewarden Prime** | Warden \+ Planar | Guardian of major interplanar thresholds |
 | **Dragonbound Sovereign** | Tamer/Summoner/Commander \+ Life/Fire/Spirit | Bonded to a dragon-level entity and recognized as a force of history |
-| **Worldbreaker** | Warrior \+ severance/force | **Warrior Legendary-lane evolved form** (Serra; **Book-2 direction**). Breaks the impossible opposition — *severance-at-scale*; parallel-not-copy to **Riftwalker** ("crosses the impossible gap"). Folds precise Pressure-Severance into overwhelming frontline force; **not** a generic bruiser. |
+| **Worldbreaker** | Warrior \+ severance/force | **Warrior Legendary-lane evolved form** (Serra; **Book-2 direction**). Breaks the impossible opposition — *severance-at-scale*; parallel-not-copy to **Riftwalker** ("crosses the impossible gap"). Folds precise Severance Pulse into overwhelming frontline force; **not** a generic bruiser. |
 
 ---
 
@@ -173,7 +173,7 @@ Specializations / evolved directions tied to the main cast. **Book-2 trajectory 
 | Spec | Base → | Concept | Cast |
 |---|---|---|---|
 | **Reckoner** | Warden specialization | Accounts for **cost / consequence / debt / transferred risk**; makes the bill visible and **forces it answered**. Not "tank" — responsibility over what must not fail, with a hard edge that names who benefits from harm being hard to see. | Brent |
-| **Worldbreaker** | Warrior → Legendary lane | Breaks the impossible opposition; **severance-at-scale**; parallel to **Riftwalker**. Folds precise Pressure-Severance into overwhelming frontline force (not a generic bruiser). *(Also in Legendary Options above.)* | Serra |
+| **Worldbreaker** | Warrior → Legendary lane | Breaks the impossible opposition; **severance-at-scale**; parallel to **Riftwalker**. Folds precise Severance Pulse into overwhelming frontline force (not a generic bruiser). *(Also in Legendary Options above.)* | Serra |
 | **Emissary** | Scout specialization | **Contact / diplomacy / first-contact**; opens doors socially, politically, culturally where others trigger rejection. **Class spec only — unrelated to Mathias's Enteric Lattice interface, which is unchanged.** | Mathias |
 | **Arbiter** *(placeholder; rename on lock)* | Psion specialization | Determines **which interpretation survives the room**; **Mindblade-like** combat expression (psychic cutting, severing mental bindings, precision execution). **Name is a placeholder** — it collides with Marcus's Mage "**Arbiter Aspect**" (`mc.md`, Book-1 canon, kept as-is); rename Mara's spec when it locks. | Mara |
 

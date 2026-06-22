@@ -36,16 +36,16 @@
 | CH-005 | Serra | Self-made; driven to belong *to herself* | active | Solo arc strips every scoreboard; no SWAT, no justice-from-trauma. |
 | CH-006 | Serra | Power scales with commitment → dangerous to those near her | active | Cutting a namebind costs the person she's saving (SE-05). |
 | CH-007 | Serra | Keeps the real stuff guarded | active | Reunion: she's visibly changed; he reads it, she won't confirm. |
-| CH-008 | Seb | Brother dies during the Day 0 scrim — the rescue lever collapses in real time | seeded | Consent becomes grief, not rescue. Later accepts the Broker's power (Aetherfall **Warlord** → Realm **Reaver** + **Threshold Cascade**) on wording that is **honest but misread**: restoration is genuinely possible, but the hidden cost is that Seb must *become the mechanism* — and becoming capable may destroy the brother he'd want back (a body without guaranteed identity/memory/continuity). Tragedy, not corruption. INV-6. |
-| CH-009 | Mara | Creative/observer; authorship of attention | seeded | Court-exposure reframe (Psion + Mirror-Salience). **Not** the sole biologist. |
+| CH-008 | Seb | Brother dies during the Day 0 scrim — the rescue lever collapses in real time | seeded | Consent becomes grief, not rescue. Later accepts the Broker's power (Aetherfall **Warlord** → Realm **Reaver** + **Pyric Blood**) on wording that is **honest but misread**: restoration is genuinely possible, but the hidden cost is that Seb must *become the mechanism* — and becoming capable may destroy the brother he'd want back (a body without guaranteed identity/memory/continuity). Tragedy, not corruption. INV-6. |
+| CH-009 | Mara | Creative/observer; authorship of attention | seeded | Court-exposure reframe (Psion + Specular Salience). **Not** the sole biologist. |
 | CH-010 | Mathias | Connection/systems sense | seeded | Reads the Xyloryn as one organism; warns the group. **Survives** (injured at finale). |
-| CH-011 | Brent | Practical competence | seeded | Civil engineer; Warden → Reckoner (Book-2 dir.) + Keystone Integrity (open); the structural reader (fortifying = Book 2). |
+| CH-011 | Brent | Practical competence | seeded | Civil engineer; Warden → Reckoner (Book-2 dir.) + Piezoelectric Bones (open); the structural reader (fortifying = Book 2). |
 | CH-012 | Ayla | Ancient but damaged guide | seeded | Her gap causes a costly wrong assumption; questions not answers. |
 | CH-013 | Marcus | Home-building drive | active | Surfaces *from* the warmth-trap; the ruin-fringe claim is personal before political. |
 | CH-014 | Marcus | First Eyes-interface use (partial) | active | By Eriadne the Eyes are genuinely useful in social/combat reads. |
 | CH-015 | Marcus | Maera: accurate read, wrong model | active | Later he catches the same pattern and reads the difference correctly. |
 | CH-016 | Marcus | Saves the child; others don't make it | active | The weight of a correct choice that still cost; echoes in what he builds. |
-| CH-017 | Serra | **Warrior** fundamentals surface (not a flashy class) | active | Ordinary Warrior skills become terrifying Pressure-Severance delivery; first intentional Momentum. |
+| CH-017 | Serra | **Warrior** fundamentals surface (not a flashy class) | active | Ordinary Warrior skills become terrifying Severance Pulse delivery; first intentional Momentum. |
 | CH-018 | Serra | Kills the magistrate — a decision | active | What she learns (node/registry) sets her destination. |
 | CH-019 | Marcus/Serra | The space between them forms | active | Reunion shows how much changed and how the space remains. |
 
@@ -78,7 +78,7 @@
 | SYS-002 | Insight gives limited info | seeded | He overvalues incomplete data. |
 | SYS-005 | Names/status can be hidden | active | Name mechanics become threat/defense (namebinding). |
 | SYS-006 | The Eyes (interface) cost reserve/mana/stability | active | Overuse → feedback-lock, social tell, physical damage. |
-| SYS-007 | Pressure-Severance scales with commitment | active | Full commitment endangers allies (the field doesn't read team jerseys). |
+| SYS-007 | Severance Pulse scales with commitment | active | Full commitment endangers allies (the field doesn't read team jerseys). |
 
 ---
 

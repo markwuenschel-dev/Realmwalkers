@@ -24,8 +24,8 @@ status: active
 | Age | TBD |
 | Origin | TBD |
 | Guild Role (Earth) | Guild Leader — Aetherfall top-25 roster |
-| Realm Role | Warrior + Reaver specialization (consumes others) · Threshold Cascade interface (consumes self) — mirror-rival to Marcus |
-| Power Interface | Threshold Cascade (vago-adrenal self-consumption) |
+| Realm Role | Warrior + Reaver specialization (consumes others) · Pyric Blood interface (consumes self) — mirror-rival to Marcus |
+| Power Interface | Pyric Blood (vago-adrenal self-consumption) |
 | Current Location | Separated — solo arc in progress |
 | Current Allegiance | None yet — forming, likely toward a noble-framed power source |
 
@@ -39,7 +39,7 @@ status: active
 
 **Body language:** open posture; calm hand gestures; makes people feel included; direct eye contact that doesn't feel confrontational; under stress becomes more *controlled*, not more emotional.
 
-**Realm:** as he bends toward dangerous power the warmth becomes managed — "I trust him" → "I trust him… but I'm not sure I should." Not a dramatic body change; his presence simply stops feeling purely safe. His failure mode ("what we need" quietly becoming "what I need, dressed as what we need") shows in eyes and voice before actions. As Threshold Cascade / Reaver deepen: flatter eyes after the cascade, predatory stillness, red-black stress lines and cold-blue vagal imagery in power-active states; the baseline keeps the original charisma. The horror is that the leader was real.
+**Realm:** as he bends toward dangerous power the warmth becomes managed — "I trust him" → "I trust him… but I'm not sure I should." Not a dramatic body change; his presence simply stops feeling purely safe. His failure mode ("what we need" quietly becoming "what I need, dressed as what we need") shows in eyes and voice before actions. As Pyric Blood / Reaver deepen: flatter eyes after the cascade, predatory stillness, red-black stress lines and cold-blue vagal imagery in power-active states; the baseline keeps the original charisma. The horror is that the leader was real.
 
 ---
 
@@ -583,9 +583,19 @@ SCENE-001 establishes Seb as the **404: Aim Not Found** guild leader at the pre-
 
 ## Power System
 
-### Interface — Threshold Cascade
+### Interface — Pyric Blood
 
 **Vago-adrenal self-consumption.** Seb's interface burns *himself* — pushing past vagal/adrenal thresholds to spend his own body for power. It consumes the self.
+
+**Operating logic — acute survival performance.** Unbearable load hits and the interface reroutes collapse into action: *overload → shutdown impulse → reroute → function → debt.* The body wants to stop; **Pyric Blood** says **not yet.** Grants pain suppression, reduced fear, hyperfocus, predatory stillness, a strength/endurance surge, the ability to act while emotionally overloaded — and a delayed crash. He is not stably stronger; he is **borrowing function from the future**, and every threshold books debt (emotional, metabolic, neurological, moral). Leadership constantly feeds it — a trauma-performance interface, not "leadership magic." The name is the surface (blood that burns rather than crashes); the root is vago-adrenal.
+
+**Stage ladder:** 1 Accumulation · 2 Pressure Point · 3 Threshold Break · 4 **Cascade Surge** (overdrive) · 5 outcome.
+
+**Sentence:** *The body cannot bear the load, so it burns itself into function.*
+
+**Happy — Steward:** *responsibility does not grant ownership* — stabilizes others without overriding them. *"I carry enough to help you choose."*
+
+**Forbidden — Sovereign:** *if I bear the consequence, I deserve the authority* — calm/certainty/command convert trust into obedience. *"I carry the burden, so I choose."* (Cross-ref the **Noble Corruption** paragraph below.)
 
 ### Class — Warrior (base) → Reaver (specialization, broker-granted early)
 
@@ -593,7 +603,7 @@ His Realm class is **Warrior**; the cross-world broker grants the **Reaver speci
 
 ### The Intertwined Loop (unique to Seb)
 
-Class and interface advance **as one**: self-damage (Threshold Cascade) powers what the Reaver strips from enemies; the spoils repair the self-damage; the repair enables more cascade. He breaks and mends himself in a tightening spiral, going down the hole. He is the only character whose class and interface advance intertwined. By the finale he is the closest of the six to taking the Myrmidon alone — and still can't. Among the most powerful of the six.
+Class and interface advance **as one**: self-damage (Pyric Blood) powers what the Reaver strips from enemies; the spoils repair the self-damage; the repair enables more cascade. He breaks and mends himself in a tightening spiral, going down the hole. He is the only character whose class and interface advance intertwined. By the finale he is the closest of the six to taking the Myrmidon alone — and still can't. Among the most powerful of the six.
 
 ### The Noble Corruption
 
@@ -619,13 +629,13 @@ The dead center of his arc. **The brother dies during the Day 0 scrim — before
 
 ## Aetherfall Class — Warlord
 
-**Warlord** (command/leadership). On Earth, the leader who coordinates and elevates others — the visible, collective "we" captain. The Realm bends it cruelly: the same man becomes someone whose power is built around surviving pain, crossing thresholds, and *taking* power from enemies (Reaver + Threshold Cascade). The contrast is the point — the commander who raised others becomes the one who consumes them and himself.
+**Warlord** (command/leadership). On Earth, the leader who coordinates and elevates others — the visible, collective "we" captain. The Realm bends it cruelly: the same man becomes someone whose power is built around surviving pain, crossing thresholds, and *taking* power from enemies (Reaver + Pyric Blood). The contrast is the point — the commander who raised others becomes the one who consumes them and himself.
 
 ---
 
 ## Realm Class
 
-**Warrior** (base) → **Reaver** specialization, granted early by the broker (consumes *others*). Advances intertwined with the Threshold Cascade interface — see Power System above. *(The old oath/command/sacrifice direction is retired.)*
+**Warrior** (base) → **Reaver** specialization, granted early by the broker (consumes *others*). Advances intertwined with the Pyric Blood interface — see Power System above. *(The old oath/command/sacrifice direction is retired.)*
 
 ---
 
@@ -651,7 +661,7 @@ Book 1 ends with Seb having accepted or approached a power source that looks nob
 
 ## Open Questions
 
-- ~~What specifically is the power source that tempts him?~~ **RESOLVED:** the Broker's *genuine* offer to restore his dead brother — path: Aetherfall **Warlord** → Realm **Reaver** + **Threshold Cascade**. (SB-01, INV-6.)
+- ~~What specifically is the power source that tempts him?~~ **RESOLVED:** the Broker's *genuine* offer to restore his dead brother — path: Aetherfall **Warlord** → Realm **Reaver** + **Pyric Blood**. (SB-01, INV-6.)
 - ~~Does he know the full cost when he accepts it?~~ **RESOLVED:** No — the wording is honest; he hears "whole and alive." He doesn't see the cost is self-transformation, or that restoration ≠ continuity → **tragedy, not corruption.** (SB-02, INV-6.)
 - Is his brother still reachable, or has that motive already transformed?
 - Does he become antagonist, antihero, or tragic rival — or does that remain ambiguous through Book 1?

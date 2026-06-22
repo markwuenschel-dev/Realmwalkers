@@ -16,7 +16,7 @@
 ## Checkpoint: Realm Arrival (Scattering)
 
 - **Marcus:** transitional void → alone; implant active/translating; Eyes latent; encounters paladin/blood mage/archdemon/archangel; mindscape pending.
-- **Serra:** separated; location unknown; Pressure-Severance not yet active.
+- **Serra:** separated; location unknown; Severance Pulse not yet active.
 - **Seb / Mara / Mathias / Brent:** all separated; individual landings unknown; arcs diverge here.
 
 ---
@@ -32,17 +32,17 @@
 ## Checkpoint: Early Realm — False Rescue (Marcus & Serra reunite, then split)
 
 - **Marcus:** functional; Eyes interface developing (→ Stage 2); warmth-hungry; relief at finding Serra; the Earth Thing reactivated. Travels with the Iron Vultures; the home-building ache surfaces from the Maera warmth-trap. Marked by saving the child while others didn't make it.
-- **Serra:** **Warrior** base class taking shape; **Pressure-Severance** beginning to manifest (Stage 1–2: Aura Sense / early Compression Field); Warrior fundamentals surfacing as future Pressure-Severance delivery. Kills the magistrate; learns he's a **node, not the source**; takes a **registry-fragment**; separates toward a larger faction's seat. The Earth moment unaddressed. She goes.
+- **Serra:** **Warrior** base class taking shape; **Severance Pulse** beginning to manifest (Stage 1–2: Aura Sense / early Compression Field); Warrior fundamentals surfacing as future Severance Pulse delivery. Kills the magistrate; learns he's a **node, not the source**; takes a **registry-fragment**; separates toward a larger faction's seat. The Earth moment unaddressed. She goes.
 
 ---
 
 ## Checkpoint: Eriadne Arrival (Marcus)
 
 - **Marcus:** Eriadne ruin-fringe; building a fragile community; Eyes genuinely useful in social/combat reads; beginning to read ley structure; Serra's absence present.
-- **Brent:** converges; civil engineer; **Warden → Reckoner** (Book-2 dir.) + **Keystone Integrity** (open); the structural reader of the fringe (fortifying = Book 2).
-- **Mara:** converges from her court arc; **Psion** + **Mirror-Salience**; challenges Marcus treating people as systems.
+- **Brent:** converges; civil engineer; **Warden → Reckoner** (Book-2 dir.) + **Piezoelectric Bones** (open); the structural reader of the fringe (fortifying = Book 2).
+- **Mara:** converges from her court arc; **Psion** + **Specular Salience**; challenges Marcus treating people as systems.
 - **Serra:** Book-1 solo arc in progress — **the dungeon** (delve + Toll-King + Eriadne trade-clue); develops as a Warrior, interface dormant until the Act-5 finale; going deeper than planned; ends **unfinished** (Court-of-Seals hunt = Book 2).
-- **Seb:** approaching/holding the broker's power (Reaver + Threshold Cascade); gray fall deepening; shortest arc → near Eriadne.
+- **Seb:** approaching/holding the broker's power (Reaver + Pyric Blood); gray fall deepening; shortest arc → near Eriadne.
 - **Mathias:** near the ruins; **Scout** + **Enteric Lattice**; discovering the Xyloryn and the portal.
 
 ---

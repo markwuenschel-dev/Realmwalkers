@@ -2,6 +2,16 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-22 — Interface names + open-item resolution brief
+- **Interface rename (Neurochromatic-Eyes mold):** Serra `Pressure-Severance` → **Severance Pulse**; Mara `Mirror-Salience*` → **Specular Salience\***; Seb `Threshold Cascade` → **Pyric Blood**; Brent `Keystone Integrity` → **Piezoelectric Bones**. Marcus (Neurochromatic Eyes) and Mathias (Enteric Lattice) unchanged. Common nouns preserved (the *severance* / "The Severance" act; *salience*-control; the Myrmidon's *structural keystone*).
+- **Seb — Pyric Blood deepened:** acute-survival-performance operating logic, stage ladder (1 Accumulation → 4 Cascade Surge), **Steward** (happy) / **Sovereign** (forbidden) paths. (`seb.md`.)
+- **Brent — Piezoelectric Bones (new interface):** strain/load perception; root mechanotransduction (bone-piezoelectric); outward structural-read + inward adaptive body-states; paths **Living Keystone** (happy) / **Ossified Bastion** (forbidden; *Immutable Bastion* alt, still open), failure state **Sclerotic Marrow**, combat **Faultline Reckoning**. Seb↔Brent "two load interfaces, opposite directions" mirror added. (`brent.md`, `character_power_architecture.md`.)
+- **W-05 ✅ RESOLVED:** the **Nightbound force the finale breach directly** (a controlled breach-test, no intermediary, **not** through Seb — he keeps his combat role only). Precise *physical* trigger stays open (W-01). (`unresolved_character_threads.md`, `finale_spine.md` §A, timeline/plan.)
+- **Vaeli ✅ (A3-09):** the elven child is named **Vaeli** (Soul Level **Strong**; rescued and lives — false rescue = systemic failure, not death; plants a Book-2 thread). **A3-05 ✅:** she leaves with Dara & Cael, then circumstance forces the three back toward Marcus/Eriadne (Book-2 home payoff as a *return*); nudges A3-06 → recurring. Name propagated; "the child" kept in the namebinding-as-commodity beat.
+- **Iron Vultures ✅ (A3-08):** join-conditions locked — op funds itself · capped risk + exit · one job not an oath · their name stays off it; principle-fit lever (survivors *want* to gut a namebinding op). (`iron_vultures.md`, Ch 14 beats.)
+- **Vessa (new minor → recurring):** 13-yo tunnel-runner, the **young-Serra mirror**; resolves "why does Serra stay in the dungeon town?" Serra's dungeon chapter enriched to a 5-scene map. (`vessa.md`, `serra_hawthorne.md`, `marcus_serra_relationship.md`, `scene_queue.md`.)
+- **Still open (owed to author):** Mara's spec name (lean *Mindblade*; Book 2; cosmetic); Ossified vs Immutable Bastion (defaulted **Ossified**).
+
 ## 2026-06-20 — Marcus naming (Vye / no alias / Marc)
 > **Marcus Fahr → Marcus Vye.** "Soren" alias **retired** — Marcus does **not** rename himself; the self-naming beat becomes a **refusal of the game-handle** (keeps his real name = the anti-frame claim). "Marc" added as the intimate short form (people he lets in). His **true name** (S-09) remains the separate, hidden, deferred name Ayla's warning protects; "Marcus Vye" is the safe public name. Voice file `soren.md` → `marcus.md`.
 
@@ -31,7 +41,7 @@
 - **Eyes of Meszkhal cost reconciled:** activation **20 mana flat** (was "20% max") + 1%/sec sustained; added the cost-curve/damage-progression/visible-tells pointer.
 - **Insight locked + retimed:** notification text and `????` partial-read behavior in `core_rules.md`; Marcus now learns it **before the mindscape** (master_timeline + book1 Ch 4).
 - **Seb locked:** Aetherfall **Warlord**; INV-6 refined — the Broker's offer is **honest wording Seb misreads** (not a bluff); real cost = **self-transformation** (become the mechanism); restoration ≠ continuity. Supersedes the provisional "surrender your true name" framing. SB-01/SB-02 resolved; CH-008 updated.
-- **Mara locked:** post-court arc = **the Walking Grove** (moving civilization on a sick behemoth; salience-suppression foil for Mirror-Salience; routes her to Eriadne). MA-01 resolved; MA-02 opened (nature of the Grove threat — no N'hal link).
+- **Mara locked:** post-court arc = **the Walking Grove** (moving civilization on a sick behemoth; salience-suppression foil for Specular Salience; routes her to Eriadne). MA-01 resolved; MA-02 opened (nature of the Grove threat — no N'hal link).
 - **N'hal pulled off the Book-1 page** (per scope ruling): Ch 23 reframed to "The Convergence"; master_timeline/roadmap/scene_queue beats de-N'haled; WF-006 marked Book 2+. N'hal remain only in the bible/cosmology as the series-level threat.
 - **Ruins/portal/Realm-Walker spine wired:** ruins = convergence of the **eight elemental ley lines** + a **dormant natural portal**; the Myrmidon comes *through* it; the breach draws a **Realm Walker** who witnesses the fight and contacts Marcus late. W-05 opened (who forces the portal).
 

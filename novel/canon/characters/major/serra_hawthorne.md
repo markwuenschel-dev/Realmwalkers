@@ -25,8 +25,8 @@ status: active
 | Origin | Self-made; ordinary background, no connections or shortcuts |
 | Guild Role (Earth) | Disruptor-Assassin; tandem with Mara Valeria |
 | Realm Class | Warrior (base, Book 1) → Worldbreaker (Legendary-lane evolved direction; Book 2) |
-| Realm Role | Disruptor / Pressure-Severance Interface user / Intermittent — comes and goes |
-| Power Interface | Pressure-Severance Interface |
+| Realm Role | Disruptor / Severance Pulse Interface user / Intermittent — comes and goes |
+| Power Interface | Severance Pulse Interface |
 | Current Location | Separates from Marcus; solo arc in progress |
 | Current Allegiance | Her own — no formal faction yet |
 
@@ -350,7 +350,7 @@ This seeds her self-made, fast-deciding, mastery-not-competition characterizatio
 
 ### Interface Name
 
-**The Pressure-Severance Interface**
+**The Severance Pulse Interface**
 
 *Tagline: Aura becomes pressure. Pressure becomes severance.*
 
@@ -456,7 +456,7 @@ The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra make
 
 ### Class Direction — Worldbreaker (Book 2)
 
-**Warrior** (base, Book 1) → **Worldbreaker** (Legendary-lane evolved direction; **Book 2**). Worldbreaker is the *severance-at-scale* expression of Pressure-Severance — it "breaks the impossible opposition," a parallel-not-copy to Marcus's Riftwalker ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
+**Warrior** (base, Book 1) → **Worldbreaker** (Legendary-lane evolved direction; **Book 2**). Worldbreaker is the *severance-at-scale* expression of Severance Pulse — it "breaks the impossible opposition," a parallel-not-copy to Marcus's Riftwalker ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
 
 ---
 
@@ -505,9 +505,9 @@ Tandem partner from the guild. Serra is force; Mara is setup. Serra asks who mus
 
 Intermittent major presence. Meets Marcus early; they build their first real tandem during the false-rescue/naming arc and survive it together. During that tandem — on a Realm height the night before the magistrate operation — **she initiates the second kiss**: present-tense authorship, no category named, her one rule enacted (she takes the *now*, never asks the *after*; see *The One Rule*). She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **registry-fragment becomes a *cold* lead** she carries — her **Book-1 → Book-2 bridge object** — that does **not** drive her Book-1 solo arc. The hunt up the chain toward the namebinding faction's parent organization — the **Court of Seals** (a regional limb of the cosmic **Aurelian Sovereignty**, `cosmology.md`), and the cosmology beat where she learns the Sovereignty exists — is **Book 2**, not Book 1.
 
-**Book-1 solo arc — the dungeon.** After the split she takes the road alone and is held by a small town built beside a delve. She means to move on; something keeps her (reason TBD — see Open Questions). The dungeon runs underground: old buried trade-road infrastructure, chitinous/insect and webbed-tunnel ecology, corpse-insects, level-appropriate danger and loot. The boss is **the Toll-King** *(proposed, not locked)* — an undead road-lord / toll authority still collecting passage-debt after death, tied to the old Eriadne trade route. The dungeon is where her **Warrior** combat identity hardens (toward the **Worldbreaker** direction — Book 2). **Her Eriadne pull is her own:** the delve yields a marker/toll-seal/road-pass the locals recognize — *“that came from Eriadne”* — and the trade-route trail points her there. She goes because her arc points there, not because Marcus or the Broker told her to.
+**Book-1 solo arc — the dungeon.** After the split she takes the road alone and is held by a small town built beside a delve. She means to move on; **Vessa keeps her** — a thirteen-year-old tunnel-runner who *is* the beginning of Serra (warmth-to-function, the fear under the competence, the refusal to ask; `vessa.md`). Recognizing herself in the child, Serra can't walk past the choice she just failed to make; getting Vessa through the delve alive is how she pays down the guilt of leaving Marcus. The dungeon runs underground: old buried trade-road infrastructure, chitinous/insect and webbed-tunnel ecology, corpse-insects, level-appropriate danger and loot. The boss is **the Toll-King** *(proposed, not locked)* — an undead road-lord / toll authority still collecting passage-debt after death, tied to the old Eriadne trade route. The dungeon is where her **Warrior** combat identity hardens (toward the **Worldbreaker** direction — Book 2). **Her Eriadne pull is her own:** the delve yields a marker/toll-seal/road-pass the locals recognize — *“that came from Eriadne”* — and the trade-route trail points her there. She goes because her arc points there, not because Marcus or the Broker told her to.
 
-Her Pressure-Severance interface **activates/realizes at the Act-5 finale severance** — under full emotional pressure, the same event as the relationship rupture (parallel to Marcus's Neurochromatic Eyes igniting in the Myrmidon movement). It is *not* unlocked at the magistrate kill; through her solo arc she develops as a **Warrior**, interface still dormant. She returns at the Act-5 finale, changed. Her arc runs parallel to Marcus's and intersects at key moments without depending on it.
+Her Severance Pulse interface **activates/realizes at the Act-5 finale severance** — under full emotional pressure, the same event as the relationship rupture (parallel to Marcus's Neurochromatic Eyes igniting in the Myrmidon movement). It is *not* unlocked at the magistrate kill; through her solo arc she develops as a **Warrior**, interface still dormant. She returns at the Act-5 finale, changed. Her arc runs parallel to Marcus's and intersects at key moments without depending on it.
 
 **The wrong is namebinding** — weaponized true names as control. It cuts at her self-made identity (people never allowed to author a self), not a past trauma. Not a crusade: one face, then the chain of handlers above it.
 
@@ -535,7 +535,7 @@ Book 1 leaves her mid-hunt, changed in ways that are visible and ways that aren'
 - What does she need from Marcus specifically that she can't get from anyone else — and does she ever admit it?
 - Does she travel with Mara, separate from Mara, or does Mara take a different path entirely?
 - Which Final Path does she move toward — Coherence or Saturation? Is the choice conscious?
-- Why does Serra stay in the dungeon town? (must be specific — the town helps her first / earned local delver culture / a young delver she can't dismiss / practical courage she respects). ⚠ open.
+- Why does Serra stay in the dungeon town? **✅ RESOLVED: Vessa** — a 13-year-old tunnel-runner who enacts Serra's own R-5 ("doesn't ask people to stay"); the young-Serra recognition is her reason to stay (`vessa.md`).
 
 ---
 
