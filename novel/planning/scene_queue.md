@@ -23,27 +23,27 @@ First ordinary locals; being an unnamed Exile carries social risk; humor reduces
 
 ## Act 3 — First Threads / False Rescue *(LOCKED sequence)*
 
-> **Power state (load-bearing for every scene in this act — from the retired `act3_sequence.md`):** **Marcus** — Neurochromatic Eyes interface at **Stage 1 (Limbal Shift)**, perception only and accurate, not yet a combat tool; carries the **Eyes of Meszkhal item** but it is dormant as a combat tool here (Act-3 relevance is thematic only — the confident whisper his own model can't justify); Realm class still a **general Mage** (no Riftwalker abilities, no weapon, no combat training); recently dead, functional but not strong, **no combat buffer of any kind** (Zazriel gave nothing); his wins come from reading, not force; skills unlock through use. **Serra** — a resourcefulness-acquired blade; **Warrior fundamentals latent, Severance Pulse not yet active**; more capable than Marcus in direct confrontation but not powerful. **The Iron Vultures** — 20–50 nomadic scavengers, generally good not heroic, unattached to any major power (this matters for the operation), protected by reputation, won't fight sanctioned operations without incentive.
+> **Power state (load-bearing for every scene in this act — from the retired `act3_sequence.md`):** **Marcus** — Neurochromatic Eyes interface at **Stage 1 (Limbal Shift)**, perception only and accurate, not yet a combat tool; carries the **Eyes of Meszkhal item** but it is dormant as a combat tool here (Act-3 relevance is thematic only — the confident whisper his own model can't justify); Realm class still a **general Mage** (no Riftwalker abilities, no weapon, no combat training); recently dead, functional but not strong, **no combat buffer of any kind** (Zazriel gave nothing); his wins come from reading, not force; skills unlock through use. **Serra** — a resourcefulness-acquired **fire-hardened wooden spear**; **Warrior fundamentals latent, Severance Pulse not yet active**; more capable than Marcus in direct confrontation but not powerful. **The Iron Vultures** — 20–50 nomadic scavengers, generally good not heroic, unattached to any major power (this matters for the operation), protected by reputation, won't fight sanctioned operations without incentive.
 
 
 ### NEW-001 — The Reunion `[M]`
 Marcus nearly walks into Serra on the same road; both at zero; she has a blade, he has nothing. The Earth Thing is present, unaddressed. They fall into step. No speeches.
 *Checks:* nothing from Aetherfall carries over; SP-011 (find each other before any faction).
 
-### NEW-002 — The Caravan / Toll-Gang / First Eyes Use `[M]`
-Introduce Dara, Cael, Vaeli (the elven child). Toll-gang stops them (unwinnable fight). **First live use of the Neurochromatic Eyes *interface* (accurate perception)** — partial, incomplete notification (the Eyes-of-Meszkhal *item* is dormant). Marcus punctures the leader's performance; Serra repositions; the gang retreats having *gotten what they needed* (he files this). Child hurt; Dara furious.
+### NEW-002 — The Caravan / Charter Inspectors / First Eyes Use `[M]`
+Introduce Dara, Cael (Dara's brother), Vaeli (the elven child). **Charter inspectors** — false authority, *bandits wearing bureaucracy* — stop them (unwinnable fight); their real function is to **mark / classify Vaeli** (the first visible piece of the False Rescue machine), not rob. **First live use of the Neurochromatic Eyes *interface* (accurate perception)** — partial, incomplete notification (the Eyes-of-Meszkhal *item* is dormant). Marcus punctures the leader's *performance*; Serra repositions; the inspectors retreat having *gotten what they needed* — they **mark Vaeli** (he files this, missing the hidden purpose). Child hurt; Dara furious.
 
-*Cast texture (from `act3_sequence.md`):* **Dara** runs the caravan — practical, not warm, has a system for everything and resents people who break it by helping unasked; Marcus has to earn her. **Cael** (partner/brother) is quieter, reads the maps, clocks Marcus's eyes early and says nothing. **Vaeli** (the elven child) — injured from ruin-field exposure, doesn't heal at a normal rate, latent interface sensitivity (feels buried structures / ley currents); a background fact, not an announced power.
+*Cast texture (from `act3_sequence.md`):* **Dara** runs the caravan — practical, not warm, has a system for everything and resents people who break it by helping unasked; Marcus has to earn her. **Cael** (Dara's brother) is quieter, reads the maps, clocks Marcus's eyes early and says nothing. **Vaeli** (the elven child) — injured from ruin-field exposure, doesn't heal at a normal rate, latent interface sensitivity (feels buried structures / ley currents); a background fact, not an announced power.
 ### NEW-003 — The Vultures Arrive / The Offer `[M]`
 The Iron Vultures (watching) offer utility, not friendship. Road-system knowledge leaks gradually. End traveling with them.
 
-*Vulture texture (from `act3_sequence.md`):* they were tracking the same toll-gang for their own interest; their read — Marcus is strange-and-potentially-profitable, Serra is dangerous-in-a-usable-way; the offer is utility, not friendship. What they know that the pair don't — how the road actually works (toll-gangs, Maera's roadhouse, the magistrate-guild) — leaks gradually over travel, not at once.
+*Vulture texture (from `act3_sequence.md`):* they were tracking the same charter inspectors for their own interest; their read — Marcus is strange-and-potentially-profitable, Serra is dangerous-in-a-usable-way; the offer is utility, not friendship. What they know that the pair don't — how the road actually works (charter inspectors, Maera's roadhouse, the magistrate-guild) — leaks gradually over travel, not at once.
 ### NEW-004 — Travel / Skill Latency / The System Explained `[M]` (+ `[S]`)
 Combat training. **Serra's Warrior fundamentals surface** (the ordinary skills that will become Severance Pulse delivery — *not* a flashy class). Marcus's Eyes develop by observation. A Vulture explains the False Rescue system matter-of-factly; Serra goes still. The space between them begins to form.
 
-### NEW-005 — Maera Vell's Roadhouse `[M]`
-Genuine warmth — soup, rest, the first human moment. Marcus over-shares (starvation, not stupidity). She reports him to the magistrate-guild (off-screen). **Do not signal the betrayal** — the warmth is real.
-*Payoff:* accurate read, wrong model — warmth ≠ loyalty.
+### NEW-005 — Maera Vell's Roadhouse (The Copper Kettle) `[M]`
+**The Copper Kettle** — genuine warmth — soup, rest, the first human moment; sits inside the magistrate/namebinding guild's informant reach. Marcus over-shares (starvation, not stupidity). **The trap = her road-book** (guest ledger / safety registry / message log) — off-screen she reports the pair to the magistrate-guild. **Do not signal the betrayal** — the warmth is real; the betrayal lands *because* every kindness was real.
+*Payoff:* accurate read, wrong model — warmth ≠ loyalty. *(A3-11 OPEN: Serra on/off-page during the over-share — confirm against live Ch 12.)*
 
 ### NEW-006 — The Magistrate-Guild / The Namebinding `[M]` (+ `[S]`)
 4–6 guild members — clerks, documentation, muscle; bureaucratic. The elven child is **namebound and taken**. Serra finds no clean entry. Marcus realizes Maera's report explains their arrival; his home-building ache surfaces from the wrong read.
@@ -64,7 +64,7 @@ Marcus travels on for Exile info; the want for *somewhere that is his* crystalli
 
 - **Playful-chaos defusion** `[M]` — a confrontation he can't win by force; he turns the crowd, gives the aggressor a face-saving exit, prevents violence (non-combat power).
 - **Eyes emotional-leak cost** `[M]` — Stage-2 tells betray him; data ≠ truth.
-- **SCENE-010 — Xyloryn First Hint** `[Mara]`/`[Mt]` — diagnostic violence (sampling, not just killing); someone notices it's gathering information. Keep the full swarm hidden; Xyloryn origin **unconfirmed**.
+- **SCENE-010 — Xyloryn First Hint** `[Mara]`/`[Mt]` — a **diagnostic trace / signal from the other side** (something is *sampling*, gathering information — **not an embodied attack**); someone notices it's gathering information. Keep the full swarm hidden; Xyloryn origin **unconfirmed**. *(OVERRIDE — no embodied Xyloryn before the finale Myrmidon.)*
 
 ---
 
@@ -92,10 +92,10 @@ Seb faces the broker's offer framed around his recently-dead brother (genuine so
 5. **The clue & the leaving.** The delve yields a **trade-marker / toll-seal that points to Eriadne** (locals: *"that came from Eriadne"*). Serra chooses the mission again — now clear-eyed about its cost; ends **unfinished**, bending back toward Marcus (the one thread she won't sever). *Payoffs:* cost-of-leaving lands; the Eriadne pull is **hers**; the registry-fragment stays a *cold* Book-2 lead; Vessa stays (Book-2 seed). *Anchors:* Court-of-Seals hunt = Book 2; interface still dormant; SE-05/SE-06 foreshadowed only.
 
 ### Mara: The Court `[Mara]`
-Stratified court nation-state; taken in for her beauty by a decent patron; a predatory courtier targets her. She goes **un-salient** (the ball), driving him to escalate openly, then **exposes him before the full court** (room-scale Specular Salience). Leaves court for the **Walking Grove** (moving civilization on a sick behemoth); a salience-suppression threat is the perfect Specular Salience foil — climax = the community perceives the danger at once; the behemoth's wound/migration routes her to Eriadne. *(Psion. Open MA-02: nature of the Grove threat — mundane / Xyloryn-seed / rhyming-unrelated; no N'hal link.)*
+**Veshara** — a stratified **status-by-display court city-state** (regard is the currency); taken in for her beauty by a decent patron; a predatory courtier (**First Curator of Civic Regard**) targets her. She goes **un-salient** (the ball), driving him to escalate openly, then **exposes him before the full court** (room-scale Specular Salience — her interface unlocks when she *authors* attention). Leaves court for the **Walking Grove** (moving civilization on a sick behemoth); a salience-suppression threat is the perfect Specular Salience foil — climax = the community perceives the danger at once; the behemoth's wound/migration routes her to Eriadne. *(Psion. Open MA-02: nature of the Grove threat — mundane / Xyloryn-seed / rhyming-unrelated; no N'hal link.)*
 
 ### Mathias: The Ruins `[Mt]`
-Solo near the ruins; **Enteric Lattice** reads the swarm as one organism and the portal lighting up the lattice; fights a single drone; loads his Scout class through research; becomes the warning. **Lives** (injured at the finale).
+Solo near the ruins; **Enteric Lattice** reads the portal lighting up the lattice as **signal / trace / portal-pressure from the other side** (he senses the swarm gathering *beyond*, not present — **no embodied drone, no fight; the first living breach is the finale Myrmidon**); loads his Scout class through research; becomes the warning. **Lives** (injured at the finale).
 
 ---
 
