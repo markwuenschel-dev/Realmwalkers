@@ -69,7 +69,7 @@ async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
         )
         session.add(beat)
         beats.append(beat)
-    await session.flush()
+    await session.commit()
 
     return RunStartOut(
         run_id=run.id,

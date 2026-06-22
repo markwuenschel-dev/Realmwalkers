@@ -65,7 +65,7 @@ async def create_thread(book_id: uuid.UUID, body: ThreadIn, session: SessionDep)
         raise HTTPException(status_code=404, detail="book not found")
     thread = Thread(book_id=book_id, name=body.name, kind=body.kind, state=body.state, note=body.note)
     session.add(thread)
-    await session.flush()
+    await session.commit()
     return await _render(session, thread)
 
 
@@ -76,7 +76,7 @@ async def update_thread(thread_id: uuid.UUID, body: ThreadUpdateIn, session: Ses
         raise HTTPException(status_code=404, detail="thread not found")
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(thread, key, value)
-    await session.flush()
+    await session.commit()
     return await _render(session, thread)
 
 
@@ -88,8 +88,9 @@ async def delete_thread(thread_id: uuid.UUID, session: SessionDep) -> dict[str, 
     # No DB cascade configured — clear the child beats first (and flush, so the parent delete below
     # doesn't trip the FK constraint via the unit-of-work's flush ordering).
     await session.execute(delete(ThreadBeat).where(ThreadBeat.thread_id == thread_id))
-    await session.flush()
+    await session.flush()  # child beats first, so the parent delete doesn't trip the FK
     await session.delete(thread)
+    await session.commit()
     return {"deleted": str(thread_id)}
 
 
@@ -101,5 +102,5 @@ async def add_thread_beat(thread_id: uuid.UUID, body: ThreadBeatIn, session: Ses
     session.add(ThreadBeat(
         thread_id=thread_id, scene_no=body.scene_no, label=body.label, flag=body.flag,
     ))
-    await session.flush()
+    await session.commit()
     return await _render(session, thread)

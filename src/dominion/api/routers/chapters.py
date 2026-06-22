@@ -91,4 +91,5 @@ async def approve_beats(chapter_id: uuid.UUID, session: SessionDep) -> dict[str,
         job_ids.append(str(job.id))
 
     chapter.status = ChapterStatus.DRAFTING
+    await session.commit()
     return {"chapter_id": str(chapter_id), "approved": len(beats), "jobs": job_ids}

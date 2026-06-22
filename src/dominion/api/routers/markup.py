@@ -50,7 +50,7 @@ async def create_annotation(scene_id: uuid.UUID, body: AnnotationIn, session: Se
         quote=body.quote, author=body.author, note=body.note,
     )
     session.add(ann)
-    await session.flush()
+    await session.commit()
     return ann
 
 
@@ -60,6 +60,7 @@ async def delete_annotation(annotation_id: uuid.UUID, session: SessionDep) -> di
     if ann is None:
         raise HTTPException(status_code=404, detail="annotation not found")
     await session.delete(ann)
+    await session.commit()
     return {"deleted": str(annotation_id)}
 
 
@@ -81,7 +82,7 @@ async def create_suggestion(scene_id: uuid.UUID, body: SuggestionIn, session: Se
         quote=body.quote, new_text=body.new_text, author=body.author, why=body.why,
     )
     session.add(sug)
-    await session.flush()
+    await session.commit()
     return sug
 
 
@@ -93,7 +94,7 @@ async def decide_suggestion(
     if sug is None:
         raise HTTPException(status_code=404, detail="suggestion not found")
     sug.status = body.status
-    await session.flush()
+    await session.commit()
     return sug
 
 
@@ -103,4 +104,5 @@ async def delete_suggestion(suggestion_id: uuid.UUID, session: SessionDep) -> di
     if sug is None:
         raise HTTPException(status_code=404, detail="suggestion not found")
     await session.delete(sug)
+    await session.commit()
     return {"deleted": str(suggestion_id)}
