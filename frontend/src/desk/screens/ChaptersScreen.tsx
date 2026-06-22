@@ -91,7 +91,7 @@ export default function ChaptersScreen() {
                 <div key={c.id}>
                   <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px")}>
                     <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>Ch {c.chapter_no} <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>{c.pov}</span></span>
-                    <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>{words.toLocaleString()}w · {appr}/{scs.length} approved</span>
+                    <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>{words.toLocaleString()} words · {appr}/{scs.length} approved</span>
                   </div>
                   <div style={css("position:relative;height:9px;border-radius:5px;background:var(--bg3);overflow:hidden")}>
                     <div style={css(`position:absolute;inset:0;width:${frac}%;background:var(--good)`)} />
@@ -124,7 +124,7 @@ export default function ChaptersScreen() {
                   </div>
                   <div style={css("display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px")}>
                     <span style={css(`color:${color}`)}>● {s.status.replace(/_/g, " ")}</span>
-                    <span style={css("color:var(--dim)")}>{wordCount(s.prose)}w</span>
+                    <span style={css("color:var(--dim)")}>{wordCount(s.prose)} words</span>
                   </div>
                 </div>
               );

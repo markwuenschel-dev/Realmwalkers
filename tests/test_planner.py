@@ -52,6 +52,20 @@ async def test_propose_beats_tolerates_fences_and_drops_unusable(monkeypatch):
     assert beats[0]["scene_no"] == 2              # fell back to its index when scene_no was unparseable
 
 
+async def test_propose_beats_tolerates_object_wrapper(monkeypatch):
+    # Model wraps the array in an object despite "ONLY a JSON array" — salvage the list value.
+    _mock(monkeypatch, '{"beats": [{"scene_no": 1, "beat_text": "A beat."}]}')
+    beats = await planner.propose_beats(outline="x", pov="Soren")
+    assert len(beats) == 1 and beats[0]["beat_text"] == "A beat."
+
+
+async def test_propose_beats_tolerates_prose_preamble(monkeypatch):
+    # Model prepends/appends prose around the array — salvage the bracketed span.
+    _mock(monkeypatch, 'Here are the beats:\n[{"scene_no": 1, "beat_text": "A beat."}]\nHope that helps!')
+    beats = await planner.propose_beats(outline="x", pov="Soren")
+    assert len(beats) == 1 and beats[0]["beat_text"] == "A beat."
+
+
 async def test_propose_beats_returns_empty_on_garbage(monkeypatch):
     _mock(monkeypatch, "I could not produce JSON, sorry.")
     assert await planner.propose_beats(outline="x", pov="Marcus") == []

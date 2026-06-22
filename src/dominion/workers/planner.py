@@ -80,13 +80,31 @@ def _coerce_beat(item: dict[str, Any], fallback_no: int) -> dict[str, Any] | Non
     }
 
 
-def _parse_beats(raw: str) -> list[dict[str, Any]]:
+def _extract_array(raw: str) -> list[Any]:
+    """Pull the beat array out of a model response, tolerating common deviations from "ONLY a JSON
+    array": code fences, a prose preamble/suffix, or a wrapper object like {"beats": [...]}."""
+    s = _strip_fences(raw)
     try:
-        data = json.loads(_strip_fences(raw))
+        data = json.loads(s)
     except (json.JSONDecodeError, ValueError):
-        return []
-    if not isinstance(data, list):
-        return []
+        start, end = s.find("["), s.rfind("]")  # salvage an array embedded in prose
+        if start < 0 or end <= start:
+            return []
+        try:
+            data = json.loads(s[start:end + 1])
+        except (json.JSONDecodeError, ValueError):
+            return []
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):  # model wrapped it, e.g. {"beats": [...]} / {"scenes": [...]}
+        for value in data.values():
+            if isinstance(value, list):
+                return value
+    return []
+
+
+def _parse_beats(raw: str) -> list[dict[str, Any]]:
+    data = _extract_array(raw)
     beats: list[dict[str, Any]] = []
     for i, item in enumerate(data, start=1):
         if isinstance(item, dict):
