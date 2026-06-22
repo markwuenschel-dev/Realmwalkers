@@ -318,8 +318,10 @@ export function useDeskDataState(): DeskData {
     async (body: ThreadIn): Promise<void> => {
       if (!bookId) return;
       try {
-        await api.createThread(bookId, body);
-        setThreads(await api.threads(bookId));
+        // Use the returned row optimistically. The API commits in a yield-dependency teardown (after
+        // the response), so an immediate re-fetch can race and miss the just-created row.
+        const created = await api.createThread(bookId, body);
+        setThreads((ts) => [...ts, created]);
       } catch (e) {
         fail(e);
       }
@@ -352,8 +354,8 @@ export function useDeskDataState(): DeskData {
   const addAnnotation = useCallback(async (body: AnnotationIn): Promise<void> => {
     if (!activeSceneId) return;
     try {
-      await api.createAnnotation(activeSceneId, body);
-      setAnnotations(await api.annotations(activeSceneId));
+      const created = await api.createAnnotation(activeSceneId, body);
+      setAnnotations((as) => [...as, created]); // optimistic — avoids the commit-after-response re-fetch race
     } catch (e) {
       fail(e);
     }
@@ -371,8 +373,8 @@ export function useDeskDataState(): DeskData {
   const addSuggestion = useCallback(async (body: SuggestionIn): Promise<void> => {
     if (!activeSceneId) return;
     try {
-      await api.createSuggestion(activeSceneId, body);
-      setSuggestions(await api.suggestions(activeSceneId));
+      const created = await api.createSuggestion(activeSceneId, body);
+      setSuggestions((ss) => [...ss, created]); // optimistic — avoids the commit-after-response re-fetch race
     } catch (e) {
       fail(e);
     }
