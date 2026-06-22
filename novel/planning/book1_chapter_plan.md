@@ -76,6 +76,10 @@ status: working
 - **Function:** graduate Serra from interlude to deuteragonist; deliver the Earth origin from *her* side; open her Book-1 throughline.
 - **Beats:** Serra wakes in the Realm, **Marcus absent / presumed unreachable**; **the full altana flashback — her side, her misread** (option C): the celebration / altana / **Discord** origin is delivered here as flashback; the reader learns she believed she'd **left an opening**, which **retro-charges "See you after, Marcus"**; establishes her present-tense authorship and the subsurface romantic charge (INV-1 Axis C).
 - **Scenes:** *(new — Serra arrival + altana flashback.)*
+- **Scene map** *(enrichment pass 1 — per-scene function · anchors · plants; no prose):*
+  - **6A.1 — Wake, alone.** Establish Serra's present-tense authorship (orients, inventories, moves — no panic, no waiting to be found); plant **Marcus absent / presumed unreachable** so the separation reads as *her* loss. *Anchors:* her arrival terrain *[anchor TBD — distinct from Marcus's Ch 7 landing so the two solos don't blur]*; an improvised blade *[suggest: scavenged/field-made]*. *Plants:* SP-011 (from her side) · CH-005 (belong to herself).
+  - **6A.2 — The altana flashback (her side, her misread).** The Earth origin cashes — celebration / altana / **Discord** thread as flashback; she believed she'd **left an opening.** Stay in her interiority — the chapter's emotional core. *Anchors:* altana setting *[canon — `marcus_serra_relationship.md` §4; consolidate, don't add new detail]*. *Plants:* the Earth-sequence plants pay here · INV-1 Axis C.
+  - **6A.3 — The retro-charge.** The flashback recolors **"See you after, Marcus"**; close on forward motion without resolving the ache. *Plants:* the through-line that pays at the Ch 25 reunion + Ch 30 severance.
 - **Pays:** SP-011 (find-each-other-first, from her side) · the Earth-sequence plants (altana / Discord misread) cash here.
 - **End state:** Serra oriented, alone; her throughline open; the Earth origin now fully on the page (from her POV).
 - **Gate:** ⚠ draftable — rests on the locked Earth sequence (`marcus_serra_relationship.md` §4) and option C (decided). Part of the unwritten frontier alongside Ch 7.
@@ -84,12 +88,19 @@ status: working
 
 ## ACT 3 — THE FALSE RESCUE (Days ~3–23) · *Marcus + Serra* · **DRAFTING FRONTIER STARTS HERE**
 
-> **Act-3 power state (load-bearing for every scene):** Marcus — Eyes **Stage 1 (Limbal Shift)**, perception-only/accurate, *not* a combat tool; Meszkhal *item* dormant as a weapon (thematic only — the confident whisper his model can't justify); Realm class a **general Mage** (no Riftwalker, no weapon, no training); recently dead, **no combat buffer**; wins come from reading, not force. Serra — resourcefulness-acquired blade; **Warrior fundamentals latent, Pressure-Severance not yet active**; more capable than Marcus in a fight but not powerful. Iron Vultures — 20–50 scavengers, good-not-heroic, unattached to any major power, won't fight sanctioned ops without incentive.
+> **Act-3 power state (load-bearing for every scene):** Marcus — Eyes **Stage 1 (Limbal Shift)**, perception-only/accurate, *not* a combat tool; Meszkhal *item* dormant as a weapon (thematic only — the confident whisper his model can't justify); Realm class a **general Mage** (no Riftwalker, no weapon, no training); recently dead, **no combat buffer**; wins come from reading, not force. Serra — resourcefulness-acquired blade; **Warrior fundamentals latent, Severance Pulse not yet active**; more capable than Marcus in a fight but not powerful. Iron Vultures — 20–50 scavengers, good-not-heroic, unattached to any major power, won't fight sanctioned ops without incentive.
+>
+> **Pass-1 anchor gaps (decide before drafting the scene maps below):** 6A.1 / 7.1 — two *distinct* solo-landing terrains (Serra vs. Marcus, so the openings don't blur) · 8.1 — the reunion staging/sightline · 9.1 — caravan composition/route · 9.2 — the toll-gang's specific leverage · 12.1 — Maera Vell's roadhouse sensory (it carries the trap) · interlude anchors (Seb's camp / Mara's court / Mathias's ruins) — launch-only, one scene each. *[anchor TBD]* items in the maps are gaps canon doesn't fill yet — decide, don't invent.
 
 **Ch 7 — Alone** · Marcus · Days 3–7 · ✅
 - **Function:** survival orientation; establish the Eyes' rules and cost; set him on the road.
 - **Beats:** water/shelter/first cost solved by **observation not power**; Eyes wake involuntarily; Ayla established with limits (not the UI/implant AI); finds the road.
 - **Scenes:** `SCENE-003` First Water/First Cost.
+- **Scene map:**
+  - **7.1 — Waking diminished.** Register "recently dead, no buffer" in the body — weak, world indifferent, no power to lean on. *Anchors:* Ch-6 end-state terrain *[canon]*; *[anchor TBD: the biome/landmark that orients him toward the road]*.
+  - **7.2 — First water / first cost (`SCENE-003`).** Thesis scene — survival solved by **observation, not power**; the Eyes wake **involuntarily**, the cost lands (reserve/stability drain). *Anchors:* the water source + the read *[suggest: a hazard the Eyes reveal — safe vs. tainted, a track, a pattern]*. *Plants:* **SYS-006** fires · SP-008.
+  - **7.3 — Ayla, with limits.** Ayla a *bounded* presence — questions not answers, misdirects from her own damage. *Plants:* SP-008 · CH-012 (damaged guide).
+  - **7.4 — Finds the road.** Movement; end on orientation, not safety. *End state:* moving, Eyes Stage 1.
 - **Pays:** SYS-006 (Eyes cost reserve/stability) · SP-008.
 - **End state:** functional, oriented, moving; Eyes Stage 1.
 - **Gate:** ✅ draftable.
@@ -98,31 +109,50 @@ status: working
 - **Function:** reunite Marcus + Serra *before any faction exists* — the raw "both lost" beat.
 - **Beats:** nearly walks into Serra; both at zero, she has a blade, he has nothing; **Earth Thing present, unaddressed**; they fall into step; no speeches.
 - **Scenes:** `NEW-001` The Reunion.
+- **Scene map:**
+  - **8.1 — Near-miss / recognition.** The reunion lands with no scaffolding — two people at zero; the recognition is bodily, wary, loaded. *Anchors:* the road encounter *[anchor TBD: terrain/sightline that makes the near-miss plausible]*.
+  - **8.2 — Both at zero.** Assets on the table — **she has a blade, he has nothing**; nothing from Aetherfall carries over; competence is raw, not class-powered. *Plants:* CH-005 / CH-017 (Serra's self-reliance/Warrior latency, shown not stated).
+  - **8.3 — The Earth Thing, unaddressed.** The charge from Ch 3 / 6A is present and unspoken; both feel it, neither names it; **no speeches.** *Plants:* SP-011 **pays** · INV-1 (the unspoken axis).
+  - **8.4 — Fall into step.** The pair forms by motion, not agreement. *End state:* pair formed.
 - **Pays:** SP-011 (find each other first).
 - **End state:** pair formed; nothing from Aetherfall carries over.
 - **Gate:** ✅ draftable.
 
 **Ch 9 — The Caravan** · Marcus · Day ~8 · ✅
 - **Function:** first live interface use; seed the False Rescue; introduce the child and the caravan cast.
-- **Beats:** Dara, Cael, the **elven child** (ruin-field injured, slow-healing, latent interface sensitivity); toll-gang (unwinnable); **first live Neurochromatic *interface* use** (accurate, partial; item dormant); Marcus punctures the leader, Serra repositions; gang retreats **having gotten what it needed** (false-rescue seed); child hurt, Dara furious.
+- **Beats:** Dara, Cael, **Vaeli** (the elven child — ruin-field injured, slow-healing, latent interface sensitivity); toll-gang (unwinnable); **first live Neurochromatic *interface* use** (accurate, partial; item dormant); Marcus punctures the leader, Serra repositions; gang retreats **having gotten what it needed** (false-rescue seed); child hurt, Dara furious.
 - **Scenes:** `NEW-002`.
+- **Scene map:**
+  - **9.1 — The caravan & its people.** Introduce **Dara, Cael, Vaeli** — ruin-field injured, slow-healing, latent interface sensitivity; build warmth + dependence so the Ch-13 taking and Ch-15 rescue have weight. *Anchors:* caravan composition/route *[anchor TBD]*; Vaeli's injury *[canon]*.
+  - **9.2 — The toll-gang (unwinnable).** A threat that *cannot* be beaten by force — forces Marcus to read, not fight. *Anchors:* the gang's leverage *[suggest: numbers + a chokepoint the caravan can't avoid]*.
+  - **9.3 — First live Eyes use (`NEW-002` core).** The Eyes deliver an **accurate, partial** read (item dormant); Marcus **punctures the leader**, Serra **repositions** off his read — their combat rhythm in embryo (he sees, she moves). *Plants:* **CH-014** fires; foreshadows the finale Marcus/Serra sync.
+  - **9.4 — "Got what it needed."** The gang **retreats having achieved its real aim** — the false-rescue *mechanism* shown before it's named; Vaeli hurt, Dara furious; Marcus **files the pattern** without understanding it yet. *Plants:* **WF-009** (False Rescue seed) · CH-004 (data ≠ truth).
 - **Pays:** CH-014 (first Eyes use) · WF-009 (False Rescue seed).
 - **End state:** child established; Marcus files the "got what it needed" pattern.
-- **Gate:** ✅ draftable. *(Open, non-blocking: the elven child stays unnamed; A3-05 fate is later.)*
+- **Gate:** ✅ draftable. *(Vaeli — Strong soul; A3-05 ✅: she leaves with Dara & Cael, returns later. Keep her anonymous in the namebinding-commodity beat.)*
 
 **Ch 10 — The Iron Vultures** · Marcus · Day ~9 · ✅
 - **Beats:** the Vultures (watching the same toll-gang) offer **utility, not friendship**; road-knowledge leaks gradually; they travel together.
 - **Scenes:** `NEW-003`.
+- **Scene map:**
+  - **10.1 — Watching the same gang.** The Vultures arrive as **observers with their own angle**, not rescuers — good-not-heroic, unattached. *Anchors:* Vulture look/kit *[canon — `iron_vultures.md`; consolidate]*.
+  - **10.2 — Utility, not friendship.** The offer is transactional; **road-knowledge leaks gradually** (the world's rules surface through them, not exposition). *Plants:* **WF-008**; sets up IVF-01 (pays at Ch 14's pitch).
+  - **10.3 — Travel together.** *End state:* pair + Vultures; mechanics surfacing.
 - **Pays:** WF-008.
 - **End state:** pair + Vultures; the road's mechanics begin surfacing.
 - **Gate:** ✅ draftable.
 
 **Ch 11 — Weather** · Marcus (+Serra) · Days ~9–13 · ✅
 - **Function:** skill-latency period; Serra's Warrior base surfaces; name the system as *weather*.
-- **Beats:** combat training; **Serra's Warrior fundamentals surface** (ordinary skills → future Pressure-Severance delivery; first whisper of pressure); Marcus's Eyes → **Stage 2**; a Vulture explains the False Rescue system matter-of-factly; **Serra goes still**; the space between them forms.
+- **Beats:** combat training; **Serra's Warrior fundamentals surface** (ordinary skills → future Severance Pulse delivery; first whisper of pressure); Marcus's Eyes → **Stage 2**; a Vulture explains the False Rescue system matter-of-factly; **Serra goes still**; the space between them forms.
 - **Interludes:** ⟢ Seb (lands desolate → enslaved/forced labor) · ⟢ Mara (court city-state; taken in by a decent patron) · **⟢ SERRA POV (early False Rescue):** Marcus affecting her; what she notices about his **post-resurrection instability** (analysis as the thing holding him together); why his presence is **both grounding and dangerous** (§9).
 - **Scenes:** `NEW-004` · `SCENE-009` (Seb launch) · `Mara: The Court` (launch).
-- **Pays:** CH-017 (Serra Warrior) · WF-009 · SYS-007 (Pressure-Severance scales with commitment).
+- **Scene map:**
+  - **11.1 — Combat training (`NEW-004`).** **Serra's Warrior fundamentals surface** — ordinary skills that *prefigure* Severance Pulse delivery; first whisper of pressure/commitment. Marcus can't match her physically; his growth is the Eyes. *Plants:* **CH-017** (Serra Warrior) · **SYS-007** (Severance Pulse scales with commitment, seeded).
+  - **11.2 — Eyes → Stage 2.** Marcus's perception deepens (still not a weapon); the cost/limits move with it. *Plants:* CH-014 progression.
+  - **11.3 — "It's just weather."** A Vulture explains the **False Rescue system matter-of-factly** — the engine named without drama; **Serra goes still** (the shape lands for her before Marcus); **the space between them forms.** *Plants:* **WF-009** deepens · CH-019 (the space forms) · CH-007 (Serra guards the real stuff).
+  - **Interlude launches** *(≤1 scene each, launch-only; [anchor TBD]):* ⟢ **Seb** (`SCENE-009`) desolate → enslaved/forced labor · ⟢ **Mara** (Court) taken in by a decent patron · **⟢ SERRA POV (early False Rescue):** what she notices about Marcus's **post-resurrection instability** — analysis as the thing holding him together; his presence **both grounding and dangerous** (§9).
+- **Pays:** CH-017 (Serra Warrior) · WF-009 · SYS-007 (Severance Pulse scales with commitment).
 - **End state:** Eyes Stage 2; Serra's latent power signaled; Seb/Mara arcs launched.
 - **Gate:** ✅ draftable.
 
@@ -130,6 +160,10 @@ status: working
 - **Function:** the warmth trap; the central lesson *warmth ≠ loyalty*.
 - **Beats:** roadhouse; **genuine warmth** (soup, rest, first human moment); Marcus over-shares (starvation, not stupidity); she reports him off-screen (the guild pays, not reporting has consequences). **Do not signal the betrayal.**
 - **Scenes:** `NEW-005`.
+- **Scene map** *(do not signal the betrayal):*
+  - **12.1 — The roadhouse (genuine warmth).** The first **real human moment** — soup, rest, safety; the warmth must read as *sincere* (it is) so the betrayal isn't telegraphed. *Anchors:* Maera Vell's roadhouse *[anchor TBD: a few concrete sensory details — they carry the trap]*.
+  - **12.2 — Marcus over-shares.** **Starvation, not stupidity** — alone, dead, and starved for warmth, he gives too much; CH-002 in motion. *Plants:* **CH-002** (trusts warmth too quickly) · CH-015 (accurate read, wrong model).
+  - **12.3 — She reports him (off-screen).** The report is filed **off-page** — the reader doesn't know; only Ch 13 reveals it. *Constraint:* **no signal to the reader.** *End state:* report filed, unknown.
 - **Pays:** CH-002 / CH-015 (accurate read, wrong model).
 - **End state:** report filed off-screen; reader doesn't know yet.
 - **Gate:** ✅ draftable.
@@ -139,26 +173,32 @@ status: working
 - **Beats:** magistrate-guild (clerks/docs/muscle, bureaucratic); **the elven child is namebound and taken** — quiet ritual, "debt resolution" (the child is a **Strong** soul, a notable catch); Serra recognizes the shape (manufactured emergency → monetized rescue) and goes still; Marcus realizes Maera's report explains their arrival; **home-building ache surfaces.**
 - **Interlude:** ⟢ Mathias (solo near the ruins; first Xyloryn drone contact; loads Scout via research).
 - **Scenes:** `NEW-006` · `Mathias: The Ruins` (launch).
+- **Scene map:**
+  - **13.1 — The magistrate-guild.** Bureaucratic horror — **clerks, docs, muscle**; the machinery of namebinding shown as paperwork, not villainy. *Anchors:* the guild office *[canon: "clerks/docs/muscle, bureaucratic"]*.
+  - **13.2 — The child namebound & taken.** The on-page namebinding — a **quiet ritual** dressed as "debt resolution"; she is a **Strong** soul (a notable catch — reinforces *monetized rescue*). Keep it procedural and cold, and **keep the child anonymous here** (the commodity beat; per A3-09). *Plants:* **SP-004 / WF-011** (true names dangerous → namebinding) **pay** · SP-009 (Eriadne destination, active).
+  - **13.3 — Serra recognizes the shape.** She connects manufactured-emergency → monetized-rescue (the Ch-9 pattern completes for her) and **goes still**; Marcus realizes **Maera's report explains their arrival** (Ch 12 pays). *Plants:* CH-015 / CH-018 (her read → her destination motive forming).
+  - **13.4 — Home-building ache (from a wrong read).** The ache surfaces *from* the warmth-trap wreckage — he wants to build something that can't be reported or seized; **personal before political.** *Plants:* **CH-013** (home-building drive) fires.
+  - **Interlude:** ⟢ **Mathias** (`Mathias: The Ruins` launch) — solo near the ruins; **first Xyloryn drone contact**; loads Scout via research. *Plants:* **WF-005** (Xyloryn diagnostic, seed). *[anchor TBD: launch-only.]*
 - **Pays:** SP-004 / WF-011 (namebinding) · CH-013 (home-building ache) · WF-005 (Xyloryn diagnostic, seed).
 - **End state:** child bound/taken; Serra's destination motive forming; Mathias arc launched.
 - **Gate:** ✅ draftable.
 
 **Ch 14 — The Pursuit & The Pitch** · Marcus (+Serra) · Days ~16–19 · ⚠
 - **Function:** converge the groups on one target with *different drives*; get the Vultures in on practical terms.
-- **Beats:** Marcus wants to *save the child*, Serra to *stop the wrong* — same target, different drive; Vultures won't fight a sanctioned op for morals, so the pitch is **practical** (the haul; office attached to no larger power); they join with conditions.
+- **Beats:** Marcus wants to *save the child*, Serra to *stop the wrong* — same target, different drive; Vultures won't fight a sanctioned op for morals, so the pitch is **practical** (the haul; office attached to no larger power); they join on conditions (A3-08): **op funds itself · capped risk + exit · one job not an oath · their name stays off it.**
 - **Scenes:** `NEW-007`.
 - **Pays:** WF-008 · WF-010.
 - **End state:** raid set; alliance conditional.
-- **Gate:** ⚠ **Decide A3-08 — the Vultures' conditions for joining** (what they extract). Draftable in rough; conditions need locking before the operation's stakes are real.
+- **Gate:** ✅ **A3-08 resolved — the Vultures' conditions are locked** (see `factions/iron_vultures.md`).
 
 **Ch 15 — The Operation & The Split** · Marcus + Serra · Days ~19–21 · ⚠
 - **Function:** the act's hinge — Marcus saves the child at cost; Serra kills and learns the registry; the pair splits without words.
 - **Beats:** chaotic intervention; **Marcus extracts the child, others don't make it** (marked by a correct choice that still cost); **⟢ SERRA POV — Serra kills the magistrate** (off-page from Marcus, **on-page in hers**) → learns he's a **node, not the source** (names sub-leased from a master registry) → takes a **registry-fragment** (a *cold* Book-2 lead; **her interface does NOT unlock here — it stays dormant until the Act-5 finale**); **the split — no speech**, Earth Thing at its heaviest; she leaves **not because Marcus failed her** but because she's found something she can't ignore. **Her Book-1 solo arc is the dungeon**; the **Court of Seals** (limb of the Aurelian Sovereignty) is where the cold lead points — **Book 2.**
-- **Interlude:** ⟢ Brent (alone, then a different group; Warden/Reckoner direction + Keystone Integrity (open) begin through use).
+- **Interlude:** ⟢ Brent (alone, then a different group; Warden/Reckoner direction + Piezoelectric Bones (open) begin through use).
 - **Scenes:** `NEW-008` · `NEW-009` (after-split) · `Brent` launch.
 - **Pays:** CH-016 (saves child / others don't) · CH-018 (Serra kills — a decision) · WF-010 / WF-012 (registry → Court of Seals) · SE-05/SE-06 latent.
 - **End state:** pair split; Serra solo with the fragment; Marcus marked; child extracted (fate pending).
-- **Gate:** ⚠ **Decide A3-05 — the elven child's fate** (does the child stay with Marcus → seeds his B2 home, or go elsewhere?). Everything else here is locked. The child decision also wants the child's **name**.
+- **Gate:** ✅ **A3-05 resolved — Vaeli's fate:** she leaves with Dara & Cael after the rescue, and circumstances later force the three back toward Marcus / Eriadne (the Book-2 home payoff arrives as a *return*, not a tag-along). Name locked: **Vaeli** (Strong soul).
 
 ---
 
@@ -167,7 +207,7 @@ status: working
 **Ch 16–17 — The Long Road** · Marcus · Days ~23–44 · ⚠
 - **Function:** travel to Eriadne; show non-combat power; first Xyloryn diagnostic; ignite Seb; advance Serra solo.
 - **Beats:** rumors of the thread city; **playful-chaos defusion** (turns a crowd, gives a face-saving exit — non-combat power); **Eyes emotional-leak social cost** (Stage-2 tells betray him; data ≠ truth); first **Xyloryn diagnostic hint** (sampling, not just killing); felt ley pull; reach outskirts ~Day 45.
-- **Interludes:** ⟢ Seb — kills his captor **barehanded** → **then** the broker speaks (*"you can have more,"* the brother's soul dangled — **a real offer, not a bluff**; the lie is "restored *cleanly*") → **Reaver + Threshold Cascade ignite**; shortest, among the most powerful. **⟢ SERRA POV — the dungeon** (first solo chapter): held by a small town beside a delve; the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed); the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished**; the **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants) — she continues anyway; the one thread she won't sever is him. *(Court of Seals hunt = Book 2; interface still dormant.)*
+- **Interludes:** ⟢ Seb — kills his captor **barehanded** → **then** the broker speaks (*"you can have more,"* the brother's soul dangled — **a real offer, not a bluff**; the lie is "restored *cleanly*") → **Reaver + Pyric Blood ignite**; shortest, among the most powerful. **⟢ SERRA POV — the dungeon** (first solo chapter): held by a small town beside a delve; **Vessa** — a 13-yo tunnel-runner, the young-Serra mirror — is why she stays (`vessa.md`; 5-scene map in `scene_queue.md`); the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed) with Vessa functional alongside her, never asked; the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished**; the **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants) — she continues anyway; the one thread she won't sever is him. *(Court of Seals hunt = Book 2; interface still dormant.)*
 - **Scenes:** `SCENE-010` (Xyloryn first hint) · `SCENE-009` deepen (Seb noble cost) · `Serra solo` deepen/crest.
 - **Pays:** CH-001 (playful-chaos) · SYS-006 (Eyes leak) · WF-005 (Xyloryn) · CH-008 (Seb cost payoff) · SE-06 latent (Coherence vs Saturation = Book 2); SE-05 deferred to the finale (interface dormant in the solo arc).
 - **End state:** Marcus at Eriadne's edge; Seb powered + leashed; Serra deep in her hunt.
@@ -195,15 +235,15 @@ status: working
 
 **Ch 20 — Brent** · ~Day 54 · ✅
 - **Function:** first convergence; the "he actually saw me" recognition.
-- **Beats:** **Brent converges** (Warden → Reckoner dir.; Keystone Integrity, open) — in Book 1 the **structural mind whose reads matter in a crisis** (fortifying/settlement = Book 2); the recognition beat with Marcus.
+- **Beats:** **Brent converges** (Warden → Reckoner dir.; Piezoelectric Bones, open) — in Book 1 the **structural mind whose reads matter in a crisis** (fortifying/settlement = Book 2); the recognition beat with Marcus.
 - **Pays:** CH-011 (Brent practical competence).
 - **End state:** Marcus + Brent; first of the six back.
 - **Gate:** ⚠ **Decide BR-02 — Brent's first practical Realm-material/mechanism discovery** (what he reads before anyone). Draftable around it; lock before the finale where his keystone-read pays off.
 
 **Ch 21 — Mara** · ~Day 58 · ⚠
 - **Function:** second convergence; the challenge to Marcus's "people as systems."
-- **Beats:** **Mara converges** (Psion; Mirror-Salience) from her court arc; **challenges Marcus for treating people as systems** (CH-003 collision).
-- **Interlude (just prior):** courtier weaponizes regard → she goes **un-salient at the ball** → exposes him before the full court (room-scale Mirror-Salience) → leaves for the **Walking Grove** (moving civilization on a sick behemoth; normalized salience-suppression of one region) → climax: makes the community **perceive the danger at once** → the behemoth's wound/migration routes her to Eriadne. *(Does not meet Serra before Eriadne.)*
+- **Beats:** **Mara converges** (Psion; Specular Salience) from her court arc; **challenges Marcus for treating people as systems** (CH-003 collision).
+- **Interlude (just prior):** courtier weaponizes regard → she goes **un-salient at the ball** → exposes him before the full court (room-scale Specular Salience) → leaves for the **Walking Grove** (moving civilization on a sick behemoth; normalized salience-suppression of one region) → climax: makes the community **perceive the danger at once** → the behemoth's wound/migration routes her to Eriadne. *(Does not meet Serra before Eriadne.)*
 - **Scenes:** `Mara: The Court`.
 - **Pays:** CH-003 / CH-009 (authorship of attention).
 - **End state:** Marcus + Brent + Mara.
@@ -244,7 +284,7 @@ status: working
 
 **Ch 26–28 — The Myrmidon** · Ensemble · Days ~98–104 · 🔴 **finale choreography pending**
 - **Function:** the invasion; the six ignite together; the kill that nearly costs Marcus; everyone survives.
-- **Beats:** the dormant portal is **forced open**, swarm beyond; **one Myrmidon comes through** and nearly beats all six; **shared interface ignition** (Serra's pressure builds; Seb cycling Reaver/Threshold Cascade; **Brent's Keystone Integrity exposes the Myrmidon's structural keystone**; Marcus's eyes turn on); **the kill** — Marcus holds an opening at lethal risk; **Serra lands it but misses the depth and brushes off his danger** — he barely survives; his eyes read her **conflict**; the **Meszkhal item lies** ("doubling down"); he reads her right and doesn't blame her; **Mathias badly injured proving his warning — he lives; so does Brent; all six survive** (the operation's "others don't make it" = captives, not the six); a **Realm Walker, drawn by the breach, witnesses the fight** (Riftwalker recruitment seed).
+- **Beats:** the dormant portal is **forced open by a Nightbound agent** (controlled breach-test), swarm beyond; **one Myrmidon comes through** and nearly beats all six; **shared interface ignition** (Serra's pressure builds; Seb cycling Reaver/Pyric Blood; **Brent's Piezoelectric Bones exposes the Myrmidon's structural keystone**; Marcus's eyes turn on); **the kill** — Marcus holds an opening at lethal risk; **Serra lands it but misses the depth and brushes off his danger** — he barely survives; his eyes read her **conflict**; the **Meszkhal item lies** ("doubling down"); he reads her right and doesn't blame her; **Mathias badly injured proving his warning — he lives; so does Brent; all six survive** (the operation's "others don't make it" = captives, not the six); a **Realm Walker, drawn by the breach, witnesses the fight** (Riftwalker recruitment seed).
 - **Scenes:** The invasion `[ensemble]`.
 - **Pays:** WF-005 (invasion) · BR-02 (keystone read pays) · SP-012/CH-004 (item lies, he reads past it) · CH-010 (Mathias) · Riftwalker seed.
 - **End state:** Myrmidon down; six bloodied but alive; Realm Walker has seen Marcus.
@@ -264,7 +304,7 @@ status: working
 - **Scenes:** The severance `[M]+[S]`.
 - **Pays:** CH-019 (the space) · SP-012 (turns from the item) · Riftwalker recruitment seed (→ B2).
 - **End state:** pair parted but findable; Marcus pointed at Riftwalker/B2.
-- **Gate:** ⚠ **Decide the felt mechanic of the severance** — how Pressure-Severance reads *emotionally* when she turns it on the one bond she values. The beat is canon; its execution is the most important thing in the book to over-develop. Draftable only after the finale (Ch 26–28) is staged.
+- **Gate:** ⚠ **Decide the felt mechanic of the severance** — how Severance Pulse reads *emotionally* when she turns it on the one bond she values. The beat is canon; its execution is the most important thing in the book to over-develop. Draftable only after the finale (Ch 26–28) is staged.
 
 ---
 
