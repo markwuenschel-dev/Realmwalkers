@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { themes } from "./theme";
 import type { ThemeId, ThemeTokens } from "./theme";
 import type {
@@ -10,7 +10,6 @@ import type {
   SuggStatus,
   Tab,
 } from "./types";
-import { INITIAL_BOARD, INITIAL_PROSE, QUEUE } from "./data";
 
 // The whole interactive surface — the prototype's `state` object, its methods, and its keyboard
 // handler — rebuilt as a single hook. Screens read it through DeskContext via useDesk().
@@ -31,8 +30,6 @@ export interface DeskValue {
   chaptersView: ChaptersView;
   selectedThread: string;
   activeScene: number;
-  board: string[];
-  dragId: string | null;
   rawProse: string;
   // theme
   t: ThemeTokens;
@@ -53,9 +50,6 @@ export interface DeskValue {
   prevScene: () => void;
   nextScene: () => void;
   openScene: (index: number) => void;
-  onDragStart: (id: string) => void;
-  onDragEnter: (id: string) => void;
-  onDragEnd: () => void;
   decide: (d: DecisionKind) => void;
   undoDecision: () => void;
   resolve: (id: string, choice: "prose" | "ledger") => void;
@@ -83,11 +77,9 @@ export function useDeskState(): DeskValue {
   const [ledgerCat, setLedgerCatState] = useState("characters");
   const [selectedAnn, setSelectedAnn] = useState<string | null>(null);
   const [chaptersView, setChaptersViewState] = useState<ChaptersView>("board");
-  const [selectedThread, setSelectedThread] = useState("t1");
+  const [selectedThread, setSelectedThread] = useState("");
   const [activeScene, setActiveScene] = useState(0);
-  const [board, setBoard] = useState<string[]>(INITIAL_BOARD);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [rawProse, setRawProse] = useState(INITIAL_PROSE);
+  const [rawProse, setRawProse] = useState("");
 
   const go = useCallback((s: Screen) => {
     setScreen(s);
@@ -97,14 +89,6 @@ export function useDeskState(): DeskValue {
   const setTab = useCallback((tb: Tab) => setTabState(tb), []);
   const togglePalette = useCallback(() => setPaletteOpen((p) => !p), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
-  const toggleEditing = useCallback(
-    () => setMode((m) => (m === "editing" ? "reading" : "editing")),
-    [],
-  );
-  const toggleSuggesting = useCallback(
-    () => setMode((m) => (m === "suggesting" ? "reading" : "suggesting")),
-    [],
-  );
   const acceptSugg = useCallback(
     (id: string) => setSuggStatus((s) => ({ ...s, [id]: "accepted" })),
     [],
@@ -128,32 +112,12 @@ export function useDeskState(): DeskValue {
   }, []);
   const nextScene = useCallback(() => {
     setScreen("scene");
-    setActiveScene((a) => Math.min(QUEUE.length - 1, a + 1));
+    setActiveScene((a) => a + 1); // upper bound is clamped against the live queue in SceneScreen
   }, []);
   const openScene = useCallback((index: number) => {
     setScreen("scene");
     setActiveScene(index);
     setPaletteOpen(false);
-  }, []);
-
-  // Drag-to-reorder reads the live drag id from a ref so onDragEnter never closes over a stale value.
-  const dragIdRef = useRef<string | null>(null);
-  const onDragStart = useCallback((id: string) => {
-    dragIdRef.current = id;
-    setDragId(id);
-  }, []);
-  const onDragEnter = useCallback((id: string) => {
-    const d = dragIdRef.current;
-    if (!d || d === id) return;
-    setBoard((prev) => {
-      const arr = prev.slice();
-      arr.splice(arr.indexOf(id), 0, arr.splice(arr.indexOf(d), 1)[0]);
-      return arr;
-    });
-  }, []);
-  const onDragEnd = useCallback(() => {
-    dragIdRef.current = null;
-    setDragId(null);
   }, []);
 
   const decide = useCallback((d: DecisionKind) => setDecision(d), []);
@@ -179,9 +143,8 @@ export function useDeskState(): DeskValue {
   const setFeedback = useCallback((v: string) => setFeedbackState(v), []);
   const setProse = useCallback((v: string) => setRawProse(v), []);
 
-  // Global keyboard shortcuts (⌘K palette, g-chord screen nav, j/k queue, a/r/x/e/s on the scene).
-  const screenRef = useRef(screen);
-  screenRef.current = screen;
+  // Global keyboard shortcuts (⌘K palette, g-chord screen nav, j/k queue). Scene actions live in
+  // SceneScreen (they commit to the API).
   useEffect(() => {
     const chord = { active: false, timer: 0 as number | undefined };
     const onKey = (e: KeyboardEvent) => {
@@ -223,26 +186,20 @@ export function useDeskState(): DeskValue {
         prevScene();
         return;
       }
-      if (screenRef.current === "scene") {
-        if (k === "a") decide("approve");
-        else if (k === "r") decide("revise");
-        else if (k === "x") decide("deny");
-        else if (k === "e") toggleEditing();
-        else if (k === "s") toggleSuggesting();
-      }
+      // a/r/x/e/s on the Scene screen are handled there (they commit to the API), not here.
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [togglePalette, closePalette, go, nextScene, prevScene, decide, toggleEditing, toggleSuggesting]);
+  }, [togglePalette, closePalette, go, nextScene, prevScene]);
 
   const t = themes[themeId];
 
   return {
     screen, themeId, tab, mode, paletteOpen, feedback, decision, resolved, suggStatus, hoveredKey,
-    ledgerCat, selectedAnn, chaptersView, selectedThread, activeScene, board, dragId, rawProse,
+    ledgerCat, selectedAnn, chaptersView, selectedThread, activeScene, rawProse,
     t, isManu: themeId === "manuscript", isConsole: themeId === "console", isGrim: themeId === "grimoire",
     go, setTheme, setTab, togglePalette, setMode, acceptSugg, rejectSugg, undoSugg, setHover, clearHover,
-    prevScene, nextScene, openScene, onDragStart, onDragEnter, onDragEnd, decide, undoDecision, resolve, unresolve,
+    prevScene, nextScene, openScene, decide, undoDecision, resolve, unresolve,
     selectAnn, highlightAnn, setLedgerCat, setChaptersView, selectThread: setSelectedThread,
     setFeedback, setProse,
   };

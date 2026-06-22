@@ -3,7 +3,7 @@ import { css } from "../css";
 import { useDesk } from "../state";
 
 export default function CommandPalette() {
-  const { go, nextScene, prevScene, decide, togglePalette } = useDesk();
+  const { go, nextScene, prevScene, togglePalette } = useDesk();
 
   const commands = [
     { icon: "◧", label: "Go to Inbox", hint: "G I", onClick: () => go("inbox") },
@@ -14,8 +14,6 @@ export default function CommandPalette() {
     { icon: "◍", label: "Open World ledger", hint: "G L", onClick: () => go("ledger") },
     { icon: "⤓", label: "Next scene in queue", hint: "J", onClick: nextScene },
     { icon: "⤒", label: "Previous scene in queue", hint: "K", onClick: prevScene },
-    { icon: "✓", label: "Approve current scene", hint: "A", onClick: () => { go("scene"); decide("approve"); } },
-    { icon: "↻", label: "Request revision", hint: "R", onClick: () => { go("scene"); decide("revise"); } },
   ];
 
   const stop = (e: MouseEvent) => e.stopPropagation();

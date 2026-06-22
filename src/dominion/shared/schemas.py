@@ -149,3 +149,81 @@ class ManuscriptOut(BaseModel):
     book_id: uuid.UUID
     title: str
     chapters: list[ManuscriptChapter] = []
+
+
+# --- Drafting (browser-driven worker) -------------------------------------------------------------
+
+class ActiveScene(BaseModel):
+    chapter_no: int | None = None
+    scene_no: int | None = None
+
+
+class JobsStatusOut(BaseModel):
+    """Live queue state, so the Desk can show a 'drafting…' indicator without a terminal."""
+    running: bool = False
+    queued: int = 0
+    failed: int = 0
+    active_scene: ActiveScene | None = None
+
+
+class DraftNextOut(BaseModel):
+    scheduled: bool = False
+    queued: int = 0
+    running: bool = False
+
+
+# --- World ledger + in-prose entity cards (DESIGN §5, §7) -----------------------------------------
+
+class CharacterStateOut(BaseModel):
+    """Hard numbers from the Oracle (CharacterState), with the canon body if the character has one."""
+    character: str
+    stats: dict[str, Any] = {}
+    provisional: bool = False
+    is_pov: bool = False
+    body: str | None = None
+
+
+class CanonEntityOut(_ORM):
+    id: uuid.UUID
+    kind: str | None = None
+    name: str | None = None
+    body: str | None = None
+
+
+# --- World threads (curated arcs across scenes) ---------------------------------------------------
+
+class ThreadBeatOut(_ORM):
+    id: uuid.UUID
+    scene_no: int
+    label: str | None = None
+    flag: bool = False
+
+
+class ThreadOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    kind: str | None = None
+    state: str | None = None
+    note: str | None = None
+    beats: list[ThreadBeatOut] = []
+
+
+class ThreadIn(BaseModel):
+    name: str
+    kind: str | None = None
+    state: str | None = None
+    note: str | None = None
+
+
+class ThreadUpdateIn(BaseModel):
+    """Only provided fields are applied (mirrors BeatUpdateIn)."""
+    name: str | None = None
+    kind: str | None = None
+    state: str | None = None
+    note: str | None = None
+
+
+class ThreadBeatIn(BaseModel):
+    scene_no: int
+    label: str | None = None
+    flag: bool = False

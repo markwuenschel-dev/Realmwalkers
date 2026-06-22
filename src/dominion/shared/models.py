@@ -159,6 +159,31 @@ class Critique(Base):
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
 
+class Thread(Base):
+    """A narrative thread (relationship / mentorship / system / power arc) tracked across scenes.
+
+    Human-curated from the Desk's Ledger: the mock invented these, so this is the real backing store.
+    """
+    __tablename__ = "threads"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    name: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str | None] = mapped_column(Text, nullable=True)   # relationship|mentorship|system|power|...
+    state: Mapped[str | None] = mapped_column(Text, nullable=True)  # active|sealed|contested|rising|...
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ThreadBeat(Base):
+    """A pinned moment of a thread at a given scene number (the dots on the thread's timeline)."""
+    __tablename__ = "thread_beats"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    thread_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("threads.id"))
+    scene_no: Mapped[int] = mapped_column(Integer)
+    label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    flag: Mapped[bool] = mapped_column(Boolean, default=False)  # marks an open continuity question
+
+
 class Approval(Base):
     """The human's verdict = authoritative gate AND future training label (DESIGN §11)."""
     __tablename__ = "approvals"
