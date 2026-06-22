@@ -19,7 +19,13 @@ from dominion.shared.enums import (
     SceneStatus,
 )
 from dominion.shared.models import Beat, Book, Chapter, Job, Run, Scene
-from dominion.shared.schemas import BeatUpdateIn, RunStartIn, SceneVersionOut
+from dominion.shared.schemas import (
+    ApproveBeatsIn,
+    BeatCreateIn,
+    BeatUpdateIn,
+    RunStartIn,
+    SceneVersionOut,
+)
 from dominion.workers import planner
 
 _PROPOSED = [
@@ -79,10 +85,99 @@ async def test_update_beat_applies_only_supplied_fields(db_factory):
         s.add(beat)
         await s.flush()
 
-        out = await beats_router.update_beat(beat.id, BeatUpdateIn(beat_text="new text"), s)
+        out = await beats_router.update_beat(
+            beat.id, BeatUpdateIn(beat_text="new text", target_words=500), s
+        )
         await s.commit()
         assert out.beat_text == "new text"
+        assert out.target_words == 500
         assert out.tags == ["dialogue"]               # untouched field preserved
+
+
+async def test_delete_beat(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
+        s.add(ch)
+        await s.flush()
+        beat = Beat(chapter_id=ch.id, scene_no=1, beat_text="x", status=BeatStatus.PROPOSED)
+        s.add(beat)
+        await s.flush()
+        await beats_router.delete_beat(beat.id, s)
+        assert await s.get(Beat, beat.id) is None
+
+
+async def test_create_manual_beat(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
+        s.add(ch)
+        await s.flush()
+        out = await chapters_router.create_beat(
+            ch.id, BeatCreateIn(scene_no=3, beat_text="manual scene", target_words=400), s
+        )
+        assert out.scene_no == 3 and out.target_words == 400 and out.status == BeatStatus.PROPOSED
+
+
+async def test_approve_subset_enqueues_only_selected(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode="pause_each", token_budget=40_000)
+        s.add(run)
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
+        s.add(ch)
+        await s.flush()
+        b1 = Beat(chapter_id=ch.id, scene_no=1, beat_text="one", status=BeatStatus.PROPOSED)
+        b2 = Beat(chapter_id=ch.id, scene_no=2, beat_text="two", status=BeatStatus.PROPOSED)
+        s.add_all([b1, b2])
+        await s.flush()
+
+        out = await chapters_router.approve_beats(ch.id, s, ApproveBeatsIn(beat_ids=[b1.id]))
+        await s.commit()
+        assert out["approved"] == 1
+        jobs = (await s.execute(
+            select(Job).where(Job.status == JobStatus.QUEUED)
+        )).scalars().all()
+        assert [j.scene_no for j in jobs] == [1]
+        assert (await s.get(Beat, b1.id)).status == BeatStatus.APPROVED
+        assert (await s.get(Beat, b2.id)).status == BeatStatus.PROPOSED   # unselected stays proposed
+
+
+async def test_repropose_replaces_proposed_beats(db_factory, monkeypatch):
+    takes = [
+        [{"scene_no": 1, "beat_text": "take-1 a", "characters_present": [], "tags": [],
+          "expected_state_changes": None, "knowledge_injections": []},
+         {"scene_no": 2, "beat_text": "take-1 b", "characters_present": [], "tags": [],
+          "expected_state_changes": None, "knowledge_injections": []}],
+        [{"scene_no": 1, "beat_text": "take-2 only", "characters_present": [], "tags": [],
+          "expected_state_changes": None, "knowledge_injections": []}],
+    ]
+    calls = {"n": 0}
+
+    async def fake_propose(**kwargs):
+        i = calls["n"]
+        calls["n"] += 1
+        return takes[i]
+
+    monkeypatch.setattr(planner, "propose_beats", fake_propose)
+    async with db_factory() as s:
+        book = await _book(s)
+        out1 = await runs_router.start_run(
+            RunStartIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="x"), s
+        )
+        await s.commit()
+        assert len(out1.beats) == 2
+
+        out2 = await runs_router.start_run(
+            RunStartIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="x", target_words=300), s
+        )
+        await s.commit()
+        rows = (await s.execute(
+            select(Beat).where(Beat.chapter_id == out2.chapter_id).order_by(Beat.scene_no)
+        )).scalars().all()
+        assert len(rows) == 1                        # the take-1 beats were replaced, not stacked
+        assert rows[0].beat_text == "take-2 only"
+        assert rows[0].target_words == 300           # the new per-scene length was stamped
 
 
 async def test_approve_beats_enqueues_one_job_per_beat_idempotently(db_factory):

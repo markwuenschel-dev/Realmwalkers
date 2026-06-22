@@ -7,7 +7,7 @@ approve (gate 1) before any scene-draft job is enqueued.
 from __future__ import annotations
 
 from fastapi import APIRouter
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.config import settings
@@ -44,6 +44,12 @@ async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
     chapter.status = ChapterStatus.BEATS_PROPOSED
     await session.flush()
 
+    # Re-propose: clear this chapter's still-proposed beats so re-running replaces rather than stacks.
+    await session.execute(
+        delete(Beat).where(Beat.chapter_id == chapter.id, Beat.status == BeatStatus.PROPOSED)
+    )
+    await session.flush()
+
     # Gate-1 plan-call: grounded in beat-scoped canon + the omniscient summary (DESIGN §7).
     omniscient = (await session.execute(
         select(Summary.rolling_summary).where(
@@ -53,6 +59,7 @@ async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
     canon = await canon_rag.retrieve(session, book_id=body.book_id, query=body.outline, k=6)
     proposed = await planner.propose_beats(
         outline=body.outline, pov=body.pov, omniscient_summary=omniscient, canon=canon,
+        max_beats=body.max_beats or 12,
     )
 
     beats: list[Beat] = []
@@ -65,6 +72,7 @@ async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
             tags=item["tags"],
             expected_state_changes=item["expected_state_changes"],
             knowledge_injections=item["knowledge_injections"],
+            target_words=body.target_words,
             status=BeatStatus.PROPOSED,
         )
         session.add(beat)

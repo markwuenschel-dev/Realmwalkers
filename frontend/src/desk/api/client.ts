@@ -3,7 +3,9 @@
 import type {
   AnnotationIn,
   AnnotationOut,
+  BeatCreateIn,
   BeatOut,
+  BeatUpdateIn,
   BookIn,
   BookOut,
   CanonEntityOut,
@@ -74,11 +76,17 @@ export const api = {
     http<BookOut>("/books", { method: "POST", body: JSON.stringify(body) }),
   startRun: (body: RunStartIn) =>
     http<RunStartOut>("/runs", { method: "POST", body: JSON.stringify(body) }),
-  approveBeats: (chapterId: string) =>
+  approveBeats: (chapterId: string, beatIds?: string[]) =>
     http<{ chapter_id: string; approved: number; jobs: string[] }>(
       `/chapters/${chapterId}/beats/approve`,
-      { method: "POST" },
+      { method: "POST", body: JSON.stringify({ beat_ids: beatIds ?? null }) },
     ),
+  updateBeat: (beatId: string, body: BeatUpdateIn) =>
+    http<BeatOut>(`/beats/${beatId}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteBeat: (beatId: string) =>
+    http<{ deleted: string }>(`/beats/${beatId}`, { method: "DELETE" }),
+  createBeat: (chapterId: string, body: BeatCreateIn) =>
+    http<BeatOut>(`/chapters/${chapterId}/beats`, { method: "POST", body: JSON.stringify(body) }),
 
   // --- chapters + history -------------------------------------------------------------------------
   chapters: (bookId: string) => http<ChapterOut[]>(`/chapters${qs({ book_id: bookId })}`),

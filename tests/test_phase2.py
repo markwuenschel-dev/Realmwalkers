@@ -3,6 +3,7 @@ revise pipeline, continuity resolution. LLM calls (drafter/summaries) are mocked
 from __future__ import annotations
 
 import pytest
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 
 from dominion.api.routers import reviews
@@ -145,7 +146,7 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
         await _beat(s, ch, 1, esc={"Marcus": {"level": "+1"}})
         await _beat(s, ch, 2)  # the next scene's beat exists -> auto-advance fires
         sc1 = await _scene(s, ch, 1, prose="Marcus wakes.")
-        result = await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s)
+        result = await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks())
         await s.commit()
         assert result["status"] == "approved"
         assert result["next_job"] is not None
@@ -183,6 +184,7 @@ async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
             sc1.id,
             DecisionIn(decision=Decision.REVISE, feedback="Cut the throat-clearing; open mid-action."),
             s,
+            BackgroundTasks(),
         )
         await s.commit()
         assert out["status"] == "revision_requested" and out["next_job"] is not None

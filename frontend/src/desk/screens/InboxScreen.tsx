@@ -33,7 +33,7 @@ export default function InboxScreen() {
     { label: "Scenes approved", value: String(approved.length), suffix: `/ ${latest.length || 0} drafted` },
     { label: "Awaiting you", value: String(data.pending.length), suffix: "scenes",
       note: data.pending.length ? "ready for review" : "queue clear" },
-    { label: "Oracle drafting", value: data.jobs.running ? "1" : "0",
+    { label: "Drafting", value: data.jobs.running ? "1" : "0",
       suffix: data.jobs.running ? "in progress" : "idle",
       note: data.jobs.queued ? `${data.jobs.queued} queued` : data.jobs.failed ? `${data.jobs.failed} failed` : undefined },
   ];
@@ -51,7 +51,7 @@ export default function InboxScreen() {
       </div>
       <div style={css("font-size:13px;color:var(--dim);line-height:1.4;margin-bottom:10px")}>{sceneLabel(s)}</div>
       <div style={css("display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
-        <span>{wordCount(s.prose)}w</span>
+        <span>{wordCount(s.prose)} words</span>
         <span style={css(`color:${color}`)}>{tag}</span>
       </div>
     </div>

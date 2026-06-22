@@ -65,6 +65,7 @@ export default function SceneScreen() {
   const commit = async (kind: DecisionKind) => {
     if (!cur || committing) return;
     setCommitting(true);
+    desk.decide(kind); // instant feedback (the toast) — the API call below now returns fast
     // fold accepted tracked-changes (on top of any hand-edit) into the canonical text
     const finalProse = applyAcceptedSuggestions(desk.rawProse, suggestions);
     const edited = finalProse !== (cur.prose ?? "") ? finalProse : null;
@@ -75,7 +76,6 @@ export default function SceneScreen() {
           ? { decision: "approve" as const, edited_prose: edited }
           : { decision: "deny" as const };
     await data.decide(cur.id, body);
-    desk.decide(kind);
     desk.setFeedback("");
     setCommitting(false);
   };
@@ -87,7 +87,7 @@ export default function SceneScreen() {
         <h1 style={css("margin:0 0 10px;font-family:var(--display);font-weight:600;font-size:26px;color:var(--ink)")}>Nothing to review</h1>
         <p style={css("margin:0;color:var(--dim);font-size:14.5px;line-height:1.6")}>
           {data.jobs.running
-            ? "The Oracle is drafting — a scene will land here shortly."
+            ? "A scene is drafting — it'll land here shortly."
             : "Plan a chapter from the Inbox and approve its beats; drafted scenes show up here for review."}
         </p>
         <button onClick={() => desk.go("inbox")} style={css("margin-top:18px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer;font-family:var(--ui);font-size:13.5px")}>Go to inbox</button>

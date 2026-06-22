@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+import structlog
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
@@ -19,11 +20,28 @@ from dominion.shared.models import Approval, Beat, Chapter, CharacterState, Crit
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
 from dominion.workers.memory import ledger, summaries
 
+log = structlog.get_logger()
 router = APIRouter(prefix="/scenes", tags=["reviews"])
 
 
+async def _refresh_summaries_bg(scene_id: uuid.UUID) -> None:
+    """Fold the approved scene into the rolling summaries OFF the request path — that's two
+    review-model calls (several seconds), so Approve can respond instantly. Advisory: a failure just
+    leaves summaries briefly stale; the next approval folds again."""
+    from dominion.shared.db import SessionFactory
+
+    async with SessionFactory() as session:
+        try:
+            await summaries.refresh_on_approval(session, scene_id=scene_id)
+            await session.commit()
+        except Exception as exc:  # noqa: BLE001 — advisory; never surfaces to the user
+            log.error("summary.refresh_failed", scene=str(scene_id), error=str(exc))
+
+
 @router.post("/{scene_id}/decision")
-async def decide(scene_id: uuid.UUID, body: DecisionIn, session: SessionDep) -> dict[str, str | None]:
+async def decide(
+    scene_id: uuid.UUID, body: DecisionIn, session: SessionDep, background: BackgroundTasks
+) -> dict[str, str | None]:
     scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
@@ -41,9 +59,10 @@ async def decide(scene_id: uuid.UUID, body: DecisionIn, session: SessionDep) -> 
     next_job: uuid.UUID | None = None
     if body.decision == Decision.APPROVE:
         scene.status = SceneStatus.APPROVED
-        await ledger.commit_declared_deltas(session, scene_id=scene.id)
-        await summaries.refresh_on_approval(session, scene_id=scene.id)
+        await ledger.commit_declared_deltas(session, scene_id=scene.id)  # fast (DB) — keep inline
         next_job = await _auto_advance(session, scene)
+        # Rolling-summary fold is two LLM calls — defer so the inbox responds instantly.
+        background.add_task(_refresh_summaries_bg, scene.id)
     elif body.decision == Decision.DENY:
         scene.status = SceneStatus.SUPERSEDED
     elif body.decision == Decision.REVISE:

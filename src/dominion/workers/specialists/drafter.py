@@ -85,6 +85,8 @@ def _beat_prompt(ctx: SceneContext) -> str:
             "Developments to land by the end (reflect naturally; do NOT write a stat block): " + changes
         )
     parts.append("THE BEAT — what happens in this scene:\n" + (ctx.beat_text or "(no beat text provided)"))
+    if ctx.target_words:
+        parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
     parts.append(f"\nWrite the scene now, in {ctx.pov}'s point of view. Output only the prose.")
     return "\n\n".join(parts)
 
@@ -98,6 +100,8 @@ def _revise_prompt(ctx: SceneContext) -> str:
     parts.append("THE BEAT this scene must hit:\n" + (ctx.beat_text or "(no beat text provided)"))
     parts.append("YOUR PRIOR DRAFT of this scene:\n" + (ctx.prior_prose or "(none)"))
     parts.append("REVISION NOTES from the author — address these:\n" + (ctx.revise_feedback or "(none)"))
+    if ctx.target_words:
+        parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
     parts.append(
         f"\nRewrite the scene in {ctx.pov}'s POV, addressing the notes while keeping what already "
         "works. Output only the revised prose."
