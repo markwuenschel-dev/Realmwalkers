@@ -24,8 +24,8 @@ status: active
 | Age | TBD |
 | Origin | Semi-rural outskirts of an average-sized city; average household |
 | Guild Role (Earth) | Assassin (setup/precision) — tandem with Serra Hawthorne **(both Dead Hand)** |
-| Realm Role | Mirror-Salience Transducer — full spectrum attention operator |
-| Power Interface | Mirror-Salience Transduction |
+| Realm Role | Specular Salience Transducer — full spectrum attention operator |
+| Power Interface | Specular Salience Transduction |
 | Current Location | Separated — never connects with Serra before Serra's solo arc begins; own path |
 | Current Allegiance | None yet |
 
@@ -39,7 +39,7 @@ status: active
 
 **Body language:** watches before speaking; slightly closed posture in groups, more open one-on-one; hair often becomes a shield (tucked behind an ear, over the shoulder, partly hiding her face); makes quick, accurate observations; lets others talk themselves into revealing things.
 
-**Realm:** her visual arc is about *choosing visibility* — early she backgrounds herself in practical, muted clothing and avoids attention; later she presents deliberately and uses visibility as a tool, learning to be seen without being consumed. When Mirror-Salience activates she doesn't glow; the room's emphasis shifts around her while she stays quiet.
+**Realm:** her visual arc is about *choosing visibility* — early she backgrounds herself in practical, muted clothing and avoids attention; later she presents deliberately and uses visibility as a tool, learning to be seen without being consumed. When Specular Salience activates she doesn't glow; the room's emphasis shifts around her while she stays quiet.
 
 ---
 
@@ -402,7 +402,7 @@ Mara changes what the momentum organizes around.
 - Do not reduce her to appearance-based resentment.
 - Do not make usefulness her only route to intimacy.
 - Do not make her silently expect perfect mind-reading without showing the consequences of that expectation.
-- Do not let Mirror-Salience become generic mind control.
+- Do not let Specular Salience become generic mind control.
 - Do not make her enjoy attention merely because she can command it.
 - Do not make Marcus the only person capable of seeing her accurately.
 - Keep Serra and Mara distinct: emotional field versus attention map, direct closure versus revoked access, momentum versus framing.
@@ -451,11 +451,11 @@ In the guild she was valued for this. Whether she was valued for much else is a 
 
 ## Realm Class — Psion (rare)
 
-Mara's Realm class is **Psion** (rare; `classes.md`) — earned through behavior. The Psion's method is *mind, will, perception, and force of intent* — exactly what the Mirror-Salience interface externalizes; her likely specialization sits in the Empath / perception-authorship lane (spec name TBD).
+Mara's Realm class is **Psion** (rare; `classes.md`) — earned through behavior. The Psion's method is *mind, will, perception, and force of intent* — exactly what the Specular Salience interface externalizes; her likely specialization sits in the Empath / perception-authorship lane (spec name TBD).
 
 Her Aetherfall **Rogue** lineage and **Trickster** instinct remain her *tactical* layer — misdirection, working from the edge — but her Realm **class** is Psion, not Rogue/Trickster. As a rare class it levels slower and costs more (see `core_rules.md` → Class Tiers), which fits a power that should feel hard-won. It also sharpens her central tension: the interface grew from wanting to *disappear*, but a Psion has to point will *outward.* Her arc is learning to do that. ⚠ Spec detail TBD. *(The earlier "Spellblade" and "Trickster-as-class" assignments are retired.)*
 
-## Interface — Mirror-Salience Transduction
+## Interface — Specular Salience Transduction
 
 ### Core Principle
 
@@ -624,7 +624,7 @@ In retrospect, her early-stage mirror-salience transduction was already active i
 
 ### SCENE-001 — Dead Hand's Overlooked Assassin (Earth canon)
 
-In SCENE-001 Mara is the overlooked half of **Dead Hand's double-assassin core** — present on the enemy roster but salience-suppressed (her Mirror-Salience already running as what she believes is ordinary "rogue skill"), so neither the reader nor Marcus registers her. She is the **dark/unlit roster slot Mathias flags** ("where's the other one?"). **Serra** is Dead Hand's late-arriving star rogue who duels Marcus on-page; **Mara never surfaces on-page** — keep this OFF-page, dossier-only. Serra and Mara are tandem partners on the **same team**. (404 is Marcus's team — Seb, Brent, Mathias, Kip. See `serra_hawthorne.md` for Serra's on-page duel; `marcus_serra_relationship.md` §4 for the locked team fact.)
+In SCENE-001 Mara is the overlooked half of **Dead Hand's double-assassin core** — present on the enemy roster but salience-suppressed (her Specular Salience already running as what she believes is ordinary "rogue skill"), so neither the reader nor Marcus registers her. She is the **dark/unlit roster slot Mathias flags** ("where's the other one?"). **Serra** is Dead Hand's late-arriving star rogue who duels Marcus on-page; **Mara never surfaces on-page** — keep this OFF-page, dossier-only. Serra and Mara are tandem partners on the **same team**. (404 is Marcus's team — Seb, Brent, Mathias, Kip. See `serra_hawthorne.md` for Serra's on-page duel; `marcus_serra_relationship.md` §4 for the locked team fact.)
 
 ---
 
@@ -665,7 +665,7 @@ Mara's solo path takes her into a status-by-display city-state (**Halcyon** — 
 
 After the court, Mara does not simply move to another city — she crosses the **Walking Grove**: a moving civilization living on and around an ancient **behemoth** so vast that parts of its body are terrain (forests along its back, villages between armored ridges, springs in hollows of its hide, shrines built into horn and plate). A mixed society — humans, elves, beast-speakers, healers, druids, stoneworkers, refugees — in negotiated dependence with a creature they do not control.
 
-The behemoth is sickening, and no one agrees why. The hidden threat survives by a kind of **salience suppression** — a region of the creature everyone has normalized ignoring (animals avoid one grove, children refuse a tunnel, fungi grow wrong, a stream runs warm, conversations about the area keep being forgotten). That makes it the **perfect foil for Mirror-Salience**: she doesn't detect it with a special scan — she notices the *pattern of collective neglect.* Her climax is making the whole community perceive the danger at once — *not making them believe something false; making them stop ignoring what is already true* — likely her first large-scale reframe. The behemoth's wound / migration / ley-connection then points her toward **Eriadne**.
+The behemoth is sickening, and no one agrees why. The hidden threat survives by a kind of **salience suppression** — a region of the creature everyone has normalized ignoring (animals avoid one grove, children refuse a tunnel, fungi grow wrong, a stream runs warm, conversations about the area keep being forgotten). That makes it the **perfect foil for Specular Salience**: she doesn't detect it with a special scan — she notices the *pattern of collective neglect.* Her climax is making the whole community perceive the danger at once — *not making them believe something false; making them stop ignoring what is already true* — likely her first large-scale reframe. The behemoth's wound / migration / ley-connection then points her toward **Eriadne**.
 
 *(Open — MA-02: nature of the hidden threat — mundane parasite, a Xyloryn seed, or thematically-rhyming-but-unrelated. Do **not** imply an N'hal link. Mark's call.)*
 
@@ -678,7 +678,7 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 ## Open Questions
 
 - What is her specific motivation for accepting Astria's offer?
-- How do the Psion class and Mirror-Salience interface integrate in combat? ⚠ Needs development
+- How do the Psion class and Specular Salience interface integrate in combat? ⚠ Needs development
 - What is the first situation that activates the transduction — what makes her discover it?
 - Does she connect with any of the cast before Book 1 ends?
 - What does she do with the power once she understands it? Does she use it proactively or resist?
@@ -694,14 +694,14 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 - Never connects with Serra in the Realm before Serra's solo arc
 - Power develops through use — no framework for it early, no name for it until later
 - Realm class: **Psion** (rare) — Rogue/Trickster demoted to Aetherfall + instinct layer; spec TBD (Spellblade & Trickster-as-class retired)
-- In the SCENE-001 Earth scrim she is the **overlooked half of Dead Hand's double-assassin core** (tandem with Serra, *same team*) — present on the enemy roster but salience-suppressed, her Mirror-Salience suppressing her own salience as what she thinks is rogue skill; neither Marcus (POV) nor anyone else surfaces her on-page. The reader inherits the blind spot. Introduction by absence. *(Reconciled: Mara and Serra are both Dead Hand — Serra is the late-arriving star rogue who duels Marcus on-page; Mara is the dark roster slot Mathias flags and never surfaces. 404 is Marcus's team — Seb, Brent, Mathias, Kip. The Mara↔Serra tandem is same-team guild history, on Earth and into the Realm.)*
+- In the SCENE-001 Earth scrim she is the **overlooked half of Dead Hand's double-assassin core** (tandem with Serra, *same team*) — present on the enemy roster but salience-suppressed, her Specular Salience suppressing her own salience as what she thinks is rogue skill; neither Marcus (POV) nor anyone else surfaces her on-page. The reader inherits the blind spot. Introduction by absence. *(Reconciled: Mara and Serra are both Dead Hand — Serra is the late-arriving star rogue who duels Marcus on-page; Mara is the dark roster slot Mathias flags and never surfaces. 404 is Marcus's team — Seb, Brent, Mathias, Kip. The Mara↔Serra tandem is same-team guild history, on Earth and into the Realm.)*
 - Does **not** meet Serra in the Realm before Eriadne
 - **Cosmic-tier role:** when the Xyloryn arrive, every swarm-form is a *readable fossil* — studying a corpse tells her what the swarm has already survived (`cosmology.md`)
-- Interface: Mirror-Salience Transduction — full system documented above
+- Interface: Specular Salience Transduction — full system documented above
 - The geneticist/community activist identity from the original story bible is retired
 - Her Earth work is creative — design, writing, or art; specifics TBD
-- Four-layer architecture: Earth (creative professional) → Aetherfall (Rogue/setup) → Realm (**Psion**) → Interface (Mirror-Salience Transduction)
+- Four-layer architecture: Earth (creative professional) → Aetherfall (Rogue/setup) → Realm (**Psion**) → Interface (Specular Salience Transduction)
 
 ---
 
-*Last updated: Realm class set to **Psion** (rare); Rogue/Trickster demoted to Aetherfall + instinct; Mirror-Salience fully detailed; four-layer architecture applied*
+*Last updated: Realm class set to **Psion** (rare); Rogue/Trickster demoted to Aetherfall + instinct; Specular Salience fully detailed; four-layer architecture applied*

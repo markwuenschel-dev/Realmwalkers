@@ -23,11 +23,11 @@ known_entities: [ayla]
 | Name | Earth Name | Realm Name | Role | Status | File |
 |---|---|---|---|---|---|
 | Marcus | Marcus Vye | Marcus (no alias; **Marc** to intimates) | Protagonist / Astria ML engineer (Earth) / Aetherfall Aspect / Mage → Riftwalker / Neurochromatic Eyes | Active | `major/mc.md` |
-| Serra Hawthorne | Serra Hawthorne | Serra (TBD / may keep Serra) | Romantic interest / Disruptor-Assassin / Warrior / Pressure-Severance Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
-| Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Threshold Cascade / Mirror-rival to Marcus | Active | `major/seb.md` |
-| Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Mirror-Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
+| Serra Hawthorne | Serra Hawthorne | Serra (TBD / may keep Serra) | Romantic interest / Disruptor-Assassin / Warrior / Severance Pulse Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
+| Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Pyric Blood / Mirror-rival to Marcus | Active | `major/seb.md` |
+| Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Specular Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
 | Mathias Sterling | Mathias Sterling | TBD | Aetherfall Ranger/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
-| Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Warden → Reckoner (Book-2 dir.) / Keystone Integrity (open) | Active — survives Book 1 | `major/brent.md` |
+| Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Warden → Reckoner (Book-2 dir.) / Piezoelectric Bones (open) | Active — survives Book 1 | `major/brent.md` |
 | Ayla | N/A | Ayla | Ancient celestial consciousness / Attached to Marcus's implant | Active — internal | `major/ayla.md` |
 
 ---
@@ -69,7 +69,7 @@ known_entities: [ayla]
 
 ## SCENE-001 Off-Page Mappings (dossier-only — keep OFF-page in the manuscript)
 
-- **Mara Valeria = the overlooked half of Dead Hand's double-assassin core** (tandem with Serra, *same team*). Present on the enemy roster but salience-suppressed (Mirror-Salience lowering her own salience) — the dark roster slot Mathias flags; never surfaced on-page in SCENE-001. Distinct from Serra, Dead Hand's late-arriving star rogue who duels Marcus on-page. (See `major/mara.md`.)
+- **Mara Valeria = the overlooked half of Dead Hand's double-assassin core** (tandem with Serra, *same team*). Present on the enemy roster but salience-suppressed (Specular Salience lowering her own salience) — the dark roster slot Mathias flags; never surfaced on-page in SCENE-001. Distinct from Serra, Dead Hand's late-arriving star rogue who duels Marcus on-page. (See `major/mara.md`.)
 
 ---
 

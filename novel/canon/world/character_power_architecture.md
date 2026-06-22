@@ -57,7 +57,7 @@ Realm classes develop through use, not through selection. The interface may labe
 Examples:
 - Marcus: Mage → Riftwalker (Legendary; planar-crossing) — *Veilwalker design retired*
 - Serra: Warrior
-- Mara: Psion (rare; synergizes with Mirror-Salience)
+- Mara: Psion (rare; synergizes with Specular Salience)
 - Brent: Warden → Reckoner (Book-2 dir.)
 - Seb: Warrior → Reaver (broker-granted early)
 
@@ -75,10 +75,12 @@ The interface often activates before the character understands it. It may have b
 
 Examples:
 - Marcus: Neurochromatic Eyes (interface — six stages → Prism Coherence/Fracture) **+** Eyes of Meszkhal (separate **Unique item** — interpretation/copycat)
-- Serra: Pressure-Severance Interface (commitment externalizes as environmental pressure; pressure finds weak structure; weak structure yields; two final paths — Coherence/Sanctuary or Saturation/Collapse)
-- Mara: Mirror-Salience Transduction (authorship of attention; biological anchor in mirror-neuron networks, salience network, social display systems; six stages from Felt Gaze to Sovereign Witness or Captive Frame)
-- Brent: Keystone Integrity (open — proposed mechanism: bone-piezoelectric)
-- Seb: Threshold Cascade (vago-adrenal self-consumption)
+- Serra: Severance Pulse Interface (commitment externalizes as environmental pressure; pressure finds weak structure; weak structure yields; two final paths — Coherence/Sanctuary or Saturation/Collapse)
+- Mara: Specular Salience Transduction (authorship of attention; biological anchor in mirror-neuron networks, salience network, social display systems; six stages from Felt Gaze to Sovereign Witness or Captive Frame)
+- Brent: Piezoelectric Bones (strain/load perception; root mechanotransduction / bone-piezoelectric; outward structural-read + inward adaptive body-states; outcomes Living Keystone / Ossified Bastion)
+- Seb: Pyric Blood (vago-adrenal self-consumption)
+
+**Shared mirror — Seb & Brent (two "load" interfaces, opposite directions).** Seb converts load into immediate output (*burns*; "I can still move"); Brent converts it into future resilience (*rebuilds*; "I should never fail that way again"). Their corruptions complement: **Sovereign** (*I paid, so I decide* — carrying too much for others) vs **Ossified Bastion** (*if it fails it must be rebuilt or removed* — valuing people by what they can carry). Healthy: **Steward** keeps people coordinated when collapse arrives; **Living Keystone** makes them harder to break afterward. Both ask *what does survival cost?* and answer differently.
 
 ---
 
@@ -92,7 +94,7 @@ A second lens — not a competing taxonomy, but a finer breakdown of how power a
 - **Base Class** — the Realm's core categorization (Warrior, Mage, Rogue, …).
 - **Specialization** — the refined role earned within a base class (Reaver, Troubleshooter, …).
 - **Multiclass** — secondary class access, where earned.
-- **Interface** — the personal metaphysical mutation (Neurochromatic Eyes, Pressure-Severance, …).
+- **Interface** — the personal metaphysical mutation (Neurochromatic Eyes, Severance Pulse, …).
 - **Affinity** — elemental/conceptual leanings.
 - **Items** — gear, including Uniques (e.g. the Eyes of Meszkhal).
 
@@ -108,14 +110,14 @@ The four layers do not need to align. The most interesting characters have tensi
 - Earth: self-made social anchor, fights for what she's earned
 - Aetherfall: disruptor assassin, goes through things
 - Realm class: Warrior, forward momentum
-- Interface: Pressure-Severance, commitment as environmental force
+- Interface: Severance Pulse, commitment as environmental force
 All four point in the same direction. Her power is coherent with her identity. The tension is internal — the cost of that much forward commitment.
 
 **Tension example (Mara):**
 - Earth: creative professional, observer, reserves herself
 - Aetherfall: setup rogue, stays invisible, makes others' moments possible
 - Realm class: Psion (rare) — requires pointing will outward
-- Interface: Mirror-Salience Transduction — authorship of perception
+- Interface: Specular Salience Transduction — authorship of perception
 The Realm class and the interface are in creative tension. The Psion requires her to point will outward and be present; the interface is rooted in her history of making herself invisible. Her arc is partly about reconciling those two things.
 
 **Displacement example (Marcus):**
@@ -132,10 +134,10 @@ The eyes are his interface; the Riftwalker class is his planar-crossing path. Th
 | Character | Earth Identity | Aetherfall Class | Realm Class | Interface |
 |---|---|---|---|---|
 | Marcus | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Riftwalker** (Legendary) | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
-| Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** | Pressure-Severance |
-| Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Mirror-Salience Transduction |
-| Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Threshold Cascade |
-| Brent Donovan | Civil engineer | Healer/Support | **Warden** → **Reckoner** (Book-2 dir.) | Keystone Integrity (open) |
+| Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** | Severance Pulse |
+| Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Specular Salience Transduction |
+| Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Pyric Blood |
+| Brent Donovan | Civil engineer | Healer/Support | **Warden** → **Reckoner** (Book-2 dir.) | Piezoelectric Bones |
 | Mathias Sterling | TBD (IT/infrastructure lean) | Ranger (Scout) | **Scout** | Enteric Lattice |
 | Ayla | N/A — celestial | N/A | N/A | Ancient celestial interface |
 

@@ -88,6 +88,19 @@ The likely entry point: Marcus's work in the ruined district creates overlap. Th
 
 ---
 
+## Conditions for Joining an Operation (A3-08 — locked)
+
+The Vultures are good-not-heroic and risk-averse; they do not fight sanctioned ops on morals alone. When Marcus pitches the namebinding-outpost raid (Ch 14, `NEW-007`), they join only on terms:
+
+1. **The op funds itself.** Payment comes from the outpost's seizable assets, not Marcus's pocket — he is pre-foothold and has nothing.
+2. **Capped risk with an exit.** Intel before they move; they commit to *the job*, not a last stand; they keep a standing right to pull out. They cannot replace the dead.
+3. **One job, not an oath.** Independence kept — no enlistment, no side, no ongoing obligation.
+4. **Their name stays off it.** They'll hit a local node but won't be seen declaring war on a registry chain that can reach them later.
+
+**Principle-fit lever:** survivors *want* to gut a namebinding operation — that's what moves a risk-averse company to yes, and it's how Marcus reads as complementary rather than competition (feeds IVF-01, A3-06).
+
+---
+
 ## The Name
 
 Iron Vultures. Dark humor that became identity. They were scavengers who learned to become something harder.

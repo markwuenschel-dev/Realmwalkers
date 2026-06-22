@@ -18,7 +18,7 @@
 | Origin | Large, outcome-obsessed family; civil-engineering background |
 | Guild Role (Earth) | Healer/Support — Aetherfall roster |
 | Realm Role | Warden (base) → Reckoner (specialization; Book-2 direction) — protects people/systems/boundaries, makes transferred cost visible and demands it be answered |
-| Power Interface | TBD — open (specialization mechanics still to define) |
+| Power Interface | Piezoelectric Bones — strain/load perception (root: mechanotransduction / bone-piezoelectric); reads external structure (outward) and remodels his own body (inward). Works in matter/structure, not the abstract system-layer. |
 | Current Location | Separated — alone for significant stretch, then finds a different group (not the Iron Vultures) |
 | Current Allegiance | Unknown group encountered in solo arc |
 
@@ -644,6 +644,31 @@ The Aetherfall healer identity does not automatically carry over. Skills must be
 
 Book 1 plants the behavior (he protects a crew/system under stress, identifies the real failure point, refuses heroic abstraction, sees who is carrying someone else's cost). The Reckoner *name* is trajectory, not a Book-1 ability unlock.
 
+### Interface — Piezoelectric Bones
+
+**Root: mechanotransduction (bone-piezoelectric).** His bones/tissues sense mechanical strain and answer it. His interface works on **matter and structure**, not the abstract system-layer the others read — which is exactly why he's the odd one out and the counter to an interface-adapting enemy. *"Say it in plain English — what breaks first, who pays."* made power.
+
+**Outward — structural strain-reading (crisis value):** load paths, fault lines, keystones; he reads the Myrmidon **as a structure, not an interface** (see finale — do not alter that beat).
+
+**Inward — adaptive remodeling:** *load → strain signal → cellular response → remodeling → adaptation.* Directed body **states** (Stage 4): **Fortress** (impact resistance up, mobility down) · **Power** (output up, recovery cost explodes) · **Endurance** (efficiency up, explosive strength down) · **Recovery** (repair up, combat down) · **Precision** (proprioception/joint stability up, raw force down). He decides **what his own body becomes under load** — never commands the outside world.
+
+**Cost:** nutrients, energy, time, mobility, recovery, eventually identity. Seb books debt by burning too hot; Brent by remodeling too aggressively.
+
+**Stage ladder:** 1 Strain Perception · 2 Directed Adaptation · 3 Adaptive Specialization · 4 **Extreme Remodeling** · 5 outcome.
+
+**Sentence:** *The body feels the load, then rebuilds itself around the truth of that load.*
+
+**Happy — Living Keystone:** *strength exists to preserve life, not prove worth* — controlled adaptive resilience without treating weakness as failure. *"I adapt so life can continue."*
+
+**Forbidden — Ossified Bastion:** *weakness is the problem* — every vulnerability a defect; optimizes himself past humanity; practical realism turned to contempt for fragility. *"I adapt until nothing breakable remains."*
+
+**Naming architecture** *(architecture for the path/state titles, biology for the mechanism):*
+- **Interface:** Piezoelectric Bones *(biology — the mechanism)*
+- **Coherence path** (happy Stage-5): **Living Keystone**
+- **Forbidden / overhardened path:** **Ossified Bastion** *(default; "Immutable Bastion" is the one-word alternate, still open)*
+- **Failure state:** **Sclerotic Marrow** *(distinct from the forbidden path — the interface itself breaking down: marrow hardens, can't generate, adaptability dies; collapse, not corruption)*
+- **Combat expression:** **Faultline Reckoning** *(reads the structural faultline and forces the reckoning — ties the outward structural-read to the Reckoner spec and his "make the cost answered" core)*
+
 ---
 
 ## Relationships
@@ -705,7 +730,7 @@ Estranged, unglamorous, practically competent, allergic to abstraction. No one w
 
 ### End Direction
 
-Book 1 leaves Brent somewhere in his solo arc — integrated into a group that needs him, developing his Realm class through use, beginning to understand that the Realm's invisible systems are real even if he cannot touch them. **He survives Book 1** (BR-01). The thematic point of his arc — *keeping others alive is not the same as being safe yourself* — is carried by survival, not death.
+Book 1 leaves Brent somewhere in his solo arc — integrated into a group that needs him, developing his Realm class through use, beginning to understand that the Realm's invisible systems are real even if he cannot touch them the way Marcus does — his own interface, Piezoelectric Bones, works in strain, matter, and structure rather than the abstract system-layer. **He survives Book 1** (BR-01). The thematic point of his arc — *keeping others alive is not the same as being safe yourself* — is carried by survival, not death.
 
 ### Mortality Status
 

@@ -165,7 +165,7 @@ Serra confirms the connection without letting it dictate her next move: *"I wasn
 - **Early False Rescue** — a POV chapter: Marcus affecting her, what she notices about his post-resurrection instability, why his presence is both grounding and dangerous.
 - **Child's capture / namebinding** — she grasps the system-level meaning before Marcus does; her interface direction begins aligning against imposed identity and ownership.
 - **Magistrate kill — Serra POV** — confrontation, deliberate killing, the registry-fragment discovery (a *cold* Book-2 lead), the realization that the magistrate is a replaceable node, the choice to keep going on her own. She leaves not because Marcus failed her but because she's found something she can't ignore. *(Her Book-1 solo arc is the dungeon; the network / Court-of-Seals hunt is Book 2; her interface activates at the Act-5 finale, not here.)*
-- **First solo chapter (the dungeon)** — the cost of leaving (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants). She continues anyway.
+- **First solo chapter (the dungeon)** — the cost of leaving (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants). **Vessa** — a 13-yo tunnel-runner who *is* young Serra (R-5 at thirteen: she doesn't ask people to stay) — is why she stays; recognizing herself in the child is the engine of the arc, and getting Vessa through the delve pays down the guilt of leaving Marcus (`vessa.md`). She continues anyway.
 - **Return toward convergence** — she returns at real cost (a lost lead, surrendered momentum, exposure); Marcus may never fully know what she sacrificed to come back.
 
 ---

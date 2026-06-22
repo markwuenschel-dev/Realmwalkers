@@ -335,7 +335,7 @@ At the highest levels, a soul becomes an anchor upon reality. Such beings are ex
 
 **"A soul determines not how hard you can strike reality, but how long reality remembers the strike."**
 
-*Worked anchors:* the namebound **elven child** (Act 3) is a **Strong** soul — a notable catch, harder than average; **Seb's brother** is a **Common** soul — routine for the Exchange to hold.
+*Worked anchors:* the namebound **elven child, Vaeli** (Act 3) is a **Strong** soul — a notable catch, harder than average; **Seb's brother** is a **Common** soul — routine for the Exchange to hold.
 
 ---
 
