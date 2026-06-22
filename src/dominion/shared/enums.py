@@ -69,3 +69,9 @@ class ReviewerKind(StrEnum):
     DIALOGUE = "dialogue"
     PACING = "pacing"
     VOICE = "voice"
+
+
+class SuggestionStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"

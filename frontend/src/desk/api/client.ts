@@ -1,6 +1,8 @@
 // HTTP client for the Writers' Desk. One thin fetch wrapper over the FastAPI boundary; every screen
 // reads real story state through here. Base URL comes from VITE_API_BASE (defaults to local dev).
 import type {
+  AnnotationIn,
+  AnnotationOut,
   BeatOut,
   BookIn,
   BookOut,
@@ -17,6 +19,9 @@ import type {
   SceneDetail,
   SceneOut,
   SceneVersionOut,
+  SuggestionIn,
+  SuggestionOut,
+  SuggestionStatus,
   ThreadBeatIn,
   ThreadIn,
   ThreadOut,
@@ -96,4 +101,18 @@ export const api = {
     http<ThreadOut>(`/threads/${threadId}/beats`, { method: "POST", body: JSON.stringify(body) }),
   deleteThread: (threadId: string) =>
     http<{ deleted: string }>(`/threads/${threadId}`, { method: "DELETE" }),
+
+  // --- scene markup: annotations + suggestions ----------------------------------------------------
+  annotations: (sceneId: string) => http<AnnotationOut[]>(`/scenes/${sceneId}/annotations`),
+  createAnnotation: (sceneId: string, body: AnnotationIn) =>
+    http<AnnotationOut>(`/scenes/${sceneId}/annotations`, { method: "POST", body: JSON.stringify(body) }),
+  deleteAnnotation: (id: string) =>
+    http<{ deleted: string }>(`/annotations/${id}`, { method: "DELETE" }),
+  suggestions: (sceneId: string) => http<SuggestionOut[]>(`/scenes/${sceneId}/suggestions`),
+  createSuggestion: (sceneId: string, body: SuggestionIn) =>
+    http<SuggestionOut>(`/scenes/${sceneId}/suggestions`, { method: "POST", body: JSON.stringify(body) }),
+  decideSuggestion: (id: string, status: SuggestionStatus) =>
+    http<SuggestionOut>(`/suggestions/${id}/decision`, { method: "POST", body: JSON.stringify({ status }) }),
+  deleteSuggestion: (id: string) =>
+    http<{ deleted: string }>(`/suggestions/${id}`, { method: "DELETE" }),
 };

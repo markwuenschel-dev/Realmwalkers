@@ -184,6 +184,40 @@ class ThreadBeat(Base):
     flag: Mapped[bool] = mapped_column(Boolean, default=False)  # marks an open continuity question
 
 
+class Annotation(Base):
+    """A human margin note pinned to a quote in a scene (Notes gutter + inline `anno` marker).
+
+    `quote` anchors the inline marker by substring (matches the Desk's tokenize() approach); null quote
+    is a scene-level note. Advisory only — never affects scene.status.
+    """
+    __tablename__ = "annotations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    author: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Suggestion(Base):
+    """A tracked-change proposal: replace `quote` with `new_text` (empty new_text = deletion).
+
+    Advisory until accepted; accepted suggestions are applied to the prose when the human approves the
+    scene (folded into `edited_prose`). `quote` anchors the inline `sugg` marker by substring.
+    """
+    __tablename__ = "suggestions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote: Mapped[str] = mapped_column(Text)
+    new_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    author: Mapped[str | None] = mapped_column(Text, nullable=True)
+    why: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="pending")  # pending | accepted | rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Approval(Base):
     """The human's verdict = authoritative gate AND future training label (DESIGN §11)."""
     __tablename__ = "approvals"

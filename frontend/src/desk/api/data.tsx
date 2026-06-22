@@ -9,6 +9,8 @@ import {
 } from "react";
 import { api } from "./client";
 import type {
+  AnnotationIn,
+  AnnotationOut,
   BeatOut,
   BookOut,
   CanonEntityOut,
@@ -22,6 +24,9 @@ import type {
   SceneDetail,
   SceneOut,
   SceneVersionOut,
+  SuggestionIn,
+  SuggestionOut,
+  SuggestionStatus,
   ThreadBeatIn,
   ThreadIn,
   ThreadOut,
@@ -54,6 +59,8 @@ export interface DeskData {
   versions: SceneVersionOut[];
   activeBeat: BeatOut | null;
   activeSceneId: string | null;
+  annotations: AnnotationOut[];
+  suggestions: SuggestionOut[];
   openSceneById: (id: string | null) => void;
 
   refreshAll: () => Promise<void>;
@@ -66,6 +73,11 @@ export interface DeskData {
   createThread: (body: ThreadIn) => Promise<void>;
   addThreadBeat: (threadId: string, body: ThreadBeatIn) => Promise<void>;
   deleteThread: (id: string) => Promise<void>;
+  addAnnotation: (body: AnnotationIn) => Promise<void>;
+  deleteAnnotation: (id: string) => Promise<void>;
+  addSuggestion: (body: SuggestionIn) => Promise<void>;
+  decideSuggestion: (id: string, status: SuggestionStatus) => Promise<void>;
+  deleteSuggestion: (id: string) => Promise<void>;
 }
 
 export function useDeskDataState(): DeskData {
@@ -88,6 +100,8 @@ export function useDeskDataState(): DeskData {
   const [versions, setVersions] = useState<SceneVersionOut[]>([]);
   const [activeBeat, setActiveBeat] = useState<BeatOut | null>(null);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
+  const [annotations, setAnnotations] = useState<AnnotationOut[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionOut[]>([]);
 
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
 
@@ -198,18 +212,24 @@ export function useDeskDataState(): DeskData {
       setDetail(null);
       setVersions([]);
       setActiveBeat(null);
+      setAnnotations([]);
+      setSuggestions([]);
       return;
     }
     (async () => {
       try {
         const d = await api.scene(id);
         setDetail(d);
-        const [vs, beats] = await Promise.all([
+        const [vs, beats, anns, sugs] = await Promise.all([
           api.sceneVersions(id),
           api.chapterBeats(d.chapter_id),
+          api.annotations(id),
+          api.suggestions(id),
         ]);
         setVersions(vs);
         setActiveBeat(beats.find((b) => b.scene_no === d.scene_no) ?? null);
+        setAnnotations(anns);
+        setSuggestions(sugs);
         setError(null);
       } catch (e) {
         fail(e);
@@ -328,13 +348,62 @@ export function useDeskDataState(): DeskData {
     }
   }, []);
 
+  // markup actions operate on the loaded scene; re-pull the affected list after each write
+  const addAnnotation = useCallback(async (body: AnnotationIn): Promise<void> => {
+    if (!activeSceneId) return;
+    try {
+      await api.createAnnotation(activeSceneId, body);
+      setAnnotations(await api.annotations(activeSceneId));
+    } catch (e) {
+      fail(e);
+    }
+  }, [activeSceneId]);
+
+  const deleteAnnotation = useCallback(async (id: string): Promise<void> => {
+    try {
+      await api.deleteAnnotation(id);
+      setAnnotations((as) => as.filter((a) => a.id !== id));
+    } catch (e) {
+      fail(e);
+    }
+  }, []);
+
+  const addSuggestion = useCallback(async (body: SuggestionIn): Promise<void> => {
+    if (!activeSceneId) return;
+    try {
+      await api.createSuggestion(activeSceneId, body);
+      setSuggestions(await api.suggestions(activeSceneId));
+    } catch (e) {
+      fail(e);
+    }
+  }, [activeSceneId]);
+
+  const decideSuggestion = useCallback(async (id: string, status: SuggestionStatus): Promise<void> => {
+    try {
+      const updated = await api.decideSuggestion(id, status);
+      setSuggestions((ss) => ss.map((s) => (s.id === updated.id ? updated : s)));
+    } catch (e) {
+      fail(e);
+    }
+  }, []);
+
+  const deleteSuggestion = useCallback(async (id: string): Promise<void> => {
+    try {
+      await api.deleteSuggestion(id);
+      setSuggestions((ss) => ss.filter((s) => s.id !== id));
+    } catch (e) {
+      fail(e);
+    }
+  }, []);
+
   return {
     loading, error,
     books, bookId, setBook,
     chapters, scenes, pending, manuscript, characters, canon, threads, jobs,
-    detail, versions, activeBeat, activeSceneId, openSceneById,
+    detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
     refreshAll, createBook, startRun, approveAndDraft, decide, resolveContinuity, draftNext,
     createThread, addThreadBeat, deleteThread,
+    addAnnotation, deleteAnnotation, addSuggestion, decideSuggestion, deleteSuggestion,
   };
 }
 

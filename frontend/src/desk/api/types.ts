@@ -171,3 +171,40 @@ export interface ThreadBeatIn {
   label?: string | null;
   flag?: boolean;
 }
+
+export interface AnnotationOut {
+  id: string;
+  scene_id: string;
+  version: number | null;
+  quote: string | null;
+  author: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface AnnotationIn {
+  note: string;
+  quote?: string | null;
+  author?: string | null;
+}
+
+export type SuggestionStatus = "pending" | "accepted" | "rejected";
+
+export interface SuggestionOut {
+  id: string;
+  scene_id: string;
+  version: number | null;
+  quote: string;
+  new_text: string | null;
+  author: string | null;
+  why: string | null;
+  status: SuggestionStatus;
+  created_at: string;
+}
+
+export interface SuggestionIn {
+  quote: string;
+  new_text?: string | null;
+  author?: string | null;
+  why?: string | null;
+}

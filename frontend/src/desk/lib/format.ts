@@ -21,3 +21,18 @@ export const statValue = (v: unknown): string => {
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
 };
+
+// Fold accepted tracked-changes into prose: replace the first literal occurrence of each `quote`
+// with its `new_text` (empty = deletion). Mirrors the substring anchoring the Desk uses for markers.
+export const applyAcceptedSuggestions = (
+  prose: string,
+  suggestions: { quote: string; new_text: string | null; status: string }[],
+): string => {
+  let out = prose;
+  for (const s of suggestions) {
+    if (s.status !== "accepted" || !s.quote || !out.includes(s.quote)) continue;
+    const repl = s.new_text ?? "";
+    out = out.replace(s.quote, () => repl); // function form avoids $-pattern surprises in new_text
+  }
+  return out;
+};

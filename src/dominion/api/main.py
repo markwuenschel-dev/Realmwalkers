@@ -14,6 +14,7 @@ from dominion.api.routers import (
     chapters,
     health,
     jobs,
+    markup,
     reviews,
     runs,
     scenes,
@@ -41,3 +42,4 @@ app.include_router(beats.router)
 app.include_router(jobs.router)
 app.include_router(world.router)
 app.include_router(threads.router)
+app.include_router(markup.router)

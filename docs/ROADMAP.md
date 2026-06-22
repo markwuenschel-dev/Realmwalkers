@@ -72,10 +72,13 @@ draft trigger. Verified: `tsc -b` clean; backend `ruff`/`mypy`/`pytest` (124) gr
 no `title` columns added — scene/chapter labels are derived from the prose snippet; `Thread` beats are a
 child `ThreadBeat` table, not JSONB; board drag-reorder dropped.
 
-**Remaining (the speculative write-surfaces):** human-authored **Annotations** and track-changes
-**Suggestions** are not built — the Notes tab shows reviewer critiques, and hand-edit (Editing mode →
-`edited_prose`) is the revision path. Continuity inline markers rely on the existing
-`payload.prose_value`; `reviewers/continuity.py` was **not** extended with `span`/`context_sentence`.
+**Also shipped — the write-surfaces:** human-authored **Annotations** (quote-anchored margin notes)
+and track-changes **Suggestions** (replace quote → new text; accept/reject; accepted ones fold into
+`edited_prose` on approve, so they reach canon through the same human gate). Inline `anno`/`sugg`
+markers render in the prose. Backend: `Annotation`/`Suggestion` models + the `markup` router.
+
+**Still open:** `reviewers/continuity.py` was **not** extended with `span`/`context_sentence` — inline
+`conflict` markers match on the existing `payload.prose_value`.
 
 Original three-PR plan, with status:
 
@@ -105,20 +108,22 @@ Original three-PR plan, with status:
 - [x] Wired `LedgerScreen` + Scene entity hover-cards (`makeCard` "entity"); entity markers assembled
   client-side from character names present in the prose.
 
-### PR-C — write surfaces: Threads, Annotations, Suggestions, continuity spans  🟡 threads only
+### PR-C — write surfaces: Threads, Annotations, Suggestions, continuity spans  🟡 markup shipped
 New models in `shared/models.py` (rerun `init_db.py`). These are net-new persistent domain concepts not
 in DESIGN today — proposed here, to fold into DESIGN §3/§15 once settled.
 - [x] **`Thread` + `ThreadBeat`** (a child beats table rather than JSONB) → `GET`/`POST /books/{id}/threads`,
   `PUT`/`DELETE /threads/{id}`, `POST /threads/{id}/beats`. Backs Ledger "Threads" (curatable from the UI).
-- [ ] **`Annotation`** (scene_id, version, quote, author, note) → `GET/POST/DELETE /scenes/{id}/annotations`.
-  *Not built* — the Notes tab shows reviewer critiques instead; no inline `anno` markers.
-- [ ] **`Suggestion`** (scene_id, version, old/quote, new_text, author, why, status) → suggestion endpoints.
-  *Not built* — Editing mode + `edited_prose` is the revision path; "Suggesting" mode is a placeholder.
+- [x] **`Annotation`** (scene_id, version, quote, author, note) → `GET`/`POST /scenes/{id}/annotations`,
+  `DELETE /annotations/{id}`. Backs margin notes (reading-view gutter) + inline `anno` markers.
+- [x] **`Suggestion`** (scene_id, version, quote, new_text, author, why, status) →
+  `GET`/`POST /scenes/{id}/suggestions`, `POST /suggestions/{id}/decision`, `DELETE`. Backs the
+  suggesting mode (accept/reject) + inline `sugg` track-changes; accepted ones fold into `edited_prose`
+  on approve (`desk/lib/format.ts:applyAcceptedSuggestions`).
 - [ ] **Continuity span:** extend `reviewers/continuity.py` with `span` + `context_sentence`. *Not done* —
   inline `conflict` markers match on the existing `payload.prose_value`; the card shows `context_sentence`
   when the reviewer already supplies it.
-- [x] `desk/data.ts` retired (deleted). Per-paragraph marker adapter ships entities + conflict spans;
-  annotation/suggestion markers await the models above.
+- [x] `desk/data.ts` retired (deleted). Per-paragraph marker adapter ships entities, conflict spans,
+  annotation quotes, and suggestion old-text via `tokenize` substring anchoring.
 
 ---
 

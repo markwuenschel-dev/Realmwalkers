@@ -24,7 +24,7 @@ React (Vite) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Pyth
 src/dominion/
   shared/     config, enums, async DB session, ORM schema (models.py), Pydantic DTOs (schemas.py)
   api/        FastAPI app + routers (health, scenes, reviews, runs, books, chapters, beats,
-              jobs [browser draft trigger], world [characters/canon], threads)
+              jobs [browser draft trigger], world [characters/canon], threads, markup [notes/suggestions])
   workers/    worker.py (claim→draft→exit), pipeline.py, router.py, context.py, oracle.py,
               budget.py, llm.py, enqueue.py
               specialists/  drafter + combat/sensory/dialogue enrichment passes
@@ -89,7 +89,7 @@ parallelism, deferred until throughput hurts); a failed enrichment pass still fa
 | World endpoints: `/books/{id}/characters`, `/books/{id}/canon`, `Thread`/`ThreadBeat` CRUD | |
 | Writers' Desk fully wired to the live API (no fixtures) — Inbox, Scene, Chapters, Versions, Manuscript, Ledger | |
 | In-browser gate-1 planner (create book → outline chapter → approve beats → draft) | |
-| _Not yet built:_ human Annotations + track-changes Suggestions (Notes shows reviewer critiques; hand-edit is the revision path) | |
+| Scene markup: human Annotations (margin notes) + track-changes Suggestions (accept/reject → folded into `edited_prose` on approve) | |
 
 ## Build phases (DESIGN §14)
 

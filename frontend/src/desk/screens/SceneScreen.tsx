@@ -7,7 +7,7 @@ import type { CardModel } from "../components/CanonCard";
 import { seg, tokenize } from "../prose";
 import type { Token } from "../prose";
 import type { Marker } from "../types";
-import { sceneLabel, statValue, wordCount } from "../lib/format";
+import { applyAcceptedSuggestions, sceneLabel, statValue, wordCount } from "../lib/format";
 import type { CritiqueOut, DecisionKind } from "../api/types";
 
 const KEEP_BTN =
@@ -58,11 +58,16 @@ export default function SceneScreen() {
   const critiques = cur?.critiques ?? [];
   const conflicts = critiques.filter(isConflict);
   const notes = critiques.filter((c) => !isConflict(c));
+  const annotations = data.annotations;
+  const suggestions = data.suggestions;
+  const pendingSugg = suggestions.filter((s) => s.status === "pending").length;
 
   const commit = async (kind: DecisionKind) => {
     if (!cur || committing) return;
     setCommitting(true);
-    const edited = desk.rawProse !== (cur.prose ?? "") ? desk.rawProse : null;
+    // fold accepted tracked-changes (on top of any hand-edit) into the canonical text
+    const finalProse = applyAcceptedSuggestions(desk.rawProse, suggestions);
+    const edited = finalProse !== (cur.prose ?? "") ? finalProse : null;
     const body =
       kind === "revise"
         ? { decision: "revise" as const, feedback: desk.feedback || null, edited_prose: edited }
@@ -116,7 +121,7 @@ export default function SceneScreen() {
     };
   };
 
-  // markers for a paragraph: character names (entity) + any conflict prose-value present (conflict)
+  // markers for a paragraph: entity names, conflict prose-values, annotation quotes, suggestion quotes
   const markersFor = (text: string): Marker[] => {
     const ms: Marker[] = [];
     for (const ch of data.characters) {
@@ -128,11 +133,39 @@ export default function SceneScreen() {
       const pv = pstr(c, "prose_value");
       if (pv && text.includes(pv)) ms.push({ find: pv, kind: "conflict", id: c.id });
     }
+    for (const s of suggestions) {
+      if (s.quote && text.includes(s.quote)) ms.push({ find: s.quote, kind: "sugg", id: s.id });
+    }
+    for (const a of annotations) {
+      if (a.quote && text.includes(a.quote)) ms.push({ find: a.quote, kind: "anno", id: a.id });
+    }
     return ms;
   };
 
   const renderToken = (tok: Token, key: string): ReactNode => {
     if (tok.kind === "text") return <span key={key} style={css("color:inherit")}>{tok.text}</span>;
+
+    if (tok.kind === "anno") {
+      const style = showMarks
+        ? "background:var(--accentSoft);border-bottom:1px dashed var(--accent);border-radius:2px;cursor:pointer;color:inherit"
+        : "color:inherit;cursor:pointer";
+      return <span key={key} onClick={() => desk.selectAnn(tok.id)} style={css(style)}>{tok.text}</span>;
+    }
+
+    if (tok.kind === "sugg") {
+      const s = suggestions.find((x) => x.id === tok.id);
+      const neu = s?.new_text ?? "";
+      if (s?.status === "accepted") return <span key={key} style={css("color:inherit")}>{neu}</span>;
+      if (s?.status === "rejected" || !suggesting) return <span key={key} style={css("color:inherit")}>{tok.text}</span>;
+      // pending + suggesting mode: show the tracked change
+      return (
+        <span key={key}>
+          <span style={css("text-decoration:line-through;color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,transparent)")}>{tok.text}</span>
+          {neu && <span style={css("text-decoration:underline;color:var(--good);background:color-mix(in srgb,var(--good) 13%,transparent)")}>{neu}</span>}
+        </span>
+      );
+    }
+
     if (tok.kind === "entity" || tok.kind === "conflict") {
       const hovered = desk.hoveredKey === key;
       const span =
@@ -150,6 +183,21 @@ export default function SceneScreen() {
       );
     }
     return <span key={key} style={css("color:inherit")}>{tok.text}</span>;
+  };
+
+  // gutter affordances (window prompts keep this a dev tool, like the Ledger thread curation)
+  const addNote = async () => {
+    const note = window.prompt("Margin note:");
+    if (!note?.trim()) return;
+    const quote = window.prompt("Anchor to a quote in the prose (optional, must match exactly):") || null;
+    await data.addAnnotation({ note: note.trim(), quote, author: "You" });
+  };
+  const addSuggestion = async () => {
+    const quote = window.prompt("Text to replace (must appear in the prose exactly):");
+    if (!quote?.trim()) return;
+    const neu = window.prompt("Replace with (leave blank to delete):") ?? "";
+    const why = window.prompt("Why? (optional)") || null;
+    await data.addSuggestion({ quote, new_text: neu, why, author: "You" });
   };
 
   let pkey = 0;
@@ -233,7 +281,11 @@ export default function SceneScreen() {
               })}
             </div>
             <div style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
-              {!editing ? "hover a name for canon" : "editing — your text becomes canonical on approve"}
+              {editing
+                ? "editing — your text becomes canonical on approve"
+                : suggesting
+                  ? <span style={css("color:var(--accent)")}>{pendingSugg} open suggestion{pendingSugg === 1 ? "" : "s"}</span>
+                  : "hover a name for canon"}
             </div>
           </div>
 
@@ -251,12 +303,60 @@ export default function SceneScreen() {
               <div style={css("flex:1 1 380px;min-width:330px")}>
                 {blocks.length ? blocks : <p style={css("color:var(--dim)")}>No prose.</p>}
               </div>
-              {suggesting && (
-                <div style={css("flex:0 1 244px")}>
-                  <span style={css("font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)")}>Suggestions</span>
-                  <p style={css("margin:8px 0 0;font-size:12px;color:var(--dim);line-height:1.5")}>No inline suggestions from the review passes. Switch to Editing to revise the text directly.</p>
+
+              <div style={css("flex:0 1 244px;display:flex;flex-direction:column;gap:11px;padding-top:2px")}>
+                {suggesting && (
+                  <div style={css("display:flex;flex-direction:column;gap:9px;margin-bottom:6px")}>
+                    <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+                      <span style={css("font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)")}>Suggestions</span>
+                      <button onClick={addSuggestion} style={css("background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:var(--ui)")}>+ add</button>
+                    </div>
+                    {suggestions.length === 0 && <p style={css("margin:0;font-size:11.5px;color:var(--dim);line-height:1.5")}>No tracked changes yet. Add one, or switch to Editing to revise directly.</p>}
+                    {suggestions.map((g) => (
+                      <div key={g.id} style={css(`background:var(--bg2);border:1px solid ${g.status === "accepted" ? "color-mix(in srgb,var(--good) 42%,var(--line))" : g.status === "rejected" ? "var(--line)" : "var(--accentLine)"};border-radius:9px;padding:11px 12px`)}>
+                        <div style={css("font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-bottom:6px")}>{g.author ?? "—"}</div>
+                        <div style={css("font-size:12.5px;line-height:1.4;margin-bottom:7px")}>
+                          <span style={css("text-decoration:line-through;color:var(--bad)")}>{g.quote}</span>{" "}
+                          <span style={css("color:var(--good)")}>{g.new_text?.trim() || "(delete)"}</span>
+                        </div>
+                        {g.why && <div style={css("font-size:11px;color:var(--dim);font-style:italic;margin-bottom:9px")}>{g.why}</div>}
+                        {g.status === "pending" && (
+                          <div style={css("display:flex;gap:6px")}>
+                            <button onClick={() => data.decideSuggestion(g.id, "accepted")} style={css("flex:1;padding:6px;border-radius:6px;border:1px solid color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 12%,var(--bg3));color:var(--good);font-size:11px;cursor:pointer;font-family:var(--ui)")}>Accept</button>
+                            <button onClick={() => data.decideSuggestion(g.id, "rejected")} style={css("flex:1;padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:11px;cursor:pointer;font-family:var(--ui)")}>Reject</button>
+                          </div>
+                        )}
+                        {g.status !== "pending" && (
+                          <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+                            <span style={css(`font-family:var(--mono);font-size:10px;color:${g.status === "accepted" ? "var(--good)" : "var(--dim)"}`)}>{g.status === "accepted" ? "✓ accepted" : "rejected"}</span>
+                            <button onClick={() => data.decideSuggestion(g.id, "pending")} style={css("background:none;border:none;color:var(--dim);font-size:10.5px;cursor:pointer")}>undo</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+                  <span style={css("font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)")}>Margin notes</span>
+                  <button onClick={addNote} style={css("background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:var(--ui)")}>+ note</button>
                 </div>
-              )}
+                {annotations.length === 0 && <p style={css("margin:0;font-size:11.5px;color:var(--dim);line-height:1.5")}>No notes. Add one, or click a name in the prose.</p>}
+                {annotations.map((a) => {
+                  const sel = desk.selectedAnn === a.id;
+                  return (
+                    <div key={a.id} onClick={() => desk.highlightAnn(a.id)}
+                      style={css(`background:${sel ? "var(--accentSoft)" : "var(--bg2)"};border:1px solid ${sel ? "var(--accentLine)" : "var(--line)"};border-radius:9px;padding:11px 13px;cursor:pointer`)}>
+                      {a.quote && <div style={css("font-family:var(--prose);font-size:12.5px;color:var(--accent);font-style:italic;margin-bottom:6px")}>"{a.quote}"</div>}
+                      <p style={css("margin:0 0 6px;font-size:12px;line-height:1.5;color:var(--ink)")}>{a.note}</p>
+                      <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+                        <span style={css("font-family:var(--mono);font-size:9.5px;color:var(--dim)")}>— {a.author ?? "you"}</span>
+                        <button onClick={(e) => { e.stopPropagation(); data.deleteAnnotation(a.id); }} style={css("background:none;border:none;color:var(--dim);font-size:10.5px;cursor:pointer")}>delete</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from dominion.shared.enums import Decision, GateMode
+from dominion.shared.enums import Decision, GateMode, SuggestionStatus
 
 
 class _ORM(BaseModel):
@@ -227,3 +227,44 @@ class ThreadBeatIn(BaseModel):
     scene_no: int
     label: str | None = None
     flag: bool = False
+
+
+# --- Scene markup: annotations (margin notes) + suggestions (tracked changes) ---------------------
+
+class AnnotationOut(_ORM):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    version: int | None = None
+    quote: str | None = None
+    author: str | None = None
+    note: str | None = None
+    created_at: datetime
+
+
+class AnnotationIn(BaseModel):
+    note: str
+    quote: str | None = None
+    author: str | None = None
+
+
+class SuggestionOut(_ORM):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    version: int | None = None
+    quote: str
+    new_text: str | None = None
+    author: str | None = None
+    why: str | None = None
+    status: str
+    created_at: datetime
+
+
+class SuggestionIn(BaseModel):
+    quote: str
+    new_text: str | None = None
+    author: str | None = None
+    why: str | None = None
+
+
+class SuggestionDecisionIn(BaseModel):
+    status: SuggestionStatus

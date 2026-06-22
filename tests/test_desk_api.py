@@ -9,9 +9,10 @@ from __future__ import annotations
 from fastapi import BackgroundTasks
 
 from dominion.api.routers import jobs as jobs_router
+from dominion.api.routers import markup as markup_router
 from dominion.api.routers import threads as threads_router
 from dominion.api.routers import world as world_router
-from dominion.shared.enums import JobStatus
+from dominion.shared.enums import JobStatus, SuggestionStatus
 from dominion.shared.models import (
     Book,
     CanonEntity,
@@ -19,8 +20,16 @@ from dominion.shared.models import (
     CharacterState,
     Job,
     Run,
+    Scene,
 )
-from dominion.shared.schemas import ThreadBeatIn, ThreadIn, ThreadUpdateIn
+from dominion.shared.schemas import (
+    AnnotationIn,
+    SuggestionDecisionIn,
+    SuggestionIn,
+    ThreadBeatIn,
+    ThreadIn,
+    ThreadUpdateIn,
+)
 
 # --- draft trigger (no DB) ------------------------------------------------------------------------
 
@@ -173,3 +182,54 @@ async def test_thread_crud_roundtrip(db_factory):
 
         await threads_router.delete_thread(created.id, s)
         assert await threads_router.list_threads(book.id, s) == []
+
+
+# --- markup: annotations + suggestions (DB) -------------------------------------------------------
+
+async def _scene(s) -> Scene:
+    book = Book(title="X")
+    s.add(book)
+    await s.flush()
+    ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+    s.add(ch)
+    await s.flush()
+    scene = Scene(chapter_id=ch.id, scene_no=1, version=2, status="pending_review",
+                  prose="He pressed his palm to the door.", prose_source="agent")
+    s.add(scene)
+    await s.flush()
+    return scene
+
+
+async def test_annotation_crud_stamps_version(db_factory):
+    async with db_factory() as s:
+        scene = await _scene(s)
+        out = await markup_router.create_annotation(
+            scene.id, AnnotationIn(note="echoes ch1", quote="palm", author="Vael"), s
+        )
+        assert out.note == "echoes ch1" and out.quote == "palm" and out.version == 2
+
+        listed = await markup_router.list_annotations(scene.id, s)
+        assert [a.id for a in listed] == [out.id]
+
+        await markup_router.delete_annotation(out.id, s)
+        assert await markup_router.list_annotations(scene.id, s) == []
+
+
+async def test_suggestion_lifecycle(db_factory):
+    async with db_factory() as s:
+        scene = await _scene(s)
+        out = await markup_router.create_suggestion(
+            scene.id, SuggestionIn(quote="palm", new_text="scarred palm", why="plant the scar"), s
+        )
+        assert out.status == "pending" and out.quote == "palm" and out.version == 2
+
+        decided = await markup_router.decide_suggestion(
+            out.id, SuggestionDecisionIn(status=SuggestionStatus.ACCEPTED), s
+        )
+        assert decided.status == "accepted"
+
+        listed = await markup_router.list_suggestions(scene.id, s)
+        assert len(listed) == 1 and listed[0].status == "accepted"
+
+        await markup_router.delete_suggestion(out.id, s)
+        assert await markup_router.list_suggestions(scene.id, s) == []
