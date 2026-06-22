@@ -51,6 +51,26 @@ async def test_flags_numeric_contradiction_as_hard(monkeypatch):
     assert flag.payload["prose_value"] == "7"
     assert flag.payload["ledger_value"] == "5"
     assert flag.payload["context_sentence"] == "His interface blinked LEVEL 7."
+    # the value isn't present verbatim in the scene prose ("...") -> span can't be located
+    assert flag.payload["span"] is None
+
+
+async def test_locates_span_and_derives_context_from_prose(monkeypatch):
+    """When the LLM omits context_sentence, the reviewer derives it (sentence-scoped) and pins the
+    value's char offsets in the prose — both deterministic, no LLM guessing."""
+    prose = "The corridor was cold. His interface blinked LEVEL 7 in the dark."
+
+    async def fake_complete(**kwargs):
+        return '[{"character":"Marcus","attribute":"level","value":"7"}]', Usage(10, 10)
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    flags = await continuity_reviewer.review(prose, _ctx({"Marcus": {"level": 5}}))
+
+    payload = flags[0].payload
+    assert payload is not None
+    start = prose.index("7")
+    assert payload["span"] == [start, start + 1]
+    assert payload["context_sentence"] == "His interface blinked LEVEL 7 in the dark."
 
 
 async def test_consistent_value_produces_no_flag(monkeypatch):

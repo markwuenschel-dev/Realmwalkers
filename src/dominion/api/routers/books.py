@@ -34,7 +34,7 @@ async def list_books(session: SessionDep) -> list[Book]:
 async def create_book(body: BookIn, session: SessionDep) -> Book:
     book = Book(title=body.title, premise=body.premise)
     session.add(book)
-    await session.flush()
+    await session.commit()
     return book
 
 

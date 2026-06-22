@@ -1,15 +1,16 @@
 import { css } from "../css";
 import { useDesk } from "../state";
+import { useDeskData } from "../api/data";
 import type { ThemeId } from "../theme";
 import type { Screen } from "../types";
 
-const SCREENS: { id: Screen; label: string; badge: string | null }[] = [
-  { id: "inbox", label: "Inbox", badge: "3" },
-  { id: "scene", label: "Scene", badge: null },
-  { id: "chapters", label: "Chapters", badge: null },
-  { id: "diff", label: "Versions", badge: null },
-  { id: "manuscript", label: "Manuscript", badge: null },
-  { id: "ledger", label: "Ledger", badge: null },
+const SCREENS: { id: Screen; label: string }[] = [
+  { id: "inbox", label: "Inbox" },
+  { id: "scene", label: "Scene" },
+  { id: "chapters", label: "Chapters" },
+  { id: "diff", label: "Versions" },
+  { id: "manuscript", label: "Manuscript" },
+  { id: "ledger", label: "Ledger" },
 ];
 
 const THEMES: { id: ThemeId; label: string; title: string }[] = [
@@ -20,6 +21,9 @@ const THEMES: { id: ThemeId; label: string; title: string }[] = [
 
 export default function TopBar() {
   const { screen, themeId, go, setTheme, togglePalette } = useDesk();
+  const { pending, jobs } = useDeskData();
+  const badgeFor = (id: Screen): string | null =>
+    id === "inbox" && pending.length ? String(pending.length) : null;
 
   return (
     <header style={css("position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;height:60px;background:var(--bg2b);border-bottom:1px solid var(--line)")}>
@@ -33,6 +37,7 @@ export default function TopBar() {
         <nav style={css("display:flex;gap:2px")}>
           {SCREENS.map((n) => {
             const active = screen === n.id;
+            const badge = badgeFor(n.id);
             return (
               <button
                 key={n.id}
@@ -40,13 +45,18 @@ export default function TopBar() {
                 style={css(`padding:7px 10px;border:none;border-radius:8px;cursor:pointer;font-family:var(--ui);font-size:13px;white-space:nowrap;background:${active ? "var(--accentSoft)" : "transparent"};color:${active ? "var(--ink)" : "var(--dim)"};font-weight:${active ? "500" : "400"}`)}
               >
                 {n.label}
-                {n.badge && (
-                  <span style={css("margin-left:7px;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:999px;background:var(--accent);color:var(--onAccent)")}>{n.badge}</span>
+                {badge && (
+                  <span style={css("margin-left:7px;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:999px;background:var(--accent);color:var(--onAccent)")}>{badge}</span>
                 )}
               </button>
             );
           })}
         </nav>
+        {jobs.running && (
+          <span style={css("display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--info)")}>
+            <span style={css("width:7px;height:7px;border-radius:50%;background:var(--info)")} />drafting…
+          </span>
+        )}
       </div>
       <div style={css("display:flex;align-items:center;gap:10px;flex:none")}>
         <div style={css("display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:999px")}>

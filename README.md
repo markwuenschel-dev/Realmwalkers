@@ -23,13 +23,16 @@ React (Vite) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Pyth
 ```
 src/dominion/
   shared/     config, enums, async DB session, ORM schema (models.py), Pydantic DTOs (schemas.py)
-  api/        FastAPI app + routers (health, scenes, reviews, runs)
+  api/        FastAPI app + routers (health, scenes, reviews, runs, books, chapters, beats,
+              jobs [browser draft trigger], world [characters/canon], threads, markup [notes/suggestions])
   workers/    worker.py (claim→draft→exit), pipeline.py, router.py, context.py, oracle.py,
               budget.py, llm.py, enqueue.py
               specialists/  drafter + combat/sensory/dialogue enrichment passes
               reviewers/    continuity (always) + pacing/voice
               memory/       canon_rag, summaries, ledger, seed (manuscript -> approved prior state)
-frontend/     Vite + React + TS review app (Inbox → Scene → continuity panel)
+frontend/     Vite + React + TS — the Writers' Desk (Inbox, Scene review, Chapters, Versions,
+              Manuscript, Ledger). All screens read live data via desk/api/ (client + polling data
+              layer); no fixtures. src/legacy/ is the superseded review app, kept for reference.
 scripts/      init_db.py
 tests/        deterministic router tests + import smoke
 docs/         DESIGN.md
@@ -50,7 +53,11 @@ cd frontend && npm install && npm run dev            # terminal 2: review app on
 
 A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker-once`, …) if you use `just`.
 
-> Drafting one scene works end to end: enqueue a beat
+> **The whole loop is now browser-driven — no terminal needed.** In the Writers' Desk: create a book,
+> outline a chapter (the planner proposes beats), approve them, and the API drafts each scene in a
+> single-flight background task (`POST /jobs/draft-next`); review/approve/revise from the Inbox. A draft
+> runs *only* when you act, so the "nothing runs between approvals" guarantee holds. The CLI path still
+> works for scripting: enqueue a beat
 > (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`) then
 > `python -m dominion.workers.worker --once`. The combat/sensory/dialogue enrichment passes and their
 > review lanes are live; a pass that fails still fails *soft* (`PassError`) — the drafted spine lands in
@@ -78,7 +85,11 @@ parallelism, deferred until throughput hurts); a failed enrichment pass still fa
 | Oracle read-authority over `character_state` | |
 | FastAPI: health, scenes, reviews (decision + continuity-resolve), runs, beats, chapters, books | |
 | Approve/deny/revise + hand-edit; ledger + summary hooks; `pause_each` auto-advance | |
-| React inbox, scene review, continuity panel, history, manuscript, plan | |
+| Browser draft trigger (`POST /jobs/draft-next` + `GET /jobs/status`) — single-flight background drain | |
+| World endpoints: `/books/{id}/characters`, `/books/{id}/canon`, `Thread`/`ThreadBeat` CRUD | |
+| Writers' Desk fully wired to the live API (no fixtures) — Inbox, Scene, Chapters, Versions, Manuscript, Ledger | |
+| In-browser gate-1 planner (create book → outline chapter → approve beats → draft) | |
+| Scene markup: human Annotations (margin notes) + track-changes Suggestions (accept/reject → folded into `edited_prose` on approve) | |
 
 ## Build phases (DESIGN §14)
 

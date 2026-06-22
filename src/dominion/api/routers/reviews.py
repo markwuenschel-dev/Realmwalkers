@@ -50,6 +50,7 @@ async def decide(scene_id: uuid.UUID, body: DecisionIn, session: SessionDep) -> 
         scene.status = SceneStatus.REVISION_REQUESTED
         next_job = await _enqueue_revision(session, scene, target_pass=body.target_pass)
 
+    await session.commit()  # land the verdict before responding
     return {"scene": str(scene.id), "status": str(scene.status), "next_job": str(next_job) if next_job else None}
 
 
@@ -85,7 +86,7 @@ async def resolve_continuity(
         stats[attribute] = _coerce(prose_value)
         row.stats_json = stats
         await session.delete(critique)   # mismatch handled — clear it from the panel
-        await session.flush()
+        await session.commit()
         return {"resolved": "ledger_updated", "job": None}
 
     if body.choice == "use_ledger":
@@ -100,6 +101,7 @@ async def resolve_continuity(
         scene.status = SceneStatus.REVISION_REQUESTED
         job = await _enqueue_revision(session, scene, target_pass=None)
         await session.delete(critique)   # superseded by the queued revision — clear it
+        await session.commit()
         return {"resolved": "revision_enqueued", "job": str(job) if job else None}
 
     if body.choice == "edit":

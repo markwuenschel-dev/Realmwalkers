@@ -1,39 +1,16 @@
 import type { Marker, MarkerKind } from "./types";
 
-// The drafter emits an aligned Unicode stat box inside the prose; it only reads as aligned in a
-// monospace context. box() rebuilds it, seg() splits prose into paragraphs + the [BOX] placeholder,
-// and tokenize() slices a paragraph around its annotation markers. All copied 1:1 from the prototype.
+// seg() splits prose into paragraphs; tokenize() slices a paragraph around its annotation markers
+// (entity names, continuity-flag spans) so they can be rendered as hover-cards / highlights.
 
-export function box(): string {
-  const inner = 46;
-  const rows: [string, string][] = [
-    ["Bearer", "Soren Valecrest"],
-    ["Level", "14  →  15"],
-    ["Mana", "412 / 480"],
-    ["Affinity", "Ember · Ward"],
-    ["Threadbound", "Lyra  (sealed)"],
-    ["Marks", "Oathkeeper, Emberborn"],
-  ];
-  const title = "ASCENDANT · THREAD-LEDGER";
-  const top = "┌" + ("─ " + title + " ").padEnd(inner, "─") + "┐";
-  const body = rows.map(([k, v]) => "│ " + (k.padEnd(14) + v).padEnd(inner - 2) + " │");
-  const bot = "└" + "─".repeat(inner) + "┘";
-  return [top, ...body, bot].join("\n");
-}
-
-export type Block = { kind: "box" } | { kind: "p"; text: string; n: number };
+export type Block = { kind: "p"; text: string; n: number };
 
 export function seg(text: string): Block[] {
   const blocks: Block[] = [];
-  const lines = text.split("\n");
   let idx = 0;
-  for (const ln of lines) {
+  for (const ln of text.split(/\n+/)) {
     const t = ln.trim();
     if (!t) continue;
-    if (t === "[BOX]") {
-      blocks.push({ kind: "box" });
-      continue;
-    }
     blocks.push({ kind: "p", text: t, n: idx++ });
   }
   return blocks;

@@ -21,5 +21,5 @@ async def update_beat(beat_id: uuid.UUID, body: BeatUpdateIn, session: SessionDe
     fields = body.model_dump(exclude_unset=True)
     for key, value in fields.items():
         setattr(beat, key, value)
-    await session.flush()
+    await session.commit()
     return beat

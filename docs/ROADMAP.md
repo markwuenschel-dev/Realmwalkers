@@ -54,21 +54,45 @@ The router already maps tags→passes in fixed order and the pipeline lands the 
 
 ---
 
-## Workstream 2 — Writers' Desk → live API (full parity)  ⬜
+## Workstream 2 — Writers' Desk → live API (full parity)  🟢 shipped
 
 Mount stays `frontend/src/desk/`. `tokenize()` anchors markers by **substring** (`indexOf`,
-`prose.ts:50`), so every inline marker (entity / conflict / annotation / suggestion) is located
-client-side from a quote the server supplies — no offset math. Suggested as three PRs.
+`prose.ts`), so every inline marker (entity / conflict) is located client-side from a quote the
+server supplies — no offset math.
 
-### PR-A — data foundation + already-backed screens  ⬜
-- [ ] `desk/api/client.ts` (reuse `legacy/api/client.ts` + DTOs `legacy/types.ts`) + `desk/api/adapters.ts`
-  (API DTO → `desk/types.ts` view-models).
-- [ ] Fetch plumbing in `desk/state.ts`: lightweight `useEffect`/`useState` hooks (no new deps; project
-  has no react-query) with loading/error/empty states + a selected-book context (API is multi-book;
-  default to first `GET /books`). Replace fixture imports screen-by-screen.
-- [ ] Schema: add nullable `title` to `Chapter` + `Scene` (`shared/models.py` + DTOs); client falls back
-  to `"Chapter N"`/`"Scene N"`. Needed by several screens. Rerun `scripts/init_db.py`.
-- [ ] Wire (endpoints all exist): **Inbox** ← `GET /scenes/pending` (STATS computed client-side);
+**Shipped (de-mocked, terminal-free loop):** `desk/data.ts` is **deleted**; every screen reads live
+data through `desk/api/client.ts` + the polling data layer `desk/api/data.tsx` (no react-query, no new
+deps). New backend: `POST /jobs/draft-next` + `GET /jobs/status` (browser-driven worker, single-flight
+background drain — drafting runs only when you act), `GET /books/{id}/characters`, `GET /books/{id}/canon`,
+and full `Thread`/`ThreadBeat` CRUD. The Planner (Inbox) closes gate 1 in-browser: create book → outline
+chapter → approve beats → draft. Approve/revise/resolve hit the API; revise + auto-advance auto-fire the
+draft trigger. Verified: `tsc -b` clean; backend `ruff`/`mypy`/`pytest` (124) green.
+
+**Deviations from the plan below (intentional):** used a polling data layer instead of `adapters.ts`;
+no `title` columns added — scene/chapter labels are derived from the prose snippet; `Thread` beats are a
+child `ThreadBeat` table, not JSONB; board drag-reorder dropped.
+
+**Also shipped — the write-surfaces:** human-authored **Annotations** (quote-anchored margin notes)
+and track-changes **Suggestions** (replace quote → new text; accept/reject; accepted ones fold into
+`edited_prose` on approve, so they reach canon through the same human gate). Inline `anno`/`sugg`
+markers render in the prose. Backend: `Annotation`/`Suggestion` models + the `markup` router.
+
+**Continuity span:** `reviewers/continuity.py` now adds a deterministic `span` (char offsets of the
+flagged value in the prose) and a sentence-scoped `context_sentence` fallback to the flag payload.
+Inline `conflict` markers stay substring-anchored on `payload.prose_value` (per the no-offset-math
+design); `span` is supplementary metadata + the conflict-card context is now reliably populated.
+
+Original three-PR plan, with status:
+
+### PR-A — data foundation + already-backed screens  ✅
+- [x] `desk/api/client.ts` (+ self-contained `desk/api/types.ts`) and a polling data layer
+  `desk/api/data.tsx` (replaces the proposed `adapters.ts`).
+- [x] Fetch plumbing as a `DeskDataProvider` context: loading/error/empty states + selected-book context
+  (defaults to first `GET /books`); polls `GET /jobs/status` and refreshes while drafting. Fixture imports
+  removed screen-by-screen; `desk/data.ts` deleted.
+- [x] No `title` columns added — `desk/lib/format.ts` derives a label from the prose snippet (falls back
+  to `"Scene N"`). Avoids a schema change.
+- [x] Wire (endpoints all exist): **Inbox** ← `GET /scenes/pending` (STATS computed client-side);
   **Scene core** ← `GET /scenes/{id}` (continuity rail from critiques whose payload has
   `prose_value`/`ledger_value`; Notes from non-continuity advisory critiques; Changes from
   `beat.expected_state_changes`; pipeline row from `passes_run` + per-reviewer severity — replaces the
@@ -79,29 +103,29 @@ client-side from a quote the server supplies — no offset math. Suggested as th
   `legacy/lib/diff.ts:lineDiff` (adapter pairs del+add into `"change"` rows); **Manuscript** ←
   `GET /books/{id}/manuscript`.
 
-### PR-B — read surfaces + Ledger + entity cards  ⬜
-- [ ] `GET /books/{id}/characters` ← `CharacterState.stats_json` (+ optional role) → entity hover-cards
-  + Ledger "Characters".
-- [ ] `GET /books/{id}/canon?kind=location|item|…` ← `CanonEntity` → Ledger "Locations"/"Items" + counts.
-- [ ] Wire `LedgerScreen` + Scene entity hover-cards (`makeCard` "entity", `SceneScreen.tsx:43`); entity
-  markers assembled client-side from character names present in the prose.
+### PR-B — read surfaces + Ledger + entity cards  ✅
+- [x] `GET /books/{id}/characters` ← `CharacterState.stats_json` (+ canon body + `is_pov`) → entity
+  hover-cards + Ledger "Characters".
+- [x] `GET /books/{id}/canon?kind=location|item|…` ← `CanonEntity` → Ledger sections + counts.
+- [x] Wired `LedgerScreen` + Scene entity hover-cards (`makeCard` "entity"); entity markers assembled
+  client-side from character names present in the prose.
 
-### PR-C — write surfaces: Threads, Annotations, Suggestions, continuity spans  ⬜
+### PR-C — write surfaces: Threads, Annotations, Suggestions, continuity spans  ✅
 New models in `shared/models.py` (rerun `init_db.py`). These are net-new persistent domain concepts not
 in DESIGN today — proposed here, to fold into DESIGN §3/§15 once settled.
-- [ ] **`Thread`** (book_id, name, kind, state, note, `beats` JSONB = `[{scene_no,label,flag}]`) →
-  `GET /books/{id}/threads` (+ `POST`/`PUT` curation). Backs Ledger "Threads" + thread map.
-- [ ] **`Annotation`** (scene_id, version, quote, author, note, created_at) → `GET/POST/DELETE
-  /scenes/{id}/annotations`. Backs Notes-tab margin notes + inline `anno` markers (quote-anchored).
-- [ ] **`Suggestion`** (scene_id, version, `old`/quote, new_text, author, why, status
-  pending|accepted|rejected) → `GET`/`POST /scenes/{id}/suggestions`, `POST /suggestions/{id}/decision`.
-  Backs Changes/suggesting mode + inline `sugg` markers.
-- [ ] **Continuity span:** extend `reviewers/continuity.py` to add `span` + `context_sentence` to the
-  flag payload (the `Critique.payload` docstring already promises these, `models.py:158`). Backs inline
-  `conflict` markers + the conflict-card context.
-- [ ] Wire suggesting mode (accept/reject), margin notes (create/select), and the full per-paragraph
-  marker adapter (entities + conflict spans + annotation quotes + suggestion old-text via `tokenize`).
-  Retire `desk/data.ts`.
+- [x] **`Thread` + `ThreadBeat`** (a child beats table rather than JSONB) → `GET`/`POST /books/{id}/threads`,
+  `PUT`/`DELETE /threads/{id}`, `POST /threads/{id}/beats`. Backs Ledger "Threads" (curatable from the UI).
+- [x] **`Annotation`** (scene_id, version, quote, author, note) → `GET`/`POST /scenes/{id}/annotations`,
+  `DELETE /annotations/{id}`. Backs margin notes (reading-view gutter) + inline `anno` markers.
+- [x] **`Suggestion`** (scene_id, version, quote, new_text, author, why, status) →
+  `GET`/`POST /scenes/{id}/suggestions`, `POST /suggestions/{id}/decision`, `DELETE`. Backs the
+  suggesting mode (accept/reject) + inline `sugg` track-changes; accepted ones fold into `edited_prose`
+  on approve (`desk/lib/format.ts:applyAcceptedSuggestions`).
+- [x] **Continuity span:** `reviewers/continuity.py` now emits `span` ([start,end] char offsets, located
+  deterministically) + a sentence-scoped `context_sentence` fallback. Inline `conflict` markers remain
+  substring-anchored on `payload.prose_value`; `span` is supplementary.
+- [x] `desk/data.ts` retired (deleted). Per-paragraph marker adapter ships entities, conflict spans,
+  annotation quotes, and suggestion old-text via `tokenize` substring anchoring.
 
 ---
 

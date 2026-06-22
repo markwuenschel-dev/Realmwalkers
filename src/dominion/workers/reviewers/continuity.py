@@ -75,6 +75,32 @@ def _parse(raw: str) -> list[dict[str, Any]]:
     return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
 
 
+_SENTENCE_BOUNDARY = ".!?\n"
+
+
+def _locate(prose: str, value: str) -> tuple[list[int] | None, str]:
+    """Anchor a flagged value in the prose, deterministically (never an LLM guess).
+
+    Returns ([start, end] char offsets of the value, the enclosing sentence) — so the panel can show
+    real context and the inline marker can resolve the exact occurrence. Both default empty/None when
+    the value isn't present verbatim (the model may have normalized it)."""
+    if not value:
+        return None, ""
+    idx = prose.find(value)
+    if idx < 0:
+        return None, ""
+    span = [idx, idx + len(value)]
+    start = idx
+    while start > 0 and prose[start - 1] not in _SENTENCE_BOUNDARY:
+        start -= 1
+    end = idx + len(value)
+    while end < len(prose) and prose[end] not in _SENTENCE_BOUNDARY:
+        end += 1
+    if end < len(prose):
+        end += 1  # keep the terminating punctuation
+    return span, prose[start:end].strip()
+
+
 class ContinuityReviewer:
     name = "continuity"
 
@@ -106,6 +132,9 @@ class ContinuityReviewer:
             prose_value = str(claim.get("value", ""))
             canon = ctx.ledger.get(character, {})
             if attribute in canon and str(canon[attribute]) != prose_value:
+                span, sentence = _locate(scene_prose, prose_value)
+                # Prefer the LLM's context sentence; fall back to the one we located in the prose.
+                context_sentence = str(claim.get("context_sentence", "")).strip() or sentence
                 flags.append(Flag(
                     reviewer=self.name,
                     severity=Severity.HARD,
@@ -116,7 +145,8 @@ class ContinuityReviewer:
                         "attribute": attribute,
                         "prose_value": prose_value,
                         "ledger_value": str(canon[attribute]),
-                        "context_sentence": str(claim.get("context_sentence", "")),
+                        "context_sentence": context_sentence,
+                        "span": span,
                     },
                 ))
         return flags

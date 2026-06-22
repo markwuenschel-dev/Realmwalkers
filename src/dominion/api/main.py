@@ -8,7 +8,19 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from dominion.api.routers import beats, books, chapters, health, reviews, runs, scenes
+from dominion.api.routers import (
+    beats,
+    books,
+    chapters,
+    health,
+    jobs,
+    markup,
+    reviews,
+    runs,
+    scenes,
+    threads,
+    world,
+)
 from dominion.shared.config import settings
 
 app = FastAPI(title="Dominion Realm API", version="0.1.0")
@@ -27,3 +39,7 @@ app.include_router(runs.router)
 app.include_router(books.router)
 app.include_router(chapters.router)
 app.include_router(beats.router)
+app.include_router(jobs.router)
+app.include_router(world.router)
+app.include_router(threads.router)
+app.include_router(markup.router)
