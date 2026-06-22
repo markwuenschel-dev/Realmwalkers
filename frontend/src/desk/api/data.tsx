@@ -117,7 +117,7 @@ export function useDeskDataState(): DeskData {
       api.characters(id).catch(() => []),
       api.canon(id).catch(() => []),
       api.threads(id).catch(() => []),
-      api.jobsStatus().catch(() => EMPTY_JOBS),
+      api.jobsStatus(id).catch(() => EMPTY_JOBS),
     ]);
     const chIds = new Set(chs.map((c) => c.id));
     setChapters(chs);
@@ -191,7 +191,7 @@ export function useDeskDataState(): DeskData {
       const id = bookRef.current;
       if (!id) return;
       try {
-        const js = await api.jobsStatus();
+        const js = await api.jobsStatus(id);
         setJobs(js);
         const was = jobsRef.current;
         const busy = js.running || js.queued > 0;
@@ -274,12 +274,12 @@ export function useDeskDataState(): DeskData {
 
   const draftNext = useCallback(async (): Promise<void> => {
     try {
-      const out = await api.draftNext();
+      const out = await api.draftNext(bookId ?? undefined);
       setJobs((j) => ({ ...j, queued: out.queued, running: out.running || j.running }));
     } catch (e) {
       fail(e);
     }
-  }, []);
+  }, [bookId]);
 
   const approveAndDraft = useCallback(
     async (chapterId: string, beatIds?: string[]): Promise<void> => {
