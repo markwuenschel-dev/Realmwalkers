@@ -75,7 +75,24 @@ export interface BeatOut {
   tags: string[] | null;
   expected_state_changes: Record<string, Record<string, unknown>> | null;
   knowledge_injections: string[] | null;
+  target_words: number | null;
   status: string;
+}
+
+export interface BeatUpdateIn {
+  beat_text?: string | null;
+  characters_present?: string[] | null;
+  tags?: string[] | null;
+  knowledge_injections?: string[] | null;
+  target_words?: number | null;
+}
+
+export interface BeatCreateIn {
+  scene_no: number;
+  beat_text?: string | null;
+  characters_present?: string[] | null;
+  tags?: string[] | null;
+  target_words?: number | null;
 }
 
 export interface RunStartIn {
@@ -83,6 +100,8 @@ export interface RunStartIn {
   chapter_no: number;
   pov: string;
   outline: string;
+  max_beats?: number | null;
+  target_words?: number | null;
 }
 
 export interface RunStartOut {

@@ -65,8 +65,10 @@ export interface DeskData {
 
   refreshAll: () => Promise<void>;
   createBook: (title: string) => Promise<void>;
-  startRun: (chapterNo: number, pov: string, outline: string) => Promise<RunStartOut | null>;
-  approveAndDraft: (chapterId: string) => Promise<void>;
+  startRun: (
+    chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
+  ) => Promise<RunStartOut | null>;
+  approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
   draftNext: () => Promise<void>;
@@ -251,10 +253,15 @@ export function useDeskDataState(): DeskData {
   }, []);
 
   const startRun = useCallback(
-    async (chapterNo: number, pov: string, outline: string): Promise<RunStartOut | null> => {
+    async (
+      chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
+    ): Promise<RunStartOut | null> => {
       if (!bookId) return null;
       try {
-        const out = await api.startRun({ book_id: bookId, chapter_no: chapterNo, pov, outline });
+        const out = await api.startRun({
+          book_id: bookId, chapter_no: chapterNo, pov, outline,
+          max_beats: maxBeats ?? null, target_words: targetWords ?? null,
+        });
         await loadCollections(bookId);
         return out;
       } catch (e) {
@@ -275,9 +282,9 @@ export function useDeskDataState(): DeskData {
   }, []);
 
   const approveAndDraft = useCallback(
-    async (chapterId: string): Promise<void> => {
+    async (chapterId: string, beatIds?: string[]): Promise<void> => {
       try {
-        await api.approveBeats(chapterId);
+        await api.approveBeats(chapterId, beatIds);
         await draftNext();
         await refreshAll();
       } catch (e) {

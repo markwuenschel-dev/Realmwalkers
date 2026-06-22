@@ -90,6 +90,7 @@ class Beat(Base):
     expected_state_changes: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # declared deltas
     knowledge_injections: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     beat_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_words: Mapped[int | None] = mapped_column(Integer, nullable=True)  # per-scene length guide
     status: Mapped[str] = mapped_column(Text, default="proposed")
 
 

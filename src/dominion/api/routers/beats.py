@@ -23,3 +23,13 @@ async def update_beat(beat_id: uuid.UUID, body: BeatUpdateIn, session: SessionDe
         setattr(beat, key, value)
     await session.commit()
     return beat
+
+
+@router.delete("/{beat_id}")
+async def delete_beat(beat_id: uuid.UUID, session: SessionDep) -> dict[str, str]:
+    beat = await session.get(Beat, beat_id)
+    if beat is None:
+        raise HTTPException(status_code=404, detail="beat not found")
+    await session.delete(beat)
+    await session.commit()
+    return {"deleted": str(beat_id)}

@@ -95,6 +95,7 @@ class SceneContext:
     knowledge_injections: list[str]
     voice_spec: str | None
     budget: TokenBudget
+    target_words: int | None = None                             # per-scene length guide for the drafter
     exemplars: list[str] = field(default_factory=list)
     dialogue_rules: str | None = None                           # authoritative dialogue source of truth
     canon: list[str] = field(default_factory=list)              # beat-scoped RAG over canon
@@ -142,6 +143,7 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         knowledge_injections=list(beat.knowledge_injections or []),
         voice_spec=profile.voice_spec if profile else None,
         budget=TokenBudget(max_tokens=job.token_budget),
+        target_words=beat.target_words,
         # General craft is always-on; per-character profiles are scoped to the POV + cast on the page.
         dialogue_rules=_load_dialogue_rules([chapter.pov, *(beat.characters_present or [])]),
     )

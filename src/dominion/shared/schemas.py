@@ -86,6 +86,7 @@ class BeatOut(_ORM):
     tags: list[str] | None = None
     expected_state_changes: dict[str, Any] | None = None
     knowledge_injections: list[str] | None = None
+    target_words: int | None = None
     status: str
 
 
@@ -96,6 +97,23 @@ class BeatUpdateIn(BaseModel):
     tags: list[str] | None = None
     expected_state_changes: dict[str, Any] | None = None
     knowledge_injections: list[str] | None = None
+    target_words: int | None = None
+
+
+class BeatCreateIn(BaseModel):
+    """POST body to add a beat by hand (a scene the planner didn't propose)."""
+    scene_no: int
+    beat_text: str | None = None
+    characters_present: list[str] | None = None
+    tags: list[str] | None = None
+    expected_state_changes: dict[str, Any] | None = None
+    knowledge_injections: list[str] | None = None
+    target_words: int | None = None
+
+
+class ApproveBeatsIn(BaseModel):
+    """Optional POST body for approve: restrict to a subset of beats (those to draft now)."""
+    beat_ids: list[uuid.UUID] | None = None
 
 
 class ChapterOut(_ORM):
@@ -108,13 +126,18 @@ class ChapterOut(_ORM):
 
 
 class RunStartIn(BaseModel):
-    """POST body to start a run: outline a chapter; the planner proposes its beats (gate 1)."""
+    """POST body to start a run: outline a chapter; the planner proposes its beats (gate 1).
+
+    Re-running for the same chapter re-proposes (replaces the chapter's still-proposed beats).
+    """
     book_id: uuid.UUID
     chapter_no: int
     pov: str
     outline: str
     gate_mode: GateMode = GateMode.PAUSE_EACH
     token_budget: int | None = None
+    max_beats: int | None = None       # cap how many scenes the planner proposes
+    target_words: int | None = None    # default per-scene length stamped on each proposed beat
 
 
 class RunStartOut(BaseModel):
