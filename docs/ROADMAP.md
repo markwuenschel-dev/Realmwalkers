@@ -54,7 +54,7 @@ The router already maps tags→passes in fixed order and the pipeline lands the 
 
 ---
 
-## Workstream 2 — Writers' Desk → live API (full parity)  🟡 core shipped
+## Workstream 2 — Writers' Desk → live API (full parity)  🟢 shipped
 
 Mount stays `frontend/src/desk/`. `tokenize()` anchors markers by **substring** (`indexOf`,
 `prose.ts`), so every inline marker (entity / conflict) is located client-side from a quote the
@@ -77,8 +77,10 @@ and track-changes **Suggestions** (replace quote → new text; accept/reject; ac
 `edited_prose` on approve, so they reach canon through the same human gate). Inline `anno`/`sugg`
 markers render in the prose. Backend: `Annotation`/`Suggestion` models + the `markup` router.
 
-**Still open:** `reviewers/continuity.py` was **not** extended with `span`/`context_sentence` — inline
-`conflict` markers match on the existing `payload.prose_value`.
+**Continuity span:** `reviewers/continuity.py` now adds a deterministic `span` (char offsets of the
+flagged value in the prose) and a sentence-scoped `context_sentence` fallback to the flag payload.
+Inline `conflict` markers stay substring-anchored on `payload.prose_value` (per the no-offset-math
+design); `span` is supplementary metadata + the conflict-card context is now reliably populated.
 
 Original three-PR plan, with status:
 
@@ -108,7 +110,7 @@ Original three-PR plan, with status:
 - [x] Wired `LedgerScreen` + Scene entity hover-cards (`makeCard` "entity"); entity markers assembled
   client-side from character names present in the prose.
 
-### PR-C — write surfaces: Threads, Annotations, Suggestions, continuity spans  🟡 markup shipped
+### PR-C — write surfaces: Threads, Annotations, Suggestions, continuity spans  ✅
 New models in `shared/models.py` (rerun `init_db.py`). These are net-new persistent domain concepts not
 in DESIGN today — proposed here, to fold into DESIGN §3/§15 once settled.
 - [x] **`Thread` + `ThreadBeat`** (a child beats table rather than JSONB) → `GET`/`POST /books/{id}/threads`,
@@ -119,9 +121,9 @@ in DESIGN today — proposed here, to fold into DESIGN §3/§15 once settled.
   `GET`/`POST /scenes/{id}/suggestions`, `POST /suggestions/{id}/decision`, `DELETE`. Backs the
   suggesting mode (accept/reject) + inline `sugg` track-changes; accepted ones fold into `edited_prose`
   on approve (`desk/lib/format.ts:applyAcceptedSuggestions`).
-- [ ] **Continuity span:** extend `reviewers/continuity.py` with `span` + `context_sentence`. *Not done* —
-  inline `conflict` markers match on the existing `payload.prose_value`; the card shows `context_sentence`
-  when the reviewer already supplies it.
+- [x] **Continuity span:** `reviewers/continuity.py` now emits `span` ([start,end] char offsets, located
+  deterministically) + a sentence-scoped `context_sentence` fallback. Inline `conflict` markers remain
+  substring-anchored on `payload.prose_value`; `span` is supplementary.
 - [x] `desk/data.ts` retired (deleted). Per-paragraph marker adapter ships entities, conflict spans,
   annotation quotes, and suggestion old-text via `tokenize` substring anchoring.
 
