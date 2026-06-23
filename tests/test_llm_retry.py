@@ -27,9 +27,11 @@ class _FakeMessages:
     def __init__(self, script: list[object]) -> None:
         self._script = list(script)
         self.calls = 0
+        self.last_kwargs: dict[str, object] = {}
 
-    async def create(self, **_kwargs: object) -> object:
+    async def create(self, **kwargs: object) -> object:
         self.calls += 1
+        self.last_kwargs = kwargs
         item = self._script.pop(0)
         if isinstance(item, Exception):
             raise item
@@ -90,6 +92,18 @@ async def test_gives_up_and_reraises_after_max_retries(monkeypatch):
 
     assert fake.messages.calls == 4            # initial attempt + 3 retries
     assert sleeps == [1.0, 2.0, 4.0]           # one backoff per retry, exponential
+
+
+async def test_system_prompt_is_sent_as_a_cached_block(monkeypatch):
+    # Prompt caching: the stable system prefix goes up as an ephemeral-cache text block, so it's
+    # cached + cheap across calls. The user message stays a plain string (it varies per scene).
+    fake, _ = _patch(monkeypatch, [_ok_response()])
+    await llm.complete(model="m", system="SYSTEM PREFIX", user="u", max_tokens=100,
+                       budget=TokenBudget(max_tokens=1000))
+
+    system = fake.messages.last_kwargs["system"]
+    assert system == [{"type": "text", "text": "SYSTEM PREFIX", "cache_control": {"type": "ephemeral"}}]
+    assert fake.messages.last_kwargs["messages"] == [{"role": "user", "content": "u"}]
 
 
 async def test_rate_limit_and_server_errors_are_retried(monkeypatch):
