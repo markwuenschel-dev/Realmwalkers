@@ -1,8 +1,8 @@
 import { Fragment, useState } from "react";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
-import { seg } from "../prose";
 import { wordCount } from "../lib/format";
+import ProseBlocks from "../components/ProseBlocks";
 
 // Shunn standard manuscript format counts ~250 words to a page.
 const WORDS_PER_PAGE = 250;
@@ -53,10 +53,18 @@ export default function ManuscriptScreen() {
     URL.revokeObjectURL(url);
   };
 
+  // Word export (book typography, page-numbered) — docx-js is lazy-loaded so it stays out of the
+  // main bundle and only downloads when you click.
+  const exportDocx = async () => {
+    if (!manuscript) return;
+    const docx = await import("../lib/docx");
+    await docx.saveDocx(docx.buildManuscriptDoc(manuscript), docx.docxFilename(manuscript.title || "manuscript"));
+  };
+
   return (
     <div>
       {/* toolbar: page estimate + export (left) · reading-layout control (right) */}
-      <div style={css("display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:66rem;margin:0 auto 6px;padding:0 4px")}>
+      <div className="no-print" style={css("display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:66rem;margin:0 auto 6px;padding:0 4px")}>
         <div style={css("display:flex;align-items:center;gap:12px")}>
           {hasProse && (
             <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
@@ -66,6 +74,10 @@ export default function ManuscriptScreen() {
           )}
           <button onClick={exportMarkdown} disabled={!hasProse} title="Download the approved manuscript as Markdown"
             style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Markdown</button>
+          <button onClick={exportDocx} disabled={!hasProse} title="Download as Word (.docx) — book format, page-numbered"
+            style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Word</button>
+          <button onClick={() => window.print()} disabled={!hasProse} title="Print, or save as a PDF — chapters break to new pages (enable the print dialog's headers/footers for page numbers)"
+            style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⎙ Print / PDF</button>
         </div>
         <div style={css("display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px")}>
           {LAYOUTS.map((l) => {
@@ -78,8 +90,8 @@ export default function ManuscriptScreen() {
         </div>
       </div>
 
-      <article style={css(`max-width:${WIDTH[layout]};margin:0 auto;padding:20px 0 60px`)}>
-        <div style={css("text-align:center;margin-bottom:64px;padding-bottom:40px;border-bottom:1px solid var(--line)")}>
+      <article className="ms-print" style={css(`max-width:${WIDTH[layout]};margin:0 auto;padding:20px 0 60px`)}>
+        <div className="ms-title" style={css("text-align:center;margin-bottom:64px;padding-bottom:40px;border-bottom:1px solid var(--line)")}>
           <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:20px")}>Book One</div>
           <h1 style={css("margin:0 0 14px;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.01em;color:var(--ink)")}>{manuscript?.title ?? "—"}</h1>
           <div style={css("font-family:var(--prose);font-style:italic;font-size:16px;color:var(--dim)")}>the approved manuscript, in reading order</div>
@@ -93,7 +105,7 @@ export default function ManuscriptScreen() {
           const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
           if (scenes.length === 0) return null;
           return (
-            <section key={ch.chapter_no} style={css("margin-bottom:54px")}>
+            <section key={ch.chapter_no} className="ms-chapter" style={css("margin-bottom:54px")}>
               {/* chapter header — spans the full measure, even in two-column */}
               <div style={css("text-align:center;margin-bottom:30px")}>
                 <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:9px")}>Chapter {ch.chapter_no}</div>
@@ -108,11 +120,9 @@ export default function ManuscriptScreen() {
                   <Fragment key={sc.scene_no}>
                     {si > 0 && (
                       // scene break: end of one scene / start of the next
-                      <div aria-hidden style={css("text-align:center;color:var(--dim);font-size:15px;letter-spacing:.6em;margin:1.5em 0;break-inside:avoid")}>⁂</div>
+                      <div aria-hidden className="ms-scenebreak" style={css("text-align:center;color:var(--dim);font-size:15px;letter-spacing:.6em;margin:1.5em 0;break-inside:avoid")}>⁂</div>
                     )}
-                    {seg(sc.prose ?? "").map((b, i) => (
-                      <p key={`${sc.scene_no}-${i}`} style={css(`font-family:var(--prose);font-size:${proseSize};line-height:1.9;color:var(--ink);margin:0 0 1.15em;text-align:justify;hyphens:auto`)}>{b.text}</p>
-                    ))}
+                    <ProseBlocks text={sc.prose ?? ""} proseSize={proseSize} />
                   </Fragment>
                 ))}
               </div>
