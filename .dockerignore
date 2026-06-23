@@ -1,0 +1,14 @@
+# Keep the build context small + deterministic (deps are reinstalled in the image).
+.git
+.venv
+**/node_modules
+frontend/dist
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.pyc
+.env
+.env.*
+tests
+docs

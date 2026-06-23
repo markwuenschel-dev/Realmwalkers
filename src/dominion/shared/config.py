@@ -1,14 +1,30 @@
 """Runtime settings, loaded from environment / .env (DESIGN §9, §10)."""
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DOMINION_", env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://dominion:dominion@localhost:5432/dominion"
+    # Also accept the bare DATABASE_URL a host like Railway injects, and normalize whatever scheme it
+    # uses (postgres:// or postgresql://) to the async driver the app actually connects with.
+    database_url: str = Field(
+        default="postgresql+asyncpg://dominion:dominion@localhost:5432/dominion",
+        validation_alias=AliasChoices("DOMINION_DATABASE_URL", "DATABASE_URL"),
+    )
+
+    @field_validator("database_url")
+    @classmethod
+    def _async_driver(cls, v: str) -> str:
+        for scheme in ("postgresql+asyncpg://",):
+            if v.startswith(scheme):
+                return v
+        for scheme in ("postgresql://", "postgres://"):
+            if v.startswith(scheme):
+                return "postgresql+asyncpg://" + v[len(scheme):]
+        return v
 
     # Anthropic (the key uses its own conventional env var, not the DOMINION_ prefix)
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
