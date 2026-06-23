@@ -11,7 +11,7 @@ import uuid
 from fastapi import BackgroundTasks
 from sqlalchemy import select
 
-from dominion.api.routers import reviews
+from dominion.api.routers import reviews, scenes
 from dominion.shared.config import settings
 from dominion.shared.enums import BeatStatus, Decision, GateMode, JobKind, RunStatus, SceneStatus
 from dominion.shared.models import (
@@ -24,7 +24,7 @@ from dominion.shared.models import (
     Run,
     Scene,
 )
-from dominion.shared.schemas import DecisionIn
+from dominion.shared.schemas import DecisionIn, ExemplarIn
 from dominion.workers import set_exemplars as set_exemplars_mod
 from dominion.workers.context import assemble_context
 from dominion.workers.memory import canon_rag, summaries
@@ -234,3 +234,32 @@ def test_parse_ids_rejects_garbage():
     assert set_exemplars_mod._parse_ids(f"{good}, {good}") == [good, good]
     with pytest.raises(SystemExit):
         set_exemplars_mod._parse_ids("not-a-uuid")
+
+
+# --- exemplar toggle endpoint (the in-editor button's backend) ------------------------------------
+
+async def test_exemplar_toggle_endpoint_round_trips(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)  # pov Marcus, no profile yet
+        sc = await _scene(s, ch, 1, prose="Some prose.", status=SceneStatus.APPROVED)
+        await s.commit()
+
+        # enable: creates the POV profile and adds the scene id; scene_detail reflects it
+        on = await scenes.set_exemplar(sc.id, ExemplarIn(enabled=True), s)
+        assert on == {"scene": str(sc.id), "is_exemplar": True}
+        prof = (await s.execute(select(PovProfile).where(PovProfile.character == "Marcus"))).scalar_one()
+        assert prof.exemplar_scene_ids == [str(sc.id)]
+        assert (await scenes.scene_detail(sc.id, s)).is_exemplar is True
+
+        # idempotent enable doesn't duplicate
+        await scenes.set_exemplar(sc.id, ExemplarIn(enabled=True), s)
+        prof = (await s.execute(select(PovProfile).where(PovProfile.character == "Marcus"))).scalar_one()
+        assert prof.exemplar_scene_ids == [str(sc.id)]
+
+        # disable: removes it, clears the list to None, detail flips back
+        off = await scenes.set_exemplar(sc.id, ExemplarIn(enabled=False), s)
+        assert off == {"scene": str(sc.id), "is_exemplar": False}
+        prof = (await s.execute(select(PovProfile).where(PovProfile.character == "Marcus"))).scalar_one()
+        assert prof.exemplar_scene_ids is None
+        assert (await scenes.scene_detail(sc.id, s)).is_exemplar is False
