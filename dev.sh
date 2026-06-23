@@ -15,12 +15,14 @@ trap cleanup EXIT INT TERM
 
 [ -d frontend/node_modules ] || ( cd frontend && npm install )
 
-echo "[dev] API    -> http://localhost:8000"
-echo "[dev] inbox  -> http://localhost:5173    (Ctrl-C stops everything)"
+# Bind to 0.0.0.0 so the API and inbox are reachable on the LAN (machine IP / hostname), not just
+# localhost. Vite prints the Network URL; the client derives the API host from wherever it's loaded.
+echo "[dev] API    -> http://0.0.0.0:8000   (reachable at http://<machine-ip>:8000)"
+echo "[dev] inbox  -> http://0.0.0.0:5173   (reachable at http://<machine-ip>:5173 — Ctrl-C stops everything)"
 echo "[dev] worker -> drafting queued beats every 2s"
 echo
 
-uv run uvicorn dominion.api.main:app --reload --port 8000 &
+uv run uvicorn dominion.api.main:app --reload --host 0.0.0.0 --port 8000 &
 uv run python -m dominion.workers.worker --loop &
-npm --prefix frontend run dev &
+npm --prefix frontend run dev -- --host 0.0.0.0 &
 wait -n

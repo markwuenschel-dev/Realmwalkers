@@ -31,7 +31,12 @@ import type {
   ThreadOut,
 } from "./types";
 
-const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+// API base resolution, in order: explicit VITE_API_BASE override → in a production build, same-origin
+// (relative ""), because FastAPI serves this bundle itself, so there's no separate host/CORS/localhost
+// → in dev, whatever host the page was loaded from on :8000 (so a LAN IP works, not just localhost).
+const BASE =
+  import.meta.env.VITE_API_BASE ??
+  (import.meta.env.PROD ? "" : `http://${window.location.hostname}:8000`);
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
