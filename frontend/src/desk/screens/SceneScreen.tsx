@@ -402,6 +402,13 @@ export default function SceneScreen() {
                 <span key={p} style={css("font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:3px 9px")}>{p}</span>
               )) : <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>—</span>}
             </div>
+            <div style={css("height:1px;background:var(--line);margin:12px 0")} />
+            <button
+              onClick={() => data.setExemplar(!cur.is_exemplar)}
+              title={`Few-shot future ${chapter?.pov ?? "POV"} drafts on this scene's prose so the voice matches yours`}
+              style={css(`width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:8px;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;border:1px solid ${cur.is_exemplar ? "color-mix(in srgb,var(--accent) 50%,var(--line))" : "var(--line)"};background:${cur.is_exemplar ? "var(--accentSoft)" : "var(--bg3)"};color:${cur.is_exemplar ? "var(--accent)" : "var(--dim)"}`)}>
+              {cur.is_exemplar ? "★ Voice exemplar — drafts learn from this" : "☆ Use as voice exemplar"}
+            </button>
           </div>
 
           <div style={css("display:flex;gap:2px;padding:3px;background:var(--bg3);border:1px solid var(--line);border-radius:999px")}>

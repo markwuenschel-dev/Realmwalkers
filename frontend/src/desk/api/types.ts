@@ -25,6 +25,7 @@ export interface SceneOut {
 
 export interface SceneDetail extends SceneOut {
   critiques: CritiqueOut[];
+  is_exemplar: boolean; // curated voice exemplar for this POV?
 }
 
 export interface SceneVersionOut extends SceneOut {
