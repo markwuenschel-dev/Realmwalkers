@@ -1,8 +1,10 @@
 # Export & Formatting — Design Note
 
-**Status:** Phase 1 in progress. Plan for exporting Realmwalkers content to **Markdown, DOCX,
-and PDF**, with page numbers, table/box rendering, and a shared styling standard. Uses the
-**MarketMind DOCX Formatting Specification** as the polish bar for document-style output.
+**Status:** Phases 1–4 done — **Markdown, PDF, and DOCX export all ship.** Page numbers, table/box
+rendering, and the MarketMind styling standard are in. Remaining/optional: a server-side WeasyPrint
+PDF route (headless page numbers) and a Shunn submission profile (deferred — needs an author field).
+Export runs entirely client-side (no new backend export route); the canon-doc viewer (Domain B) ships
+too — `GET /library` serves the on-disk Markdown, rendered through the same `ProseBlocks` renderer.
 
 ## Decisions (resolved 2026-06-22)
 - **Domain:** book typography for the manuscript **and** reuse the docx-js/MarketMind spec to
@@ -11,8 +13,35 @@ and PDF**, with page numbers, table/box rendering, and a shared styling standard
   callout styling. Runs client-side in the React app (or a small Node step) and downloads a `.docx`.
 - **"Manuscript page":** **Shunn submission format** (~250 wpp) **+ in-app page estimate**.
 - **Phase 1:** ✅ in-app Shunn page estimate + Markdown export (no new deps) — done in
-  `ManuscriptScreen.tsx`. Next: Phase 2 = docx-js DOCX (book format + Shunn profile + MarketMind
-  table/callout rendering); Phase 3 = PDF (print-CSS for the manuscript).
+  `ManuscriptScreen.tsx`.
+- **Phase 2:** ✅ in-app Markdown rendering (no new deps) — `prose.parseBlocks`/`parseInline` (pure
+  parsers: paragraphs, headings, lists, blockquote callouts, GFM pipe tables, fenced code,
+  stat-window box-art, rules; inline `code`/**bold**/*em*/links) + the reusable `ProseBlocks`
+  renderer. Stat windows now keep their monospace alignment instead of being flattened into justified
+  prose; tables render with the accent header / hairline borders (the in-app side of the MarketMind
+  table style).
+- **Phase 3 (PDF):** ✅ manuscript PDF via the browser's **Save as PDF** (no deps) — a print
+  stylesheet in `index.css` (`@page` margins, `.ms-chapter { break-before: page }`, title page,
+  black-on-white, widow/orphan + `break-inside` control; app chrome carries `.no-print`) and a
+  **Print / PDF** button in the manuscript toolbar (`window.print()`). Page numbers are real in CSS
+  Paged engines (the `@bottom-center` margin box, honoured by WeasyPrint/Prince); in Chrome use the
+  print dialog's "Headers and footers" toggle. A server-side WeasyPrint route can later render the
+  *same HTML* for headless, page-numbered PDFs.
+- **Canon viewer (Domain B):** ✅ `GET /library` + `/library/{path}` (`api/routers/docs.py`,
+  read-only, sandboxed to `novel/{canon,planning,style}`, `.md` only, no traversal) → the **Canon**
+  screen (`DocsScreen.tsx`) renders any doc through `ProseBlocks`. Blockquotes become tone-coloured
+  **callouts** (GitHub admonitions + the `[LOCK]/[WORKING]/[OPEN]/[OVERRIDE]` status tags).
+- **Phase 4 (DOCX):** ✅ docx-js DOCX export (`desk/lib/docx.ts`), client-side and **lazy-loaded** so
+  it stays out of the main bundle. The emitter consumes the same `parseBlocks`/`parseInline` AST as the
+  on-screen renderer ("many emitters, one parse"): **Domain A** — the manuscript as book typography
+  (title page, chapters on fresh pages, justified serif prose, scene-break `⁂`, monospace stat windows,
+  page-numbered footer) via the **⬇ Word** button in the manuscript toolbar; **Domain B** — any canon
+  doc with MarketMind styling (navy-header tables, accent callout boxes from blockquotes, code/stat
+  panels, lists, inline formatting, page numbers) via the **⬇ Word** button in the Canon viewer.
+- **Deferred:** the **Shunn submission profile** (monospace, double-spaced, `Surname / TITLE / page#`
+  running head) — same content, different page setup, but the running head needs an **author/surname**
+  field the data model doesn't have yet. Server-side **WeasyPrint** PDF (headless, real page numbers
+  from the same HTML) is the other natural follow-on.
 
 ---
 
@@ -22,9 +51,10 @@ and PDF**, with page numbers, table/box rendering, and a shared styling standard
 |---|---|
 | Render manuscript in-browser | ✅ Title page, chapter headers, scene-break `⁂`, chapter-end `✦`, layout toggle (Page/Wide/Two-column) — all React + inline CSS |
 | Render "boxes" (stat windows, canon cards) | ✅ but **browser-only** — they're React/CSS `<div>`s, nothing exists outside the DOM |
-| Render Markdown tables | ❌ The Manuscript view uses a trivial paragraph splitter (`prose.seg`); canon docs (full of tables) aren't surfaced in-app at all |
-| Export to Markdown / DOCX / PDF | ❌ **None.** No export code anywhere; no `python-docx` / `docx-js` / `weasyprint` / `reportlab` installed |
-| Page numbers | ❌ It's a scrolling web page — no pagination concept |
+| Render Markdown tables | ✅ (Phase 2) `prose.parseBlocks`/`parseInline` + `ProseBlocks` render GFM tables, lists, callouts, headings, fenced code, stat-window box-art, and inline formatting — in both the Manuscript view and the new **Canon** viewer |
+| Surface canon / planning / style docs in-app | ✅ `GET /library` (read-only, sandboxed) → the Canon screen renders them through `ProseBlocks` |
+| Export to Markdown / DOCX / PDF | **Markdown** ✅ (Phase 1) · **PDF** ✅ (Phase 3, browser Save-as-PDF) · **DOCX** ✅ (Phase 4, docx-js — manuscript book format + canon MarketMind styling, lazy-loaded) |
+| Page numbers | ✅ in print: real in CSS Paged engines (`@bottom-center`), or via Chrome's print headers/footers. (No in-*app* pagination — it's still a scrolling page; the Shunn estimate covers that.) |
 | Stack for adding this | FastAPI/Python backend (server-side gen), React/Vite frontend (client-side gen), `httpx` available |
 
 **Bottom line:** the app *displays* formatted content well but cannot *produce a document*. Export is
@@ -70,11 +100,15 @@ conversion-rules table, same title page / TOC / typography.
 - **Domain B:** canon docs are *already* Markdown on disk — "export" = bundle/serve them (optionally
   resolve includes, strip internal-only `[anchor TBD]` notes).
 
-### DOCX — two engine options
+### DOCX — engine chosen: docx-js ✅
+Shipped client-side via **`docx`** (docx-js, v9). The emitter is `desk/lib/docx.ts`; it reuses the
+`parseBlocks`/`parseInline` AST. Lazy-loaded (`await import("../lib/docx")`) so the ~100 KB-gzip docx
+chunk only downloads on click. (Original options kept below for the record.)
+
 | Option | Where | Pros | Cons |
 |---|---|---|---|
-| **`python-docx`** | Backend (Python) | Lives with the data; one stack; tables/shading/borders/fields all doable | Page-number/TOC fields need raw OXML; reimplements MarketMind from scratch |
-| **`docx-js`** (reuse) | Frontend or small Node step | **Port the MarketMind spec verbatim** (it *is* docx-js); first-class `TableOfContents`, `PageNumber` | Adds a JS doc path; runs client-side or needs a Node service |
+| **`docx-js`** ✅ chosen | Frontend (lazy chunk) | Reuses the AST; `PageNumber`/tables/shading first-class; no backend route, no new server dep | Adds a client JS chunk (lazy-loaded, so off the critical path) |
+| **`python-docx`** | Backend (Python) | Lives with the data; one stack | Page-number/TOC fields need raw OXML; would reimplement the AST emitter server-side |
 
 Either supports everything the MarketMind spec needs: **tables** (cell shading `w:shd`, borders
 `w:tcBorders`, navy header), **callout boxes** (single-cell table + thick left accent border + fill),
@@ -93,6 +127,11 @@ zone structure.
 the view we already render). Use **LibreOffice conversion** only if Domain-B PDFs must byte-match the
 DOCX.
 
+> ✅ **Done (Phase 3):** the browser-`print()` half of the HTML+CSS-Paged path ships now — print
+> stylesheet in `index.css` + the manuscript **Print / PDF** button. The server-side **WeasyPrint**
+> half (headless, real `@bottom-center` page numbers, no print-dialog step) is the natural follow-on
+> and reuses the *same* `ProseBlocks` HTML.
+
 ---
 
 ## 4. Page numbers / "manuscript page"
@@ -109,9 +148,10 @@ DOCX.
 ## 5. Table & box rendering plan
 
 One renderer per surface, driven by a single parser (see §6):
-- **Web (in-app):** render Markdown tables as styled HTML `<table>` (navy header, thin borders);
-  render ```stat windows as boxed "system windows"; render Domain-B callouts as colored boxes. (Needs
-  a Markdown renderer in the frontend — none today.)
+- **Web (in-app):** ✅ (Phase 2 + canon viewer) `prose.parseBlocks` + `ProseBlocks` render Markdown
+  tables as styled HTML `<table>` (accent header, hairline borders), stat windows as monospace "system
+  windows" (the backend's box-drawing art, kept aligned), and Domain-B **callout boxes** (tone-coloured
+  left-accent blocks from blockquotes — GitHub admonitions + `[LOCK]/[WORKING]/[OPEN]/[OVERRIDE]`).
 - **DOCX:** tables → native tables with header shading + `#CCCCCC` borders (MarketMind table spec);
   callouts/stat-windows → single-cell tables with left accent border + fill.
 - **PDF:** same as web via the print stylesheet (HTML+CSS path), so tables/boxes are identical to
@@ -138,28 +178,29 @@ emitter's Domain-B mode. The block-type detection (leading `❖ ⚠ ⛔ ✅` + k
 PASS/Gate:`) is reusable.
 
 ### Suggested sequencing
-1. **Markdown export** + **in-app page-count estimate** — trivial, immediate value.
-2. **In-app Markdown rendering** (tables + stat-window boxes) — unblocks viewing canon docs *and* the
-   PDF path (same HTML).
-3. **Manuscript PDF** via print-CSS (`@page`, page numbers, scene/chapter formatting).
-4. **DOCX** — choose engine (§3); start with whichever domain you prioritize.
-5. **DOCX→PDF parity** (LibreOffice) only if required.
+1. ✅ **Markdown export** + **in-app page-count estimate** — trivial, immediate value.
+2. ✅ **In-app Markdown rendering** (tables, lists, callouts, stat-window boxes, inline) —
+   `prose.parseBlocks`/`parseInline` + `ProseBlocks`.
+3. ✅ **Manuscript PDF** via print-CSS (`@page`, page breaks, book typography) — browser Save-as-PDF.
+   (Follow-on: server-side WeasyPrint for headless, auto-page-numbered PDFs from the same HTML.)
+3b. ✅ **Canon-doc viewer** — `GET /library` + the Canon screen (callouts from blockquotes).
+4. ✅ **DOCX** — docx-js, both domains (manuscript book format + canon MarketMind styling).
+5. **DOCX→PDF parity** (LibreOffice) only if required. ← optional / not pursued
 
 ---
 
-## 7. Decisions needed
-- **Which domain first** — the **novel manuscript** (book typography) or the **canon/design docs**
-  (MarketMind-style)? Different formatting systems; pick the one you need sooner.
-- **DOCX engine** — **`python-docx`** (server, one stack) or **reuse `docx-js`** (port the MarketMind
-  converter directly)?
-- **"Manuscript page" meaning** — real page numbers, **Shunn** submission format, an in-app estimate,
-  or all three?
-- **MarketMind styling scope** — Domain-B docs only (recommended), or do you want any of it on the
-  novel too?
-- **New dependency tolerance** — OK to add `python-docx` / `weasyprint`? Is **LibreOffice on the
-  server** acceptable for exact DOCX→PDF, or keep deps light?
-- **Where exports run** — server-side endpoint (`GET /books/{id}/export?format=docx`) vs client-side
-  download in the React app.
+## 7. Decisions (resolved)
+- **Which domain first** — built **both**: manuscript (book typography) and canon docs (MarketMind).
+- **DOCX engine** — **docx-js** (`docx` v9), client-side, lazy-loaded. Not `python-docx`.
+- **"Manuscript page" meaning** — in-app **Shunn estimate** (Phase 1) + **real page numbers** on
+  export (Phase 3 PDF + Phase 4 DOCX footer). The full **Shunn submission profile** is deferred
+  (needs an author/surname field).
+- **MarketMind styling scope** — **Domain-B docs only** (tables/callouts/code); the novel keeps book
+  typography.
+- **New dependency tolerance** — kept the **backend dep-free** (no `python-docx`/`weasyprint`/
+  LibreOffice); the only new dep is client-side `docx`, lazy-loaded off the critical path.
+- **Where exports run** — **client-side** download in the React app (no `GET …/export` route). A
+  server-side WeasyPrint route stays available as a follow-on for headless PDFs.
 
 ---
 
