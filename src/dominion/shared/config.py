@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # Bounded execution
     scene_token_budget: int = 40_000
     scene_time_budget_s: int = 300
+    # The gate-1 plan-call runs synchronously inside the POST /runs request, so an unbounded LLM
+    # call leaves the browser spinning forever. Bound it: on timeout the request fails cleanly
+    # (the author retries) instead of hanging with no feedback.
+    plan_time_budget_s: int = 90
 
     # LLM transient-error retry (DESIGN §10): retry rate-limit / 5xx / overloaded / connection errors
     # with exponential backoff (base * 2**attempt). Non-transient errors (auth, 400/403/404) never retry.

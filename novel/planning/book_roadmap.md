@@ -28,7 +28,7 @@ Beats: wake in the void → voice sends them toward Eriadne → scattered → Ma
 
 ## Act 3 — First Threads / False Rescue
 **Purpose:** the Realm becomes socially and morally real; the Marcus/Serra dynamic is established then interrupted. *(Locked sequence — see `scene_queue.md`.)*
-Beats: survival/water → road → **finds Serra (both lost)** → caravan + toll-gang + **first Eyes-interface use** → Iron Vultures → travel (Serra's **Warrior fundamentals** surface; False Rescue system explained) → **Maera's warmth trap** → magistrate-guild + **namebinding** of Vaeli (the elven child) → pursuit + pitch → **the operation + the split** (Serra kills the magistrate, learns he's a node not the source, takes a registry-fragment, leaves toward a larger faction's seat) → Marcus travels on with the Vultures.
+Beats: survival/water → road → **finds Serra (both lost)** → caravan + **charter inspectors** (false authority) + **first Eyes-interface use** → Iron Vultures → travel (Serra's **Warrior fundamentals** surface; False Rescue system explained) → **Maera's warmth trap** → magistrate-guild + **namebinding** of Vaeli (the elven child) → pursuit + pitch → **the operation + the split** (Serra kills the magistrate, learns he's a node not the source, takes a registry-fragment, leaves toward a larger faction's seat) → Marcus travels on with the Vultures.
 
 ## Act 4 — Eriadne
 **Purpose:** Marcus reaches the thread city and becomes useful before powerful. *(Planned.)*

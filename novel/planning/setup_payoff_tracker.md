@@ -59,7 +59,7 @@
 | WF-002 | Eriadne as thread city | active | Roads/factions/ley/ruins/paths converge. |
 | WF-003 | Ruins on Eriadne's outskirts | active | Marcus's ruin-fringe foothold; settlement hook. |
 | WF-004 | Ley-line knot under the ruins | active | Xyloryn/N'hal/factions want it for different reasons. |
-| WF-005 | Xyloryn assimilate interface *expression* | active | First diagnostic attack reveals sampling; finale = invasion attempt. |
+| WF-005 | Xyloryn assimilate interface *expression* | active | First diagnostic **signal / residue** reveals something sampling from the other side; **finale Myrmidon = first embodied breach.** |
 | WF-006 | N'hal denature meaning | planned (**Book 2+**) | Reality horror, not an army. **Not referenced on-page in Book 1** — series-level seed only. |
 | WF-007 | Xyloryn = failed immune response | needs_decision | **Unconfirmed** — do not write as canon. |
 | WF-008 | Iron Vultures: opportunistic survivors | active | Guides/brokers; later friction over the ruin-fringe's desperate people. |
@@ -92,7 +92,7 @@
 |---|---|---|---|---|---|
 | MS-T1 | Falling into step | 8 | seeded | Earth shorthand survives the apocalypse; first banter at zero resources | *finding each other is easy* → **Ch 30**: the place that meant they could always find each other now means one left and the other didn't follow |
 | MS-T2 | The control group (fruit bit) | 9–11 | seeded | She eats first — "now you have a control group" / "I'm expanding the sample"; commits before he finishes analyzing; funny, freeing | *she acts before he can communicate* → **Ch 26–28**: she lands the kill before his warning completes, gambling his life; seeds *"you don't need complete understanding before deciding"* |
-| MS-T3 | He sees the weak point, she makes it fail | 9 | seeded | First Realm tandem (toll-gang) — his read + her movement, the click | *the tandem itself* → **Ch 26–28**: same mechanism, lethal |
+| MS-T3 | He sees the weak point, she makes it fail | 9 | seeded | First Realm tandem (the charter inspectors) — his read + her movement, the click | *the tandem itself* → **Ch 26–28**: same mechanism, lethal |
 | MS-T4 | The watch rotation (fake procedural dispute) | 10–11 | seeded | Marcus invents a system; Serra claims compliance via creative interpretation; both lethally serious about nothing — against the Vultures' cold transactionalism | *the private "us" built against people who treat everything as a deal* → when Serra herself becomes transactional about leaving (**Ch 15**, then **Ch 30**) |
 | MS-T5 | The quiet after (decompression + height ritual + future fragment) | 11 | seeded | She anchors the group all day, then goes quiet beside him — the one place she doesn't perform; they idly imagine Earth food / the room each would choose; **the height ritual is established here** | *decompression-beside-him; the height as refuge* → **Ch 30**: the refuge becomes the place she can't be seen in |
 | MS-T6 | "You don't owe anyone staying" | 12–14 | seeded | Marcus frees Serra from the Vultures' transactional pull — permission to leave a thing that doesn't deserve her | *the principle, which he believes is true* → **Ch 30**: she uses his own true principle to leave *him*; he can't accuse her of betraying it |

@@ -68,19 +68,19 @@ status: working
 
 **Ch 8 — The Road** · Day ~7 · **Marcus nearly walks into Serra** — both at zero, she has a blade and he has nothing, the Earth Thing immediately present and unaddressed. They fall into step.
 
-**Ch 9 — The Caravan** · Day ~8 · Dara, Cael, **Vaeli** (the elven child — injured, early interface sensitivity). A **toll-gang** stops them. **First live use of the Neurochromatic interface** — partial, strange notification; Marcus's social puncture + Serra's repositioning; the gang retreats *having gotten what it needed* (false-rescue seed).
+**Ch 9 — The Caravan** · Day ~8 · Dara, Cael (Dara's brother), **Vaeli** (the elven child — injured, early interface sensitivity). A crew of **charter inspectors** (false authority — *bandits wearing bureaucracy*) stops them. **First live use of the Neurochromatic interface** — partial, strange notification; Marcus's social puncture of the *performance* + Serra's repositioning; the inspectors retreat *having gotten what they needed* — they **mark Vaeli** (false-rescue seed).
 
 **Ch 10 — The Iron Vultures** · Day ~9 · The Vultures (were watching) offer **utility, not friendship.** The group travels with them.
 
 **Ch 11 — Weather** · Days ~9–13 · Travel/skill period: Serra's **Warrior fundamentals** surface (her body ahead of her training; first whisper of pressure); Marcus's Eyes → Stage 2. The Vultures explain the **False Rescue system** as *weather*, not confession. Serra goes still.
 - **⟢ SERRA POV (early False Rescue):** Marcus affecting her; what she notices about his **post-resurrection instability** (analysis as the thing holding him together); why his presence is **both grounding and dangerous.** (§9.)
-- **⟢ INTERLUDE (Seb):** lands desolate → enslaved / forced labor.
+- **⟢ INTERLUDE (Seb):** lands desolate → **salt-flat forced-labor camp** (debt/collars, not chains; brother already dead); survives by **organizing** until the trust costs someone.
 - **⟢ INTERLUDE (Mara):** lands in a stratified **court city-state**; taken in for her beauty by a decent patron.
 
-**Ch 12 — Maera Vell** · Days ~14–15 · The roadhouse. **Genuine** warmth — soup, a blanket, the first rest since he died. Marcus over-shares. She reports him to the magistrate-guild (off-screen) because the guild pays and not reporting has consequences. *The Eyes read her correctly; the model was wrong — warmth ≠ loyalty.*
+**Ch 12 — Maera Vell** · Days ~14–15 · **The Copper Kettle** (her roadhouse). **Genuine** warmth — soup, a blanket, the first rest since he died. Marcus over-shares. She reports him to the magistrate-guild (off-screen) because the guild pays and not reporting has consequences. *The Eyes read her correctly; the model was wrong — warmth ≠ loyalty.*
 
 **Ch 13 — The Ledger** · Days ~15–16 · The magistrate-guild arrives. **The elven child is namebound and taken** (**Soul Level: Strong** — a notable catch, not routine debt-resolution; reinforces the monetized-rescue read) — a quiet ritual; "debt resolution," never "slavery." Serra recognizes the shape (manufactured emergency, monetized rescue) and goes still — *she grasps the system-level meaning (imposed identity / ownership) before Marcus does* (seed of her registry mission; §9). Marcus's home-building ache surfaces.
-- **⟢ INTERLUDE (Mathias):** solo near the **ruins**; first contact with a Xyloryn drone; begins loading his **Scout** class through research.
+- **⟢ INTERLUDE (Mathias):** solo near the **ruins**; **first Xyloryn contact — portal pressure / trace / signal from the other side (no body, no drone)**; begins loading his **Scout** class through research.
 
 **Ch 14 — The Pursuit & The Pitch** · Days ~16–19 · All groups move the same direction. Marcus wants to *save the child*; Serra wants to *stop the wrong* — same target, different drive. The Vultures won't fight a sanctioned op for morals, so the pitch is **practical** (the magistrate's haul; the office is attached to no larger power). They join with conditions.
 - **Pursuit — *catch* (he catches up):** after the child is taken, Serra moves first; Marcus chases and **reaches** her. Pursuit *succeeds* (backbone catch → can't → won't; `marcus_serra_relationship.md` §11).
@@ -96,8 +96,8 @@ status: working
 
 ## TRANSIT BRIDGE (Days ~23–44) · *Marcus + Vultures*
 
-**Ch 16–17 — The Long Road** · Compressed travel toward Eriadne: rumors of the thread city; the standalone **playful-chaos defusion** beat; the Eyes' emotional-leak social cost; a first **Xyloryn diagnostic hint**; the felt ley pull. Reaches Eriadne's outskirts ~Day 45.
-- **⟢ INTERLUDE (Seb):** kills his captor **barehanded** → *then* the broker (Soulkeepers' agent) speaks — *"you can have more,"* dangling the brother's soul. **Reaver + Pyric Blood** ignite. Shortest arc; straight toward Eriadne; among the most powerful.
+**Ch 16–17 — The Long Road** · Compressed travel toward Eriadne: rumors of the thread city; the standalone **playful-chaos defusion** beat; the Eyes' emotional-leak social cost; a first **Xyloryn diagnostic hint** (a *signal / trace* from the other side — sampling, **not an embodied attack**); the felt ley pull. Reaches Eriadne's outskirts ~Day 45.
+- **⟢ INTERLUDE (Seb):** **organizes the salt-flat camp until the trust costs someone** → kills his captor **barehanded** → *then* the broker (Soulkeepers' agent) speaks — *"you can have more,"* dangling the brother's soul. **Reaver + Pyric Blood** ignite. Shortest arc; straight toward Eriadne; among the most powerful.
 - **⟢ SERRA POV — First Solo Chapter (the dungeon):** held by a small town beside a **delve**; **Vessa** (a 13-yo tunnel-runner — the young-Serra mirror) is why she stays (`vessa.md`); the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed); the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. *(Court of Seals hunt = Book 2; interface still dormant.)* (§9.)
 
 ---
@@ -111,7 +111,7 @@ status: working
 **Ch 20 — Brent** · ~Day 54 · **Brent converges** (civil engineer; **Warden → Reckoner** dir.; **Piezoelectric Bones**, open) — the structural mind whose reads matter in the crisis (the Myrmidon's keystone); **his fortifying/building is Book 2.** The "he actually saw me" recognition with Marcus.
 
 **Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Specular Salience), arriving from her court arc — challenges Marcus for treating people as systems.
-- **⟢ INTERLUDE (Mara, just prior):** the predatory courtier weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Specular Salience); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Specular Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
+- **⟢ INTERLUDE (Mara, just prior):** in **Veshara** (status-by-display court city-state), the predatory **First Curator of Civic Regard** weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Specular Salience — her interface unlocks when she *authors* attention, not when she hides); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Specular Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
 
 **Ch 22 — The Under-City** · Days ~60–64 · The Under-City partially activates; the ley-knot significance clarifies; **Ayla's gap surfaces** (the limit of her damaged knowledge).
 

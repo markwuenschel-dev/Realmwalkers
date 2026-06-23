@@ -75,6 +75,8 @@ A biological swarm that evolves by **metabolizing the biological/sensory/magical
 - **Skirmishers:** fast, fragile-when-isolated; their attacks are partly **diagnostic** — they bite/sting to gather data for higher forms.
 - **Myrmidons:** elite shock-troops grown *after* the swarm has battlefield data — each variant a local counter to the defenders' dominant interfaces.
 - **Book 1 finale:** an invasion attempt at the ruins-portal near Eriadne; the ruins are separate enough that most of the city never learns. A **single Myrmidon** steps through and nearly beats all six at once — scale established by one unit.
+
+> **Principle — no satellite arc steals the finale's firsts [LOCK candidate].** Each solo arc *approaches* its power but the finale owns the firsts: **Mathias** *senses* Xyloryn-side pressure (signal/trace/residue), but the **Myrmidon is the first living breach** — no embodied Xyloryn before the finale; **Serra** survives brilliantly but her **interface stays dormant until the finale**; **Seb** kills/breaks but **Reaver temptation comes *after* despair**; **Mara** manipulates attention *socially* before her interface names itself; **Brent** is **useful before he is powerful**; **Marcus** perceives before he understands what perception costs.
 - **Origin** (engineered as a failed immune response against the N'hal): a leading hypothesis, **NOT confirmed** — do not write as canon.
 
 ### The N'hal — ontological predators

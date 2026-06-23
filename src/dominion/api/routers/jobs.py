@@ -11,6 +11,7 @@ keeps it safe even if a terminal worker drains concurrently.
 from __future__ import annotations
 
 import asyncio
+import uuid
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks
@@ -18,7 +19,7 @@ from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
-from dominion.shared.models import Job
+from dominion.shared.models import Job, Run
 from dominion.shared.schemas import ActiveScene, DraftNextOut, JobsStatusOut
 
 log = structlog.get_logger()
@@ -50,15 +51,25 @@ async def _drain() -> None:
                 break
 
 
-async def _queue_counts(session: SessionDep) -> dict[str, int]:
-    rows = (await session.execute(select(Job.status, func.count()).group_by(Job.status))).all()
+async def _queue_counts(session: SessionDep, book_id: uuid.UUID | None = None) -> dict[str, int]:
+    """Counts grouped by status. Scoped to one book (via its runs) when book_id is given, so the
+    Desk's indicator reflects the book you're viewing — not every book's jobs at once."""
+    stmt = select(Job.status, func.count())
+    if book_id is not None:
+        stmt = stmt.join(Run, Job.run_id == Run.id).where(Run.book_id == book_id)
+    rows = (await session.execute(stmt.group_by(Job.status))).all()
     return {str(status): int(count) for status, count in rows}
 
 
 @router.post("/draft-next", response_model=DraftNextOut)
-async def draft_next(background: BackgroundTasks, session: SessionDep) -> DraftNextOut:
-    """Kick off drafting of the queued scenes (background, single-flight). Returns immediately."""
-    counts = await _queue_counts(session)
+async def draft_next(
+    background: BackgroundTasks, session: SessionDep, book_id: uuid.UUID | None = None,
+) -> DraftNextOut:
+    """Kick off drafting of the queued scenes (background, single-flight). Returns immediately.
+
+    The drain itself is global (the worker claims the oldest queued job regardless of book); book_id
+    only scopes the counts we report back so the caller sees its own book's queue."""
+    counts = await _queue_counts(session, book_id)
     queued = counts.get(JobStatus.QUEUED, 0)
     running = _drain_lock.locked()
     if queued and not running:
@@ -68,17 +79,24 @@ async def draft_next(background: BackgroundTasks, session: SessionDep) -> DraftN
 
 
 @router.get("/status", response_model=JobsStatusOut)
-async def status(session: SessionDep) -> JobsStatusOut:
-    """Queue depth + which scene is drafting now, so the Desk shows a live indicator."""
-    counts = await _queue_counts(session)
+async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsStatusOut:
+    """Queue depth + which scene is drafting now, so the Desk shows a live indicator.
+
+    Scoped to book_id when given: `running` then means *this* book has a job in flight, so drafting
+    another book never lights up this book's indicator. Unscoped, the global drain lock still counts
+    (the terminal-driven path has no book context)."""
+    counts = await _queue_counts(session, book_id)
+    active_stmt = select(Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING)
+    if book_id is not None:
+        active_stmt = active_stmt.join(Run, Job.run_id == Run.id).where(Run.book_id == book_id)
     active = (await session.execute(
-        select(Job.chapter_no, Job.scene_no)
-        .where(Job.status == JobStatus.RUNNING)
-        .order_by(Job.claimed_at.desc())
-        .limit(1)
+        active_stmt.order_by(Job.claimed_at.desc()).limit(1)
     )).first()
+    running = JobStatus.RUNNING in counts
+    if book_id is None:
+        running = running or _drain_lock.locked()
     return JobsStatusOut(
-        running=_drain_lock.locked() or JobStatus.RUNNING in counts,
+        running=running,
         queued=counts.get(JobStatus.QUEUED, 0),
         failed=counts.get(JobStatus.FAILED, 0),
         active_scene=ActiveScene(chapter_no=active[0], scene_no=active[1]) if active else None,

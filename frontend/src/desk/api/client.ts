@@ -67,8 +67,10 @@ export const api = {
     ),
 
   // --- drafting (browser-driven worker) -----------------------------------------------------------
-  jobsStatus: () => http<JobsStatusOut>("/jobs/status"),
-  draftNext: () => http<DraftNextOut>("/jobs/draft-next", { method: "POST" }),
+  // book_id scopes the indicator to the active book, so another book's drafting doesn't light it up.
+  jobsStatus: (bookId?: string) => http<JobsStatusOut>(`/jobs/status${qs({ book_id: bookId })}`),
+  draftNext: (bookId?: string) =>
+    http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),
 
   // --- gate 1: books, runs, chapters, beats -------------------------------------------------------
   books: () => http<BookOut[]>("/books"),

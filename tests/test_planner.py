@@ -1,6 +1,10 @@
 """Gate-1 planner unit tests — mock the LLM, so no network or API key (DESIGN §4, §8)."""
 from __future__ import annotations
 
+import asyncio
+
+import pytest
+
 from dominion.workers import llm, planner
 from dominion.workers.budget import Usage
 
@@ -81,3 +85,32 @@ async def test_propose_beats_empty_outline_skips_model(monkeypatch):
     monkeypatch.setattr(llm, "complete", boom)
     assert await planner.propose_beats(outline="   ", pov="Marcus") == []
     assert called["n"] == 0               # no outline -> no plan-call
+
+
+async def test_propose_beats_salvages_truncated_array(monkeypatch):
+    """A response cut off mid-array (token cap) must still yield every *complete* beat, not parse to
+    nothing — the failure that silently wiped a chapter's beats."""
+    truncated = (
+        '[{"scene_no": 1, "beat_text": "First.", "characters_present": ["Marcus"], '
+        '"tags": [], "expected_state_changes": null, "knowledge_injections": ["a", "b"]},'
+        '{"scene_no": 2, "beat_text": "Second.", "characters_present": ["Serra"], '
+        '"tags": ["dialogue"], "expected_state_changes": null, "knowledge_injections": ["c"]},'
+        '{"scene_no": 3, "beat_text": "Truncated mid-object, never closed", '
+        '"knowledge_injections": ["d", "e'  # <- cut off inside an inner list
+    )
+    _mock(monkeypatch, truncated)
+    beats = await planner.propose_beats(outline="something happens", pov="Marcus")
+    assert [b["scene_no"] for b in beats] == [1, 2]
+    assert beats[1]["beat_text"] == "Second."
+
+
+async def test_propose_beats_raises_on_timeout(monkeypatch):
+    """A hung plan-call must surface (mapped to a 504 by the router), not spin forever."""
+    async def hang(**kwargs):
+        await asyncio.sleep(10)
+        return "[]", Usage(0, 0)
+
+    monkeypatch.setattr(llm, "complete", hang)
+    monkeypatch.setattr(planner.settings, "plan_time_budget_s", 0.05)
+    with pytest.raises(TimeoutError):
+        await planner.propose_beats(outline="something happens", pov="Marcus")

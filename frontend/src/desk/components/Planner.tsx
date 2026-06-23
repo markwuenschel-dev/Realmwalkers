@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -21,6 +21,34 @@ export default function Planner() {
   const [beats, setBeats] = useState<BeatOut[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Proposed beats are persisted server-side, but the propose *response* is the only thing that
+  // populates this panel — so if that request was lost (timeout, reload, navigating away) the beats
+  // become invisible even though they're safe in the DB. Re-hydrate them: once per (book, chapter),
+  // pull the chapter's still-proposed beats and surface them for editing/approval. We never clobber
+  // an in-progress edit (only hydrate when the panel is empty).
+  const beatsRef = useRef(beats);
+  beatsRef.current = beats;
+  const hydratedKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!data.bookId) return;
+    const key = `${data.bookId}:${chapterNo}`;
+    if (hydratedKey.current === key) return;
+    const ch = data.chapters.find((c) => c.chapter_no === chapterNo);
+    if (!ch) return; // chapter not created yet — retry when chapters load
+    hydratedKey.current = key;
+    (async () => {
+      const all = await api.chapterBeats(ch.id).catch(() => []);
+      const proposed = all.filter((b) => b.status === "proposed");
+      if (proposed.length === 0 || beatsRef.current.length > 0) return;
+      setChapterId(ch.id);
+      setBeats(proposed);
+      setSelected(new Set(proposed.map((b) => b.id)));
+      if (!pov.trim()) setPov(ch.pov);
+      if (!outline.trim() && ch.outline) setOutline(ch.outline);
+    })();
+  }, [data.bookId, data.chapters, chapterNo, pov, outline]);
 
   const card = css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:26px");
   const label = css("font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:10px");
@@ -40,12 +68,18 @@ export default function Planner() {
   const propose = async () => {
     if (!pov.trim() || !outline.trim()) return;
     setBusy(true);
+    setNotice(null);
     const out = await data.startRun(chapterNo, pov.trim(), outline.trim(), numOrUndef(maxBeats), numOrUndef(targetWords));
     setBusy(false);
     if (out) {
       setChapterId(out.chapter_id);
       setBeats(out.beats);
       setSelected(new Set(out.beats.map((b) => b.id)));
+      // Empty result = the planner couldn't produce beats from this outline. Say so explicitly —
+      // existing beats are preserved server-side, so this is a safe retry, not a silent wipe.
+      setNotice(out.beats.length === 0
+        ? "The planner returned no beats for this outline. Your existing beats are kept — try again, or make the outline more concrete and scene-by-scene."
+        : null);
     }
   };
 
@@ -135,6 +169,12 @@ export default function Planner() {
               </span>
             )}
           </div>
+
+          {notice && (
+            <div style={css(`margin-top:10px;padding:9px 12px;border-radius:7px;border:1px solid ${t.warn};background:color-mix(in srgb,${t.warn} 12%,transparent);color:var(--ink);font-size:12.5px;line-height:1.5`)}>
+              {notice}
+            </div>
+          )}
 
           {beats.length > 0 && (
             <div style={css("margin-top:14px;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px")}>
