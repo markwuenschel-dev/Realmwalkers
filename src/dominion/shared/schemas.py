@@ -291,3 +291,14 @@ class SuggestionIn(BaseModel):
 
 class SuggestionDecisionIn(BaseModel):
     status: SuggestionStatus
+
+
+# --- canon / planning / style docs (Domain-B markdown, read-only) ---------------------------------
+class DocMeta(BaseModel):
+    path: str  # id, relative to the docs root (e.g. "canon/timeline/master_timeline.md")
+    title: str  # first "# " heading, else a humanised filename
+    category: str  # top-level folder: "canon" | "planning" | "style"
+
+
+class DocOut(DocMeta):
+    content: str  # raw markdown
