@@ -7,6 +7,8 @@ exits — nothing keeps running, so there's nothing to re-verify on the next boo
 """
 from __future__ import annotations
 
+import asyncio
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
@@ -71,19 +73,30 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
             severity=Severity.WARN, note=f"enrichment pass failed: {msg}",
         ))
 
-    # 4) advisory reviewers (read-only) -> Critique rows. Never changes status, never blocks. Skipped
-    # once the budget is spent; a reviewer that tips it over downgrades the scene to a partial DRAFT.
+    # 4) advisory reviewers (read-only) -> Critique rows. They're independent, so run them concurrently
+    # and collapse N sequential review-model round-trips into ~one. Never changes status, never blocks.
+    # Skipped once the budget is spent; a reviewer that tips it over downgrades the scene to a partial
+    # DRAFT, while any other reviewer error fails the job (the spine is already persisted). Critiques are
+    # still added in reviewer order (continuity first). NOTE: parallel calls each charge on their own
+    # response, so a scene near its ceiling can overshoot a little more than the old serial path did —
+    # acceptable for these cheap, advisory calls that run after the costly drafting work.
     if not budget_exceeded:
-        try:
-            for reviewer in reviewers_for(ctx.tags):
-                for flag in await reviewer.review(prose, ctx):
+        reviewers = reviewers_for(ctx.tags)
+        results = await asyncio.gather(
+            *(reviewer.review(prose, ctx) for reviewer in reviewers), return_exceptions=True
+        )
+        for result in results:
+            if isinstance(result, BudgetExceeded):
+                budget_exceeded = True
+                scene.status = SceneStatus.DRAFT
+            elif isinstance(result, BaseException):
+                raise result
+            else:
+                for flag in result:
                     session.add(Critique(
                         scene_id=scene.id, version=scene.version, reviewer=flag.reviewer,
                         severity=flag.severity, note=flag.note, payload=flag.payload,
                     ))
-        except BudgetExceeded:
-            budget_exceeded = True
-            scene.status = SceneStatus.DRAFT
 
     # 5) finalize: a budget-exceeded scene is flagged and leaves the prior version intact; otherwise a
     # revision supersedes its parent (DESIGN §10, §3).

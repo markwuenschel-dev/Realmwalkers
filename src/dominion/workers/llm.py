@@ -56,7 +56,10 @@ async def complete(
             resp = await _client().messages.create(
                 model=model,
                 max_tokens=max_tokens,
-                system=system,
+                # Cache the (large, stable) system prefix — _CRAFT + voice + exemplars + dialogue rules.
+                # Cheaper + lower time-to-first-token, and reused across a POV's scenes within the cache
+                # TTL. Below the model's minimum cacheable length the breakpoint is simply ignored.
+                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": user}],
             )
             break
