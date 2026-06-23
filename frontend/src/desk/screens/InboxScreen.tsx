@@ -17,7 +17,7 @@ function latestByScene(scenes: SceneOut[]): SceneOut[] {
 }
 
 export default function InboxScreen() {
-  const { t, go, openScene } = useDesk();
+  const { t, openScene, openSceneId } = useDesk();
   const data = useDeskData();
 
   const latest = latestByScene(data.scenes);
@@ -123,7 +123,7 @@ export default function InboxScreen() {
             {approved.length === 0 && <Empty text="—" />}
             {approved
               .sort((a, b) => a.scene_no - b.scene_no)
-              .map((s) => sceneCard(s, t.good, "canon", () => go("manuscript")))}
+              .map((s) => sceneCard(s, t.good, "edit →", () => openSceneId(s.id)))}
           </div>
         </div>
       </div>

@@ -48,7 +48,6 @@ export default function ChaptersScreen() {
     .flatMap((c) => scenesByChapter(c.id).map((s) => ({ scene: s, chapter: c })));
   const tCols = Math.max(1, ordered.length);
   const tlGridStyle = `display:grid;grid-template-columns:96px repeat(${tCols},minmax(56px,1fr));grid-template-rows:auto ${lanes.map(() => "70px").join(" ")};gap:0 8px;align-items:stretch`;
-  const pendIndex = (s: SceneOut) => data.pending.findIndex((p) => p.id === s.id);
 
   return (
     <div>
@@ -115,10 +114,9 @@ export default function ChaptersScreen() {
             {[...latest.values()].length === 0 && <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>No scenes drafted yet.</span>}
             {ordered.map(({ scene: s, chapter: c }) => {
               const color = colorOf(s.status);
-              const i = pendIndex(s);
               return (
-                <div key={s.id} onClick={i >= 0 ? () => desk.openScene(i) : undefined}
-                  style={css(`flex:1 1 168px;min-width:160px;background:var(--bg2);border:1px solid var(--line);border-left:3px solid ${color};border-radius:10px;padding:13px 14px;box-shadow:var(--shadow);${i >= 0 ? "cursor:pointer" : ""}`)}>
+                <div key={s.id} onClick={() => desk.openSceneId(s.id)}
+                  style={css(`flex:1 1 168px;min-width:160px;background:var(--bg2);border:1px solid var(--line);border-left:3px solid ${color};border-radius:10px;padding:13px 14px;box-shadow:var(--shadow);cursor:pointer`)}>
                   <div style={css("display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
                     <span>Ch {c.chapter_no} · Scene {s.scene_no}</span><span>v{s.version}</span>
                   </div>
@@ -148,10 +146,9 @@ export default function ChaptersScreen() {
               {ordered.map(({ scene: s, chapter: c }, i) => {
                 const li = Math.max(0, lanes.indexOf(c.pov));
                 const color = colorOf(s.status);
-                const idx = pendIndex(s);
                 return (
-                  <div key={s.id} onClick={idx >= 0 ? () => desk.openScene(idx) : undefined}
-                    style={css(`grid-column:${2 + i};grid-row:${2 + li};align-self:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:50px;border-radius:9px;border:1px solid var(--line);border-top:3px solid ${color};background:var(--bg2);box-shadow:var(--shadow);${idx >= 0 ? "cursor:pointer" : ""}`)}>
+                  <div key={s.id} onClick={() => desk.openSceneId(s.id)}
+                    style={css(`grid-column:${2 + i};grid-row:${2 + li};align-self:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:50px;border-radius:9px;border:1px solid var(--line);border-top:3px solid ${color};background:var(--bg2);box-shadow:var(--shadow);cursor:pointer`)}>
                     <span style={css("font-family:var(--mono);font-size:12px;color:var(--ink)")}>C{c.chapter_no}·S{s.scene_no}</span>
                     <span style={css(`width:5px;height:5px;border-radius:50%;background:${color}`)} />
                   </div>

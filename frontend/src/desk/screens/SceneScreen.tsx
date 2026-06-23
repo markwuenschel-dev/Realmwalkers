@@ -30,15 +30,18 @@ export default function SceneScreen() {
   const pending = data.pending;
   const idx = pending.length ? Math.min(Math.max(desk.activeScene, 0), pending.length - 1) : -1;
   const queueId = idx >= 0 ? pending[idx].id : null;
+  // A focused scene (e.g. an approved one opened from the board) takes precedence over the queue.
+  const focused = desk.focusSceneId != null;
+  const loadId = desk.focusSceneId ?? queueId;
 
-  // Load the queued scene when the queue position (or queue contents) change.
+  // Load the active scene when it (or the queue position / contents) changes.
   const loadedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (queueId !== loadedRef.current) {
-      loadedRef.current = queueId;
-      data.openSceneById(queueId);
+    if (loadId !== loadedRef.current) {
+      loadedRef.current = loadId;
+      data.openSceneById(loadId);
     }
-  }, [queueId, data]);
+  }, [loadId, data]);
 
   const cur = data.detail;
   // seed the edit buffer from the loaded scene
@@ -258,7 +261,7 @@ export default function SceneScreen() {
         <div style={css("display:flex;align-items:center;gap:18px;font-family:var(--mono);font-size:12px;color:var(--dim)")}>
           <div style={css("display:flex;align-items:center;gap:8px")}>
             <button onClick={desk.prevScene} title="Previous (k)" style={css("width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer")}>‹</button>
-            <span>{idx + 1} / {pending.length}</span>
+            <span>{focused ? "out of queue" : `${idx + 1} / ${pending.length}`}</span>
             <button onClick={desk.nextScene} title="Next (j)" style={css("width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer")}>›</button>
           </div>
           <span style={css("opacity:.4")}>·</span>
@@ -267,6 +270,13 @@ export default function SceneScreen() {
           <span onClick={() => desk.go("diff")} style={css("cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)")}>v{cur.version} · compare ▾</span>
         </div>
       </div>
+
+      {focused && cur.status !== "pending_review" && (
+        <div style={css(`display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;border-radius:9px;border:1px solid ${t.warn};background:color-mix(in srgb,${t.warn} 12%,transparent);font-size:13px;color:var(--ink);line-height:1.5`)}>
+          <span style={css("font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--warn)")}>{cur.status.replace(/_/g, " ")}</span>
+          <span>You're editing an already-decided scene. Switch to <b>Editing</b> to change the prose — <b>Approve</b> saves your changes; <b>Request revision</b> re-drafts it. Use the queue arrows to return to the review queue.</span>
+        </div>
+      )}
 
       <div style={css("display:grid;grid-template-columns:minmax(0,1fr) 388px;gap:22px;align-items:start")}>
         {/* ── PROSE COLUMN ── */}
