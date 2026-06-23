@@ -157,6 +157,10 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
             ledger[character] = stats
     ctx.ledger = ledger
 
+    # Voice: the author's curated few-shot exemplars for this POV (LEARNING_FROM_EDITS Tier 2). The
+    # drafter consumes ctx.exemplars (_voice_system); this is the wire that loads them.
+    ctx.exemplars = await _load_exemplars(session, profile, exclude_scene_id=job.target_scene_id)
+
     # Memory: beat-scoped canon, the POV's rolling summary, the previous approved scene's tail.
     retrieval_query = " ".join(p for p in [beat.beat_text or "", *ctx.characters_present] if p)
     ctx.canon = await canon_rag.retrieve(session, book_id=book_id, query=retrieval_query, k=6)
@@ -175,6 +179,45 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         )).scalar_one_or_none()
 
     return ctx
+
+
+async def _load_exemplars(
+    session: AsyncSession, profile: PovProfile | None, *, exclude_scene_id: uuid.UUID | None
+) -> list[str]:
+    """Load the POV's curated voice exemplars — the wire that was cut (LEARNING_FROM_EDITS Tier 2).
+
+    Fetch the prose of `profile.exemplar_scene_ids` so the drafter few-shots on the author's own approved
+    prose for this POV. Stored as ARRAY(Text), so ids arrive as strings — parse defensively, skip the
+    scene being revised, preserve the author's curated order, and cap count + per-passage length so the
+    exemplars can't crowd the token budget.
+    """
+    if profile is None or not profile.exemplar_scene_ids:
+        return []
+    ids: list[uuid.UUID] = []
+    for raw in profile.exemplar_scene_ids:  # stored as text (ARRAY(Text)) — parse back to UUID
+        try:
+            sid = uuid.UUID(raw)
+        except (ValueError, AttributeError, TypeError):
+            continue  # a malformed id is skipped, not fatal
+        if sid != exclude_scene_id and sid not in ids:
+            ids.append(sid)
+    if not ids:
+        return []
+
+    rows = (await session.execute(
+        select(Scene.id, Scene.prose).where(Scene.id.in_(ids))
+    )).all()
+    prose_by_id = {sid: prose for sid, prose in rows if prose}
+
+    exemplars: list[str] = []
+    for sid in ids:  # author's curated order, not the IN-query's order
+        prose = prose_by_id.get(sid)
+        if not prose:
+            continue
+        exemplars.append(prose[: settings.exemplar_max_chars])
+        if len(exemplars) >= settings.exemplar_max_count:
+            break
+    return exemplars
 
 
 async def _prior_tail(

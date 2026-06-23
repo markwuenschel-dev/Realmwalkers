@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     # it wins over the per-POV voice spec where they disagree (see drafter._voice_system).
     dialogue_rules_path: str = "novel/style/dialogue_rules.md"
 
+    # Voice exemplars (LEARNING_FROM_EDITS Tier 2): the drafter few-shots on the author's curated
+    # approved prose, loaded from PovProfile.exemplar_scene_ids. Capped so a handful of passages can't
+    # crowd the scene's token budget — count of passages, and chars kept from each.
+    exemplar_max_count: int = 3
+    exemplar_max_chars: int = 1500
+
     # Bounded execution
     scene_token_budget: int = 40_000
     scene_time_budget_s: int = 300
