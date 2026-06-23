@@ -12,6 +12,9 @@ if TYPE_CHECKING:
 # Ceiling for one scene's prose (~3k words). The job-level token budget (ctx.budget) is the real
 # guard; this just bounds a single call.
 DRAFT_MAX_TOKENS = 4000
+# A revision reworks an existing scene against the author's notes — give it a little more headroom so
+# the model can expand/restructure without getting clipped mid-fix.
+REVISE_MAX_TOKENS = 5000
 
 _CRAFT = """You are a novelist drafting ONE scene of THE DOMINION REALM, a LitRPG / progression-fantasy novel. \
 Write in tight third-person limited, anchored entirely in {pov}'s perception — only what {pov} senses, knows, and feels.
@@ -113,12 +116,13 @@ class Drafter:
     name = "drafter"
 
     async def run(self, prose: str | None, ctx: SceneContext) -> str:
-        user = _revise_prompt(ctx) if ctx.revise_feedback else _beat_prompt(ctx)
+        revising = ctx.revise_feedback is not None
+        user = _revise_prompt(ctx) if revising else _beat_prompt(ctx)
         text, _usage = await llm.complete(
             model=settings.draft_model,
             system=_voice_system(ctx),
             user=user,
-            max_tokens=DRAFT_MAX_TOKENS,
+            max_tokens=REVISE_MAX_TOKENS if revising else DRAFT_MAX_TOKENS,
             budget=ctx.budget,
         )
         return text.strip()
