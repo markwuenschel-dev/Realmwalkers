@@ -51,6 +51,11 @@ async def decide(
         scene.prose = body.edited_prose
         scene.prose_source = "agent+human_edit"
 
+    # An already-approved scene can be re-opened to edit or re-decide. Re-approval must NOT re-run the
+    # one-shot side effects: relative ledger deltas ("+N") would double-count, and auto-advance could
+    # re-enqueue an already-drafted next scene. Those fire only on the first pending -> approved cross.
+    first_approval = scene.status != SceneStatus.APPROVED
+
     session.add(Approval(
         scene_id=scene.id, version=scene.version, decision=body.decision,
         target_pass=body.target_pass, feedback=body.feedback,
@@ -59,9 +64,11 @@ async def decide(
     next_job: uuid.UUID | None = None
     if body.decision == Decision.APPROVE:
         scene.status = SceneStatus.APPROVED
-        await ledger.commit_declared_deltas(session, scene_id=scene.id)  # fast (DB) — keep inline
-        next_job = await _auto_advance(session, scene)
-        # Rolling-summary fold is two LLM calls — defer so the inbox responds instantly.
+        if first_approval:
+            await ledger.commit_declared_deltas(session, scene_id=scene.id)  # fast (DB) — keep inline
+            next_job = await _auto_advance(session, scene)
+        # Rolling-summary fold is two LLM calls — defer so the inbox responds instantly. A re-approval
+        # re-folds the (edited) text, which is correct and idempotent.
         background.add_task(_refresh_summaries_bg, scene.id)
     elif body.decision == Decision.DENY:
         scene.status = SceneStatus.SUPERSEDED

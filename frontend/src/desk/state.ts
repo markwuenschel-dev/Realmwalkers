@@ -30,6 +30,7 @@ export interface DeskValue {
   chaptersView: ChaptersView;
   selectedThread: string;
   activeScene: number;
+  focusSceneId: string | null; // a specific scene to edit (e.g. an approved one), outside the pending queue
   rawProse: string;
   // theme
   t: ThemeTokens;
@@ -50,6 +51,7 @@ export interface DeskValue {
   prevScene: () => void;
   nextScene: () => void;
   openScene: (index: number) => void;
+  openSceneId: (id: string) => void; // open any scene (incl. approved) in the editor
   decide: (d: DecisionKind) => void;
   undoDecision: () => void;
   resolve: (id: string, choice: "prose" | "ledger") => void;
@@ -79,6 +81,7 @@ export function useDeskState(): DeskValue {
   const [chaptersView, setChaptersViewState] = useState<ChaptersView>("board");
   const [selectedThread, setSelectedThread] = useState("");
   const [activeScene, setActiveScene] = useState(0);
+  const [focusSceneId, setFocusSceneId] = useState<string | null>(null);
   const [rawProse, setRawProse] = useState("");
 
   const go = useCallback((s: Screen) => {
@@ -106,17 +109,26 @@ export function useDeskState(): DeskValue {
   }, []);
   const setHover = useCallback((key: string | null) => setHoveredKey(key), []);
   const clearHover = useCallback(() => setHoveredKey(null), []);
+  // Queue navigation always returns to the pending review queue — clear any focused (out-of-queue) scene.
   const prevScene = useCallback(() => {
     setScreen("scene");
+    setFocusSceneId(null);
     setActiveScene((a) => Math.max(0, a - 1));
   }, []);
   const nextScene = useCallback(() => {
     setScreen("scene");
+    setFocusSceneId(null);
     setActiveScene((a) => a + 1); // upper bound is clamped against the live queue in SceneScreen
   }, []);
   const openScene = useCallback((index: number) => {
     setScreen("scene");
+    setFocusSceneId(null);
     setActiveScene(index);
+    setPaletteOpen(false);
+  }, []);
+  const openSceneId = useCallback((id: string) => {
+    setScreen("scene");
+    setFocusSceneId(id);
     setPaletteOpen(false);
   }, []);
 
@@ -196,10 +208,10 @@ export function useDeskState(): DeskValue {
 
   return {
     screen, themeId, tab, mode, paletteOpen, feedback, decision, resolved, suggStatus, hoveredKey,
-    ledgerCat, selectedAnn, chaptersView, selectedThread, activeScene, rawProse,
+    ledgerCat, selectedAnn, chaptersView, selectedThread, activeScene, focusSceneId, rawProse,
     t, isManu: themeId === "manuscript", isConsole: themeId === "console", isGrim: themeId === "grimoire",
     go, setTheme, setTab, togglePalette, setMode, acceptSugg, rejectSugg, undoSugg, setHover, clearHover,
-    prevScene, nextScene, openScene, decide, undoDecision, resolve, unresolve,
+    prevScene, nextScene, openScene, openSceneId, decide, undoDecision, resolve, unresolve,
     selectAnn, highlightAnn, setLedgerCat, setChaptersView, selectThread: setSelectedThread,
     setFeedback, setProse,
   };

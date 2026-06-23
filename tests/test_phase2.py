@@ -167,6 +167,43 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
         assert len(jobs) == 1
 
 
+async def test_reapprove_does_not_double_apply_deltas_or_readvance(db_factory, monkeypatch):
+    """An already-approved scene can be re-opened and re-approved (e.g. after a hand-edit). The
+    one-shot side effects must not repeat: a relative ledger delta must not double-count, and the
+    next scene must not be re-enqueued — only the edited prose is re-committed."""
+    async def fake_complete(**kwargs):
+        return "summary", Usage(10, 10)
+
+    monkeypatch.setattr(llm, "complete", fake_complete)
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        await _run(s, book, GateMode.PAUSE_EACH)
+        await _beat(s, ch, 1, esc={"Marcus": {"level": "+1"}})
+        await _beat(s, ch, 2)
+        sc1 = await _scene(s, ch, 1, prose="Marcus wakes.")
+        await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks())
+        await s.commit()
+
+        result = await reviews.decide(
+            sc1.id,
+            DecisionIn(decision=Decision.APPROVE, edited_prose="Marcus wakes, edited."),
+            s, BackgroundTasks(),
+        )
+        await s.commit()
+
+        assert result["next_job"] is None  # re-approval does not re-advance
+        # the relative delta applied exactly once, not twice
+        assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 1
+        sc1b = (await s.execute(select(Scene).where(Scene.id == sc1.id))).scalar_one()
+        assert sc1b.prose == "Marcus wakes, edited."          # hand-edit landed
+        assert sc1b.prose_source == "agent+human_edit"
+        jobs = (await s.execute(
+            select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)
+        )).scalars().all()
+        assert len(jobs) == 1                                  # still exactly one queued draft
+
+
 async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
     async def fake_draft(self, prose, ctx):
         assert ctx.revise_feedback == "Cut the throat-clearing; open mid-action."
