@@ -47,7 +47,8 @@ class PovProfile(Base):
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     character: Mapped[str] = mapped_column(Text)
     voice_spec: Mapped[str | None] = mapped_column(Text, nullable=True)
-    exemplar_scene_ids: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(Text), nullable=True)
+    # Scene UUIDs (stored as text) the drafter few-shots on for this POV's voice (LEARNING_FROM_EDITS Tier 2).
+    exemplar_scene_ids: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
 
 
 class Run(Base):
@@ -229,3 +230,21 @@ class Approval(Base):
     target_pass: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EditPair(Base):
+    """A faithful agent→human prose pair, captured on a hand-edit (DESIGN §11; LEARNING_FROM_EDITS Tier 1).
+
+    `agent_text` is the model's RENDERED draft (the marker-form `Scene.agent_original` rendered through
+    `render_stat_blocks`), so a diff against `human_text` isn't noisy with stat-block markers. One row per
+    `(scene_id, version)`: a re-edit refreshes `human_text` only, keeping the original agent draft so the
+    pair never degrades into a human→human diff. This is the dataset every later learning tier reads.
+    """
+    __tablename__ = "edit_pairs"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pov: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    human_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

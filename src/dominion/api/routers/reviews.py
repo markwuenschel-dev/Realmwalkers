@@ -16,9 +16,20 @@ from sqlalchemy import select
 from dominion.api.deps import SessionDep
 from dominion.shared.config import settings
 from dominion.shared.enums import Decision, GateMode, JobKind, JobStatus, SceneStatus
-from dominion.shared.models import Approval, Beat, Chapter, CharacterState, Critique, Job, Run, Scene
+from dominion.shared.models import (
+    Approval,
+    Beat,
+    Chapter,
+    CharacterState,
+    Critique,
+    EditPair,
+    Job,
+    Run,
+    Scene,
+)
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
 from dominion.workers.memory import ledger, summaries
+from dominion.workers.stat_render import render_stat_blocks
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/scenes", tags=["reviews"])
@@ -38,6 +49,30 @@ async def _refresh_summaries_bg(scene_id: uuid.UUID) -> None:
             log.error("summary.refresh_failed", scene=str(scene_id), error=str(exc))
 
 
+async def _capture_edit_pair(session: SessionDep, scene: Scene, human_text: str) -> None:
+    """Snapshot the model's rendered draft next to the author's edit (LEARNING_FROM_EDITS Tier 1).
+
+    `agent_text` is the RENDERED agent draft — we render the stored marker-form `agent_original` so the
+    pair isn't noisy with ```stat``` markers (falling back to the current, pre-overwrite prose for older
+    scenes with no `agent_original`). Upsert per `(scene, version)`: a re-edit refreshes only `human_text`,
+    so we keep the true agent draft and never record a human→human diff. Advisory capture; never gates.
+    """
+    agent_text = render_stat_blocks(scene.agent_original) if scene.agent_original is not None else scene.prose
+    pair = (await session.execute(
+        select(EditPair).where(EditPair.scene_id == scene.id, EditPair.version == scene.version)
+    )).scalar_one_or_none()
+    if pair is None:
+        pov = (await session.execute(
+            select(Chapter.pov).where(Chapter.id == scene.chapter_id)
+        )).scalar_one_or_none()
+        session.add(EditPair(
+            scene_id=scene.id, version=scene.version, pov=pov,
+            agent_text=agent_text, human_text=human_text,
+        ))
+    else:
+        pair.human_text = human_text  # keep the original agent draft; only the human side moved
+
+
 @router.post("/{scene_id}/decision")
 async def decide(
     scene_id: uuid.UUID, body: DecisionIn, session: SessionDep, background: BackgroundTasks
@@ -46,8 +81,10 @@ async def decide(
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
 
-    # Hand-edit in the inbox becomes the canonical text; all derivation reads this (DESIGN §9).
+    # Hand-edit in the inbox becomes the canonical text; all derivation reads this (DESIGN §9). Capture
+    # the agent→human pair BEFORE overwriting prose — the pre-edit prose is the model's rendered draft.
     if body.edited_prose is not None:
+        await _capture_edit_pair(session, scene, body.edited_prose)
         scene.prose = body.edited_prose
         scene.prose_source = "agent+human_edit"
 
