@@ -13,6 +13,8 @@ import type {
   CharacterStateOut,
   ContinuityResolveIn,
   DecisionIn,
+  DocDetail,
+  DocMeta,
   DraftNextOut,
   JobsStatusOut,
   ManuscriptOut,
@@ -97,6 +99,13 @@ export const api = {
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
+
+  // --- canon / planning / style docs (read-only Domain-B markdown) --------------------------------
+  // route is /library (not /docs — FastAPI serves Swagger UI at /docs).
+  docs: () => http<DocMeta[]>("/library"),
+  // path segments are preserved (the route param is a :path); encode each so spaces/specials survive.
+  doc: (path: string) =>
+    http<DocDetail>(`/library/${path.split("/").map(encodeURIComponent).join("/")}`),
 
   // --- world ledger -------------------------------------------------------------------------------
   characters: (bookId: string) => http<CharacterStateOut[]>(`/books/${bookId}/characters`),
