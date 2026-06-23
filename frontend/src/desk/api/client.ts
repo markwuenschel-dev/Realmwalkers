@@ -67,6 +67,12 @@ export const api = {
       `/scenes/${id}/continuity/resolve`,
       { method: "POST", body: JSON.stringify(body) },
     ),
+  // mark/unmark a scene as a voice exemplar for its POV (the drafter few-shots on it)
+  setExemplar: (id: string, enabled: boolean) =>
+    http<{ scene: string; is_exemplar: boolean }>(
+      `/scenes/${id}/exemplar`,
+      { method: "POST", body: JSON.stringify({ enabled }) },
+    ),
 
   // --- drafting (browser-driven worker) -----------------------------------------------------------
   // book_id scopes the indicator to the active book, so another book's drafting doesn't light it up.

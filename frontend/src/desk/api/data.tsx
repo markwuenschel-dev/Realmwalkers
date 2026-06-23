@@ -71,6 +71,7 @@ export interface DeskData {
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
+  setExemplar: (enabled: boolean) => Promise<void>;
   draftNext: () => Promise<void>;
   createThread: (body: ThreadIn) => Promise<void>;
   addThreadBeat: (threadId: string, body: ThreadBeatIn) => Promise<void>;
@@ -321,6 +322,17 @@ export function useDeskDataState(): DeskData {
     [draftNext, openSceneById, refreshAll],
   );
 
+  // toggle the loaded scene as a voice exemplar; reflect the new state on the detail in place
+  const setExemplar = useCallback(async (enabled: boolean): Promise<void> => {
+    if (!activeSceneId) return;
+    try {
+      const res = await api.setExemplar(activeSceneId, enabled);
+      setDetail((d) => (d && d.id === res.scene ? { ...d, is_exemplar: res.is_exemplar } : d));
+    } catch (e) {
+      fail(e);
+    }
+  }, [activeSceneId]);
+
   const createThread = useCallback(
     async (body: ThreadIn): Promise<void> => {
       if (!bookId) return;
@@ -411,6 +423,7 @@ export function useDeskDataState(): DeskData {
     chapters, scenes, pending, manuscript, characters, canon, threads, jobs,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
     refreshAll, createBook, startRun, approveAndDraft, decide, resolveContinuity, draftNext,
+    setExemplar,
     createThread, addThreadBeat, deleteThread,
     addAnnotation, deleteAnnotation, addSuggestion, decideSuggestion, deleteSuggestion,
   };

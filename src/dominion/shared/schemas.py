@@ -38,6 +38,12 @@ class SceneOut(_ORM):
 
 class SceneDetail(SceneOut):
     critiques: list[CritiqueOut] = []
+    is_exemplar: bool = False  # is this scene a curated voice exemplar for its POV? (Tier 2 learning)
+
+
+class ExemplarIn(BaseModel):
+    """Toggle a scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2)."""
+    enabled: bool
 
 
 class DecisionIn(BaseModel):
