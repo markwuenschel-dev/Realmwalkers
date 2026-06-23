@@ -11,6 +11,7 @@ const SCREENS: { id: Screen; label: string }[] = [
   { id: "diff", label: "Versions" },
   { id: "manuscript", label: "Manuscript" },
   { id: "ledger", label: "Ledger" },
+  { id: "docs", label: "Canon" },
 ];
 
 const THEMES: { id: ThemeId; label: string; title: string }[] = [
@@ -26,7 +27,7 @@ export default function TopBar() {
     id === "inbox" && pending.length ? String(pending.length) : null;
 
   return (
-    <header style={css("position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;height:60px;background:var(--bg2b);border-bottom:1px solid var(--line)")}>
+    <header className="no-print" style={css("position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;height:60px;background:var(--bg2b);border-bottom:1px solid var(--line)")}>
       <div style={css("display:flex;align-items:center;gap:20px;min-width:0")}>
         <div onClick={() => go("inbox")} style={css("display:flex;align-items:center;gap:11px;cursor:pointer;flex:none")}>
           <div style={css("width:26px;height:26px;border-radius:6px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:15px;color:var(--accent);background:var(--accentSoft)")}>D</div>

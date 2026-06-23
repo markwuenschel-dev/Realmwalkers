@@ -17,3 +17,25 @@ textarea:focus, input:focus, select:focus { outline: none; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* --- print: book-typography PDF via the browser's "Save as PDF" (no deps) ------------------------
+   The Manuscript view exposes a Print button; only the manuscript article prints. Page numbers are
+   real in CSS Paged engines (the @bottom-center margin box, honoured by WeasyPrint/Prince); in
+   Chrome's Save-as-PDF, enable the dialog's "Headers and footers" toggle for page numbers. Colours
+   are forced to black-on-white so the dark themes print legibly. */
+@page {
+  margin: 22mm 18mm;
+  @bottom-center { content: counter(page); }
+}
+@media print {
+  .no-print { display: none !important; }
+  html, body { background: #fff !important; }
+  .ms-print, .ms-print * { color: #1a1a1a !important; background: transparent !important; box-shadow: none !important; }
+  .ms-print { max-width: none !important; margin: 0 !important; }
+  .ms-print p { text-align: justify; orphans: 2; widows: 2; }
+  .ms-print pre, .ms-print table { border: 1px solid #ccc !important; }
+  .ms-title { break-after: page; }
+  .ms-chapter { break-before: page; }
+  .ms-chapter:first-of-type { break-before: avoid; }
+  .ms-print pre, .ms-print table, .ms-print tr, .ms-scenebreak { break-inside: avoid; }
+}

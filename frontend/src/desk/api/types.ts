@@ -227,3 +227,14 @@ export interface SuggestionIn {
   author?: string | null;
   why?: string | null;
 }
+
+// --- canon / planning / style docs (read-only Domain-B markdown) ---
+export interface DocMeta {
+  path: string; // id, relative to the docs root (e.g. "canon/timeline/master_timeline.md")
+  title: string;
+  category: string; // "canon" | "planning" | "style"
+}
+
+export interface DocDetail extends DocMeta {
+  content: string; // raw markdown
+}

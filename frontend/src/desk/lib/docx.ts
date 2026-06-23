@@ -1,0 +1,357 @@
+// DOCX emitter (Phase 4) — the "many emitters, one parse" DOCX side. Consumes the same
+// parseBlocks/parseInline AST the on-screen renderer uses, so a Word export matches what you read.
+// Two domains: the manuscript (Domain A — book typography) and canon docs (Domain B — MarketMind
+// styling: navy-header tables, accent callout boxes, code blocks). Runs client-side via docx-js;
+// lazy-imported from the export buttons so it stays out of the main bundle.
+import {
+  AlignmentType,
+  BorderStyle,
+  Document,
+  ExternalHyperlink,
+  Footer,
+  HeadingLevel,
+  Packer,
+  PageBreak,
+  PageNumber,
+  Paragraph,
+  ShadingType,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  WidthType,
+  convertInchesToTwip,
+  type IBorderOptions,
+} from "docx";
+import type { ManuscriptOut } from "../api/types";
+import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
+
+// Print colours (theme-independent — a Word doc isn't themed). Navy header is the MarketMind table
+// look; callout tones map to fixed ink colours.
+const NAVY = "1F3864";
+const TONE_COLOR: Record<Tone, string> = {
+  note: "1F3864",
+  info: "2E5AAC",
+  good: "2F7D57",
+  warn: "9A6A1F",
+  bad: "A23A52",
+};
+
+const HEADINGS = [
+  HeadingLevel.HEADING_1,
+  HeadingLevel.HEADING_2,
+  HeadingLevel.HEADING_3,
+  HeadingLevel.HEADING_4,
+  HeadingLevel.HEADING_5,
+  HeadingLevel.HEADING_6,
+];
+
+const NO_BORDER: IBorderOptions = { style: BorderStyle.NONE, size: 0, color: "auto" };
+const cellMargins = { top: 60, bottom: 60, left: 110, right: 110 };
+
+function line(color: string, size = 4): IBorderOptions {
+  return { style: BorderStyle.SINGLE, size, color };
+}
+
+type Run = TextRun | ExternalHyperlink;
+
+// One line of inline markdown -> docx runs. `base` carries prose font/size; code/link override it.
+function inlineRuns(text: string, base: { font?: string; size?: number } = {}): Run[] {
+  return parseInline(text).map((tok): Run => {
+    switch (tok.t) {
+      case "code":
+        return new TextRun({ ...base, text: tok.s, font: "Consolas" });
+      case "strong":
+        return new TextRun({ ...base, text: tok.s, bold: true });
+      case "em":
+        return new TextRun({ ...base, text: tok.s, italics: true });
+      case "link":
+        return new ExternalHyperlink({
+          link: tok.href,
+          children: [new TextRun({ ...base, text: tok.s, color: "0563C1", underline: {} })],
+        });
+      default:
+        return new TextRun({ ...base, text: tok.s });
+    }
+  });
+}
+
+// A single-cell table — the MarketMind shape for callouts and code/stat blocks (fill + optional
+// accent edge). docx renders box-art and code best in a shaded cell with a monospace font.
+function panel(children: Paragraph[], fill: string, leftAccent?: string): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: NO_BORDER,
+      bottom: NO_BORDER,
+      right: NO_BORDER,
+      insideHorizontal: NO_BORDER,
+      insideVertical: NO_BORDER,
+      left: leftAccent ? line(leftAccent, 24) : NO_BORDER,
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { type: ShadingType.CLEAR, fill, color: "auto" },
+            margins: cellMargins,
+            children,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+function calloutPanel(b: Extract<ProseBlock, { kind: "callout" }>): Table {
+  const color = TONE_COLOR[b.tone];
+  const children: Paragraph[] = [];
+  if (b.title) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [new TextRun({ text: b.title.toUpperCase(), bold: true, color, size: 18 })],
+      }),
+    );
+  }
+  for (const ln of b.lines) {
+    if (ln.trim()) children.push(new Paragraph({ spacing: { after: 40 }, children: inlineRuns(ln) }));
+  }
+  if (children.length === 0) children.push(new Paragraph(""));
+  return panel(children, "F3F4F6", color);
+}
+
+function monoPanel(lines: string[], fill: string): Table {
+  const rows = lines.length ? lines : [""];
+  return panel(
+    rows.map(
+      (l) =>
+        new Paragraph({
+          spacing: { after: 0, line: 240, lineRule: "auto" },
+          children: [new TextRun({ text: l || " ", font: "Consolas", size: 18 })],
+        }),
+    ),
+    fill,
+  );
+}
+
+function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
+  const align = (i: number) =>
+    b.align[i] === "center"
+      ? AlignmentType.CENTER
+      : b.align[i] === "right"
+        ? AlignmentType.RIGHT
+        : AlignmentType.LEFT;
+  const header = new TableRow({
+    tableHeader: true,
+    children: b.head.map(
+      (h, i) =>
+        new TableCell({
+          shading: { type: ShadingType.CLEAR, fill: NAVY, color: "auto" },
+          margins: cellMargins,
+          children: [
+            new Paragraph({
+              alignment: align(i),
+              children: [new TextRun({ text: h, bold: true, color: "FFFFFF" })],
+            }),
+          ],
+        }),
+    ),
+  });
+  const body = b.rows.map(
+    (r) =>
+      new TableRow({
+        children: r.map(
+          (c, i) =>
+            new TableCell({
+              margins: cellMargins,
+              children: [new Paragraph({ alignment: align(i), children: inlineRuns(c) })],
+            }),
+        ),
+      }),
+  );
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: line("CCCCCC"),
+      bottom: line("CCCCCC"),
+      left: line("CCCCCC"),
+      right: line("CCCCCC"),
+      insideHorizontal: line("CCCCCC"),
+      insideVertical: line("CCCCCC"),
+    },
+    rows: [header, ...body],
+  });
+}
+
+function paraFor(text: string, book: boolean): Paragraph {
+  return book
+    ? new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { line: 320, lineRule: "auto" },
+        children: inlineRuns(text, { font: "Georgia", size: 24 }),
+      })
+    : new Paragraph({ spacing: { after: 120, line: 276, lineRule: "auto" }, children: inlineRuns(text) });
+}
+
+// AST -> docx body. `book` switches paragraphs to justified serif book prose (the manuscript) vs.
+// left-aligned doc prose (canon). Tables are followed by an empty paragraph so adjacent tables don't
+// merge and Word is happy ending a section after one.
+function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  const pushTable = (t: Table) => {
+    out.push(t);
+    out.push(new Paragraph(""));
+  };
+  for (const b of blocks) {
+    switch (b.kind) {
+      case "heading":
+        out.push(new Paragraph({ heading: HEADINGS[b.level - 1], children: inlineRuns(b.text) }));
+        break;
+      case "ul":
+        for (const it of b.items) out.push(new Paragraph({ bullet: { level: 0 }, children: inlineRuns(it) }));
+        break;
+      case "ol":
+        b.items.forEach((it, i) =>
+          out.push(new Paragraph({ children: [new TextRun(`${i + 1}. `), ...inlineRuns(it)] })),
+        );
+        break;
+      case "callout":
+        pushTable(calloutPanel(b));
+        break;
+      case "table":
+        pushTable(dataTable(b));
+        break;
+      case "code":
+        pushTable(monoPanel(b.lines, "F5F5F5"));
+        break;
+      case "stat":
+        pushTable(monoPanel(b.lines, "FAFAFA"));
+        break;
+      case "hr":
+        out.push(
+          new Paragraph({
+            spacing: { before: 120, after: 120 },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "CCCCCC", space: 1 } },
+          }),
+        );
+        break;
+      default:
+        out.push(paraFor(b.text, book));
+        break;
+    }
+  }
+  return out;
+}
+
+function pageFooter(): Footer {
+  return new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ children: [PageNumber.CURRENT], color: "808080", size: 18 })],
+      }),
+    ],
+  });
+}
+
+const inch = convertInchesToTwip(1);
+const pageMargin = { top: inch, bottom: inch, left: inch, right: inch };
+
+/** Domain B — a canon/planning/style doc as a Word file (MarketMind styling, page-numbered). */
+export function buildDocDoc(title: string, content: string): Document {
+  return new Document({
+    creator: "Writers' Desk",
+    title,
+    sections: [
+      {
+        properties: { page: { margin: pageMargin } },
+        footers: { default: pageFooter() },
+        children: renderBlocks(parseBlocks(content), false),
+      },
+    ],
+  });
+}
+
+/** Domain A — the approved manuscript as a Word file: title page, chapters on fresh pages, book prose. */
+export function buildManuscriptDoc(manuscript: ManuscriptOut): Document {
+  const title = manuscript.title || "Untitled";
+  const children: (Paragraph | Table)[] = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 2400, after: 240 },
+      children: [new TextRun({ text: "BOOK ONE", font: "Georgia", size: 20, color: "808080" })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [new TextRun({ text: title, font: "Georgia", bold: true, size: 56 })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: "the approved manuscript, in reading order",
+          font: "Georgia",
+          italics: true,
+          size: 24,
+          color: "808080",
+        }),
+      ],
+    }),
+  ];
+
+  for (const ch of manuscript.chapters) {
+    const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
+    if (scenes.length === 0) continue;
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 480, after: 80 },
+        children: [new TextRun({ text: `CHAPTER ${ch.chapter_no}`, font: "Georgia", bold: true, size: 28 })],
+      }),
+    );
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 320 },
+        children: [new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" })],
+      }),
+    );
+    scenes.forEach((sc, si) => {
+      if (si > 0) {
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 160, after: 160 },
+            children: [new TextRun({ text: "⁂", size: 24, color: "808080" })],
+          }),
+        );
+      }
+      for (const el of renderBlocks(parseBlocks(sc.prose ?? ""), true)) children.push(el);
+    });
+  }
+
+  return new Document({
+    creator: "Writers' Desk",
+    title,
+    sections: [{ properties: { page: { margin: pageMargin } }, footers: { default: pageFooter() }, children }],
+  });
+}
+
+/** Safe-ish filename stem from a title. */
+export function docxFilename(title: string): string {
+  return (title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "document") + ".docx";
+}
+
+/** Pack a Document to a .docx blob and download it client-side. */
+export async function saveDocx(doc: Document, filename: string): Promise<void> {
+  const blob = await Packer.toBlob(doc);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

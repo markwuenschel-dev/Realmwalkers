@@ -11,6 +11,7 @@ import ChaptersScreen from "./desk/screens/ChaptersScreen";
 import DiffScreen from "./desk/screens/DiffScreen";
 import ManuscriptScreen from "./desk/screens/ManuscriptScreen";
 import LedgerScreen from "./desk/screens/LedgerScreen";
+import DocsScreen from "./desk/screens/DocsScreen";
 
 export default function App() {
   const desk = useDeskState();
@@ -43,6 +44,7 @@ function Desk() {
         {screen === "diff" && <DiffScreen />}
         {screen === "manuscript" && <ManuscriptScreen />}
         {screen === "ledger" && <LedgerScreen />}
+        {screen === "docs" && <DocsScreen />}
       </div>
 
       {paletteOpen && <CommandPalette />}

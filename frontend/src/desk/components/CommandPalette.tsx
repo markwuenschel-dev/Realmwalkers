@@ -12,6 +12,7 @@ export default function CommandPalette() {
     { icon: "⇄", label: "Compare versions", hint: "G V", onClick: () => go("diff") },
     { icon: "❡", label: "Open Manuscript", hint: "G M", onClick: () => go("manuscript") },
     { icon: "◍", label: "Open World ledger", hint: "G L", onClick: () => go("ledger") },
+    { icon: "❡", label: "Open Canon docs", hint: "G D", onClick: () => go("docs") },
     { icon: "⤓", label: "Next scene in queue", hint: "J", onClick: nextScene },
     { icon: "⤒", label: "Previous scene in queue", hint: "K", onClick: prevScene },
   ];
