@@ -1,14 +1,27 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { lineDiff } from "../lib/diff";
+import type { SceneVersionOut } from "../api/types";
 
 export default function DiffScreen() {
   const { go } = useDesk();
   const data = useDeskData();
   const versions = data.versions;
   const cur = data.detail;
+
+  // Which two versions to compare. Default to the last two; reset whenever the lineage changes
+  // (e.g. after a revert or revision adds a version).
+  const [baseId, setBaseId] = useState<string | null>(null);
+  const [targetId, setTargetId] = useState<string | null>(null);
+  const [reverting, setReverting] = useState(false);
+  const versionKey = versions.map((v) => v.id).join(",");
+  useEffect(() => {
+    if (versions.length < 2) return;
+    setBaseId(versions[versions.length - 2].id);
+    setTargetId(versions[versions.length - 1].id);
+  }, [versionKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!cur) {
     return (
@@ -27,9 +40,18 @@ export default function DiffScreen() {
     );
   }
 
-  const base = versions[versions.length - 2];
-  const target = versions[versions.length - 1];
+  const base = versions.find((v) => v.id === baseId) ?? versions[versions.length - 2];
+  const target = versions.find((v) => v.id === targetId) ?? versions[versions.length - 1];
   const ops = lineDiff(base.prose ?? "", target.prose ?? "");
+  const latest = versions[versions.length - 1];
+
+  const revertTo = async (v: SceneVersionOut) => {
+    if (reverting) return;
+    if (!confirm(`Revert scene ${cur.scene_no} to v${v.version}? This creates a new current version with that text.`)) return;
+    setReverting(true);
+    await data.revertScene(v.id);
+    setReverting(false);
+  };
 
   const cell = (side: "l" | "r", type: "same" | "add" | "del") => {
     const b = "font-family:var(--mono);font-size:12.5px;line-height:1.65;padding:5px 14px;background:var(--bg2);white-space:pre-wrap;word-break:break-word;";
@@ -38,30 +60,47 @@ export default function DiffScreen() {
     return b + (side === "l" ? "background:color-mix(in srgb,var(--bad) 14%,var(--bg2));color:var(--bad)" : "opacity:.35");
   };
 
+  const versionLabel = (v: SceneVersionOut) =>
+    `v${v.version} · ${v.status.replace(/_/g, " ")}${v.id === latest.id ? " · current" : ""}`;
+  const selectStyle = css("background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-family:var(--mono);font-size:12px;cursor:pointer");
+
   let ln = 0;
 
   return (
     <div>
-      <div style={css("display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:22px")}>
+      <div style={css("display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:18px")}>
         <div>
           <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:7px")}>SCENE {cur.scene_no}</div>
           <h1 style={css("margin:0;font-family:var(--display);font-weight:600;font-size:28px;color:var(--ink)")}>Version history</h1>
         </div>
-        <div style={css("display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px;color:var(--dim)")}>
-          <span style={css("padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2)")}>v{base.version}</span>
+        <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
+          <select value={base.id} onChange={(e) => setBaseId(e.target.value)} style={selectStyle} title="compare from">
+            {versions.map((v) => <option key={v.id} value={v.id}>{versionLabel(v)}</option>)}
+          </select>
           <span style={css("color:var(--accent)")}>→</span>
-          <span style={css("padding:6px 12px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink)")}>v{target.version}</span>
+          <select value={target.id} onChange={(e) => setTargetId(e.target.value)} style={selectStyle} title="compare to">
+            {versions.map((v) => <option key={v.id} value={v.id}>{versionLabel(v)}</option>)}
+          </select>
         </div>
       </div>
 
-      <div style={css("display:flex;gap:18px;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:14px")}>
-        <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:10px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--good) 30%,transparent)")} />added</span>
-        <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:10px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--bad) 30%,transparent)")} />removed</span>
+      <div style={css("display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px")}>
+        <div style={css("display:flex;gap:18px;font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
+          <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:10px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--good) 30%,transparent)")} />added</span>
+          <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:10px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--bad) 30%,transparent)")} />removed</span>
+        </div>
+        {base.id !== latest.id && (
+          <button onClick={() => revertTo(base)} disabled={reverting}
+            title={`Make v${base.version}'s text the current version`}
+            style={css("padding:7px 13px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>
+            {reverting ? "Reverting…" : `⟲ Revert to v${base.version}`}
+          </button>
+        )}
       </div>
 
       <div style={css("display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden")}>
         <div style={css("background:var(--bg2b);padding:11px 16px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)")}>v{base.version}{base.agent_original ? " — agent original" : ""}</div>
-        <div style={css("background:var(--bg2b);padding:11px 16px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)")}>v{target.version} — current</div>
+        <div style={css("background:var(--bg2b);padding:11px 16px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)")}>v{target.version}{target.id === latest.id ? " — current" : ""}</div>
         {ops.map((d, i) => {
           if (d.type !== "add") ln++;
           const leftNum = d.type === "add" ? "" : String(ln);

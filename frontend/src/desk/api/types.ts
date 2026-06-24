@@ -62,9 +62,14 @@ export interface ChapterOut {
   id: string;
   book_id: string;
   chapter_no: number;
+  title: string | null;
   pov: string;
   outline: string | null;
   status: string;
+}
+
+export interface ChapterUpdateIn {
+  title?: string | null;
 }
 
 export interface BeatOut {
@@ -120,6 +125,7 @@ export interface ManuscriptScene {
 
 export interface ManuscriptChapter {
   chapter_no: number;
+  title: string | null;
   pov: string;
   scenes: ManuscriptScene[];
 }
@@ -133,6 +139,8 @@ export interface ManuscriptOut {
 export interface ActiveScene {
   chapter_no: number | null;
   scene_no: number | null;
+  phase: string | null;
+  elapsed_s: number | null;
 }
 
 export interface JobsStatusOut {
@@ -161,6 +169,27 @@ export interface CanonEntityOut {
   kind: string | null;
   name: string | null;
   body: string | null;
+}
+
+export interface CanonEntityIn {
+  kind?: string | null;
+  name?: string | null;
+  body?: string | null;
+}
+
+export interface CanonEntityUpdateIn {
+  kind?: string | null;
+  name?: string | null;
+  body?: string | null;
+}
+
+export interface CharacterStateIn {
+  stats: Record<string, unknown>;
+  body?: string | null;
+}
+
+export interface CanonIngestOut {
+  indexed: number;
 }
 
 export interface ThreadBeatOut {

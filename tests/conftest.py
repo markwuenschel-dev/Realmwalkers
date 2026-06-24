@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
     create_async_engine,
 )
 
+from dominion.shared.migrations import apply_lightweight_migrations  # noqa: E402
 from dominion.shared.models import Base  # noqa: E402
 
 
@@ -63,6 +64,9 @@ async def db_factory():
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
+        # Bring a pre-existing test DB up to the current ORM (create_all won't add new columns to
+        # tables it already created) — same idempotent migration the app runs at boot.
+        await apply_lightweight_migrations(conn)
         tables = ", ".join(f'"{name}"' for name in Base.metadata.tables)
         await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 

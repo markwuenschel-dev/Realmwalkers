@@ -37,7 +37,7 @@ export default function ManuscriptScreen() {
     for (const ch of chapters) {
       const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
       if (scenes.length === 0) continue;
-      lines.push("", `## Chapter ${ch.chapter_no}`, "", `*POV — ${ch.pov}*`, "");
+      lines.push("", `## Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`, "", `*POV — ${ch.pov}*`, "");
       scenes.forEach((sc, si) => {
         if (si > 0) lines.push("", "\\* \\* \\*", ""); // scene break
         lines.push((sc.prose ?? "").trim());
@@ -110,7 +110,8 @@ export default function ManuscriptScreen() {
               <div style={css("text-align:center;margin-bottom:30px")}>
                 <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:9px")}>Chapter {ch.chapter_no}</div>
                 <h2 style={css("margin:0;font-family:var(--display);font-weight:500;font-size:25px;color:var(--ink)")}>
-                  <span style={css("display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:400")}>POV · {ch.pov}</span>
+                  {ch.title ? ch.title : null}
+                  <span style={css("display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:400;margin-top:6px")}>POV · {ch.pov}</span>
                 </h2>
               </div>
 

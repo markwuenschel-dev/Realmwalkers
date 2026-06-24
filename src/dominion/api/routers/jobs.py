@@ -21,6 +21,7 @@ from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job, Run
 from dominion.shared.schemas import ActiveScene, DraftNextOut, JobsStatusOut
+from dominion.workers import progress
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -86,7 +87,7 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     another book never lights up this book's indicator. Unscoped, the global drain lock still counts
     (the terminal-driven path has no book context)."""
     counts = await _queue_counts(session, book_id)
-    active_stmt = select(Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING)
+    active_stmt = select(Job.id, Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING)
     if book_id is not None:
         active_stmt = active_stmt.join(Run, Job.run_id == Run.id).where(Run.book_id == book_id)
     active = (await session.execute(
@@ -95,9 +96,16 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     running = JobStatus.RUNNING in counts
     if book_id is None:
         running = running or _drain_lock.locked()
+    active_scene = None
+    if active:
+        job_id, chapter_no, scene_no = active
+        phase, elapsed_s = progress.get(str(job_id))  # live sub-stage from the in-process registry
+        active_scene = ActiveScene(
+            chapter_no=chapter_no, scene_no=scene_no, phase=phase, elapsed_s=elapsed_s,
+        )
     return JobsStatusOut(
         running=running,
         queued=counts.get(JobStatus.QUEUED, 0),
         failed=counts.get(JobStatus.FAILED, 0),
-        active_scene=ActiveScene(chapter_no=active[0], scene_no=active[1]) if active else None,
+        active_scene=active_scene,
     )

@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.enums import SceneStatus
-from dominion.shared.models import Chapter, Critique, PovProfile, Scene
+from dominion.shared.enums import Decision, SceneStatus
+from dominion.shared.models import Approval, Chapter, Critique, PovProfile, Scene
 from dominion.shared.schemas import CritiqueOut, ExemplarIn, SceneDetail, SceneOut, SceneVersionOut
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
@@ -108,3 +108,48 @@ async def scene_versions(scene_id: uuid.UUID, session: SessionDep) -> list[Scene
         )
     ).scalars().all()
     return list(rows)
+
+
+@router.post("/{scene_id}/revert", response_model=SceneOut)
+async def revert_scene(scene_id: uuid.UUID, session: SessionDep) -> Scene:
+    """Roll a scene back to an earlier version: clone that version's prose into a NEW top version
+    (versioning is rows, never destructive — DESIGN §3) and supersede the current one.
+
+    The new version lands APPROVED directly — reverting is itself the human's decision, so it skips the
+    inbox. It deliberately does NOT re-commit the beat's declared deltas (the ledger already reflects
+    the approved state; re-applying relative '+N' deltas would double-count). `scene_id` is the version
+    to revert TO."""
+    target = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="scene not found")
+    versions = (await session.execute(
+        select(Scene)
+        .where(Scene.chapter_id == target.chapter_id, Scene.scene_no == target.scene_no)
+        .order_by(Scene.version)
+    )).scalars().all()
+    current = versions[-1]
+    if current.id == target.id:
+        raise HTTPException(status_code=409, detail="that version is already the current one")
+
+    reverted = Scene(
+        chapter_id=target.chapter_id,
+        scene_no=target.scene_no,
+        version=current.version + 1,
+        parent_scene_id=current.id,
+        status=SceneStatus.APPROVED,
+        prose=target.prose,
+        prose_source=target.prose_source,
+        agent_original=target.agent_original,
+        passes_run=target.passes_run,
+        token_count=target.token_count,
+        model=target.model,
+    )
+    current.status = SceneStatus.SUPERSEDED
+    session.add(reverted)
+    await session.flush()
+    session.add(Approval(
+        scene_id=reverted.id, version=reverted.version, decision=Decision.APPROVE,
+        feedback=f"reverted to v{target.version}",
+    ))
+    await session.commit()
+    return reverted

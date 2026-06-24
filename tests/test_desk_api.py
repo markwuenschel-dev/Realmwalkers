@@ -6,10 +6,12 @@ and skip automatically when Postgres isn't reachable (see tests/conftest.py).
 """
 from __future__ import annotations
 
-from fastapi import BackgroundTasks
+import pytest
+from fastapi import BackgroundTasks, HTTPException
 
 from dominion.api.routers import jobs as jobs_router
 from dominion.api.routers import markup as markup_router
+from dominion.api.routers import scenes as scenes_router
 from dominion.api.routers import threads as threads_router
 from dominion.api.routers import world as world_router
 from dominion.shared.enums import JobStatus, SuggestionStatus
@@ -24,12 +26,17 @@ from dominion.shared.models import (
 )
 from dominion.shared.schemas import (
     AnnotationIn,
+    CanonEntityIn,
+    CanonEntityUpdateIn,
+    CharacterStateIn,
     SuggestionDecisionIn,
     SuggestionIn,
     ThreadBeatIn,
     ThreadIn,
     ThreadUpdateIn,
 )
+from dominion.workers.memory import canon_rag
+from dominion.workers.oracle import Oracle
 
 # --- draft trigger (no DB) ------------------------------------------------------------------------
 
@@ -156,6 +163,59 @@ async def test_canon_lists_and_filters_by_kind(db_factory):
         assert len(locs) == 1 and locs[0].name == "The Warded Door"
 
 
+# --- world authoring: canon CRUD + character upsert + docs ingest (DB) ----------------------------
+
+async def test_canon_entity_crud_embeds_and_is_retrievable(db_factory):
+    async with db_factory() as s:
+        book = Book(title="X")
+        s.add(book)
+        await s.flush()
+
+        created = await world_router.create_canon(
+            book.id, CanonEntityIn(kind="location", name="Eriadne", body="A warded city of glass towers."), s
+        )
+        assert created.kind == "location" and created.name == "Eriadne"
+        # embedded on write -> the drafter/planner RAG can retrieve it immediately
+        hits = await canon_rag.retrieve(s, book_id=book.id, query="warded city of glass towers", k=3)
+        assert any("glass towers" in h for h in hits)
+
+        updated = await world_router.update_canon(created.id, CanonEntityUpdateIn(body="Rewritten lore."), s)
+        assert updated.body == "Rewritten lore."
+
+        await world_router.delete_canon(created.id, s)
+        assert await world_router.list_canon(book.id, s) == []
+
+
+async def test_upsert_character_seeds_oracle_baseline(db_factory):
+    async with db_factory() as s:
+        book = Book(title="X")
+        s.add(book)
+        await s.flush()
+
+        out = await world_router.upsert_character(
+            book.id, "Soren", CharacterStateIn(stats={"level": 5, "hp": 100}, body="An ascendant."), s
+        )
+        assert out.character == "Soren" and out.stats["level"] == 5 and out.body == "An ascendant."
+        # the Oracle reads this as the current truth
+        assert (await Oracle(s).current(book_id=book.id, character="Soren"))["hp"] == 100
+
+        # stats are set wholesale (not merged) on re-upsert
+        out2 = await world_router.upsert_character(book.id, "Soren", CharacterStateIn(stats={"level": 6}), s)
+        assert out2.stats == {"level": 6}
+
+        await world_router.delete_character(book.id, "Soren", s)
+        assert await world_router.list_characters(book.id, s) == []
+
+
+async def test_ingest_canon_indexes_on_disk_docs(db_factory):
+    async with db_factory() as s:
+        book = Book(title="X")
+        s.add(book)
+        await s.flush()
+        out = await world_router.ingest_canon(book.id, s)
+        assert out.indexed > 0  # the repo ships novel/canon/*.md
+
+
 # --- threads (DB) ---------------------------------------------------------------------------------
 
 async def test_thread_crud_roundtrip(db_factory):
@@ -233,3 +293,31 @@ async def test_suggestion_lifecycle(db_factory):
 
         await markup_router.delete_suggestion(out.id, s)
         assert await markup_router.list_suggestions(scene.id, s) == []
+
+
+# --- versions: revert (DB) ------------------------------------------------------------------------
+
+async def test_revert_clones_version_and_supersedes_current(db_factory):
+    async with db_factory() as s:
+        book = Book(title="X")
+        s.add(book)
+        await s.flush()
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+        s.add(ch)
+        await s.flush()
+        v1 = Scene(chapter_id=ch.id, scene_no=1, version=1, status="superseded", prose="first", prose_source="agent")
+        v2 = Scene(chapter_id=ch.id, scene_no=1, version=2, status="approved", prose="second", prose_source="agent")
+        s.add_all([v1, v2])
+        await s.flush()
+
+        out = await scenes_router.revert_scene(v1.id, s)
+        assert out.version == 3 and out.prose == "first" and out.status == "approved"
+
+        lineage = await scenes_router.scene_versions(out.id, s)
+        assert [(v.version, str(v.status)) for v in lineage] == [
+            (1, "superseded"), (2, "superseded"), (3, "approved")
+        ]
+
+        # reverting to the version that is already current is a 409
+        with pytest.raises(HTTPException):
+            await scenes_router.revert_scene(out.id, s)

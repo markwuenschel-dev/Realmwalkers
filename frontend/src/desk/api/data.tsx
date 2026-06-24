@@ -13,8 +13,12 @@ import type {
   AnnotationOut,
   BeatOut,
   BookOut,
+  CanonEntityIn,
   CanonEntityOut,
+  CanonEntityUpdateIn,
   ChapterOut,
+  ChapterUpdateIn,
+  CharacterStateIn,
   CharacterStateOut,
   ContinuityResolveIn,
   DecisionIn,
@@ -65,17 +69,25 @@ export interface DeskData {
 
   refreshAll: () => Promise<void>;
   createBook: (title: string) => Promise<void>;
+  updateChapter: (chapterId: string, body: ChapterUpdateIn) => Promise<void>;
   startRun: (
     chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
   ) => Promise<RunStartOut | null>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
+  revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
   setExemplar: (enabled: boolean) => Promise<void>;
   draftNext: () => Promise<void>;
   createThread: (body: ThreadIn) => Promise<void>;
   addThreadBeat: (threadId: string, body: ThreadBeatIn) => Promise<void>;
   deleteThread: (id: string) => Promise<void>;
+  upsertCharacter: (name: string, body: CharacterStateIn) => Promise<void>;
+  deleteCharacter: (name: string) => Promise<void>;
+  createCanon: (body: CanonEntityIn) => Promise<void>;
+  updateCanon: (id: string, body: CanonEntityUpdateIn) => Promise<void>;
+  deleteCanon: (id: string) => Promise<void>;
+  ingestCanon: () => Promise<number | null>;
   addAnnotation: (body: AnnotationIn) => Promise<void>;
   deleteAnnotation: (id: string) => Promise<void>;
   addSuggestion: (body: SuggestionIn) => Promise<void>;
@@ -182,30 +194,40 @@ export function useDeskDataState(): DeskData {
     };
   }, [bookId, loadCollections]);
 
-  // poll while the worker is drafting, so freshly-drafted scenes appear without a reload
+  // Poll job status so drafting progress (and freshly-drafted scenes) appear without a reload.
+  // Adaptive cadence via self-scheduling setTimeout: ~1.5s while a draft is in flight so the live
+  // phase/elapsed indicator feels real-time, backing off to ~4s when idle to spare the API.
   const jobsRef = useRef(jobs);
   jobsRef.current = jobs;
   const bookRef = useRef(bookId);
   bookRef.current = bookId;
   useEffect(() => {
+    let alive = true;
+    let handle = 0;
     const tick = async () => {
+      let busyNow = false;
       const id = bookRef.current;
-      if (!id) return;
-      try {
-        const js = await api.jobsStatus(id);
-        setJobs(js);
-        const was = jobsRef.current;
-        const busy = js.running || js.queued > 0;
-        const justFinished = !busy && (was.running || was.queued > 0);
-        if (busy || justFinished) {
-          await loadCollections(id);
+      if (id) {
+        try {
+          const js = await api.jobsStatus(id);
+          setJobs(js);
+          const was = jobsRef.current;
+          busyNow = js.running || js.queued > 0;
+          const justFinished = !busyNow && (was.running || was.queued > 0);
+          if (busyNow || justFinished) {
+            await loadCollections(id);
+          }
+        } catch {
+          /* transient — next tick retries */
         }
-      } catch {
-        /* transient — next tick retries */
       }
+      if (alive) handle = window.setTimeout(tick, busyNow ? 1500 : 4000);
     };
-    const handle = window.setInterval(tick, 3000);
-    return () => window.clearInterval(handle);
+    handle = window.setTimeout(tick, 1500);
+    return () => {
+      alive = false;
+      window.clearTimeout(handle);
+    };
   }, [loadCollections]);
 
   // --- active scene detail ------------------------------------------------------------------------
@@ -273,6 +295,18 @@ export function useDeskDataState(): DeskData {
     [bookId, loadCollections],
   );
 
+  const updateChapter = useCallback(
+    async (chapterId: string, body: ChapterUpdateIn): Promise<void> => {
+      try {
+        const updated = await api.updateChapter(chapterId, body);
+        setChapters((cs) => cs.map((c) => (c.id === updated.id ? updated : c)));
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [],
+  );
+
   const draftNext = useCallback(async (): Promise<void> => {
     try {
       const out = await api.draftNext(bookId ?? undefined);
@@ -307,6 +341,17 @@ export function useDeskDataState(): DeskData {
     },
     [draftNext, refreshAll],
   );
+
+  // Roll a scene back to an earlier version: the API clones it into a new approved version; open it.
+  const revertScene = useCallback(async (sceneId: string): Promise<void> => {
+    try {
+      const created = await api.revertScene(sceneId);
+      openSceneById(created.id);
+      await refreshAll();
+    } catch (e) {
+      fail(e);
+    }
+  }, [openSceneById, refreshAll]);
 
   const resolveContinuity = useCallback(
     async (sceneId: string, body: ContinuityResolveIn): Promise<void> => {
@@ -369,6 +414,74 @@ export function useDeskDataState(): DeskData {
     }
   }, []);
 
+  // --- world authoring: character state (Oracle baseline) + canon entities ------------------------
+  const upsertCharacter = useCallback(async (name: string, body: CharacterStateIn): Promise<void> => {
+    if (!bookId) return;
+    try {
+      const updated = await api.upsertCharacter(bookId, name, body);
+      setCharacters((cs) => {
+        const i = cs.findIndex((c) => c.character === updated.character);
+        if (i < 0) return [...cs, updated].sort((a, b) => a.character.localeCompare(b.character));
+        const next = [...cs];
+        next[i] = updated;
+        return next;
+      });
+    } catch (e) {
+      fail(e);
+    }
+  }, [bookId]);
+
+  const deleteCharacter = useCallback(async (name: string): Promise<void> => {
+    if (!bookId) return;
+    try {
+      await api.deleteCharacter(bookId, name);
+      setCharacters((cs) => cs.filter((c) => c.character !== name));
+    } catch (e) {
+      fail(e);
+    }
+  }, [bookId]);
+
+  const createCanon = useCallback(async (body: CanonEntityIn): Promise<void> => {
+    if (!bookId) return;
+    try {
+      const created = await api.createCanon(bookId, body);
+      setCanon((cs) => [...cs, created]);
+    } catch (e) {
+      fail(e);
+    }
+  }, [bookId]);
+
+  const updateCanon = useCallback(async (id: string, body: CanonEntityUpdateIn): Promise<void> => {
+    try {
+      const updated = await api.updateCanon(id, body);
+      setCanon((cs) => cs.map((c) => (c.id === updated.id ? updated : c)));
+    } catch (e) {
+      fail(e);
+    }
+  }, []);
+
+  const deleteCanon = useCallback(async (id: string): Promise<void> => {
+    try {
+      await api.deleteCanon(id);
+      setCanon((cs) => cs.filter((c) => c.id !== id));
+    } catch (e) {
+      fail(e);
+    }
+  }, []);
+
+  // Rebuild the retrieval index from the on-disk canon docs; returns the chunk count (or null on error).
+  const ingestCanon = useCallback(async (): Promise<number | null> => {
+    if (!bookId) return null;
+    try {
+      const out = await api.ingestCanon(bookId);
+      await loadCollections(bookId); // passage rows changed — refresh the canon view
+      return out.indexed;
+    } catch (e) {
+      fail(e);
+      return null;
+    }
+  }, [bookId, loadCollections]);
+
   // markup actions operate on the loaded scene; re-pull the affected list after each write
   const addAnnotation = useCallback(async (body: AnnotationIn): Promise<void> => {
     if (!activeSceneId) return;
@@ -422,9 +535,10 @@ export function useDeskDataState(): DeskData {
     books, bookId, setBook,
     chapters, scenes, pending, manuscript, characters, canon, threads, jobs,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
-    refreshAll, createBook, startRun, approveAndDraft, decide, resolveContinuity, draftNext,
+    refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext,
     setExemplar,
     createThread, addThreadBeat, deleteThread,
+    upsertCharacter, deleteCharacter, createCanon, updateCanon, deleteCanon, ingestCanon,
     addAnnotation, deleteAnnotation, addSuggestion, decideSuggestion, deleteSuggestion,
   };
 }

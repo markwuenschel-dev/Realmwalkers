@@ -126,9 +126,16 @@ class ChapterOut(_ORM):
     id: uuid.UUID
     book_id: uuid.UUID
     chapter_no: int
+    title: str | None = None
     pov: str
     outline: str | None = None
     status: str
+
+
+class ChapterUpdateIn(BaseModel):
+    """PATCH body to edit a chapter's authored fields (currently just the title). Only provided
+    fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn)."""
+    title: str | None = None
 
 
 class RunStartIn(BaseModel):
@@ -169,6 +176,7 @@ class ManuscriptScene(BaseModel):
 
 class ManuscriptChapter(BaseModel):
     chapter_no: int
+    title: str | None = None
     pov: str
     scenes: list[ManuscriptScene] = []
 
@@ -185,6 +193,11 @@ class ManuscriptOut(BaseModel):
 class ActiveScene(BaseModel):
     chapter_no: int | None = None
     scene_no: int | None = None
+    # What the worker is doing right now ("drafting prose", "enriching · combat", "reviewing"), plus
+    # how long it's been on this scene — so the Desk shows live progress, not a frozen spinner. Both
+    # come from the in-process phase registry (workers/progress.py); null when unknown.
+    phase: str | None = None
+    elapsed_s: int | None = None
 
 
 class JobsStatusOut(BaseModel):
@@ -217,6 +230,33 @@ class CanonEntityOut(_ORM):
     kind: str | None = None
     name: str | None = None
     body: str | None = None
+
+
+class CanonEntityIn(BaseModel):
+    """Create a canon entity (location/faction/item/lore/…). Re-embedded on write for retrieval."""
+    kind: str | None = None
+    name: str | None = None
+    body: str | None = None
+
+
+class CanonEntityUpdateIn(BaseModel):
+    """Edit a canon entity. Only provided fields are applied; body changes trigger a re-embed."""
+    kind: str | None = None
+    name: str | None = None
+    body: str | None = None
+
+
+class CharacterStateIn(BaseModel):
+    """Seed/replace a character's Oracle stats (absolute values, not deltas), with an optional canon
+    description. `stats` overwrites the stored stat block; `body` upserts a kind='character' canon
+    entity so the hover-card / Ledger body and RAG see it too."""
+    stats: dict[str, Any] = {}
+    body: str | None = None
+
+
+class CanonIngestOut(BaseModel):
+    """Result of rebuilding the retrieval index from the on-disk canon docs."""
+    indexed: int
 
 
 # --- World threads (curated arcs across scenes) ---------------------------------------------------

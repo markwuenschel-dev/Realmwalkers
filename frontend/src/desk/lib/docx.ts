@@ -308,10 +308,19 @@ export function buildManuscriptDoc(manuscript: ManuscriptOut): Document {
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 480, after: 80 },
+        spacing: { before: 480, after: ch.title ? 60 : 80 },
         children: [new TextRun({ text: `CHAPTER ${ch.chapter_no}`, font: "Georgia", bold: true, size: 28 })],
       }),
     );
+    if (ch.title) {
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 80 },
+          children: [new TextRun({ text: ch.title, font: "Georgia", italics: true, size: 26 })],
+        }),
+      );
+    }
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,

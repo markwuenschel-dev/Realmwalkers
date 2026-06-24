@@ -16,7 +16,14 @@ from dominion.api.deps import SessionDep
 from dominion.shared.config import settings
 from dominion.shared.enums import BeatStatus, ChapterStatus, JobKind, JobStatus
 from dominion.shared.models import Beat, Chapter, Job, Run, Scene
-from dominion.shared.schemas import ApproveBeatsIn, BeatCreateIn, BeatOut, ChapterOut, SceneOut
+from dominion.shared.schemas import (
+    ApproveBeatsIn,
+    BeatCreateIn,
+    BeatOut,
+    ChapterOut,
+    ChapterUpdateIn,
+    SceneOut,
+)
 
 router = APIRouter(prefix="/chapters", tags=["chapters"])
 
@@ -27,6 +34,21 @@ async def list_chapters(book_id: uuid.UUID, session: SessionDep) -> list[Chapter
         select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)
     )).scalars().all()
     return list(rows)
+
+
+@router.patch("/{chapter_id}", response_model=ChapterOut)
+async def update_chapter(
+    chapter_id: uuid.UUID, body: ChapterUpdateIn, session: SessionDep
+) -> Chapter:
+    """Edit a chapter's authored fields (currently the title). Only provided fields are applied, so
+    the author can rename the plan-call's proposed title at any time without re-running the planner."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(chapter, key, value)
+    await session.commit()
+    return chapter
 
 
 @router.get("/{chapter_id}/beats", response_model=list[BeatOut])

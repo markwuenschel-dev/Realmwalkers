@@ -26,6 +26,11 @@ export default function SceneScreen() {
   const { t } = desk;
   const data = useDeskData();
   const [committing, setCommitting] = useState(false);
+  // selection toolbar + inline markup composer (replace the old window.prompt flows)
+  const [sel, setSel] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [composer, setComposer] = useState<{ kind: "note" | "sugg"; quote: string; x: number; y: number } | null>(null);
+  const [restored, setRestored] = useState(false); // an unsaved hand-edit was recovered from localStorage
+  const proseRef = useRef<HTMLDivElement>(null);
 
   const pending = data.pending;
   const idx = pending.length ? Math.min(Math.max(desk.activeScene, 0), pending.length - 1) : -1;
@@ -44,10 +49,40 @@ export default function SceneScreen() {
   }, [loadId, data]);
 
   const cur = data.detail;
-  // seed the edit buffer from the loaded scene
+  const draftKey = (s: { id: string; version: number }) => `dominion:draft:${s.id}:${s.version}`;
+
+  // Seed the edit buffer from the loaded scene — but if an unsaved hand-edit was autosaved for this
+  // exact (scene, version), recover it so navigating away never loses work.
   useEffect(() => {
-    desk.setProse(cur?.prose ?? "");
+    if (!cur) return;
+    let initial = cur.prose ?? "";
+    let didRestore = false;
+    try {
+      const saved = localStorage.getItem(draftKey(cur));
+      if (saved != null && saved !== (cur.prose ?? "")) {
+        initial = saved;
+        didRestore = true;
+      }
+    } catch { /* localStorage unavailable — fall back to the server prose */ }
+    desk.setProse(initial);
+    setRestored(didRestore);
   }, [cur?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Autosave the hand-edit buffer per (scene, version); clear the draft once it matches the server.
+  useEffect(() => {
+    if (!cur) return;
+    try {
+      if (desk.rawProse !== (cur.prose ?? "")) localStorage.setItem(draftKey(cur), desk.rawProse);
+      else localStorage.removeItem(draftKey(cur));
+    } catch { /* ignore */ }
+  }, [desk.rawProse, cur?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const discardDraft = () => {
+    if (!cur) return;
+    desk.setProse(cur.prose ?? "");
+    try { localStorage.removeItem(draftKey(cur)); } catch { /* ignore */ }
+    setRestored(false);
+  };
 
   const chapter = useMemo(
     () => data.chapters.find((c) => c.id === cur?.chapter_id) ?? null,
@@ -79,8 +114,21 @@ export default function SceneScreen() {
           ? { decision: "approve" as const, edited_prose: edited }
           : { decision: "deny" as const };
     await data.decide(cur.id, body);
+    try { localStorage.removeItem(draftKey(cur)); } catch { /* ignore */ }
+    setRestored(false);
     desk.setFeedback("");
     setCommitting(false);
+  };
+
+  // Capture a text selection inside the prose to anchor the inline note/suggest toolbar.
+  const onProseMouseUp = () => {
+    const s = window.getSelection();
+    if (!s || s.isCollapsed) { setSel(null); return; }
+    const text = s.toString().trim();
+    const node = s.anchorNode;
+    if (!text || !proseRef.current || !node || !proseRef.current.contains(node)) { setSel(null); return; }
+    const rect = s.getRangeAt(0).getBoundingClientRect();
+    setSel({ text, x: rect.left + rect.width / 2, y: rect.top });
   };
 
   // ── empty state ────────────────────────────────────────────────────────────────────────────────
@@ -188,19 +236,19 @@ export default function SceneScreen() {
     return <span key={key} style={css("color:inherit")}>{tok.text}</span>;
   };
 
-  // gutter affordances (window prompts keep this a dev tool, like the Ledger thread curation)
-  const addNote = async () => {
-    const note = window.prompt("Margin note:");
-    if (!note?.trim()) return;
-    const quote = window.prompt("Anchor to a quote in the prose (optional, must match exactly):") || null;
-    await data.addAnnotation({ note: note.trim(), quote, author: "You" });
-  };
-  const addSuggestion = async () => {
-    const quote = window.prompt("Text to replace (must appear in the prose exactly):");
-    if (!quote?.trim()) return;
-    const neu = window.prompt("Replace with (leave blank to delete):") ?? "";
-    const why = window.prompt("Why? (optional)") || null;
-    await data.addSuggestion({ quote, new_text: neu, why, author: "You" });
+  // Gutter affordances open the inline composer (select prose for a pre-filled quote, or add manually).
+  const center = () => ({ x: window.innerWidth / 2, y: 150 });
+  const addNote = () => setComposer({ kind: "note", quote: "", ...center() });
+  const addSuggestion = () => setComposer({ kind: "sugg", quote: "", ...center() });
+  const saveComposer = async (p: { quote: string; note: string; newText: string; why: string }) => {
+    if (!composer) return;
+    if (composer.kind === "note") {
+      await data.addAnnotation({ note: p.note.trim(), quote: p.quote.trim() || null, author: "You" });
+    } else {
+      await data.addSuggestion({ quote: p.quote.trim(), new_text: p.newText, why: p.why.trim() || null, author: "You" });
+      desk.setMode("suggesting"); // surface the tracked change you just made
+    }
+    setComposer(null);
   };
 
   let pkey = 0;
@@ -278,6 +326,14 @@ export default function SceneScreen() {
         </div>
       )}
 
+      {restored && (
+        <div style={css(`display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;border-radius:9px;border:1px solid ${t.info};background:color-mix(in srgb,${t.info} 12%,transparent);font-size:13px;color:var(--ink);line-height:1.5`)}>
+          <span style={css("font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--info)")}>recovered</span>
+          <span>Restored unsaved edits to this scene from a previous session. <b>Approve</b> to keep them, or</span>
+          <button onClick={discardDraft} style={css("margin-left:auto;padding:5px 11px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px;cursor:pointer;font-family:var(--ui)")}>Discard edits</button>
+        </div>
+      )}
+
       <div style={css("display:grid;grid-template-columns:minmax(0,1fr) 388px;gap:22px;align-items:start")}>
         {/* ── PROSE COLUMN ── */}
         <section style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)")}>
@@ -310,7 +366,10 @@ export default function SceneScreen() {
             </div>
           ) : (
             <div style={css("display:flex;flex-wrap:wrap;gap:30px;padding:34px 32px 14px 42px")}>
-              <div style={css("flex:1 1 380px;min-width:330px")}>
+              <div ref={proseRef} onMouseUp={onProseMouseUp} style={css("flex:1 1 380px;min-width:330px")}>
+                {!editing && (
+                  <div style={css("font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:10px;opacity:.8")}>Select any text to add a note or a tracked change.</div>
+                )}
                 {blocks.length ? blocks : <p style={css("color:var(--dim)")}>No prose.</p>}
               </div>
 
@@ -486,6 +545,77 @@ export default function SceneScreen() {
           )}
         </aside>
       </div>
+
+      {/* selection toolbar — appears over a highlighted passage in reading/suggesting mode */}
+      {!editing && sel && !composer && (
+        <div style={css(`position:fixed;left:${sel.x}px;top:${Math.max(sel.y - 46, 8)}px;transform:translateX(-50%);z-index:70;display:flex;gap:3px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);padding:4px`)}>
+          <button onClick={() => { setComposer({ kind: "note", quote: sel.text, x: sel.x, y: sel.y }); setSel(null); }}
+            style={css("padding:5px 10px;border:none;border-radius:6px;background:transparent;color:var(--ink);font-size:12px;cursor:pointer;font-family:var(--ui)")}>＋ Note</button>
+          <button onClick={() => { setComposer({ kind: "sugg", quote: sel.text, x: sel.x, y: sel.y }); setSel(null); }}
+            style={css("padding:5px 10px;border:none;border-radius:6px;background:transparent;color:var(--accent);font-size:12px;cursor:pointer;font-family:var(--ui)")}>✎ Suggest</button>
+        </div>
+      )}
+
+      {composer && <MarkupComposer composer={composer} onCancel={() => setComposer(null)} onSave={saveComposer} />}
     </div>
+  );
+}
+
+// Inline composer for a margin note or a tracked-change suggestion, anchored near the selection.
+function MarkupComposer({ composer, onCancel, onSave }: {
+  composer: { kind: "note" | "sugg"; quote: string; x: number; y: number };
+  onCancel: () => void;
+  onSave: (p: { quote: string; note: string; newText: string; why: string }) => void;
+}) {
+  const isNote = composer.kind === "note";
+  const [quote, setQuote] = useState(composer.quote);
+  const [note, setNote] = useState("");
+  const [newText, setNewText] = useState("");
+  const [why, setWhy] = useState("");
+  const canSave = isNote ? note.trim().length > 0 : quote.trim().length > 0;
+
+  const left = Math.min(Math.max(composer.x, 190), window.innerWidth - 190);
+  const top = Math.min(composer.y + 14, window.innerHeight - 270);
+  const field = "width:100%;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;font-family:var(--ui)";
+  const lbl = "display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 4px";
+
+  return (
+    <>
+      <div onClick={onCancel} style={css("position:fixed;inset:0;z-index:80")} />
+      <div style={css(`position:fixed;left:${left}px;top:${top}px;transform:translateX(-50%);z-index:81;width:340px;background:var(--bg2);border:1px solid var(--accentLine);border-radius:12px;box-shadow:var(--shadow);padding:15px 16px`)}>
+        <div style={css("font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:11px")}>{isNote ? "Margin note" : "Tracked change"}</div>
+
+        <label style={css("display:block;margin-bottom:10px")}>
+          <span style={css(lbl)}>{isNote ? "Anchor quote (optional)" : "Text to replace (must match the prose)"}</span>
+          <input value={quote} onChange={(e) => setQuote(e.target.value)} placeholder={isNote ? "the exact words to pin to…" : "the exact words to change…"} style={css(field)} />
+        </label>
+
+        {isNote ? (
+          <label style={css("display:block;margin-bottom:12px")}>
+            <span style={css(lbl)}>Note</span>
+            <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="your note to self / the drafter…"
+              style={css(field + ";min-height:70px;line-height:1.5;resize:vertical")} />
+          </label>
+        ) : (
+          <>
+            <label style={css("display:block;margin-bottom:10px")}>
+              <span style={css(lbl)}>Replace with <span style={css("text-transform:none;letter-spacing:0")}>(leave blank to delete)</span></span>
+              <textarea autoFocus value={newText} onChange={(e) => setNewText(e.target.value)} placeholder="the replacement text…"
+                style={css(field + ";min-height:54px;line-height:1.5;resize:vertical")} />
+            </label>
+            <label style={css("display:block;margin-bottom:12px")}>
+              <span style={css(lbl)}>Why (optional)</span>
+              <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="reason for the change…" style={css(field)} />
+            </label>
+          </>
+        )}
+
+        <div style={css("display:flex;gap:9px;justify-content:flex-end")}>
+          <button onClick={onCancel} style={css("padding:7px 13px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>Cancel</button>
+          <button disabled={!canSave} onClick={() => onSave({ quote, note, newText, why })}
+            style={css(`padding:7px 14px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:${canSave ? "pointer" : "default"};opacity:${canSave ? "1" : ".5"};font-family:var(--ui)`)}>{isNote ? "Add note" : "Add change"}</button>
+        </div>
+      </div>
+    </>
   );
 }

@@ -29,5 +29,8 @@ COPY scripts/ ./scripts/
 COPY novel/ ./novel/
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
-# Railway provides $PORT. Create the pgvector extension + tables (idempotent) before serving.
-CMD ["sh", "-c", "python scripts/init_db.py && uvicorn dominion.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Provision the schema, then serve. init_db is idempotent (CREATE EXTENSION/TABLE/COLUMN IF NOT
+# EXISTS — it never drops data) and disposes its pool so it can't hang boot, so running it on every
+# start keeps the persistent DB's schema in sync (incl. new columns) without a manual migration step.
+# ${PORT:-8000} so it works whether or not PORT is set.
+CMD ["sh", "-c", "python scripts/init_db.py && exec uvicorn dominion.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
