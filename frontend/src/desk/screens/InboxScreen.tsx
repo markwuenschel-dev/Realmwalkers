@@ -3,6 +3,7 @@ import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { sceneLabel, wordCount } from "../lib/format";
 import Planner from "../components/Planner";
+import { DraftPanel, formatElapsed } from "../components/DraftActivity";
 import type { SceneOut } from "../api/types";
 
 // Latest version of each (chapter, scene) — the scene's *current* state for the board.
@@ -35,7 +36,9 @@ export default function InboxScreen() {
       note: data.pending.length ? "ready for review" : "queue clear" },
     { label: "Drafting", value: data.jobs.running ? "1" : "0",
       suffix: data.jobs.running ? "in progress" : "idle",
-      note: data.jobs.queued ? `${data.jobs.queued} queued` : data.jobs.failed ? `${data.jobs.failed} failed` : undefined },
+      note: data.jobs.running
+        ? [data.jobs.active_scene?.phase, formatElapsed(data.jobs.active_scene?.elapsed_s)].filter(Boolean).join(" · ") || undefined
+        : data.jobs.queued ? `${data.jobs.queued} queued` : data.jobs.failed ? `${data.jobs.failed} failed` : undefined },
   ];
 
   const cardBase = "background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:13px 14px";
@@ -85,16 +88,7 @@ export default function InboxScreen() {
         <div>
           <Column title="Drafting" color={t.info} count={data.jobs.running ? 1 : 0} />
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
-            {data.jobs.running && data.jobs.active_scene ? (
-              <div style={css(`${cardBase};border:1px dashed var(--line)`)}>
-                <div style={css("font-family:var(--display);font-size:15px;color:var(--ink);margin-bottom:6px")}>
-                  Scene {data.jobs.active_scene.scene_no ?? "?"}
-                </div>
-                <div style={css("color:var(--info);font-family:var(--mono);font-size:11px")}>writing…</div>
-              </div>
-            ) : (
-              <Empty text={data.jobs.queued ? `${data.jobs.queued} queued` : "idle"} />
-            )}
+            <DraftPanel />
           </div>
         </div>
 

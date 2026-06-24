@@ -1,6 +1,7 @@
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
+import { DraftPill } from "./DraftActivity";
 import type { ThemeId } from "../theme";
 import type { Screen } from "../types";
 
@@ -22,7 +23,7 @@ const THEMES: { id: ThemeId; label: string; title: string }[] = [
 
 export default function TopBar() {
   const { screen, themeId, go, setTheme, togglePalette } = useDesk();
-  const { pending, jobs } = useDeskData();
+  const { pending } = useDeskData();
   const badgeFor = (id: Screen): string | null =>
     id === "inbox" && pending.length ? String(pending.length) : null;
 
@@ -53,11 +54,7 @@ export default function TopBar() {
             );
           })}
         </nav>
-        {jobs.running && (
-          <span style={css("display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--info)")}>
-            <span style={css("width:7px;height:7px;border-radius:50%;background:var(--info)")} />drafting…
-          </span>
-        )}
+        <DraftPill />
       </div>
       <div style={css("display:flex;align-items:center;gap:10px;flex:none")}>
         <div style={css("display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:999px")}>

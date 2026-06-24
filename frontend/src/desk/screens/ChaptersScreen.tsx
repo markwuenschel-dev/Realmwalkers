@@ -88,9 +88,11 @@ export default function ChaptersScreen() {
               const frac = scs.length ? Math.round((appr / scs.length) * 100) : 0;
               return (
                 <div key={c.id}>
-                  <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px")}>
-                    <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>Ch {c.chapter_no} <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>{c.pov}</span></span>
-                    <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>{words.toLocaleString()} words · {appr}/{scs.length} approved</span>
+                  <div style={css("display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px")}>
+                    <span style={css("font-family:var(--display);font-size:15px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>
+                      Ch {c.chapter_no}{c.title ? <span style={css("color:var(--ink)")}> · {c.title}</span> : null} <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>{c.pov}</span>
+                    </span>
+                    <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim);flex:none")}>{words.toLocaleString()} words · {appr}/{scs.length} approved</span>
                   </div>
                   <div style={css("position:relative;height:9px;border-radius:5px;background:var(--bg3);overflow:hidden")}>
                     <div style={css(`position:absolute;inset:0;width:${frac}%;background:var(--good)`)} />

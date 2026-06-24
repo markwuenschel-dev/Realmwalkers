@@ -8,8 +8,13 @@ import type {
   BeatUpdateIn,
   BookIn,
   BookOut,
+  CanonEntityIn,
   CanonEntityOut,
+  CanonEntityUpdateIn,
+  CanonIngestOut,
   ChapterOut,
+  ChapterUpdateIn,
+  CharacterStateIn,
   CharacterStateOut,
   ContinuityResolveIn,
   DecisionIn,
@@ -62,6 +67,7 @@ export const api = {
   pending: () => http<SceneOut[]>("/scenes/pending"),
   scene: (id: string) => http<SceneDetail>(`/scenes/${id}`),
   sceneVersions: (id: string) => http<SceneVersionOut[]>(`/scenes/${id}/versions`),
+  revertScene: (id: string) => http<SceneOut>(`/scenes/${id}/revert`, { method: "POST" }),
   decide: (id: string, body: DecisionIn) =>
     http<{ scene: string; status: string; next_job: string | null }>(
       `/scenes/${id}/decision`,
@@ -105,6 +111,8 @@ export const api = {
 
   // --- chapters + history -------------------------------------------------------------------------
   chapters: (bookId: string) => http<ChapterOut[]>(`/chapters${qs({ book_id: bookId })}`),
+  updateChapter: (chapterId: string, body: ChapterUpdateIn) =>
+    http<ChapterOut>(`/chapters/${chapterId}`, { method: "PATCH", body: JSON.stringify(body) }),
   chapterBeats: (chapterId: string) => http<BeatOut[]>(`/chapters/${chapterId}/beats`),
   chapterScenes: (chapterId: string) => http<SceneOut[]>(`/chapters/${chapterId}/scenes`),
 
@@ -120,8 +128,20 @@ export const api = {
 
   // --- world ledger -------------------------------------------------------------------------------
   characters: (bookId: string) => http<CharacterStateOut[]>(`/books/${bookId}/characters`),
+  upsertCharacter: (bookId: string, name: string, body: CharacterStateIn) =>
+    http<CharacterStateOut>(`/books/${bookId}/characters/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteCharacter: (bookId: string, name: string) =>
+    http<{ deleted: string }>(`/books/${bookId}/characters/${encodeURIComponent(name)}`, { method: "DELETE" }),
   canon: (bookId: string, kind?: string) =>
     http<CanonEntityOut[]>(`/books/${bookId}/canon${qs({ kind })}`),
+  createCanon: (bookId: string, body: CanonEntityIn) =>
+    http<CanonEntityOut>(`/books/${bookId}/canon`, { method: "POST", body: JSON.stringify(body) }),
+  updateCanon: (id: string, body: CanonEntityUpdateIn) =>
+    http<CanonEntityOut>(`/canon/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteCanon: (id: string) =>
+    http<{ deleted: string }>(`/canon/${id}`, { method: "DELETE" }),
+  ingestCanon: (bookId: string) =>
+    http<CanonIngestOut>(`/books/${bookId}/canon/ingest`, { method: "POST" }),
 
   // --- world threads (curated) --------------------------------------------------------------------
   threads: (bookId: string) => http<ThreadOut[]>(`/books/${bookId}/threads`),

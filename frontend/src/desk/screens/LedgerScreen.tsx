@@ -1,14 +1,40 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { statValue } from "../lib/format";
+import type { CanonEntityOut, CharacterStateOut } from "../api/types";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Round-trip a stat value to/from an editable string: objects/arrays as JSON, scalars as text.
+const rawOf = (v: unknown): string => (typeof v === "object" && v !== null ? JSON.stringify(v) : String(v));
+// Coerce typed input back to a value: JSON first (numbers, booleans, arrays), else plain string.
+const coerce = (s: string): unknown => {
+  const t = s.trim();
+  if (t === "") return "";
+  try {
+    return JSON.parse(t);
+  } catch {
+    return s;
+  }
+};
+
+const btn = "padding:7px 12px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui);white-space:nowrap";
+const ghost = "padding:6px 11px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui);white-space:nowrap";
+const input = "width:100%;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-size:13px;font-family:var(--ui)";
+const fieldLabel = "display:block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:4px";
+
+type CanonEdit = { mode: "new"; kind?: string } | { mode: "edit"; entity: CanonEntityOut } | null;
 
 export default function LedgerScreen() {
   const { t, ledgerCat, selectedThread, setLedgerCat, selectThread } = useDesk();
   const data = useDeskData();
+
+  const [charEdit, setCharEdit] = useState<CharacterStateOut | "new" | null>(null);
+  const [canonEdit, setCanonEdit] = useState<CanonEdit>(null);
+  const [ingesting, setIngesting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const canonKinds = [...new Set(data.canon.map((c) => c.kind ?? "other"))].filter((k) => k !== "character");
   const cats = [
@@ -36,16 +62,36 @@ export default function LedgerScreen() {
     await data.addThreadBeat(threadId, { scene_no: sceneNo, label: rest.join(",").trim() || null });
   };
 
+  const rebuildIndex = async () => {
+    setIngesting(true);
+    setNotice(null);
+    const n = await data.ingestCanon();
+    setIngesting(false);
+    setNotice(n == null ? "Rebuild failed — check the API logs." : `Indexed ${n} canon passage${n === 1 ? "" : "s"} from the on-disk docs.`);
+  };
+
   const isChars = ledgerCat === "characters";
   const isThreads = ledgerCat === "threads";
   const canonKind = ledgerCat.startsWith("canon:") ? ledgerCat.slice("canon:".length) : null;
 
   return (
     <div>
-      <div style={css("margin-bottom:22px")}>
-        <h1 style={css("margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:28px;color:var(--ink)")}>World ledger</h1>
-        <p style={css("margin:0;color:var(--dim);font-size:14px")}>The Oracle's canon — the hard numbers and lore the continuity passes check prose against.</p>
+      <div style={css("display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px")}>
+        <div>
+          <h1 style={css("margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:28px;color:var(--ink)")}>World ledger</h1>
+          <p style={css("margin:0;color:var(--dim);font-size:14px")}>The Oracle's canon — the hard numbers and lore the continuity passes check prose against. Author it here before you write.</p>
+        </div>
+        <div style={css("display:flex;gap:9px;align-items:center;flex-wrap:wrap")}>
+          <button onClick={() => { setCanonEdit({ mode: "new" }); setCharEdit(null); }} style={css(btn)}>+ Canon entry</button>
+          <button onClick={rebuildIndex} disabled={ingesting} title="Re-embed novel/canon docs into the retrieval index the drafter & planner query"
+            style={css(ghost)}>{ingesting ? "Rebuilding…" : "⟳ Rebuild index from docs"}</button>
+        </div>
       </div>
+
+      {notice && (
+        <div style={css("margin-bottom:16px;padding:9px 12px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px")}>{notice}</div>
+      )}
+
       <div style={css("display:grid;grid-template-columns:184px 1fr;gap:22px;align-items:start")}>
         <div style={css("display:flex;flex-direction:column;gap:3px;position:sticky;top:84px")}>
           {cats.map((cat) => {
@@ -61,41 +107,77 @@ export default function LedgerScreen() {
         </div>
 
         <div style={css("min-width:0")}>
+          {/* canon editor (general "+ Canon entry", per-kind add, or edit) renders above whatever's selected */}
+          {canonEdit && (
+            <CanonForm
+              key={canonEdit.mode === "edit" ? canonEdit.entity.id : `new:${canonEdit.kind ?? ""}`}
+              initial={canonEdit.mode === "edit" ? canonEdit.entity : null}
+              fixedKind={canonEdit.mode === "new" ? canonEdit.kind : undefined}
+              onCancel={() => setCanonEdit(null)}
+              onSave={async (body) => {
+                if (canonEdit.mode === "edit") await data.updateCanon(canonEdit.entity.id, body);
+                else await data.createCanon(body);
+                setCanonEdit(null);
+                if (body.kind && body.kind !== "character") setLedgerCat(`canon:${body.kind}`);
+              }}
+            />
+          )}
+
           {isChars && (
-            data.characters.length === 0 ? (
-              <Empty>No character state yet — it accrues as you approve scenes whose beats declare stat changes.</Empty>
-            ) : (
-              <div style={css("display:grid;grid-template-columns:1fr 1fr;gap:14px")}>
-                {data.characters.map((ch) => (
-                  <div key={ch.character} style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden")}>
-                    <div style={css("display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line);background:var(--bg2b)")}>
-                      <div style={css("width:38px;height:38px;border-radius:9px;background:var(--accentSoft);border:1px solid var(--accentLine);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:17px;color:var(--accent);flex:none")}>{ch.character.charAt(0)}</div>
-                      <div style={css("min-width:0")}>
-                        <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>{ch.character}</div>
-                        <div style={css("font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--dim);margin-top:2px")}>{ch.is_pov ? "POV" : "character"}{ch.provisional ? " · provisional" : ""}</div>
+            <div style={css("display:flex;flex-direction:column;gap:14px")}>
+              {charEdit ? (
+                <CharacterForm
+                  key={charEdit === "new" ? "new" : charEdit.character}
+                  initial={charEdit === "new" ? null : charEdit}
+                  onCancel={() => setCharEdit(null)}
+                  onSave={async (name, body) => { await data.upsertCharacter(name, body); setCharEdit(null); }}
+                />
+              ) : (
+                <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+                  <p style={css("margin:0;font-size:13px;color:var(--dim);line-height:1.5")}>Hard numbers the Oracle tracks; continuity flags prose that disagrees. Seed a character's starting stats here.</p>
+                  <button onClick={() => { setCharEdit("new"); setCanonEdit(null); }} style={css(btn)}>+ Add character</button>
+                </div>
+              )}
+
+              {data.characters.length === 0 && !charEdit ? (
+                <Empty>No character state yet — add one to set a baseline, or it accrues as you approve scenes whose beats declare stat changes.</Empty>
+              ) : (
+                <div style={css("display:grid;grid-template-columns:1fr 1fr;gap:14px")}>
+                  {data.characters.map((ch) => (
+                    <div key={ch.character} style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden")}>
+                      <div style={css("display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line);background:var(--bg2b)")}>
+                        <div style={css("width:38px;height:38px;border-radius:9px;background:var(--accentSoft);border:1px solid var(--accentLine);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:17px;color:var(--accent);flex:none")}>{ch.character.charAt(0)}</div>
+                        <div style={css("min-width:0;flex:1")}>
+                          <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>{ch.character}</div>
+                          <div style={css("font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--dim);margin-top:2px")}>{ch.is_pov ? "POV" : "character"}{ch.provisional ? " · provisional" : ""}</div>
+                        </div>
+                        <div style={css("display:flex;gap:6px;flex:none")}>
+                          <button onClick={() => { setCharEdit(ch); setCanonEdit(null); }} style={css(ghost)}>edit</button>
+                          <button onClick={() => { if (confirm(`Delete ${ch.character}'s tracked stats?`)) data.deleteCharacter(ch.character); }} style={css(ghost)}>×</button>
+                        </div>
+                      </div>
+                      <div style={css("padding:13px 16px")}>
+                        {Object.keys(ch.stats).length === 0 && <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>no tracked stats</div>}
+                        {Object.entries(ch.stats).map(([k, v]) => (
+                          <div key={k} style={css("display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;border-bottom:1px solid var(--hairline)")}>
+                            <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>{k}</span>
+                            <span style={css("color:var(--ink);text-align:right")}>{statValue(v)}</span>
+                          </div>
+                        ))}
+                        {ch.body && <p style={css("margin:10px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5")}>{ch.body}</p>}
                       </div>
                     </div>
-                    <div style={css("padding:13px 16px")}>
-                      {Object.keys(ch.stats).length === 0 && <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>no tracked stats</div>}
-                      {Object.entries(ch.stats).map(([k, v]) => (
-                        <div key={k} style={css("display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;border-bottom:1px solid var(--hairline)")}>
-                          <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>{k}</span>
-                          <span style={css("color:var(--ink);text-align:right")}>{statValue(v)}</span>
-                        </div>
-                      ))}
-                      {ch.body && <p style={css("margin:10px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5")}>{ch.body}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {isThreads && (
             <div style={css("display:flex;flex-direction:column;gap:12px")}>
               <div style={css("display:flex;align-items:center;justify-content:space-between")}>
                 <p style={css("margin:0;font-size:13px;color:var(--dim);line-height:1.5")}>Follow a relationship or plot thread across the scenes it touches.</p>
-                <button onClick={newThread} style={css("padding:7px 12px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui);white-space:nowrap")}>+ New thread</button>
+                <button onClick={newThread} style={css(btn)}>+ New thread</button>
               </div>
               {data.threads.length === 0 && <Empty>No threads yet — add one to track an arc across scenes.</Empty>}
               {data.threads.map((th) => {
@@ -130,16 +212,107 @@ export default function LedgerScreen() {
 
           {canonKind && (
             <div style={css("display:flex;flex-direction:column;gap:12px")}>
+              <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+                <p style={css("margin:0;font-size:13px;color:var(--dim)")}>{cap(canonKind)} the drafter & planner can retrieve.</p>
+                <button onClick={() => { setCanonEdit({ mode: "new", kind: canonKind }); setCharEdit(null); }} style={css(btn)}>+ Add to {canonKind}</button>
+              </div>
               {data.canon.filter((c) => (c.kind ?? "other") === canonKind).length === 0 && <Empty>Nothing in this section yet.</Empty>}
               {data.canon.filter((c) => (c.kind ?? "other") === canonKind).map((e) => (
                 <div key={e.id} style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:15px 18px")}>
-                  <div style={css("font-family:var(--display);font-size:16px;color:var(--ink);margin-bottom:5px")}>{e.name ?? "—"}</div>
-                  {e.body && <p style={css("margin:0;font-size:13px;color:var(--dim);line-height:1.55")}>{e.body}</p>}
+                  <div style={css("display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px")}>
+                    <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>{e.name ?? "—"}</div>
+                    <div style={css("display:flex;gap:6px;flex:none")}>
+                      <button onClick={() => { setCanonEdit({ mode: "edit", entity: e }); setCharEdit(null); }} style={css(ghost)}>edit</button>
+                      <button onClick={() => { if (confirm(`Delete "${e.name ?? "entry"}"?`)) data.deleteCanon(e.id); }} style={css(ghost)}>×</button>
+                    </div>
+                  </div>
+                  {e.body && <p style={css("margin:0;font-size:13px;color:var(--dim);line-height:1.55;white-space:pre-wrap")}>{e.body}</p>}
                 </div>
               ))}
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CharacterForm({ initial, onSave, onCancel }: {
+  initial: CharacterStateOut | null;
+  onSave: (name: string, body: { stats: Record<string, unknown>; body: string | null }) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial?.character ?? "");
+  const [desc, setDesc] = useState(initial?.body ?? "");
+  const [rows, setRows] = useState<{ k: string; v: string }[]>(
+    initial ? Object.entries(initial.stats).map(([k, v]) => ({ k, v: rawOf(v) })) : [{ k: "", v: "" }],
+  );
+
+  const setRow = (i: number, patch: Partial<{ k: string; v: string }>) =>
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const save = () => {
+    if (!name.trim()) return;
+    const stats: Record<string, unknown> = {};
+    for (const { k, v } of rows) {
+      const key = k.trim();
+      if (key) stats[key] = coerce(v);
+    }
+    onSave(name.trim(), { stats, body: desc.trim() || null });
+  };
+
+  return (
+    <div style={css("background:var(--bg2);border:1px solid var(--accentLine);border-radius:var(--r);padding:16px 18px")}>
+      <div style={css("font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:12px")}>{initial ? `Edit ${initial.character}` : "New character"}</div>
+      <label style={css("display:block;margin-bottom:10px")}><span style={css(fieldLabel)}>Name</span>
+        <input value={name} disabled={!!initial} onChange={(e) => setName(e.target.value)} placeholder="e.g. Soren" style={css(input + (initial ? ";opacity:.6" : ""))} /></label>
+      <div style={css(fieldLabel)}>Stats</div>
+      <div style={css("display:flex;flex-direction:column;gap:7px;margin-bottom:10px")}>
+        {rows.map((r, i) => (
+          <div key={i} style={css("display:flex;gap:8px;align-items:center")}>
+            <input value={r.k} onChange={(e) => setRow(i, { k: e.target.value })} placeholder="stat (e.g. level)" style={css("flex:1 1 40%;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12.5px;font-family:var(--mono)")} />
+            <input value={r.v} onChange={(e) => setRow(i, { v: e.target.value })} placeholder="value (e.g. 5)" style={css("flex:1 1 50%;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12.5px;font-family:var(--mono)")} />
+            <button onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} title="remove" style={css("flex:none;background:none;border:none;color:var(--dim);font-size:15px;cursor:pointer")}>×</button>
+          </div>
+        ))}
+        <button onClick={() => setRows((rs) => [...rs, { k: "", v: "" }])} style={css(ghost + ";align-self:flex-start")}>+ stat</button>
+      </div>
+      <label style={css("display:block;margin-bottom:12px")}><span style={css(fieldLabel)}>Description <span style={css("text-transform:none;letter-spacing:0")}>(optional — canon body, fed to retrieval)</span></span>
+        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Who they are, appearance, role…"
+          style={css("width:100%;min-height:60px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-size:13px;line-height:1.5;resize:vertical;font-family:var(--ui)")} /></label>
+      <div style={css("display:flex;gap:9px")}>
+        <button onClick={save} disabled={!name.trim()} style={css(btn)}>{initial ? "Save" : "Add character"}</button>
+        <button onClick={onCancel} style={css(ghost)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function CanonForm({ initial, fixedKind, onSave, onCancel }: {
+  initial: CanonEntityOut | null;
+  fixedKind?: string;
+  onSave: (body: { kind: string | null; name: string | null; body: string | null }) => void;
+  onCancel: () => void;
+}) {
+  const [kind, setKind] = useState(initial?.kind ?? fixedKind ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [body, setBody] = useState(initial?.body ?? "");
+  const save = () => onSave({ kind: kind.trim() || null, name: name.trim() || null, body: body.trim() || null });
+
+  return (
+    <div style={css("background:var(--bg2);border:1px solid var(--accentLine);border-radius:var(--r);padding:16px 18px;margin-bottom:16px")}>
+      <div style={css("font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:12px")}>{initial ? "Edit canon entry" : "New canon entry"}</div>
+      <div style={css("display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px")}>
+        <label style={css("flex:1 1 160px")}><span style={css(fieldLabel)}>Kind</span>
+          <input value={kind} onChange={(e) => setKind(e.target.value)} placeholder="location / faction / item / lore…" style={css(input)} /></label>
+        <label style={css("flex:2 1 220px")}><span style={css(fieldLabel)}>Name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Eriadne" style={css(input)} /></label>
+      </div>
+      <label style={css("display:block;margin-bottom:12px")}><span style={css(fieldLabel)}>Body <span style={css("text-transform:none;letter-spacing:0")}>(what the drafter & planner retrieve)</span></span>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="The lore/description…"
+          style={css("width:100%;min-height:96px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-size:13px;line-height:1.55;resize:vertical;font-family:var(--ui)")} /></label>
+      <div style={css("display:flex;gap:9px")}>
+        <button onClick={save} style={css(btn)}>{initial ? "Save" : "Add entry"}</button>
+        <button onClick={onCancel} style={css(ghost)}>Cancel</button>
       </div>
     </div>
   );
