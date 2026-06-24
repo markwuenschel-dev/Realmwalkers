@@ -383,7 +383,10 @@ export default function SceneScreen() {
                     {suggestions.length === 0 && <p style={css("margin:0;font-size:11.5px;color:var(--dim);line-height:1.5")}>No tracked changes yet. Add one, or switch to Editing to revise directly.</p>}
                     {suggestions.map((g) => (
                       <div key={g.id} style={css(`background:var(--bg2);border:1px solid ${g.status === "accepted" ? "color-mix(in srgb,var(--good) 42%,var(--line))" : g.status === "rejected" ? "var(--line)" : "var(--accentLine)"};border-radius:9px;padding:11px 12px`)}>
-                        <div style={css("font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-bottom:6px")}>{g.author ?? "—"}</div>
+                        <div style={css("display:flex;align-items:center;justify-content:space-between;margin-bottom:6px")}>
+                          <span style={css("font-family:var(--mono);font-size:9.5px;color:var(--dim)")}>{g.author ?? "—"}</span>
+                          <button onClick={() => data.deleteSuggestion(g.id)} title="remove this suggestion" style={css("background:none;border:none;color:var(--dim);font-size:13px;cursor:pointer;line-height:1")}>×</button>
+                        </div>
                         <div style={css("font-size:12.5px;line-height:1.4;margin-bottom:7px")}>
                           <span style={css("text-decoration:line-through;color:var(--bad)")}>{g.quote}</span>{" "}
                           <span style={css("color:var(--good)")}>{g.new_text?.trim() || "(delete)"}</span>
@@ -575,14 +578,16 @@ function MarkupComposer({ composer, onCancel, onSave }: {
   const canSave = isNote ? note.trim().length > 0 : quote.trim().length > 0;
 
   const left = Math.min(Math.max(composer.x, 190), window.innerWidth - 190);
-  const top = Math.min(composer.y + 14, window.innerHeight - 270);
+  // Anchor below the selection; the composer itself scrolls within the viewport (note vs. suggest
+  // modes differ in height), so a short viewport never clips the action buttons.
+  const top = Math.max(composer.y + 14, 20);
   const field = "width:100%;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;font-family:var(--ui)";
   const lbl = "display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 4px";
 
   return (
     <>
       <div onClick={onCancel} style={css("position:fixed;inset:0;z-index:80")} />
-      <div style={css(`position:fixed;left:${left}px;top:${top}px;transform:translateX(-50%);z-index:81;width:340px;background:var(--bg2);border:1px solid var(--accentLine);border-radius:12px;box-shadow:var(--shadow);padding:15px 16px`)}>
+      <div style={css(`position:fixed;left:${left}px;top:${top}px;transform:translateX(-50%);z-index:81;width:340px;max-height:calc(100vh - 40px);overflow-y:auto;background:var(--bg2);border:1px solid var(--accentLine);border-radius:12px;box-shadow:var(--shadow);padding:15px 16px`)}>
         <div style={css("font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:11px")}>{isNote ? "Margin note" : "Tracked change"}</div>
 
         <label style={css("display:block;margin-bottom:10px")}>

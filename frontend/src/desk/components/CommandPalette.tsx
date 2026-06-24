@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
-import type { SceneOut } from "../api/types";
 
 interface Result {
   key: string;
@@ -38,15 +37,7 @@ export default function CommandPalette() {
   ], [go, nextScene, prevScene]);
 
   // Latest version of each (chapter, scene) — what you'd want to jump to.
-  const latestScenes = useMemo(() => {
-    const m = new Map<string, SceneOut>();
-    for (const s of data.scenes) {
-      const key = `${s.chapter_id}:${s.scene_no}`;
-      const prev = m.get(key);
-      if (!prev || s.version > prev.version) m.set(key, s);
-    }
-    return [...m.values()];
-  }, [data.scenes]);
+  const latestScenes = data.latestScenes;
   const chapterNo = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of data.chapters) m.set(c.id, c.chapter_no);

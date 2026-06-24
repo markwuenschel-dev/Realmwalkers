@@ -23,9 +23,11 @@ const THEMES: { id: ThemeId; label: string; title: string }[] = [
 
 export default function TopBar() {
   const { screen, themeId, go, setTheme, togglePalette } = useDesk();
-  const { pending } = useDeskData();
+  const { pending, books, bookId } = useDeskData();
   const badgeFor = (id: Screen): string | null =>
     id === "inbox" && pending.length ? String(pending.length) : null;
+  // Initial of the active book (the desk is book-scoped); fall back to the Dominion mark.
+  const bookInitial = (books.find((b) => b.id === bookId)?.title ?? "D").trim().charAt(0).toUpperCase() || "D";
 
   return (
     <header className="no-print" style={css("position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;height:60px;background:var(--bg2b);border-bottom:1px solid var(--line)")}>
@@ -76,7 +78,7 @@ export default function TopBar() {
           Search
           <span style={css("font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--dim)")}>⌘K</span>
         </button>
-        <div style={css("width:30px;height:30px;border-radius:50%;background:var(--accentSoft);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:var(--accent)")}>V</div>
+        <div title={books.find((b) => b.id === bookId)?.title ?? undefined} style={css("width:30px;height:30px;border-radius:50%;background:var(--accentSoft);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:var(--accent)")}>{bookInitial}</div>
       </div>
     </header>
   );
