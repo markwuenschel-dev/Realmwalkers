@@ -160,7 +160,7 @@ Marcus has two distinct ocular systems; **never conflate them** (full detail in 
 By actively watching combat actions, Marcus absorbs the muscle memory required to replicate them; **skill experience +100% while active** (it accelerates his climb up the skill-mastery ladder). The item also *interprets* — collapsing ambiguity into one confident, demon-biased verdict that can be wrong. It bills in **mana**, so it competes with his casting.
 
 **Neurochromatic Eyes — _interface_** (emergent, biological; six stages → Prism Coherence / Prism Fracture).
-*Perception only, and accurate.* Reallocates perceptual/cognitive bandwidth by emotional state; creates no power. Bills in **the body** — ocular reserve, vascular strain, blood tears, feedback-lock — not mana. **Current stage:** Stage 1 (Limbal Shift). Full stage breakdown in `mc.md`. Whether it ever echoes the item's copycat/XP power (weaker or stronger) is **undecided**.
+*Perception only, and accurate.* Reallocates perceptual/cognitive bandwidth by emotional state; creates no power. Bills in **the body** — its ocular cost is the Eyes-specific face of the general **Reserve** resource (full resource / regen / depletion / buffer model in `resource_system.md`) — not mana. **Current stage:** Stage 1 (Limbal Shift). Full stage breakdown in `mc.md`. Whether it ever echoes the item's copycat/XP power (weaker or stronger) is **undecided**.
 
 **Narrative meaning:** he sees patterns, he sees too much — his flaw is *accurate perception paired with flawed interpretation.* The interface sees true; the item supplies the confident, sometimes-false conclusion.
 
