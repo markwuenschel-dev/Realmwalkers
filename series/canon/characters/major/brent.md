@@ -732,6 +732,10 @@ Estranged, unglamorous, practically competent, allergic to abstraction. No one w
 
 Book 1 leaves Brent somewhere in his solo arc — integrated into a group that needs him, developing his Realm class through use, beginning to understand that the Realm's invisible systems are real even if he cannot touch them the way Marcus does — his own interface, Piezoelectric Bones, works in strain, matter, and structure rather than the abstract system-layer. **He survives Book 1** (BR-01). The thematic point of his arc — *keeping others alive is not the same as being safe yourself* — is carried by survival, not death.
 
+### Long Arc (beyond Book 1) — trajectory, not Book-1 canon
+
+Brent **survives Book 1** (BR-01). *If/when* he dies later, the death must cash out his actual role — **protector, structural thinker, practical judge, the person who knows what has to hold and what has to fail** — **not** a healer-dies-healing trope (he is not a Realm healer; he is **Warden → Reckoner**). The shape: he **identifies the load-bearing structure everyone else misunderstood, then chooses the cost of preserving or breaking it.** Very-Brent death energy — dry, concrete, almost understated; he sees the structural truth and pays it. (Guarded by `forbidden_drift.md` #16 — Healer-Trope Death.) *(Trajectory; Book-2+; whether he dies at all is open.)*
+
 ### Mortality Status
 
 **Survives Book 1** (parallels Mathias). The earlier "possible thematic death" flag is retired. (BR-01 resolved; **no main-six character dies in Book 1** — the finale's "others don't make it" refers to the captives/the operation, not the six.)

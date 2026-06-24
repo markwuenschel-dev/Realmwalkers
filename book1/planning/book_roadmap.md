@@ -8,6 +8,8 @@
 ## Series Identity
 Interface fantasy disguised as LitRPG. The Realm is real; the UI is Marcus's implant translating metaphysical law into game logic. Stats, skills, vows, names = interpretation, not proof the world is a game.
 
+**Series frame (the six are an origin cohort, not the permanent party):** the six were brought through one wound — the Nightbound's acquisition (`cosmology.md`) — as *keys*, not a chosen team, and are not all built for the same scale, role, or ending. Book 1 proves *potential, not stability*. Long-arc split: `dominion_realm_story_bible.md` → *The Six — Origin Cohort, Not Final Party.*
+
 ## Core Question
 When the old guild begins to find each other again, are they still people who belong together?
 
@@ -37,7 +39,7 @@ Beats: first sight (melting pot; **ruins on the outskirts**; no governance) → 
 ## Act 5 — Convergence & Fracture
 **Purpose:** the guild reappears changed; reunion becomes tension, not comfort. *(Planned; finale choreography pending.)*
 Beats: satellite arcs mature (Serra's hunt ends **unfinished**; Seb's Reaver/Threshold-Cascade fall; Mara's court reframe; Mathias's warning; Brent's discovery) → Marcus's position turns politically vulnerable → **Serra returns → the reunion** (he reads what it cost her; she won't confirm) → reunion becomes tension → **the Xyloryn invasion attempt**: the dormant portal at the **eight-leyline convergence** is forced open (city largely unaware), swarm visible beyond, **one Myrmidon** comes through and nearly beats all six; **a Realm Walker, drawn by the breach, witnesses it** (Marcus's recruitment seed); **Mathias injured proving his warning (he lives)** → old guild identity dies → **the severance** (he names the Earth Thing; she severs the thread to free him).
-**Function:** reunion becomes tension. Ending: *the team can find each other again, but belonging together is no longer guaranteed.*
+**Function:** reunion becomes tension. Ending: *the team can find each other again, but belonging together is no longer guaranteed* — **potential glimpsed before fracture**, not a party formed.
 
 ---
 

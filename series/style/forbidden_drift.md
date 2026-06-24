@@ -211,6 +211,52 @@
 
 ---
 
+### 15. Permanent-Party Assumption (Ensemble-Stability Drift)
+
+**What it is:** The prose treats the original six as a stable, balanced, permanent adventuring party — a found-family ensemble that stays intact and co-equal — rather than an **origin cohort** that fractures and scales unequally. The drift writes "the party" as a settled unit, distributes equal weight and equal power-scaling across all six by default, and implies they will all remain present at the same scale.
+
+**Warning signs:**
+- The six referred to as "the party" / "the team" as a settled, permanent unit
+- All six given equal screen weight and equal power-scaling by default
+- Reunions written as a stable team reforming rather than changed people colliding
+- The Myrmidon win written as "the party has arrived" instead of "potential glimpsed before fracture"
+- Plans and prose assume all six are present, co-equal, and continuing indefinitely
+- Emotional beats lean on found-family permanence the series never promised
+
+**Correction:** Write them as an origin cohort, not a final party. Book 1 proves **potential, not stability** (`finale_spine.md` b4 + b12; `dominion_realm_story_bible.md` → *The Six — Origin Cohort, Not Final Party*). They were acquired as **keys, not a chosen team** (`cosmology.md`). Marcus and Serra scale toward the cosmic axis; the others take different scales and roles. The brief "happy group" window should read as an alternate timeline *glimpsed* and then broken — grief without a false ensemble promise. The unit mattered because it was real enough to lose; don't write it as permanent.
+
+---
+
+### 16. Healer-Trope Death (Brent)
+
+**What it is:** Brent's eventual death (Book-2+ only) is written as the sentimental "healer dies healing everyone" beat — self-sacrifice as caretaker, tearful medic pouring himself out. This miscasts him. He is **not** a Realm healer (healer was an Aetherfall role only); in the Realm he is **Warden → Reckoner** — protection, structure, judgment, load-bearing decisions.
+
+**Warning signs:**
+- Brent dies while "healing" or saving everyone in a caretaker role
+- The death scene reaches for melodrama, tearful sacrifice, or noble-medic imagery
+- The beat is about how much he *gave* rather than what he *saw*
+- He is treated as the group's healer/support in Realm terms
+- The sacrifice is romanticized — which Brent himself despises (his anti-romanticization is canon)
+
+**Correction:** Cash out his real role. A Brent death is dry, concrete, almost understated: he **identifies the load-bearing structure everyone else misunderstood, then chooses the cost of preserving or breaking it.** He sees the structural truth and pays it — consequence, not melodrama. (And: **no main-six death in Book 1** — this is Book-2+ guidance; whether he dies at all is open.)
+
+---
+
+### 17. Chosen-Six / Prophecy-Party Flattening
+
+**What it is:** The prose drifts toward "the six are the uniquely chosen, prophesied heroes" — special because they're the special ones, strong because they're Earth people. This flattens the cosmology (they were acquired as **keys**, not anointed champions) and cheapens Marcus and Serra's path, which is **earned** through specific choices, relationships, interfaces, and failures — not inherent specialness.
+
+**Warning signs:**
+- Language implying the six are destined / prophesied / "the chosen ones"
+- Earth-origin treated as the *source* of their strength ("Earth people are just stronger")
+- The six framed as uniquely selected in a simple prophecy sense
+- Marcus/Serra's escalation attributed to specialness rather than specific choices
+- No sense that other transplants or cohorts exist or could rival them
+
+**Correction:** Keep them **keys, not champions** (`cosmology.md`). Strength is earned, specific, and contingent — relationships, interfaces, failures — not inherited from being Earth-born. Book 2's **second cohort** and the **retired-pro mirror** exist precisely to break this: the retired pro beats each of the six *individually*, proving Earth-origin is not the differentiator. Marcus and Serra are chosen by what they *become*, not by what they *are.*
+
+---
+
 ## Quick Diagnostic
 
 When a scene feels off, run through this list:
@@ -231,6 +277,9 @@ When a scene feels off, run through this list:
 | Axis collapse | Is any two-axis relationship being treated as one quantity? |
 | Pole overshoot | Did fixing one failure pole land the scene in the opposite pole? |
 | Under-rendered combat | Can you diagram the exchange beat-by-beat from the prose? Any load-bearing beat off-page or summarized? |
+| Permanent-party assumption | Are the six written as a stable, co-equal, permanent party rather than a fracturing origin cohort? |
+| Healer-trope death | Does a (Book-2+) Brent death lean on caretaker melodrama instead of structural-cost consequence? |
+| Chosen-six flattening | Is the six's strength framed as destiny / Earth-origin rather than earned and contingent? |
 
 ---
 

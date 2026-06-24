@@ -105,6 +105,34 @@ Beat detail and chronology are owned by `master_timeline.md`; act purpose/themes
 
 ---
 
+## The Six — Origin Cohort, Not Final Party
+
+> **Frame (series-level).** The original six are an **origin cohort**, not the permanent adventuring party. The reader is invited to assume *these six become the core team* — and the series gradually earns the truth: **they are the shared fracture point, not a balanced six forever.** They were brought through one wound and are **not all built for the same scale, role, or ending.** They matter because of **origin, consequence, and inheritance** — not because the six stays intact. This frame is what resolves the power-scaling problem: Marcus and Serra can climb to the Realm/cosmic axis without forcing Brent, Mathias, Seb, and Mara to scale equally.
+
+**Why they're a cohort and not a chosen team.** Canon already grounds this: the **Nightbound** acquired the six (via the Soulkeepers' Exchange) **as keys capable of inheriting six necessary interfaces — "keys, not anointed as champions, which is *why* they aren't any faction's chosen team"** (`cosmology.md`, `nightbound.md`). Inheritance, not prophecy. They share an origin and a debt, not a destiny as a unit.
+
+**Potential, not stability.** Under impossible pressure the cohort can briefly become something terrifyingly effective — and the same pressure makes plain they aren't built for the same scale. The Myrmidon finale enacts this (`finale_spine.md` §B): they fall back into old Aetherfall plays, it feels good, then the pressure breaks the illusion. What this layer names at series scale: the cohort is **real enough to lose** — seen as a unit, then fractured.
+
+**The "happy group" window (series-architecture element).** At least once, the cohort should cohere enough that the reader sees the alternate timeline — the team they *could* have become — before reality intervenes. This is a structural engine across the arc, not a single fixed beat: it is what turns the fracture into grief rather than a bait-and-switch. Place and realize it wherever it serves the story.
+
+**The long-arc role split (post-Book-1 trajectory; detail lives in the dossiers).** Per-character direction is owned by each character file's *Long Arc (beyond Book 1)* subsection; the shape:
+
+- **Marcus + Serra — the endgame axis.** The pair with true long-term escalation (movement, interface uniqueness, cosmic relevance, perception/severance synergy, Eriadne/Realm-scale consequence). Their *combined function* is uniquely suited to the terminal problem — **Marcus reconstructs the real causal map; Serra breaks the imposed structure once he finds it.** They become the **answer to deception and control**, and ultimately face the hidden final actor — which is *why* the Nightbound made keys at all (the keys exist to meet what the cohort was assembled against). Not "they're just the strongest fighters."
+- **Seb — tragic, corrupted command → chosen responsibility.** Grief → vulnerable to the Broker's genuine offer → corrupted/used against the group → **defeated (by Marcus)** → agency restored → **sacrifices himself to bear responsibility and break the hold over the six** (FORK 1; see cosmology cross-ref + `seb.md`). His final act must **not cleanse what he did** — it proves he can still choose the cost of stopping it. Tragedy, not cheap death.
+- **Brent — the cost of structural protection/judgment.** If/when he dies, **not** a healer-dies-healing trope (he is not a Realm healer; he is Warden → Reckoner). Very-Brent death energy: he **identifies the load-bearing structure everyone else misunderstood, then chooses the cost of preserving or breaking it.** Dry, concrete, understated. He pays the structural truth.
+- **Mathias — stewardship.** Better alive: emissary, diplomat/contact-specialist, ruin-sense, **steward**. As Marcus/Serra go increasingly Realm-scale, Mathias is the one who can **watch over Eriadne for them** — a major function without forcing combat escalation. Killing him would remove the character most suited to stewardship and deep sensing.
+- **Mara — the non-Marcus/Serra riser.** May become the strongest/most dangerous of the *remaining* original six (can surpass Seb if he lives long enough). Her lane isn't "same role, bigger numbers" — it's perception, salience, mental/mirror danger, eventually execution/combat lethality. She stays **jagged**, never cozy team-glue, and becomes important anyway.
+
+> **Hard guard:** every bullet above is **Book-2+ trajectory.** **No main-six character dies in Book 1** (`finale_spine.md` invariant; 7 files). Book 1 ends with the cohort intact and fractured *emotionally* (the severance), not by death.
+
+### Book-2 Seeds (provisional — not started)
+
+- **A second Earth cohort** (Book 2). Introducing another transplanted group breaks the assumption that the first six are uniquely chosen in a simple prophecy sense — it reframes the first six as *one* acquisition among the Nightbound's (or others') operations, not the anointed. *(Provisional; mechanics/timing TBD.)*
+- **The retired-pro-gamer mirror.** A transplant who beats each of the six *individually* — the **distorted power-fantasy mirror**: what Earth-transplants become if they optimize differently. He makes Marcus and Serra's path read as *chosen and specific* (they become what they become through particular relationships, interfaces, and failures — not because Earth people are inherently strong). *(Provisional antagonist/foil; Book 2.)*
+- **Seb's sacrifice breaks the hold over the six** — see FORK 1 (cosmology cross-ref + `seb.md`).
+
+---
+
 ## Open Questions
 
 Tracked authoritatively in `unresolved_character_threads.md`.

@@ -523,6 +523,10 @@ Competent, warm, fast-moving, self-sufficient. She processes and decides and goe
 
 Book 1 leaves her mid-hunt, changed in ways that are visible and ways that aren't. Still warm. Still the person who pays attention. But something underneath is harder now — not colder, just more settled in a way that looks like distance from certain angles. The hunt has gone deeper than she planned. She's starting to understand it's reshaping her, and she hasn't decided yet whether that's acceptable.
 
+### Long Arc (beyond Book 1) — trajectory, not Book-1 canon
+
+Serra is the other half of the **endgame axis**. Her terminal function is **breaking the imposed structure once Marcus finds it** — severance-at-scale (her **Worldbreaker** direction, `serra_hawthorne.md` → Class Direction) is the *answer* to Marcus's *map*. She is not "endgame because strongest fighter"; she is endgame because her function — collapse a structure once its real shape is known — is uniquely suited to a war fought against deception and control. Her namebinding hunt climbs from the Court of Seals toward the Aurelian Sovereignty (`cosmology.md`), which feeds this axis: she learns, over the series, what structures can be made to fail and at what cost — including to the people near her (the Severance Pulse's standing danger). *(Trajectory; Book-2+.)*
+
 ---
 
 ## Open Questions

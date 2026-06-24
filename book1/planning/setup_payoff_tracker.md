@@ -22,6 +22,9 @@
 | SP-010 | The old guild is scattered | active | Reunions are complicated; no easy team reset. |
 | SP-011 | Marcus & Serra find each other before any faction forms | paid (planned) | The raw "both lost" beat precedes the Iron Vultures. |
 | SP-012 | The Eyes-of-Meszkhal item = confident, demon-biased interpretation | active | First real temptation should bite where certainty about allies is most seductive (Eriadne politics). |
+| SP-013 | The six are acquired by the Nightbound as **keys, not champions** | active | They aren't any faction's chosen team; the cohort fractures and scales unequally. Book 2's **second Earth cohort** + the **retired-pro mirror** break the "chosen six" assumption. (`dominion_realm_story_bible.md` → *The Six*; `cosmology.md`.) |
+| SP-014 | Myrmidon finale: the six fire as one machine, then the illusion breaks (locked, `finale_spine.md` b4/b12) | active | Pays as **"potential glimpsed before fracture,"** not "party formed." The fault lines the fight exposes become the long-arc role split (Book-2+). |
+| SP-015 | The **hold over the six** (Nightbound keys-grip + Broker leash on Seb) | needs_decision | **Seb's Book-2+ death-sacrifice breaks it** (FORK 1): severs his own Broker/Soulkeepers leash and the Nightbound's coercive leverage over the six as a group; the "made keys" fact persists. **Not** a new force — routes onto the existing Nightbound architecture. (`cosmology.md` cross-ref; `seb.md`.) |
 
 ---
 
@@ -48,6 +51,12 @@
 | CH-017 | Serra | **Warrior** fundamentals surface (not a flashy class) | active | Ordinary Warrior skills become terrifying Severance Pulse delivery; first intentional Momentum. |
 | CH-018 | Serra | Kills the magistrate — a decision | active | What she learns (node/registry) sets her destination. |
 | CH-019 | Marcus/Serra | The space between them forms | active | Reunion shows how much changed and how the space remains. |
+| CH-020 | Marcus/Serra | Finale: **Marcus reads the opening / Serra lands the kill** (locked, `finale_spine.md` b9–b10) | active | Plants the **endgame axis** — perception reconstructs the causal map; severance breaks the imposed structure. Pays at series scale (they become the answer to deception/control and face the hidden final actor). Book-2+. (`mc.md` / `serra_hawthorne.md` → *Long Arc*.) |
+| CH-021 | Seb | Broker leash + Reaver/Pyric **ominous cost** (CH-008) | payoff_pending | Book-2+: corruption → **defeated by Marcus** (FORK 2) → agency restored → **sacrifice breaks the hold over the six** (FORK 1, `needs_decision`). Must **not** cleanse what he did; proves he can choose the cost of stopping it. (`seb.md` → *Long Arc*.) |
+| CH-022 | Mathias | **Injured proving his warning**; perception/contact, not frontline (locked, `finale_spine.md` b5) | active | Plants that his value is sensing/contact, not combat → Book-2 **stewardship of Eriadne** while Marcus/Serra go cosmic. **Survives** Book 1. (`mathias.md` → *Long Arc*.) |
+| CH-023 | Brent | **Mara + Brent identify the Myrmidon weakness** (locked, `finale_spine.md` b8); structural reader | active | Plants the structural-judge role → *if/when* he dies (Book-2+) it cashes out as **structural cost, not a healer trope** (`forbidden_drift.md` #16). **Survives** Book 1. |
+| CH-024 | Mara | Mara+Brent find the weakness; court reframe (CH-009) | active | Plants the **non-Marcus/Serra riser** — salience/mirror danger escalating toward execution/combat lethality; may surpass Seb if he lives long enough. Stays jagged, never team-glue. Book-2+. |
+| CH-025 | The six | The **"happy group" window** — the machine fires once (locked, `finale_spine.md` b4) | active | Plants the alternate-timeline glimpse; pays as **grief** when the cohort fractures (the severance now; divergence/deaths Book-2+) — without a false found-family promise. (`forbidden_drift.md` #15.) |
 
 ---
 
