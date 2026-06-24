@@ -31,6 +31,10 @@ export default function Planner() {
   const beatsRef = useRef(beats);
   beatsRef.current = beats;
   const hydratedKey = useRef<string | null>(null);
+  // Re-arm the guard whenever the targeted chapter (or book) changes, so navigating away and back
+  // re-checks for proposed beats. Same-chapter re-renders (poll ticks) keep the guard set and are
+  // deduped. Declared before the hydrate effect so the reset wins on a chapter change.
+  useEffect(() => { hydratedKey.current = null; }, [data.bookId, chapterNo]);
   useEffect(() => {
     if (!data.bookId) return;
     const key = `${data.bookId}:${chapterNo}`;
@@ -233,7 +237,6 @@ export default function Planner() {
           )}
         </>
       )}
-      {data.error && <div style={css(`margin-top:12px;font-family:var(--mono);font-size:11.5px;color:${t.bad}`)}>{data.error}</div>}
     </div>
   );
 }

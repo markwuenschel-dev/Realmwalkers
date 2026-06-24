@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -45,6 +46,7 @@ const EMPTY_JOBS: JobsStatusOut = { running: false, queued: 0, failed: 0, active
 export interface DeskData {
   loading: boolean;
   error: string | null;
+  clearError: () => void;
 
   books: BookOut[];
   bookId: string | null;
@@ -52,6 +54,7 @@ export interface DeskData {
 
   chapters: ChapterOut[];
   scenes: SceneOut[]; // every scene of the book, all statuses
+  latestScenes: SceneOut[]; // current (highest-version) row per (chapter, scene)
   pending: SceneOut[]; // pending_review, oldest first (the review queue)
   manuscript: ManuscriptOut | null;
   characters: CharacterStateOut[];
@@ -119,6 +122,19 @@ export function useDeskDataState(): DeskData {
   const [suggestions, setSuggestions] = useState<SuggestionOut[]>([]);
 
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
+  const clearError = useCallback(() => setError(null), []);
+
+  // Current (highest-version) row per (chapter, scene) — the board/inbox/palette all want this view.
+  // Derived once here so screens don't each re-implement (and occasionally drop the memo on) it.
+  const latestScenes = useMemo(() => {
+    const m = new Map<string, SceneOut>();
+    for (const s of scenes) {
+      const key = `${s.chapter_id}:${s.scene_no}`;
+      const prev = m.get(key);
+      if (!prev || s.version > prev.version) m.set(key, s);
+    }
+    return [...m.values()];
+  }, [scenes]);
 
   // --- collections for the active book ------------------------------------------------------------
   const loadCollections = useCallback(async (id: string): Promise<void> => {
@@ -231,7 +247,14 @@ export function useDeskDataState(): DeskData {
   }, [loadCollections]);
 
   // --- active scene detail ------------------------------------------------------------------------
+  // Guard async writes: only the most recent open request may commit, and never after unmount. Each
+  // call bumps a token; a stale (superseded) or post-unmount response is dropped instead of writing
+  // to a dead context (e.g. navigating away mid-load).
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+  const openSeqRef = useRef(0);
   const openSceneById = useCallback((id: string | null): void => {
+    const seq = ++openSeqRef.current;
     setActiveSceneId(id);
     if (!id) {
       setDetail(null);
@@ -241,9 +264,11 @@ export function useDeskDataState(): DeskData {
       setSuggestions([]);
       return;
     }
+    const live = () => mountedRef.current && openSeqRef.current === seq;
     (async () => {
       try {
         const d = await api.scene(id);
+        if (!live()) return;
         setDetail(d);
         const [vs, beats, anns, sugs] = await Promise.all([
           api.sceneVersions(id),
@@ -251,13 +276,14 @@ export function useDeskDataState(): DeskData {
           api.annotations(id),
           api.suggestions(id),
         ]);
+        if (!live()) return;
         setVersions(vs);
         setActiveBeat(beats.find((b) => b.scene_no === d.scene_no) ?? null);
         setAnnotations(anns);
         setSuggestions(sugs);
         setError(null);
       } catch (e) {
-        fail(e);
+        if (live()) fail(e);
       }
     })();
   }, []);
@@ -531,9 +557,9 @@ export function useDeskDataState(): DeskData {
   }, []);
 
   return {
-    loading, error,
+    loading, error, clearError,
     books, bookId, setBook,
-    chapters, scenes, pending, manuscript, characters, canon, threads, jobs,
+    chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, jobs,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
     refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext,
     setExemplar,

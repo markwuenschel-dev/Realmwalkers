@@ -3,7 +3,7 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { statValue } from "../lib/format";
-import type { CanonEntityOut, CharacterStateOut } from "../api/types";
+import type { CanonEntityOut, CharacterStateOut, ThreadBeatIn, ThreadIn } from "../api/types";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -35,6 +35,8 @@ export default function LedgerScreen() {
   const [canonEdit, setCanonEdit] = useState<CanonEdit>(null);
   const [ingesting, setIngesting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [threadAdding, setThreadAdding] = useState(false); // inline new-thread form open
+  const [beatFor, setBeatFor] = useState<string | null>(null); // thread id whose add-beat form is open
 
   const canonKinds = [...new Set(data.canon.map((c) => c.kind ?? "other"))].filter((k) => k !== "character");
   const cats = [
@@ -45,21 +47,6 @@ export default function LedgerScreen() {
 
   const threadKinds: Record<string, string> = {
     relationship: t.bad, mentorship: t.info, system: t.accent, power: t.warn,
-  };
-
-  const newThread = async () => {
-    const name = window.prompt("Thread name (e.g. Soren ⇄ Lyra):");
-    if (!name?.trim()) return;
-    const kind = window.prompt("Kind (relationship / mentorship / system / power):", "relationship") ?? undefined;
-    await data.createThread({ name: name.trim(), kind: kind?.trim() || null, state: "active" });
-  };
-  const addBeat = async (threadId: string) => {
-    const raw = window.prompt("Add a beat as `scene_no, label` (e.g. 5, threadbound):");
-    if (!raw) return;
-    const [no, ...rest] = raw.split(",");
-    const sceneNo = Number(no.trim());
-    if (!Number.isFinite(sceneNo)) return;
-    await data.addThreadBeat(threadId, { scene_no: sceneNo, label: rest.join(",").trim() || null });
   };
 
   const rebuildIndex = async () => {
@@ -177,9 +164,16 @@ export default function LedgerScreen() {
             <div style={css("display:flex;flex-direction:column;gap:12px")}>
               <div style={css("display:flex;align-items:center;justify-content:space-between")}>
                 <p style={css("margin:0;font-size:13px;color:var(--dim);line-height:1.5")}>Follow a relationship or plot thread across the scenes it touches.</p>
-                <button onClick={newThread} style={css(btn)}>+ New thread</button>
+                <button onClick={() => setThreadAdding(true)} style={css(btn)}>+ New thread</button>
               </div>
-              {data.threads.length === 0 && <Empty>No threads yet — add one to track an arc across scenes.</Empty>}
+              {threadAdding && (
+                <ThreadForm
+                  kinds={Object.keys(threadKinds)}
+                  onCancel={() => setThreadAdding(false)}
+                  onSave={async (body) => { await data.createThread(body); setThreadAdding(false); }}
+                />
+              )}
+              {data.threads.length === 0 && !threadAdding && <Empty>No threads yet — add one to track an arc across scenes.</Empty>}
               {data.threads.map((th) => {
                 const sel = selectedThread === th.id;
                 const kindColor = threadKinds[th.kind ?? ""] ?? t.dim;
@@ -201,9 +195,15 @@ export default function LedgerScreen() {
                           {i !== th.beats.length - 1 && <span style={css("margin:0 9px;color:var(--dim);font-size:13px")}>→</span>}
                         </div>
                       ))}
-                      <button onClick={(e) => { e.stopPropagation(); addBeat(th.id); }} style={css("margin-left:10px;padding:6px 10px;border-radius:7px;border:1px dashed var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui)")}>+ beat</button>
+                      <button onClick={(e) => { e.stopPropagation(); setBeatFor(beatFor === th.id ? null : th.id); }} style={css("margin-left:10px;padding:6px 10px;border-radius:7px;border:1px dashed var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui)")}>+ beat</button>
                       <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete thread "${th.name}"?`)) data.deleteThread(th.id); }} style={css("margin-left:auto;padding:6px 10px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui)")}>delete</button>
                     </div>
+                    {beatFor === th.id && (
+                      <BeatForm
+                        onCancel={() => setBeatFor(null)}
+                        onSave={async (body) => { await data.addThreadBeat(th.id, body); setBeatFor(null); }}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -314,6 +314,65 @@ function CanonForm({ initial, fixedKind, onSave, onCancel }: {
         <button onClick={save} style={css(btn)}>{initial ? "Save" : "Add entry"}</button>
         <button onClick={onCancel} style={css(ghost)}>Cancel</button>
       </div>
+    </div>
+  );
+}
+
+function ThreadForm({ kinds, onSave, onCancel }: {
+  kinds: string[];
+  onSave: (body: ThreadIn) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState("");
+  const [note, setNote] = useState("");
+  const save = () => {
+    if (!name.trim()) return;
+    onSave({ name: name.trim(), kind: kind.trim() || null, state: "active", note: note.trim() || null });
+  };
+
+  return (
+    <div style={css("background:var(--bg2);border:1px solid var(--accentLine);border-radius:var(--r);padding:16px 18px")}>
+      <div style={css("font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:12px")}>New thread</div>
+      <div style={css("display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px")}>
+        <label style={css("flex:2 1 200px")}><span style={css(fieldLabel)}>Name</span>
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Soren ⇄ Lyra" style={css(input)} /></label>
+        <label style={css("flex:1 1 150px")}><span style={css(fieldLabel)}>Kind</span>
+          <select value={kind} onChange={(e) => setKind(e.target.value)} style={css(input + ";cursor:pointer")}>
+            <option value="">—</option>
+            {kinds.map((k) => <option key={k} value={k}>{cap(k)}</option>)}
+          </select></label>
+      </div>
+      <label style={css("display:block;margin-bottom:12px")}><span style={css(fieldLabel)}>Note <span style={css("text-transform:none;letter-spacing:0")}>(optional)</span></span>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="what this thread tracks…" style={css(input)} /></label>
+      <div style={css("display:flex;gap:9px")}>
+        <button onClick={save} disabled={!name.trim()} style={css(btn)}>Add thread</button>
+        <button onClick={onCancel} style={css(ghost)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function BeatForm({ onSave, onCancel }: {
+  onSave: (body: ThreadBeatIn) => void;
+  onCancel: () => void;
+}) {
+  const [sceneNo, setSceneNo] = useState("");
+  const [label, setLabel] = useState("");
+  const n = Number(sceneNo);
+  const valid = sceneNo.trim() !== "" && Number.isFinite(n);
+  const save = () => { if (valid) onSave({ scene_no: n, label: label.trim() || null }); };
+
+  return (
+    <div onClick={(e) => e.stopPropagation()}
+      style={css("margin-top:12px;padding:12px 14px;border:1px solid var(--accentLine);border-radius:9px;background:var(--bg2b);display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap")}>
+      <label><span style={css(fieldLabel)}>Scene</span>
+        <input type="number" min={1} autoFocus value={sceneNo} onChange={(e) => setSceneNo(e.target.value)} placeholder="5"
+          style={css("width:80px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-size:13px;font-family:var(--ui)")} /></label>
+      <label style={css("flex:1 1 160px")}><span style={css(fieldLabel)}>Label <span style={css("text-transform:none;letter-spacing:0")}>(optional)</span></span>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. threadbound" style={css(input)} /></label>
+      <button onClick={save} disabled={!valid} style={css(btn)}>Add beat</button>
+      <button onClick={onCancel} style={css(ghost)}>Cancel</button>
     </div>
   );
 }

@@ -6,22 +6,11 @@ import Planner from "../components/Planner";
 import { DraftPanel, formatElapsed } from "../components/DraftActivity";
 import type { SceneOut } from "../api/types";
 
-// Latest version of each (chapter, scene) — the scene's *current* state for the board.
-function latestByScene(scenes: SceneOut[]): SceneOut[] {
-  const m = new Map<string, SceneOut>();
-  for (const s of scenes) {
-    const key = `${s.chapter_id}:${s.scene_no}`;
-    const prev = m.get(key);
-    if (!prev || s.version > prev.version) m.set(key, s);
-  }
-  return [...m.values()];
-}
-
 export default function InboxScreen() {
   const { t, openScene, openSceneId } = useDesk();
   const data = useDeskData();
 
-  const latest = latestByScene(data.scenes);
+  const latest = data.latestScenes;
   const approved = latest.filter((s) => s.status === "approved");
   const revising = latest.filter((s) => s.status === "revision_requested");
 

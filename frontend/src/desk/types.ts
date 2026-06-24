@@ -4,7 +4,9 @@
 export type Screen = "scene" | "inbox" | "chapters" | "diff" | "manuscript" | "ledger" | "docs";
 export type Tab = "continuity" | "notes" | "changes";
 export type Mode = "reading" | "suggesting" | "editing";
-export type DecisionKind = "approve" | "revise" | "deny";
+// Single source of truth lives with the wire DTOs; re-exported here so UI-state consumers (state.ts)
+// and screens that talk to the API agree on the member set.
+export type { DecisionKind } from "./api/types";
 export type ChaptersView = "board" | "timeline";
 
 export type Resolved = Record<string, "prose" | "ledger">;

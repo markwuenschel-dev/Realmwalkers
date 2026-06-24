@@ -16,6 +16,7 @@ export default function DiffScreen() {
   const [baseId, setBaseId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [reverting, setReverting] = useState(false);
+  const [confirmFor, setConfirmFor] = useState<string | null>(null); // version id awaiting revert confirmation
   const versionKey = versions.map((v) => v.id).join(",");
   useEffect(() => {
     if (versions.length < 2) return;
@@ -47,10 +48,10 @@ export default function DiffScreen() {
 
   const revertTo = async (v: SceneVersionOut) => {
     if (reverting) return;
-    if (!confirm(`Revert scene ${cur.scene_no} to v${v.version}? This creates a new current version with that text.`)) return;
     setReverting(true);
     await data.revertScene(v.id);
     setReverting(false);
+    setConfirmFor(null);
   };
 
   const cell = (side: "l" | "r", type: "same" | "add" | "del") => {
@@ -64,7 +65,10 @@ export default function DiffScreen() {
     `v${v.version} · ${v.status.replace(/_/g, " ")}${v.id === latest.id ? " · current" : ""}`;
   const selectStyle = css("background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-family:var(--mono);font-size:12px;cursor:pointer");
 
-  let ln = 0;
+  // Left/right line numbers advance independently: an `add` exists only on the right, a `del` only
+  // on the left. Sharing one counter mislabels consecutive adds with the previous line's number.
+  let leftLn = 0;
+  let rightLn = 0;
 
   return (
     <div>
@@ -90,11 +94,25 @@ export default function DiffScreen() {
           <span style={css("display:flex;align-items:center;gap:6px")}><span style={css("width:10px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--bad) 30%,transparent)")} />removed</span>
         </div>
         {base.id !== latest.id && (
-          <button onClick={() => revertTo(base)} disabled={reverting}
-            title={`Make v${base.version}'s text the current version`}
-            style={css("padding:7px 13px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>
-            {reverting ? "Reverting…" : `⟲ Revert to v${base.version}`}
-          </button>
+          confirmFor === base.id ? (
+            <div style={css("display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
+              <span style={css("font-size:12.5px;color:var(--dim)")}>Revert scene {cur.scene_no} to v{base.version}? A new current version is created with that text.</span>
+              <button onClick={() => revertTo(base)} disabled={reverting}
+                style={css("padding:7px 13px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>
+                {reverting ? "Reverting…" : "Confirm revert"}
+              </button>
+              <button onClick={() => setConfirmFor(null)} disabled={reverting}
+                style={css("padding:7px 13px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--dim);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmFor(base.id)} disabled={reverting}
+              title={`Make v${base.version}'s text the current version`}
+              style={css("padding:7px 13px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>
+              ⟲ Revert to v{base.version}
+            </button>
+          )
         )}
       </div>
 
@@ -102,9 +120,8 @@ export default function DiffScreen() {
         <div style={css("background:var(--bg2b);padding:11px 16px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)")}>v{base.version}{base.agent_original ? " — agent original" : ""}</div>
         <div style={css("background:var(--bg2b);padding:11px 16px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)")}>v{target.version}{target.id === latest.id ? " — current" : ""}</div>
         {ops.map((d, i) => {
-          if (d.type !== "add") ln++;
-          const leftNum = d.type === "add" ? "" : String(ln);
-          const rightNum = d.type === "del" ? "" : String(ln);
+          const leftNum = d.type === "add" ? "" : String(++leftLn);
+          const rightNum = d.type === "del" ? "" : String(++rightLn);
           return (
             <Fragment key={i}>
               <div style={css(cell("l", d.type))}><span style={css("display:inline-block;width:1.6em;color:var(--dim);user-select:none")}>{leftNum}</span>{d.type === "add" ? "" : d.text}</div>

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -18,36 +19,39 @@ export default function ChaptersScreen() {
   const { t } = desk;
   const data = useDeskData();
 
-  // current state of each (chapter, scene)
-  const latest = new Map<string, SceneOut>();
-  for (const s of data.scenes) {
-    const key = `${s.chapter_id}:${s.scene_no}`;
-    const prev = latest.get(key);
-    if (!prev || s.version > prev.version) latest.set(key, s);
-  }
+  // current state of each (chapter, scene) — derived once in the data layer
+  const latest = data.latestScenes;
   const scenesByChapter = (chapterId: string): SceneOut[] =>
-    [...latest.values()].filter((s) => s.chapter_id === chapterId).sort((a, b) => a.scene_no - b.scene_no);
+    latest.filter((s) => s.chapter_id === chapterId).sort((a, b) => a.scene_no - b.scene_no);
 
   const colorOf = (status: string): string => t[STATUS_COLORS[status] ?? "dim"];
 
   const manuscriptWords = (data.manuscript?.chapters ?? [])
     .flatMap((c) => c.scenes)
     .reduce((acc, s) => acc + wordCount(s.prose), 0);
-  const approvedScenes = [...latest.values()].filter((s) => s.status === "approved").length;
+  const approvedScenes = latest.filter((s) => s.status === "approved").length;
 
   const chViewItems: { id: ChaptersView; label: string }[] = [
     { id: "board", label: "Board" },
     { id: "timeline", label: "Timeline" },
   ];
 
-  // timeline lanes = distinct POVs, in chapter order
-  const lanes: string[] = [];
-  for (const c of data.chapters) if (!lanes.includes(c.pov)) lanes.push(c.pov);
-  const ordered = [...data.chapters]
-    .sort((a, b) => a.chapter_no - b.chapter_no)
-    .flatMap((c) => scenesByChapter(c.id).map((s) => ({ scene: s, chapter: c })));
-  const tCols = Math.max(1, ordered.length);
-  const tlGridStyle = `display:grid;grid-template-columns:96px repeat(${tCols},minmax(56px,1fr));grid-template-rows:auto ${lanes.map(() => "70px").join(" ")};gap:0 8px;align-items:stretch`;
+  // Timeline geometry: lanes (distinct POVs), the flattened scene order, and the grid template. Runs
+  // on every chapter/scene change only — not on each poll tick or unrelated context update.
+  const { lanes, ordered, tCols, tlGridStyle } = useMemo(() => {
+    const lanes: string[] = [];
+    for (const c of data.chapters) if (!lanes.includes(c.pov)) lanes.push(c.pov);
+    const ordered = [...data.chapters]
+      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .flatMap((c) =>
+        latest
+          .filter((s) => s.chapter_id === c.id)
+          .sort((a, b) => a.scene_no - b.scene_no)
+          .map((s) => ({ scene: s, chapter: c })));
+    const tCols = Math.max(1, ordered.length);
+    const tlGridStyle = `display:grid;grid-template-columns:96px repeat(${tCols},minmax(56px,1fr));grid-template-rows:auto ${lanes.map(() => "70px").join(" ")};gap:0 8px;align-items:stretch`;
+    return { lanes, ordered, tCols, tlGridStyle };
+  }, [data.chapters, latest]);
 
   return (
     <div>
@@ -72,7 +76,7 @@ export default function ChaptersScreen() {
           <div style={css("font-family:var(--display);font-size:40px;line-height:1;color:var(--ink)")}>{manuscriptWords.toLocaleString()}</div>
           <div style={css("font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:6px")}>words approved</div>
           <div style={css("height:1px;background:var(--line);margin:16px 0")} />
-          <Row k="scenes approved" v={`${approvedScenes} / ${latest.size}`} />
+          <Row k="scenes approved" v={`${approvedScenes} / ${latest.length}`} />
           <Row k="chapters" v={`${data.chapters.length}`} />
           <Row k="awaiting you" v={`${data.pending.length} scenes`} accent={data.pending.length > 0} t={t} />
         </div>
@@ -113,7 +117,7 @@ export default function ChaptersScreen() {
             <span style={css("display:flex;align-items:center;gap:5px")}><span style={css("width:9px;height:9px;border-radius:2px;background:var(--bad)")} />revising</span>
           </div>
           <div style={css("display:flex;flex-wrap:wrap;gap:12px")}>
-            {[...latest.values()].length === 0 && <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>No scenes drafted yet.</span>}
+            {latest.length === 0 && <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>No scenes drafted yet.</span>}
             {ordered.map(({ scene: s, chapter: c }) => {
               const color = colorOf(s.status);
               return (

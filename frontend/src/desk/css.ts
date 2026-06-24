@@ -5,6 +5,11 @@ import type { CSSProperties } from "react";
 // so this helper parses the prototype's declaration strings ("a:b;c:d") into a React style object —
 // preserving custom properties (--foo) verbatim and camelCasing standard property names. Keeping the
 // strings 1:1 is what makes the port faithful (and far less error-prone than hand-converting each).
+// Most call sites pass static strings, so the cache hits ~100%. A few sites build dynamic strings
+// (e.g. the Chapters timeline grid template, which embeds the column/lane counts) — those would
+// otherwise accrete a new entry per geometry forever. Bound the cache and evict oldest-first (Map
+// preserves insertion order) so a long session can't leak.
+const MAX_CACHE = 2000;
 const cache = new Map<string, CSSProperties>();
 
 export function css(input: string): CSSProperties {
@@ -25,6 +30,10 @@ export function css(input: string): CSSProperties {
   }
 
   const style = out as unknown as CSSProperties;
+  if (cache.size >= MAX_CACHE) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
   cache.set(input, style);
   return style;
 }
