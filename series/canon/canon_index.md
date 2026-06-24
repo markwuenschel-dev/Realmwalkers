@@ -39,6 +39,7 @@ Shared canon lives under `series/` (`canon/`, `style/`, `voice/`); each book's p
 | Power models (Character-Origin + Realm power stack), cast power table | `character_power_architecture.md` |
 | Class taxonomy, rarity tiers, specializations | `classes.md` |
 | Tier ladders: spell strength, item quality/rarity, gems, skill mastery, soul level | `mechanics.md` |
+| Resource/number system: resources (HP/Mana/Stamina/Reserve), resource & regen & depletion formulas, XP curve & pacing, threat readout, species/class stat templates, growth & point-allocation | `resource_system.md` |
 | Cosmic powers, factions, the Xyloryn, Realm Walkers | `cosmology.md` |
 | The six interfaces (biology, 5 stages, Happy/Forbidden) | character dossiers + `character_power_architecture.md` |
 | LitRPG mechanics, UI, the Eyes split, namebinding | `core_rules.md` |
@@ -66,6 +67,7 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 | `relationship_map.md` | ✅ current | Ordinary relational description; **defers to `relationship_invariants.md`**. |
 | `marcus_serra_relationship.md` | ✅ current (new) | Relationship bible for the series-spine pairing (conflict engine / progression / motifs / guardrails). Governs with INV-1, INV-3, `forbidden_drift.md` #10; defers to `book1_chapter_timeline.md` on placement and `master_timeline.md` on days. |
 | `character_power_architecture.md` | ✅ current | — |
+| `resource_system.md` | ✅ current (new) | Owner for the resource/number system (formulas, regen, depletion, XP curve, threat, stat templates, growth). Uses tier names from `mechanics.md`/`classes.md`; does not redefine ladders. |
 | `canon_index.md` | ✅ this file | — |
 | `book1_chapter_timeline.md` | 🔧 updated this batch | Act 5 finale choreography pending |
 | `unresolved_character_threads.md` | 🔧 regenerated this batch | — |

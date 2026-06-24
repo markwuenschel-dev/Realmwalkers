@@ -657,6 +657,12 @@ Genuine. His warmth is real, his leadership is real, his care for the guild and 
 
 Book 1 ends with Seb having accepted or approached a power source that looks noble and has begun to show its real cost. He has rationalized the first warning sign. The reader sees it. He does not — or he does and decides it's acceptable.
 
+### Long Arc (beyond Book 1) — trajectory, not Book-1 canon
+
+Seb's series shape is **corrupted command → defeat → chosen responsibility** (Book-2+; he does **not** die in Book 1). The sequence: grief over his brother → the Broker's *genuine* offer (Soulkeepers' leash; `cosmology.md`, INV-6) → Broker-accelerated **Reaver / Pyric Blood** deepening the gray fall (the drive that no one close to him dies again) → he **turns, or is used against the group** → **Marcus is forced to defeat/kill him** (FORK 2) → the defeat **breaks the hold** → agency restored → he **sacrifices himself to bear responsibility and break the hold over the six** (FORK 1; `cosmology.md` cross-ref).
+
+The load-bearing constraint: his final act must **not cleanse what he did** — it proves he can still *choose the cost of stopping it.* Tragedy, not cheap death, and not absolution. He becomes (by the finale region of his arc) among the most powerful of the six and the closest to taking a Myrmidon alone — and still can't — which is the engine that makes the corruption seductive. *(Trajectory; Book-2+. "The hold" mapping and what Seb's sacrifice severs = FORK 1, `needs_decision`.)*
+
 ---
 
 ## Open Questions
@@ -664,8 +670,8 @@ Book 1 ends with Seb having accepted or approached a power source that looks nob
 - ~~What specifically is the power source that tempts him?~~ **RESOLVED:** the Broker's *genuine* offer to restore his dead brother — path: Aetherfall **Warlord** → Realm **Reaver** + **Pyric Blood**. (SB-01, INV-6.)
 - ~~Does he know the full cost when he accepts it?~~ **RESOLVED:** No — the wording is honest; he hears "whole and alive." He doesn't see the cost is self-transformation, or that restoration ≠ continuity → **tragedy, not corruption.** (SB-02, INV-6.)
 - Is his brother still reachable, or has that motive already transformed?
-- Does he become antagonist, antihero, or tragic rival — or does that remain ambiguous through Book 1?
-- What is the specific moment that makes him impossible to follow?
+- ~~Does he become antagonist, antihero, or tragic rival — or does that remain ambiguous through Book 1?~~ — **Tragic rival** (resolved in direction, Book-2+): turned/used via the Broker's leash, defeated by Marcus, then chooses responsibility. Ambiguity *does* hold within Book 1 (Book 1 ends with him only having approached the power); the turn, defeat, and sacrifice are Book-2+. (Series synthesis; FORK 2.)
+- ~~What is the specific moment that makes him impossible to follow?~~ — **The turn** (resolved in direction, Book-2+): Broker-accelerated power + grief convert "what we need" into "what I need, dressed as what we need," and he is used against the group — the point Marcus can no longer follow and must act. (Series synthesis; FORK 2.)
 - What would make him choose differently?
 
 ---

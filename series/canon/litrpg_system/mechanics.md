@@ -7,7 +7,7 @@ status: canon
 # Mechanics & Tiers — Dominion Realm
 
 > **Status:** Canon · working draft
-> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level — plus affinity tiers. Class rarity → `core_rules.md` / `classes.md`. Calendar → `realm_calendar.md`.
+> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level — plus affinity tiers. Class rarity → `core_rules.md` / `classes.md`. Calendar → `realm_calendar.md`. **Resource formulas, regen/depletion, the Soul→Reserve multiplier, XP curve, threat readout, and stat templates → `resource_system.md`.**
 
 ## Read-this-first notes
 

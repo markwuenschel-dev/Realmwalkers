@@ -2,6 +2,18 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-24 — Series-architecture pass — origin-cohort model, long-arc role split, guardrails
+
+- Bible gains "The Six — Origin Cohort, Not Final Party": the six are keys (Nightbound), not a permanent party; Book 1 proves potential not stability; long-arc role split (Marcus/Serra endgame axis · Seb tragic-responsibility · Brent structural-cost · Mathias stewardship · Mara independent riser); Book-2 seeds (second cohort, retired-pro mirror).
+- Roadmap framing sharpened (Series Identity + Act 5 Function): "potential glimpsed before fracture."
+- Cosmology cross-ref: the "hold over the six" routes to the existing Nightbound/Soulkeepers architecture (NOT a new force); Seb's sacrifice breaks it (FORK 1, needs_decision).
+- Each major dossier gains a quarantined "Long Arc (beyond Book 1)" subsection; seb.md resolves two open Qs (tragic rival; the turn) — FORK 2.
+- forbidden_drift.md #15 Permanent-Party Assumption, #16 Healer-Trope Death (Brent), #17 Chosen-Six Flattening + diagnostic rows.
+- setup_payoff_tracker.md SP-013…015, CH-020…025.
+- GUARD reaffirmed: no main-six character dies in Book 1; all death/turn beats are Book-2+ trajectory.
+- Open: FORK 1 (what Seb's sacrifice severs) and FORK 2 (Marcus defeats Seb) — defaults applied, awaiting confirmation.
+- Applied to the post-migration layout (`series/` + `book1/`); the briefs were authored against the pre-split `novel/` paths — remapped on the way in. Mara's optional parallel `### Long Arc` subsection left out (per Brief B, awaiting your word).
+
 ## 2026-06-22 — All-six launch architecture (integration brief)
 Working-canon integration of the author's "all-six launch architecture." Everything below is **[WORKING]** unless noted. Stale incoming tokens fixed on the way in (`Keystone Integrity`→Piezoelectric Bones, `Mirror-Salience`→Specular Salience) — the repo already used the corrected names, so no repo token edits were needed.
 - **§11 Xyloryn override [CONFIRMED] — no embodied Xyloryn before the finale.** Every pre-finale Xyloryn beat reframed from drone/embodied contact → **signal / trace / portal-pressure from the other side**; the **finale Myrmidon is the first living breach.** 10 anchors: `book1_chapter_plan.md` (Ch 13 interlude ×2, Ch 16–17 beats), `book1_chapter_timeline.md` (×2), `master_timeline.md` (diagnostic-hint + the Mathias row's "fights a single Skirmisher-tier drone" → signal/trace), `scene_queue.md` (SCENE-010 + `Mathias: The Ruins`), `setup_payoff_tracker.md` (WF-005). The bible's general **Skirmisher** description (bite/sting to gather data) left intact — it's finale behavior.

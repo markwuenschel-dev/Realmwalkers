@@ -376,7 +376,7 @@ Emotion-responsive neuro-optical tissue. The iris forms semi-neuronal filaments 
 
 ### Cost and Risk
 
-Finite ocular reserve: oxygen, glucose, neurotransmitter load, vascular tolerance, structural integrity of neuro-optical fibers, nervous system stability.
+Finite ocular reserve — the Eyes-specific manifestation of the general **Reserve** resource (`resource_system.md`): oxygen, glucose, neurotransmitter load, vascular tolerance, structural integrity of neuro-optical fibers, nervous system stability.
 
 Overuse causes: eye burning, blurred color perception, migraines, blood tears, broken vessels, damaged iris fibers, emotional feedback loops, permanent distortion if abused badly enough.
 
@@ -478,6 +478,10 @@ Survivor. Analyst. Builder. Alone. Just died and came back. Has a voice in his h
 ### End Direction
 
 Book 1 ends with Marcus tied to Eriadne — not in control of it, but essential to it. The old guild identity is dead. The new question is whether these powerful, changed people can align without becoming enemies.
+
+### Long Arc (beyond Book 1) — trajectory, not Book-1 canon
+
+Marcus is one half of the series **endgame axis** (with Serra). His escalation is real and long (movement, interface uniqueness, cosmic relevance via the Realm Walkers, perception synergy with Serra's severance, Eriadne/Realm-scale consequence). His terminal function is **reconstructing the real causal map** — finding the true structure under the deception — which is the half that pairs with Serra's *breaking* it. Together they become the **answer to deception and control** and face the hidden final actor; this is *why* the cohort was assembled as keys (`dominion_realm_story_bible.md` → *The Six — Origin Cohort*; `cosmology.md` Realm Walkers / N'hal). He is also the one **forced to defeat Seb** when Seb is turned (FORK 2; `seb.md`) — the mirror collision finally landing. *(Trajectory; the six do not remain a balanced party — Marcus scales toward the cosmic axis while others take different scales/roles.)*
 
 ### The Frame–Reality Spine — opening ↔ ending mirror
 

@@ -878,6 +878,10 @@ Genuinely warm, genuinely curious, constitutionally inclined toward people and d
 
 Book 1 leaves Mathias having made contact with something significant — something no one else managed to reach — and carrying the weight of what that contact cost or changed. His warmth is intact but it has been tested by something that didn't respond to it the way things usually do. The question of whether to keep reaching, and what the right conditions for that reaching are, is unresolved.
 
+### Long Arc (beyond Book 1) — trajectory, not Book-1 canon
+
+Mathias's long-term value is **stewardship**, and he is **more valuable alive** than as a death. As Marcus and Serra climb toward the Realm/cosmic axis, Mathias is the one suited to **watch over Eriadne for them** — emissary, diplomat/contact-specialist, ruin-sense, steward, interpreter of peoples/systems/places (his Scout class + Enteric Lattice connection-sense, and his "navigates foreign civilizations" Earth-throughline, point exactly here). This is a major function that requires **no** combat escalation. Killing him is possible but would remove the character most naturally built for deep sensing and stewardship — the current default is that he **survives into responsibility.** *(Trajectory; Book-2+.)*
+
 ### Mortality
 
 **Resolved: Mathias survives Book 1.** He is **injured at the finale** (not killed) — wounded while detecting and proving the Xyloryn / ruins-portal threat. The old "thematic death" flag is retired. (MT-01 resolved.)
