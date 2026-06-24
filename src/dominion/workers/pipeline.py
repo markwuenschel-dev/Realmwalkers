@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.enums import SceneStatus, Severity
 from dominion.shared.models import Critique, Job, Scene
+from dominion.workers import progress
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context import assemble_context
 from dominion.workers.router import passes_for, reviewers_for
@@ -23,11 +24,15 @@ from dominion.workers.stat_render import render_stat_blocks
 
 
 async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
+    # Capture once: progress is keyed by job id and reported live to GET /jobs/status (best-effort).
+    jid = str(job.id)
+    progress.set_phase(jid, "preparing")
     ctx = await assemble_context(session, job)
     # A revision job targets an existing scene; the new prose becomes a new version of it.
     prior = await session.get(Scene, job.target_scene_id) if job.target_scene_id is not None else None
 
     # 1) the spine (POV-voiced) — or a rewrite, if ctx carries revision feedback
+    progress.set_phase(jid, "drafting prose")
     prose = await drafter.run(ctx.prior_prose, ctx)
     passes_run: list[str] = ["drafter"]
 
@@ -38,6 +43,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     try:
         for specialist in passes_for(ctx.tags):
             try:
+                progress.set_phase(jid, f"enriching · {specialist.name}")
                 prose = await specialist.run(prose, ctx)
                 passes_run.append(specialist.name)
             except PassError as exc:
@@ -50,6 +56,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     # The drafter emits ```stat``` markers (values only); deterministic code draws the aligned box, so
     # the model never does monospace column math. The marker form stays in agent_original (edit-safe +
     # training capture); the rendered box goes in prose, which is what the inbox shows.
+    progress.set_phase(jid, "saving draft")
     rendered_prose = render_stat_blocks(prose)
     scene = Scene(
         chapter_id=ctx.chapter_id,
@@ -82,6 +89,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     # acceptable for these cheap, advisory calls that run after the costly drafting work.
     if not budget_exceeded:
         reviewers = reviewers_for(ctx.tags)
+        progress.set_phase(jid, "reviewing")
         results = await asyncio.gather(
             *(reviewer.review(prose, ctx) for reviewer in reviewers), return_exceptions=True
         )

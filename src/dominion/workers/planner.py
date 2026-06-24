@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from typing import Any
 
 from dominion.shared.config import settings
@@ -26,6 +27,13 @@ _SYSTEM = (
     "per-scene beats for the author to edit and approve. A beat is a short plan, NOT prose: what "
     "happens, who is present, and any declared state changes. Stay within the outline; invent no "
     "named people, places, or lore the outline and canon do not support."
+)
+
+_TITLE_SYSTEM = (
+    "You are a novelist's assistant. Given a chapter outline and its POV character, propose ONE "
+    "short, evocative chapter title: 2-6 words, title case, no quotation marks, no chapter number, "
+    "no trailing punctuation. It must fit the outline and invent nothing it doesn't support. Reply "
+    "with the title text ONLY — nothing else."
 )
 
 
@@ -143,7 +151,7 @@ async def propose_beats(
     pov: str,
     omniscient_summary: str | None = None,
     canon: list[str] | None = None,
-    max_beats: int = 12,
+    max_beats: int = 24,
     budget: TokenBudget | None = None,
 ) -> list[dict[str, Any]]:
     """One bounded plan-call -> a list of normalized beat dicts (possibly empty). Never raises on a
@@ -171,3 +179,48 @@ async def propose_beats(
             f"beat proposal exceeded {settings.plan_time_budget_s}s — try again"
         ) from None
     return _parse_beats(raw)
+
+
+def _clean_title(raw: str) -> str | None:
+    """First line of the model's reply, stripped of fences/quotes and any 'Chapter N:'/'Title:'
+    prefix it sometimes adds. Returns None for an empty or implausibly long result (treated as a
+    non-answer), so a bad title is simply absent rather than garbage shown to the author."""
+    s = _strip_fences(raw).strip()
+    line = s.splitlines()[0].strip() if s else ""
+    line = line.strip("\"'").strip()
+    line = re.sub(r"^(chapter\s+\w+\s*[:\-—.]\s*|title\s*[:\-—]\s*)", "", line, flags=re.IGNORECASE)
+    line = line.strip().rstrip(".")
+    return line if 0 < len(line) <= 80 else None
+
+
+async def propose_chapter_title(
+    *,
+    outline: str,
+    pov: str,
+    omniscient_summary: str | None = None,
+    budget: TokenBudget | None = None,
+) -> str | None:
+    """Best-effort: one tiny bounded call -> a short chapter title (or None). NEVER raises — title
+    generation is optional polish that runs alongside beat proposal, so any failure (timeout, parse,
+    budget, API error) just yields no title rather than failing the run."""
+    if not outline.strip():
+        return None
+    parts = [f"POV: {pov}"]
+    if omniscient_summary:
+        parts.append(f"Story so far:\n{omniscient_summary}")
+    parts.append("CHAPTER OUTLINE:\n" + outline)
+    parts.append("\nPropose the chapter title.")
+    try:
+        raw, _usage = await asyncio.wait_for(
+            llm.complete(
+                model=settings.draft_model,
+                system=_TITLE_SYSTEM,
+                user="\n\n".join(parts),
+                max_tokens=32,
+                budget=budget or TokenBudget(max_tokens=settings.scene_token_budget),
+            ),
+            timeout=settings.plan_time_budget_s,
+        )
+    except Exception:  # noqa: BLE001 — optional; a failed title must not fail the run
+        return None
+    return _clean_title(raw)

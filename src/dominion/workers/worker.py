@@ -19,6 +19,7 @@ from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job
+from dominion.workers import progress
 from dominion.workers.pipeline import generate_one_scene
 
 log = structlog.get_logger()
@@ -57,6 +58,7 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         # Capture as a primitive: rollback() expires every ORM attribute, and reading an expired
         # one would fire a *sync* reload query (illegal under the async engine -> MissingGreenlet).
         job_id = job.id
+        progress.set_phase(str(job_id), "starting")
         try:
             scene = await asyncio.wait_for(
                 generate_one_scene(session, job), timeout=settings.scene_time_budget_s
@@ -75,6 +77,10 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
             await session.commit()
             log.error("scene.failed", job=str(job_id), error=str(exc))
             raise
+        finally:
+            # The job is no longer running (done, failed, or timed out) — drop its live phase so the
+            # status indicator doesn't report a stale "drafting…" for a scene that already finished.
+            progress.clear(str(job_id))
 
 
 async def _loop(interval: float) -> None:

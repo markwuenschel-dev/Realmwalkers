@@ -6,6 +6,8 @@ approve (gate 1) before any scene-draft job is enqueued.
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, select
 
@@ -51,13 +53,25 @@ async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
         )
     )).scalar_one_or_none()
     canon = await canon_rag.retrieve(session, book_id=body.book_id, query=body.outline, k=6)
+    # Beats + a chapter title in one round-trip: title generation is best-effort and never raises, so
+    # it adds ~no latency and can't fail the run; only the (bounded) beat proposal can time out -> 504.
     try:
-        proposed = await planner.propose_beats(
-            outline=body.outline, pov=body.pov, omniscient_summary=omniscient, canon=canon,
-            max_beats=body.max_beats or 12,
+        proposed, title = await asyncio.gather(
+            planner.propose_beats(
+                outline=body.outline, pov=body.pov, omniscient_summary=omniscient, canon=canon,
+                max_beats=body.max_beats or 24,
+            ),
+            planner.propose_chapter_title(
+                outline=body.outline, pov=body.pov, omniscient_summary=omniscient,
+            ),
         )
     except TimeoutError as exc:
         raise HTTPException(status_code=504, detail=str(exc)) from exc
+
+    # Stamp a generated title only when the chapter has none yet — never clobber an author's rename
+    # (which they make via PATCH /chapters/{id}); re-proposing beats leaves an existing title intact.
+    if title and not (chapter.title or "").strip():
+        chapter.title = title
 
     if proposed:
         # Replace rather than stack: clear the old proposed beats, then write the new ones. This
