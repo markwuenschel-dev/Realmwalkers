@@ -17,8 +17,8 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/src
 
 # Runtime deps only (we run from source, not pip-installed, so the app's repo-relative paths —
-# novel/, frontend/dist, novel/style/dialogue_rules.md — resolve under /app). Keep in sync with
-# pyproject.toml [project.dependencies].
+# series/, book1/, frontend/dist, series/style/dialogue_rules.md — resolve under /app). Keep in sync
+# with pyproject.toml [project.dependencies].
 RUN pip install --no-cache-dir \
     "fastapi>=0.115" "uvicorn[standard]>=0.32" "sqlalchemy[asyncio]>=2.0" "asyncpg>=0.30" \
     "pgvector>=0.3" "pydantic>=2.9" "pydantic-settings>=2.6" "anthropic>=0.40" "structlog>=24.4" \
@@ -26,7 +26,8 @@ RUN pip install --no-cache-dir \
 
 COPY src/ ./src/
 COPY scripts/ ./scripts/
-COPY novel/ ./novel/
+COPY series/ ./series/
+COPY book1/ ./book1/
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 # Provision the schema, then serve. init_db is idempotent (CREATE EXTENSION/TABLE/COLUMN IF NOT

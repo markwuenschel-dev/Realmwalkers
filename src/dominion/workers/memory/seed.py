@@ -3,8 +3,8 @@
 The drafter writes the NEXT scene against prior state — the per-POV + omniscient rolling summaries,
 beat-scoped canon, the in-chapter tail. Against an empty database it starts cold: no summary to
 narrow what a POV knows, no canon to retrieve. This importer loads already-written scene files
-(`novel/manuscript/scenes/*.md`) as `approved` Scene rows so that state exists, folds them forward
-into the rolling summaries, and (re)builds the canon RAG index from `novel/canon` — so one command
+(`book1/manuscript/scenes/*.md`) as `approved` Scene rows so that state exists, folds them forward
+into the rolling summaries, and (re)builds the canon RAG index from `series/canon` — so one command
 makes the system continuation-ready.
 
 Idempotent: re-running upserts the same (chapter, scene) seed rows rather than duplicating them, and
@@ -250,8 +250,8 @@ def main() -> None:
         description="Import drafted manuscript scenes as approved prior state + build memory (Phase 2)."
     )
     parser.add_argument("--book", required=True)
-    parser.add_argument("--scenes-dir", default="novel/manuscript/scenes")
-    parser.add_argument("--canon-dir", default="novel/canon")
+    parser.add_argument("--scenes-dir", default="book1/manuscript/scenes")
+    parser.add_argument("--canon-dir", default="series/canon")
     parser.add_argument("--no-canon", action="store_true", help="skip rebuilding the canon RAG index")
     parser.add_argument(
         "--no-summaries", action="store_true",

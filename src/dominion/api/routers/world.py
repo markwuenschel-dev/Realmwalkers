@@ -27,7 +27,7 @@ from dominion.workers.memory.embedding import embed
 
 router = APIRouter(tags=["world"])
 
-# …/src/dominion/api/routers/world.py -> repo root (mirrors docs.py); the canon docs live under novel/.
+# …/src/dominion/api/routers/world.py -> repo root (mirrors docs.py); shared canon docs live under series/.
 _PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 
@@ -223,10 +223,10 @@ async def delete_canon(canon_id: uuid.UUID, session: SessionDep) -> dict[str, st
 
 @router.post("/books/{book_id}/canon/ingest", response_model=CanonIngestOut)
 async def ingest_canon(book_id: uuid.UUID, session: SessionDep) -> CanonIngestOut:
-    """Rebuild the retrieval index from the on-disk canon docs (novel/canon) — the bridge from the
+    """Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
     read-only Canon tab into the RAG the drafter/planner actually query. Replaces the kind='passage'
     rows; hand-authored entities (character/location/…) are untouched."""
     await _require_book(book_id, session)
-    n = await canon_rag.ingest_path(session, book_id=book_id, root=_PROJECT_ROOT / "novel" / "canon")
+    n = await canon_rag.ingest_path(session, book_id=book_id, root=_PROJECT_ROOT / "series" / "canon")
     await session.commit()
     return CanonIngestOut(indexed=n)

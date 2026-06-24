@@ -9,7 +9,7 @@ known_entities: [ayla]
 
 ## How to Use This Index
 
-- All character files live under `novel/canon/characters/`
+- All character files live under `series/canon/characters/`
 - Major characters get their own file under `major/`
 - Supporting and minor characters are logged here directly until they earn a dedicated file
 - Use `_CHARACTER_TEMPLATE.md` for any new character file

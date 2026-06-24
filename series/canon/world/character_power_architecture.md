@@ -156,6 +156,6 @@ The four layers can be developed in any order, but all four should be resolved b
 
 ---
 
-*Cross-reference: `novel/canon/characters/major/` for individual character files. `novel/canon/litrpg_system/core_rules.md` for mechanics (the broader magic substrate lives there and in the story bible).*
+*Cross-reference: `series/canon/characters/major/` for individual character files. `series/canon/litrpg_system/core_rules.md` for mechanics (the broader magic substrate lives there and in the story bible).*
 
 *Last updated: working draft — change history in `CHANGELOG.md`.*

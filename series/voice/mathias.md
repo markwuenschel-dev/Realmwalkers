@@ -48,7 +48,7 @@ unless danger is immediate.
   feels final because he normally leaves room. ("That was not honesty. You waited until he was
   vulnerable and used the information." / "I understand why you did it. I am still choosing them.")
 
-> Dialogue (how Mathias speaks) is governed by novel/style/dialogue_rules.md.
+> Dialogue (how Mathias speaks) is governed by series/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Marcus** — one of the few who can make him articulate reasoning he sees no need to defend, and can

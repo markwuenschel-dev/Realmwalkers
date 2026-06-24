@@ -29,7 +29,7 @@ The Realm's magic is a universal substrate (**Aether / Prime Force / Potential**
 
 The implant's role is **translation**: the Realm has real metaphysical laws; the implant reads them as signal and renders them as UI. The six implanted Earth characters are unusual because their implants let them access and develop **explicit, named interfaces** unusually fast — most natives never name theirs.
 
-**Progression is seven-layered** (Skills, Base Class, Specialization, Multiclass, Interface, Affinity, Items) — full model in `character_power_architecture.md`. Classes are **earned**, not selected; the six generally do **not** specialize in Book 1 (Seb is the exception — the broker grants him a specialization prematurely). The six personal interfaces are detailed in the character dossiers (`novel/canon/characters/major/`) and `character_power_architecture.md`.
+**Progression is seven-layered** (Skills, Base Class, Specialization, Multiclass, Interface, Affinity, Items) — full model in `character_power_architecture.md`. Classes are **earned**, not selected; the six generally do **not** specialize in Book 1 (Seb is the exception — the broker grants him a specialization prematurely). The six personal interfaces are detailed in the character dossiers (`series/canon/characters/major/`) and `character_power_architecture.md`.
 
 ---
 
