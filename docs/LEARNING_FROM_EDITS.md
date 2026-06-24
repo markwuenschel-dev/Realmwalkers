@@ -40,7 +40,7 @@ terminal (the eventual in-editor button writes the same field).
 
 **Per-draft, read-fresh knobs** that take effect on the *next* scene with no redeploy:
 - `PovProfile.voice_spec` (set via `set_voice.py`).
-- `novel/style/dialogue_rules.md` (re-read every draft; scoped to characters present).
+- `series/style/dialogue_rules.md` (re-read every draft; scoped to characters present).
 
 ---
 
@@ -49,7 +49,7 @@ terminal (the eventual in-editor button writes the same field).
 | Target | Primary mechanism | Where it lives |
 |---|---|---|
 | **Voice / prose style** | Exemplars (in-context) + distilled `voice_spec` | `PovProfile`, `drafter._voice_system` |
-| **Dialogue habits** | Distilled rules | `novel/style/dialogue_rules.md` |
+| **Dialogue habits** | Distilled rules | `series/style/dialogue_rules.md` |
 | **Structure / pacing** | Distilled rules now; fine-tune later | `voice_spec` / `_CRAFT`; Tier 5 |
 | **Continuity / fact fixes** | *Not the drafter* — beat/ledger + a corrections memory | beats, `character_state`, continuity reviewer, canon |
 
@@ -135,4 +135,4 @@ justify it. In-context tiers should carry the project a long way first.
 (`_voice_system`, exemplars), `src/dominion/workers/context.py` (`assemble_context`, `_load_exemplars`),
 `src/dominion/workers/set_voice.py` + `set_exemplars.py` (authoring CLIs),
 `src/dominion/api/routers/reviews.py` (`decide`, `_capture_edit_pair`), `EditPair` in
-`src/dominion/shared/models.py`, `novel/style/dialogue_rules.md`.*
+`src/dominion/shared/models.py`, `series/style/dialogue_rules.md`.*

@@ -4,6 +4,15 @@
 
 ---
 
+## Repo layout (series monorepo)
+
+Shared canon lives under `series/` (`canon/`, `style/`, `voice/`); each book's planning/manuscript/outline lives under `bookN/`. Book 1 = `book1/`. **Rule:** *persists across books → `series/`; about one book's chapters or prose → `bookN/`.*
+
+- **Series:** `series/canon/` (characters, continuity, factions, litrpg_system, locations, world, `relationship_invariants.md`, `dominion_realm_story_bible.md`, `canon_index.md`, `CHANGELOG.md`) · `series/style/` · `series/voice/`
+- **Book 1:** `book1/planning/` (`book1_chapter_timeline`, `book1_chapter_plan`, `book_roadmap`, `finale_spine`, `scene_queue`, `setup_payoff_tracker`, `master_timeline`, `act3_sequence` [retired]) · `book1/manuscript/` · `book1/outline/`
+
+---
+
 ## Precedence & Tiebreak
 
 1. Newest explicit author decisions
@@ -53,7 +62,7 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 | File | Status | Action needed |
 |---|---|---|
 | `relationship_invariants.md` | ✅ current (new) | Owner file for relational facts; INV-1…INV-6. Wins over `relationship_map.md` on standing/recognition/dynamic. |
-| `relational_clarity_rules.md` | ✅ current (new, style) | Style-tier Critic enforcement (RR1–RR8); lives in `novel/style/`, sibling to `prose_clarity_rules.md`. |
+| `relational_clarity_rules.md` | ✅ current (new, style) | Style-tier Critic enforcement (RR1–RR8); lives in `series/style/`, sibling to `prose_clarity_rules.md`. |
 | `relationship_map.md` | ✅ current | Ordinary relational description; **defers to `relationship_invariants.md`**. |
 | `marcus_serra_relationship.md` | ✅ current (new) | Relationship bible for the series-spine pairing (conflict engine / progression / motifs / guardrails). Governs with INV-1, INV-3, `forbidden_drift.md` #10; defers to `book1_chapter_timeline.md` on placement and `master_timeline.md` on days. |
 | `character_power_architecture.md` | ✅ current | — |

@@ -1,7 +1,7 @@
 # Relational Clarity Rules — Dominion Realm
 
 > **Status:** Style/enforcement canon. Binding on the Coder, enforced by the Critic.
-> **Home:** `novel/style/relational_clarity_rules.md`
+> **Home:** `series/style/relational_clarity_rules.md`
 > **Source of truth:** the facts live in `relationship_invariants.md`. This file is *how the Critic checks a scene against them* — the relational counterpart to `prose_clarity_rules.md` (which guards physical clarity).
 > **Why this exists:** invariants drift when corrections over-apply — a fix to one axis deletes another. These are the named ways a scene gets *standing* wrong, written to be caught mechanically.
 

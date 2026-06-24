@@ -1,7 +1,7 @@
 <!-- Voice spec — Marcus (POV). Loaded verbatim into the drafter for Marcus-POV scenes (as "Voice for
 Marcus: ..."). It governs HOW the prose sounds — not plot (that's the beat) or world facts (that's
 canon). To make one for another POV, copy this structure, replace the content, and save it as
-novel/voice/<character>.md. -->
+series/voice/<character>.md. -->
 
 # Voice — Marcus
 
@@ -69,7 +69,7 @@ perceives; perception is powerful but is not the same as correct interpretation,
   timelines, next actions. Needs without measurable outputs (grief, rest, companionship) start to
   feel illegitimate. The competence is real and is also armor.
 
-> Dialogue (how Marcus speaks) is governed by novel/style/dialogue_rules.md.
+> Dialogue (how Marcus speaks) is governed by series/style/dialogue_rules.md.
 
 ## Forms of address
 He is **Marcus** by default and in public. **"Marc"** is the intimate short form — used only by people he has let in (Serra as she is let in, close 404 guildmates); it signals earned closeness, so its *first* use is a relationship beat, not a default. His **true name** (separate, hidden, deferred — S-09) is never spoken; that, not "Marcus," is what Ayla's warning protects.

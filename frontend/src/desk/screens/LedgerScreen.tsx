@@ -83,7 +83,7 @@ export default function LedgerScreen() {
         </div>
         <div style={css("display:flex;gap:9px;align-items:center;flex-wrap:wrap")}>
           <button onClick={() => { setCanonEdit({ mode: "new" }); setCharEdit(null); }} style={css(btn)}>+ Canon entry</button>
-          <button onClick={rebuildIndex} disabled={ingesting} title="Re-embed novel/canon docs into the retrieval index the drafter & planner query"
+          <button onClick={rebuildIndex} disabled={ingesting} title="Re-embed series/canon docs into the retrieval index the drafter & planner query"
             style={css(ghost)}>{ingesting ? "Rebuilding…" : "⟳ Rebuild index from docs"}</button>
         </div>
       </div>

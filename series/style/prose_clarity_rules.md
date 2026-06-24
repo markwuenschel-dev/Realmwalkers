@@ -1,7 +1,7 @@
 # Prose Clarity Rules — Dominion Realm
 
 > **Status:** Style canon. Binding on the drafting agent (Coder) and enforced by the reviewing agent (Critic).
-> **Home:** `novel/style/prose_clarity_rules.md`
+> **Home:** `series/style/prose_clarity_rules.md`
 > **Why this exists:** The recurring failure in drafts is *compression that deletes the middle of an action* — the prose hands the reader the conclusion of something that was never shown, and asks them to reconstruct frames that aren't on the page. They can't. Every rule below is a specific form of that failure, written so it can be caught mechanically.
 
 ---

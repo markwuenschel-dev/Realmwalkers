@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # Authoring source-of-truth docs loaded into the drafter. Relative paths resolve from the
     # project root (falling back to CWD). dialogue_rules.md is authoritative for ALL dialogue —
     # it wins over the per-POV voice spec where they disagree (see drafter._voice_system).
-    dialogue_rules_path: str = "novel/style/dialogue_rules.md"
+    dialogue_rules_path: str = "series/style/dialogue_rules.md"
 
     # Voice exemplars (LEARNING_FROM_EDITS Tier 2): the drafter few-shots on the author's curated
     # approved prose, loaded from PovProfile.exemplar_scene_ids. Capped so a handful of passages can't

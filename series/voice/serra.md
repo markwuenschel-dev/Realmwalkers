@@ -1,7 +1,7 @@
 <!-- Voice spec — Serra (POV). Loaded verbatim into the drafter for Serra-POV scenes (as "Voice for
 Serra: ..."). It governs HOW the prose sounds — not plot (that's the beat) or world facts (that's
 canon). To make one for another POV, copy this structure, replace the content, and save it as
-novel/voice/<character>.md. -->
+series/voice/<character>.md. -->
 
 # Voice — Serra
 
@@ -50,7 +50,7 @@ bare stat sheet.
   decided what to do; accepts care more easily when it doesn't require her to be uncertain in front
   of someone.
 
-> Dialogue (how Serra speaks) is governed by novel/style/dialogue_rules.md.
+> Dialogue (how Serra speaks) is governed by series/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Marcus** — easy rhythm, tailored teasing, strong mutual attention, more subtext than either

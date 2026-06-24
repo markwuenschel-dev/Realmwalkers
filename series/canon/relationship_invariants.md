@@ -1,7 +1,7 @@
 # Relationship Invariants — Dominion Realm
 
 > **Status:** Canon. **Owner file** for relational facts — standing, recognition, and dynamic between characters.
-> **Home:** `novel/canon/relationship_invariants.md`
+> **Home:** `series/canon/relationship_invariants.md`
 > **Precedence:** For any fact about how two characters stand relative to each other, THIS file wins. Scenes, dossiers, `relationship_map.md`, and `cast_index.md` reconcile *to* it, never the reverse. "Newest artifact wins" does **not** apply here — a scene that contradicts an invariant is the thing that's wrong, even if it's the most recent draft.
 > **Why this exists:** the recurring failure is *axis collapse* — a relationship that's true on two independent axes gets flattened to one under correction pressure, and an agent retires a true half along with the false half. (Origin: the Serra "equals → asymmetric/earned" drift, where a fix to *recognition* wrongly deleted *parity*.) Mechanics drift is already controlled by separating variables and stamping DO-NOT-CONFLATE; this extends that discipline to the relational layer.
 

@@ -17,7 +17,7 @@ React (Vite) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Pyth
   passes run. No LLM sits in the control path.
 - **Reviewers advise; they never block.** The human inbox is the only gate.
 - **Versioning is rows, not Git branches.** A revision inserts a new `scenes` row and supersedes its
-  parent. The authored canon under `novel/` stays in Git; the generated manuscript lives in Postgres.
+  parent. The authored canon under `series/` (+ this book's planning under `book1/`) stays in Git; the generated manuscript lives in Postgres.
 
 ## Layout (system portion of the monorepo)
 
@@ -88,7 +88,7 @@ Desk to the live API) lives in [`ROADMAP.md`](ROADMAP.md).
 
 1. **One approved scene, end to end** — implement the Drafter + continuity reviewer; draft a scene
    from a hand-written beat, review it in the inbox, approve it.
-2. **Auto-advance + memory** — RAG over `novel/canon/`, per-POV + omniscient summaries, the stat
+2. **Auto-advance + memory** — RAG over `series/canon/`, per-POV + omniscient summaries, the stat
    ledger, pause-each auto-enqueue of the next scene.
 3. **Enrichment specialists** — combat/sensory/dialogue passes + their review-lane reviewers, by beat
    tags. Pacing/voice/state-drift reviewers already live.

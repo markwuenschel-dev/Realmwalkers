@@ -150,7 +150,7 @@
 | W-N'hal-name | Cosmic threat name | **N'hal** — LOCKED |
 | LeBlanc-scene | Hidden voice conversation | Shown on page — not backstory |
 | Eriadne-shape | City physical design | Ruins on outskirts, not beneath; settlement grew from trade crossroads over ley convergence; not Arcane-aesthetic |
-| Realm-calendar | Calendar system | Canon — see `novel/canon/world/realm_calendar.md` |
+| Realm-calendar | Calendar system | Canon — see `series/canon/world/realm_calendar.md` |
 
 ### New Threads Added
 

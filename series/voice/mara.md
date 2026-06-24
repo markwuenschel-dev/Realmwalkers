@@ -1,7 +1,7 @@
 <!-- Voice spec — Mara (POV). Loaded verbatim into the drafter for Mara-POV scenes (as "Voice for
 Mara: ..."). It governs HOW the prose sounds — not plot (that's the beat) or world facts (that's
 canon). To make one for another POV, copy this structure, replace the content, and save it as
-novel/voice/<character>.md. -->
+series/voice/<character>.md. -->
 
 # Voice — Mara
 
@@ -55,7 +55,7 @@ mind control.
 - **Trusted intimacy** — more expansive; willing to explain *why* she decided something; receptive to
   affection that is private, specific, and non-extractive.
 
-> Dialogue (how Mara speaks) is governed by novel/style/dialogue_rules.md.
+> Dialogue (how Mara speaks) is governed by series/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Marcus** — mutual respect through pattern recognition; he asks how the system works, she asks what

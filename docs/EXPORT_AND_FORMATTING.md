@@ -28,7 +28,7 @@ too — `GET /library` serves the on-disk Markdown, rendered through the same `P
   print dialog's "Headers and footers" toggle. A server-side WeasyPrint route can later render the
   *same HTML* for headless, page-numbered PDFs.
 - **Canon viewer (Domain B):** ✅ `GET /library` + `/library/{path}` (`api/routers/docs.py`,
-  read-only, sandboxed to `novel/{canon,planning,style}`, `.md` only, no traversal) → the **Canon**
+  read-only, sandboxed to `series/{canon,style}` + `book1/planning`, `.md` only, no traversal) → the **Canon**
   screen (`DocsScreen.tsx`) renders any doc through `ProseBlocks`. Blockquotes become tone-coloured
   **callouts** (GitHub admonitions + the `[LOCK]/[WORKING]/[OPEN]/[OVERRIDE]` status tags).
 - **Phase 4 (DOCX):** ✅ docx-js DOCX export (`desk/lib/docx.ts`), client-side and **lazy-loaded** so

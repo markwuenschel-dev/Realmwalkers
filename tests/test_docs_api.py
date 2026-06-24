@@ -1,7 +1,7 @@
 """Tests for the canon-docs endpoints (filesystem-backed, no DB — run everywhere).
 
-The router reads the real Markdown under novel/. These call the router functions directly and assert
-the listing, round-trip, and the sandbox (no traversal, .md-only, allowed categories only).
+The router reads the real Markdown under series/ and book1/. These call the router functions directly
+and assert the listing, round-trip, and the sandbox (no traversal, .md-only, allowed categories only).
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ async def test_read_doc_roundtrips_a_real_file() -> None:
 
 
 async def test_read_doc_rejects_traversal() -> None:
-    for bad in ("../../README.md", "../pyproject.toml", "canon/../../setup.py", "../novel/../README.md"):
+    for bad in ("../../README.md", "../pyproject.toml", "canon/../../setup.py", "../series/../README.md"):
         with pytest.raises(HTTPException) as ei:
             await docs_router.read_doc(bad)
         assert ei.value.status_code == 404

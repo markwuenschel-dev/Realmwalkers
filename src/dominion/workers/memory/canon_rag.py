@@ -1,7 +1,7 @@
 """Semantic canon retrieval over pgvector (DESIGN §7).
 
 Stores canon passages as CanonEntity rows (body + embedding) and returns the beat-scoped top-k by
-cosine distance. `ingest_path` (re)builds the index from text/markdown under novel/canon.
+cosine distance. `ingest_path` (re)builds the index from text/markdown under series/canon.
 """
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ async def _build(book_title: str, root: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="(Re)build the canon RAG index from text/markdown files.")
     parser.add_argument("--book", required=True)
-    parser.add_argument("--path", default="novel/canon")
+    parser.add_argument("--path", default="series/canon")
     args = parser.parse_args()
     asyncio.run(_build(args.book, args.path))
 

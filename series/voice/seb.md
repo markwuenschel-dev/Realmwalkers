@@ -47,7 +47,7 @@ themselves.
 - **Identity collapse** — confidence gone, collective structure gone; he goes quiet and cannot
   generate the next objective. ("I don't have another plan.")
 
-> Dialogue (how Seb speaks) is governed by novel/style/dialogue_rules.md.
+> Dialogue (how Seb speaks) is governed by series/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Marcus** — strategic shorthand; Seb notices cost, Marcus notices coherence. Seb believes Marcus

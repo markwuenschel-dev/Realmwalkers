@@ -43,7 +43,7 @@ mystique.
 - **Anger** — short warnings, exact accusations, rising volume, profanity, open hostility if the
   pattern continues.
 
-> Dialogue (how Brent speaks) is governed by novel/style/dialogue_rules.md.
+> Dialogue (how Brent speaks) is governed by series/style/dialogue_rules.md.
 
 ## Register by relationship (only when that character is in the scene)
 - **Marcus** — fast, grounded banter; Marcus finds the hidden mechanism, Brent asks what changes in
