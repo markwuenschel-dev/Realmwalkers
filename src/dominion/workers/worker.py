@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import traceback
 from datetime import UTC, datetime
 
 import structlog
@@ -71,12 +72,15 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
             # rollback ends the failed transaction; the same session is then reusable for the
             # failure write. Use the captured id, never the expired `job` object.
             await session.rollback()
+            # Persist the reason + the in-repo line it came from, so a FAILED job is diagnosable from
+            # the Desk/API without trawling server logs we can't always reach. Capped for sanity.
+            tb = traceback.extract_tb(exc.__traceback__)
+            frame = next((f for f in reversed(tb) if "dominion" in f.filename), tb[-1] if tb else None)
+            loc = f" @ {os.path.basename(frame.filename)}:{frame.lineno}" if frame else ""
             await session.execute(
                 update(Job)
                 .where(Job.id == job_id)
-                # Persist the reason so a FAILED job is diagnosable from the Desk/API without trawling
-                # server logs (the prod worker logs to stdout we can't always reach). Capped for sanity.
-                .values(status=JobStatus.FAILED, last_error=f"{type(exc).__name__}: {exc}"[:2000])
+                .values(status=JobStatus.FAILED, last_error=f"{type(exc).__name__}: {exc}{loc}"[:2000])
             )
             await session.commit()
             log.error("scene.failed", job=str(job_id), error=str(exc))
