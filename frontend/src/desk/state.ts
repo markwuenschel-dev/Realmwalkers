@@ -66,7 +66,7 @@ export interface DeskValue {
 }
 
 export function useDeskState(): DeskValue {
-  const [screen, setScreen] = useState<Screen>("scene");
+  const [screen, setScreen] = useState<Screen>("inbox");  // the desk opens on the review queue
   const [themeId, setThemeId] = useState<ThemeId>("manuscript");
   const [tab, setTabState] = useState<Tab>("continuity");
   const [mode, setMode] = useState<Mode>("reading");
