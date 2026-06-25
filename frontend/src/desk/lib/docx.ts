@@ -273,8 +273,12 @@ export function buildDocDoc(title: string, content: string): Document {
   });
 }
 
-/** Domain A — the approved manuscript as a Word file: title page, chapters on fresh pages, book prose. */
-export function buildManuscriptDoc(manuscript: ManuscriptOut): Document {
+/** Domain A — the manuscript as a Word file: title page, chapters on fresh pages, book prose.
+ *  `subtitle` defaults to the approved-manuscript line; pass a draft-compile line for an unapproved export. */
+export function buildManuscriptDoc(
+  manuscript: ManuscriptOut,
+  subtitle = "the approved manuscript, in reading order",
+): Document {
   const title = manuscript.title || "Untitled";
   const children: (Paragraph | Table)[] = [
     new Paragraph({
@@ -291,7 +295,7 @@ export function buildManuscriptDoc(manuscript: ManuscriptOut): Document {
       alignment: AlignmentType.CENTER,
       children: [
         new TextRun({
-          text: "the approved manuscript, in reading order",
+          text: subtitle,
           font: "Georgia",
           italics: true,
           size: 24,

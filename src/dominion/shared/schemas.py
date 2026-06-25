@@ -214,6 +214,14 @@ class DraftNextOut(BaseModel):
     running: bool = False
 
 
+class RetryFailedOut(BaseModel):
+    """Result of re-queuing FAILED jobs (e.g. after a transient outage or topping up API credits)."""
+    requeued: int = 0
+    scheduled: bool = False
+    queued: int = 0
+    running: bool = False
+
+
 # --- World ledger + in-prose entity cards (DESIGN §5, §7) -----------------------------------------
 
 class CharacterStateOut(BaseModel):

@@ -1,8 +1,9 @@
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { wordCount } from "../lib/format";
 import ProseBlocks from "../components/ProseBlocks";
+import type { ManuscriptOut } from "../api/types";
 
 // Shunn standard manuscript format counts ~250 words to a page.
 const WORDS_PER_PAGE = 250;
@@ -17,11 +18,40 @@ const LAYOUTS: { id: Layout; label: string }[] = [
 ];
 const WIDTH: Record<Layout, string> = { page: "40rem", wide: "54rem", columns: "66rem" };
 
+// Two compile sources: the approved manuscript (canon), or a working draft that pulls in EVERY scene's
+// current prose regardless of review status — a read-only preview that never accepts anything.
+type Source = "approved" | "draft";
+
 export default function ManuscriptScreen() {
-  const { manuscript } = useDeskData();
+  const { manuscript, chapters: allChapters, latestScenes } = useDeskData();
   const [layout, setLayout] = useState<Layout>("wide");
-  const chapters = manuscript?.chapters ?? [];
+  const [source, setSource] = useState<Source>("approved");
+
+  // Draft compile: assemble each scene's current (latest-version) prose into manuscript form, whatever
+  // its status — built entirely client-side from data already loaded, so viewing/exporting it never
+  // touches scene status. Nothing is "accepted" by reading the draft.
+  const draftManuscript = useMemo<ManuscriptOut | null>(() => {
+    if (!manuscript) return null;
+    const chs = [...allChapters]
+      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .map((ch) => ({
+        chapter_no: ch.chapter_no,
+        title: ch.title,
+        pov: ch.pov,
+        scenes: latestScenes
+          .filter((s) => s.chapter_id === ch.id)
+          .sort((a, b) => a.scene_no - b.scene_no)
+          .map((s) => ({ scene_no: s.scene_no, prose: s.prose })),
+      }));
+    return { ...manuscript, chapters: chs };
+  }, [manuscript, allChapters, latestScenes]);
+
+  const isDraft = source === "draft";
+  const active = isDraft ? draftManuscript : manuscript;
+  const chapters = active?.chapters ?? [];
   const hasProse = chapters.some((c) => c.scenes.some((s) => (s.prose ?? "").trim()));
+  // Not-yet-approved scenes the draft compile pulls in (shown as a toolbar hint).
+  const draftExtra = latestScenes.filter((s) => (s.prose ?? "").trim() && s.status !== "approved").length;
 
   const isColumns = layout === "columns";
   const proseSize = isColumns ? "16.5px" : "18.5px";
@@ -32,8 +62,9 @@ export default function ManuscriptScreen() {
 
   // Assemble the approved manuscript as Markdown and download it client-side (no deps, no server call).
   const exportMarkdown = () => {
-    const title = manuscript?.title ?? "Untitled";
-    const lines: string[] = [`# ${title}`, "", "_Book One — the approved manuscript, in reading order_", ""];
+    const title = active?.title ?? "Untitled";
+    const lines: string[] = [`# ${title}`, "",
+      `_Book One — ${isDraft ? "working draft (all scenes, including unapproved)" : "the approved manuscript, in reading order"}_`, ""];
     for (const ch of chapters) {
       const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
       if (scenes.length === 0) continue;
@@ -48,7 +79,7 @@ export default function ManuscriptScreen() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript"}.md`;
+    a.download = `${title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript"}${isDraft ? "_draft" : ""}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -56,9 +87,12 @@ export default function ManuscriptScreen() {
   // Word export (book typography, page-numbered) — docx-js is lazy-loaded so it stays out of the
   // main bundle and only downloads when you click.
   const exportDocx = async () => {
-    if (!manuscript) return;
+    if (!active) return;
     const docx = await import("../lib/docx");
-    await docx.saveDocx(docx.buildManuscriptDoc(manuscript), docx.docxFilename(manuscript.title || "manuscript"));
+    await docx.saveDocx(
+      docx.buildManuscriptDoc(active, isDraft ? "working draft — all scenes, including unapproved" : undefined),
+      docx.docxFilename((active.title || "manuscript") + (isDraft ? " draft" : "")),
+    );
   };
 
   return (
@@ -66,10 +100,25 @@ export default function ManuscriptScreen() {
       {/* toolbar: page estimate + export (left) · reading-layout control (right) */}
       <div className="no-print" style={css("display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:66rem;margin:0 auto 6px;padding:0 4px")}>
         <div style={css("display:flex;align-items:center;gap:12px")}>
+          {/* compile source — approved canon vs. a full working draft (all scenes, read-only) */}
+          <div style={css("display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px")} title="What to compile">
+            {([["approved", "Approved"], ["draft", "Draft"]] as const).map(([id, label]) => {
+              const on = source === id;
+              return (
+                <button key={id} onClick={() => setSource(id)}
+                  style={css(`padding:5px 12px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${on ? "var(--accent)" : "transparent"};color:${on ? "var(--onAccent)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`)}>{label}</button>
+              );
+            })}
+          </div>
           {hasProse && (
             <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
               ≈ {pages.toLocaleString()} manuscript page{pages === 1 ? "" : "s"} · {totalWords.toLocaleString()} words
               <span style={css("opacity:.6")}> · Shunn 250 wpp</span>
+            </span>
+          )}
+          {isDraft && draftExtra > 0 && (
+            <span style={css("font-family:var(--mono);font-size:11px;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border:1px solid color-mix(in srgb,var(--warn) 38%,transparent);border-radius:999px;padding:2px 9px")}>
+              incl. {draftExtra} unapproved
             </span>
           )}
           <button onClick={exportMarkdown} disabled={!hasProse} title="Download the approved manuscript as Markdown"
@@ -94,11 +143,11 @@ export default function ManuscriptScreen() {
         <div className="ms-title" style={css("text-align:center;margin-bottom:64px;padding-bottom:40px;border-bottom:1px solid var(--line)")}>
           <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:20px")}>Book One</div>
           <h1 style={css("margin:0 0 14px;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.01em;color:var(--ink)")}>{manuscript?.title ?? "—"}</h1>
-          <div style={css("font-family:var(--prose);font-style:italic;font-size:16px;color:var(--dim)")}>the approved manuscript, in reading order</div>
+          <div style={css("font-family:var(--prose);font-style:italic;font-size:16px;color:var(--dim)")}>{isDraft ? "working draft — all scenes, including unapproved" : "the approved manuscript, in reading order"}</div>
         </div>
 
         {!hasProse && (
-          <p style={css("text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px")}>No approved scenes yet — approve a scene in the inbox and it lands here.</p>
+          <p style={css("text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px")}>{isDraft ? "No scenes drafted yet — outline a chapter and draft scenes from the inbox." : "No approved scenes yet — approve a scene in the inbox, or switch to Draft to compile everything."}</p>
         )}
 
         {chapters.map((ch) => {

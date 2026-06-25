@@ -13,6 +13,17 @@ import type { CritiqueOut, DecisionKind } from "../api/types";
 const KEEP_BTN =
   "flex:1;padding:8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:11.5px;cursor:pointer";
 
+// Reading layouts for a single scene, mirroring the Manuscript screen: a comfortable measure beside
+// the review rail (Page), a full-width single measure (Wide), or a true two-column book spread.
+// In Wide/Two-column the prose reclaims the full width and the review rail drops beneath it.
+type SceneLayout = "page" | "wide" | "columns";
+const SCENE_LAYOUTS: { id: SceneLayout; label: string }[] = [
+  { id: "page", label: "Page" },
+  { id: "wide", label: "Wide" },
+  { id: "columns", label: "Two-column" },
+];
+const LAYOUT_KEY = "dominion:sceneLayout";
+
 // Continuity critiques carry a prose↔ledger mismatch in their payload; everything else is an advisory note.
 const isConflict = (c: CritiqueOut): boolean =>
   !!c.payload && c.payload.prose_value != null && c.payload.ledger_value != null;
@@ -31,6 +42,17 @@ export default function SceneScreen() {
   const [composer, setComposer] = useState<{ kind: "note" | "sugg"; quote: string; x: number; y: number } | null>(null);
   const [restored, setRestored] = useState(false); // an unsaved hand-edit was recovered from localStorage
   const proseRef = useRef<HTMLDivElement>(null);
+  // Reading layout (page / wide / two-column) — a per-user preference that sticks across sessions.
+  const [layout, setLayout] = useState<SceneLayout>(() => {
+    try {
+      const v = localStorage.getItem(LAYOUT_KEY);
+      if (v === "page" || v === "wide" || v === "columns") return v;
+    } catch { /* localStorage unavailable */ }
+    return "page";
+  });
+  useEffect(() => {
+    try { localStorage.setItem(LAYOUT_KEY, layout); } catch { /* ignore */ }
+  }, [layout]);
 
   const pending = data.pending;
   const idx = pending.length ? Math.min(Math.max(desk.activeScene, 0), pending.length - 1) : -1;
@@ -251,6 +273,17 @@ export default function SceneScreen() {
     setComposer(null);
   };
 
+  // Wide and two-column read full-width with the review rail beneath; page keeps the side-by-side rail.
+  const wideRead = layout !== "page";
+  const proseFontSize = layout === "columns" ? "16.5px" : "18px";
+  const proseColStyle =
+    layout === "page"
+      ? "flex:1 1 380px;min-width:330px"
+      : layout === "wide"
+        ? "flex:1 1 100%;min-width:0;max-width:54rem;margin:0 auto"
+        : "flex:1 1 100%;min-width:0";
+  const blocksWrapStyle = layout === "columns" ? "column-count:2;column-gap:2.8rem" : "";
+
   let pkey = 0;
   const blocks = seg(cur.prose ?? "").map((b, bi) => {
     const isLead = b.n === 0;
@@ -266,7 +299,7 @@ export default function SceneScreen() {
     }
     const parts = tokenize(text, markersFor(text)).map((tok) => renderToken(tok, "tk" + pkey++));
     return (
-      <p key={`b${bi}`} style={css("font-family:var(--prose);font-size:18px;line-height:1.86;color:var(--ink);margin:0 0 1.05em")}>
+      <p key={`b${bi}`} style={css(`font-family:var(--prose);font-size:${proseFontSize};line-height:1.86;color:var(--ink);margin:0 0 1.05em;break-inside:avoid-column`)}>
         {isLead && <span style={css(leadStyle)}>{lead}</span>}
         {parts}
       </p>
@@ -334,7 +367,7 @@ export default function SceneScreen() {
         </div>
       )}
 
-      <div style={css("display:grid;grid-template-columns:minmax(0,1fr) 388px;gap:22px;align-items:start")}>
+      <div style={css(`display:grid;grid-template-columns:${wideRead ? "minmax(0,1fr)" : "minmax(0,1fr) 388px"};gap:22px;align-items:start`)}>
         {/* ── PROSE COLUMN ── */}
         <section style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)")}>
           <div style={css("display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--bg2b);border-radius:var(--r) var(--r) 0 0")}>
@@ -346,12 +379,24 @@ export default function SceneScreen() {
                 );
               })}
             </div>
-            <div style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
-              {editing
-                ? "editing — your text becomes canonical on approve"
-                : suggesting
-                  ? <span style={css("color:var(--accent)")}>{pendingSugg} open suggestion{pendingSugg === 1 ? "" : "s"}</span>
-                  : "hover a name for canon"}
+            <div style={css("display:flex;align-items:center;gap:12px")}>
+              {!editing && (
+                <div style={css("display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px")} title="Reading layout">
+                  {SCENE_LAYOUTS.map((l) => {
+                    const active = layout === l.id;
+                    return (
+                      <button key={l.id} onClick={() => setLayout(l.id)} style={css(`padding:5px 11px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${active ? "var(--accent)" : "transparent"};color:${active ? "var(--onAccent)" : "var(--dim)"};font-weight:${active ? "600" : "400"}`)}>{l.label}</button>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+                {editing
+                  ? "editing — your text becomes canonical on approve"
+                  : suggesting
+                    ? <span style={css("color:var(--accent)")}>{pendingSugg} open suggestion{pendingSugg === 1 ? "" : "s"}</span>
+                    : "hover a name for canon"}
+              </div>
             </div>
           </div>
 
@@ -366,11 +411,13 @@ export default function SceneScreen() {
             </div>
           ) : (
             <div style={css("display:flex;flex-wrap:wrap;gap:30px;padding:34px 32px 14px 42px")}>
-              <div ref={proseRef} onMouseUp={onProseMouseUp} style={css("flex:1 1 380px;min-width:330px")}>
+              <div ref={proseRef} onMouseUp={onProseMouseUp} style={css(proseColStyle)}>
                 {!editing && (
                   <div style={css("font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:10px;opacity:.8")}>Select any text to add a note or a tracked change.</div>
                 )}
-                {blocks.length ? blocks : <p style={css("color:var(--dim)")}>No prose.</p>}
+                <div style={css(blocksWrapStyle)}>
+                  {blocks.length ? blocks : <p style={css("color:var(--dim)")}>No prose.</p>}
+                </div>
               </div>
 
               <div style={css("flex:0 1 244px;display:flex;flex-direction:column;gap:11px;padding-top:2px")}>
@@ -448,8 +495,8 @@ export default function SceneScreen() {
           </div>
         </section>
 
-        {/* ── REVIEW RAIL ── */}
-        <aside style={css("position:sticky;top:84px;display:flex;flex-direction:column;gap:16px")}>
+        {/* ── REVIEW RAIL ── (drops below the prose, full-width-but-capped, in wide/two-column) */}
+        <aside style={css(`${wideRead ? "" : "position:sticky;top:84px;"}display:flex;flex-direction:column;gap:16px${wideRead ? ";width:100%;max-width:760px;margin:0 auto" : ""}`)}>
           <div style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px")}>
             <div style={css("display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:2.1")}>
               <span>model</span><span style={css("color:var(--ink)")}>{cur.model ?? "—"}</span>
