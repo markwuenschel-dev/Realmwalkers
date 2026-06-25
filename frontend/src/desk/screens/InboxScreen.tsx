@@ -4,7 +4,7 @@ import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { sceneLabel, wordCount } from "../lib/format";
 import Planner from "../components/Planner";
-import { DraftPanel, formatElapsed } from "../components/DraftActivity";
+import { ActivityFeed, DraftPanel, formatElapsed } from "../components/DraftActivity";
 import type { SceneOut } from "../api/types";
 
 export default function InboxScreen() {
@@ -80,6 +80,7 @@ export default function InboxScreen() {
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             <DraftPanel />
             <RetryFailed />
+            <ActivityFeed />
           </div>
         </div>
 
@@ -134,12 +135,26 @@ function RetryFailed() {
   const [busy, setBusy] = useState(false);
   const n = data.jobs.failed;
   if (n <= 0) return null;
+  const errs = data.failedJobs;
   return (
     <div style={css("border:1px solid color-mix(in srgb,var(--bad) 32%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--bg2));border-radius:10px;padding:12px 13px")}>
       <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--bad);margin-bottom:5px")}>{n} failed</div>
       <div style={css("font-size:12px;color:var(--dim);line-height:1.45;margin-bottom:10px")}>
-        Errored mid-draft — usually a transient API issue or depleted credits. Re-queue to draft them again.
+        Errored mid-draft. Re-queue to draft them again once the cause below is cleared.
       </div>
+      {errs.length > 0 && (
+        <div style={css("display:flex;flex-direction:column;gap:5px;margin-bottom:10px;max-height:150px;overflow:auto")}>
+          {errs.slice(0, 6).map((f) => (
+            <div key={f.id} style={css("font-family:var(--mono);font-size:10.5px;line-height:1.4;color:var(--dim);overflow-wrap:anywhere")}>
+              <span style={css("color:var(--bad)")}>Ch{f.chapter_no ?? "?"}·Sc{f.scene_no ?? "?"}</span>{" "}
+              {f.last_error ?? "unknown error"}
+            </div>
+          ))}
+          {errs.length > 6 && (
+            <div style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>…and {errs.length - 6} more</div>
+          )}
+        </div>
+      )}
       <button
         disabled={busy}
         onClick={async () => { setBusy(true); try { await data.retryFailed(); } finally { setBusy(false); } }}

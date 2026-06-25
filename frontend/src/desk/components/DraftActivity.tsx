@@ -118,3 +118,27 @@ export function DraftPanel() {
     </div>
   );
 }
+
+function clock(ts: number): string {
+  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+// A running log of what the worker just did — drafting phases as they change, then "Queue clear ✓".
+// Reads as motion even between the ~1.5s polls, so the Desk never looks frozen mid-run.
+export function ActivityFeed() {
+  const { activity } = useDeskData();
+  if (activity.length === 0) return null;
+  return (
+    <div style={css("background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 13px")}>
+      <div style={css("font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:9px")}>Activity</div>
+      <div style={css("display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto")}>
+        {activity.map((e) => (
+          <div key={e.id} style={css("display:flex;gap:9px;align-items:baseline;font-family:var(--mono);font-size:11px")}>
+            <span style={css("color:var(--dim);flex:none")}>{clock(e.ts)}</span>
+            <span style={css("color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{e.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

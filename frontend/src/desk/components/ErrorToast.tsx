@@ -26,3 +26,17 @@ export default function ErrorToast() {
     </div>
   );
 }
+
+// Top-of-app banner when the status poll keeps failing. A dead backend used to just freeze the
+// last-known counts — which once looked exactly like stuck failed jobs. Say it out loud instead.
+export function BackendBanner() {
+  const { t } = useDesk();
+  const { jobsUnreachable } = useDeskData();
+  if (!jobsUnreachable) return null;
+  return (
+    <div style={css(`position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 16px;background:color-mix(in srgb,${t.bad} 16%,var(--bg2));border-bottom:1px solid color-mix(in srgb,${t.bad} 50%,var(--line));font-family:var(--mono);font-size:12px;color:var(--ink)`)}>
+      <span style={css(`width:8px;height:8px;border-radius:50%;background:${t.bad};flex:none`)} />
+      Can’t reach the backend — is the API running on :8000? Live status is paused until it’s back.
+    </div>
+  );
+}
