@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
-from dominion.shared.enums import Decision, PacketStatus, SceneStatus
+from dominion.shared.enums import BeatStatus, Decision, PacketStatus, SceneStatus
 from dominion.shared.models import (
     Approval,
     Beat,
@@ -125,13 +125,25 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         select(Run.book_id).where(Run.id == job.run_id)
     )).scalar_one()
 
+    # Tolerate duplicate rows: a re-run plan-call / re-enqueue can leave more than one Chapter for a
+    # (book, chapter_no) or more than one Beat for a (chapter, scene_no). scalar_one[_or_none]() raises
+    # MultipleResultsFound on those, which used to fail the draft before it began — so pick a canonical
+    # row deterministically (lowest id) instead of crashing the scene.
     chapter = (await session.execute(
-        select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == job.chapter_no)
-    )).scalar_one()
+        select(Chapter)
+        .where(Chapter.book_id == book_id, Chapter.chapter_no == job.chapter_no)
+        .order_by(Chapter.id)
+    )).scalars().first()
+    if chapter is None:
+        raise ValueError(f"no chapter {job.chapter_no} for this book")
 
-    beat = (await session.execute(
-        select(Beat).where(Beat.chapter_id == chapter.id, Beat.scene_no == job.scene_no)
-    )).scalar_one_or_none()
+    beats = (await session.execute(
+        select(Beat)
+        .where(Beat.chapter_id == chapter.id, Beat.scene_no == job.scene_no)
+        .order_by(Beat.id)
+    )).scalars().all()
+    # Prefer an approved beat when duplicates exist (it's the one the human signed off / a packet derived).
+    beat = next((b for b in beats if b.status == BeatStatus.APPROVED), beats[0] if beats else None)
     if beat is None:
         raise ValueError(
             f"no beat for ch{job.chapter_no} sc{job.scene_no} — propose/approve beats first (gate 1)"
