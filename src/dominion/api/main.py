@@ -20,6 +20,7 @@ from dominion.api.routers import (
     docs,
     health,
     jobs,
+    learning,
     markup,
     packets,
     reviews,
@@ -51,6 +52,7 @@ app.include_router(jobs.router)
 app.include_router(world.router)
 app.include_router(threads.router)
 app.include_router(markup.router)
+app.include_router(learning.router)
 app.include_router(docs.router)
 
 # Serve the built React app from the SAME origin as the API (single-service deploy, e.g. Railway).

@@ -282,3 +282,26 @@ class EditPair(Base):
     agent_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     human_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RuleProposal(Base):
+    """A distilled voice/dialogue rule proposed from the author's edits (LEARNING_FROM_EDITS Tier 3).
+
+    A periodic, human-gated job: a review-model pass reads recent `EditPair` before→after rows and
+    PROPOSES durable style rules (e.g. "trims filter verbs (saw/felt/noticed)"). The author
+    approves/edits/rejects each. An accepted rule is appended to the POV's `PovProfile.voice_spec`
+    (read fresh on the next draft), so it reaches the drafter through the same human gate as any edit.
+    Advisory until accepted — nothing here changes a draft until the author says so. `pov` matches the
+    chapter's narrating character (case-sensitive), exactly as `PovProfile.character` does.
+    """
+    __tablename__ = "rule_proposals"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    pov: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(Text)                       # voice | dialogue
+    rule_text: Mapped[str] = mapped_column(Text)
+    rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # EditPair ids this batch was distilled from (provenance; stored as text, like exemplar_scene_ids).
+    source_pair_ids: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="pending")  # pending | accepted | rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

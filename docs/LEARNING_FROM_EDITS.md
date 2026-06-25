@@ -1,10 +1,11 @@
 # Learning From the Author's Edits — Design Note
 
-**Status:** **Tier 1 (clean capture) and Tier 2 (exemplars) are built;** Tiers 3–5 remain design.
-Every hand-edit now records a faithful `agent→human` pair (`EditPair`), and the drafter few-shots on
-the author's curated approved prose per POV (the once-cut exemplar wire is connected, plus a
-`set_exemplars` CLI to author the list). The remaining Tier-2 nicety — an in-editor "use as voice
-exemplar" button — and the distillation/fine-tune tiers are still ahead. Captures how the Desk learns
+**Status:** **Tier 1 (clean capture), Tier 2 (exemplars), and Tier 3 (distilled rules) are built;**
+Tiers 4–5 remain design. Every hand-edit records a faithful `agent→human` pair (`EditPair`), the
+drafter few-shots on the author's curated approved prose per POV, and a human-gated distillation job
+now turns recent edits into proposed voice/dialogue rules the author accepts into `voice_spec`. The
+remaining Tier-2 nicety — an in-editor "use as voice exemplar" button — and the fine-tune tier are
+still ahead. Captures how the Desk learns
 the author's voice, dialogue, structure, and continuity preferences from the edits they make in
 review. Aligns with DESIGN §11 — *"the human's verdict = authoritative gate AND future training label."*
 
@@ -86,12 +87,30 @@ faithful pair, instead of diffing against the marker-form `agent_original`.
 - Effect: the drafter few-shots on *your* approved/edited prose for that POV, immediately, no
   training. Reversible (un-mark to remove). Best lever for **voice**.
 
-### Tier 3 — Distill edits → rules
+### Tier 3 — Distill edits → rules ✅ built
 A periodic, human-in-the-loop job: a review-model pass reads the recent before→after pairs (Tier 1)
-and **proposes** additions to `voice_spec` (voice/structure) and `dialogue_rules.md` (dialogue),
-e.g. *"trims filter verbs (saw/felt/noticed)," "dialogue tags stay 'said'/'asked'."* The author
-approves/edits before anything is written. Both files are read fresh per draft, so accepted rules
-land on the next scene. Best lever for **dialogue** and durable **style/structure** preferences.
+and **proposes** durable voice/dialogue rules, e.g. *"trims filter verbs (saw/felt/noticed)," "dialogue
+tags stay 'said'/'asked'."* The author approves/edits/rejects before anything is written; accepted
+rules land on the next scene because `voice_spec` is read fresh per draft. Best lever for **dialogue**
+and durable **style/structure** preferences.
+- [x] **Distiller** — `workers/learning/distill.py`: `load_recent_pairs` (the POV's most-recent
+  `EditPair`s, joined through scene→chapter; no-op/empty pairs dropped), `candidate_povs`, and
+  `propose_rules` (one bounded `review_model` call, tolerant JSON parse via `reviewers/base.py`, a
+  `TimeoutError`→504 on a hung call, mirroring the planner). Capped by `settings.distill_max_pairs` /
+  `distill_pair_max_chars` / `distill_time_budget_s`.
+- [x] **Model + API** — `RuleProposal` (`shared/models.py`: book/pov/kind/rule_text/rationale/
+  source_pair_ids/status). `learning` router: `POST /books/{id}/distill` (per-POV or all POVs with
+  edits; deduped against existing non-rejected proposals), `GET /books/{id}/rule-proposals`,
+  `POST /rule-proposals/{id}/decision`. Accept appends the rule to the POV's `PovProfile.voice_spec`
+  (find-or-create), applied only on the pending→accepted transition so re-accepting can't double-write.
+- [x] **Desk** — Ledger → "Voice rules": a "Distill from edits" button, then accept (editable text) /
+  reject per proposal. New `RuleProposal` table → **rerun `scripts/init_db.py`** (additive `create_all`).
+- **Deviation:** distilled *dialogue* rules are stored in the per-POV `voice_spec` (DB-backed, read
+  fresh per draft) rather than appended to the global `series/style/dialogue_rules.md` — the deploy
+  filesystem is ephemeral, so a file append wouldn't persist. `dialogue_rules.md` stays the
+  hand-authored, authoritative source; distilled rules are per-POV learned *preferences*.
+- [ ] **Continuity-correction proposer** (recurring fact fixes → canon/ledger, kept distinct from the
+  voice pipeline) — still design (see "Mapping" above).
 
 ### Tier 4 — Revision-time priming
 When a revision is requested, include a few of the author's recent before→after edits in the
@@ -110,8 +129,9 @@ justify it. In-context tiers should carry the project a long way first.
 1. ✅ **Tier 1** (capture) — small, unblocks everything, no behavior change. *Done.*
 2. ✅ **Tier 2** (exemplars) — fastest visible payoff; the wire is connected + a CLI authors the list.
    *Done (bar the in-editor button).*
-3. **Tier 3** (distilled rules) — turns accumulated edits into durable voice/dialogue rules. **← next**
-4. **Tier 4** as a quick follow-on to 3.
+3. ✅ **Tier 3** (distilled rules) — turns accumulated edits into durable voice/dialogue rules.
+   *Done (bar the continuity-correction proposer).*
+4. **Tier 4** (revision-time priming) as a quick follow-on to 3. **← next**
 5. **Tier 5** only when the dataset is large and the voice is stable.
 
 ## Open questions / decisions
@@ -134,5 +154,7 @@ justify it. In-context tiers should carry the project a long way first.
 *Cross-refs: `docs/DESIGN.md` §11 (training label), `src/dominion/workers/specialists/drafter.py`
 (`_voice_system`, exemplars), `src/dominion/workers/context.py` (`assemble_context`, `_load_exemplars`),
 `src/dominion/workers/set_voice.py` + `set_exemplars.py` (authoring CLIs),
-`src/dominion/api/routers/reviews.py` (`decide`, `_capture_edit_pair`), `EditPair` in
-`src/dominion/shared/models.py`, `series/style/dialogue_rules.md`.*
+`src/dominion/api/routers/reviews.py` (`decide`, `_capture_edit_pair`), `EditPair` +
+`RuleProposal` in `src/dominion/shared/models.py`, `src/dominion/workers/learning/distill.py` +
+`src/dominion/api/routers/learning.py` (Tier 3), `frontend/src/desk/screens/LedgerScreen.tsx`
+(Voice rules surface), `series/style/dialogue_rules.md`.*
