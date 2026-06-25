@@ -149,8 +149,13 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
             f"no beat for ch{job.chapter_no} sc{job.scene_no} — propose/approve beats first (gate 1)"
         )
 
+    # limit(1): tolerate a duplicate POV profile for (book, character) — a re-seed can leave two, and
+    # scalar_one_or_none() would raise MultipleResultsFound and fail every scene of this POV.
     profile = (await session.execute(
-        select(PovProfile).where(PovProfile.book_id == book_id, PovProfile.character == chapter.pov)
+        select(PovProfile)
+        .where(PovProfile.book_id == book_id, PovProfile.character == chapter.pov)
+        .order_by(PovProfile.id)
+        .limit(1)
     )).scalar_one_or_none()
 
     ctx = SceneContext(
