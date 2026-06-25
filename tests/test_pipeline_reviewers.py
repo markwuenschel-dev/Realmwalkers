@@ -8,7 +8,15 @@ import asyncio
 
 from sqlalchemy import select
 
-from dominion.shared.enums import BeatStatus, GateMode, JobKind, JobStatus, RunStatus, SceneStatus
+from dominion.shared.enums import (
+    BeatStatus,
+    GateMode,
+    JobKind,
+    JobStatus,
+    RunStatus,
+    SceneStatus,
+    Severity,
+)
 from dominion.shared.models import Beat, Book, Chapter, Critique, Job, Run
 from dominion.workers import pipeline
 from dominion.workers.budget import BudgetExceeded
@@ -100,23 +108,40 @@ async def test_reviewer_budget_exceeded_downgrades_to_partial_draft(db_factory, 
         assert any(c.reviewer == "budget" and c.severity == "hard" for c in crits)
 
 
-async def test_non_budget_reviewer_error_fails_the_job(db_factory, monkeypatch):
+async def test_non_budget_reviewer_error_lands_a_flag_not_a_failure(db_factory, monkeypatch):
+    """An advisory reviewer that crashes must never fail the job or discard the drafted spine — a
+    raise would propagate to run_once, whose rollback nukes the good prose. It lands a WARN flag
+    (same as a failed enrichment pass) and the scene still enters the inbox for review."""
     async def fake_draft(self, prose, ctx):
         return "A short spine of prose."
 
     monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
 
     class _Crash:
+        name = "continuity"
+
         async def review(self, prose, ctx):
             raise RuntimeError("reviewer bug")
 
-    monkeypatch.setattr(pipeline, "reviewers_for", lambda tags: [_Crash()])
+    class _Ok:
+        name = "pacing"
+
+        async def review(self, prose, ctx):
+            return [Flag(reviewer="pacing", severity="info", note="fine")]
+
+    monkeypatch.setattr(pipeline, "reviewers_for", lambda tags: [_Crash(), _Ok()])
 
     async with db_factory() as s:
         job = await _setup_draft_job(s)
         await s.commit()
-        try:
-            await pipeline.generate_one_scene(s, job)
-            raise AssertionError("expected the reviewer error to propagate")
-        except RuntimeError as e:
-            assert "reviewer bug" in str(e)
+        scene = await pipeline.generate_one_scene(s, job)  # no raise — the crash is absorbed
+        await s.commit()
+
+        # the spine survived and the scene is reviewable, not lost to a rollback
+        assert scene.status == SceneStatus.PENDING_REVIEW
+        assert "A short spine of prose." in (scene.prose or "")
+        crits = (await s.execute(select(Critique).where(Critique.scene_id == scene.id))).scalars().all()
+        # the crash became an advisory WARN naming the reviewer; the healthy reviewer's flag is kept too
+        crash_flag = next(c for c in crits if c.reviewer == "continuity")
+        assert crash_flag.severity == Severity.WARN and "reviewer bug" in crash_flag.note
+        assert any(c.reviewer == "pacing" for c in crits)
