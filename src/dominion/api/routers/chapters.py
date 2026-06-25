@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+import structlog
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.config import settings
-from dominion.shared.enums import BeatStatus, ChapterStatus, JobKind, JobStatus
+from dominion.shared.db import SessionFactory
+from dominion.shared.enums import BeatStatus, ChapterStatus, JobKind, JobStatus, SceneStatus
 from dominion.shared.models import Beat, Chapter, Job, Run, Scene
 from dominion.shared.schemas import (
     ApproveBeatsIn,
@@ -22,10 +24,24 @@ from dominion.shared.schemas import (
     BeatOut,
     ChapterOut,
     ChapterUpdateIn,
+    HumanSceneIn,
+    RedraftIn,
     SceneOut,
 )
+from dominion.workers.memory import summaries
 
+log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["chapters"])
+
+
+async def _fold_summary(scene_id: uuid.UUID) -> None:
+    """Best-effort: fold a freshly-approved human section into the POV + omniscient summaries so later
+    drafts inherit it. Runs as a background task (own session); a failure here never fails the write."""
+    try:
+        async with SessionFactory() as session:
+            await summaries.refresh_on_approval(session, scene_id=scene_id)
+    except Exception as exc:  # noqa: BLE001 — summary fold is advisory, not part of the request's contract
+        log.warning("human_scene.summary_fold_failed", scene=str(scene_id), error=str(exc))
 
 
 @router.get("", response_model=list[ChapterOut])
@@ -141,3 +157,78 @@ async def approve_beats(
     chapter.status = ChapterStatus.DRAFTING
     await session.commit()
     return {"chapter_id": str(chapter_id), "approved": len(to_approve), "jobs": job_ids}
+
+
+@router.post("/{chapter_id}/scenes", response_model=SceneOut)
+async def create_human_scene(
+    chapter_id: uuid.UUID, body: HumanSceneIn, session: SessionDep, background: BackgroundTasks,
+) -> Scene:
+    """Write a manuscript section by hand. It lands APPROVED (the human is the gate) as a `human`-sourced
+    scene, supersedes any existing version at this scene_no, and folds into the POV summary in the
+    background — so later drafts inherit it via the rolling summary + the in-chapter prior-scene tail."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    prose = body.prose.strip()
+    if not prose:
+        raise HTTPException(status_code=400, detail="prose is empty")
+
+    prior = (await session.execute(
+        select(Scene).where(Scene.chapter_id == chapter_id, Scene.scene_no == body.scene_no)
+        .order_by(Scene.version.desc()).limit(1)
+    )).scalar_one_or_none()
+    scene = Scene(
+        chapter_id=chapter_id, scene_no=body.scene_no,
+        version=(prior.version + 1) if prior else 1,
+        parent_scene_id=prior.id if prior else None,
+        status=SceneStatus.APPROVED, prose=prose, prose_source="human",
+    )
+    if prior is not None:
+        prior.status = SceneStatus.SUPERSEDED
+    session.add(scene)
+    await session.commit()
+    await session.refresh(scene)
+    background.add_task(_fold_summary, scene.id)
+    return scene
+
+
+@router.post("/{chapter_id}/scenes/redraft")
+async def redraft_scenes(
+    chapter_id: uuid.UUID, body: RedraftIn, session: SessionDep,
+) -> dict[str, object]:
+    """Re-draft existing scenes: queue a DRAFT job per selected scene that TARGETS that scene, so the
+    worker version-ups and supersedes it (a clean regenerate, never a duplicate). Caller kicks the drain."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    scenes = (await session.execute(
+        select(Scene).where(Scene.id.in_(body.scene_ids), Scene.chapter_id == chapter_id)
+    )).scalars().all()
+    if not scenes:
+        raise HTTPException(status_code=400, detail="none of the given scene_ids belong to this chapter")
+
+    run = (await session.execute(
+        select(Run).where(Run.book_id == chapter.book_id).order_by(Run.created_at.desc()).limit(1)
+    )).scalar_one_or_none()
+    job_ids: list[str] = []
+    for scene in scenes:
+        existing = (await session.execute(
+            select(Job.id).join(Run, Job.run_id == Run.id).where(
+                Run.book_id == chapter.book_id, Job.chapter_no == chapter.chapter_no,
+                Job.scene_no == scene.scene_no, Job.status == JobStatus.QUEUED,
+            )
+        )).scalars().first()
+        if existing is not None:
+            job_ids.append(str(existing))
+            continue
+        job = Job(
+            run_id=run.id if run else None, kind=JobKind.DRAFT,
+            chapter_no=chapter.chapter_no, scene_no=scene.scene_no, target_scene_id=scene.id,
+            token_budget=run.token_budget if run else settings.scene_token_budget,
+            status=JobStatus.QUEUED,
+        )
+        session.add(job)
+        await session.flush()
+        job_ids.append(str(job.id))
+    await session.commit()
+    return {"chapter_id": str(chapter_id), "queued": len(job_ids), "jobs": job_ids}

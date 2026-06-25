@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
+import { api } from "../api/client";
 import { wordCount } from "../lib/format";
+import { useSelection } from "../lib/useSelection";
+import BulkBar, { BulkButton } from "../components/BulkBar";
 import type { ChaptersView } from "../types";
 import type { SceneOut } from "../api/types";
 
@@ -25,6 +28,37 @@ export default function ChaptersScreen() {
     latest.filter((s) => s.chapter_id === chapterId).sort((a, b) => a.scene_no - b.scene_no);
 
   const colorOf = (status: string): string => t[STATUS_COLORS[status] ?? "dim"];
+
+  // Bulk re-draft: tick scenes on the board, re-queue a fresh draft for each (supersedes the version).
+  const sel = useSelection();
+  const redraftSelected = async () => {
+    const byChapter = new Map<string, string[]>();
+    for (const id of sel.ids) {
+      const sc = latest.find((s) => s.id === id);
+      if (sc) byChapter.set(sc.chapter_id, [...(byChapter.get(sc.chapter_id) ?? []), id]);
+    }
+    sel.clear();
+    await Promise.allSettled([...byChapter].map(([cid, ids]) => api.redraftScenes(cid, ids)));
+    await data.draftNext();
+  };
+
+  // Write a section by hand → an approved human-authored scene (flows into summaries + prior context).
+  const [writeFor, setWriteFor] = useState<string | null>(null); // chapter id whose form is open
+  const [sceneNo, setSceneNo] = useState("");
+  const [prose, setProse] = useState("");
+  const [busy, setBusy] = useState(false);
+  const saveSection = async (chapterId: string) => {
+    const n = Number(sceneNo);
+    if (!Number.isFinite(n) || n < 1 || !prose.trim()) return;
+    setBusy(true);
+    try {
+      await api.createHumanScene(chapterId, { scene_no: n, prose: prose.trim() });
+      await data.refreshAll();
+      setWriteFor(null); setSceneNo(""); setProse("");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const manuscriptWords = (data.manuscript?.chapters ?? [])
     .flatMap((c) => c.scenes)
@@ -101,6 +135,28 @@ export default function ChaptersScreen() {
                   <div style={css("position:relative;height:9px;border-radius:5px;background:var(--bg3);overflow:hidden")}>
                     <div style={css(`position:absolute;inset:0;width:${frac}%;background:var(--good)`)} />
                   </div>
+                  <div style={css("margin-top:8px")}>
+                    {writeFor === c.id ? (
+                      <div style={css("display:flex;flex-direction:column;gap:7px;border:1px solid var(--accentLine);border-radius:9px;padding:11px 12px;background:var(--bg2b)")}>
+                        <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+                          <input type="number" min={1} value={sceneNo} onChange={(e) => setSceneNo(e.target.value)} placeholder="scene #"
+                            style={css("width:90px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12.5px;font-family:var(--ui)")} />
+                          <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>approved on save; supersedes any existing version at this scene number</span>
+                        </div>
+                        <textarea value={prose} onChange={(e) => setProse(e.target.value)} placeholder="write the prose for this section…"
+                          style={css("width:100%;min-height:120px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:9px 11px;font-size:13px;line-height:1.55;resize:vertical;font-family:var(--ui)")} />
+                        <div style={css("display:flex;gap:8px")}>
+                          <button disabled={busy || !sceneNo.trim() || !prose.trim()} onClick={() => saveSection(c.id)}
+                            style={css(`padding:6px 12px;border-radius:7px;border:1px solid color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 12%,var(--bg3));color:var(--good);font-family:var(--ui);font-size:12.5px;cursor:${busy ? "default" : "pointer"}`)}>{busy ? "Saving…" : "Save section"}</button>
+                          <button onClick={() => { setWriteFor(null); setSceneNo(""); setProse(""); }}
+                            style={css("padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-family:var(--ui);font-size:12.5px;cursor:pointer")}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setWriteFor(c.id); setSceneNo(String(scs.length + 1)); setProse(""); }}
+                        style={css("font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;padding:2px 0")}>+ Write section by hand</button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -123,8 +179,9 @@ export default function ChaptersScreen() {
               return (
                 <div key={s.id} onClick={() => desk.openSceneId(s.id)}
                   style={css(`flex:1 1 168px;min-width:160px;background:var(--bg2);border:1px solid var(--line);border-left:3px solid ${color};border-radius:10px;padding:13px 14px;box-shadow:var(--shadow);cursor:pointer`)}>
-                  <div style={css("display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
-                    <span>Ch {c.chapter_no} · Scene {s.scene_no}</span><span>v{s.version}</span>
+                  <div style={css("display:flex;align-items:center;gap:6px;margin-bottom:9px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+                    <input type="checkbox" checked={sel.has(s.id)} onClick={(e) => e.stopPropagation()} onChange={() => sel.toggle(s.id)} title="select to re-draft" style={css("width:13px;height:13px;cursor:pointer;accent-color:var(--accent)")} />
+                    <span>Ch {c.chapter_no} · Scene {s.scene_no}</span><span style={css("margin-left:auto")}>v{s.version}</span>
                   </div>
                   <div style={css("display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px")}>
                     <span style={css(`color:${color}`)}>● {s.status.replace(/_/g, " ")}</span>
@@ -164,6 +221,10 @@ export default function ChaptersScreen() {
           )}
         </div>
       )}
+
+      <BulkBar count={sel.count} noun="scene" onClear={sel.clear}>
+        <BulkButton onClick={() => void redraftSelected()}>Re-draft selected</BulkButton>
+      </BulkBar>
     </div>
   );
 }
