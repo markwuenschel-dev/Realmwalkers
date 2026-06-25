@@ -178,7 +178,7 @@ export default function Planner() {
 
           <label style={css("display:block;margin-top:10px")}><span style={fieldLabel}>Outline</span>
             <textarea
-              style={css("width:100%;min-height:64px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-size:13.5px;line-height:1.55;resize:vertical;font-family:var(--ui)")}
+              style={css("width:100%;min-height:96px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-size:13.5px;line-height:1.55;resize:vertical;font-family:var(--ui)")}
               placeholder="Outline this chapter — the planner proposes one beat (= one scene) per beat…"
               value={outline} onChange={(e) => setOutline(e.target.value)} />
           </label>
@@ -203,7 +203,7 @@ export default function Planner() {
           {beats.length > 0 && (
             <div style={css("margin-top:14px;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px")}>
               {[...beats].sort((a, b) => a.scene_no - b.scene_no).map((b) => (
-                <div key={b.id} style={css(`display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg2b);opacity:${selected.has(b.id) ? "1" : ".5"}`)}>
+                <div key={b.id} style={css(`display:flex;gap:10px;align-items:flex-start;padding:13px 14px;border:1px solid var(--line);border-radius:9px;background:var(--bg2b);opacity:${selected.has(b.id) ? "1" : ".5"}`)}>
                   <input type="checkbox" checked={selected.has(b.id)} onChange={() => toggle(b.id)} title="draft this scene" style={css("margin-top:5px;cursor:pointer")} />
                   <span style={css("font-family:var(--mono);font-size:11px;color:var(--accent);flex:none;margin-top:5px;width:28px")}>S{b.scene_no}</span>
                   <div style={css("flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:7px")}>
@@ -211,7 +211,7 @@ export default function Planner() {
                       defaultValue={b.beat_text ?? ""}
                       onBlur={(e) => { if (e.target.value !== (b.beat_text ?? "")) patchBeat(b.id, { beat_text: e.target.value }); }}
                       placeholder="what happens in this scene…"
-                      style={css("width:100%;min-height:46px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:13px;line-height:1.45;resize:vertical;font-family:var(--ui)")}
+                      style={css("width:100%;min-height:104px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:9px 11px;font-size:13.5px;line-height:1.5;resize:vertical;font-family:var(--ui)")}
                     />
                     <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
                       <input defaultValue={(b.tags ?? []).join(", ")} placeholder="tags: combat, dialogue…"
