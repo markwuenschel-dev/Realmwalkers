@@ -653,7 +653,7 @@ export function useDeskDataState(): DeskData {
   return {
     loading, error, clearError,
     books, bookId, setBook,
-    chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, jobs,
+    chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, ruleProposals, jobs,
     failedJobs, jobsUnreachable, activity,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
     refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed,

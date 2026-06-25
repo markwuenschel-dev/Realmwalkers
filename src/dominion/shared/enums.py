@@ -77,6 +77,19 @@ class SuggestionStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class RuleKind(StrEnum):
+    """What a distilled rule governs (LEARNING_FROM_EDITS Tier 3)."""
+    VOICE = "voice"        # prose style / structure preference
+    DIALOGUE = "dialogue"  # how a character's dialogue is written
+
+
+class RuleProposalStatus(StrEnum):
+    """A distilled rule's lifecycle: proposed, then accepted (applied to voice_spec) or rejected."""
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
 # --- contract-first drafting: chapter packets (Phase 1) -------------------------------------------
 # Scene-level enums (SceneVerdict, the REJECTED/MOVED scene statuses) arrive with the QA gate in a
 # later phase — Phase 1 ships only the packet layer (DESIGN: contract-first drafting, phased build).
