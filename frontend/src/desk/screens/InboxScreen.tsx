@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -30,19 +31,19 @@ export default function InboxScreen() {
         : data.jobs.queued ? `${data.jobs.queued} queued` : data.jobs.failed ? `${data.jobs.failed} failed` : undefined },
   ];
 
-  const cardBase = "background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:13px 14px";
+  const cardBase = "background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 17px;min-height:118px;display:flex;flex-direction:column";
   const sceneCard = (s: SceneOut, color: string, tag: string, onClick?: () => void) => (
     <div
       key={s.id}
       onClick={onClick}
       style={css(`${cardBase};border-left:3px solid ${color};${onClick ? "cursor:pointer;box-shadow:var(--shadow)" : "opacity:.8"}`)}
     >
-      <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px")}>
-        <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>Scene {s.scene_no}</span>
+      <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px")}>
+        <span style={css("font-family:var(--display);font-size:16.5px;color:var(--ink)")}>Scene {s.scene_no}</span>
         <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>v{s.version}</span>
       </div>
-      <div style={css("font-size:13px;color:var(--dim);line-height:1.4;margin-bottom:10px")}>{sceneLabel(s)}</div>
-      <div style={css("display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+      <div style={css("font-size:13.5px;color:var(--dim);line-height:1.45;margin-bottom:12px")}>{sceneLabel(s)}</div>
+      <div style={css("margin-top:auto;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
         <span>{wordCount(s.prose)} words</span>
         <span style={css(`color:${color}`)}>{tag}</span>
       </div>
@@ -78,6 +79,7 @@ export default function InboxScreen() {
           <Column title="Drafting" color={t.info} count={data.jobs.running ? 1 : 0} />
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             <DraftPanel />
+            <RetryFailed />
           </div>
         </div>
 
@@ -120,6 +122,31 @@ function Column({ title, color, count }: { title: string; color: string; count: 
       <span style={css(`width:8px;height:8px;border-radius:50%;background:${color}`)} />
       <span style={css("font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)")}>{title}</span>
       <span style={css("margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)")}>{count}</span>
+    </div>
+  );
+}
+
+// Shown in the Drafting column whenever jobs have FAILED — re-queues them to draft again. A scene
+// usually fails on a transient cause (API outage, depleted credits, a one-off 5xx); a FAILED job is
+// terminal, so without this it would never redraft on its own.
+function RetryFailed() {
+  const data = useDeskData();
+  const [busy, setBusy] = useState(false);
+  const n = data.jobs.failed;
+  if (n <= 0) return null;
+  return (
+    <div style={css("border:1px solid color-mix(in srgb,var(--bad) 32%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--bg2));border-radius:10px;padding:12px 13px")}>
+      <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--bad);margin-bottom:5px")}>{n} failed</div>
+      <div style={css("font-size:12px;color:var(--dim);line-height:1.45;margin-bottom:10px")}>
+        Errored mid-draft — usually a transient API issue or depleted credits. Re-queue to draft them again.
+      </div>
+      <button
+        disabled={busy}
+        onClick={async () => { setBusy(true); try { await data.retryFailed(); } finally { setBusy(false); } }}
+        style={css(`width:100%;padding:8px;border-radius:7px;border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 12%,var(--bg3));color:var(--bad);font-size:12.5px;cursor:${busy ? "default" : "pointer"};font-family:var(--ui)`)}
+      >
+        {busy ? "Re-queuing…" : `Retry ${n} failed`}
+      </button>
     </div>
   );
 }

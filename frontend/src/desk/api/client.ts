@@ -23,6 +23,7 @@ import type {
   DraftNextOut,
   JobsStatusOut,
   ManuscriptOut,
+  RetryFailedOut,
   RunStartIn,
   RunStartOut,
   SceneDetail,
@@ -90,6 +91,8 @@ export const api = {
   jobsStatus: (bookId?: string) => http<JobsStatusOut>(`/jobs/status${qs({ book_id: bookId })}`),
   draftNext: (bookId?: string) =>
     http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),
+  retryFailed: (bookId?: string) =>
+    http<RetryFailedOut>(`/jobs/retry-failed${qs({ book_id: bookId })}`, { method: "POST" }),
 
   // --- gate 1: books, runs, chapters, beats -------------------------------------------------------
   books: () => http<BookOut[]>("/books"),

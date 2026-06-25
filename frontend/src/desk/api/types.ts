@@ -156,6 +156,13 @@ export interface DraftNextOut {
   running: boolean;
 }
 
+export interface RetryFailedOut {
+  requeued: number;
+  scheduled: boolean;
+  queued: number;
+  running: boolean;
+}
+
 export interface CharacterStateOut {
   character: string;
   stats: Record<string, unknown>;

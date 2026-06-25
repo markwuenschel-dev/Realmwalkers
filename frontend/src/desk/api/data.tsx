@@ -77,6 +77,7 @@ export interface DeskData {
     chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
   ) => Promise<RunStartOut | null>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
+  retryFailed: () => Promise<number>; // re-queue FAILED jobs for the active book; returns count
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
@@ -342,6 +343,20 @@ export function useDeskDataState(): DeskData {
     }
   }, [bookId]);
 
+  // Re-queue this book's FAILED jobs and start drafting them again (e.g. after topping up credits).
+  const retryFailed = useCallback(async (): Promise<number> => {
+    if (!bookId) return 0;
+    try {
+      const out = await api.retryFailed(bookId);
+      setJobs((j) => ({ ...j, queued: out.queued, running: out.running || j.running, failed: 0 }));
+      await refreshAll();
+      return out.requeued;
+    } catch (e) {
+      fail(e);
+      return 0;
+    }
+  }, [bookId, refreshAll]);
+
   const approveAndDraft = useCallback(
     async (chapterId: string, beatIds?: string[]): Promise<void> => {
       try {
@@ -561,7 +576,7 @@ export function useDeskDataState(): DeskData {
     books, bookId, setBook,
     chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, jobs,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
-    refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext,
+    refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed,
     setExemplar,
     createThread, addThreadBeat, deleteThread,
     upsertCharacter, deleteCharacter, createCanon, updateCanon, deleteCanon, ingestCanon,

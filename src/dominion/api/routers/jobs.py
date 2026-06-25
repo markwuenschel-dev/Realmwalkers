@@ -15,12 +15,12 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job, Run
-from dominion.shared.schemas import ActiveScene, DraftNextOut, JobsStatusOut
+from dominion.shared.schemas import ActiveScene, DraftNextOut, JobsStatusOut, RetryFailedOut
 from dominion.workers import progress
 
 log = structlog.get_logger()
@@ -77,6 +77,37 @@ async def draft_next(
         background.add_task(_drain)
         running = True
     return DraftNextOut(scheduled=bool(queued) and running, queued=queued, running=running)
+
+
+@router.post("/retry-failed", response_model=RetryFailedOut)
+async def retry_failed(
+    background: BackgroundTasks, session: SessionDep, book_id: uuid.UUID | None = None,
+) -> RetryFailedOut:
+    """Re-queue every FAILED job (scoped to a book when given), then kick off drafting.
+
+    A FAILED job is terminal — draft-next only drains QUEUED — so a scene that died on a transient
+    cause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those
+    rows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the
+    Desk can offer a 'retry failed' affordance without a terminal or a DB round-trip."""
+    stmt = update(Job).where(Job.status == JobStatus.FAILED)
+    if book_id is not None:
+        stmt = stmt.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    result = await session.execute(
+        stmt.values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None)
+    )
+    await session.commit()
+    requeued = result.rowcount or 0
+
+    counts = await _queue_counts(session, book_id)
+    queued = counts.get(JobStatus.QUEUED, 0)
+    running = _drain_lock.locked()
+    if queued and not running:
+        background.add_task(_drain)
+        running = True
+    log.info("jobs.retry_failed", book=str(book_id) if book_id else None, requeued=requeued)
+    return RetryFailedOut(
+        requeued=requeued, scheduled=bool(queued) and running, queued=queued, running=running,
+    )
 
 
 @router.get("/status", response_model=JobsStatusOut)
