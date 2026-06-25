@@ -89,14 +89,20 @@ async def retry_failed(
     cause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those
     rows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the
     Desk can offer a 'retry failed' affordance without a terminal or a DB round-trip."""
-    stmt = update(Job).where(Job.status == JobStatus.FAILED)
+    # Collect the FAILED job ids first (scoped to the book when given) so we can report an exact
+    # count without leaning on CursorResult.rowcount, which isn't on the async Result type.
+    failed_q = select(Job.id).where(Job.status == JobStatus.FAILED)
     if book_id is not None:
-        stmt = stmt.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
-    result = await session.execute(
-        stmt.values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None)
-    )
+        failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    failed_ids = (await session.execute(failed_q)).scalars().all()
+    requeued = len(failed_ids)
+    if failed_ids:
+        await session.execute(
+            update(Job)
+            .where(Job.id.in_(failed_ids))
+            .values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None)
+        )
     await session.commit()
-    requeued = result.rowcount or 0
 
     counts = await _queue_counts(session, book_id)
     queued = counts.get(JobStatus.QUEUED, 0)
