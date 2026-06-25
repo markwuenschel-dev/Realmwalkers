@@ -123,6 +123,17 @@ class ApproveBeatsIn(BaseModel):
     beat_ids: list[uuid.UUID] | None = None
 
 
+class HumanSceneIn(BaseModel):
+    """POST body to write a manuscript section by hand — lands APPROVED so it flows into context."""
+    scene_no: int
+    prose: str
+
+
+class RedraftIn(BaseModel):
+    """POST body to re-draft existing scenes: re-queue a draft for each (supersedes the current version)."""
+    scene_ids: list[uuid.UUID]
+
+
 class ChapterOut(_ORM):
     id: uuid.UUID
     book_id: uuid.UUID
