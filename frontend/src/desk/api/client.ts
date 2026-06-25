@@ -21,8 +21,11 @@ import type {
   DocDetail,
   DocMeta,
   DraftNextOut,
+  FailedJobOut,
   JobsStatusOut,
   ManuscriptOut,
+  PacketOut,
+  PacketUpdateIn,
   RetryFailedOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
@@ -91,6 +94,7 @@ export const api = {
   // --- drafting (browser-driven worker) -----------------------------------------------------------
   // book_id scopes the indicator to the active book, so another book's drafting doesn't light it up.
   jobsStatus: (bookId?: string) => http<JobsStatusOut>(`/jobs/status${qs({ book_id: bookId })}`),
+  jobsFailed: (bookId?: string) => http<FailedJobOut[]>(`/jobs/failed${qs({ book_id: bookId })}`),
   draftNext: (bookId?: string) =>
     http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),
   retryFailed: (bookId?: string) =>
@@ -123,6 +127,17 @@ export const api = {
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
+
+  // --- contract-first drafting: chapter knowledge packets (Phase 1) -------------------------------
+  // GET may 404 (no packet yet); callers treat that as "none". propose runs the author+QA agents
+  // synchronously (can take a while), so callers should show a spinner.
+  packet: (chapterId: string) => http<PacketOut>(`/chapters/${chapterId}/packet`),
+  proposePacket: (chapterId: string) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "POST" }),
+  updatePacket: (chapterId: string, body: PacketUpdateIn) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "PUT", body: JSON.stringify(body) }),
+  approvePacket: (chapterId: string) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet/approve`, { method: "POST" }),
 
   // --- canon / planning / style docs (read-only Domain-B markdown) --------------------------------
   // route is /library (not /docs — FastAPI serves Swagger UI at /docs).

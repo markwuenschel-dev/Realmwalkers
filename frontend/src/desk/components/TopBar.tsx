@@ -9,6 +9,7 @@ const SCREENS: { id: Screen; label: string }[] = [
   { id: "inbox", label: "Inbox" },
   { id: "scene", label: "Scene" },
   { id: "chapters", label: "Chapters" },
+  { id: "packets", label: "Packets" },
   { id: "diff", label: "Versions" },
   { id: "manuscript", label: "Manuscript" },
   { id: "ledger", label: "Ledger" },

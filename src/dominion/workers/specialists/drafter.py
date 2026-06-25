@@ -67,8 +67,55 @@ def _voice_system(ctx: SceneContext) -> str:
     return system
 
 
+def _contract_block(ctx: SceneContext) -> str | None:
+    """The chapter packet's binding constraints (contract-first drafting, Phase 2), as a high-salience
+    block the writer must obey. None when the scene isn't packet-derived. Leads the prompt so it
+    dominates the beat + canon: a good packet prevents beautiful wrong scenes."""
+    c = ctx.contract
+    if not c:
+        return None
+
+    def lst(key: str) -> list[str]:
+        value = c.get(key)
+        return [str(v) for v in value] if isinstance(value, list) else []
+
+    sections: list[str] = []
+    must_not = (
+        [f"reveal or foreshadow: {x}" for x in lst("forbidden_reveals")]
+        + [f"let the reader learn yet: {x}" for x in lst("forbidden_knowledge")]
+        + [f"let this happen in the scene: {x}" for x in lst("forbidden_beats")]
+        + [f"put this system/UI concept on the page: {x}" for x in lst("forbidden_ui_concepts")]
+    )
+    if must_not:
+        sections.append("MUST NOT:\n" + "\n".join(f"- {m}" for m in must_not))
+
+    must = [f"reveal in this scene: {x}" for x in lst("required_reveals")]
+    exit_state = c.get("exit_state")
+    if isinstance(exit_state, str) and exit_state.strip():
+        must.append(f"end the scene at this state: {exit_state.strip()}")
+    if must:
+        sections.append("MUST:\n" + "\n".join(f"- {m}" for m in must))
+
+    locks = (
+        lst("canon_locks") + lst("roster_locks") + lst("relationship_locks") + lst("timeline_locks")
+    )
+    if locks:
+        sections.append("IMMUTABLE — do not contradict:\n" + "\n".join(f"- {x}" for x in locks))
+
+    if not sections:
+        return None
+    header = (
+        "CONTRACT — obey exactly. This scene is bound by the chapter's approved knowledge packet. "
+        "These constraints OVERRIDE the beat and any canon below wherever they conflict; violating one "
+        "is a failed scene, however well-written."
+    )
+    return header + "\n\n" + "\n\n".join(sections)
+
+
 def _beat_prompt(ctx: SceneContext) -> str:
     parts: list[str] = []
+    if contract := _contract_block(ctx):  # Phase 2: the packet contract leads, so it dominates
+        parts.append(contract)
     if ctx.canon:  # Phase 2: retrieved canon
         parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
     if ctx.pov_summary:  # Phase 2: what this POV knows so far
@@ -96,6 +143,8 @@ def _beat_prompt(ctx: SceneContext) -> str:
 
 def _revise_prompt(ctx: SceneContext) -> str:
     parts: list[str] = []
+    if contract := _contract_block(ctx):  # the packet binds revisions too
+        parts.append(contract)
     if ctx.canon:
         parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
     if ctx.pov_summary:

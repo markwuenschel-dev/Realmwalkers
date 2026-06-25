@@ -77,14 +77,37 @@ class SuggestionStatus(StrEnum):
     REJECTED = "rejected"
 
 
-class RuleKind(StrEnum):
-    """What a distilled rule governs (LEARNING_FROM_EDITS Tier 3)."""
-    VOICE = "voice"        # prose style / structure preference
-    DIALOGUE = "dialogue"  # how a character's dialogue is written
+# --- contract-first drafting: chapter packets (Phase 1) -------------------------------------------
+# Scene-level enums (SceneVerdict, the REJECTED/MOVED scene statuses) arrive with the QA gate in a
+# later phase — Phase 1 ships only the packet layer (DESIGN: contract-first drafting, phased build).
+
+class PacketConfidence(StrEnum):
+    """The Packet Author's self-assessed confidence — drives the autonomy gate.
+    GREEN: eligible for fast-approve. YELLOW: human reviews flagged items. RED: drafting blocked."""
+    GREEN = "green"
+    YELLOW = "yellow"
+    RED = "red"
 
 
-class RuleProposalStatus(StrEnum):
-    """A distilled rule's lifecycle: proposed, then accepted (applied to voice_spec) or rejected."""
-    PENDING = "pending"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
+class PacketVerdict(StrEnum):
+    """The Packet QA agent's verdict on a proposed chapter packet."""
+    APPROVE = "approve"
+    APPROVE_WARN = "approve_warn"
+    REVISE_REQUIRED = "revise_required"
+    BLOCK_DRAFTING = "block_drafting"
+
+
+class PacketStatus(StrEnum):
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    BLOCKED = "blocked"
+
+
+class ClaimSource(StrEnum):
+    """Source-strength label the Packet Author must attach to every packet claim, so agents can act
+    on packets without pretending all decisions are equally certain."""
+    LOCKED_CANON = "locked_canon"
+    DERIVED_FROM_OUTLINE = "derived_from_outline"
+    PLAUSIBLE_INFERENCE = "plausible_inference"
+    UNRESOLVED = "unresolved"          # needs human
+    FORBIDDEN = "forbidden"

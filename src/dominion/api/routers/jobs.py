@@ -20,7 +20,13 @@ from sqlalchemy import func, select, update
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job, Run
-from dominion.shared.schemas import ActiveScene, DraftNextOut, JobsStatusOut, RetryFailedOut
+from dominion.shared.schemas import (
+    ActiveScene,
+    DraftNextOut,
+    FailedJobOut,
+    JobsStatusOut,
+    RetryFailedOut,
+)
 from dominion.workers import progress
 
 log = structlog.get_logger()
@@ -100,7 +106,7 @@ async def retry_failed(
         await session.execute(
             update(Job)
             .where(Job.id.in_(failed_ids))
-            .values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None)
+            .values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None, last_error=None)
         )
     await session.commit()
 
@@ -146,3 +152,20 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
         failed=counts.get(JobStatus.FAILED, 0),
         active_scene=active_scene,
     )
+
+
+@router.get("/failed", response_model=list[FailedJobOut])
+async def failed(session: SessionDep, book_id: uuid.UUID | None = None) -> list[FailedJobOut]:
+    """Every FAILED job with the reason it died — so the Desk can show the actual error (a bad API
+    key, depleted credits, a 5xx) instead of a generic 'transient issue', and so a failure is
+    diagnosable without server-log access. Scoped to a book when given."""
+    stmt = select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(
+        Job.status == JobStatus.FAILED
+    )
+    if book_id is not None:
+        stmt = stmt.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    rows = (await session.execute(stmt.order_by(Job.chapter_no, Job.scene_no))).all()
+    return [
+        FailedJobOut(id=jid, chapter_no=ch, scene_no=sc, last_error=err)
+        for jid, ch, sc, err in rows
+    ]

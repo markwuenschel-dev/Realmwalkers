@@ -197,6 +197,23 @@ async def test_no_profile_yields_no_exemplars(db_factory, monkeypatch):
         assert ctx.exemplars == []
 
 
+async def test_duplicate_beats_do_not_crash_drafting(db_factory, monkeypatch):
+    # A re-run plan-call / re-enqueue can leave two beats for one (chapter, scene). assemble_context
+    # must pick a canonical beat (the approved one) instead of raising MultipleResultsFound and failing
+    # the draft before it begins — the bug that stranded a chapter of scenes as FAILED.
+    _stub_memory(monkeypatch)
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = await _chapter(s, book)
+        job = await _draft_job(s, book, ch, scene_no=2)  # adds one APPROVED beat ("Marcus presses on.")
+        s.add(Beat(chapter_id=ch.id, scene_no=2, tags=[], characters_present=["Marcus"],
+                   status=BeatStatus.PROPOSED, beat_text="stale duplicate beat"))
+        await s.commit()
+
+        ctx = await assemble_context(s, job)             # must not raise on the duplicate
+        assert ctx.beat_text == "Marcus presses on."     # the approved beat wins
+
+
 # --- set_exemplars authoring CLI ------------------------------------------------------------------
 
 async def test_set_exemplars_upserts_and_preserves_voice_spec(db_factory):

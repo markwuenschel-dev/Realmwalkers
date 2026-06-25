@@ -22,10 +22,13 @@ async def pov_summary(
     session: AsyncSession, *, book_id: uuid.UUID, pov: str, up_to_scene_id: uuid.UUID | None = None
 ) -> str | None:
     """What THIS character knows: their accumulated rolling summary (knowledge-asymmetry)."""
+    # limit(1): a duplicate (book, pov) summary row would otherwise raise MultipleResultsFound and
+    # fail every draft for this POV before it begins.
     return (await session.execute(
-        select(Summary.rolling_summary).where(
-            Summary.book_id == book_id, Summary.scope == "pov", Summary.pov == pov
-        )
+        select(Summary.rolling_summary)
+        .where(Summary.book_id == book_id, Summary.scope == "pov", Summary.pov == pov)
+        .order_by(Summary.id)
+        .limit(1)
     )).scalar_one_or_none()
 
 
@@ -48,7 +51,10 @@ async def _upsert(
     session: AsyncSession, *, book_id: uuid.UUID, scope: str, pov: str | None, scene: Scene, lens: str
 ) -> None:
     row = (await session.execute(
-        select(Summary).where(Summary.book_id == book_id, Summary.scope == scope, Summary.pov == pov)
+        select(Summary)
+        .where(Summary.book_id == book_id, Summary.scope == scope, Summary.pov == pov)
+        .order_by(Summary.id)
+        .limit(1)
     )).scalar_one_or_none()
     previous = row.rolling_summary if row else None
     updated = await _summarize(previous, scene.prose or "", lens)
