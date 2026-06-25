@@ -9,6 +9,7 @@ import {
   Document,
   ExternalHyperlink,
   Footer,
+  Header,
   HeadingLevel,
   Packer,
   PageBreak,
@@ -18,6 +19,7 @@ import {
   Table,
   TableCell,
   TableRow,
+  TabStopType,
   TextRun,
   WidthType,
   convertInchesToTwip,
@@ -350,6 +352,97 @@ export function buildManuscriptDoc(
     creator: "Writers' Desk",
     title,
     sections: [{ properties: { page: { margin: pageMargin } }, footers: { default: pageFooter() }, children }],
+  });
+}
+
+// --- Shunn standard manuscript format (submission) -----------------------------------------------
+// Monospaced (Courier New 12pt), double-spaced, 1" margins, 0.5" paragraph indent; a running header
+// `Surname / TITLE / page#` on every page but the first; a title page with contact + word count and
+// the title a third of the way down; scenes separated by a centered "#". This is the format agents
+// expect — deliberately plain (no markdown styling), unlike the book-typography export above.
+const SHUNN_FONT = "Courier New";
+const SHUNN_SIZE = 24; // 12pt in half-points
+const DOUBLE = { line: 480 }; // double line spacing (240 = single)
+
+// Shunn rounds the cover word count: nearest 100 under 25k, nearest 1000 above.
+function roundWords(n: number): number {
+  return n < 25000 ? Math.round(n / 100) * 100 : Math.round(n / 1000) * 1000;
+}
+
+function shunnRun(text: string): TextRun {
+  return new TextRun({ text, font: SHUNN_FONT, size: SHUNN_SIZE });
+}
+
+function shunnHeader(surname: string, titleUpper: string): Header {
+  return new Header({
+    children: [new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [
+        shunnRun(`${surname} / ${titleUpper} / `),
+        new TextRun({ children: [PageNumber.CURRENT], font: SHUNN_FONT, size: SHUNN_SIZE }),
+      ],
+    })],
+  });
+}
+
+/** Domain A, submission variant — the manuscript in standard (Shunn) format for agents/editors. */
+export function buildShunnDoc(manuscript: ManuscriptOut, author: string, wordCount: number): Document {
+  const title = manuscript.title || "Untitled";
+  const byline = author.trim() || "Author";
+  const surname = byline.split(/\s+/).pop() || byline;
+  const titleUpper = title.toUpperCase();
+  const rightTab = convertInchesToTwip(6.5); // 8.5" page − 2×1" margins
+
+  const body = (text: string) => new Paragraph({
+    spacing: DOUBLE,
+    indent: { firstLine: convertInchesToTwip(0.5) },
+    children: [shunnRun(text)],
+  });
+
+  // Title page: contact (left) + word count (right), then the title ~1/3 down, then the byline.
+  const children: Paragraph[] = [
+    new Paragraph({
+      tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
+      children: [shunnRun(byline), shunnRun(`\tabout ${roundWords(wordCount).toLocaleString()} words`)],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { before: 2800, ...DOUBLE },
+      children: [shunnRun(titleUpper)],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: DOUBLE,
+      children: [shunnRun(`by ${byline}`)],
+    }),
+  ];
+
+  for (const ch of manuscript.chapters) {
+    const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
+    if (scenes.length === 0) continue;
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    children.push(new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { before: 1200, after: 240, ...DOUBLE },
+      children: [shunnRun(`CHAPTER ${ch.chapter_no}${ch.title ? ` — ${ch.title.toUpperCase()}` : ""}`)],
+    }));
+    scenes.forEach((sc, si) => {
+      if (si > 0) {
+        children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: DOUBLE, children: [shunnRun("#")] }));
+      }
+      // Plain prose: split on blank lines into paragraphs; collapse internal whitespace (reflow).
+      for (const block of (sc.prose ?? "").split(/\n{2,}/)) {
+        const text = block.replace(/\s+/g, " ").trim();
+        if (text) children.push(body(text));
+      }
+    });
+  }
+
+  return new Document({
+    creator: "Writers' Desk",
+    title,
+    sections: [{
+      properties: { titlePage: true, page: { margin: pageMargin } },
+      headers: { default: shunnHeader(surname, titleUpper), first: new Header({ children: [] }) },
+      children,
+    }],
   });
 }
 
