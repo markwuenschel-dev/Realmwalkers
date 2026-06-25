@@ -23,6 +23,8 @@ import type {
   CharacterStateOut,
   ContinuityResolveIn,
   DecisionIn,
+  ActivityEntry,
+  FailedJobOut,
   JobsStatusOut,
   ManuscriptOut,
   RunStartOut,
@@ -42,6 +44,19 @@ import type {
 // fixture. Server data lives here; ephemeral view state (which tab, which theme) lives in state.ts.
 
 const EMPTY_JOBS: JobsStatusOut = { running: false, queued: 0, failed: 0, active_scene: null };
+const ACTIVITY_MAX = 14;          // cap the live feed so it can't grow unbounded across a long session
+const UNREACHABLE_AFTER = 2;      // consecutive failed polls before we call the backend unreachable
+
+// One line for the live activity feed from the current job status (drafting phase, or the queue tail).
+function activityLabel(js: JobsStatusOut): string | null {
+  if (js.running && js.active_scene) {
+    const a = js.active_scene;
+    const where = a.chapter_no != null ? `Ch ${a.chapter_no} · ` : "";
+    return `${where}Scene ${a.scene_no ?? "?"}${a.phase ? ` · ${a.phase}` : ""}`;
+  }
+  if (js.queued > 0) return `${js.queued} queued`;
+  return null;
+}
 
 export interface DeskData {
   loading: boolean;
@@ -61,6 +76,9 @@ export interface DeskData {
   canon: CanonEntityOut[];
   threads: ThreadOut[];
   jobs: JobsStatusOut;
+  failedJobs: FailedJobOut[];     // FAILED jobs + their reason, for the failed card
+  jobsUnreachable: boolean;       // the status poll has been failing — the backend looks down
+  activity: ActivityEntry[];      // live feed of drafting phases / queue transitions (newest first)
 
   detail: SceneDetail | null;
   versions: SceneVersionOut[];
@@ -114,6 +132,9 @@ export function useDeskDataState(): DeskData {
   const [canon, setCanon] = useState<CanonEntityOut[]>([]);
   const [threads, setThreads] = useState<ThreadOut[]>([]);
   const [jobs, setJobs] = useState<JobsStatusOut>(EMPTY_JOBS);
+  const [failedJobs, setFailedJobs] = useState<FailedJobOut[]>([]);
+  const [jobsUnreachable, setJobsUnreachable] = useState(false);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
 
   const [detail, setDetail] = useState<SceneDetail | null>(null);
   const [versions, setVersions] = useState<SceneVersionOut[]>([]);
@@ -218,6 +239,8 @@ export function useDeskDataState(): DeskData {
   jobsRef.current = jobs;
   const bookRef = useRef(bookId);
   bookRef.current = bookId;
+  const failCountRef = useRef(0);          // consecutive failed polls -> backend-unreachable banner
+  const lastActivityRef = useRef("");      // de-dupe the feed: only log when the phase/label changes
   useEffect(() => {
     let alive = true;
     let handle = 0;
@@ -227,15 +250,38 @@ export function useDeskDataState(): DeskData {
       if (id) {
         try {
           const js = await api.jobsStatus(id);
-          setJobs(js);
           const was = jobsRef.current;
+          setJobs(js);
+          failCountRef.current = 0;
+          setJobsUnreachable(false);
           busyNow = js.running || js.queued > 0;
           const justFinished = !busyNow && (was.running || was.queued > 0);
+
+          // Live activity feed: append a line whenever the drafting phase / queue label changes, plus
+          // a closing line when the queue empties — so progress always reads as motion, not a frozen number.
+          const label = activityLabel(js);
+          if (label && label !== lastActivityRef.current) {
+            lastActivityRef.current = label;
+            setActivity((a) => [{ id: `${Date.now()}-${a.length}`, ts: Date.now(), text: label }, ...a].slice(0, ACTIVITY_MAX));
+          } else if (justFinished) {
+            lastActivityRef.current = "";
+            setActivity((a) => [{ id: `${Date.now()}-${a.length}`, ts: Date.now(), text: "Queue clear ✓" }, ...a].slice(0, ACTIVITY_MAX));
+          }
+
+          // Pull the failure reasons, but only when the failed count actually changes (not every poll).
+          if (js.failed !== was.failed) {
+            if (js.failed > 0) api.jobsFailed(id).then(setFailedJobs).catch(() => {});
+            else setFailedJobs([]);
+          }
+
           if (busyNow || justFinished) {
             await loadCollections(id);
           }
         } catch {
-          /* transient — next tick retries */
+          // The poll failed — the backend may be down. After a couple of misses, say so out loud
+          // instead of silently freezing the last-known counts (which once looked like stuck jobs).
+          failCountRef.current += 1;
+          if (failCountRef.current >= UNREACHABLE_AFTER) setJobsUnreachable(true);
         }
       }
       if (alive) handle = window.setTimeout(tick, busyNow ? 1500 : 4000);
@@ -575,6 +621,7 @@ export function useDeskDataState(): DeskData {
     loading, error, clearError,
     books, bookId, setBook,
     chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, jobs,
+    failedJobs, jobsUnreachable, activity,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
     refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed,
     setExemplar,

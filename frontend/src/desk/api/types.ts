@@ -151,6 +151,20 @@ export interface JobsStatusOut {
   active_scene: ActiveScene | null;
 }
 
+export interface FailedJobOut {
+  id: string;
+  chapter_no: number | null;
+  scene_no: number | null;
+  last_error: string | null;   // why this job died — surfaced on the failed card so it isn't a mystery
+}
+
+// A timestamped line in the Desk's live activity feed (drafting phases, queue transitions).
+export interface ActivityEntry {
+  id: string;
+  ts: number;
+  text: string;
+}
+
 export interface DraftNextOut {
   scheduled: boolean;
   queued: number;
