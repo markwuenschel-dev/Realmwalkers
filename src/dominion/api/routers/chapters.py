@@ -232,3 +232,59 @@ async def redraft_scenes(
         job_ids.append(str(job.id))
     await session.commit()
     return {"chapter_id": str(chapter_id), "queued": len(job_ids), "jobs": job_ids}
+
+
+@router.post("/{chapter_id}/draft")
+async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> dict[str, object]:
+    """Queue a draft for every APPROVED beat of this chapter that has no scene yet — the missing
+    'draft' step after a packet is approved (its beats are derived APPROVED, but nothing enqueues
+    them, and they don't show in the Planner). Idempotent: skips beats already drafted or queued. The
+    caller kicks the drain (POST /jobs/draft-next)."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    beats = (await session.execute(
+        select(Beat).where(Beat.chapter_id == chapter_id, Beat.status == BeatStatus.APPROVED)
+        .order_by(Beat.scene_no)
+    )).scalars().all()
+    if not beats:
+        raise HTTPException(status_code=400, detail="no approved beats — approve a packet (or beats) first")
+
+    # scene_nos that already have prose (any version) — don't re-draft those.
+    drafted = {
+        n for (n,) in (await session.execute(
+            select(Scene.scene_no).where(Scene.chapter_id == chapter_id)
+        )).all()
+    }
+    run = (await session.execute(
+        select(Run).where(Run.book_id == chapter.book_id).order_by(Run.created_at.desc()).limit(1)
+    )).scalar_one_or_none()
+    job_ids: list[str] = []
+    for beat in beats:
+        if beat.scene_no in drafted:
+            continue
+        # Dedup against an already-QUEUED draft for this scene. Scope by the chapter's run when there
+        # is one; don't INNER JOIN Run, or a job with a NULL run_id (a packet-only chapter that was
+        # never planned) is never found and we'd queue it twice.
+        dedup = select(Job.id).where(
+            Job.chapter_no == chapter.chapter_no, Job.scene_no == beat.scene_no,
+            Job.status == JobStatus.QUEUED,
+        )
+        if run is not None:
+            dedup = dedup.where(Job.run_id == run.id)
+        existing = (await session.execute(dedup)).scalars().first()
+        if existing is not None:
+            job_ids.append(str(existing))
+            continue
+        job = Job(
+            run_id=run.id if run else None, kind=JobKind.DRAFT,
+            chapter_no=chapter.chapter_no, scene_no=beat.scene_no,
+            token_budget=run.token_budget if run else settings.scene_token_budget,
+            status=JobStatus.QUEUED,
+        )
+        session.add(job)
+        await session.flush()
+        job_ids.append(str(job.id))
+    chapter.status = ChapterStatus.DRAFTING
+    await session.commit()
+    return {"chapter_id": str(chapter_id), "queued": len(job_ids), "jobs": job_ids}

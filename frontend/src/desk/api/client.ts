@@ -131,6 +131,10 @@ export const api = {
     http<{ chapter_id: string; queued: number; jobs: string[] }>(
       `/chapters/${chapterId}/scenes/redraft`, { method: "POST", body: JSON.stringify({ scene_ids: sceneIds }) },
     ),
+  draftChapter: (chapterId: string) =>
+    http<{ chapter_id: string; queued: number; jobs: string[] }>(
+      `/chapters/${chapterId}/draft`, { method: "POST" },
+    ),
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),

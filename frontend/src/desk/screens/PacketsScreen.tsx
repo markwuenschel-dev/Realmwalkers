@@ -149,9 +149,31 @@ export default function PacketsScreen() {
             </span>
           )}
           {packet.status === "approved" && (
-            <span style={css(`font-family:var(--mono);font-size:11.5px;color:var(${CONFIDENCE_VAR.green})`)}>
-              {(packet.body?.scene_seeds?.length ?? 0)} scene contract{(packet.body?.scene_seeds?.length ?? 0) === 1 ? "" : "s"} now scope the drafter.
-            </span>
+            <>
+              <button
+                disabled={busy === "draft"}
+                onClick={async () => {
+                  if (!chapterId) return;
+                  setBusy("draft");
+                  setError(null);
+                  try {
+                    await api.draftChapter(chapterId);
+                    await data.draftNext();   // kick the worker drain
+                    await data.refreshAll();
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setBusy(null);
+                  }
+                }}
+                style={btn(busy !== "draft", t.accent, t.onAccent)}
+              >
+                {busy === "draft" ? "Queuing…" : "Draft this chapter →"}
+              </button>
+              <span style={css(`font-family:var(--mono);font-size:11.5px;color:var(${CONFIDENCE_VAR.green})`)}>
+                {(packet.body?.scene_seeds?.length ?? 0)} scene contract{(packet.body?.scene_seeds?.length ?? 0) === 1 ? "" : "s"} now scope the drafter.
+              </span>
+            </>
           )}
         </div>
       )}
