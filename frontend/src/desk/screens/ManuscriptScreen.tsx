@@ -26,6 +26,9 @@ export default function ManuscriptScreen() {
   const { manuscript, chapters: allChapters, latestScenes } = useDeskData();
   const [layout, setLayout] = useState<Layout>("wide");
   const [source, setSource] = useState<Source>("approved");
+  // Author name for the Shunn submission header/byline — persisted so it isn't re-typed each export.
+  const [author, setAuthor] = useState<string>(() => localStorage.getItem("ms_author") ?? "");
+  const saveAuthor = (v: string) => { setAuthor(v); localStorage.setItem("ms_author", v); };
 
   // Draft compile: assemble each scene's current (latest-version) prose into manuscript form, whatever
   // its status — built entirely client-side from data already loaded, so viewing/exporting it never
@@ -95,6 +98,19 @@ export default function ManuscriptScreen() {
     );
   };
 
+  // Standard manuscript (Shunn) export — submission format for agents; needs the author name.
+  const exportShunn = async () => {
+    if (!active) return;
+    const name = author.trim() || (window.prompt("Author name for the manuscript header / byline:") ?? "").trim();
+    if (!name) return;
+    if (name !== author) saveAuthor(name);
+    const docx = await import("../lib/docx");
+    await docx.saveDocx(
+      docx.buildShunnDoc(active, name, totalWords),
+      docx.docxFilename((active.title || "manuscript") + " Shunn" + (isDraft ? " draft" : "")),
+    );
+  };
+
   return (
     <div>
       {/* toolbar: page estimate + export (left) · reading-layout control (right) */}
@@ -125,6 +141,15 @@ export default function ManuscriptScreen() {
             style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Markdown</button>
           <button onClick={exportDocx} disabled={!hasProse} title="Download as Word (.docx) — book format, page-numbered"
             style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Word</button>
+          <button onClick={exportShunn} disabled={!hasProse} title="Download as standard manuscript (Shunn) format — monospace, double-spaced, page header; for agent/editor submission"
+            style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Shunn</button>
+          <input
+            value={author}
+            onChange={(e) => saveAuthor(e.target.value)}
+            placeholder="author name (Shunn)"
+            title="Used in the Shunn submission header & byline"
+            style={css("width:130px;padding:5px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:var(--ui);font-size:12px")}
+          />
           <button onClick={() => window.print()} disabled={!hasProse} title="Print, or save as a PDF — chapters break to new pages (enable the print dialog's headers/footers for page numbers)"
             style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⎙ Print / PDF</button>
         </div>
