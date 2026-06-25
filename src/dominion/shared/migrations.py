@@ -15,8 +15,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 # Append a line here whenever you add a nullable column to an EXISTING table in models.py.
+# (contract-first drafting Phase 2 links beats back to their packet scene_seed; the scene QA columns
+# arrive in a later phase. Phase 1's brand-new `chapter_packets` table is provisioned by create_all.)
 _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS title TEXT",
+    "ALTER TABLE beats ADD COLUMN IF NOT EXISTS scene_seed_id UUID",
 )
 
 

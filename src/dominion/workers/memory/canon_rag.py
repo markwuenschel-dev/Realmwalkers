@@ -55,6 +55,32 @@ async def retrieve(session: AsyncSession, *, book_id: uuid.UUID, query: str, k: 
     return [body for body in (await session.execute(stmt)).scalars().all() if body]
 
 
+async def retrieve_with_meta(
+    session: AsyncSession, *, book_id: uuid.UUID, query: str, k: int = 6
+) -> list[dict[str, object]]:
+    """Like `retrieve`, but returns `{id, name, body}` per snippet so callers can attribute claims to
+    their source (provenance). Used by the Packet Author — every packet claim must trace to a real
+    canon row, not just an unsourced model assertion (DESIGN: contract-first drafting)."""
+    if not query.strip():
+        return []
+    qvec = embed(query)
+    stmt = (
+        select(CanonEntity.id, CanonEntity.name, CanonEntity.body)
+        .where(
+            CanonEntity.book_id == book_id,
+            CanonEntity.body.isnot(None),
+            CanonEntity.embedding.isnot(None),
+        )
+        .order_by(CanonEntity.embedding.cosine_distance(qvec))
+        .limit(k)
+    )
+    return [
+        {"id": cid, "name": name, "body": body}
+        for cid, name, body in (await session.execute(stmt)).all()
+        if body
+    ]
+
+
 async def ingest_path(
     session: AsyncSession, *, book_id: uuid.UUID, root: str | Path, kind: str = _PASSAGE_KIND
 ) -> int:

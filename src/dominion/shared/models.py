@@ -82,10 +82,16 @@ class Job(Base):
 
 
 class Beat(Base):
-    """Per-scene plan; proposed by the plan-call, approved/edited by the human (gate 1)."""
+    """Per-scene plan; proposed by the plan-call, approved/edited by the human (gate 1).
+
+    Under contract-first drafting (Phase 2) a chapter's beats are derived from the approved
+    ChapterPacket's scene_seeds — `scene_seed_id` is the stable sync key that links a beat back to its
+    seed, so re-deriving after a packet edit updates in place instead of duplicating. Null for beats
+    that came from the independent plan-call (the fallback path for chapters without a packet)."""
     __tablename__ = "beats"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    scene_seed_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)  # links to packet scene_seed
     scene_no: Mapped[int] = mapped_column(Integer)
     characters_present: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)  # routes specialists
@@ -112,6 +118,32 @@ class Scene(Base):
     published: Mapped[bool] = mapped_column(Boolean, default=False)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChapterPacket(Base):
+    """Chapter knowledge packet (DESIGN: contract-first drafting). Authored by the Packet Author
+    agent from locked canon + outline, validated by the Packet QA agent, adjudicated by the human.
+
+    It is the constraint document every drafting agent obeys: allowed/forbidden knowledge & reveals,
+    roster/canon/timeline locks, the emotional spine, chapter entry/exit state, per-scene seeds, and
+    known drift risks. The writer is scoped to it; the packet author is NOT (scoping protects the
+    writer, not the planner). `confidence` drives the autonomy gate: green proceeds, yellow needs the
+    human to clear flags, red blocks drafting.
+    """
+    __tablename__ = "chapter_packets"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    status: Mapped[str] = mapped_column(Text, default="proposed")     # proposed | approved | blocked
+    confidence: Mapped[str | None] = mapped_column(Text, nullable=True)  # green | yellow | red
+    qa_verdict: Mapped[str | None] = mapped_column(Text, nullable=True)  # approve|approve_warn|revise_required|block
+    qa_warnings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # {residual_risks: [...]}
+    # The full structured packet. `claims[]` carry provenance ({claim, source_strength, source_id,
+    # source_title_or_file, excerpt?, confidence}), and `scene_seeds[]` carry a server-minted stable
+    # `seed_id` (UUID) — the sync key for later contract derivation, NOT scene_no (display order).
+    body: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    open_questions: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

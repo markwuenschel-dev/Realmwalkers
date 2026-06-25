@@ -175,7 +175,7 @@ export function useDeskState(): DeskValue {
       if (chord.active) {
         chord.active = false;
         const map: Record<string, Screen> = {
-          i: "inbox", s: "scene", c: "chapters", v: "diff", m: "manuscript", l: "ledger", d: "docs",
+          i: "inbox", s: "scene", c: "chapters", p: "packets", v: "diff", m: "manuscript", l: "ledger", d: "docs",
         };
         if (map[k]) {
           go(map[k]);
