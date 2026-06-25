@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS title TEXT",
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS scene_seed_id UUID",
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_error TEXT",
 )
 
 

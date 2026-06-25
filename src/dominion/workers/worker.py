@@ -72,7 +72,11 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
             # failure write. Use the captured id, never the expired `job` object.
             await session.rollback()
             await session.execute(
-                update(Job).where(Job.id == job_id).values(status=JobStatus.FAILED)
+                update(Job)
+                .where(Job.id == job_id)
+                # Persist the reason so a FAILED job is diagnosable from the Desk/API without trawling
+                # server logs (the prod worker logs to stdout we can't always reach). Capped for sanity.
+                .values(status=JobStatus.FAILED, last_error=f"{type(exc).__name__}: {exc}"[:2000])
             )
             await session.commit()
             log.error("scene.failed", job=str(job_id), error=str(exc))

@@ -249,6 +249,14 @@ class RetryFailedOut(BaseModel):
     running: bool = False
 
 
+class FailedJobOut(BaseModel):
+    """A FAILED job + why it died, so the Desk can show the actual error instead of a generic note."""
+    id: uuid.UUID
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    last_error: str | None = None
+
+
 # --- World ledger + in-prose entity cards (DESIGN §5, §7) -----------------------------------------
 
 class CharacterStateOut(BaseModel):
