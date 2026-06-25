@@ -93,12 +93,18 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         results = await asyncio.gather(
             *(reviewer.review(prose, ctx) for reviewer in reviewers), return_exceptions=True
         )
-        for result in results:
+        for reviewer, result in zip(reviewers, results, strict=True):
             if isinstance(result, BudgetExceeded):
                 budget_exceeded = True
                 scene.status = SceneStatus.DRAFT
             elif isinstance(result, BaseException):
-                raise result
+                # Advisory reviewers must never fail the job or discard the drafted spine (a raise here
+                # propagates to run_once, which rolls the whole scene back). Land a flag like a failed
+                # enrichment pass and keep the good prose — same philosophy as PassError above.
+                session.add(Critique(
+                    scene_id=scene.id, version=scene.version, reviewer=reviewer.name,
+                    severity=Severity.WARN, note=f"reviewer failed: {result}",
+                ))
             else:
                 for flag in result:
                     session.add(Critique(
