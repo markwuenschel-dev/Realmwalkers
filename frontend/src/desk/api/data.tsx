@@ -25,6 +25,8 @@ import type {
   DecisionIn,
   JobsStatusOut,
   ManuscriptOut,
+  RuleProposalDecisionIn,
+  RuleProposalOut,
   RunStartOut,
   SceneDetail,
   SceneOut,
@@ -60,6 +62,7 @@ export interface DeskData {
   characters: CharacterStateOut[];
   canon: CanonEntityOut[];
   threads: ThreadOut[];
+  ruleProposals: RuleProposalOut[]; // distilled voice/dialogue rules awaiting (or past) review
   jobs: JobsStatusOut;
 
   detail: SceneDetail | null;
@@ -92,6 +95,8 @@ export interface DeskData {
   updateCanon: (id: string, body: CanonEntityUpdateIn) => Promise<void>;
   deleteCanon: (id: string) => Promise<void>;
   ingestCanon: () => Promise<number | null>;
+  distillRules: (pov?: string) => Promise<number>; // run distillation; returns # new proposals
+  decideRuleProposal: (id: string, body: RuleProposalDecisionIn) => Promise<void>;
   addAnnotation: (body: AnnotationIn) => Promise<void>;
   deleteAnnotation: (id: string) => Promise<void>;
   addSuggestion: (body: SuggestionIn) => Promise<void>;
@@ -113,6 +118,7 @@ export function useDeskDataState(): DeskData {
   const [characters, setCharacters] = useState<CharacterStateOut[]>([]);
   const [canon, setCanon] = useState<CanonEntityOut[]>([]);
   const [threads, setThreads] = useState<ThreadOut[]>([]);
+  const [ruleProposals, setRuleProposals] = useState<RuleProposalOut[]>([]);
   const [jobs, setJobs] = useState<JobsStatusOut>(EMPTY_JOBS);
 
   const [detail, setDetail] = useState<SceneDetail | null>(null);
@@ -140,13 +146,14 @@ export function useDeskDataState(): DeskData {
   // --- collections for the active book ------------------------------------------------------------
   const loadCollections = useCallback(async (id: string): Promise<void> => {
     const chs = await api.chapters(id);
-    const [sceneLists, pend, ms, chars, can, thr, js] = await Promise.all([
+    const [sceneLists, pend, ms, chars, can, thr, rules, js] = await Promise.all([
       Promise.all(chs.map((c) => api.chapterScenes(c.id))),
       api.pending(),
       api.manuscript(id).catch(() => null),
       api.characters(id).catch(() => []),
       api.canon(id).catch(() => []),
       api.threads(id).catch(() => []),
+      api.ruleProposals(id).catch(() => []),
       api.jobsStatus(id).catch(() => EMPTY_JOBS),
     ]);
     const chIds = new Set(chs.map((c) => c.id));
@@ -157,6 +164,7 @@ export function useDeskDataState(): DeskData {
     setCharacters(chars);
     setCanon(can);
     setThreads(thr);
+    setRuleProposals(rules);
     setJobs(js);
   }, []);
 
@@ -523,6 +531,31 @@ export function useDeskDataState(): DeskData {
     }
   }, [bookId, loadCollections]);
 
+  // --- learning: distill recent edits into proposed voice/dialogue rules (Tier 3) -----------------
+  const distillRules = useCallback(async (pov?: string): Promise<number> => {
+    if (!bookId) return 0;
+    try {
+      const created = await api.distill(bookId, pov);
+      if (created.length) setRuleProposals((rs) => [...created, ...rs]);
+      return created.length;
+    } catch (e) {
+      fail(e);
+      return 0;
+    }
+  }, [bookId]);
+
+  const decideRuleProposal = useCallback(
+    async (id: string, body: RuleProposalDecisionIn): Promise<void> => {
+      try {
+        const updated = await api.decideRuleProposal(id, body);
+        setRuleProposals((rs) => rs.map((r) => (r.id === updated.id ? updated : r)));
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [],
+  );
+
   // markup actions operate on the loaded scene; re-pull the affected list after each write
   const addAnnotation = useCallback(async (body: AnnotationIn): Promise<void> => {
     if (!activeSceneId) return;
@@ -574,12 +607,13 @@ export function useDeskDataState(): DeskData {
   return {
     loading, error, clearError,
     books, bookId, setBook,
-    chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, jobs,
+    chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, ruleProposals, jobs,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
     refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed,
     setExemplar,
     createThread, addThreadBeat, deleteThread,
     upsertCharacter, deleteCharacter, createCanon, updateCanon, deleteCanon, ingestCanon,
+    distillRules, decideRuleProposal,
     addAnnotation, deleteAnnotation, addSuggestion, decideSuggestion, deleteSuggestion,
   };
 }

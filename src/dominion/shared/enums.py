@@ -75,3 +75,16 @@ class SuggestionStatus(StrEnum):
     PENDING = "pending"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
+
+
+class RuleKind(StrEnum):
+    """What a distilled rule governs (LEARNING_FROM_EDITS Tier 3)."""
+    VOICE = "voice"        # prose style / structure preference
+    DIALOGUE = "dialogue"  # how a character's dialogue is written
+
+
+class RuleProposalStatus(StrEnum):
+    """A distilled rule's lifecycle: proposed, then accepted (applied to voice_spec) or rejected."""
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"

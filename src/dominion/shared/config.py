@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     exemplar_max_count: int = 3
     exemplar_max_chars: int = 1500
 
+    # Distilled rules (LEARNING_FROM_EDITS Tier 3): a review-model pass reads recent author edits and
+    # proposes durable voice/dialogue rules for the author to approve. Bound the batch (most-recent
+    # before→after pairs per POV) and the in-request call (mirrors plan_time_budget_s — the distill
+    # endpoint runs synchronously, so a hung call must surface as a clean 504, not a spinning browser).
+    distill_max_pairs: int = 40
+    distill_pair_max_chars: int = 1200  # per side of each pair, to protect the token budget
+    distill_time_budget_s: int = 120
+
     # Bounded execution
     scene_token_budget: int = 40_000
     scene_time_budget_s: int = 300

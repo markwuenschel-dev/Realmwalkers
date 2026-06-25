@@ -265,6 +265,27 @@ export interface SuggestionIn {
   why?: string | null;
 }
 
+// --- distilled voice/dialogue rules (LEARNING_FROM_EDITS Tier 3) ---
+export type RuleKind = "voice" | "dialogue";
+export type RuleProposalStatus = "pending" | "accepted" | "rejected";
+
+export interface RuleProposalOut {
+  id: string;
+  book_id: string;
+  pov: string;
+  kind: RuleKind | string;
+  rule_text: string;
+  rationale: string | null;
+  source_pair_ids: string[] | null;
+  status: RuleProposalStatus | string;
+  created_at: string;
+}
+
+export interface RuleProposalDecisionIn {
+  status: RuleProposalStatus;
+  rule_text?: string | null; // optional author edit applied on accept
+}
+
 // --- canon / planning / style docs (read-only Domain-B markdown) ---
 export interface DocMeta {
   path: string; // id, relative to the docs root (e.g. "canon/timeline/master_timeline.md")

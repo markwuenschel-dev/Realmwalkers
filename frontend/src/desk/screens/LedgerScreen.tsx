@@ -3,7 +3,7 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { statValue } from "../lib/format";
-import type { CanonEntityOut, CharacterStateOut, ThreadBeatIn, ThreadIn } from "../api/types";
+import type { CanonEntityOut, CharacterStateOut, RuleProposalOut, ThreadBeatIn, ThreadIn } from "../api/types";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -39,9 +39,11 @@ export default function LedgerScreen() {
   const [beatFor, setBeatFor] = useState<string | null>(null); // thread id whose add-beat form is open
 
   const canonKinds = [...new Set(data.canon.map((c) => c.kind ?? "other"))].filter((k) => k !== "character");
+  const pendingRules = data.ruleProposals.filter((r) => r.status === "pending");
   const cats = [
     { id: "characters", label: "Characters", count: data.characters.length },
     { id: "threads", label: "Threads", count: data.threads.length },
+    { id: "voice-rules", label: "Voice rules", count: pendingRules.length },
     ...canonKinds.map((k) => ({ id: `canon:${k}`, label: cap(k), count: data.canon.filter((c) => (c.kind ?? "other") === k).length })),
   ];
 
@@ -59,6 +61,7 @@ export default function LedgerScreen() {
 
   const isChars = ledgerCat === "characters";
   const isThreads = ledgerCat === "threads";
+  const isRules = ledgerCat === "voice-rules";
   const canonKind = ledgerCat.startsWith("canon:") ? ledgerCat.slice("canon:".length) : null;
 
   return (
@@ -209,6 +212,8 @@ export default function LedgerScreen() {
               })}
             </div>
           )}
+
+          {isRules && <RulesSection />}
 
           {canonKind && (
             <div style={css("display:flex;flex-direction:column;gap:12px")}>
@@ -373,6 +378,89 @@ function BeatForm({ onSave, onCancel }: {
         <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. threadbound" style={css(input)} /></label>
       <button onClick={save} disabled={!valid} style={css(btn)}>Add beat</button>
       <button onClick={onCancel} style={css(ghost)}>Cancel</button>
+    </div>
+  );
+}
+
+function RulesSection() {
+  const data = useDeskData();
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const pending = data.ruleProposals.filter((r) => r.status === "pending");
+  const decided = data.ruleProposals.filter((r) => r.status !== "pending");
+
+  const distill = async () => {
+    setBusy(true);
+    setNotice(null);
+    const n = await data.distillRules();
+    setBusy(false);
+    setNotice(
+      n === 0
+        ? "No new rules — distillation found nothing durable in recent edits (or there are no edits yet)."
+        : `Proposed ${n} new rule${n === 1 ? "" : "s"} from your recent edits — review below.`,
+    );
+  };
+
+  return (
+    <div style={css("display:flex;flex-direction:column;gap:12px")}>
+      <div style={css("display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap")}>
+        <p style={css("margin:0;font-size:13px;color:var(--dim);line-height:1.5;max-width:560px")}>
+          Rules distilled from your hand-edits. Accepting one appends it to that POV's voice spec, which the
+          drafter reads on the next scene — so the agent learns your style without retraining.
+        </p>
+        <button onClick={distill} disabled={busy} title="Read recent agent→author edit pairs and propose durable voice/dialogue rules"
+          style={css(btn)}>{busy ? "Distilling…" : "⟳ Distill from edits"}</button>
+      </div>
+      {notice && (
+        <div style={css("padding:9px 12px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px")}>{notice}</div>
+      )}
+
+      {pending.length === 0 && decided.length === 0 && (
+        <Empty>No proposed rules yet — approve a few hand-edited scenes, then distill to turn those edits into voice rules.</Empty>
+      )}
+
+      {pending.map((r) => <RuleCard key={r.id} rule={r} />)}
+
+      {decided.length > 0 && (
+        <>
+          <div style={css("margin-top:6px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)")}>Reviewed</div>
+          {decided.map((r) => <RuleCard key={r.id} rule={r} />)}
+        </>
+      )}
+    </div>
+  );
+}
+
+function RuleCard({ rule }: { rule: RuleProposalOut }) {
+  const data = useDeskData();
+  const [text, setText] = useState(rule.rule_text);
+  const pending = rule.status === "pending";
+  const accepted = rule.status === "accepted";
+  const kindColor = rule.kind === "dialogue" ? "var(--info)" : "var(--accent)";
+  const statusColor = accepted ? "var(--good)" : rule.status === "rejected" ? "var(--bad)" : "var(--dim)";
+
+  return (
+    <div style={css(`background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;opacity:${pending ? 1 : 0.72}`)}>
+      <div style={css("display:flex;align-items:center;gap:9px;margin-bottom:9px;flex-wrap:wrap")}>
+        <span style={css("font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:2px 8px")}>{rule.pov}</span>
+        <span style={css(`font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:${kindColor};background:color-mix(in srgb,${kindColor} 13%,transparent);border-radius:999px;padding:3px 9px`)}>{rule.kind}</span>
+        {!pending && <span style={css(`margin-left:auto;font-family:var(--mono);font-size:10px;text-transform:uppercase;color:${statusColor}`)}>{rule.status}</span>}
+      </div>
+      {pending ? (
+        <textarea value={text} onChange={(e) => setText(e.target.value)}
+          style={css("width:100%;min-height:42px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-size:13.5px;line-height:1.5;resize:vertical;font-family:var(--ui)")} />
+      ) : (
+        <div style={css("font-size:13.5px;color:var(--ink);line-height:1.5")}>{rule.rule_text}</div>
+      )}
+      {rule.rationale && <p style={css("margin:8px 0 0;font-size:12px;color:var(--dim);line-height:1.5;font-style:italic")}>{rule.rationale}</p>}
+      {pending && (
+        <div style={css("display:flex;gap:9px;margin-top:11px")}>
+          <button onClick={() => data.decideRuleProposal(rule.id, { status: "accepted", rule_text: text.trim() || null })}
+            disabled={!text.trim()} style={css(btn)}>Accept</button>
+          <button onClick={() => data.decideRuleProposal(rule.id, { status: "rejected" })} style={css(ghost)}>Reject</button>
+        </div>
+      )}
     </div>
   );
 }

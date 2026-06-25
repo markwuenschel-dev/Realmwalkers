@@ -24,6 +24,8 @@ import type {
   JobsStatusOut,
   ManuscriptOut,
   RetryFailedOut,
+  RuleProposalDecisionIn,
+  RuleProposalOut,
   RunStartIn,
   RunStartOut,
   SceneDetail,
@@ -154,6 +156,15 @@ export const api = {
     http<ThreadOut>(`/threads/${threadId}/beats`, { method: "POST", body: JSON.stringify(body) }),
   deleteThread: (threadId: string) =>
     http<{ deleted: string }>(`/threads/${threadId}`, { method: "DELETE" }),
+
+  // --- learning: distilled voice/dialogue rules (Tier 3) ------------------------------------------
+  // distill runs a review-model pass over recent edits (synchronous; can take a few seconds, may 504).
+  ruleProposals: (bookId: string, status?: string) =>
+    http<RuleProposalOut[]>(`/books/${bookId}/rule-proposals${qs({ status })}`),
+  distill: (bookId: string, pov?: string) =>
+    http<RuleProposalOut[]>(`/books/${bookId}/distill${qs({ pov })}`, { method: "POST" }),
+  decideRuleProposal: (id: string, body: RuleProposalDecisionIn) =>
+    http<RuleProposalOut>(`/rule-proposals/${id}/decision`, { method: "POST", body: JSON.stringify(body) }),
 
   // --- scene markup: annotations + suggestions ----------------------------------------------------
   annotations: (sceneId: string) => http<AnnotationOut[]>(`/scenes/${sceneId}/annotations`),

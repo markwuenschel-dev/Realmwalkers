@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from dominion.shared.enums import Decision, GateMode, SuggestionStatus
+from dominion.shared.enums import Decision, GateMode, RuleProposalStatus, SuggestionStatus
 
 
 class _ORM(BaseModel):
@@ -345,6 +345,27 @@ class SuggestionIn(BaseModel):
 
 class SuggestionDecisionIn(BaseModel):
     status: SuggestionStatus
+
+
+# --- distilled voice/dialogue rules (LEARNING_FROM_EDITS Tier 3) -----------------------------------
+
+class RuleProposalOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    pov: str
+    kind: str                                    # voice | dialogue
+    rule_text: str
+    rationale: str | None = None
+    source_pair_ids: list[str] | None = None
+    status: str                                  # pending | accepted | rejected
+    created_at: datetime
+
+
+class RuleProposalDecisionIn(BaseModel):
+    """Accept or reject a proposed rule. On accept, `rule_text` (if set) replaces the proposed text,
+    so the author can edit a rule before it lands in the POV's voice spec."""
+    status: RuleProposalStatus
+    rule_text: str | None = None
 
 
 # --- canon / planning / style docs (Domain-B markdown, read-only) ---------------------------------
