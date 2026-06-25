@@ -17,8 +17,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
-from dominion.shared.enums import Decision, SceneStatus
-from dominion.shared.models import Approval, Beat, Chapter, Job, PovProfile, Run, Scene
+from dominion.shared.enums import Decision, PacketStatus, SceneStatus
+from dominion.shared.models import (
+    Approval,
+    Beat,
+    Chapter,
+    ChapterPacket,
+    Job,
+    PovProfile,
+    Run,
+    Scene,
+)
 from dominion.workers.budget import TokenBudget
 from dominion.workers.memory import canon_rag, summaries
 from dominion.workers.oracle import Oracle
@@ -101,6 +110,7 @@ class SceneContext:
     canon: list[str] = field(default_factory=list)              # beat-scoped RAG over canon
     pov_summary: str | None = None                              # what this POV knows
     ledger: dict[str, dict[str, Any]] = field(default_factory=dict)  # Oracle read of hard stats
+    contract: dict[str, Any] | None = None                      # packet constraints the writer obeys
     prior_scene_tail: str | None = None                         # in-chapter continuity
     prior_prose: str | None = None                              # revise: the draft being revised
     revise_feedback: str | None = None                          # revise: the author's notes
@@ -167,6 +177,12 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
     ctx.pov_summary = await summaries.pov_summary(session, book_id=book_id, pov=chapter.pov)
     ctx.prior_scene_tail = await _prior_tail(session, chapter_id=chapter.id, scene_no=job.scene_no)
 
+    # Contract-first (Phase 2): a beat derived from a packet scene_seed is bound by that packet's
+    # constraints. Read them live from the approved packet so a packet edit takes effect next draft.
+    ctx.contract = await _load_contract(
+        session, chapter_id=chapter.id, scene_seed_id=beat.scene_seed_id
+    )
+
     # Revision: pull the prior draft + the latest revision feedback for the target scene.
     if job.target_scene_id is not None:
         prior = await session.get(Scene, job.target_scene_id)
@@ -218,6 +234,55 @@ async def _load_exemplars(
         if len(exemplars) >= settings.exemplar_max_count:
             break
     return exemplars
+
+
+# Chapter-wide constraints (apply to every scene) + the per-seed scene constraints, lifted from the
+# approved packet body into the drafter's contract. Kept as a flat dict the drafter formats verbatim.
+_CONTRACT_CHAPTER_KEYS: tuple[str, ...] = (
+    "allowed_knowledge", "forbidden_knowledge", "required_reveals", "forbidden_reveals",
+    "canon_locks", "roster_locks", "relationship_locks", "timeline_locks",
+    "allowed_ui_concepts", "forbidden_ui_concepts",
+)
+_CONTRACT_SCENE_KEYS: tuple[str, ...] = ("required_beats", "forbidden_beats", "exit_state", "scene_type")
+
+
+async def _load_contract(
+    session: AsyncSession, *, chapter_id: uuid.UUID, scene_seed_id: uuid.UUID | None
+) -> dict[str, Any] | None:
+    """Assemble the drafting contract for a seed-linked beat from the chapter's APPROVED packet:
+    chapter-wide knowledge/reveal/lock rules plus this seed's scene-level constraints. Returns None for
+    a plan-call beat (no scene_seed_id) or when no approved packet exists."""
+    if scene_seed_id is None:
+        return None
+    body = (await session.execute(
+        select(ChapterPacket.body)
+        .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED)
+        .order_by(ChapterPacket.created_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+    if not isinstance(body, dict):
+        return None
+
+    contract: dict[str, Any] = {}
+    for key in _CONTRACT_CHAPTER_KEYS:
+        value = body.get(key)
+        if isinstance(value, list) and any(str(v).strip() for v in value):
+            contract[key] = [str(v).strip() for v in value if str(v).strip()]
+
+    seed = next(
+        (s for s in (body.get("scene_seeds") or [])
+         if isinstance(s, dict) and str(s.get("seed_id")) == str(scene_seed_id)),
+        None,
+    )
+    if isinstance(seed, dict):
+        for key in _CONTRACT_SCENE_KEYS:
+            value = seed.get(key)
+            if isinstance(value, list) and any(str(v).strip() for v in value):
+                contract[key] = [str(v).strip() for v in value if str(v).strip()]
+            elif isinstance(value, str) and value.strip():
+                contract[key] = value.strip()
+
+    return contract or None
 
 
 async def _prior_tail(

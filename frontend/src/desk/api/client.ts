@@ -23,6 +23,8 @@ import type {
   DraftNextOut,
   JobsStatusOut,
   ManuscriptOut,
+  PacketOut,
+  PacketUpdateIn,
   RetryFailedOut,
   RunStartIn,
   RunStartOut,
@@ -121,6 +123,17 @@ export const api = {
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
+
+  // --- contract-first drafting: chapter knowledge packets (Phase 1) -------------------------------
+  // GET may 404 (no packet yet); callers treat that as "none". propose runs the author+QA agents
+  // synchronously (can take a while), so callers should show a spinner.
+  packet: (chapterId: string) => http<PacketOut>(`/chapters/${chapterId}/packet`),
+  proposePacket: (chapterId: string) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "POST" }),
+  updatePacket: (chapterId: string, body: PacketUpdateIn) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "PUT", body: JSON.stringify(body) }),
+  approvePacket: (chapterId: string) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet/approve`, { method: "POST" }),
 
   // --- canon / planning / style docs (read-only Domain-B markdown) --------------------------------
   // route is /library (not /docs — FastAPI serves Swagger UI at /docs).

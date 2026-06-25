@@ -75,6 +75,7 @@ export interface ChapterUpdateIn {
 export interface BeatOut {
   id: string;
   chapter_id: string;
+  scene_seed_id: string | null;   // set when the beat was derived from a packet scene_seed (Phase 2)
   scene_no: number;
   beat_text: string | null;
   characters_present: string[] | null;
@@ -274,4 +275,92 @@ export interface DocMeta {
 
 export interface DocDetail extends DocMeta {
   content: string; // raw markdown
+}
+
+// --- contract-first drafting: chapter knowledge packets (Phase 1) ---
+export interface PacketClaim {
+  claim: string;
+  source_strength: string; // LOCKED_CANON | DERIVED_FROM_OUTLINE | PLAUSIBLE_INFERENCE | UNRESOLVED | FORBIDDEN
+  source_id: string | null; // resolved canon id, "OUTLINE", or null (inference)
+  source_title_or_file?: string | null;
+  excerpt?: string | null;
+  confidence?: string;
+}
+
+export interface PacketRisk {
+  risk: string;
+  why_dangerous: string;
+  prevention: string;
+}
+
+export interface PacketWordBudget {
+  min?: number;
+  target?: number;
+  max?: number;
+  hard_max?: number;
+}
+
+export interface PacketSceneSeed {
+  seed_id: string; // server-minted stable id (the sync key for later phases)
+  scene_no: number;
+  scene_job?: string;
+  required_beats?: string[];
+  forbidden_beats?: string[];
+  exit_state?: string;
+  scene_type?: string;
+  word_budget?: PacketWordBudget;
+}
+
+export interface PacketBody {
+  chapter_job?: string;
+  one_sentence_spine?: string;
+  entry_state?: string;
+  exit_state?: string;
+  emotional_spine?: string;
+  characters_present?: string[];
+  characters_absent?: string[];
+  characters_mentioned_only?: string[];
+  characters_forbidden?: string[];
+  allowed_knowledge?: string[];
+  forbidden_knowledge?: string[];
+  required_reveals?: string[];
+  forbidden_reveals?: string[];
+  canon_locks?: string[];
+  roster_locks?: string[];
+  relationship_locks?: string[];
+  timeline_locks?: string[];
+  allowed_ui_concepts?: string[];
+  forbidden_ui_concepts?: string[];
+  required_unanswered_questions?: string[];
+  scene_seeds?: PacketSceneSeed[];
+  known_risks?: PacketRisk[];
+  claims?: PacketClaim[];
+  open_questions?: string[];
+  confidence?: string;
+  blocked_reason?: string;
+}
+
+export interface PacketWarnings {
+  residual_risks?: string[];
+  issues?: { kind?: string; detail?: string }[];
+  blocked_reason?: string;
+}
+
+export interface PacketOut {
+  id: string;
+  book_id: string;
+  chapter_id: string;
+  status: string; // proposed | approved | blocked
+  confidence: string | null; // green | yellow | red
+  qa_verdict: string | null;
+  qa_warnings: PacketWarnings | null;
+  body: PacketBody;
+  open_questions: { items?: string[] } | null;
+  created_at: string;
+}
+
+export interface PacketUpdateIn {
+  body?: PacketBody | null;
+  open_questions?: { items?: string[] } | null;
+  confidence?: string | null;
 }
