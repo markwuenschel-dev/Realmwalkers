@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit *)",
+      "Bash(uv run mypy *)",
+      "Bash(uv run --extra dev mypy *)",
+      "Bash(uv run --python 3.12 --extra dev mypy *)",
+      "Bash(uv run --extra dev pytest *)",
+      "Bash(uv run --python 3.12 --extra dev pytest *)",
+      "Bash(ruff check src tests)"
+    ]
+  }
+}
