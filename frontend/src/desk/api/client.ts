@@ -74,6 +74,7 @@ export const api = {
   scene: (id: string) => http<SceneDetail>(`/scenes/${id}`),
   sceneVersions: (id: string) => http<SceneVersionOut[]>(`/scenes/${id}/versions`),
   revertScene: (id: string) => http<SceneOut>(`/scenes/${id}/revert`, { method: "POST" }),
+  deleteScene: (id: string) => http<{ deleted: string }>(`/scenes/${id}`, { method: "DELETE" }),
   decide: (id: string, body: DecisionIn) =>
     http<{ scene: string; status: string; next_job: string | null }>(
       `/scenes/${id}/decision`,

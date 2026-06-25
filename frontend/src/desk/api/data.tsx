@@ -99,6 +99,8 @@ export interface DeskData {
   ) => Promise<RunStartOut | null>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   retryFailed: () => Promise<number>; // re-queue FAILED jobs for the active book; returns count
+  // Run one API call per id (approve / revise / delete), then refresh once. Powers every bulk action.
+  runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
@@ -411,6 +413,23 @@ export function useDeskDataState(): DeskData {
     }
   }, [bookId, refreshAll]);
 
+  // Generic bulk runner: fire one call per id concurrently, refresh once, and report partial failures
+  // instead of silently dropping them. Used by every "do this to the selected rows" affordance.
+  const runBulk = useCallback(
+    async (ids: string[], fn: (id: string) => Promise<unknown>): Promise<void> => {
+      if (ids.length === 0) return;
+      try {
+        const results = await Promise.allSettled(ids.map(fn));
+        await refreshAll();
+        const failures = results.filter((r) => r.status === "rejected").length;
+        if (failures > 0) setError(`${failures} of ${ids.length} failed — others applied.`);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [refreshAll],
+  );
+
   const approveAndDraft = useCallback(
     async (chapterId: string, beatIds?: string[]): Promise<void> => {
       try {
@@ -656,7 +675,7 @@ export function useDeskDataState(): DeskData {
     chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, ruleProposals, jobs,
     failedJobs, jobsUnreachable, activity,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
-    refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed,
+    refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed, runBulk,
     setExemplar,
     createThread, addThreadBeat, deleteThread,
     upsertCharacter, deleteCharacter, createCanon, updateCanon, deleteCanon, ingestCanon,
