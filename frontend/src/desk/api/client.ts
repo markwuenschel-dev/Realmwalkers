@@ -28,6 +28,7 @@ import type {
   ModelSettingOut,
   ModelSettingsOut,
   PacketOut,
+  PacketProposeOut,
   PacketUpdateIn,
   RetryFailedOut,
   RuleProposalDecisionIn,
@@ -141,11 +142,14 @@ export const api = {
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
 
   // --- contract-first drafting: chapter knowledge packets (Phase 1) -------------------------------
-  // GET may 404 (no packet yet); callers treat that as "none". propose runs the author+QA agents
-  // synchronously (can take a while), so callers should show a spinner.
+  // GET may 404 (no packet yet); callers treat that as "none".
   packet: (chapterId: string) => http<PacketOut>(`/chapters/${chapterId}/packet`),
+  // Author+QA now run in the background (so a tab switch never loses the work). POST kicks it off and
+  // returns the live status; poll packetStatus until running flips false, then refetch the packet.
   proposePacket: (chapterId: string) =>
-    http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "POST" }),
+    http<PacketProposeOut>(`/chapters/${chapterId}/packet`, { method: "POST" }),
+  packetStatus: (chapterId: string) =>
+    http<PacketProposeOut>(`/chapters/${chapterId}/packet/status`),
   updatePacket: (chapterId: string, body: PacketUpdateIn) =>
     http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "PUT", body: JSON.stringify(body) }),
   approvePacket: (chapterId: string) =>

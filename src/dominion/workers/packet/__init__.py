@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
 from dominion.shared.models import Chapter, ChapterPacket, Summary
+from dominion.workers import progress
 from dominion.workers.budget import TokenBudget
 from dominion.workers.memory import canon_rag
 from dominion.workers.packet import author as author_mod
@@ -163,11 +164,16 @@ def _blocked_row(
     )
 
 
-async def propose_packet(session: AsyncSession, *, chapter: Chapter) -> ChapterPacket:
+async def propose_packet(
+    session: AsyncSession, *, chapter: Chapter, progress_key: str | None = None
+) -> ChapterPacket:
     """Author -> QA -> persist a ChapterPacket for this chapter (proposed/blocked). Fail-closed.
 
     The row is added to the session (and existing packets for the chapter replaced on success) but the
     caller commits. On a malformed/timed-out agent, an already-approved packet is preserved untouched.
+
+    `progress_key` (when run in the background) surfaces the live phase to `GET .../packet/status` so
+    the Desk can show 'authoring' -> 'qa' instead of a frozen spinner. Best-effort, never required.
     """
     book_id = chapter.book_id
     outline = (chapter.outline or "").strip()
@@ -198,6 +204,7 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter) -> ChapterP
     #   2. it returned text we couldn't parse to an object — usually truncation (see llm.truncated);
     #   3. it parsed but the packet was too thin (no scene seeds or no claims list).
     author_error: str | None = None
+    progress.set_phase(progress_key, "authoring")
     try:
         packet = await asyncio.wait_for(
             author_mod.author_packet(
@@ -224,6 +231,7 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter) -> ChapterP
     _mint_seed_ids(packet)
     _resolve_provenance(packet, handles)
 
+    progress.set_phase(progress_key, "qa")
     try:
         qa = await asyncio.wait_for(qa_mod.qa_packet(packet, budget=budget),
                                     timeout=settings.packet_time_budget_s)

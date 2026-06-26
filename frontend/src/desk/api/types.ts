@@ -386,6 +386,14 @@ export interface PacketBody {
   open_questions?: string[];
   confidence?: string;
   blocked_reason?: string;
+  adjudication_notes?: string; // human's packet-level rulings/context, recorded during review
+}
+
+// A human's ruling on one open question — recorded (not just cleared) so the adjudication is durable.
+export interface ResolvedQuestion {
+  q: string;
+  resolution: string;
+  at: string; // ISO timestamp
 }
 
 export interface PacketWarnings {
@@ -403,12 +411,19 @@ export interface PacketOut {
   qa_verdict: string | null;
   qa_warnings: PacketWarnings | null;
   body: PacketBody;
-  open_questions: { items?: string[] } | null;
+  open_questions: { items?: string[]; resolved?: ResolvedQuestion[] } | null;
   created_at: string;
 }
 
 export interface PacketUpdateIn {
   body?: PacketBody | null;
-  open_questions?: { items?: string[] } | null;
+  open_questions?: { items?: string[]; resolved?: ResolvedQuestion[] } | null;
   confidence?: string | null;
+}
+
+// Status of a background packet proposal. running flips false once the packet is persisted (refetch).
+export interface PacketProposeOut {
+  running: boolean;
+  phase?: string | null; // authoring | qa
+  elapsed_s?: number | null;
 }

@@ -14,6 +14,7 @@ from dominion.api.routers import packets
 from dominion.shared.enums import PacketStatus, PacketVerdict
 from dominion.shared.models import Book, Chapter, ChapterPacket
 from dominion.shared.schemas import PacketUpdateIn
+from dominion.workers import packet as packet_pipeline
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
 
@@ -59,7 +60,7 @@ async def test_propose_persists_proposed_packet_with_seed_ids(db_factory, monkey
     _patch(monkeypatch, _packet(), _qa())
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        row = await packets.propose_packet(ch.id, s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.status == PacketStatus.PROPOSED
         assert row.confidence == "green"
         # server minted a stable seed id on each scene seed
@@ -80,7 +81,7 @@ async def test_malformed_author_fails_closed_to_blocked(db_factory, monkeypatch)
     monkeypatch.setattr(author_mod, "author_packet", author_none)
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        row = await packets.propose_packet(ch.id, s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.status == PacketStatus.BLOCKED
         assert row.confidence == "red"
 
@@ -96,7 +97,7 @@ async def test_malformed_qa_fails_closed_but_keeps_body(db_factory, monkeypatch)
     monkeypatch.setattr(qa_mod, "qa_packet", qa_none)
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        row = await packets.propose_packet(ch.id, s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.status == PacketStatus.BLOCKED
         # the authored body is preserved for inspection even though QA failed
         assert row.body.get("scene_seeds")
@@ -106,7 +107,7 @@ async def test_no_outline_fails_closed(db_factory, monkeypatch):
     _patch(monkeypatch, _packet(), _qa())
     async with db_factory() as s:
         ch = await _seed_chapter(s, outline="   ")
-        row = await packets.propose_packet(ch.id, s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.status == PacketStatus.BLOCKED
 
 
@@ -119,7 +120,7 @@ async def test_blocked_packet_cannot_be_approved(db_factory, monkeypatch):
     monkeypatch.setattr(author_mod, "author_packet", author_none)
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        await packets.propose_packet(ch.id, s)
+        await packet_pipeline.propose_packet(s, chapter=ch)
         with pytest.raises(HTTPException) as exc:
             await packets.approve_packet(ch.id, s)
         assert exc.value.status_code == 409
@@ -130,7 +131,7 @@ async def test_open_questions_block_approval_until_resolved(db_factory, monkeypa
     _patch(monkeypatch, _packet(open_q=["who is present during the hijack?"]), _qa())
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        row = await packets.propose_packet(ch.id, s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.confidence == "yellow"
         with pytest.raises(HTTPException) as exc:
             await packets.approve_packet(ch.id, s)
@@ -145,7 +146,7 @@ async def test_clean_green_packet_approves(db_factory, monkeypatch):
     _patch(monkeypatch, _packet(), _qa())
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        await packets.propose_packet(ch.id, s)
+        await packet_pipeline.propose_packet(s, chapter=ch)
         approved = await packets.approve_packet(ch.id, s)
         assert approved.status == PacketStatus.APPROVED
 
@@ -156,7 +157,7 @@ async def test_failed_repropose_preserves_approved(db_factory, monkeypatch):
     _patch(monkeypatch, _packet(), _qa())
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        await packets.propose_packet(ch.id, s)
+        await packet_pipeline.propose_packet(s, chapter=ch)
         approved = await packets.approve_packet(ch.id, s)
         approved_id = approved.id
 
@@ -165,6 +166,6 @@ async def test_failed_repropose_preserves_approved(db_factory, monkeypatch):
             return None
 
         monkeypatch.setattr(author_mod, "author_packet", author_none)
-        row = await packets.propose_packet(ch.id, s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.status == PacketStatus.APPROVED
         assert row.id == approved_id

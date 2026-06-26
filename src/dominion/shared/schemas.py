@@ -200,6 +200,15 @@ class PacketUpdateIn(BaseModel):
     confidence: str | None = None                # green | yellow | red
 
 
+class PacketProposeOut(BaseModel):
+    """Status of an in-flight packet proposal. The author+QA run in the background (so the browser
+    never hangs); the Desk polls and shows the live phase ('authoring' -> 'qa'). `running` flips to
+    False when the packet is persisted — that's the cue to refetch it via GET."""
+    running: bool
+    phase: str | None = None        # authoring | qa | None
+    elapsed_s: int | None = None
+
+
 # --- History + manuscript read surfaces (DESIGN §9, §13) ------------------------------------------
 
 class SceneVersionOut(SceneOut):

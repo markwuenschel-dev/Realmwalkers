@@ -10,18 +10,25 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
+from dominion.shared.db import SessionFactory
 from dominion.shared.enums import PacketConfidence, PacketStatus
 from dominion.shared.models import Chapter, ChapterPacket
-from dominion.shared.schemas import PacketOut, PacketUpdateIn
+from dominion.shared.schemas import PacketOut, PacketProposeOut, PacketUpdateIn
 from dominion.workers import packet as packet_pipeline
+from dominion.workers import progress
 from dominion.workers.packet import derive as packet_derive
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["packets"])
+
+# Chapter ids whose author+QA is running in the background, so a re-trigger (or a second tab) doesn't
+# start a duplicate run. The API event loop is single-threaded and we never await between checking and
+# mutating this set, so a plain set is race-free (mirrors jobs._drain_lock's single-flight intent).
+_inflight: set[str] = set()
 
 
 async def _latest(session: SessionDep, chapter_id: uuid.UUID) -> ChapterPacket | None:
@@ -39,19 +46,53 @@ def _open_items(packet: ChapterPacket) -> list[object]:
     return items if isinstance(items, list) else []
 
 
-@router.post("/{chapter_id}/packet", response_model=PacketOut)
-async def propose_packet(chapter_id: uuid.UUID, session: SessionDep) -> ChapterPacket:
-    """Run the Packet Author + Packet QA for this chapter and persist the result (proposed/blocked).
+async def _run_propose(chapter_id: uuid.UUID) -> None:
+    """Background author+QA for one chapter, on its own session+commit (the request that scheduled it
+    has already returned). Fail-closed internally, so a malformed/timed-out agent still persists a
+    blocked packet. Always frees the in-flight slot + clears the progress phase when done."""
+    key = str(chapter_id)
+    try:
+        async with SessionFactory() as session:
+            chapter = await session.get(Chapter, chapter_id)
+            if chapter is not None:
+                await packet_pipeline.propose_packet(session, chapter=chapter, progress_key=key)
+                await session.commit()
+    except Exception as exc:  # noqa: BLE001 — never let a background crash strand the in-flight slot
+        log.error("packet.propose_bg_failed", chapter=key, error=str(exc))
+    finally:
+        progress.clear(key)
+        _inflight.discard(key)
 
-    Synchronous like the gate-1 plan-call; fail-closed internally (a malformed/timed-out agent yields
-    a blocked packet rather than partial constraints)."""
+
+@router.post("/{chapter_id}/packet", response_model=PacketProposeOut)
+async def propose_packet(
+    chapter_id: uuid.UUID, background: BackgroundTasks, session: SessionDep
+) -> PacketProposeOut:
+    """Kick off the Packet Author + Packet QA in the BACKGROUND and return immediately.
+
+    The author call alone runs ~1-2 min, so blocking the request left the browser spinning and lost
+    the work on a tab switch. Now the run lives in the API process; the Desk polls `.../packet/status`
+    for the live phase ('authoring' -> 'qa') and refetches the packet when it finishes. Single-flight:
+    a re-trigger while one is already running just reports the in-flight status."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
-    row = await packet_pipeline.propose_packet(session, chapter=chapter)
-    await session.commit()
-    await session.refresh(row)
-    return row
+    key = str(chapter_id)
+    if key not in _inflight:
+        _inflight.add(key)
+        progress.set_phase(key, "authoring")  # optimistic so the first poll already has a phase
+        background.add_task(_run_propose, chapter_id)
+    phase, elapsed_s = progress.get(key)
+    return PacketProposeOut(running=True, phase=phase or "authoring", elapsed_s=elapsed_s)
+
+
+@router.get("/{chapter_id}/packet/status", response_model=PacketProposeOut)
+async def packet_status(chapter_id: uuid.UUID) -> PacketProposeOut:
+    """Live status of a background proposal so the Desk (any tab) can rejoin a run in progress.
+    `running` is False once the packet is persisted — the cue to GET the packet."""
+    key = str(chapter_id)
+    phase, elapsed_s = progress.get(key)
+    return PacketProposeOut(running=key in _inflight, phase=phase, elapsed_s=elapsed_s)
 
 
 @router.get("/{chapter_id}/packet", response_model=PacketOut)
