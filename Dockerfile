@@ -1,24 +1,35 @@
-# Single-service image: build the React app, then serve it + the FastAPI API from one container.
-# Designed for Railway (or any Docker host). The frontend talks to the API same-origin, so there is
-# no separate API URL, no CORS, and no "localhost".
+# Single-service image: Next.js (public) + FastAPI (internal), one container. The browser loads the
+# desk from Next and calls same-origin /api/desk/*, which the Next BFF proxies to FastAPI on
+# 127.0.0.1:8000 — so there is still no separate API host, no CORS, and no "localhost" in the client.
 
-# --- 1) build the frontend -> /app/frontend/dist ------------------------------------------------
+# --- 1) build the Next.js frontend -> standalone server -----------------------------------------
 FROM node:20-slim AS frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install
+RUN npm ci
 COPY frontend/ ./
-# PROD build => the client uses relative (same-origin) API paths (see desk/api/client.ts).
+# output: "standalone" => .next/standalone/server.js + traced node_modules; static assets separate.
 RUN npm run build
 
-# --- 2) python runtime ---------------------------------------------------------------------------
+# --- 2) python + node runtime --------------------------------------------------------------------
 FROM python:3.12-slim AS app
 WORKDIR /app
-ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/src
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src \
+    NODE_ENV=production \
+    HOSTNAME=0.0.0.0 \
+    API_BASE=http://127.0.0.1:8000
 
-# Runtime deps only (we run from source, not pip-installed, so the app's repo-relative paths —
-# series/, book1/, frontend/dist, series/style/dialogue_rules.md — resolve under /app). Keep in sync
-# with pyproject.toml [project.dependencies].
+# Node 20 runtime (runs the Next standalone server) alongside Python.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && apt-get purge -y curl && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Runtime deps only (we run from source, so repo-relative paths — series/, book1/ — resolve under
+# /app). Keep in sync with pyproject.toml [project.dependencies].
 RUN pip install --no-cache-dir \
     "fastapi>=0.115" "uvicorn[standard]>=0.32" "sqlalchemy[asyncio]>=2.0" "asyncpg>=0.30" \
     "pgvector>=0.3" "pydantic>=2.9" "pydantic-settings>=2.6" "anthropic>=0.40" "structlog>=24.4" \
@@ -28,10 +39,11 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY series/ ./series/
 COPY book1/ ./book1/
-COPY --from=frontend /app/frontend/dist ./frontend/dist
 
-# Provision the schema, then serve. init_db is idempotent (CREATE EXTENSION/TABLE/COLUMN IF NOT
-# EXISTS — it never drops data) and disposes its pool so it can't hang boot, so running it on every
-# start keeps the persistent DB's schema in sync (incl. new columns) without a manual migration step.
-# ${PORT:-8000} so it works whether or not PORT is set.
-CMD ["sh", "-c", "python scripts/init_db.py && exec uvicorn dominion.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Next standalone server (+ static assets). Lives under /app/frontend; run with `node server.js`.
+COPY --from=frontend /app/frontend/.next/standalone ./frontend/
+COPY --from=frontend /app/frontend/.next/static ./frontend/.next/static
+
+# Boot: provision schema (idempotent), start FastAPI on the internal port, then the Next server on the
+# public $PORT. `wait -n` exits (so Railway's ON_FAILURE restart kicks in) if either process dies.
+CMD ["bash", "-c", "python scripts/init_db.py && { uvicorn dominion.api.main:app --host 127.0.0.1 --port 8000 & (cd frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-3000} exec node server.js) & wait -n; }"]
