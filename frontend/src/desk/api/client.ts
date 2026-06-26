@@ -24,6 +24,8 @@ import type {
   FailedJobOut,
   JobsStatusOut,
   ManuscriptOut,
+  ModelSettingOut,
+  ModelSettingsOut,
   PacketOut,
   PacketUpdateIn,
   RetryFailedOut,
@@ -156,6 +158,11 @@ export const api = {
   // path segments are preserved (the route param is a :path); encode each so spaces/specials survive.
   doc: (path: string) =>
     http<DocDetail>(`/library/${path.split("/").map(encodeURIComponent).join("/")}`),
+
+  // --- runtime model selection per agent ----------------------------------------------------------
+  modelSettings: () => http<ModelSettingsOut>("/settings/models"),
+  setModel: (setting: string, tier: string) =>
+    http<ModelSettingOut>("/settings/models", { method: "PUT", body: JSON.stringify({ setting, tier }) }),
 
   // --- world ledger -------------------------------------------------------------------------------
   characters: (bookId: string) => http<CharacterStateOut[]>(`/books/${bookId}/characters`),

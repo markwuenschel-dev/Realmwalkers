@@ -423,3 +423,25 @@ class DocMeta(BaseModel):
 
 class DocOut(DocMeta):
     content: str  # raw markdown
+
+
+# --- runtime model selection (Settings screen) ---------------------------------------------------
+
+class ModelSettingOut(BaseModel):
+    """One customizable agent: its current model id + which tier (haiku/sonnet/opus) that is."""
+    setting: str
+    label: str
+    description: str
+    model: str
+    tier: str | None = None
+
+
+class ModelSettingsOut(BaseModel):
+    agents: list[ModelSettingOut]
+    tiers: dict[str, str]  # tier name -> the model id it maps to
+
+
+class ModelSettingUpdateIn(BaseModel):
+    """PUT body to point one agent role at a tier."""
+    setting: str
+    tier: str  # haiku | sonnet | opus

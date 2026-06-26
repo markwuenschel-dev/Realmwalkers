@@ -6,8 +6,11 @@ separate worker process.
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -29,9 +32,31 @@ from dominion.api.routers import (
     threads,
     world,
 )
+from dominion.api.routers import (
+    settings as settings_router,
+)
+from dominion.api.routers.settings import apply_model_overrides
 from dominion.shared.config import settings
+from dominion.shared.db import SessionFactory
 
-app = FastAPI(title="Dominion Realm API", version="0.1.0")
+log = structlog.get_logger()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """On startup, apply any saved per-agent model overrides to the live settings (so a model choice
+    from the Settings screen survives a redeploy). Best-effort — a fresh DB has no table/rows yet."""
+    try:
+        async with SessionFactory() as session:
+            n = await apply_model_overrides(session)
+        if n:
+            log.info("settings.model_overrides_applied", count=n)
+    except Exception as exc:  # noqa: BLE001 — never block boot on an optional override load
+        log.warning("settings.model_overrides_load_failed", error=str(exc))
+    yield
+
+
+app = FastAPI(title="Dominion Realm API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,6 +78,7 @@ app.include_router(world.router)
 app.include_router(threads.router)
 app.include_router(markup.router)
 app.include_router(learning.router)
+app.include_router(settings_router.router)
 app.include_router(docs.router)
 
 # Serve the built React app from the SAME origin as the API (single-service deploy, e.g. Railway).
