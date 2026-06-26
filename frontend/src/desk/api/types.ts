@@ -6,12 +6,12 @@ export interface ModelSettingOut {
   label: string;
   description: string;
   model: string;
-  tier: string | null;   // "haiku" | "sonnet" | "opus" | null
+  tier: string | null; // "haiku" | "sonnet" | "opus" | null
 }
 
 export interface ModelSettingsOut {
   agents: ModelSettingOut[];
-  tiers: Record<string, string>;   // tier -> model id
+  tiers: Record<string, string>; // tier -> model id
 }
 
 export interface CritiqueOut {
@@ -88,7 +88,7 @@ export interface ChapterUpdateIn {
 export interface BeatOut {
   id: string;
   chapter_id: string;
-  scene_seed_id: string | null;   // set when the beat was derived from a packet scene_seed (Phase 2)
+  scene_seed_id: string | null; // set when the beat was derived from a packet scene_seed (Phase 2)
   scene_no: number;
   beat_text: string | null;
   characters_present: string[] | null;
@@ -175,7 +175,7 @@ export interface FailedJobOut {
   id: string;
   chapter_no: number | null;
   scene_no: number | null;
-  last_error: string | null;   // why this job died — surfaced on the failed card so it isn't a mystery
+  last_error: string | null; // why this job died — surfaced on the failed card so it isn't a mystery
 }
 
 // A timestamped line in the Desk's live activity feed (drafting phases, queue transitions).

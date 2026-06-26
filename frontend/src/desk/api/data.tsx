@@ -47,9 +47,18 @@ import type {
 // and exposes the actions the screens fire. This is what replaces desk/data.ts — nothing here is a
 // fixture. Server data lives here; ephemeral view state (which tab, which theme) lives in state.ts.
 
-const EMPTY_JOBS: JobsStatusOut = { running: false, queued: 0, failed: 0, active_scene: null };
-const ACTIVITY_MAX = 14;          // cap the live feed so it can't grow unbounded across a long session
-const UNREACHABLE_AFTER = 2;      // consecutive failed polls before we call the backend unreachable
+const EMPTY_JOBS: JobsStatusOut = {
+  running: false,
+  queued: 0,
+  failed: 0,
+  active_scene: null,
+  last_cache_hit_ratio: null,
+  last_cache_read_tokens: null,
+  last_cache_creation_tokens: null,
+  last_cache_tokens_saved: null,
+};
+const ACTIVITY_MAX = 14; // cap the live feed so it can't grow unbounded across a long session
+const UNREACHABLE_AFTER = 2; // consecutive failed polls before we call the backend unreachable
 
 // One line for the live activity feed from the current job status (drafting phase, or the queue tail).
 function activityLabel(js: JobsStatusOut): string | null {
@@ -81,9 +90,9 @@ export interface DeskData {
   threads: ThreadOut[];
   ruleProposals: RuleProposalOut[]; // distilled voice/dialogue rules awaiting (or past) review
   jobs: JobsStatusOut;
-  failedJobs: FailedJobOut[];     // FAILED jobs + their reason, for the failed card
-  jobsUnreachable: boolean;       // the status poll has been failing — the backend looks down
-  activity: ActivityEntry[];      // live feed of drafting phases / queue transitions (newest first)
+  failedJobs: FailedJobOut[]; // FAILED jobs + their reason, for the failed card
+  jobsUnreachable: boolean; // the status poll has been failing — the backend looks down
+  activity: ActivityEntry[]; // live feed of drafting phases / queue transitions (newest first)
 
   detail: SceneDetail | null;
   versions: SceneVersionOut[];
@@ -97,7 +106,11 @@ export interface DeskData {
   createBook: (title: string) => Promise<void>;
   updateChapter: (chapterId: string, body: ChapterUpdateIn) => Promise<void>;
   startRun: (
-    chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
+    chapterNo: number,
+    pov: string,
+    outline: string,
+    maxBeats?: number,
+    targetWords?: number,
   ) => Promise<RunStartOut | null>;
   // Chapter numbers with an in-flight gate-1 plan call. Tracked here (not in the Planner) so the
   // "Proposing…" state survives an in-app tab switch that unmounts the Planner — the plan call keeps
@@ -257,8 +270,8 @@ export function useDeskDataState(): DeskData {
   jobsRef.current = jobs;
   const bookRef = useRef(bookId);
   bookRef.current = bookId;
-  const failCountRef = useRef(0);          // consecutive failed polls -> backend-unreachable banner
-  const lastActivityRef = useRef("");      // de-dupe the feed: only log when the phase/label changes
+  const failCountRef = useRef(0); // consecutive failed polls -> backend-unreachable banner
+  const lastActivityRef = useRef(""); // de-dupe the feed: only log when the phase/label changes
   useEffect(() => {
     let alive = true;
     let handle = 0;
@@ -280,15 +293,29 @@ export function useDeskDataState(): DeskData {
           const label = activityLabel(js);
           if (label && label !== lastActivityRef.current) {
             lastActivityRef.current = label;
-            setActivity((a) => [{ id: `${Date.now()}-${a.length}`, ts: Date.now(), text: label }, ...a].slice(0, ACTIVITY_MAX));
+            setActivity((a) =>
+              [{ id: `${Date.now()}-${a.length}`, ts: Date.now(), text: label }, ...a].slice(
+                0,
+                ACTIVITY_MAX,
+              ),
+            );
           } else if (justFinished) {
             lastActivityRef.current = "";
-            setActivity((a) => [{ id: `${Date.now()}-${a.length}`, ts: Date.now(), text: "Queue clear ✓" }, ...a].slice(0, ACTIVITY_MAX));
+            setActivity((a) =>
+              [
+                { id: `${Date.now()}-${a.length}`, ts: Date.now(), text: "Queue clear ✓" },
+                ...a,
+              ].slice(0, ACTIVITY_MAX),
+            );
           }
 
           // Pull the failure reasons, but only when the failed count actually changes (not every poll).
           if (js.failed !== was.failed) {
-            if (js.failed > 0) api.jobsFailed(id).then(setFailedJobs).catch(() => {});
+            if (js.failed > 0)
+              api
+                .jobsFailed(id)
+                .then(setFailedJobs)
+                .catch(() => {});
             else setFailedJobs([]);
           }
 
@@ -316,7 +343,12 @@ export function useDeskDataState(): DeskData {
   // call bumps a token; a stale (superseded) or post-unmount response is dropped instead of writing
   // to a dead context (e.g. navigating away mid-load).
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
   const openSeqRef = useRef(0);
   const openSceneById = useCallback((id: string | null): void => {
     const seq = ++openSeqRef.current;
@@ -368,7 +400,11 @@ export function useDeskDataState(): DeskData {
 
   const startRun = useCallback(
     async (
-      chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
+      chapterNo: number,
+      pov: string,
+      outline: string,
+      maxBeats?: number,
+      targetWords?: number,
     ): Promise<RunStartOut | null> => {
       if (!bookId) return null;
       // Mark in-flight BEFORE the call so the Planner shows "Proposing…" even across a remount; this
@@ -376,8 +412,12 @@ export function useDeskDataState(): DeskData {
       setPlanningChapters((s) => new Set(s).add(chapterNo));
       try {
         const out = await api.startRun({
-          book_id: bookId, chapter_no: chapterNo, pov, outline,
-          max_beats: maxBeats ?? null, target_words: targetWords ?? null,
+          book_id: bookId,
+          chapter_no: chapterNo,
+          pov,
+          outline,
+          max_beats: maxBeats ?? null,
+          target_words: targetWords ?? null,
         });
         await loadCollections(bookId);
         return out;
@@ -474,15 +514,18 @@ export function useDeskDataState(): DeskData {
   );
 
   // Roll a scene back to an earlier version: the API clones it into a new approved version; open it.
-  const revertScene = useCallback(async (sceneId: string): Promise<void> => {
-    try {
-      const created = await api.revertScene(sceneId);
-      openSceneById(created.id);
-      await refreshAll();
-    } catch (e) {
-      fail(e);
-    }
-  }, [openSceneById, refreshAll]);
+  const revertScene = useCallback(
+    async (sceneId: string): Promise<void> => {
+      try {
+        const created = await api.revertScene(sceneId);
+        openSceneById(created.id);
+        await refreshAll();
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [openSceneById, refreshAll],
+  );
 
   const resolveContinuity = useCallback(
     async (sceneId: string, body: ContinuityResolveIn): Promise<void> => {
@@ -499,15 +542,18 @@ export function useDeskDataState(): DeskData {
   );
 
   // toggle the loaded scene as a voice exemplar; reflect the new state on the detail in place
-  const setExemplar = useCallback(async (enabled: boolean): Promise<void> => {
-    if (!activeSceneId) return;
-    try {
-      const res = await api.setExemplar(activeSceneId, enabled);
-      setDetail((d) => (d && d.id === res.scene ? { ...d, is_exemplar: res.is_exemplar } : d));
-    } catch (e) {
-      fail(e);
-    }
-  }, [activeSceneId]);
+  const setExemplar = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      if (!activeSceneId) return;
+      try {
+        const res = await api.setExemplar(activeSceneId, enabled);
+        setDetail((d) => (d && d.id === res.scene ? { ...d, is_exemplar: res.is_exemplar } : d));
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [activeSceneId],
+  );
 
   const createThread = useCallback(
     async (body: ThreadIn): Promise<void> => {
@@ -524,17 +570,14 @@ export function useDeskDataState(): DeskData {
     [bookId],
   );
 
-  const addThreadBeat = useCallback(
-    async (threadId: string, body: ThreadBeatIn): Promise<void> => {
-      try {
-        const updated = await api.addThreadBeat(threadId, body);
-        setThreads((ts) => ts.map((t) => (t.id === updated.id ? updated : t)));
-      } catch (e) {
-        fail(e);
-      }
-    },
-    [],
-  );
+  const addThreadBeat = useCallback(async (threadId: string, body: ThreadBeatIn): Promise<void> => {
+    try {
+      const updated = await api.addThreadBeat(threadId, body);
+      setThreads((ts) => ts.map((t) => (t.id === updated.id ? updated : t)));
+    } catch (e) {
+      fail(e);
+    }
+  }, []);
 
   const deleteThread = useCallback(async (id: string): Promise<void> => {
     try {
@@ -546,41 +589,50 @@ export function useDeskDataState(): DeskData {
   }, []);
 
   // --- world authoring: character state (Oracle baseline) + canon entities ------------------------
-  const upsertCharacter = useCallback(async (name: string, body: CharacterStateIn): Promise<void> => {
-    if (!bookId) return;
-    try {
-      const updated = await api.upsertCharacter(bookId, name, body);
-      setCharacters((cs) => {
-        const i = cs.findIndex((c) => c.character === updated.character);
-        if (i < 0) return [...cs, updated].sort((a, b) => a.character.localeCompare(b.character));
-        const next = [...cs];
-        next[i] = updated;
-        return next;
-      });
-    } catch (e) {
-      fail(e);
-    }
-  }, [bookId]);
+  const upsertCharacter = useCallback(
+    async (name: string, body: CharacterStateIn): Promise<void> => {
+      if (!bookId) return;
+      try {
+        const updated = await api.upsertCharacter(bookId, name, body);
+        setCharacters((cs) => {
+          const i = cs.findIndex((c) => c.character === updated.character);
+          if (i < 0) return [...cs, updated].sort((a, b) => a.character.localeCompare(b.character));
+          const next = [...cs];
+          next[i] = updated;
+          return next;
+        });
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [bookId],
+  );
 
-  const deleteCharacter = useCallback(async (name: string): Promise<void> => {
-    if (!bookId) return;
-    try {
-      await api.deleteCharacter(bookId, name);
-      setCharacters((cs) => cs.filter((c) => c.character !== name));
-    } catch (e) {
-      fail(e);
-    }
-  }, [bookId]);
+  const deleteCharacter = useCallback(
+    async (name: string): Promise<void> => {
+      if (!bookId) return;
+      try {
+        await api.deleteCharacter(bookId, name);
+        setCharacters((cs) => cs.filter((c) => c.character !== name));
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [bookId],
+  );
 
-  const createCanon = useCallback(async (body: CanonEntityIn): Promise<void> => {
-    if (!bookId) return;
-    try {
-      const created = await api.createCanon(bookId, body);
-      setCanon((cs) => [...cs, created]);
-    } catch (e) {
-      fail(e);
-    }
-  }, [bookId]);
+  const createCanon = useCallback(
+    async (body: CanonEntityIn): Promise<void> => {
+      if (!bookId) return;
+      try {
+        const created = await api.createCanon(bookId, body);
+        setCanon((cs) => [...cs, created]);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [bookId],
+  );
 
   const updateCanon = useCallback(async (id: string, body: CanonEntityUpdateIn): Promise<void> => {
     try {
@@ -614,17 +666,20 @@ export function useDeskDataState(): DeskData {
   }, [bookId, loadCollections]);
 
   // --- learning: distill recent edits into proposed voice/dialogue rules (Tier 3) -----------------
-  const distillRules = useCallback(async (pov?: string): Promise<number> => {
-    if (!bookId) return 0;
-    try {
-      const created = await api.distill(bookId, pov);
-      if (created.length) setRuleProposals((rs) => [...created, ...rs]);
-      return created.length;
-    } catch (e) {
-      fail(e);
-      return 0;
-    }
-  }, [bookId]);
+  const distillRules = useCallback(
+    async (pov?: string): Promise<number> => {
+      if (!bookId) return 0;
+      try {
+        const created = await api.distill(bookId, pov);
+        if (created.length) setRuleProposals((rs) => [...created, ...rs]);
+        return created.length;
+      } catch (e) {
+        fail(e);
+        return 0;
+      }
+    },
+    [bookId],
+  );
 
   const decideRuleProposal = useCallback(
     async (id: string, body: RuleProposalDecisionIn): Promise<void> => {
@@ -639,15 +694,18 @@ export function useDeskDataState(): DeskData {
   );
 
   // markup actions operate on the loaded scene; re-pull the affected list after each write
-  const addAnnotation = useCallback(async (body: AnnotationIn): Promise<void> => {
-    if (!activeSceneId) return;
-    try {
-      const created = await api.createAnnotation(activeSceneId, body);
-      setAnnotations((as) => [...as, created]); // optimistic — avoids the commit-after-response re-fetch race
-    } catch (e) {
-      fail(e);
-    }
-  }, [activeSceneId]);
+  const addAnnotation = useCallback(
+    async (body: AnnotationIn): Promise<void> => {
+      if (!activeSceneId) return;
+      try {
+        const created = await api.createAnnotation(activeSceneId, body);
+        setAnnotations((as) => [...as, created]); // optimistic — avoids the commit-after-response re-fetch race
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [activeSceneId],
+  );
 
   const deleteAnnotation = useCallback(async (id: string): Promise<void> => {
     try {
@@ -658,24 +716,30 @@ export function useDeskDataState(): DeskData {
     }
   }, []);
 
-  const addSuggestion = useCallback(async (body: SuggestionIn): Promise<void> => {
-    if (!activeSceneId) return;
-    try {
-      const created = await api.createSuggestion(activeSceneId, body);
-      setSuggestions((ss) => [...ss, created]); // optimistic — avoids the commit-after-response re-fetch race
-    } catch (e) {
-      fail(e);
-    }
-  }, [activeSceneId]);
+  const addSuggestion = useCallback(
+    async (body: SuggestionIn): Promise<void> => {
+      if (!activeSceneId) return;
+      try {
+        const created = await api.createSuggestion(activeSceneId, body);
+        setSuggestions((ss) => [...ss, created]); // optimistic — avoids the commit-after-response re-fetch race
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [activeSceneId],
+  );
 
-  const decideSuggestion = useCallback(async (id: string, status: SuggestionStatus): Promise<void> => {
-    try {
-      const updated = await api.decideSuggestion(id, status);
-      setSuggestions((ss) => ss.map((s) => (s.id === updated.id ? updated : s)));
-    } catch (e) {
-      fail(e);
-    }
-  }, []);
+  const decideSuggestion = useCallback(
+    async (id: string, status: SuggestionStatus): Promise<void> => {
+      try {
+        const updated = await api.decideSuggestion(id, status);
+        setSuggestions((ss) => ss.map((s) => (s.id === updated.id ? updated : s)));
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [],
+  );
 
   const deleteSuggestion = useCallback(async (id: string): Promise<void> => {
     try {
@@ -687,17 +751,61 @@ export function useDeskDataState(): DeskData {
   }, []);
 
   return {
-    loading, error, clearError,
-    books, bookId, setBook,
-    chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, ruleProposals, jobs,
-    failedJobs, jobsUnreachable, activity,
-    detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
-    refreshAll, createBook, updateChapter, startRun, planningChapters, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed, runBulk,
+    loading,
+    error,
+    clearError,
+    books,
+    bookId,
+    setBook,
+    chapters,
+    scenes,
+    latestScenes,
+    pending,
+    manuscript,
+    characters,
+    canon,
+    threads,
+    ruleProposals,
+    jobs,
+    failedJobs,
+    jobsUnreachable,
+    activity,
+    detail,
+    versions,
+    activeBeat,
+    activeSceneId,
+    annotations,
+    suggestions,
+    openSceneById,
+    refreshAll,
+    createBook,
+    updateChapter,
+    startRun,
+    planningChapters,
+    approveAndDraft,
+    decide,
+    revertScene,
+    resolveContinuity,
+    draftNext,
+    retryFailed,
+    runBulk,
     setExemplar,
-    createThread, addThreadBeat, deleteThread,
-    upsertCharacter, deleteCharacter, createCanon, updateCanon, deleteCanon, ingestCanon,
-    distillRules, decideRuleProposal,
-    addAnnotation, deleteAnnotation, addSuggestion, decideSuggestion, deleteSuggestion,
+    createThread,
+    addThreadBeat,
+    deleteThread,
+    upsertCharacter,
+    deleteCharacter,
+    createCanon,
+    updateCanon,
+    deleteCanon,
+    ingestCanon,
+    distillRules,
+    decideRuleProposal,
+    addAnnotation,
+    deleteAnnotation,
+    addSuggestion,
+    decideSuggestion,
+    deleteSuggestion,
   };
 }
 

@@ -78,21 +78,21 @@ export const api = {
   revertScene: (id: string) => http<SceneOut>(`/scenes/${id}/revert`, { method: "POST" }),
   deleteScene: (id: string) => http<{ deleted: string }>(`/scenes/${id}`, { method: "DELETE" }),
   decide: (id: string, body: DecisionIn) =>
-    http<{ scene: string; status: string; next_job: string | null }>(
-      `/scenes/${id}/decision`,
-      { method: "POST", body: JSON.stringify(body) },
-    ),
+    http<{ scene: string; status: string; next_job: string | null }>(`/scenes/${id}/decision`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   resolveContinuity: (id: string, body: ContinuityResolveIn) =>
-    http<{ resolved: string; job: string | null }>(
-      `/scenes/${id}/continuity/resolve`,
-      { method: "POST", body: JSON.stringify(body) },
-    ),
+    http<{ resolved: string; job: string | null }>(`/scenes/${id}/continuity/resolve`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   // mark/unmark a scene as a voice exemplar for its POV (the drafter few-shots on it)
   setExemplar: (id: string, enabled: boolean) =>
-    http<{ scene: string; is_exemplar: boolean }>(
-      `/scenes/${id}/exemplar`,
-      { method: "POST", body: JSON.stringify({ enabled }) },
-    ),
+    http<{ scene: string; is_exemplar: boolean }>(`/scenes/${id}/exemplar`, {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
 
   // --- drafting (browser-driven worker) -----------------------------------------------------------
   // book_id scopes the indicator to the active book, so another book's drafting doesn't light it up.
@@ -131,12 +131,13 @@ export const api = {
     http<SceneOut>(`/chapters/${chapterId}/scenes`, { method: "POST", body: JSON.stringify(body) }),
   redraftScenes: (chapterId: string, sceneIds: string[]) =>
     http<{ chapter_id: string; queued: number; jobs: string[] }>(
-      `/chapters/${chapterId}/scenes/redraft`, { method: "POST", body: JSON.stringify({ scene_ids: sceneIds }) },
+      `/chapters/${chapterId}/scenes/redraft`,
+      { method: "POST", body: JSON.stringify({ scene_ids: sceneIds }) },
     ),
   draftChapter: (chapterId: string) =>
-    http<{ chapter_id: string; queued: number; jobs: string[] }>(
-      `/chapters/${chapterId}/draft`, { method: "POST" },
-    ),
+    http<{ chapter_id: string; queued: number; jobs: string[] }>(`/chapters/${chapterId}/draft`, {
+      method: "POST",
+    }),
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
@@ -165,22 +166,29 @@ export const api = {
   // --- runtime model selection per agent ----------------------------------------------------------
   modelSettings: () => http<ModelSettingsOut>("/settings/models"),
   setModel: (setting: string, tier: string) =>
-    http<ModelSettingOut>("/settings/models", { method: "PUT", body: JSON.stringify({ setting, tier }) }),
+    http<ModelSettingOut>("/settings/models", {
+      method: "PUT",
+      body: JSON.stringify({ setting, tier }),
+    }),
 
   // --- world ledger -------------------------------------------------------------------------------
   characters: (bookId: string) => http<CharacterStateOut[]>(`/books/${bookId}/characters`),
   upsertCharacter: (bookId: string, name: string, body: CharacterStateIn) =>
-    http<CharacterStateOut>(`/books/${bookId}/characters/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(body) }),
+    http<CharacterStateOut>(`/books/${bookId}/characters/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   deleteCharacter: (bookId: string, name: string) =>
-    http<{ deleted: string }>(`/books/${bookId}/characters/${encodeURIComponent(name)}`, { method: "DELETE" }),
+    http<{ deleted: string }>(`/books/${bookId}/characters/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    }),
   canon: (bookId: string, kind?: string) =>
     http<CanonEntityOut[]>(`/books/${bookId}/canon${qs({ kind })}`),
   createCanon: (bookId: string, body: CanonEntityIn) =>
     http<CanonEntityOut>(`/books/${bookId}/canon`, { method: "POST", body: JSON.stringify(body) }),
   updateCanon: (id: string, body: CanonEntityUpdateIn) =>
     http<CanonEntityOut>(`/canon/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  deleteCanon: (id: string) =>
-    http<{ deleted: string }>(`/canon/${id}`, { method: "DELETE" }),
+  deleteCanon: (id: string) => http<{ deleted: string }>(`/canon/${id}`, { method: "DELETE" }),
   ingestCanon: (bookId: string) =>
     http<CanonIngestOut>(`/books/${bookId}/canon/ingest`, { method: "POST" }),
 
@@ -200,19 +208,31 @@ export const api = {
   distill: (bookId: string, pov?: string) =>
     http<RuleProposalOut[]>(`/books/${bookId}/distill${qs({ pov })}`, { method: "POST" }),
   decideRuleProposal: (id: string, body: RuleProposalDecisionIn) =>
-    http<RuleProposalOut>(`/rule-proposals/${id}/decision`, { method: "POST", body: JSON.stringify(body) }),
+    http<RuleProposalOut>(`/rule-proposals/${id}/decision`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   // --- scene markup: annotations + suggestions ----------------------------------------------------
   annotations: (sceneId: string) => http<AnnotationOut[]>(`/scenes/${sceneId}/annotations`),
   createAnnotation: (sceneId: string, body: AnnotationIn) =>
-    http<AnnotationOut>(`/scenes/${sceneId}/annotations`, { method: "POST", body: JSON.stringify(body) }),
+    http<AnnotationOut>(`/scenes/${sceneId}/annotations`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   deleteAnnotation: (id: string) =>
     http<{ deleted: string }>(`/annotations/${id}`, { method: "DELETE" }),
   suggestions: (sceneId: string) => http<SuggestionOut[]>(`/scenes/${sceneId}/suggestions`),
   createSuggestion: (sceneId: string, body: SuggestionIn) =>
-    http<SuggestionOut>(`/scenes/${sceneId}/suggestions`, { method: "POST", body: JSON.stringify(body) }),
+    http<SuggestionOut>(`/scenes/${sceneId}/suggestions`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   decideSuggestion: (id: string, status: SuggestionStatus) =>
-    http<SuggestionOut>(`/suggestions/${id}/decision`, { method: "POST", body: JSON.stringify({ status }) }),
+    http<SuggestionOut>(`/suggestions/${id}/decision`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    }),
   deleteSuggestion: (id: string) =>
     http<{ deleted: string }>(`/suggestions/${id}`, { method: "DELETE" }),
 };

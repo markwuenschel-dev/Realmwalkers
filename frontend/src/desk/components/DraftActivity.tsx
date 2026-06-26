@@ -36,8 +36,16 @@ export function Spinner({ size = 13, color = "var(--info)" }: { size?: number; c
 
 export function IndeterminateBar({ color = "var(--info)" }: { color?: string }) {
   return (
-    <div style={css("position:relative;height:3px;border-radius:3px;background:var(--line);overflow:hidden")}>
-      <div style={css(`position:absolute;top:0;bottom:0;border-radius:3px;background:${color};animation:indeterminate 1.1s ease-in-out infinite`)} />
+    <div
+      style={css(
+        "position:relative;height:3px;border-radius:3px;background:var(--line);overflow:hidden",
+      )}
+    >
+      <div
+        style={css(
+          `position:absolute;top:0;bottom:0;border-radius:3px;background:${color};animation:indeterminate 1.1s ease-in-out infinite`,
+        )}
+      />
     </div>
   );
 }
@@ -50,9 +58,15 @@ export function DraftPill() {
 
   if (jobs.running) {
     return (
-      <span style={css("display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--info);background:color-mix(in srgb,var(--info) 10%,transparent);border:1px solid color-mix(in srgb,var(--info) 28%,var(--line));border-radius:999px;padding:4px 10px;max-width:340px")}>
+      <span
+        style={css(
+          "display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--info);background:color-mix(in srgb,var(--info) 10%,transparent);border:1px solid color-mix(in srgb,var(--info) 28%,var(--line));border-radius:999px;padding:4px 10px;max-width:340px",
+        )}
+      >
         <Spinner size={12} />
-        <span style={css("white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)")}>
+        <span
+          style={css("white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)")}
+        >
           {sceneLabelOf(active)}
           {active?.phase ? <span style={css("color:var(--info)")}> · {active.phase}</span> : null}
         </span>
@@ -63,8 +77,16 @@ export function DraftPill() {
   }
   if (jobs.queued > 0) {
     return (
-      <span style={css("display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-        <span style={css("width:7px;height:7px;border-radius:50%;background:var(--info);animation:pulseDot 1.4s ease-in-out infinite")} />
+      <span
+        style={css(
+          "display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--dim)",
+        )}
+      >
+        <span
+          style={css(
+            "width:7px;height:7px;border-radius:50%;background:var(--info);animation:pulseDot 1.4s ease-in-out infinite",
+          )}
+        />
         {jobs.queued} queued
       </span>
     );
@@ -72,17 +94,31 @@ export function DraftPill() {
   return null;
 }
 
-function CacheBadge({ ratio, savedTokens }: { ratio: number | null | undefined; savedTokens?: number | null }) {
+function CacheBadge({
+  ratio,
+  savedTokens,
+}: {
+  ratio: number | null | undefined;
+  savedTokens?: number | null;
+}) {
   if (ratio == null) return null;
   const pct = Math.round(ratio * 100);
   const color = pct >= 60 ? "var(--ok)" : pct >= 25 ? "var(--warn, #e8a020)" : "var(--dim)";
   return (
-    <span style={css(`display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:${color}`)}>
-      <span style={css(`display:inline-block;width:6px;height:6px;border-radius:50%;background:${color}`)} />
+    <span
+      style={css(
+        `display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:${color}`,
+      )}
+    >
+      <span
+        style={css(
+          `display:inline-block;width:6px;height:6px;border-radius:50%;background:${color}`,
+        )}
+      />
       cache {pct}%
       {savedTokens != null && savedTokens > 0 && (
-        <span style={css("color:var(--dim)")}>·{" "}
-          {savedTokens >= 1000 ? `${(savedTokens / 1000).toFixed(1)}k` : savedTokens} saved
+        <span style={css("color:var(--dim)")}>
+          · {savedTokens >= 1000 ? `${(savedTokens / 1000).toFixed(1)}k` : savedTokens} saved
         </span>
       )}
     </span>
@@ -103,16 +139,36 @@ export function DraftPanel() {
       <div style={css(`${card};border:1px solid color-mix(in srgb,var(--info) 35%,var(--line))`)}>
         <div style={css("display:flex;align-items:center;gap:9px;margin-bottom:9px")}>
           <Spinner />
-          <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>{sceneLabelOf(active)}</span>
-          {elapsed && <span style={css("margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)")}>{elapsed}</span>}
+          <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>
+            {sceneLabelOf(active)}
+          </span>
+          {elapsed && (
+            <span
+              style={css(
+                "margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)",
+              )}
+            >
+              {elapsed}
+            </span>
+          )}
         </div>
-        <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--info);margin-bottom:9px")}>
+        <div
+          style={css(
+            "font-family:var(--mono);font-size:11.5px;color:var(--info);margin-bottom:9px",
+          )}
+        >
           {active?.phase ?? "drafting…"}
         </div>
         <IndeterminateBar />
-        <div style={css("display:flex;gap:12px;margin-top:10px;font-family:var(--mono);font-size:10.5px;align-items:center")}>
+        <div
+          style={css(
+            "display:flex;gap:12px;margin-top:10px;font-family:var(--mono);font-size:10.5px;align-items:center",
+          )}
+        >
           <CacheBadge ratio={active?.cache_hit_ratio} />
-          {jobs.queued > 0 && <span style={css("color:var(--dim);margin-left:auto")}>{jobs.queued} queued next</span>}
+          {jobs.queued > 0 && (
+            <span style={css("color:var(--dim);margin-left:auto")}>{jobs.queued} queued next</span>
+          )}
           {jobs.failed > 0 && <span style={css(`color:${t.bad}`)}>{jobs.failed} failed</span>}
         </div>
       </div>
@@ -120,10 +176,18 @@ export function DraftPanel() {
   }
 
   return (
-    <div style={css(`${card};border:1px dashed var(--line);font-family:var(--mono);font-size:11px;color:var(--dim)`)}>
+    <div
+      style={css(
+        `${card};border:1px dashed var(--line);font-family:var(--mono);font-size:11px;color:var(--dim)`,
+      )}
+    >
       {jobs.queued > 0 ? (
         <div style={css("display:flex;align-items:center;justify-content:center;gap:7px")}>
-          <span style={css("width:7px;height:7px;border-radius:50%;background:var(--info);animation:pulseDot 1.4s ease-in-out infinite")} />
+          <span
+            style={css(
+              "width:7px;height:7px;border-radius:50%;background:var(--info);animation:pulseDot 1.4s ease-in-out infinite",
+            )}
+          />
           {jobs.queued} queued — starting…
         </div>
       ) : jobs.failed > 0 ? (
@@ -133,7 +197,10 @@ export function DraftPanel() {
       ) : (
         <div style={css("display:flex;align-items:center;justify-content:space-between")}>
           <span>idle — nothing drafting</span>
-          <CacheBadge ratio={jobs.last_cache_hit_ratio} savedTokens={jobs.last_cache_tokens_saved} />
+          <CacheBadge
+            ratio={jobs.last_cache_hit_ratio}
+            savedTokens={jobs.last_cache_tokens_saved}
+          />
         </div>
       )}
     </div>
@@ -141,7 +208,11 @@ export function DraftPanel() {
 }
 
 function clock(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(ts).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 // A running log of what the worker just did — drafting phases as they change, then "Queue clear ✓".
@@ -150,13 +221,34 @@ export function ActivityFeed() {
   const { activity } = useDeskData();
   if (activity.length === 0) return null;
   return (
-    <div style={css("background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 13px")}>
-      <div style={css("font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:9px")}>Activity</div>
+    <div
+      style={css(
+        "background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 13px",
+      )}
+    >
+      <div
+        style={css(
+          "font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:9px",
+        )}
+      >
+        Activity
+      </div>
       <div style={css("display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto")}>
         {activity.map((e) => (
-          <div key={e.id} style={css("display:flex;gap:9px;align-items:baseline;font-family:var(--mono);font-size:11px")}>
+          <div
+            key={e.id}
+            style={css(
+              "display:flex;gap:9px;align-items:baseline;font-family:var(--mono);font-size:11px",
+            )}
+          >
             <span style={css("color:var(--dim);flex:none")}>{clock(e.ts)}</span>
-            <span style={css("color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{e.text}</span>
+            <span
+              style={css(
+                "color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap",
+              )}
+            >
+              {e.text}
+            </span>
           </div>
         ))}
       </div>

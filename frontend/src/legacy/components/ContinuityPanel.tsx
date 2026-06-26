@@ -45,8 +45,12 @@ export default function ContinuityPanel({
             <li key={f.id} className="conflict">
               <p className="ctx">{String(p.context_sentence ?? f.note ?? "")}</p>
               <div className="vs">
-                <span>{attr}prose: <b>{String(p.prose_value ?? "?")}</b></span>
-                <span>ledger: <b>{String(p.ledger_value ?? "?")}</b></span>
+                <span>
+                  {attr}prose: <b>{String(p.prose_value ?? "?")}</b>
+                </span>
+                <span>
+                  ledger: <b>{String(p.ledger_value ?? "?")}</b>
+                </span>
               </div>
               <div className="resolve">
                 <button disabled={busy} onClick={() => resolve(f.id, "use_prose")}>

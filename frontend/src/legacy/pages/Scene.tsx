@@ -53,7 +53,9 @@ export default function Scene() {
   return (
     <div className="scene">
       <div className="prose-col">
-        <h2>Scene {scene.scene_no} · v{scene.version}</h2>
+        <h2>
+          Scene {scene.scene_no} · v{scene.version}
+        </h2>
         <p className="meta">
           {scene.model ?? "—"} · {scene.token_count ?? "—"} tokens ·{" "}
           {(scene.passes_run ?? []).join(" → ")}

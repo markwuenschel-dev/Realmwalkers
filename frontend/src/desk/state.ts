@@ -5,14 +5,7 @@ import { useRouter } from "next/navigation";
 import { themes } from "./theme";
 import type { ThemeId, ThemeTokens } from "./theme";
 import { CHORD_TO_HREF } from "./routes";
-import type {
-  ChaptersView,
-  DecisionKind,
-  Mode,
-  Resolved,
-  SuggStatus,
-  Tab,
-} from "./types";
+import type { ChaptersView, DecisionKind, Mode, Resolved, SuggStatus, Tab } from "./types";
 
 // The whole interactive surface — the prototype's `state` object, its methods, and its keyboard
 // handler — rebuilt as a single hook. Screens read it through DeskContext via useDesk().
@@ -121,15 +114,21 @@ export function useDeskState(): DeskValue {
     setPaletteOpen(false);
     router.push("/scene");
   }, [router]);
-  const openScene = useCallback((index: number) => {
-    setActiveScene(index);
-    setPaletteOpen(false);
-    router.push("/scene");
-  }, [router]);
-  const openSceneId = useCallback((id: string) => {
-    setPaletteOpen(false);
-    router.push(`/scene/${id}`);
-  }, [router]);
+  const openScene = useCallback(
+    (index: number) => {
+      setActiveScene(index);
+      setPaletteOpen(false);
+      router.push("/scene");
+    },
+    [router],
+  );
+  const openSceneId = useCallback(
+    (id: string) => {
+      setPaletteOpen(false);
+      router.push(`/scene/${id}`);
+    },
+    [router],
+  );
 
   const decide = useCallback((d: DecisionKind) => setDecision(d), []);
   const undoDecision = useCallback(() => setDecision(null), []);
@@ -206,13 +205,50 @@ export function useDeskState(): DeskValue {
   const t = themes[themeId];
 
   return {
-    themeId, tab, mode, paletteOpen, feedback, decision, resolved, suggStatus, hoveredKey,
-    ledgerCat, selectedAnn, chaptersView, selectedThread, activeScene, rawProse,
-    t, isManu: themeId === "manuscript", isConsole: themeId === "console", isGrim: themeId === "grimoire",
-    setTheme, setTab, togglePalette, closePalette, setMode, acceptSugg, rejectSugg, undoSugg, setHover, clearHover,
-    prevScene, nextScene, openScene, openSceneId, decide, undoDecision, resolve, unresolve,
-    selectAnn, highlightAnn, setLedgerCat, setChaptersView, selectThread: setSelectedThread,
-    setFeedback, setProse,
+    themeId,
+    tab,
+    mode,
+    paletteOpen,
+    feedback,
+    decision,
+    resolved,
+    suggStatus,
+    hoveredKey,
+    ledgerCat,
+    selectedAnn,
+    chaptersView,
+    selectedThread,
+    activeScene,
+    rawProse,
+    t,
+    isManu: themeId === "manuscript",
+    isConsole: themeId === "console",
+    isGrim: themeId === "grimoire",
+    setTheme,
+    setTab,
+    togglePalette,
+    closePalette,
+    setMode,
+    acceptSugg,
+    rejectSugg,
+    undoSugg,
+    setHover,
+    clearHover,
+    prevScene,
+    nextScene,
+    openScene,
+    openSceneId,
+    decide,
+    undoDecision,
+    resolve,
+    unresolve,
+    selectAnn,
+    highlightAnn,
+    setLedgerCat,
+    setChaptersView,
+    selectThread: setSelectedThread,
+    setFeedback,
+    setProse,
   };
 }
 

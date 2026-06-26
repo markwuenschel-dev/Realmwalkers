@@ -9,7 +9,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <Link to="/" className="brand">The Dominion Realm · Writers' Desk</Link>
+        <Link to="/" className="brand">
+          The Dominion Realm · Writers' Desk
+        </Link>
         <nav>
           <Link to="/">Inbox</Link>
           <Link to="/plan">Plan</Link>

@@ -72,21 +72,33 @@ export default function DocsScreen() {
 
   if (listErr) {
     return (
-      <p style={css("text-align:center;color:var(--bad);font-family:var(--mono);font-size:13px;margin-top:40px")}>
+      <p
+        style={css(
+          "text-align:center;color:var(--bad);font-family:var(--mono);font-size:13px;margin-top:40px",
+        )}
+      >
         Couldn't load docs — {listErr}
       </p>
     );
   }
   if (!docs) {
     return (
-      <p style={css("text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px;margin-top:40px")}>
+      <p
+        style={css(
+          "text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px;margin-top:40px",
+        )}
+      >
         Loading canon…
       </p>
     );
   }
   if (docs.length === 0) {
     return (
-      <p style={css("text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px;margin-top:40px")}>
+      <p
+        style={css(
+          "text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px;margin-top:40px",
+        )}
+      >
         No canon, planning, or style docs found on disk.
       </p>
     );
@@ -95,13 +107,21 @@ export default function DocsScreen() {
   return (
     <div style={css("display:flex;gap:26px;align-items:flex-start;max-width:72rem;margin:0 auto")}>
       {/* index: docs grouped by category */}
-      <nav style={css("flex:0 0 252px;position:sticky;top:78px;max-height:calc(100vh - 110px);overflow-y:auto;padding-right:4px")}>
+      <nav
+        style={css(
+          "flex:0 0 252px;position:sticky;top:78px;max-height:calc(100vh - 110px);overflow-y:auto;padding-right:4px",
+        )}
+      >
         {CATEGORIES.map(({ id, label }) => {
           const items = groups[id] ?? [];
           if (items.length === 0) return null;
           return (
             <div key={id} style={css("margin-bottom:18px")}>
-              <div style={css("font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 7px 8px")}>
+              <div
+                style={css(
+                  "font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 7px 8px",
+                )}
+              >
                 {label} · {items.length}
               </div>
               {items.map((d) => {
@@ -130,17 +150,34 @@ export default function DocsScreen() {
       {/* reading panel */}
       <article style={css("flex:1 1 auto;min-width:0;max-width:46rem;padding:6px 4px 80px")}>
         {docErr ? (
-          <p style={css("color:var(--bad);font-family:var(--mono);font-size:13px")}>Couldn't load — {docErr}</p>
+          <p style={css("color:var(--bad);font-family:var(--mono);font-size:13px")}>
+            Couldn't load — {docErr}
+          </p>
         ) : !doc ? (
           <p style={css("color:var(--dim);font-family:var(--mono);font-size:13px")}>Loading…</p>
         ) : (
           <>
-            <div style={css("display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px")}>
-              <div style={css("font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);min-width:0;overflow:hidden;text-overflow:ellipsis")}>
+            <div
+              style={css(
+                "display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px",
+              )}
+            >
+              <div
+                style={css(
+                  "font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);min-width:0;overflow:hidden;text-overflow:ellipsis",
+                )}
+              >
                 {doc.path}
               </div>
-              <button onClick={exportDocx} title="Download this doc as Word (.docx) — MarketMind styling, page-numbered"
-                style={css("flex:none;padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:var(--ui);font-size:12px;cursor:pointer")}>⬇ Word</button>
+              <button
+                onClick={exportDocx}
+                title="Download this doc as Word (.docx) — MarketMind styling, page-numbered"
+                style={css(
+                  "flex:none;padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:var(--ui);font-size:12px;cursor:pointer",
+                )}
+              >
+                ⬇ Word
+              </button>
             </div>
             <ProseBlocks text={doc.content} proseSize="15.5px" justify={false} />
           </>

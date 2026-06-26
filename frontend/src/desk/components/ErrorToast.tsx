@@ -19,10 +19,23 @@ export default function ErrorToast() {
   if (!error) return null;
 
   return (
-    <div style={css(`position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:85;display:flex;align-items:center;gap:14px;max-width:min(560px,92vw);padding:13px 16px 13px 18px;background:var(--bg2);border:1px solid color-mix(in srgb,${t.bad} 55%,var(--line));border-radius:11px;box-shadow:0 20px 50px rgba(0,0,0,.4);animation:fadeUp .25s ease both`)}>
+    <div
+      style={css(
+        `position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:85;display:flex;align-items:center;gap:14px;max-width:min(560px,92vw);padding:13px 16px 13px 18px;background:var(--bg2);border:1px solid color-mix(in srgb,${t.bad} 55%,var(--line));border-radius:11px;box-shadow:0 20px 50px rgba(0,0,0,.4);animation:fadeUp .25s ease both`,
+      )}
+    >
       <span style={css(`width:8px;height:8px;border-radius:50%;background:${t.bad};flex:none`)} />
-      <span style={css("font-size:13.5px;color:var(--ink);min-width:0;overflow-wrap:anywhere")}>{error}</span>
-      <button onClick={clearError} style={css("margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--accent);background:none;border:none;cursor:pointer;flex:none")}>Dismiss</button>
+      <span style={css("font-size:13.5px;color:var(--ink);min-width:0;overflow-wrap:anywhere")}>
+        {error}
+      </span>
+      <button
+        onClick={clearError}
+        style={css(
+          "margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--accent);background:none;border:none;cursor:pointer;flex:none",
+        )}
+      >
+        Dismiss
+      </button>
     </div>
   );
 }
@@ -34,7 +47,11 @@ export function BackendBanner() {
   const { jobsUnreachable } = useDeskData();
   if (!jobsUnreachable) return null;
   return (
-    <div style={css(`position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 16px;background:color-mix(in srgb,${t.bad} 16%,var(--bg2));border-bottom:1px solid color-mix(in srgb,${t.bad} 50%,var(--line));font-family:var(--mono);font-size:12px;color:var(--ink)`)}>
+    <div
+      style={css(
+        `position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 16px;background:color-mix(in srgb,${t.bad} 16%,var(--bg2));border-bottom:1px solid color-mix(in srgb,${t.bad} 50%,var(--line));font-family:var(--mono);font-size:12px;color:var(--ink)`,
+      )}
+    >
       <span style={css(`width:8px;height:8px;border-radius:50%;background:${t.bad};flex:none`)} />
       Can’t reach the backend — is the API running on :8000? Live status is paused until it’s back.
     </div>

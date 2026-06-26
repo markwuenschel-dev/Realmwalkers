@@ -10,7 +10,10 @@ const API_BASE = process.env.API_BASE ?? "http://127.0.0.1:8000";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }): Promise<Response> {
+async function proxy(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+): Promise<Response> {
   // Next 15+ makes route-handler params async.
   const { path: segments = [] } = await ctx.params;
   // Re-encode each decoded segment so spaces/specials survive to FastAPI (e.g. /library/<doc path>).
@@ -45,10 +48,4 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   return new Response(body, { status: res.status, headers: out });
 }
 
-export {
-  proxy as GET,
-  proxy as POST,
-  proxy as PUT,
-  proxy as PATCH,
-  proxy as DELETE,
-};
+export { proxy as GET, proxy as POST, proxy as PUT, proxy as PATCH, proxy as DELETE };
