@@ -10,8 +10,9 @@ const API_BASE = process.env.API_BASE ?? "http://127.0.0.1:8000";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function proxy(req: NextRequest, ctx: { params: { path?: string[] } }): Promise<Response> {
-  const segments = ctx.params.path ?? [];
+async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }): Promise<Response> {
+  // Next 15+ makes route-handler params async.
+  const { path: segments = [] } = await ctx.params;
   // Re-encode each decoded segment so spaces/specials survive to FastAPI (e.g. /library/<doc path>).
   const path = "/" + segments.map(encodeURIComponent).join("/");
   const target = `${API_BASE}${path}${req.nextUrl.search}`;
