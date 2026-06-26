@@ -99,6 +99,10 @@ export interface DeskData {
   startRun: (
     chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
   ) => Promise<RunStartOut | null>;
+  // Chapter numbers with an in-flight gate-1 plan call. Tracked here (not in the Planner) so the
+  // "Proposing…" state survives an in-app tab switch that unmounts the Planner — the plan call keeps
+  // running and this stays true until it finishes.
+  planningChapters: Set<number>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   retryFailed: () => Promise<number>; // re-queue FAILED jobs for the active book; returns count
   // Run one API call per id (approve / revise / delete), then refresh once. Powers every bulk action.
@@ -145,6 +149,7 @@ export function useDeskDataState(): DeskData {
   const [failedJobs, setFailedJobs] = useState<FailedJobOut[]>([]);
   const [jobsUnreachable, setJobsUnreachable] = useState(false);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [planningChapters, setPlanningChapters] = useState<Set<number>>(new Set());
 
   const [detail, setDetail] = useState<SceneDetail | null>(null);
   const [versions, setVersions] = useState<SceneVersionOut[]>([]);
@@ -228,6 +233,7 @@ export function useDeskDataState(): DeskData {
   useEffect(() => {
     if (!bookId) return;
     let alive = true;
+    setPlanningChapters(new Set()); // chapter numbers aren't comparable across books — start clean
     setLoading(true);
     (async () => {
       try {
@@ -365,6 +371,9 @@ export function useDeskDataState(): DeskData {
       chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
     ): Promise<RunStartOut | null> => {
       if (!bookId) return null;
+      // Mark in-flight BEFORE the call so the Planner shows "Proposing…" even across a remount; this
+      // body runs to completion in the provider regardless of whether the Planner is still mounted.
+      setPlanningChapters((s) => new Set(s).add(chapterNo));
       try {
         const out = await api.startRun({
           book_id: bookId, chapter_no: chapterNo, pov, outline,
@@ -375,6 +384,12 @@ export function useDeskDataState(): DeskData {
       } catch (e) {
         fail(e);
         return null;
+      } finally {
+        setPlanningChapters((s) => {
+          const n = new Set(s);
+          n.delete(chapterNo);
+          return n;
+        });
       }
     },
     [bookId, loadCollections],
@@ -677,7 +692,7 @@ export function useDeskDataState(): DeskData {
     chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, ruleProposals, jobs,
     failedJobs, jobsUnreachable, activity,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
-    refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed, runBulk,
+    refreshAll, createBook, updateChapter, startRun, planningChapters, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed, runBulk,
     setExemplar,
     createThread, addThreadBeat, deleteThread,
     upsertCharacter, deleteCharacter, createCanon, updateCanon, deleteCanon, ingestCanon,

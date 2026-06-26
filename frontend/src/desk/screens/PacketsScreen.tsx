@@ -6,11 +6,16 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
-import type { PacketBody, PacketClaim, PacketOut, PacketRisk, PacketSceneSeed } from "../api/types";
+import { Spinner, formatElapsed } from "../components/DraftActivity";
+import type {
+  PacketBody, PacketClaim, PacketOut, PacketRisk, PacketSceneSeed, ResolvedQuestion,
+} from "../api/types";
 
 // The Packet review panel (contract-first drafting, Phase 1). Per chapter, it runs the Packet Author
 // + Packet QA agents, then shows the proposed chapter knowledge packet for the human to adjudicate
-// and approve BEFORE any prose is drafted. Nothing here touches the drafter — that's a later phase.
+// and approve BEFORE any prose is drafted. The human can: resolve each open question WITH a recorded
+// ruling, edit the packet's key fields inline, and leave packet-level adjudication notes. Nothing here
+// touches the drafter — that's a later phase.
 
 const CONFIDENCE_VAR: Record<string, string> = { green: "--good", yellow: "--warn", red: "--bad" };
 
@@ -27,6 +32,13 @@ export default function PacketsScreen() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  // Background-proposal state. `proposing` drives the poll loop; phase/elapsed are the live status the
+  // author+QA report from the server, so the work survives tab switches (it runs in the API process)
+  // and any tab can rejoin it.
+  const [proposing, setProposing] = useState(false);
+  const [phase, setPhase] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState<number | null>(null);
 
   // Default to the first chapter once chapters load (without clobbering an explicit pick).
   useEffect(() => {
@@ -36,20 +48,68 @@ export default function PacketsScreen() {
   const chapter = chapters.find((c) => c.id === chapterId) ?? null;
   const hasOutline = !!(chapter?.outline || "").trim();
 
-  // Fetch the chapter's packet (404 = none yet) whenever the selected chapter changes.
+  // On chapter change: fetch its packet (404 = none yet) AND its proposal status, so landing on (or
+  // returning to) a chapter with an in-flight author+QA rejoins that run instead of looking idle.
   useEffect(() => {
     if (!chapterId) return;
     let alive = true;
     setLoading(true);
     setError(null);
     setPacket(null);
-    api
-      .packet(chapterId)
-      .then((p) => { if (alive) setPacket(p); })
-      .catch(() => { if (alive) setPacket(null); /* 404: no packet yet */ })
+    setEditing(false);
+    Promise.allSettled([api.packet(chapterId), api.packetStatus(chapterId)])
+      .then(([pkt, st]) => {
+        if (!alive) return;
+        setPacket(pkt.status === "fulfilled" ? pkt.value : null); // 404: no packet yet
+        const running = st.status === "fulfilled" && st.value.running;
+        setProposing(running);
+        setPhase(running && st.status === "fulfilled" ? st.value.phase ?? "authoring" : null);
+        setElapsed(running && st.status === "fulfilled" ? st.value.elapsed_s ?? null : null);
+      })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [chapterId]);
+
+  // Poll the background proposal while one is running. Server is the source of truth; when it finishes
+  // (running -> false) we refetch the now-persisted packet and stop. Interval clears on tab switch but
+  // the run keeps going server-side, so the chapter-change effect above re-attaches on return.
+  useEffect(() => {
+    if (!proposing || !chapterId) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const st = await api.packetStatus(chapterId);
+        if (!alive) return;
+        if (st.running) {
+          setPhase(st.phase ?? "authoring");
+          setElapsed(st.elapsed_s ?? null);
+        } else {
+          const pkt = await api.packet(chapterId).catch(() => null);
+          if (!alive) return;
+          setPacket(pkt);
+          setProposing(false);
+          setPhase(null);
+          setElapsed(null);
+        }
+      } catch { /* transient — keep polling */ }
+    };
+    void tick();
+    const id = window.setInterval(tick, 1500);
+    return () => { alive = false; window.clearInterval(id); };
+  }, [proposing, chapterId]);
+
+  const startPropose = async () => {
+    if (!chapterId) return;
+    setError(null);
+    try {
+      const st = await api.proposePacket(chapterId);
+      setProposing(true);
+      setPhase(st.phase ?? "authoring");
+      setElapsed(st.elapsed_s ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const run = useCallback(
     async (label: string, fn: () => Promise<PacketOut>) => {
@@ -57,8 +117,10 @@ export default function PacketsScreen() {
       setError(null);
       try {
         setPacket(await fn());
+        return true;
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
+        return false;
       } finally {
         setBusy(null);
       }
@@ -67,13 +129,33 @@ export default function PacketsScreen() {
   );
 
   const openItems = (packet?.open_questions?.items ?? []).filter(Boolean);
+  const resolvedItems = packet?.open_questions?.resolved ?? [];
   const canApprove =
     !!packet && packet.status !== "blocked" && packet.confidence !== "red" && openItems.length === 0;
 
-  const resolveQuestion = (idx: number) => {
+  // Resolve a question WITH the human's ruling: drop it from `items`, append it to `resolved` so the
+  // adjudication is recorded (not just cleared). Both lists are sent together — the server replaces the
+  // whole open_questions object, and the approve gate only counts `items`.
+  const resolveQuestion = (idx: number, resolution: string) => {
     if (!packet || !chapterId) return;
     const items = openItems.filter((_, i) => i !== idx);
-    void run("resolve", () => api.updatePacket(chapterId, { open_questions: { items } }));
+    const entry: ResolvedQuestion = { q: openItems[idx], resolution: resolution.trim(), at: new Date().toISOString() };
+    void run("resolve", () => api.updatePacket(chapterId, { open_questions: { items, resolved: [...resolvedItems, entry] } }));
+  };
+
+  // Undo a ruling: move it back into `items` (re-gating approval) and drop it from `resolved`.
+  const unresolveQuestion = (idx: number) => {
+    if (!packet || !chapterId) return;
+    const entry = resolvedItems[idx];
+    if (!entry) return;
+    const resolved = resolvedItems.filter((_, i) => i !== idx);
+    void run("resolve", () => api.updatePacket(chapterId, { open_questions: { items: [...openItems, entry.q], resolved } }));
+  };
+
+  const saveBody = async (body: PacketBody) => {
+    if (!chapterId) return;
+    const ok = await run("save", () => api.updatePacket(chapterId, { body }));
+    if (ok) setEditing(false);
   };
 
   return (
@@ -98,13 +180,20 @@ export default function PacketsScreen() {
               </option>
             ))}
           </select>
+          {packet && !editing && !proposing && (
+            <button onClick={() => setEditing(true)} style={btn(true, "var(--bg3)", "var(--ink)")}>
+              Edit packet
+            </button>
+          )}
           <button
-            disabled={!chapterId || !hasOutline || busy === "propose"}
+            disabled={!chapterId || !hasOutline || proposing || editing}
             title={hasOutline ? undefined : "Outline this chapter first (Inbox → plan a chapter)"}
-            onClick={() => chapterId && run("propose", () => api.proposePacket(chapterId))}
-            style={btn(!!chapterId && hasOutline && busy !== "propose", t.accent, t.onAccent)}
+            onClick={startPropose}
+            style={btn(!!chapterId && hasOutline && !proposing && !editing, t.accent, t.onAccent)}
           >
-            {busy === "propose" ? "Authoring…" : packet ? "Re-propose" : "Propose packet"}
+            {proposing
+              ? `${phase === "qa" ? "QA reviewing" : "Authoring"}…${formatElapsed(elapsed) ? ` ${formatElapsed(elapsed)}` : ""}`
+              : packet ? "Re-propose" : "Propose packet"}
           </button>
         </div>
       </div>
@@ -112,6 +201,21 @@ export default function PacketsScreen() {
       {error && (
         <div style={css(`margin-bottom:16px;border:1px solid color-mix(in srgb,${t.bad} 40%,var(--line));background:color-mix(in srgb,${t.bad} 8%,var(--bg2));border-radius:9px;padding:11px 13px;color:${t.bad};font-size:13px`)}>
           {error}
+        </div>
+      )}
+
+      {proposing && (
+        <div style={css("display:flex;align-items:center;gap:12px;margin-bottom:16px;border:1px solid color-mix(in srgb,var(--info) 35%,var(--line));background:color-mix(in srgb,var(--info) 7%,var(--bg2));border-radius:9px;padding:11px 14px")}>
+          <Spinner />
+          <div style={css("display:flex;flex-direction:column;gap:2px")}>
+            <span style={css("font-size:13px;color:var(--ink)")}>
+              {phase === "qa" ? "Packet QA is attacking the draft contract…" : "Packet Author is drafting the chapter contract…"}
+            </span>
+            <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+              Step {phase === "qa" ? "2 of 2 · QA" : "1 of 2 · authoring"}
+              {formatElapsed(elapsed) ? ` · ${formatElapsed(elapsed)} elapsed` : ""} · runs server-side — you can switch tabs and come back.
+            </span>
+          </div>
         </div>
       )}
 
@@ -128,9 +232,27 @@ export default function PacketsScreen() {
         </div>
       )}
 
-      {!loading && packet && <PacketView packet={packet} openItems={openItems} onResolve={resolveQuestion} />}
+      {!loading && packet && editing && (
+        <PacketEditor
+          packet={packet}
+          busy={busy === "save"}
+          onSave={saveBody}
+          onCancel={() => setEditing(false)}
+        />
+      )}
 
-      {!loading && packet && (
+      {!loading && packet && !editing && (
+        <PacketView
+          packet={packet}
+          openItems={openItems}
+          resolvedItems={resolvedItems}
+          resolving={busy === "resolve"}
+          onResolve={resolveQuestion}
+          onUnresolve={unresolveQuestion}
+        />
+      )}
+
+      {!loading && packet && !editing && (
         <div style={css("display:flex;align-items:center;gap:14px;margin-top:22px;flex-wrap:wrap")}>
           <button
             disabled={!canApprove || busy === "approve"}
@@ -151,31 +273,9 @@ export default function PacketsScreen() {
             </span>
           )}
           {packet.status === "approved" && (
-            <>
-              <button
-                disabled={busy === "draft"}
-                onClick={async () => {
-                  if (!chapterId) return;
-                  setBusy("draft");
-                  setError(null);
-                  try {
-                    await api.draftChapter(chapterId);
-                    await data.draftNext();   // kick the worker drain
-                    await data.refreshAll();
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : String(e));
-                  } finally {
-                    setBusy(null);
-                  }
-                }}
-                style={btn(busy !== "draft", t.accent, t.onAccent)}
-              >
-                {busy === "draft" ? "Queuing…" : "Draft this chapter →"}
-              </button>
-              <span style={css(`font-family:var(--mono);font-size:11.5px;color:var(${CONFIDENCE_VAR.green})`)}>
-                {(packet.body?.scene_seeds?.length ?? 0)} scene contract{(packet.body?.scene_seeds?.length ?? 0) === 1 ? "" : "s"} now scope the drafter.
-              </span>
-            </>
+            <span style={css(`font-family:var(--mono);font-size:11.5px;color:var(${CONFIDENCE_VAR.green})`)}>
+              {(packet.body?.scene_seeds?.length ?? 0)} scene contract{(packet.body?.scene_seeds?.length ?? 0) === 1 ? "" : "s"} now scope the drafter.
+            </span>
           )}
         </div>
       )}
@@ -184,8 +284,15 @@ export default function PacketsScreen() {
 }
 
 function PacketView({
-  packet, openItems, onResolve,
-}: { packet: PacketOut; openItems: string[]; onResolve: (i: number) => void }) {
+  packet, openItems, resolvedItems, resolving, onResolve, onUnresolve,
+}: {
+  packet: PacketOut;
+  openItems: string[];
+  resolvedItems: ResolvedQuestion[];
+  resolving: boolean;
+  onResolve: (i: number, resolution: string) => void;
+  onUnresolve: (i: number) => void;
+}) {
   const b: PacketBody = packet.body ?? {};
   const confVar = CONFIDENCE_VAR[packet.confidence ?? ""] ?? "--dim";
   const blockedReason = packet.qa_warnings?.blocked_reason ?? b.blocked_reason;
@@ -212,17 +319,38 @@ function PacketView({
 
       {openItems.length > 0 && (
         <Panel accentVar="--warn" title={`Open questions · ${openItems.length}`}>
-          <div style={css("display:flex;flex-direction:column;gap:8px")}>
+          <div style={css("display:flex;flex-direction:column;gap:14px")}>
             {openItems.map((q, i) => (
-              <div key={i} style={css("display:flex;align-items:flex-start;justify-content:space-between;gap:12px")}>
-                <span style={css("font-size:13px;color:var(--ink);line-height:1.45")}>{q}</span>
-                <button onClick={() => onResolve(i)} style={miniBtn()}>Resolve</button>
+              <QuestionResolver key={i} question={q} disabled={resolving} onResolve={(text) => onResolve(i, text)} />
+            ))}
+          </div>
+          <div style={css("font-size:11.5px;color:var(--dim);margin-top:11px;font-family:var(--mono)")}>
+            Type your ruling for each (edit the outline/canon or the packet itself as needed), then resolve. Your ruling is recorded. All must be resolved to approve.
+          </div>
+        </Panel>
+      )}
+
+      {resolvedItems.length > 0 && (
+        <Panel accentVar="--good" title={`Resolved rulings · ${resolvedItems.length}`}>
+          <div style={css("display:flex;flex-direction:column;gap:10px")}>
+            {resolvedItems.map((r, i) => (
+              <div key={i} style={css("display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--line)")}>
+                <div style={css("min-width:0;flex:1")}>
+                  <div style={css("font-size:12.5px;color:var(--dim);line-height:1.45")}>{r.q}</div>
+                  <div style={css("font-size:13px;color:var(--ink);line-height:1.45;margin-top:3px")}>
+                    {r.resolution ? <>→ {r.resolution}</> : <span style={css("color:var(--dim);font-style:italic")}>→ resolved (no note)</span>}
+                  </div>
+                </div>
+                <button onClick={() => onUnresolve(i)} disabled={resolving} style={miniBtn()}>Unresolve</button>
               </div>
             ))}
           </div>
-          <div style={css("font-size:11.5px;color:var(--dim);margin-top:9px;font-family:var(--mono)")}>
-            Adjudicate each (edit the outline/canon as needed), then resolve to clear it. All must be resolved to approve.
-          </div>
+        </Panel>
+      )}
+
+      {b.adjudication_notes && (
+        <Panel accentVar="--info" title="Adjudication notes">
+          <div style={css("font-size:13px;color:var(--ink);line-height:1.5;white-space:pre-wrap")}>{b.adjudication_notes}</div>
         </Panel>
       )}
 
@@ -343,7 +471,127 @@ function PacketView({
   );
 }
 
-// --- small presentational helpers -----------------------------------------------------------------
+// One open question with its own resolution text box. Local state so typing is decoupled from the
+// persisted packet; submitting lifts the ruling up to be recorded.
+function QuestionResolver({
+  question, disabled, onResolve,
+}: { question: string; disabled: boolean; onResolve: (resolution: string) => void }) {
+  const [text, setText] = useState("");
+  return (
+    <div style={css("display:flex;flex-direction:column;gap:7px")}>
+      <span style={css("font-size:13px;color:var(--ink);line-height:1.45")}>{question}</span>
+      <div style={css("display:flex;align-items:flex-end;gap:9px")}>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Your ruling — how this resolves (recorded with the packet)…"
+          rows={2}
+          style={inputStyle()}
+        />
+        <button onClick={() => onResolve(text)} disabled={disabled} style={btn(!disabled, "var(--good)", "var(--bg)")}>
+          Resolve
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- editor ---------------------------------------------------------------------------------------
+
+// Edit the packet's high-leverage fields and PUT the whole body. Works on a local draft so edits are
+// atomic (Save persists, Cancel discards); the server preserves scene seed ids and re-stamps any new
+// ones. Read-only review surfaces (QA, claims, provenance) stay out of the editor.
+function PacketEditor({
+  packet, busy, onSave, onCancel,
+}: { packet: PacketOut; busy: boolean; onSave: (body: PacketBody) => void; onCancel: () => void }) {
+  const [draft, setDraft] = useState<PacketBody>(() => structuredClone(packet.body ?? {}));
+
+  const setField = (k: keyof PacketBody, v: unknown) =>
+    setDraft((d) => ({ ...d, [k]: v }));
+
+  const setSeed = (idx: number, patch: Partial<PacketSceneSeed>) =>
+    setDraft((d) => {
+      const seeds = [...(d.scene_seeds ?? [])];
+      seeds[idx] = { ...seeds[idx], ...patch };
+      return { ...d, scene_seeds: seeds };
+    });
+
+  return (
+    <div style={css("display:flex;flex-direction:column;gap:16px")}>
+      <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
+        <Chip label="editing packet" colorVar="--info" />
+        <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+          Edit the contract directly. Save replaces the packet body; Cancel discards your changes.
+        </span>
+      </div>
+
+      <Panel title="Spine">
+        <EditText label="Spine (one sentence)" value={draft.one_sentence_spine} onChange={(v) => setField("one_sentence_spine", v)} />
+        <EditText label="Chapter job" value={draft.chapter_job} onChange={(v) => setField("chapter_job", v)} multiline />
+        <EditText label="Entry state" value={draft.entry_state} onChange={(v) => setField("entry_state", v)} multiline />
+        <EditText label="Exit state" value={draft.exit_state} onChange={(v) => setField("exit_state", v)} multiline />
+        <EditText label="Emotional spine" value={draft.emotional_spine} onChange={(v) => setField("emotional_spine", v)} multiline />
+      </Panel>
+
+      <Panel title="Adjudication notes">
+        <EditText label="Your packet-level rulings / context" value={draft.adjudication_notes} onChange={(v) => setField("adjudication_notes", v)} multiline rows={4} />
+      </Panel>
+
+      <Panel title="Roster">
+        <EditList label="Present" value={draft.characters_present} onChange={(v) => setField("characters_present", v)} />
+        <EditList label="Absent" value={draft.characters_absent} onChange={(v) => setField("characters_absent", v)} />
+        <EditList label="Mentioned only" value={draft.characters_mentioned_only} onChange={(v) => setField("characters_mentioned_only", v)} />
+        <EditList label="Forbidden" value={draft.characters_forbidden} onChange={(v) => setField("characters_forbidden", v)} />
+      </Panel>
+
+      <Panel title="Knowledge & reveals">
+        <EditList label="Reader MAY know" value={draft.allowed_knowledge} onChange={(v) => setField("allowed_knowledge", v)} />
+        <EditList label="Reader may NOT know yet" value={draft.forbidden_knowledge} onChange={(v) => setField("forbidden_knowledge", v)} />
+        <EditList label="Required reveals" value={draft.required_reveals} onChange={(v) => setField("required_reveals", v)} />
+        <EditList label="Forbidden reveals" value={draft.forbidden_reveals} onChange={(v) => setField("forbidden_reveals", v)} />
+      </Panel>
+
+      <Panel title="Locks">
+        <EditList label="Canon" value={draft.canon_locks} onChange={(v) => setField("canon_locks", v)} />
+        <EditList label="Roster" value={draft.roster_locks} onChange={(v) => setField("roster_locks", v)} />
+        <EditList label="Relationship" value={draft.relationship_locks} onChange={(v) => setField("relationship_locks", v)} />
+        <EditList label="Timeline" value={draft.timeline_locks} onChange={(v) => setField("timeline_locks", v)} />
+      </Panel>
+
+      {(draft.scene_seeds?.length ?? 0) > 0 && (
+        <Panel title={`Scene seeds · ${draft.scene_seeds!.length}`}>
+          <div style={css("display:flex;flex-direction:column;gap:14px")}>
+            {draft.scene_seeds!.map((s, i) => (
+              <div key={s.seed_id ?? i} style={css("border:1px solid var(--line);border-radius:9px;padding:13px;background:var(--bg3)")}>
+                <div style={css("font-family:var(--display);font-size:14px;color:var(--ink);margin-bottom:9px")}>Scene {s.scene_no}</div>
+                <EditText label="Scene job" value={s.scene_job} onChange={(v) => setSeed(i, { scene_job: v })} multiline />
+                <EditText label="Scene type" value={s.scene_type} onChange={(v) => setSeed(i, { scene_type: v })} />
+                <EditList label="Required beats" value={s.required_beats} onChange={(v) => setSeed(i, { required_beats: v })} />
+                <EditList label="Forbidden beats" value={s.forbidden_beats} onChange={(v) => setSeed(i, { forbidden_beats: v })} />
+                <EditText label="Exit state" value={s.exit_state} onChange={(v) => setSeed(i, { exit_state: v })} multiline />
+                <div style={css("display:flex;gap:12px;flex-wrap:wrap")}>
+                  <EditNum label="Target words" value={s.word_budget?.target} onChange={(v) => setSeed(i, { word_budget: { ...s.word_budget, target: v } })} />
+                  <EditNum label="Hard max words" value={s.word_budget?.hard_max} onChange={(v) => setSeed(i, { word_budget: { ...s.word_budget, hard_max: v } })} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
+        <button disabled={busy} onClick={() => onSave(draft)} style={btn(!busy, "var(--good)", "var(--bg)")}>
+          {busy ? "Saving…" : "Save changes"}
+        </button>
+        <button disabled={busy} onClick={onCancel} style={btn(!busy, "var(--bg3)", "var(--ink)")}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- small presentational + editor helpers --------------------------------------------------------
 
 function Panel({ title, children, accentVar }: { title: string; children: ReactNode; accentVar?: string }) {
   return (
@@ -365,6 +613,62 @@ function Field({ k, v }: { k: string; v: string }) {
 
 function Label({ text }: { text: string }) {
   return <div style={css("font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin-bottom:6px")}>{text}</div>;
+}
+
+function EditText({
+  label, value, onChange, multiline, rows,
+}: { label: string; value?: string; onChange: (v: string) => void; multiline?: boolean; rows?: number }) {
+  return (
+    <div style={css("margin-bottom:10px")}>
+      <Label text={label} />
+      {multiline ? (
+        <textarea value={value ?? ""} onChange={(e) => onChange(e.target.value)} rows={rows ?? 2} style={inputStyle()} />
+      ) : (
+        <input value={value ?? ""} onChange={(e) => onChange(e.target.value)} style={inputStyle()} />
+      )}
+    </div>
+  );
+}
+
+// A string-array field edited as one item per line. Keeps a local text buffer so blank/intermediate
+// lines don't fight the cursor; the normalized (trimmed, non-empty) list is pushed up on every change.
+function EditList({
+  label, value, onChange,
+}: { label: string; value?: string[]; onChange: (v: string[]) => void }) {
+  const [text, setText] = useState(() => (value ?? []).join("\n"));
+  return (
+    <div style={css("margin-bottom:10px")}>
+      <Label text={`${label} · one per line`} />
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(e.target.value.split("\n").map((s) => s.trim()).filter(Boolean));
+        }}
+        rows={Math.max(2, (value?.length ?? 0))}
+        style={inputStyle()}
+      />
+    </div>
+  );
+}
+
+function EditNum({
+  label, value, onChange,
+}: { label: string; value?: number; onChange: (v: number | undefined) => void }) {
+  return (
+    <div style={css("margin-bottom:10px")}>
+      <Label text={label} />
+      <input
+        value={value ?? ""}
+        inputMode="numeric"
+        onChange={(e) => {
+          const n = parseInt(e.target.value, 10);
+          onChange(Number.isFinite(n) ? n : undefined);
+        }}
+        style={css(`${inputBase};width:120px`)}
+      />
+    </div>
+  );
 }
 
 function PillList({ label, items, tone }: { label: string; items: string[]; tone: "good" | "bad" | "info" | "warn" | "dim" }) {
@@ -402,6 +706,13 @@ function SourceBadge({ strength }: { strength: string }) {
 
 function Muted({ text }: { text: string }) {
   return <div style={css("font-family:var(--mono);font-size:12px;color:var(--dim);padding:18px 2px")}>{text}</div>;
+}
+
+const inputBase =
+  "box-sizing:border-box;padding:7px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:13px;line-height:1.45";
+
+function inputStyle(): CSSProperties {
+  return css(`${inputBase};width:100%;resize:vertical`);
 }
 
 function btn(enabled: boolean, bg: string, fg: string): CSSProperties {

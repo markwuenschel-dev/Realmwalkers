@@ -41,7 +41,9 @@ class Settings(BaseSettings):
     # writer obeys, so default them to Sonnet. (Per-scene stage models — preflight/compression/QA —
     # arrive with their phases.)
     packet_author_model: str = "claude-sonnet-4-6"
-    packet_qa_model: str = "claude-sonnet-4-6"
+    # QA only ATTACKS the author's packet (a checker, not a creator), so it rides Haiku like the
+    # other checker/enrichment stages (review_model, enrich_model) — meaningfully faster second call.
+    packet_qa_model: str = "claude-haiku-4-5"
     # The packet author/QA calls run synchronously inside the propose-packet request; bound them so a
     # hung call surfaces as a clean failure instead of a spinning browser (mirrors plan_time_budget_s).
     packet_time_budget_s: int = 180

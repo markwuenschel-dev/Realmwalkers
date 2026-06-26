@@ -13,6 +13,7 @@ from dominion.shared.enums import BeatStatus, PacketStatus, PacketVerdict, Scene
 from dominion.shared.models import Beat, Book, Chapter, ChapterPacket, Scene
 from dominion.shared.schemas import PacketUpdateIn
 from dominion.workers import context as context_mod
+from dominion.workers import packet as packet_pipeline
 from dominion.workers.budget import TokenBudget
 from dominion.workers.context import SceneContext
 from dominion.workers.packet import author as author_mod
@@ -85,7 +86,7 @@ async def test_approve_derives_one_beat_per_seed(db_factory, monkeypatch):
     ))
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        await packets.propose_packet(ch.id, s)
+        await packet_pipeline.propose_packet(s, chapter=ch)
         approved = await packets.approve_packet(ch.id, s)
 
         seed_ids = {sd["seed_id"] for sd in approved.body["scene_seeds"]}
@@ -156,7 +157,7 @@ async def test_update_packet_mints_missing_seed_ids_preserving_existing(db_facto
     _patch(monkeypatch, _body([_seed(1, "Only seed.")]))
     async with db_factory() as s:
         ch = await _seed_chapter(s)
-        proposed = await packets.propose_packet(ch.id, s)
+        proposed = await packet_pipeline.propose_packet(s, chapter=ch)
         sid1 = proposed.body["scene_seeds"][0]["seed_id"]
         assert sid1
 
