@@ -57,10 +57,12 @@ async def test_drafter_includes_phase2_context_when_present(monkeypatch):
     )
     await drafter.run(None, ctx)
 
-    user = captured["user"]
-    assert "Eyes of Meszkhal" in user
-    assert "has just woken" in user
-    assert "not the truth of the place" in user
+    # canon + pov_summary are stable and go into the cached user_prefix; knowledge_injections
+    # are per-call volatile and stay in the main user message.
+    user_prefix = captured["user_prefix"]
+    assert "Eyes of Meszkhal" in user_prefix
+    assert "has just woken" in user_prefix
+    assert "not the truth of the place" in captured["user"]
 
 
 async def test_drafter_system_prompt_carries_interiority_and_litrpg_craft_rules(monkeypatch):

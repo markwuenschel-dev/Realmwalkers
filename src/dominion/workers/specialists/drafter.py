@@ -112,53 +112,66 @@ def _contract_block(ctx: SceneContext) -> str | None:
     return header + "\n\n" + "\n\n".join(sections)
 
 
-def _beat_prompt(ctx: SceneContext) -> str:
-    parts: list[str] = []
-    if contract := _contract_block(ctx):  # Phase 2: the packet contract leads, so it dominates
-        parts.append(contract)
-    if ctx.canon:  # Phase 2: retrieved canon
-        parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
-    if ctx.pov_summary:  # Phase 2: what this POV knows so far
-        parts.append(f"Story so far, as {ctx.pov} understands it:\n{ctx.pov_summary}")
-    if ctx.prior_scene_tail:  # Phase 2: in-chapter continuity
-        parts.append("The previous scene ended:\n" + ctx.prior_scene_tail)
+def _beat_prompt(ctx: SceneContext) -> tuple[str | None, str]:
+    """Return (stable_prefix, volatile_user). The prefix carries canon/context that doesn't change
+    across revision attempts and gets its own cache breakpoint; the volatile part has the beat + write
+    instruction which is unique per call."""
+    prefix_parts: list[str] = []
+    if contract := _contract_block(ctx):
+        prefix_parts.append(contract)
+    if ctx.canon:
+        prefix_parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
+    if ctx.pov_summary:
+        prefix_parts.append(f"Story so far, as {ctx.pov} understands it:\n{ctx.pov_summary}")
+    if ctx.prior_scene_tail:
+        prefix_parts.append("The previous scene ended:\n" + ctx.prior_scene_tail)
+
+    volatile_parts: list[str] = []
     if ctx.characters_present:
-        parts.append("Characters present: " + ", ".join(ctx.characters_present))
+        volatile_parts.append("Characters present: " + ", ".join(ctx.characters_present))
     if ctx.knowledge_injections:
-        parts.append(
+        volatile_parts.append(
             f"In this scene, {ctx.pov} learns or already knows:\n"
             + "\n".join(f"- {k}" for k in ctx.knowledge_injections)
         )
     if ctx.expected_state_changes:
         changes = "; ".join(f"{k}: {v}" for k, v in ctx.expected_state_changes.items())
-        parts.append(
+        volatile_parts.append(
             "Developments to land by the end (reflect naturally; do NOT write a stat block): " + changes
         )
-    parts.append("THE BEAT — what happens in this scene:\n" + (ctx.beat_text or "(no beat text provided)"))
+    volatile_parts.append("THE BEAT — what happens in this scene:\n" + (ctx.beat_text or "(no beat text provided)"))
     if ctx.target_words:
-        parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
-    parts.append(f"\nWrite the scene now, in {ctx.pov}'s point of view. Output only the prose.")
-    return "\n\n".join(parts)
+        volatile_parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
+    volatile_parts.append(f"\nWrite the scene now, in {ctx.pov}'s point of view. Output only the prose.")
+
+    prefix = "\n\n".join(prefix_parts) if prefix_parts else None
+    return prefix, "\n\n".join(volatile_parts)
 
 
-def _revise_prompt(ctx: SceneContext) -> str:
-    parts: list[str] = []
-    if contract := _contract_block(ctx):  # the packet binds revisions too
-        parts.append(contract)
+def _revise_prompt(ctx: SceneContext) -> tuple[str | None, str]:
+    """Return (stable_prefix, volatile_user). The prefix carries canon/context; the volatile part
+    has the prior draft + revision notes, which differ on every revision attempt."""
+    prefix_parts: list[str] = []
+    if contract := _contract_block(ctx):
+        prefix_parts.append(contract)
     if ctx.canon:
-        parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
+        prefix_parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
     if ctx.pov_summary:
-        parts.append(f"Story so far, as {ctx.pov} understands it:\n{ctx.pov_summary}")
-    parts.append("THE BEAT this scene must hit:\n" + (ctx.beat_text or "(no beat text provided)"))
-    parts.append("YOUR PRIOR DRAFT of this scene:\n" + (ctx.prior_prose or "(none)"))
-    parts.append("REVISION NOTES from the author — address these:\n" + (ctx.revise_feedback or "(none)"))
+        prefix_parts.append(f"Story so far, as {ctx.pov} understands it:\n{ctx.pov_summary}")
+
+    volatile_parts: list[str] = []
+    volatile_parts.append("THE BEAT this scene must hit:\n" + (ctx.beat_text or "(no beat text provided)"))
+    volatile_parts.append("YOUR PRIOR DRAFT of this scene:\n" + (ctx.prior_prose or "(none)"))
+    volatile_parts.append("REVISION NOTES from the author — address these:\n" + (ctx.revise_feedback or "(none)"))
     if ctx.target_words:
-        parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
-    parts.append(
+        volatile_parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
+    volatile_parts.append(
         f"\nRewrite the scene in {ctx.pov}'s POV, addressing the notes while keeping what already "
         "works. Output only the revised prose."
     )
-    return "\n\n".join(parts)
+
+    prefix = "\n\n".join(prefix_parts) if prefix_parts else None
+    return prefix, "\n\n".join(volatile_parts)
 
 
 class Drafter:
@@ -166,11 +179,12 @@ class Drafter:
 
     async def run(self, prose: str | None, ctx: SceneContext) -> str:
         revising = ctx.revise_feedback is not None
-        user = _revise_prompt(ctx) if revising else _beat_prompt(ctx)
+        user_prefix, user = _revise_prompt(ctx) if revising else _beat_prompt(ctx)
         text, _usage = await llm.complete(
             model=settings.draft_model,
             system=_voice_system(ctx),
             user=user,
+            user_prefix=user_prefix,
             max_tokens=REVISE_MAX_TOKENS if revising else DRAFT_MAX_TOKENS,
             budget=ctx.budget,
         )

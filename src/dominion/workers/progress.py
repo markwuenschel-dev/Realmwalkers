@@ -13,9 +13,19 @@ fine, since the Desk is the path a human actually watches.
 from __future__ import annotations
 
 import time
+from typing import TypedDict
 
 # job_id (str) -> (phase, started_at_epoch_seconds). Cleared when the job finishes.
 _phases: dict[str, tuple[str, float]] = {}
+
+# job_id (str) -> cache stats snapshot written by pipeline after the scene is persisted.
+_cache_stats: dict[str, "CacheStats"] = {}
+
+
+class CacheStats(TypedDict):
+    cache_hit_ratio: float
+    total_cache_read_tokens: int
+    total_cache_creation_tokens: int
 
 
 def set_phase(job_id: str | None, phase: str) -> None:
@@ -44,11 +54,42 @@ def get(job_id: str | None) -> tuple[str | None, int | None]:
         return None, None
 
 
+def set_cache_stats(
+    job_id: str | None,
+    *,
+    cache_hit_ratio: float,
+    total_cache_read_tokens: int,
+    total_cache_creation_tokens: int,
+) -> None:
+    """Store final cache stats for a job so /jobs/status can surface them."""
+    if not job_id:
+        return
+    try:
+        _cache_stats[job_id] = CacheStats(
+            cache_hit_ratio=cache_hit_ratio,
+            total_cache_read_tokens=total_cache_read_tokens,
+            total_cache_creation_tokens=total_cache_creation_tokens,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def get_cache_stats(job_id: str | None) -> "CacheStats | None":
+    """Cache stats for a job, or None if not yet recorded."""
+    if not job_id:
+        return None
+    try:
+        return _cache_stats.get(job_id)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def clear(job_id: str | None) -> None:
     """Forget a job once it's done/failed, so the registry doesn't grow without bound."""
     if not job_id:
         return
     try:
         _phases.pop(job_id, None)
+        _cache_stats.pop(job_id, None)
     except Exception:  # noqa: BLE001
         pass
