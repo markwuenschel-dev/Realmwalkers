@@ -8,6 +8,7 @@ work" below.
 ## What changed
 
 ### Build system
+
 - **Vite → Next.js 14 (App Router)**, still React 18.3 + TypeScript.
 - Removed: `vite.config.ts`, `tsconfig.node.json`, `index.html`, `src/main.tsx`, `src/vite-env.d.ts`,
   `src/index.css`, `src/App.tsx`.
@@ -18,6 +19,7 @@ work" below.
   Dev/start bind `0.0.0.0` so the LAN URL keeps working.
 
 ### Routing — page identity now lives in the URL
+
 - The internal `screen` string and `go(screen)` are **gone**. `focusSceneId` is **gone** (it is now the
   `/scene/[sceneId]` route param).
 - One **route registry** is the single source of truth: `src/desk/routes.ts` (`DESK_ROUTES`,
@@ -47,6 +49,7 @@ work" below.
   routes (not a parallel routing system).
 
 ### API boundary — same-origin BFF proxy
+
 - `src/desk/api/client.ts` no longer uses `import.meta.env`. `BASE = "/api/desk"`.
 - New route handler `src/app/api/desk/[...path]/route.ts` proxies every method/path/query/body to
   FastAPI at **`process.env.API_BASE`** (default `http://127.0.0.1:8000`). Status + body pass through
@@ -55,6 +58,7 @@ work" below.
 - The browser never needs the FastAPI host or CORS.
 
 ### Client/Server boundary
+
 - Route pages (`src/app/**/page.tsx`) are thin **Server Components** that render the existing screens.
 - `"use client"` is on: `providers.tsx`, `DeskShell`, `state.ts`, `api/data.tsx`, all 8 screens, and
   the interactive components touched (TopBar, CommandPalette, DecisionToast). Everything else is in the
@@ -62,11 +66,13 @@ work" below.
 - Lazy `docx.ts` import (manuscript/docs export) is unchanged and still code-split.
 
 ## Preserved behavior
+
 Adaptive job polling + backend-unreachable banner, scene autosave/restore per (scene, version), the
 active-scene stale-response guard, Planner proposed-beat rehydration, decision/revise/deny commit
 (try/finally), version diff + revert, manuscript approved/draft compile, lazy DOCX export.
 
 ## How to run
+
 ```bash
 cd frontend
 npm install
@@ -76,14 +82,17 @@ npm run dev      # http://<lan-ip>:3000
 npm run build && npm start
 npm run typecheck
 ```
+
 Backend is unchanged (FastAPI via the usual WSL `dev.sh`).
 
 ### Ops note (pm2) — wired
+
 The desk dev server now runs under pm2 via the committed `ecosystem.config.cjs` (`next dev -H 0.0.0.0
 -p 3000`, process name `desk`). First run: `pm2 start ecosystem.config.cjs`; after pulling: `pm2
 restart desk`. `dev.sh` (the WSL one-terminal launcher) also starts `next dev` on :3000.
 
 ### Deploy note (Railway) — wired
+
 Single-service preserved: the Docker image now runs **Next (public `$PORT`) + FastAPI (internal
 :8000) in one container**. The browser loads the desk from Next and calls same-origin `/api/desk/*`,
 which the BFF proxies to FastAPI via `API_BASE=http://127.0.0.1:8000` — so there is still no separate
@@ -91,10 +100,12 @@ API host, no CORS, no localhost. Next uses `output: "standalone"`; `init_db` sti
 `wait -n` exits the container (triggering Railway's restart) if either process dies.
 
 ## Verification
+
 `tsc --noEmit` clean; `next build` green (12 routes); runtime smoke: `/`→307, `/scene` `/inbox`
 `/scene/<id>` `/ledger`→200 on direct load, BFF→502 JSON with no backend.
 
 ## Follow-up work (deferred from this slice)
+
 - Deeper param routes: `/chapters/timeline`, `/packets/[chapterId]`, `/ledger/[category]`,
   `/docs/[...path]` (today these are internal state on the base routes).
 - Hook/provider extraction: `useJobStatus`, `useActiveScene`, `useBookCollections`, `useAsyncAction`.

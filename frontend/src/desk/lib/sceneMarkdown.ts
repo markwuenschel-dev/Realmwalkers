@@ -29,7 +29,9 @@ export function buildSceneMarkdown(
     `Scene ${scene.scene_no}`,
     `v${scene.version}`,
     scene.status.replace(/_/g, " "),
-  ].filter(Boolean).join(" · ");
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const lines: string[] = [`# ${sceneLabel(scene)}`, "", `_${meta}_`, ""];
   lines.push((scene.prose ?? "").trim() || "_(no prose)_", "");
@@ -43,7 +45,9 @@ export function buildSceneMarkdown(
       lines.push("### Continuity conflicts", "");
       for (const c of conflicts) {
         const attr = pstr(c, "attribute") || c.reviewer;
-        lines.push(`- **${attr}** — prose \`${pstr(c, "prose_value")}\` vs ledger \`${pstr(c, "ledger_value")}\``);
+        lines.push(
+          `- **${attr}** — prose \`${pstr(c, "prose_value")}\` vs ledger \`${pstr(c, "ledger_value")}\``,
+        );
         const ctx = pstr(c, "context_sentence");
         if (ctx) lines.push(`  - context: "${ctx}"`);
       }
@@ -99,9 +103,13 @@ export interface SceneExportItem {
 /** Bundle several scenes into one Markdown document — each scene rendered as it is singly, with a
  *  rule between them so the scene boundaries read clearly. */
 export function buildScenesMarkdown(items: SceneExportItem[]): string {
-  return items
-    .map((it) => buildSceneMarkdown(it.scene, it.chapter, it.annotations, it.suggestions).trimEnd())
-    .join("\n\n---\n\n") + "\n";
+  return (
+    items
+      .map((it) =>
+        buildSceneMarkdown(it.scene, it.chapter, it.annotations, it.suggestions).trimEnd(),
+      )
+      .join("\n\n---\n\n") + "\n"
+  );
 }
 
 /** Build a Markdown blob and download it client-side (no deps, no server call). */

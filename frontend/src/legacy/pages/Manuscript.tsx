@@ -3,7 +3,10 @@ import { api } from "../api/client";
 import type { BookOut, ManuscriptOut } from "../types";
 
 const paragraphs = (prose: string): string[] =>
-  prose.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  prose
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
 export default function Manuscript() {
   const [books, setBooks] = useState<BookOut[]>([]);
@@ -54,7 +57,9 @@ export default function Manuscript() {
 
       {error && <p className="error">{error}</p>}
       {loading && <p className="muted">Loading manuscript…</p>}
-      {empty && <p className="muted">No approved scenes yet — approve scenes to build the manuscript.</p>}
+      {empty && (
+        <p className="muted">No approved scenes yet — approve scenes to build the manuscript.</p>
+      )}
 
       {ms && !empty && (
         <article className="reader">

@@ -1,25 +1,92 @@
 /* Global rules from the .dc prototype's <style> block. Everything else is inline-styled and themed
    via the CSS custom properties set on the desk root element (see desk/theme.ts). */
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body { min-height: 100vh; }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  min-height: 100vh;
+}
 
-::selection { background: var(--accentSoft); }
+::selection {
+  background: var(--accentSoft);
+}
 
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulseDot { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 /* Indeterminate progress bar: a sliver that sweeps across its track while work is in flight, so a
    long draft never looks frozen. The inner bar uses this; the track is a plain overflow:hidden box. */
-@keyframes indeterminate { 0% { left: -35%; width: 35%; } 60% { width: 55%; } 100% { left: 100%; width: 35%; } }
+@keyframes indeterminate {
+  0% {
+    left: -35%;
+    width: 35%;
+  }
+  60% {
+    width: 55%;
+  }
+  100% {
+    left: 100%;
+    width: 35%;
+  }
+}
 
-textarea, input, select, button { font-family: inherit; }
-textarea:focus, input:focus, select:focus { outline: none; }
+textarea,
+input,
+select,
+button {
+  font-family: inherit;
+}
+textarea:focus,
+input:focus,
+select:focus {
+  outline: none;
+}
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 /* --- print: book-typography PDF via the browser's "Save as PDF" (no deps) ------------------------
    The Manuscript view exposes a Print button; only the manuscript article prints. Page numbers are
@@ -28,17 +95,50 @@ textarea:focus, input:focus, select:focus { outline: none; }
    are forced to black-on-white so the dark themes print legibly. */
 @page {
   margin: 22mm 18mm;
-  @bottom-center { content: counter(page); }
+  @bottom-center {
+    content: counter(page);
+  }
 }
 @media print {
-  .no-print { display: none !important; }
-  html, body { background: #fff !important; }
-  .ms-print, .ms-print * { color: #1a1a1a !important; background: transparent !important; box-shadow: none !important; }
-  .ms-print { max-width: none !important; margin: 0 !important; }
-  .ms-print p { text-align: justify; orphans: 2; widows: 2; }
-  .ms-print pre, .ms-print table { border: 1px solid #ccc !important; }
-  .ms-title { break-after: page; }
-  .ms-chapter { break-before: page; }
-  .ms-chapter:first-of-type { break-before: avoid; }
-  .ms-print pre, .ms-print table, .ms-print tr, .ms-scenebreak { break-inside: avoid; }
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .ms-print,
+  .ms-print * {
+    color: #1a1a1a !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .ms-print {
+    max-width: none !important;
+    margin: 0 !important;
+  }
+  .ms-print p {
+    text-align: justify;
+    orphans: 2;
+    widows: 2;
+  }
+  .ms-print pre,
+  .ms-print table {
+    border: 1px solid #ccc !important;
+  }
+  .ms-title {
+    break-after: page;
+  }
+  .ms-chapter {
+    break-before: page;
+  }
+  .ms-chapter:first-of-type {
+    break-before: avoid;
+  }
+  .ms-print pre,
+  .ms-print table,
+  .ms-print tr,
+  .ms-scenebreak {
+    break-inside: avoid;
+  }
 }

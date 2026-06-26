@@ -33,8 +33,16 @@ const toForm = (b: BeatOut): BeatForm => ({
   err: null,
 });
 
-const splitCommas = (s: string): string[] => s.split(",").map((x) => x.trim()).filter(Boolean);
-const splitLines = (s: string): string[] => s.split("\n").map((x) => x.trim()).filter(Boolean);
+const splitCommas = (s: string): string[] =>
+  s
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+const splitLines = (s: string): string[] =>
+  s
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
 
 export default function Plan() {
   const nav = useNavigate();

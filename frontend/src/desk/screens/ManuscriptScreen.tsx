@@ -32,11 +32,20 @@ export default function ManuscriptScreen() {
   // Read after mount (not in the initializer) so server prerender never touches localStorage.
   const [author, setAuthor] = useState<string>("");
   useEffect(() => {
-    try { const v = localStorage.getItem("ms_author"); if (v) setAuthor(v); } catch { /* unavailable */ }
+    try {
+      const v = localStorage.getItem("ms_author");
+      if (v) setAuthor(v);
+    } catch {
+      /* unavailable */
+    }
   }, []);
   const saveAuthor = (v: string) => {
     setAuthor(v);
-    try { localStorage.setItem("ms_author", v); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("ms_author", v);
+    } catch {
+      /* ignore */
+    }
   };
 
   // Draft compile: assemble each scene's current (latest-version) prose into manuscript form, whatever
@@ -63,24 +72,38 @@ export default function ManuscriptScreen() {
   const chapters = active?.chapters ?? [];
   const hasProse = chapters.some((c) => c.scenes.some((s) => (s.prose ?? "").trim()));
   // Not-yet-approved scenes the draft compile pulls in (shown as a toolbar hint).
-  const draftExtra = latestScenes.filter((s) => (s.prose ?? "").trim() && s.status !== "approved").length;
+  const draftExtra = latestScenes.filter(
+    (s) => (s.prose ?? "").trim() && s.status !== "approved",
+  ).length;
 
   const isColumns = layout === "columns";
   const proseSize = isColumns ? "16.5px" : "18.5px";
   const bodyStyle = isColumns ? "column-count:2;column-gap:2.8rem" : "";
 
-  const totalWords = chapters.flatMap((c) => c.scenes).reduce((acc, s) => acc + wordCount(s.prose), 0);
+  const totalWords = chapters
+    .flatMap((c) => c.scenes)
+    .reduce((acc, s) => acc + wordCount(s.prose), 0);
   const pages = Math.max(1, Math.ceil(totalWords / WORDS_PER_PAGE));
 
   // Assemble the approved manuscript as Markdown and download it client-side (no deps, no server call).
   const exportMarkdown = () => {
     const title = active?.title ?? "Untitled";
-    const lines: string[] = [`# ${title}`, "",
-      `_Book One — ${isDraft ? "working draft (all scenes, including unapproved)" : "the approved manuscript, in reading order"}_`, ""];
+    const lines: string[] = [
+      `# ${title}`,
+      "",
+      `_Book One — ${isDraft ? "working draft (all scenes, including unapproved)" : "the approved manuscript, in reading order"}_`,
+      "",
+    ];
     for (const ch of chapters) {
       const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
       if (scenes.length === 0) continue;
-      lines.push("", `## Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`, "", `*POV — ${ch.pov}*`, "");
+      lines.push(
+        "",
+        `## Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`,
+        "",
+        `*POV — ${ch.pov}*`,
+        "",
+      );
       scenes.forEach((sc, si) => {
         if (si > 0) lines.push("", "\\* \\* \\*", ""); // scene break
         lines.push((sc.prose ?? "").trim());
@@ -102,7 +125,10 @@ export default function ManuscriptScreen() {
     if (!active) return;
     const docx = await import("../lib/docx");
     await docx.saveDocx(
-      docx.buildManuscriptDoc(active, isDraft ? "working draft — all scenes, including unapproved" : undefined),
+      docx.buildManuscriptDoc(
+        active,
+        isDraft ? "working draft — all scenes, including unapproved" : undefined,
+      ),
       docx.docxFilename((active.title || "manuscript") + (isDraft ? " draft" : "")),
     );
   };
@@ -110,7 +136,9 @@ export default function ManuscriptScreen() {
   // Standard manuscript (Shunn) export — submission format for agents; needs the author name.
   const exportShunn = async () => {
     if (!active) return;
-    const name = author.trim() || (window.prompt("Author name for the manuscript header / byline:") ?? "").trim();
+    const name =
+      author.trim() ||
+      (window.prompt("Author name for the manuscript header / byline:") ?? "").trim();
     if (!name) return;
     if (name !== author) saveAuthor(name);
     const docx = await import("../lib/docx");
@@ -123,65 +151,171 @@ export default function ManuscriptScreen() {
   return (
     <div>
       {/* toolbar: page estimate + export (left) · reading-layout control (right) */}
-      <div className="no-print" style={css("display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:66rem;margin:0 auto 6px;padding:0 4px")}>
+      <div
+        className="no-print"
+        style={css(
+          "display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:66rem;margin:0 auto 6px;padding:0 4px",
+        )}
+      >
         <div style={css("display:flex;align-items:center;gap:12px")}>
           {/* compile source — approved canon vs. a full working draft (all scenes, read-only) */}
-          <div style={css("display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px")} title="What to compile">
-            {([["approved", "Approved"], ["draft", "Draft"]] as const).map(([id, label]) => {
+          <div
+            style={css(
+              "display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px",
+            )}
+            title="What to compile"
+          >
+            {(
+              [
+                ["approved", "Approved"],
+                ["draft", "Draft"],
+              ] as const
+            ).map(([id, label]) => {
               const on = source === id;
               return (
-                <button key={id} onClick={() => setSource(id)}
-                  style={css(`padding:5px 12px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${on ? "var(--accent)" : "transparent"};color:${on ? "var(--onAccent)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`)}>{label}</button>
+                <button
+                  key={id}
+                  onClick={() => setSource(id)}
+                  style={css(
+                    `padding:5px 12px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${on ? "var(--accent)" : "transparent"};color:${on ? "var(--onAccent)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
+                  )}
+                >
+                  {label}
+                </button>
               );
             })}
           </div>
           {hasProse && (
             <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-              ≈ {pages.toLocaleString()} manuscript page{pages === 1 ? "" : "s"} · {totalWords.toLocaleString()} words
+              ≈ {pages.toLocaleString()} manuscript page{pages === 1 ? "" : "s"} ·{" "}
+              {totalWords.toLocaleString()} words
               <span style={css("opacity:.6")}> · Shunn 250 wpp</span>
             </span>
           )}
           {isDraft && draftExtra > 0 && (
-            <span style={css("font-family:var(--mono);font-size:11px;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border:1px solid color-mix(in srgb,var(--warn) 38%,transparent);border-radius:999px;padding:2px 9px")}>
+            <span
+              style={css(
+                "font-family:var(--mono);font-size:11px;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border:1px solid color-mix(in srgb,var(--warn) 38%,transparent);border-radius:999px;padding:2px 9px",
+              )}
+            >
               incl. {draftExtra} unapproved
             </span>
           )}
-          <button onClick={exportMarkdown} disabled={!hasProse} title="Download the approved manuscript as Markdown"
-            style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Markdown</button>
-          <button onClick={exportDocx} disabled={!hasProse} title="Download as Word (.docx) — book format, page-numbered"
-            style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Word</button>
-          <button onClick={exportShunn} disabled={!hasProse} title="Download as standard manuscript (Shunn) format — monospace, double-spaced, page header; for agent/editor submission"
-            style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⬇ Shunn</button>
+          <button
+            onClick={exportMarkdown}
+            disabled={!hasProse}
+            title="Download the approved manuscript as Markdown"
+            style={css(
+              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
+            )}
+          >
+            ⬇ Markdown
+          </button>
+          <button
+            onClick={exportDocx}
+            disabled={!hasProse}
+            title="Download as Word (.docx) — book format, page-numbered"
+            style={css(
+              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
+            )}
+          >
+            ⬇ Word
+          </button>
+          <button
+            onClick={exportShunn}
+            disabled={!hasProse}
+            title="Download as standard manuscript (Shunn) format — monospace, double-spaced, page header; for agent/editor submission"
+            style={css(
+              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
+            )}
+          >
+            ⬇ Shunn
+          </button>
           <input
             value={author}
             onChange={(e) => saveAuthor(e.target.value)}
             placeholder="author name (Shunn)"
             title="Used in the Shunn submission header & byline"
-            style={css("width:130px;padding:5px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:var(--ui);font-size:12px")}
+            style={css(
+              "width:130px;padding:5px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:var(--ui);font-size:12px",
+            )}
           />
-          <button onClick={() => window.print()} disabled={!hasProse} title="Print, or save as a PDF — chapters break to new pages (enable the print dialog's headers/footers for page numbers)"
-            style={css(`padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`)}>⎙ Print / PDF</button>
+          <button
+            onClick={() => window.print()}
+            disabled={!hasProse}
+            title="Print, or save as a PDF — chapters break to new pages (enable the print dialog's headers/footers for page numbers)"
+            style={css(
+              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
+            )}
+          >
+            ⎙ Print / PDF
+          </button>
         </div>
-        <div style={css("display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px")}>
+        <div
+          style={css(
+            "display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px",
+          )}
+        >
           {LAYOUTS.map((l) => {
             const active = layout === l.id;
             return (
-              <button key={l.id} onClick={() => setLayout(l.id)}
-                style={css(`padding:5px 13px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${active ? "var(--accent)" : "transparent"};color:${active ? "var(--onAccent)" : "var(--dim)"};font-weight:${active ? "600" : "400"}`)}>{l.label}</button>
+              <button
+                key={l.id}
+                onClick={() => setLayout(l.id)}
+                style={css(
+                  `padding:5px 13px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${active ? "var(--accent)" : "transparent"};color:${active ? "var(--onAccent)" : "var(--dim)"};font-weight:${active ? "600" : "400"}`,
+                )}
+              >
+                {l.label}
+              </button>
             );
           })}
         </div>
       </div>
 
-      <article className="ms-print" style={css(`max-width:${WIDTH[layout]};margin:0 auto;padding:20px 0 60px`)}>
-        <div className="ms-title" style={css("text-align:center;margin-bottom:64px;padding-bottom:40px;border-bottom:1px solid var(--line)")}>
-          <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:20px")}>Book One</div>
-          <h1 style={css("margin:0 0 14px;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.01em;color:var(--ink)")}>{manuscript?.title ?? "—"}</h1>
-          <div style={css("font-family:var(--prose);font-style:italic;font-size:16px;color:var(--dim)")}>{isDraft ? "working draft — all scenes, including unapproved" : "the approved manuscript, in reading order"}</div>
+      <article
+        className="ms-print"
+        style={css(`max-width:${WIDTH[layout]};margin:0 auto;padding:20px 0 60px`)}
+      >
+        <div
+          className="ms-title"
+          style={css(
+            "text-align:center;margin-bottom:64px;padding-bottom:40px;border-bottom:1px solid var(--line)",
+          )}
+        >
+          <div
+            style={css(
+              "font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:20px",
+            )}
+          >
+            Book One
+          </div>
+          <h1
+            style={css(
+              "margin:0 0 14px;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.01em;color:var(--ink)",
+            )}
+          >
+            {manuscript?.title ?? "—"}
+          </h1>
+          <div
+            style={css(
+              "font-family:var(--prose);font-style:italic;font-size:16px;color:var(--dim)",
+            )}
+          >
+            {isDraft
+              ? "working draft — all scenes, including unapproved"
+              : "the approved manuscript, in reading order"}
+          </div>
         </div>
 
         {!hasProse && (
-          <p style={css("text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px")}>{isDraft ? "No scenes drafted yet — outline a chapter and draft scenes from the inbox." : "No approved scenes yet — approve a scene in the inbox, or switch to Draft to compile everything."}</p>
+          <p
+            style={css("text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px")}
+          >
+            {isDraft
+              ? "No scenes drafted yet — outline a chapter and draft scenes from the inbox."
+              : "No approved scenes yet — approve a scene in the inbox, or switch to Draft to compile everything."}
+          </p>
         )}
 
         {chapters.map((ch) => {
@@ -191,10 +325,26 @@ export default function ManuscriptScreen() {
             <section key={ch.chapter_no} className="ms-chapter" style={css("margin-bottom:54px")}>
               {/* chapter header — spans the full measure, even in two-column */}
               <div style={css("text-align:center;margin-bottom:30px")}>
-                <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:9px")}>Chapter {ch.chapter_no}</div>
-                <h2 style={css("margin:0;font-family:var(--display);font-weight:500;font-size:25px;color:var(--ink)")}>
+                <div
+                  style={css(
+                    "font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:9px",
+                  )}
+                >
+                  Chapter {ch.chapter_no}
+                </div>
+                <h2
+                  style={css(
+                    "margin:0;font-family:var(--display);font-weight:500;font-size:25px;color:var(--ink)",
+                  )}
+                >
                   {ch.title ? ch.title : null}
-                  <span style={css("display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:400;margin-top:6px")}>POV · {ch.pov}</span>
+                  <span
+                    style={css(
+                      "display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:400;margin-top:6px",
+                    )}
+                  >
+                    POV · {ch.pov}
+                  </span>
                 </h2>
               </div>
 
@@ -204,7 +354,15 @@ export default function ManuscriptScreen() {
                   <Fragment key={sc.scene_no}>
                     {si > 0 && (
                       // scene break: end of one scene / start of the next
-                      <div aria-hidden className="ms-scenebreak" style={css("text-align:center;color:var(--dim);font-size:15px;letter-spacing:.6em;margin:1.5em 0;break-inside:avoid")}>⁂</div>
+                      <div
+                        aria-hidden
+                        className="ms-scenebreak"
+                        style={css(
+                          "text-align:center;color:var(--dim);font-size:15px;letter-spacing:.6em;margin:1.5em 0;break-inside:avoid",
+                        )}
+                      >
+                        ⁂
+                      </div>
                     )}
                     <ProseBlocks text={sc.prose ?? ""} proseSize={proseSize} />
                   </Fragment>
@@ -212,12 +370,22 @@ export default function ManuscriptScreen() {
               </div>
 
               {/* chapter end — distinct from a scene break, spans the full measure */}
-              <div style={css("display:flex;align-items:center;justify-content:center;gap:16px;margin:40px 0 7px")}>
+              <div
+                style={css(
+                  "display:flex;align-items:center;justify-content:center;gap:16px;margin:40px 0 7px",
+                )}
+              >
                 <span style={css("height:1px;width:56px;background:var(--line)")} />
                 <span style={css("color:var(--accent);font-size:16px;letter-spacing:.4em")}>✦</span>
                 <span style={css("height:1px;width:56px;background:var(--line)")} />
               </div>
-              <div style={css("text-align:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)")}>End of Chapter {ch.chapter_no}</div>
+              <div
+                style={css(
+                  "text-align:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)",
+                )}
+              >
+                End of Chapter {ch.chapter_no}
+              </div>
             </section>
           );
         })}

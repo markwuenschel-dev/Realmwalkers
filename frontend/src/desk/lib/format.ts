@@ -2,7 +2,7 @@
 // label is derived from its opening words.
 
 export const wordCount = (prose: string | null | undefined): number =>
-  prose ? prose.trim().match(/\S+/g)?.length ?? 0 : 0;
+  prose ? (prose.trim().match(/\S+/g)?.length ?? 0) : 0;
 
 export const snippet = (prose: string | null | undefined, words = 7): string => {
   if (!prose) return "";

@@ -50,10 +50,21 @@ const BQ = /^\s*>\s?(.*)$/;
 
 // GitHub admonitions + the Realmwalkers status tags → a callout tone (DESIGN export note §2/§5).
 const ADMON: Record<string, Tone> = {
-  note: "note", tip: "good", important: "info", info: "info",
-  warning: "warn", caution: "bad", danger: "bad",
-  lock: "note", working: "info", open: "warn", override: "bad",
-  decision: "note", halt: "bad", fail: "bad", pass: "good",
+  note: "note",
+  tip: "good",
+  important: "info",
+  info: "info",
+  warning: "warn",
+  caution: "bad",
+  danger: "bad",
+  lock: "note",
+  working: "info",
+  open: "warn",
+  override: "bad",
+  decision: "note",
+  halt: "bad",
+  fail: "bad",
+  pass: "good",
 };
 
 // A GFM table cell: outer pipes stripped, split on the rest. We do not unescape "\|"
@@ -248,9 +259,7 @@ export function parseInline(text: string): Inline[] {
   return out;
 }
 
-export type Token =
-  | { kind: "text"; text: string }
-  | { kind: MarkerKind; id: string; text: string };
+export type Token = { kind: "text"; text: string } | { kind: MarkerKind; id: string; text: string };
 
 export function tokenize(text: string, ms?: Marker[]): Token[] {
   const found: (Marker & { i: number; end: number })[] = [];

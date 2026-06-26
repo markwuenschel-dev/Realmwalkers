@@ -117,7 +117,8 @@ function calloutPanel(b: Extract<ProseBlock, { kind: "callout" }>): Table {
     );
   }
   for (const ln of b.lines) {
-    if (ln.trim()) children.push(new Paragraph({ spacing: { after: 40 }, children: inlineRuns(ln) }));
+    if (ln.trim())
+      children.push(new Paragraph({ spacing: { after: 40 }, children: inlineRuns(ln) }));
   }
   if (children.length === 0) children.push(new Paragraph(""));
   return panel(children, "F3F4F6", color);
@@ -193,7 +194,10 @@ function paraFor(text: string, book: boolean): Paragraph {
         spacing: { line: 320, lineRule: "auto" },
         children: inlineRuns(text, { font: "Georgia", size: 24 }),
       })
-    : new Paragraph({ spacing: { after: 120, line: 276, lineRule: "auto" }, children: inlineRuns(text) });
+    : new Paragraph({
+        spacing: { after: 120, line: 276, lineRule: "auto" },
+        children: inlineRuns(text),
+      });
 }
 
 // AST -> docx body. `book` switches paragraphs to justified serif book prose (the manuscript) vs.
@@ -211,7 +215,8 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
         out.push(new Paragraph({ heading: HEADINGS[b.level - 1], children: inlineRuns(b.text) }));
         break;
       case "ul":
-        for (const it of b.items) out.push(new Paragraph({ bullet: { level: 0 }, children: inlineRuns(it) }));
+        for (const it of b.items)
+          out.push(new Paragraph({ bullet: { level: 0 }, children: inlineRuns(it) }));
         break;
       case "ol":
         b.items.forEach((it, i) =>
@@ -315,7 +320,9 @@ export function buildManuscriptDoc(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 480, after: ch.title ? 60 : 80 },
-        children: [new TextRun({ text: `CHAPTER ${ch.chapter_no}`, font: "Georgia", bold: true, size: 28 })],
+        children: [
+          new TextRun({ text: `CHAPTER ${ch.chapter_no}`, font: "Georgia", bold: true, size: 28 }),
+        ],
       }),
     );
     if (ch.title) {
@@ -331,7 +338,9 @@ export function buildManuscriptDoc(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 320 },
-        children: [new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" })],
+        children: [
+          new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" }),
+        ],
       }),
     );
     scenes.forEach((sc, si) => {
@@ -351,7 +360,13 @@ export function buildManuscriptDoc(
   return new Document({
     creator: "Writers' Desk",
     title,
-    sections: [{ properties: { page: { margin: pageMargin } }, footers: { default: pageFooter() }, children }],
+    sections: [
+      {
+        properties: { page: { margin: pageMargin } },
+        footers: { default: pageFooter() },
+        children,
+      },
+    ],
   });
 }
 
@@ -375,42 +390,54 @@ function shunnRun(text: string): TextRun {
 
 function shunnHeader(surname: string, titleUpper: string): Header {
   return new Header({
-    children: [new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      children: [
-        shunnRun(`${surname} / ${titleUpper} / `),
-        new TextRun({ children: [PageNumber.CURRENT], font: SHUNN_FONT, size: SHUNN_SIZE }),
-      ],
-    })],
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          shunnRun(`${surname} / ${titleUpper} / `),
+          new TextRun({ children: [PageNumber.CURRENT], font: SHUNN_FONT, size: SHUNN_SIZE }),
+        ],
+      }),
+    ],
   });
 }
 
 /** Domain A, submission variant — the manuscript in standard (Shunn) format for agents/editors. */
-export function buildShunnDoc(manuscript: ManuscriptOut, author: string, wordCount: number): Document {
+export function buildShunnDoc(
+  manuscript: ManuscriptOut,
+  author: string,
+  wordCount: number,
+): Document {
   const title = manuscript.title || "Untitled";
   const byline = author.trim() || "Author";
   const surname = byline.split(/\s+/).pop() || byline;
   const titleUpper = title.toUpperCase();
   const rightTab = convertInchesToTwip(6.5); // 8.5" page − 2×1" margins
 
-  const body = (text: string) => new Paragraph({
-    spacing: DOUBLE,
-    indent: { firstLine: convertInchesToTwip(0.5) },
-    children: [shunnRun(text)],
-  });
+  const body = (text: string) =>
+    new Paragraph({
+      spacing: DOUBLE,
+      indent: { firstLine: convertInchesToTwip(0.5) },
+      children: [shunnRun(text)],
+    });
 
   // Title page: contact (left) + word count (right), then the title ~1/3 down, then the byline.
   const children: Paragraph[] = [
     new Paragraph({
       tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
-      children: [shunnRun(byline), shunnRun(`\tabout ${roundWords(wordCount).toLocaleString()} words`)],
+      children: [
+        shunnRun(byline),
+        shunnRun(`\tabout ${roundWords(wordCount).toLocaleString()} words`),
+      ],
     }),
     new Paragraph({
-      alignment: AlignmentType.CENTER, spacing: { before: 2800, ...DOUBLE },
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 2800, ...DOUBLE },
       children: [shunnRun(titleUpper)],
     }),
     new Paragraph({
-      alignment: AlignmentType.CENTER, spacing: DOUBLE,
+      alignment: AlignmentType.CENTER,
+      spacing: DOUBLE,
       children: [shunnRun(`by ${byline}`)],
     }),
   ];
@@ -419,13 +446,24 @@ export function buildShunnDoc(manuscript: ManuscriptOut, author: string, wordCou
     const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
     if (scenes.length === 0) continue;
     children.push(new Paragraph({ children: [new PageBreak()] }));
-    children.push(new Paragraph({
-      alignment: AlignmentType.CENTER, spacing: { before: 1200, after: 240, ...DOUBLE },
-      children: [shunnRun(`CHAPTER ${ch.chapter_no}${ch.title ? ` — ${ch.title.toUpperCase()}` : ""}`)],
-    }));
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 1200, after: 240, ...DOUBLE },
+        children: [
+          shunnRun(`CHAPTER ${ch.chapter_no}${ch.title ? ` — ${ch.title.toUpperCase()}` : ""}`),
+        ],
+      }),
+    );
     scenes.forEach((sc, si) => {
       if (si > 0) {
-        children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: DOUBLE, children: [shunnRun("#")] }));
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: DOUBLE,
+            children: [shunnRun("#")],
+          }),
+        );
       }
       // Plain prose: split on blank lines into paragraphs; collapse internal whitespace (reflow).
       for (const block of (sc.prose ?? "").split(/\n{2,}/)) {
@@ -438,11 +476,13 @@ export function buildShunnDoc(manuscript: ManuscriptOut, author: string, wordCou
   return new Document({
     creator: "Writers' Desk",
     title,
-    sections: [{
-      properties: { titlePage: true, page: { margin: pageMargin } },
-      headers: { default: shunnHeader(surname, titleUpper), first: new Header({ children: [] }) },
-      children,
-    }],
+    sections: [
+      {
+        properties: { titlePage: true, page: { margin: pageMargin } },
+        headers: { default: shunnHeader(surname, titleUpper), first: new Header({ children: [] }) },
+        children,
+      },
+    ],
   });
 }
 

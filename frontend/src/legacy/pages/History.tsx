@@ -31,7 +31,10 @@ export default function History() {
     if (!bookId) return;
     setChapters([]);
     setChapterId("");
-    api.chapters(bookId).then(setChapters).catch((e) => setError(String(e)));
+    api
+      .chapters(bookId)
+      .then(setChapters)
+      .catch((e) => setError(String(e)));
   }, [bookId]);
 
   useEffect(() => {
@@ -42,7 +45,10 @@ export default function History() {
     }
     setScenes([]);
     setSceneId("");
-    api.chapterScenes(chapterId).then(setScenes).catch((e) => setError(String(e)));
+    api
+      .chapterScenes(chapterId)
+      .then(setScenes)
+      .catch((e) => setError(String(e)));
   }, [chapterId]);
 
   useEffect(() => {
@@ -83,16 +89,14 @@ export default function History() {
 
   const base =
     compare === "original"
-      ? selected?.agent_original ?? ""
+      ? (selected?.agent_original ?? "")
       : selIdx > 0
-        ? sortedVersions[selIdx - 1].prose ?? ""
+        ? (sortedVersions[selIdx - 1].prose ?? "")
         : "";
   const target = selected?.prose ?? "";
   const ops = useMemo(() => (selected ? lineDiff(base, target) : []), [selected, base, target]);
 
-  const noBase =
-    !!selected &&
-    (compare === "original" ? !selected.agent_original : selIdx <= 0);
+  const noBase = !!selected && (compare === "original" ? !selected.agent_original : selIdx <= 0);
 
   return (
     <div className="history">
@@ -173,7 +177,9 @@ export default function History() {
           <pre>
             {ops.map((op, i) => (
               <div key={i} className={`diff-line diff-${op.type}`}>
-                <span className="gutter">{op.type === "add" ? "+" : op.type === "del" ? "−" : " "}</span>
+                <span className="gutter">
+                  {op.type === "add" ? "+" : op.type === "del" ? "−" : " "}
+                </span>
                 {op.text || " "}
               </div>
             ))}

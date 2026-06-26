@@ -115,7 +115,10 @@ function Callout({ block }: { block: Extract<ProseBlock, { kind: "callout" }> })
       {block.lines
         .filter((ln) => ln.trim())
         .map((ln, j) => (
-          <p key={j} style={css("margin:0 0 .45em;font-size:.95em;line-height:1.6;color:var(--ink)")}>
+          <p
+            key={j}
+            style={css("margin:0 0 .45em;font-size:.95em;line-height:1.6;color:var(--ink)")}
+          >
             <Inline text={ln} />
           </p>
         ))}
@@ -225,7 +228,10 @@ export default function ProseBlocks({
             return <Callout key={i} block={b} />;
           case "hr":
             return (
-              <hr key={i} style={css("border:none;border-top:1px solid var(--line);margin:1.8em 0")} />
+              <hr
+                key={i}
+                style={css("border:none;border-top:1px solid var(--line);margin:1.8em 0")}
+              />
             );
           case "stat":
             return <StatWindow key={i} lines={b.lines} />;
