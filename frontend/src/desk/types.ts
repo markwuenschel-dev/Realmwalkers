@@ -1,7 +1,7 @@
 // UI-state types for the Writers' Desk. (Server/wire types live in desk/api/types.ts; the Desk no
 // longer carries any fixture data interfaces — every screen reads live data.)
 
-export type Screen = "scene" | "inbox" | "chapters" | "packets" | "diff" | "manuscript" | "ledger" | "docs";
+export type Screen = "scene" | "inbox" | "chapters" | "packets" | "diff" | "manuscript" | "ledger" | "docs" | "settings";
 export type Tab = "continuity" | "notes" | "changes";
 export type Mode = "reading" | "suggesting" | "editing";
 // Single source of truth lives with the wire DTOs; re-exported here so UI-state consumers (state.ts)

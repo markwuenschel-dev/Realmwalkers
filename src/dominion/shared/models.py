@@ -305,3 +305,12 @@ class RuleProposal(Base):
     source_pair_ids: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     status: Mapped[str] = mapped_column(Text, default="pending")  # pending | accepted | rejected
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModelOverride(Base):
+    """Runtime model choice per agent role (e.g. setting_name='draft_model' -> 'claude-opus-4-8').
+    Applied to the live `settings` on startup and whenever the Settings screen changes one, so picking
+    Haiku/Sonnet/Opus per agent never needs a redeploy."""
+    __tablename__ = "model_overrides"
+    setting_name: Mapped[str] = mapped_column(Text, primary_key=True)
+    model: Mapped[str] = mapped_column(Text)

@@ -1,6 +1,19 @@
 // Wire types for the Writers' Desk — mirror the FastAPI DTOs in src/dominion/shared/schemas.py.
 // Kept self-contained (the Desk no longer reads any fixtures from desk/data.ts).
 
+export interface ModelSettingOut {
+  setting: string;
+  label: string;
+  description: string;
+  model: string;
+  tier: string | null;   // "haiku" | "sonnet" | "opus" | null
+}
+
+export interface ModelSettingsOut {
+  agents: ModelSettingOut[];
+  tiers: Record<string, string>;   // tier -> model id
+}
+
 export interface CritiqueOut {
   id: string;
   reviewer: string;

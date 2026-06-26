@@ -14,6 +14,7 @@ const SCREENS: { id: Screen; label: string }[] = [
   { id: "manuscript", label: "Manuscript" },
   { id: "ledger", label: "Ledger" },
   { id: "docs", label: "Canon" },
+  { id: "settings", label: "Models" },
 ];
 
 const THEMES: { id: ThemeId; label: string; title: string }[] = [
