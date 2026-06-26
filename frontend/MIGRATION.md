@@ -78,14 +78,17 @@ npm run typecheck
 ```
 Backend is unchanged (FastAPI via the usual WSL `dev.sh`).
 
-### Ops note (pm2)
-The pm2 `desk` process previously ran Vite (port 5173). It now runs `next dev` (default port **3000**).
-Update the pm2 process/ecosystem command and port mapping when this lands.
+### Ops note (pm2) — wired
+The desk dev server now runs under pm2 via the committed `ecosystem.config.cjs` (`next dev -H 0.0.0.0
+-p 3000`, process name `desk`). First run: `pm2 start ecosystem.config.cjs`; after pulling: `pm2
+restart desk`. `dev.sh` (the WSL one-terminal launcher) also starts `next dev` on :3000.
 
-### Deploy note (Railway)
-Previously FastAPI served the built bundle same-origin. With Next as its own server, the deployment
-shape changes: run the Next server and set `API_BASE` to the FastAPI URL (internal service URL if
-co-located). This is **not** wired in this slice — it's the main deployment follow-up.
+### Deploy note (Railway) — wired
+Single-service preserved: the Docker image now runs **Next (public `$PORT`) + FastAPI (internal
+:8000) in one container**. The browser loads the desk from Next and calls same-origin `/api/desk/*`,
+which the BFF proxies to FastAPI via `API_BASE=http://127.0.0.1:8000` — so there is still no separate
+API host, no CORS, no localhost. Next uses `output: "standalone"`; `init_db` still runs at boot;
+`wait -n` exits the container (triggering Railway's restart) if either process dies.
 
 ## Verification
 `tsc --noEmit` clean; `next build` green (12 routes); runtime smoke: `/`→307, `/scene` `/inbox`
@@ -101,4 +104,3 @@ co-located). This is **not** wired in this slice — it's the main deployment fo
   active-scene stale-response, API base.
 - SSR nicety: localStorage-seeded layout state can cause a first-render hydration mismatch (cosmetic;
   guarded by try/catch). Move to an effect-based read when convenient.
-- Deployment (Railway) + pm2 command updates.

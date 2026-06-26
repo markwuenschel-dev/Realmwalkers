@@ -1,8 +1,11 @@
 # Keep the build context small + deterministic (deps are reinstalled in the image).
 .git
+.claude
 .venv
 **/node_modules
+**/.next
 frontend/dist
+frontend/out
 **/__pycache__
 .pytest_cache
 .mypy_cache
