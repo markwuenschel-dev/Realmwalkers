@@ -23,11 +23,17 @@ export default function Planner() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Is a gate-1 plan call in flight for the chapter in the form? Tracked in the data provider (not
+  // here) so it survives an in-app tab switch that unmounts this panel — the propose keeps running
+  // server-side, and this stays true until it lands.
+  const planning = data.planningChapters.has(chapterNo);
+
   // Proposed beats are persisted server-side, but the propose *response* is the only thing that
   // populates this panel — so if that request was lost (timeout, reload, navigating away) the beats
   // become invisible even though they're safe in the DB. Re-hydrate them: once per (book, chapter),
   // pull the chapter's still-proposed beats and surface them for editing/approval. We never clobber
-  // an in-progress edit (only hydrate when the panel is empty).
+  // an in-progress edit (only hydrate when the panel is empty), and we WAIT for any in-flight plan
+  // call to finish first — pulling mid-flight would find no beats yet and then never retry.
   const beatsRef = useRef(beats);
   beatsRef.current = beats;
   const hydratedKey = useRef<string | null>(null);
@@ -37,6 +43,8 @@ export default function Planner() {
   useEffect(() => { hydratedKey.current = null; }, [data.bookId, chapterNo]);
   useEffect(() => {
     if (!data.bookId) return;
+    if (planning) return;                       // wait for the in-flight plan call to land its beats
+    if (beatsRef.current.length > 0) return;    // don't clobber shown/edited beats
     const key = `${data.bookId}:${chapterNo}`;
     if (hydratedKey.current === key) return;
     const ch = data.chapters.find((c) => c.chapter_no === chapterNo);
@@ -52,7 +60,7 @@ export default function Planner() {
       if (!pov.trim()) setPov(ch.pov);
       if (!outline.trim() && ch.outline) setOutline(ch.outline);
     })();
-  }, [data.bookId, data.chapters, chapterNo, pov, outline]);
+  }, [data.bookId, data.chapters, chapterNo, pov, outline, planning]);
 
   const card = css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:26px");
   const label = css("font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:10px");
@@ -75,10 +83,10 @@ export default function Planner() {
 
   const propose = async () => {
     if (!pov.trim() || !outline.trim()) return;
-    setBusy(true);
     setNotice(null);
+    // Busy state lives in the provider (data.planningChapters) so it survives a tab switch — don't
+    // toggle a local flag here. The await still resolves here when the panel stays mounted.
     const out = await data.startRun(chapterNo, pov.trim(), outline.trim(), numOrUndef(maxBeats), numOrUndef(targetWords));
-    setBusy(false);
     if (out) {
       setChapterId(out.chapter_id);
       setBeats(out.beats);
@@ -184,8 +192,8 @@ export default function Planner() {
           </label>
 
           <div style={css("display:flex;gap:9px;align-items:center;margin-top:10px;flex-wrap:wrap")}>
-            <button style={btn} disabled={busy || !pov.trim() || !outline.trim()} onClick={propose}>
-              {busy && beats.length === 0 ? "Proposing…" : beats.length ? "Re-propose (replaces below)" : "Propose beats"}
+            <button style={btn} disabled={planning || !pov.trim() || !outline.trim()} onClick={propose}>
+              {planning ? "Proposing…" : beats.length ? "Re-propose (replaces below)" : "Propose beats"}
             </button>
             {beats.length > 0 && (
               <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>

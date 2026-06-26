@@ -7,26 +7,26 @@ status: canon
 # Mechanics & Tiers — Dominion Realm
 
 > **Status:** Canon · working draft
-> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level — plus affinity tiers. Class rarity → `core_rules.md` / `classes.md`. Calendar → `realm_calendar.md`. **Resource formulas, regen/depletion, the Soul→Reserve multiplier, XP curve, threat readout, and stat templates → `resource_system.md`.**
+> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level — plus domain tiers (the power-domain axis). Class rarity → `core_rules.md` / `classes.md`. Calendar → `realm_calendar.md`. **Resource formulas, regen/depletion, the Soul→Reserve multiplier, XP curve, threat readout, and stat templates → `resource_system.md`.** **Combat damage model → `combat_formulas.md` (consumes these ladders).**
 
 ## Read-this-first notes
 
 - **These ladders are independent.** "Divine," "Mythic," "Legendary," "Exceptional," "Rare," "Common" recur across several ladders — a Divine *soul* ≠ a Divine *item* ≠ a Divine *spell-skill tier*. Don't conflate them.
 - **Soul Level is load-bearing for the story.** It governs resistance to being altered, erased, bound, possessed, or overwritten — the engine under **true-names / namebinding** (Serra's arc; **any soul can be bound in principle — Soul Level sets the difficulty and cost, not a yes/no.** Low and average souls are cheap and routine — what the faction preys on; high souls are prohibitively costly; the top tiers (Brilliant → Absolute) approach but never reach true immunity), **death & resurrection** (Marcus), **the broker holding Seb's brother's soul**, and **vow enforcement** (Xazzidiuk/Zazriel). Cross-ref from `core_rules.md` (Naming) and `relationship_map.md`.
-- **Spell Skill Mastery composes with affinity, not against it.** Affinity = the *chance* a skill levels (Marcus's Unbound Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). See `core_rules.md` → Skills and Affinities.
+- **Spell Skill Mastery composes with (skill) affinity, not against it.** Affinity = the *chance* a skill levels (Marcus's Unbound Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). See `core_rules.md` → Skills and Affinities. (Affinity is the skill-leveling mechanic; the power-domain axis is **Domain** — see Domain Tiers below. Two different things that used to share the word "affinity.")
 - **The Eyes of Meszkhal is a _Unique_ item** (Item Rarity, below). Its copycat / +100%-skill-XP is the *item's* power, billed in mana; the Neurochromatic interface is separate and bills in the body.
 
 ---
 
-## Affinity Tiers
+## Domain Tiers (Power Domains)
 
-Affinities group into three tiers of escalating rarity/scope. ⚠ *Source layout was visually garbled; this grouping is my best-effort column-parse of it — confirm exact membership.*
+A **Domain** is the *kind* of supernatural power a class is shaped by (the source/flavor). Domains group into three tiers of escalating rarity/scope. *(Distinct from skill **Affinity**, the per-skill leveling mechanic in `core_rules.md` — the two used to share the word "affinity"; the power-domain axis is now **Domain** throughout canon.)*
 
-- **Elemental** (foundational, most common): **Fire, Water, Air, Earth, Light, Life, Shadow, Death** — the eight foundational affinities — plus **Aether**.
-- **Primordial** (uncommon, structural): **Runic, Psychic, Spirit, Blood.**
-- **Cosmic** (rare, reality-scale): **Chaos, Eldritch, Celestial, Time, Void, Gravity, Planar.**
+- **Elemental** (8 foundational, most common): **Fire · Water · Air · Earth · Light · Life · Shadow · Death.**
+- **Primordial** (5, uncommon/structural): **Runic · Psychic · Spirit · Blood · Force.**
+- **Cosmic** (7, rare/reality-scale): **Chaos · Celestial · Void · Planar · Time · Entropy · Eldritch.**
 
-> **Aether flag:** the source places Aether in the Elemental row, but elsewhere Aether is the *synthesis* of the eight foundational affinities (the center, not a member). Treat as synthesis pending a decision. **Chaos** sits in Cosmic — consistent with cosmology (Chaos = cosmic appetite-with-intent).
+> **Aether** is the synthesis of the eight Elemental domains in harmony — a higher-order state, **not** a tier member. **Chaos** sits in Cosmic — consistent with cosmology (Chaos = cosmic appetite-with-intent). **Force** governs gravity/kinetic/weight effects (the old "Gravity" domain is folded here). A discipline/school (Fire Magic, Frost Magic) *wields* a domain; it is not itself a domain.
 
 ---
 
@@ -261,7 +261,7 @@ In general, higher-quality gemstones allow magic to flow with greater efficiency
 
 **Spell Skill Mastery represents a practitioner's understanding and mastery of a specific magical discipline.**
 
-As Spell Skill increases, practitioners gain greater control, efficiency, resistance, and effectiveness when interacting with that school of magic. Spell Skill is independent of Character Level, Class, Affinity, and Soul Level.
+As Spell Skill increases, practitioners gain greater control, efficiency, resistance, and effectiveness when interacting with that school of magic. Spell Skill is independent of Character Level, Class, Domain, and Soul Level.
 
 Higher Spell Skill provides:
 

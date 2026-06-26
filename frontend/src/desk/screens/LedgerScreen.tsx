@@ -1,8 +1,11 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
+import { api } from "../api/client";
 import { statValue } from "../lib/format";
+import { useSelection } from "../lib/useSelection";
+import BulkBar, { BulkButton } from "../components/BulkBar";
 import type { CanonEntityOut, CharacterStateOut, ThreadBeatIn, ThreadIn } from "../api/types";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -60,6 +63,26 @@ export default function LedgerScreen() {
   const isChars = ledgerCat === "characters";
   const isThreads = ledgerCat === "threads";
   const canonKind = ledgerCat.startsWith("canon:") ? ledgerCat.slice("canon:".length) : null;
+
+  // Bulk-delete selection. One picker, reset when you switch category (the ids/meaning change: a
+  // character is keyed by name, threads + canon by id), so a stale tick can't delete the wrong thing.
+  const bulk = useSelection();
+  useEffect(() => { bulk.clear(); }, [ledgerCat, bulk.clear]);
+  const canonHere = canonKind ? data.canon.filter((c) => (c.kind ?? "other") === canonKind) : [];
+  const selectableIds = isChars ? data.characters.map((c) => c.character)
+    : isThreads ? data.threads.map((th) => th.id)
+    : canonHere.map((c) => c.id);
+  const bulkDelete = () => {
+    const what = isChars ? "character" : isThreads ? "thread" : "entry";
+    if (!confirm(`Delete ${bulk.count} ${what}${bulk.count === 1 ? "" : "s"}?`)) return;
+    const fn = isChars
+      ? (name: string) => api.deleteCharacter(data.bookId ?? "", name)
+      : isThreads
+        ? (id: string) => api.deleteThread(id)
+        : (id: string) => api.deleteCanon(id);
+    void data.runBulk(bulk.ids, fn);
+    bulk.clear();
+  };
 
   return (
     <div>
@@ -138,7 +161,8 @@ export default function LedgerScreen() {
                           <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>{ch.character}</div>
                           <div style={css("font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--dim);margin-top:2px")}>{ch.is_pov ? "POV" : "character"}{ch.provisional ? " · provisional" : ""}</div>
                         </div>
-                        <div style={css("display:flex;gap:6px;flex:none")}>
+                        <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
+                          <input type="checkbox" checked={bulk.has(ch.character)} onChange={() => bulk.toggle(ch.character)} title="select" style={css("width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px")} />
                           <button onClick={() => { setCharEdit(ch); setCanonEdit(null); }} style={css(ghost)}>edit</button>
                           <button onClick={() => { if (confirm(`Delete ${ch.character}'s tracked stats?`)) data.deleteCharacter(ch.character); }} style={css(ghost)}>×</button>
                         </div>
@@ -180,6 +204,7 @@ export default function LedgerScreen() {
                 return (
                   <div key={th.id} onClick={() => selectThread(th.id)} style={css(`background:var(--bg2);border:1px solid ${sel ? "var(--accentLine)" : "var(--line)"};border-radius:var(--r);padding:16px 18px;cursor:pointer;box-shadow:${sel ? "var(--shadow)" : "none"}`)}>
                     <div style={css("display:flex;align-items:center;gap:11px;margin-bottom:8px;flex-wrap:wrap")}>
+                      <input type="checkbox" checked={bulk.has(th.id)} onClick={(e) => e.stopPropagation()} onChange={() => bulk.toggle(th.id)} style={css("width:15px;height:15px;cursor:pointer;accent-color:var(--accent);flex:none")} />
                       <span style={css("font-family:var(--display);font-size:18px;color:var(--ink)")}>{th.name}</span>
                       {th.kind && <span style={css(`font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:${kindColor};background:color-mix(in srgb,${kindColor} 13%,transparent);border-radius:999px;padding:3px 9px`)}>{th.kind}</span>}
                       <span style={css("margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>{th.state ? `state · ${th.state}` : ""}</span>
@@ -221,7 +246,8 @@ export default function LedgerScreen() {
                 <div key={e.id} style={css("background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:15px 18px")}>
                   <div style={css("display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px")}>
                     <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>{e.name ?? "—"}</div>
-                    <div style={css("display:flex;gap:6px;flex:none")}>
+                    <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
+                      <input type="checkbox" checked={bulk.has(e.id)} onChange={() => bulk.toggle(e.id)} title="select" style={css("width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px")} />
                       <button onClick={() => { setCanonEdit({ mode: "edit", entity: e }); setCharEdit(null); }} style={css(ghost)}>edit</button>
                       <button onClick={() => { if (confirm(`Delete "${e.name ?? "entry"}"?`)) data.deleteCanon(e.id); }} style={css(ghost)}>×</button>
                     </div>
@@ -233,6 +259,13 @@ export default function LedgerScreen() {
           )}
         </div>
       </div>
+
+      <BulkBar count={bulk.count} noun={isChars ? "character" : isThreads ? "thread" : "entry"} onClear={bulk.clear}>
+        {bulk.count < selectableIds.length && (
+          <BulkButton onClick={() => bulk.toggleAll(selectableIds)}>Select all {selectableIds.length}</BulkButton>
+        )}
+        <BulkButton tone="bad" onClick={bulkDelete}>Delete selected</BulkButton>
+      </BulkBar>
     </div>
   );
 }

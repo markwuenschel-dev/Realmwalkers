@@ -23,6 +23,8 @@ import type {
   CharacterStateOut,
   ContinuityResolveIn,
   DecisionIn,
+  ActivityEntry,
+  FailedJobOut,
   JobsStatusOut,
   ManuscriptOut,
   RunStartOut,
@@ -42,6 +44,19 @@ import type {
 // fixture. Server data lives here; ephemeral view state (which tab, which theme) lives in state.ts.
 
 const EMPTY_JOBS: JobsStatusOut = { running: false, queued: 0, failed: 0, active_scene: null };
+const ACTIVITY_MAX = 14;          // cap the live feed so it can't grow unbounded across a long session
+const UNREACHABLE_AFTER = 2;      // consecutive failed polls before we call the backend unreachable
+
+// One line for the live activity feed from the current job status (drafting phase, or the queue tail).
+function activityLabel(js: JobsStatusOut): string | null {
+  if (js.running && js.active_scene) {
+    const a = js.active_scene;
+    const where = a.chapter_no != null ? `Ch ${a.chapter_no} · ` : "";
+    return `${where}Scene ${a.scene_no ?? "?"}${a.phase ? ` · ${a.phase}` : ""}`;
+  }
+  if (js.queued > 0) return `${js.queued} queued`;
+  return null;
+}
 
 export interface DeskData {
   loading: boolean;
@@ -61,6 +76,9 @@ export interface DeskData {
   canon: CanonEntityOut[];
   threads: ThreadOut[];
   jobs: JobsStatusOut;
+  failedJobs: FailedJobOut[];     // FAILED jobs + their reason, for the failed card
+  jobsUnreachable: boolean;       // the status poll has been failing — the backend looks down
+  activity: ActivityEntry[];      // live feed of drafting phases / queue transitions (newest first)
 
   detail: SceneDetail | null;
   versions: SceneVersionOut[];
@@ -76,8 +94,14 @@ export interface DeskData {
   startRun: (
     chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
   ) => Promise<RunStartOut | null>;
+  // Chapter numbers with an in-flight gate-1 plan call. Tracked here (not in the Planner) so the
+  // "Proposing…" state survives an in-app tab switch that unmounts the Planner — the plan call keeps
+  // running and this stays true until it finishes.
+  planningChapters: Set<number>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   retryFailed: () => Promise<number>; // re-queue FAILED jobs for the active book; returns count
+  // Run one API call per id (approve / revise / delete), then refresh once. Powers every bulk action.
+  runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
@@ -114,6 +138,10 @@ export function useDeskDataState(): DeskData {
   const [canon, setCanon] = useState<CanonEntityOut[]>([]);
   const [threads, setThreads] = useState<ThreadOut[]>([]);
   const [jobs, setJobs] = useState<JobsStatusOut>(EMPTY_JOBS);
+  const [failedJobs, setFailedJobs] = useState<FailedJobOut[]>([]);
+  const [jobsUnreachable, setJobsUnreachable] = useState(false);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [planningChapters, setPlanningChapters] = useState<Set<number>>(new Set());
 
   const [detail, setDetail] = useState<SceneDetail | null>(null);
   const [versions, setVersions] = useState<SceneVersionOut[]>([]);
@@ -195,6 +223,7 @@ export function useDeskDataState(): DeskData {
   useEffect(() => {
     if (!bookId) return;
     let alive = true;
+    setPlanningChapters(new Set()); // chapter numbers aren't comparable across books — start clean
     setLoading(true);
     (async () => {
       try {
@@ -218,6 +247,8 @@ export function useDeskDataState(): DeskData {
   jobsRef.current = jobs;
   const bookRef = useRef(bookId);
   bookRef.current = bookId;
+  const failCountRef = useRef(0);          // consecutive failed polls -> backend-unreachable banner
+  const lastActivityRef = useRef("");      // de-dupe the feed: only log when the phase/label changes
   useEffect(() => {
     let alive = true;
     let handle = 0;
@@ -227,15 +258,38 @@ export function useDeskDataState(): DeskData {
       if (id) {
         try {
           const js = await api.jobsStatus(id);
-          setJobs(js);
           const was = jobsRef.current;
+          setJobs(js);
+          failCountRef.current = 0;
+          setJobsUnreachable(false);
           busyNow = js.running || js.queued > 0;
           const justFinished = !busyNow && (was.running || was.queued > 0);
+
+          // Live activity feed: append a line whenever the drafting phase / queue label changes, plus
+          // a closing line when the queue empties — so progress always reads as motion, not a frozen number.
+          const label = activityLabel(js);
+          if (label && label !== lastActivityRef.current) {
+            lastActivityRef.current = label;
+            setActivity((a) => [{ id: `${Date.now()}-${a.length}`, ts: Date.now(), text: label }, ...a].slice(0, ACTIVITY_MAX));
+          } else if (justFinished) {
+            lastActivityRef.current = "";
+            setActivity((a) => [{ id: `${Date.now()}-${a.length}`, ts: Date.now(), text: "Queue clear ✓" }, ...a].slice(0, ACTIVITY_MAX));
+          }
+
+          // Pull the failure reasons, but only when the failed count actually changes (not every poll).
+          if (js.failed !== was.failed) {
+            if (js.failed > 0) api.jobsFailed(id).then(setFailedJobs).catch(() => {});
+            else setFailedJobs([]);
+          }
+
           if (busyNow || justFinished) {
             await loadCollections(id);
           }
         } catch {
-          /* transient — next tick retries */
+          // The poll failed — the backend may be down. After a couple of misses, say so out loud
+          // instead of silently freezing the last-known counts (which once looked like stuck jobs).
+          failCountRef.current += 1;
+          if (failCountRef.current >= UNREACHABLE_AFTER) setJobsUnreachable(true);
         }
       }
       if (alive) handle = window.setTimeout(tick, busyNow ? 1500 : 4000);
@@ -307,6 +361,9 @@ export function useDeskDataState(): DeskData {
       chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number,
     ): Promise<RunStartOut | null> => {
       if (!bookId) return null;
+      // Mark in-flight BEFORE the call so the Planner shows "Proposing…" even across a remount; this
+      // body runs to completion in the provider regardless of whether the Planner is still mounted.
+      setPlanningChapters((s) => new Set(s).add(chapterNo));
       try {
         const out = await api.startRun({
           book_id: bookId, chapter_no: chapterNo, pov, outline,
@@ -317,6 +374,12 @@ export function useDeskDataState(): DeskData {
       } catch (e) {
         fail(e);
         return null;
+      } finally {
+        setPlanningChapters((s) => {
+          const n = new Set(s);
+          n.delete(chapterNo);
+          return n;
+        });
       }
     },
     [bookId, loadCollections],
@@ -356,6 +419,23 @@ export function useDeskDataState(): DeskData {
       return 0;
     }
   }, [bookId, refreshAll]);
+
+  // Generic bulk runner: fire one call per id concurrently, refresh once, and report partial failures
+  // instead of silently dropping them. Used by every "do this to the selected rows" affordance.
+  const runBulk = useCallback(
+    async (ids: string[], fn: (id: string) => Promise<unknown>): Promise<void> => {
+      if (ids.length === 0) return;
+      try {
+        const results = await Promise.allSettled(ids.map(fn));
+        await refreshAll();
+        const failures = results.filter((r) => r.status === "rejected").length;
+        if (failures > 0) setError(`${failures} of ${ids.length} failed — others applied.`);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [refreshAll],
+  );
 
   const approveAndDraft = useCallback(
     async (chapterId: string, beatIds?: string[]): Promise<void> => {
@@ -575,8 +655,9 @@ export function useDeskDataState(): DeskData {
     loading, error, clearError,
     books, bookId, setBook,
     chapters, scenes, latestScenes, pending, manuscript, characters, canon, threads, jobs,
+    failedJobs, jobsUnreachable, activity,
     detail, versions, activeBeat, activeSceneId, annotations, suggestions, openSceneById,
-    refreshAll, createBook, updateChapter, startRun, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed,
+    refreshAll, createBook, updateChapter, startRun, planningChapters, approveAndDraft, decide, revertScene, resolveContinuity, draftNext, retryFailed, runBulk,
     setExemplar,
     createThread, addThreadBeat, deleteThread,
     upsertCharacter, deleteCharacter, createCanon, updateCanon, deleteCanon, ingestCanon,

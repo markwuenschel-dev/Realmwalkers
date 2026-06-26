@@ -86,6 +86,7 @@ class BookOut(_ORM):
 class BeatOut(_ORM):
     id: uuid.UUID
     chapter_id: uuid.UUID
+    scene_seed_id: uuid.UUID | None = None       # set when the beat was derived from a packet scene_seed
     scene_no: int
     beat_text: str | None = None
     characters_present: list[str] | None = None
@@ -162,6 +163,41 @@ class RunStartOut(BaseModel):
     beats: list[BeatOut] = []
 
 
+# --- Contract-first drafting: chapter knowledge packets (Phase 1) ---------------------------------
+
+class PacketOut(_ORM):
+    """A chapter knowledge packet for the Desk review panel. `body` is the full structured packet
+    (claims with provenance, scene seeds with stable ids, locks, risks); `qa_warnings` carries the
+    Packet QA verdict's residual risks + issues; `open_questions` are items the human must adjudicate."""
+    id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_id: uuid.UUID
+    status: str                                  # proposed | approved | blocked
+    confidence: str | None = None                # green | yellow | red
+    qa_verdict: str | None = None
+    qa_warnings: dict[str, Any] | None = None
+    body: dict[str, Any] = {}
+    open_questions: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class PacketUpdateIn(BaseModel):
+    """PUT body to adjudicate/edit a proposed packet. Only provided fields are applied. The human
+    edits the body, clears open questions, and may raise the confidence after reviewing flags."""
+    body: dict[str, Any] | None = None
+    open_questions: dict[str, Any] | None = None
+    confidence: str | None = None                # green | yellow | red
+
+
+class PacketProposeOut(BaseModel):
+    """Status of an in-flight packet proposal. The author+QA run in the background (so the browser
+    never hangs); the Desk polls and shows the live phase ('authoring' -> 'qa'). `running` flips to
+    False when the packet is persisted — that's the cue to refetch it via GET."""
+    running: bool
+    phase: str | None = None        # authoring | qa | None
+    elapsed_s: int | None = None
+
+
 # --- History + manuscript read surfaces (DESIGN §9, §13) ------------------------------------------
 
 class SceneVersionOut(SceneOut):
@@ -220,6 +256,14 @@ class RetryFailedOut(BaseModel):
     scheduled: bool = False
     queued: int = 0
     running: bool = False
+
+
+class FailedJobOut(BaseModel):
+    """A FAILED job + why it died, so the Desk can show the actual error instead of a generic note."""
+    id: uuid.UUID
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    last_error: str | None = None
 
 
 # --- World ledger + in-prose entity cards (DESIGN §5, §7) -----------------------------------------

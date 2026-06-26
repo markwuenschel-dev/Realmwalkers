@@ -2,6 +2,17 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-24 — Affinity (mechanic) / Domain (power axis) terminology split
+
+Resolved the "affinity" collision — one word doing two load-bearing jobs (a skill-leveling mechanic **and** a power-domain axis). Ruling: **Affinity = the mechanic only** (per-skill chance a skill levels; Marcus's Unbound Affinity inverts it — unchanged). The power-domain axis (Fire, Death, Planar…) is renamed **Domain** throughout canon.
+- **Terminology stack locked:** Domain (power source/flavor) · Discipline/School (learned skill-family that wields a domain: Fire Magic, Frost Magic) · Spell Skill Mastery (tier within a discipline) · Spell Strength (per-casting quality) · skill Affinity (leveling chance). `Class = method · Specialization = refined method · Domain = source · Affinity = leveling chance`.
+- **Domain taxonomy settled** (`mechanics.md` "Domain Tiers"): **Elemental (8)** Fire·Water·Air·Earth·Light·Life·Shadow·Death · **Primordial (5)** Runic·Psychic·Spirit·Blood·**Force** · **Cosmic (7)** Chaos·Celestial·Void·Planar·Time·**Entropy**·Eldritch · **Aether** = synthesis of the 8 Elementals (not a tier member). Diff from old parse: Primordial **+Force**; Cosmic **−Gravity, +Entropy**; Aether removed from the Elemental row.
+- **Gravity domain removed** → folded under **Force**. Example evolved-titles updated in `classes.md`: Gravity Juggernaut→Force Juggernaut · Graviturgist→Forceweaver · Gravity Force Adept→Force Adept · Graviton Knight→Force Knight · plus Force Hauler/Bruiser/Fist/Mechanist/Shaper; Lawbreaker Monk +Force/Time/Void.
+- **Files renamed mechanic→domain:** `classes.md` (model lines, table headers "Domain-Shaped Examples", design-philosophy prose), `core_rules.md` (Class System bullet; affinity-mechanic + Unbound Affinity definitions kept), `mechanics.md` ("Affinity Tiers"→"Domain Tiers" + locked membership), `canon_index.md`, plus consistency fixes in `dominion_realm_story_bible.md` and `character_power_architecture.md` (seven-layer stack: Affinity→Domain) and `cosmology.md` (Chaos = Cosmic-tier domain).
+- **`combat_formulas.md`:** affinity removed from combat entirely. `SchoolMasteryMod`→`DisciplineMasteryMod`; `DomainAlignmentMod`→`DomainResonanceMod` (domain ↔ environment, in `SpellSourcePower`); authored `DomainInteraction χ` (attacking domain ↔ defending domain, in `Context_α`, `χ = D⃗ᵀ·M_c·D⃗`) — **dormant by default** (`M_c` neutral) until dramatic pairs are named. The two domain factors are never double-counted.
+- **No change:** `mc.md`, `master_timeline.md`, and the existing CHANGELOG entries — every "affinity" there is the mechanic (Unbound Affinity), already correct.
+- **Open flags:** domain-interaction pairs to activate χ (Fire↔Water, Light↔Death…); optional `DomainCompatibility` caster-can-wield gate — both deferred.
+
 ## 2026-06-24 — Series-architecture pass — origin-cohort model, long-arc role split, guardrails
 
 - Bible gains "The Six — Origin Cohort, Not Final Party": the six are keys (Nightbound), not a permanent party; Book 1 proves potential not stability; long-arc role split (Marcus/Serra endgame axis · Seb tragic-responsibility · Brent structural-cost · Mathias stewardship · Mara independent riser); Book-2 seeds (second cohort, retired-pro mirror).

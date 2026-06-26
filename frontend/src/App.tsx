@@ -5,10 +5,11 @@ import { themeRootStyle } from "./desk/theme";
 import TopBar from "./desk/components/TopBar";
 import CommandPalette from "./desk/components/CommandPalette";
 import DecisionToast from "./desk/components/DecisionToast";
-import ErrorToast from "./desk/components/ErrorToast";
+import ErrorToast, { BackendBanner } from "./desk/components/ErrorToast";
 import SceneScreen from "./desk/screens/SceneScreen";
 import InboxScreen from "./desk/screens/InboxScreen";
 import ChaptersScreen from "./desk/screens/ChaptersScreen";
+import PacketsScreen from "./desk/screens/PacketsScreen";
 import DiffScreen from "./desk/screens/DiffScreen";
 import ManuscriptScreen from "./desk/screens/ManuscriptScreen";
 import LedgerScreen from "./desk/screens/LedgerScreen";
@@ -42,6 +43,7 @@ function Desk() {
         {screen === "scene" && <SceneScreen />}
         {screen === "inbox" && <InboxScreen />}
         {screen === "chapters" && <ChaptersScreen />}
+        {screen === "packets" && <PacketsScreen />}
         {screen === "diff" && <DiffScreen />}
         {screen === "manuscript" && <ManuscriptScreen />}
         {screen === "ledger" && <LedgerScreen />}
@@ -50,6 +52,7 @@ function Desk() {
 
       {paletteOpen && <CommandPalette />}
       {decision && <DecisionToast />}
+      <BackendBanner />
       <ErrorToast />
     </div>
   );

@@ -1,0 +1,153 @@
+"""Chapter knowledge packet endpoints (contract-first drafting, Phase 1).
+
+The packet is authored + QA'd by agents, then adjudicated and approved by the human BEFORE any prose
+is drafted. This router proposes a packet (synchronous, like the gate-1 plan-call), returns it for
+review, accepts human edits, and gates approval: a blocked or red-confidence packet, or one with open
+questions still outstanding, cannot be approved. (Later phases block drafting until approval.)
+"""
+from __future__ import annotations
+
+import uuid
+
+import structlog
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from sqlalchemy import select
+
+from dominion.api.deps import SessionDep
+from dominion.shared.db import SessionFactory
+from dominion.shared.enums import PacketConfidence, PacketStatus
+from dominion.shared.models import Chapter, ChapterPacket
+from dominion.shared.schemas import PacketOut, PacketProposeOut, PacketUpdateIn
+from dominion.workers import packet as packet_pipeline
+from dominion.workers import progress
+from dominion.workers.packet import derive as packet_derive
+
+log = structlog.get_logger()
+router = APIRouter(prefix="/chapters", tags=["packets"])
+
+# Chapter ids whose author+QA is running in the background, so a re-trigger (or a second tab) doesn't
+# start a duplicate run. The API event loop is single-threaded and we never await between checking and
+# mutating this set, so a plain set is race-free (mirrors jobs._drain_lock's single-flight intent).
+_inflight: set[str] = set()
+
+
+async def _latest(session: SessionDep, chapter_id: uuid.UUID) -> ChapterPacket | None:
+    return (await session.execute(
+        select(ChapterPacket)
+        .where(ChapterPacket.chapter_id == chapter_id)
+        .order_by(ChapterPacket.created_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+
+def _open_items(packet: ChapterPacket) -> list[object]:
+    oq = packet.open_questions or {}
+    items = oq.get("items") if isinstance(oq, dict) else None
+    return items if isinstance(items, list) else []
+
+
+async def _run_propose(chapter_id: uuid.UUID) -> None:
+    """Background author+QA for one chapter, on its own session+commit (the request that scheduled it
+    has already returned). Fail-closed internally, so a malformed/timed-out agent still persists a
+    blocked packet. Always frees the in-flight slot + clears the progress phase when done."""
+    key = str(chapter_id)
+    try:
+        async with SessionFactory() as session:
+            chapter = await session.get(Chapter, chapter_id)
+            if chapter is not None:
+                await packet_pipeline.propose_packet(session, chapter=chapter, progress_key=key)
+                await session.commit()
+    except Exception as exc:  # noqa: BLE001 — never let a background crash strand the in-flight slot
+        log.error("packet.propose_bg_failed", chapter=key, error=str(exc))
+    finally:
+        progress.clear(key)
+        _inflight.discard(key)
+
+
+@router.post("/{chapter_id}/packet", response_model=PacketProposeOut)
+async def propose_packet(
+    chapter_id: uuid.UUID, background: BackgroundTasks, session: SessionDep
+) -> PacketProposeOut:
+    """Kick off the Packet Author + Packet QA in the BACKGROUND and return immediately.
+
+    The author call alone runs ~1-2 min, so blocking the request left the browser spinning and lost
+    the work on a tab switch. Now the run lives in the API process; the Desk polls `.../packet/status`
+    for the live phase ('authoring' -> 'qa') and refetches the packet when it finishes. Single-flight:
+    a re-trigger while one is already running just reports the in-flight status."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    key = str(chapter_id)
+    if key not in _inflight:
+        _inflight.add(key)
+        progress.set_phase(key, "authoring")  # optimistic so the first poll already has a phase
+        background.add_task(_run_propose, chapter_id)
+    phase, elapsed_s = progress.get(key)
+    return PacketProposeOut(running=True, phase=phase or "authoring", elapsed_s=elapsed_s)
+
+
+@router.get("/{chapter_id}/packet/status", response_model=PacketProposeOut)
+async def packet_status(chapter_id: uuid.UUID) -> PacketProposeOut:
+    """Live status of a background proposal so the Desk (any tab) can rejoin a run in progress.
+    `running` is False once the packet is persisted — the cue to GET the packet."""
+    key = str(chapter_id)
+    phase, elapsed_s = progress.get(key)
+    return PacketProposeOut(running=key in _inflight, phase=phase, elapsed_s=elapsed_s)
+
+
+@router.get("/{chapter_id}/packet", response_model=PacketOut)
+async def get_packet(chapter_id: uuid.UUID, session: SessionDep) -> ChapterPacket:
+    row = await _latest(session, chapter_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+    return row
+
+
+@router.put("/{chapter_id}/packet", response_model=PacketOut)
+async def update_packet(
+    chapter_id: uuid.UUID, body: PacketUpdateIn, session: SessionDep
+) -> ChapterPacket:
+    """Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after
+    reviewing flags. A blocked packet can be edited but stays blocked until re-proposed."""
+    row = await _latest(session, chapter_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+    if body.body is not None:
+        # Stamp ids on any seeds the human added so they stay linkable once derived; existing ids are
+        # preserved (reassign, not in-place mutate, so SQLAlchemy flags the JSONB change).
+        new_body = body.body
+        packet_pipeline.mint_seed_ids(new_body)
+        row.body = new_body
+    if body.open_questions is not None:
+        row.open_questions = body.open_questions
+    if body.confidence is not None:
+        try:
+            row.confidence = PacketConfidence(body.confidence.strip().lower())
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="confidence must be green|yellow|red") from exc
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+@router.post("/{chapter_id}/packet/approve", response_model=PacketOut)
+async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> ChapterPacket:
+    """Approve the packet so drafting may proceed. Refused when blocked, red-confidence, or open
+    questions remain (no auto-approve during tuning — even a green packet needs this human action)."""
+    row = await _latest(session, chapter_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+    if row.status == PacketStatus.BLOCKED:
+        raise HTTPException(status_code=409, detail="packet is blocked — re-propose or edit it first")
+    if row.confidence == PacketConfidence.RED:
+        raise HTTPException(status_code=409, detail="red-confidence packet — resolve before approving")
+    if _open_items(row):
+        raise HTTPException(status_code=409, detail="resolve the packet's open questions first")
+    row.status = PacketStatus.APPROVED
+    # Contract-first (Phase 2): approval is gate 1 — derive this chapter's beats from the packet's
+    # scene_seeds so the writer drafts against the approved contract, not an unlinked plan-call.
+    derived = await packet_derive.derive_beats(session, packet=row)
+    await session.commit()
+    await session.refresh(row)
+    log.info("packet.approved", chapter=str(chapter_id), packet=str(row.id), derived_beats=derived)
+    return row

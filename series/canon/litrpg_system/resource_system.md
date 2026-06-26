@@ -836,7 +836,7 @@ It is **not** yet sufficient as a full-series mechanical bible.
 
 Highest-value next additions:
 
-1. **Damage and injury model** — simple damage bands, armor/mitigation, healing.
+1. **Damage and injury model** — ✅ now owned by `combat_formulas.md` (damage & penetration, mitigation α, momentum/ambush, secondary-effect severity, spell output, AoE; it consumes the Reserve buffer rule here for overchannel rather than redefining it). A dedicated **healing** model is still TODO.
 2. **Spell Strength / Spell Skill Mastery cleanup** — keep simple; avoid overformula if it does not vibe.
 3. **Affinity rules** — likely gentler decay; no Unbound/Chaotic Affinity unless deliberately reintroduced.
 4. **Item Quality / Gemstone Quality mechanics** — reliability, mana storage, leakage, enchantment stability.

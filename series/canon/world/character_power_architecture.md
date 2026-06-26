@@ -88,14 +88,14 @@ Examples:
 
 A second lens — not a competing taxonomy, but a finer breakdown of how power actually resolves in play once a character is in the Realm:
 
-**Skills · Base Class · Specialization · Multiclass · Interface · Affinity · Items**
+**Skills · Base Class · Specialization · Multiclass · Interface · Domain · Items**
 
 - **Skills** — learned/earned abilities.
 - **Base Class** — the Realm's core categorization (Warrior, Mage, Rogue, …).
 - **Specialization** — the refined role earned within a base class (Reaver, Troubleshooter, …).
 - **Multiclass** — secondary class access, where earned.
 - **Interface** — the personal metaphysical mutation (Neurochromatic Eyes, Severance Pulse, …).
-- **Affinity** — elemental/conceptual leanings.
+- **Domain** — elemental/conceptual power source (Fire, Shadow, Planar…; the power-domain axis in `mechanics.md` → Domain Tiers). *(Not skill **Affinity**, the per-skill leveling mechanic in `core_rules.md`.)*
 - **Items** — gear, including Uniques (e.g. the Eyes of Meszkhal).
 
 **Overlap (so the two lenses don't read as contradictory):** **Interface** appears in both — it is the same layer. **Realm Class** in the origin model = **Base Class + Specialization** in the power stack. The origin model tracks *who a character was → who they are*; the power stack tracks *how a fight resolves*.

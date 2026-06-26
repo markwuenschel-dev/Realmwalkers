@@ -109,6 +109,8 @@ Real costs in this world. Losing health hurts. Going to zero means death — and
 
 The interface displays these as bars and numbers. The body feels them as exhaustion, pain, mental fog, and diminishing returns on everything.
 
+> General combat resolution — how a hit becomes HP loss, status, or injury — lives in `combat_formulas.md`; the Reserve resource and overchannel accounting live in `resource_system.md`.
+
 ---
 
 ## The Class System
@@ -117,7 +119,7 @@ Full taxonomy lives in `classes.md`; the tier ladders for spells, items, gems, s
 
 - **Base class = method** (Warrior, Fighter, Mage, Rogue, Scout, Adventurer, Psion…) — *how* a person solves problems.
 - **Specialization = refined role** (Reaver, Trickster, Troubleshooter…) — earned through behavior, not selected.
-- **Affinity = power domain** (Fire, Shadow, Gravity, Aether…) — flavors the class.
+- **Domain = power domain** (Fire, Shadow, Planar…) — the supernatural source a class is shaped by; distinct from **Affinity**, the skill-leveling mechanic above.
 - **Legendary / Mythic / Unique titles = rare evolved expressions** (Riftwalker, Aetherist, one-of-one breach classes) — outcomes, not professions.
 
 Classes are **earned, not chosen.** The interface may *label* something early, but the class is shaped by what a person actually does; specializations unlock progressively as it develops.

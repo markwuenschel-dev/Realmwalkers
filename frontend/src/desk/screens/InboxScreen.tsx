@@ -2,14 +2,21 @@ import { useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
+import { api } from "../api/client";
 import { sceneLabel, wordCount } from "../lib/format";
+import { useSelection } from "../lib/useSelection";
 import Planner from "../components/Planner";
-import { DraftPanel, formatElapsed } from "../components/DraftActivity";
+import BulkBar, { BulkButton } from "../components/BulkBar";
+import { ActivityFeed, DraftPanel, formatElapsed } from "../components/DraftActivity";
 import type { SceneOut } from "../api/types";
 
 export default function InboxScreen() {
   const { t, openScene, openSceneId } = useDesk();
   const data = useDeskData();
+  const sel = useSelection();
+  const [reviseMode, setReviseMode] = useState(false);
+  const [note, setNote] = useState("");
+  const clearSel = () => { sel.clear(); setReviseMode(false); setNote(""); };
 
   const latest = data.latestScenes;
   const approved = latest.filter((s) => s.status === "approved");
@@ -32,15 +39,27 @@ export default function InboxScreen() {
   ];
 
   const cardBase = "background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 17px;min-height:118px;display:flex;flex-direction:column";
-  const sceneCard = (s: SceneOut, color: string, tag: string, onClick?: () => void) => (
+  const sceneCard = (
+    s: SceneOut, color: string, tag: string, onClick?: () => void,
+    select?: { checked: boolean; onToggle: () => void },
+  ) => (
     <div
       key={s.id}
       onClick={onClick}
-      style={css(`${cardBase};border-left:3px solid ${color};${onClick ? "cursor:pointer;box-shadow:var(--shadow)" : "opacity:.8"}`)}
+      style={css(`${cardBase};border-left:3px solid ${select?.checked ? color : color};${select?.checked ? "outline:2px solid " + color + ";" : ""}${onClick ? "cursor:pointer;box-shadow:var(--shadow)" : "opacity:.8"}`)}
     >
-      <div style={css("display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px")}>
+      <div style={css("display:flex;align-items:center;gap:9px;margin-bottom:9px")}>
+        {select && (
+          <input
+            type="checkbox"
+            checked={select.checked}
+            onClick={(e) => e.stopPropagation()}
+            onChange={select.onToggle}
+            style={css("width:15px;height:15px;cursor:pointer;flex:none;accent-color:var(--accent)")}
+          />
+        )}
         <span style={css("font-family:var(--display);font-size:16.5px;color:var(--ink)")}>Scene {s.scene_no}</span>
-        <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>v{s.version}</span>
+        <span style={css("margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>v{s.version}</span>
       </div>
       <div style={css("font-size:13.5px;color:var(--dim);line-height:1.45;margin-bottom:12px")}>{sceneLabel(s)}</div>
       <div style={css("margin-top:auto;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
@@ -80,15 +99,28 @@ export default function InboxScreen() {
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             <DraftPanel />
             <RetryFailed />
+            <ActivityFeed />
           </div>
         </div>
 
         {/* Awaiting review (pending queue) */}
         <div>
           <Column title="Awaiting review" color={t.warn} count={data.pending.length} />
+          {data.pending.length > 0 && (
+            <label style={css("display:flex;align-items:center;gap:7px;margin:0 2px 9px;font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer")}>
+              <input
+                type="checkbox"
+                checked={data.pending.every((s) => sel.has(s.id))}
+                onChange={() => sel.toggleAll(data.pending.map((s) => s.id))}
+                style={css("width:14px;height:14px;cursor:pointer;accent-color:var(--accent)")}
+              />
+              select all
+            </label>
+          )}
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             {data.pending.length === 0 && <Empty text="nothing to review" />}
-            {data.pending.map((s, i) => sceneCard(s, t.warn, "review →", () => openScene(i)))}
+            {data.pending.map((s, i) => sceneCard(s, t.warn, "review →", () => openScene(i),
+              { checked: sel.has(s.id), onToggle: () => sel.toggle(s.id) }))}
           </div>
         </div>
 
@@ -112,6 +144,36 @@ export default function InboxScreen() {
           </div>
         </div>
       </div>
+
+      <BulkBar count={sel.count} noun="scene" onClear={clearSel}>
+        {!reviseMode ? (
+          <>
+            <BulkButton tone="good" onClick={() => { void data.runBulk(sel.ids, (id) => api.decide(id, { decision: "approve" })); clearSel(); }}>
+              Approve
+            </BulkButton>
+            <BulkButton onClick={() => setReviseMode(true)}>Request revision</BulkButton>
+            <BulkButton tone="bad" onClick={() => {
+              if (confirm(`Delete ${sel.count} scene${sel.count === 1 ? "" : "s"}? This removes the draft and its review history.`)) {
+                void data.runBulk(sel.ids, (id) => api.deleteScene(id)); clearSel();
+              }
+            }}>Delete</BulkButton>
+          </>
+        ) : (
+          <>
+            <input
+              autoFocus
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="one revision note for all selected…"
+              style={css("width:260px;max-width:46vw;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:var(--ui)")}
+            />
+            <BulkButton tone="good" disabled={!note.trim()} onClick={() => {
+              void data.runBulk(sel.ids, (id) => api.decide(id, { decision: "revise", feedback: note.trim() })); clearSel();
+            }}>Send {sel.count} to revise</BulkButton>
+            <BulkButton onClick={() => setReviseMode(false)}>Cancel</BulkButton>
+          </>
+        )}
+      </BulkBar>
     </div>
   );
 }
@@ -134,12 +196,26 @@ function RetryFailed() {
   const [busy, setBusy] = useState(false);
   const n = data.jobs.failed;
   if (n <= 0) return null;
+  const errs = data.failedJobs;
   return (
     <div style={css("border:1px solid color-mix(in srgb,var(--bad) 32%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--bg2));border-radius:10px;padding:12px 13px")}>
       <div style={css("font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--bad);margin-bottom:5px")}>{n} failed</div>
       <div style={css("font-size:12px;color:var(--dim);line-height:1.45;margin-bottom:10px")}>
-        Errored mid-draft — usually a transient API issue or depleted credits. Re-queue to draft them again.
+        Errored mid-draft. Re-queue to draft them again once the cause below is cleared.
       </div>
+      {errs.length > 0 && (
+        <div style={css("display:flex;flex-direction:column;gap:5px;margin-bottom:10px;max-height:150px;overflow:auto")}>
+          {errs.slice(0, 6).map((f) => (
+            <div key={f.id} style={css("font-family:var(--mono);font-size:10.5px;line-height:1.4;color:var(--dim);overflow-wrap:anywhere")}>
+              <span style={css("color:var(--bad)")}>Ch{f.chapter_no ?? "?"}·Sc{f.scene_no ?? "?"}</span>{" "}
+              {f.last_error ?? "unknown error"}
+            </div>
+          ))}
+          {errs.length > 6 && (
+            <div style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>…and {errs.length - 6} more</div>
+          )}
+        </div>
+      )}
       <button
         disabled={busy}
         onClick={async () => { setBusy(true); try { await data.retryFailed(); } finally { setBusy(false); } }}

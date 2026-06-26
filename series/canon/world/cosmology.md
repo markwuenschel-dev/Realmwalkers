@@ -142,6 +142,6 @@ There are **eight Great Ley Lines, one per foundational element** (Fire, Water, 
 ---
 
 ## Cross-references
-- Affinities: **Chaos is a Cosmic-tier affinity** (`mechanics.md`) — consistent with "cosmic appetite-with-intent." **Soul Level** governs the namebinding/soul-recall stakes (`mechanics.md`).
+- Domains: **Chaos is a Cosmic-tier domain** (`mechanics.md` → Domain Tiers) — consistent with "cosmic appetite-with-intent." **Soul Level** governs the namebinding/soul-recall stakes (`mechanics.md`).
 - Classes: Soulkeepers ≈ **Merchant/Soulkeeper**; the **Court of Seals** namebinding ≈ **Binder/Namekeeper**, apex **Name-Eater** (`classes.md`).
 - Characters: `seb.md` (Broker/Soulkeepers), `serra_hawthorne.md` (Covenant-downstream namebinding), `mc.md` (Realm Walkers, Chaos-certainty), `mathias.md` (Xyloryn finale).

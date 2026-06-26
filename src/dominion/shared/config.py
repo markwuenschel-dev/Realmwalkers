@@ -36,6 +36,21 @@ class Settings(BaseSettings):
     # a chapter needs richer enrichment (DESIGN §5-6).
     enrich_model: str = "claude-haiku-4-5"
 
+    # Contract-first drafting — Phase 1 (chapter packets). The packet agents run ONCE per chapter, so
+    # a strong reasoner is cheap (amortized over ~12+ scenes) — they decide the guardrails every later
+    # writer obeys, so default them to Sonnet. (Per-scene stage models — preflight/compression/QA —
+    # arrive with their phases.)
+    packet_author_model: str = "claude-sonnet-4-6"
+    # QA only ATTACKS the author's packet (a checker, not a creator), so it rides Haiku like the
+    # other checker/enrichment stages (review_model, enrich_model) — meaningfully faster second call.
+    packet_qa_model: str = "claude-haiku-4-5"
+    # The packet author/QA calls run synchronously inside the propose-packet request; bound them so a
+    # hung call surfaces as a clean failure instead of a spinning browser (mirrors plan_time_budget_s).
+    packet_time_budget_s: int = 180
+    # No auto-approve during early tuning: even a green packet needs a human fast-approve until we
+    # have several chapters of observed packet quality. Flip True later to let green auto-proceed.
+    packet_auto_approve_green: bool = False
+
     # Authoring source-of-truth docs loaded into the drafter. Relative paths resolve from the
     # project root (falling back to CWD). dialogue_rules.md is authoritative for ALL dialogue —
     # it wins over the per-POV voice spec where they disagree (see drafter._voice_system).

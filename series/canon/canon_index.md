@@ -40,6 +40,7 @@ Shared canon lives under `series/` (`canon/`, `style/`, `voice/`); each book's p
 | Class taxonomy, rarity tiers, specializations | `classes.md` |
 | Tier ladders: spell strength, item quality/rarity, gems, skill mastery, soul level | `mechanics.md` |
 | Resource/number system: resources (HP/Mana/Stamina/Reserve), resource & regen & depletion formulas, XP curve & pacing, threat readout, species/class stat templates, growth & point-allocation | `resource_system.md` |
+| Combat damage resolution (how power becomes injury): damage/penetration model, momentum & ambush, mitigation (α), secondary-effect severity, spell output, AoE, injury pressure | `combat_formulas.md` |
 | Cosmic powers, factions, the Xyloryn, Realm Walkers | `cosmology.md` |
 | The six interfaces (biology, 5 stages, Happy/Forbidden) | character dossiers + `character_power_architecture.md` |
 | LitRPG mechanics, UI, the Eyes split, namebinding | `core_rules.md` |
@@ -75,7 +76,8 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 | `master_timeline.md` | ✅ updated (Batch 2) | Angelic Fortitude, Ashblade, Mathias-lives, finale Myrmidon fixed; redundant sections merged
 | `core_rules.md` | ✅ updated | Eyes split; namebinding; **Class System + 6-tier ladder added** (this pass) |
 | `classes.md` | ✅ current (new) | Full taxonomy; Fighter/Adventurer added; Planeswalker→Riftwalker; **+Exceptional tier** |
-| `mechanics.md` | ✅ current (new) | Spell/item/gem/skill/soul ladders + affinity tiers; Soul Level wired to names/vows |
+| `mechanics.md` | ✅ current (new) | Spell/item/gem/skill/soul ladders + domain tiers (power-domain axis); Soul Level wired to names/vows |
+| `combat_formulas.md` | ✅ current (new) | Owner of the damage/injury model (damage & penetration, momentum/ambush, mitigation α, secondary-effect severity, spell output, AoE). Consumes `mechanics.md` ladders; defers Reserve/overchannel to `resource_system.md`. |
 | `cosmology.md` | ✅ current (new) | 7 powers + Xyloryn deep model + Realm Walkers; several names open |
 | `scene_queue.md` | ✅ updated (Batch 3) | Consolidated; retired dead entries; Ashblade→Warrior; satellites added |
 | `setup_payoff_tracker.md` | ✅ updated (Batch 3) | Eyes split; CH-017 Warrior; WF-011/012 namebinding+parent; Mathias lives |

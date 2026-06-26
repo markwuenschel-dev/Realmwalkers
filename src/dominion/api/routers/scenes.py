@@ -4,11 +4,22 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import Decision, SceneStatus
-from dominion.shared.models import Approval, Chapter, Critique, PovProfile, Scene
+from dominion.shared.models import (
+    Annotation,
+    Approval,
+    Chapter,
+    CharacterState,
+    Critique,
+    Job,
+    PovProfile,
+    Scene,
+    Suggestion,
+    Summary,
+)
 from dominion.shared.schemas import CritiqueOut, ExemplarIn, SceneDetail, SceneOut, SceneVersionOut
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
@@ -153,3 +164,34 @@ async def revert_scene(scene_id: uuid.UUID, session: SessionDep) -> Scene:
     ))
     await session.commit()
     return reverted
+
+
+@router.delete("/{scene_id}")
+async def delete_scene(scene_id: uuid.UUID, session: SessionDep) -> dict[str, str]:
+    """Hard-delete one scene version and everything that points at it. Scenes are referenced by
+    critiques / annotations / approvals / suggestions (NOT NULL) and softly by the ledger, summaries,
+    jobs, and child versions — so we remove the hard dependents and null the soft refs first, then the
+    row, or the FK constraints would block the delete. Used by the inbox's bulk 'delete selected'."""
+    scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
+    if scene is None:
+        raise HTTPException(status_code=404, detail="scene not found")
+
+    for model in (Critique, Annotation, Suggestion, Approval):
+        await session.execute(delete(model).where(model.scene_id == scene_id))
+    # Soft references: keep the rows, just detach them from the scene being removed.
+    await session.execute(
+        update(CharacterState).where(CharacterState.as_of_scene_id == scene_id)
+        .values(as_of_scene_id=None)
+    )
+    await session.execute(
+        update(Summary).where(Summary.up_to_scene_id == scene_id).values(up_to_scene_id=None)
+    )
+    await session.execute(
+        update(Job).where(Job.target_scene_id == scene_id).values(target_scene_id=None)
+    )
+    await session.execute(
+        update(Scene).where(Scene.parent_scene_id == scene_id).values(parent_scene_id=None)
+    )
+    await session.execute(delete(Scene).where(Scene.id == scene_id))
+    await session.commit()
+    return {"deleted": str(scene_id)}
