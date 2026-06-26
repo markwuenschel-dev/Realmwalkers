@@ -83,5 +83,6 @@ async def _summarize(previous: str | None, scene_prose: str, lens: str) -> str:
     text, _usage = await llm.complete(
         model=settings.review_model, system=system, user=user,
         max_tokens=_SUMMARY_MAX_TOKENS, budget=TokenBudget(max_tokens=settings.scene_token_budget),
+        expect_cache=False,
     )
     return text.strip()

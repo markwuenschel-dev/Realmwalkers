@@ -125,5 +125,6 @@ async def author_packet(
         ),
         max_tokens=_AUTHOR_MAX_TOKENS,
         budget=budget,
+        expect_cache=False,
     )
     return extract_object(raw)

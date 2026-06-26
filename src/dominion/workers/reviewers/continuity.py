@@ -123,6 +123,7 @@ class ContinuityReviewer:
             user=_extract_prompt(scene_prose, watched),
             max_tokens=_EXTRACT_MAX_TOKENS,
             budget=ctx.budget,
+            expect_cache=False,
         )
 
         flags: list[Flag] = []
@@ -163,6 +164,7 @@ class ContinuityReviewer:
             user=_knowledge_prompt(scene_prose, ctx.pov, ctx.pov_summary),
             max_tokens=_KNOWLEDGE_MAX_TOKENS,
             budget=ctx.budget,
+            expect_cache=False,
         )
         flags: list[Flag] = []
         for item in parse_json_objects(raw):
