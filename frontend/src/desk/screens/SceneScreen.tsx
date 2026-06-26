@@ -1,4 +1,7 @@
+"use client";
+
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -36,6 +39,10 @@ export default function SceneScreen() {
   const desk = useDesk();
   const { t } = desk;
   const data = useDeskData();
+  const router = useRouter();
+  // /scene/[sceneId] focuses a specific scene; bare /scene shows the pending review queue.
+  const params = useParams<{ sceneId?: string }>();
+  const focusSceneId = params.sceneId ?? null;
   const [committing, setCommitting] = useState(false);
   // selection toolbar + inline markup composer (replace the old window.prompt flows)
   const [sel, setSel] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -58,8 +65,8 @@ export default function SceneScreen() {
   const idx = pending.length ? Math.min(Math.max(desk.activeScene, 0), pending.length - 1) : -1;
   const queueId = idx >= 0 ? pending[idx].id : null;
   // A focused scene (e.g. an approved one opened from the board) takes precedence over the queue.
-  const focused = desk.focusSceneId != null;
-  const loadId = desk.focusSceneId ?? queueId;
+  const focused = focusSceneId != null;
+  const loadId = focusSceneId ?? queueId;
 
   // Load the active scene when it (or the queue position / contents) changes.
   const loadedRef = useRef<string | null>(null);
@@ -163,7 +170,7 @@ export default function SceneScreen() {
             ? "A scene is drafting — it'll land here shortly."
             : "Plan a chapter from the Inbox and approve its beats; drafted scenes show up here for review."}
         </p>
-        <button onClick={() => desk.go("inbox")} style={css("margin-top:18px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer;font-family:var(--ui);font-size:13.5px")}>Go to inbox</button>
+        <button onClick={() => router.push("/inbox")} style={css("margin-top:18px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer;font-family:var(--ui);font-size:13.5px")}>Go to inbox</button>
       </div>
     );
   }
@@ -348,7 +355,7 @@ export default function SceneScreen() {
           <span style={css("opacity:.4")}>·</span>
           <span><b style={css("color:var(--ink)")}>{wordCount(cur.prose)}</b> words</span>
           <span style={css("opacity:.4")}>·</span>
-          <span onClick={() => desk.go("diff")} style={css("cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)")}>v{cur.version} · compare ▾</span>
+          <span onClick={() => router.push(`/diff/${cur.id}`)} style={css("cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)")}>v{cur.version} · compare ▾</span>
         </div>
       </div>
 

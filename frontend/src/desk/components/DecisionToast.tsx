@@ -1,8 +1,12 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
 
 export default function DecisionToast() {
-  const { decision, t, undoDecision, go } = useDesk();
+  const router = useRouter();
+  const { decision, t, undoDecision } = useDesk();
   if (!decision) return null;
 
   const decMap = {
@@ -17,7 +21,7 @@ export default function DecisionToast() {
       <span style={css(`width:8px;height:8px;border-radius:50%;background:${dec.color}`)} />
       <span style={css("font-size:13.5px;color:var(--ink)")}>{dec.msg}</span>
       <button onClick={undoDecision} style={css("font-family:var(--mono);font-size:11.5px;color:var(--accent);background:none;border:none;cursor:pointer")}>Dismiss</button>
-      <button onClick={() => { undoDecision(); go("inbox"); }} style={css("font-size:12.5px;color:var(--ink);background:var(--bg3);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer")}>Back to inbox</button>
+      <button onClick={() => { undoDecision(); router.push("/inbox"); }} style={css("font-size:12.5px;color:var(--ink);background:var(--bg3);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer")}>Back to inbox</button>
     </div>
   );
 }

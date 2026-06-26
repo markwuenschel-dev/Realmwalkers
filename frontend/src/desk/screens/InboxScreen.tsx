@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";

@@ -1,21 +1,27 @@
+"use client";
+
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { themes } from "./theme";
 import type { ThemeId, ThemeTokens } from "./theme";
+import { CHORD_TO_HREF } from "./routes";
 import type {
   ChaptersView,
   DecisionKind,
   Mode,
   Resolved,
-  Screen,
   SuggStatus,
   Tab,
 } from "./types";
 
 // The whole interactive surface — the prototype's `state` object, its methods, and its keyboard
 // handler — rebuilt as a single hook. Screens read it through DeskContext via useDesk().
+//
+// Page identity now lives in the URL: there is no `screen` field and no `go(screen)`. Navigation
+// happens through Next's router (here) or <Link>/usePathname (in components). A focused, out-of-queue
+// scene is the route param at /scene/[sceneId], not a `focusSceneId` field.
 export interface DeskValue {
   // state
-  screen: Screen;
   themeId: ThemeId;
   tab: Tab;
   mode: Mode;
@@ -30,7 +36,6 @@ export interface DeskValue {
   chaptersView: ChaptersView;
   selectedThread: string;
   activeScene: number;
-  focusSceneId: string | null; // a specific scene to edit (e.g. an approved one), outside the pending queue
   rawProse: string;
   // theme
   t: ThemeTokens;
@@ -38,10 +43,10 @@ export interface DeskValue {
   isConsole: boolean;
   isGrim: boolean;
   // actions
-  go: (s: Screen) => void;
   setTheme: (id: ThemeId) => void;
   setTab: (t: Tab) => void;
   togglePalette: () => void;
+  closePalette: () => void;
   setMode: (m: Mode) => void;
   acceptSugg: (id: string) => void;
   rejectSugg: (id: string) => void;
@@ -51,7 +56,7 @@ export interface DeskValue {
   prevScene: () => void;
   nextScene: () => void;
   openScene: (index: number) => void;
-  openSceneId: (id: string) => void; // open any scene (incl. approved) in the editor
+  openSceneId: (id: string) => void; // navigate to /scene/[id] (any scene, incl. approved)
   decide: (d: DecisionKind) => void;
   undoDecision: () => void;
   resolve: (id: string, choice: "prose" | "ledger") => void;
@@ -66,7 +71,7 @@ export interface DeskValue {
 }
 
 export function useDeskState(): DeskValue {
-  const [screen, setScreen] = useState<Screen>("inbox");  // the desk opens on the review queue
+  const router = useRouter();
   const [themeId, setThemeId] = useState<ThemeId>("manuscript");
   const [tab, setTabState] = useState<Tab>("continuity");
   const [mode, setMode] = useState<Mode>("reading");
@@ -81,13 +86,8 @@ export function useDeskState(): DeskValue {
   const [chaptersView, setChaptersViewState] = useState<ChaptersView>("board");
   const [selectedThread, setSelectedThread] = useState("");
   const [activeScene, setActiveScene] = useState(0);
-  const [focusSceneId, setFocusSceneId] = useState<string | null>(null);
   const [rawProse, setRawProse] = useState("");
 
-  const go = useCallback((s: Screen) => {
-    setScreen(s);
-    setPaletteOpen(false);
-  }, []);
   const setTheme = useCallback((id: ThemeId) => setThemeId(id), []);
   const setTab = useCallback((tb: Tab) => setTabState(tb), []);
   const togglePalette = useCallback(() => setPaletteOpen((p) => !p), []);
@@ -109,28 +109,27 @@ export function useDeskState(): DeskValue {
   }, []);
   const setHover = useCallback((key: string | null) => setHoveredKey(key), []);
   const clearHover = useCallback(() => setHoveredKey(null), []);
-  // Queue navigation always returns to the pending review queue — clear any focused (out-of-queue) scene.
+  // Queue navigation always returns to the pending review queue at /scene — the focused-scene route
+  // param drops away as soon as we push there.
   const prevScene = useCallback(() => {
-    setScreen("scene");
-    setFocusSceneId(null);
     setActiveScene((a) => Math.max(0, a - 1));
-  }, []);
+    setPaletteOpen(false);
+    router.push("/scene");
+  }, [router]);
   const nextScene = useCallback(() => {
-    setScreen("scene");
-    setFocusSceneId(null);
     setActiveScene((a) => a + 1); // upper bound is clamped against the live queue in SceneScreen
-  }, []);
+    setPaletteOpen(false);
+    router.push("/scene");
+  }, [router]);
   const openScene = useCallback((index: number) => {
-    setScreen("scene");
-    setFocusSceneId(null);
     setActiveScene(index);
     setPaletteOpen(false);
-  }, []);
+    router.push("/scene");
+  }, [router]);
   const openSceneId = useCallback((id: string) => {
-    setScreen("scene");
-    setFocusSceneId(id);
     setPaletteOpen(false);
-  }, []);
+    router.push(`/scene/${id}`);
+  }, [router]);
 
   const decide = useCallback((d: DecisionKind) => setDecision(d), []);
   const undoDecision = useCallback(() => setDecision(null), []);
@@ -155,7 +154,7 @@ export function useDeskState(): DeskValue {
   const setFeedback = useCallback((v: string) => setFeedbackState(v), []);
   const setProse = useCallback((v: string) => setRawProse(v), []);
 
-  // Global keyboard shortcuts (⌘K palette, g-chord screen nav, j/k queue). Scene actions live in
+  // Global keyboard shortcuts (⌘K palette, g-chord route nav, j/k queue). Scene actions live in
   // SceneScreen (they commit to the API).
   useEffect(() => {
     const chord = { active: false, timer: 0 as number | undefined };
@@ -171,14 +170,14 @@ export function useDeskState(): DeskValue {
         return;
       }
       const tag = ((e.target as HTMLElement | null)?.tagName || "").toLowerCase();
-      if (tag === "textarea" || tag === "input") return;
+      const editable = (e.target as HTMLElement | null)?.isContentEditable;
+      if (tag === "textarea" || tag === "input" || tag === "select" || editable) return;
       if (chord.active) {
         chord.active = false;
-        const map: Record<string, Screen> = {
-          i: "inbox", s: "scene", c: "chapters", p: "packets", v: "diff", m: "manuscript", l: "ledger", d: "docs",
-        };
-        if (map[k]) {
-          go(map[k]);
+        const href = CHORD_TO_HREF[k];
+        if (href) {
+          setPaletteOpen(false);
+          router.push(href);
           return;
         }
       }
@@ -202,15 +201,15 @@ export function useDeskState(): DeskValue {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [togglePalette, closePalette, go, nextScene, prevScene]);
+  }, [togglePalette, closePalette, router, nextScene, prevScene]);
 
   const t = themes[themeId];
 
   return {
-    screen, themeId, tab, mode, paletteOpen, feedback, decision, resolved, suggStatus, hoveredKey,
-    ledgerCat, selectedAnn, chaptersView, selectedThread, activeScene, focusSceneId, rawProse,
+    themeId, tab, mode, paletteOpen, feedback, decision, resolved, suggStatus, hoveredKey,
+    ledgerCat, selectedAnn, chaptersView, selectedThread, activeScene, rawProse,
     t, isManu: themeId === "manuscript", isConsole: themeId === "console", isGrim: themeId === "grimoire",
-    go, setTheme, setTab, togglePalette, setMode, acceptSugg, rejectSugg, undoSugg, setHover, clearHover,
+    setTheme, setTab, togglePalette, closePalette, setMode, acceptSugg, rejectSugg, undoSugg, setHover, clearHover,
     prevScene, nextScene, openScene, openSceneId, decide, undoDecision, resolve, unresolve,
     selectAnn, highlightAnn, setLedgerCat, setChaptersView, selectThread: setSelectedThread,
     setFeedback, setProse,
