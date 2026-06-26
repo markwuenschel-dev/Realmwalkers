@@ -72,6 +72,23 @@ export function DraftPill() {
   return null;
 }
 
+function CacheBadge({ ratio, savedTokens }: { ratio: number | null | undefined; savedTokens?: number | null }) {
+  if (ratio == null) return null;
+  const pct = Math.round(ratio * 100);
+  const color = pct >= 60 ? "var(--ok)" : pct >= 25 ? "var(--warn, #e8a020)" : "var(--dim)";
+  return (
+    <span style={css(`display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:${color}`)}>
+      <span style={css(`display:inline-block;width:6px;height:6px;border-radius:50%;background:${color}`)} />
+      cache {pct}%
+      {savedTokens != null && savedTokens > 0 && (
+        <span style={css("color:var(--dim)")}>·{" "}
+          {savedTokens >= 1000 ? `${(savedTokens / 1000).toFixed(1)}k` : savedTokens} saved
+        </span>
+      )}
+    </span>
+  );
+}
+
 // Rich panel for the Inbox "Drafting" column: scene + phase + moving bar + elapsed, then the queued
 // and failed tallies. When idle it just states the queue is clear.
 export function DraftPanel() {
@@ -93,27 +110,31 @@ export function DraftPanel() {
           {active?.phase ?? "drafting…"}
         </div>
         <IndeterminateBar />
-        {(jobs.queued > 0 || jobs.failed > 0) && (
-          <div style={css("display:flex;gap:12px;margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
-            {jobs.queued > 0 && <span>{jobs.queued} queued next</span>}
-            {jobs.failed > 0 && <span style={css(`color:${t.bad}`)}>{jobs.failed} failed</span>}
-          </div>
-        )}
+        <div style={css("display:flex;gap:12px;margin-top:10px;font-family:var(--mono);font-size:10.5px;align-items:center")}>
+          <CacheBadge ratio={active?.cache_hit_ratio} />
+          {jobs.queued > 0 && <span style={css("color:var(--dim);margin-left:auto")}>{jobs.queued} queued next</span>}
+          {jobs.failed > 0 && <span style={css(`color:${t.bad}`)}>{jobs.failed} failed</span>}
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={css(`${card};border:1px dashed var(--line);text-align:center;font-family:var(--mono);font-size:11px;color:var(--dim)`)}>
+    <div style={css(`${card};border:1px dashed var(--line);font-family:var(--mono);font-size:11px;color:var(--dim)`)}>
       {jobs.queued > 0 ? (
-        <span style={css("display:flex;align-items:center;justify-content:center;gap:7px")}>
+        <div style={css("display:flex;align-items:center;justify-content:center;gap:7px")}>
           <span style={css("width:7px;height:7px;border-radius:50%;background:var(--info);animation:pulseDot 1.4s ease-in-out infinite")} />
           {jobs.queued} queued — starting…
-        </span>
+        </div>
       ) : jobs.failed > 0 ? (
-        <span style={css(`color:${t.bad}`)}>{jobs.failed} failed — open a scene to retry</span>
+        <div style={css("text-align:center")}>
+          <span style={css(`color:${t.bad}`)}>{jobs.failed} failed — open a scene to retry</span>
+        </div>
       ) : (
-        "idle — nothing drafting"
+        <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+          <span>idle — nothing drafting</span>
+          <CacheBadge ratio={jobs.last_cache_hit_ratio} savedTokens={jobs.last_cache_tokens_saved} />
+        </div>
       )}
     </div>
   );

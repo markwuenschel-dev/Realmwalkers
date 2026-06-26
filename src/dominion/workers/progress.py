@@ -18,14 +18,19 @@ from typing import TypedDict
 # job_id (str) -> (phase, started_at_epoch_seconds). Cleared when the job finishes.
 _phases: dict[str, tuple[str, float]] = {}
 
-# job_id (str) -> cache stats snapshot written by pipeline after the scene is persisted.
+# job_id -> cache stats while the job is still RUNNING (cleared with phases on job completion).
 _cache_stats: dict[str, "CacheStats"] = {}
+
+# The most recent completed scene's cache stats — persists until the next job starts so the Desk
+# can display it during the idle window after drafting completes.
+_last_cache: "CacheStats | None" = None
 
 
 class CacheStats(TypedDict):
     cache_hit_ratio: float
     total_cache_read_tokens: int
     total_cache_creation_tokens: int
+    cache_tokens_saved: int
 
 
 def set_phase(job_id: str | None, phase: str) -> None:
@@ -60,28 +65,38 @@ def set_cache_stats(
     cache_hit_ratio: float,
     total_cache_read_tokens: int,
     total_cache_creation_tokens: int,
+    cache_tokens_saved: int = 0,
 ) -> None:
-    """Store final cache stats for a job so /jobs/status can surface them."""
+    """Store cache stats for a running job and update the persistent last-scene snapshot."""
+    global _last_cache
     if not job_id:
         return
     try:
-        _cache_stats[job_id] = CacheStats(
+        stats = CacheStats(
             cache_hit_ratio=cache_hit_ratio,
             total_cache_read_tokens=total_cache_read_tokens,
             total_cache_creation_tokens=total_cache_creation_tokens,
+            cache_tokens_saved=cache_tokens_saved,
         )
+        _cache_stats[job_id] = stats
+        _last_cache = stats          # persists past job completion so the Desk sees it while idle
     except Exception:  # noqa: BLE001
         pass
 
 
 def get_cache_stats(job_id: str | None) -> "CacheStats | None":
-    """Cache stats for a job, or None if not yet recorded."""
+    """Cache stats for a currently-running job, or None if not yet recorded."""
     if not job_id:
         return None
     try:
         return _cache_stats.get(job_id)
     except Exception:  # noqa: BLE001
         return None
+
+
+def get_last_cache() -> "CacheStats | None":
+    """Cache stats for the most recently completed scene — available during idle windows."""
+    return _last_cache
 
 
 def clear(job_id: str | None) -> None:
@@ -91,5 +106,6 @@ def clear(job_id: str | None) -> None:
     try:
         _phases.pop(job_id, None)
         _cache_stats.pop(job_id, None)
+        # _last_cache intentionally not cleared — it stays until the next scene overwrites it
     except Exception:  # noqa: BLE001
         pass

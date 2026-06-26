@@ -33,6 +33,7 @@ class TokenBudget:
     max_tokens: int
     used: int = 0
     total_input: int = field(default=0)
+    total_output: int = field(default=0)
     total_cache_creation: int = field(default=0)
     total_cache_read: int = field(default=0)
     first_call_at: float | None = field(default=None)
@@ -42,6 +43,7 @@ class TokenBudget:
             self.first_call_at = time.time()
         self.used += usage.total
         self.total_input += usage.input_tokens
+        self.total_output += usage.output_tokens
         self.total_cache_creation += usage.cache_creation_tokens
         self.total_cache_read += usage.cache_read_tokens
         if self.used > self.max_tokens:
@@ -53,3 +55,9 @@ class TokenBudget:
         Prompt tokens = plain input + cache writes + cache reads (excludes output)."""
         total_prompt = self.total_input + self.total_cache_creation + self.total_cache_read
         return self.total_cache_read / total_prompt if total_prompt else 0.0
+
+    @property
+    def cache_tokens_saved(self) -> int:
+        """Token-equivalent savings from cache reads: each cached token costs 10% vs 100% uncached,
+        so 90% of cache_read tokens were 'saved' from full billing. Useful proxy without hardcoding model prices."""
+        return int(self.total_cache_read * 0.9)

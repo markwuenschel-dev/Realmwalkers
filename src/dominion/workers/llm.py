@@ -56,6 +56,7 @@ def _is_transient(exc: BaseException) -> bool:
 async def complete(
     *, model: str, system: str, user: str, max_tokens: int, budget: TokenBudget,
     user_prefix: str | None = None,
+    expect_cache: bool = True,
 ) -> tuple[str, Usage]:
     """One LLM call. Retries transient errors with exponential backoff; charges the budget from the
     response usage on success (raises BudgetExceeded if over). Non-transient errors raise at once.
@@ -120,7 +121,8 @@ async def complete(
 
     # Warn when cache_control was sent but nothing was written or read: the prompt was below
     # Anthropic's minimum cacheable length (~1024 tokens for Sonnet/Opus, 2048 for Haiku).
-    if usage.cache_creation_tokens == 0 and usage.cache_read_tokens == 0:
+    # Suppressed when the caller declares the prompt is intentionally short (expect_cache=False).
+    if expect_cache and usage.cache_creation_tokens == 0 and usage.cache_read_tokens == 0:
         log.warning("llm.cache_skipped", model=model,
                     note="system prompt below minimum cacheable length; cache_control ignored")
 
@@ -141,6 +143,7 @@ async def complete(
         cache_hit=usage.cache_read_tokens > 0,
         cache_ratio=round(usage.cache_read_tokens / total_prompt, 3) if total_prompt else 0.0,
         elapsed_since_first_s=elapsed_since_first_s,
+        system_chars=len(system),
     )
     text = "".join(block.text for block in resp.content if block.type == "text")
     return text, usage

@@ -71,7 +71,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         prose_source="agent",
         agent_original=prose,            # marker form preserved for training capture (DESIGN §11)
         passes_run=passes_run,
-        token_count=ctx.budget.used,
+        token_count=ctx.budget.total_input + ctx.budget.total_output,
         model=settings.draft_model,
     )
     session.add(scene)
@@ -133,11 +133,13 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         cache_creation_tokens=ctx.budget.total_cache_creation,
         cache_read_tokens=ctx.budget.total_cache_read,
         cache_hit_ratio=round(ctx.budget.cache_hit_ratio, 3),
+        cache_tokens_saved=ctx.budget.cache_tokens_saved,
     )
     progress.set_cache_stats(
         str(job.id),
         cache_hit_ratio=round(ctx.budget.cache_hit_ratio, 3),
         total_cache_read_tokens=ctx.budget.total_cache_read,
         total_cache_creation_tokens=ctx.budget.total_cache_creation,
+        cache_tokens_saved=ctx.budget.cache_tokens_saved,
     )
     return scene

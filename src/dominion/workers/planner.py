@@ -169,6 +169,7 @@ async def propose_beats(
                 ),
                 max_tokens=_PLAN_MAX_TOKENS,
                 budget=budget or TokenBudget(max_tokens=settings.scene_token_budget),
+                expect_cache=False,
             ),
             timeout=settings.plan_time_budget_s,
         )
@@ -218,6 +219,7 @@ async def propose_chapter_title(
                 user="\n\n".join(parts),
                 max_tokens=32,
                 budget=budget or TokenBudget(max_tokens=settings.scene_token_budget),
+                expect_cache=False,
             ),
             timeout=settings.plan_time_budget_s,
         )

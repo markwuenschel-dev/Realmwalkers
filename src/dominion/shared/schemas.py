@@ -257,6 +257,12 @@ class JobsStatusOut(BaseModel):
     queued: int = 0
     failed: int = 0
     active_scene: ActiveScene | None = None
+    # Cache stats for the most recently completed scene — persists during the idle window so the
+    # Desk can show cache efficiency after drafting finishes, not just while it's running.
+    last_cache_hit_ratio: float | None = None
+    last_cache_read_tokens: int | None = None
+    last_cache_creation_tokens: int | None = None
+    last_cache_tokens_saved: int | None = None
 
 
 class DraftNextOut(BaseModel):

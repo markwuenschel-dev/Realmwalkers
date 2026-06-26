@@ -155,6 +155,9 @@ export interface ActiveScene {
   scene_no: number | null;
   phase: string | null;
   elapsed_s: number | null;
+  cache_hit_ratio: number | null;
+  total_cache_read_tokens: number | null;
+  total_cache_creation_tokens: number | null;
 }
 
 export interface JobsStatusOut {
@@ -162,6 +165,10 @@ export interface JobsStatusOut {
   queued: number;
   failed: number;
   active_scene: ActiveScene | null;
+  last_cache_hit_ratio: number | null;
+  last_cache_read_tokens: number | null;
+  last_cache_creation_tokens: number | null;
+  last_cache_tokens_saved: number | null;
 }
 
 export interface FailedJobOut {

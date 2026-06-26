@@ -67,5 +67,6 @@ async def qa_packet(packet: dict[str, Any], *, budget: TokenBudget) -> dict[str,
         user=build_prompt(packet),
         max_tokens=_QA_MAX_TOKENS,
         budget=budget,
+        expect_cache=False,
     )
     return parse_qa(raw)

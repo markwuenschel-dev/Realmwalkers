@@ -50,6 +50,7 @@ async def lane_review(scene_prose: str, ctx: SceneContext, *, name: str, focus: 
         user=_prompt(scene_prose, ctx.beat_text),
         max_tokens=_REVIEW_MAX_TOKENS,
         budget=ctx.budget,
+        expect_cache=False,
     )
     flags: list[Flag] = []
     for item in parse_json_objects(raw):

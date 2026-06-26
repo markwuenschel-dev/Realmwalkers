@@ -153,11 +153,16 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
             total_cache_read_tokens=cache["total_cache_read_tokens"] if cache else None,
             total_cache_creation_tokens=cache["total_cache_creation_tokens"] if cache else None,
         )
+    last = progress.get_last_cache()
     return JobsStatusOut(
         running=running,
         queued=counts.get(JobStatus.QUEUED, 0),
         failed=counts.get(JobStatus.FAILED, 0),
         active_scene=active_scene,
+        last_cache_hit_ratio=last["cache_hit_ratio"] if last else None,
+        last_cache_read_tokens=last["total_cache_read_tokens"] if last else None,
+        last_cache_creation_tokens=last["total_cache_creation_tokens"] if last else None,
+        last_cache_tokens_saved=last["cache_tokens_saved"] if last else None,
     )
 
 
