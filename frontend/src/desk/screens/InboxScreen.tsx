@@ -6,6 +6,7 @@ import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { sceneLabel, wordCount } from "../lib/format";
+import { buildScenesMarkdown, downloadMarkdown, type SceneExportItem } from "../lib/sceneMarkdown";
 import { useSelection } from "../lib/useSelection";
 import Planner from "../components/Planner";
 import BulkBar, { BulkButton } from "../components/BulkBar";
@@ -18,7 +19,31 @@ export default function InboxScreen() {
   const sel = useSelection();
   const [reviseMode, setReviseMode] = useState(false);
   const [note, setNote] = useState("");
+  const [downloading, setDownloading] = useState(false);
   const clearSel = () => { sel.clear(); setReviseMode(false); setNote(""); };
+
+  // Bulk export: pending scenes' detail/feedback aren't loaded (only the active scene's are), so pull
+  // each one's critiques + annotations + suggestions on demand and bundle them into one Markdown file.
+  const downloadSelected = async () => {
+    if (downloading || sel.count === 0) return;
+    setDownloading(true);
+    try {
+      const items: SceneExportItem[] = await Promise.all(sel.ids.map(async (id) => {
+        const [scene, annotations, suggestions] = await Promise.all([
+          api.scene(id), api.annotations(id), api.suggestions(id),
+        ]);
+        return { scene, chapter: data.chapters.find((c) => c.id === scene.chapter_id) ?? null, annotations, suggestions };
+      }));
+      items.sort((a, b) =>
+        (a.chapter?.chapter_no ?? 0) - (b.chapter?.chapter_no ?? 0) || a.scene.scene_no - b.scene.scene_no);
+      downloadMarkdown(`proposed_scenes_${items.length}.md`, buildScenesMarkdown(items));
+      clearSel();
+    } catch (e) {
+      window.alert(`Couldn't export: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const latest = data.latestScenes;
   const approved = latest.filter((s) => s.status === "approved");
@@ -154,6 +179,9 @@ export default function InboxScreen() {
               Approve
             </BulkButton>
             <BulkButton onClick={() => setReviseMode(true)}>Request revision</BulkButton>
+            <BulkButton disabled={downloading} onClick={() => { void downloadSelected(); }}>
+              {downloading ? "Exporting…" : "Download .md"}
+            </BulkButton>
             <BulkButton tone="bad" onClick={() => {
               if (confirm(`Delete ${sel.count} scene${sel.count === 1 ? "" : "s"}? This removes the draft and its review history.`)) {
                 void data.runBulk(sel.ids, (id) => api.deleteScene(id)); clearSel();

@@ -11,6 +11,7 @@ import { seg, tokenize } from "../prose";
 import type { Token } from "../prose";
 import type { Marker } from "../types";
 import { applyAcceptedSuggestions, sceneLabel, statValue, wordCount } from "../lib/format";
+import { buildSceneMarkdown, downloadMarkdown, sceneMarkdownFilename } from "../lib/sceneMarkdown";
 import type { CritiqueOut, DecisionKind } from "../api/types";
 
 const KEEP_BTN =
@@ -356,6 +357,11 @@ export default function SceneScreen() {
           <span><b style={css("color:var(--ink)")}>{wordCount(cur.prose)}</b> words</span>
           <span style={css("opacity:.4")}>·</span>
           <span onClick={() => router.push(`/diff/${cur.id}`)} style={css("cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)")}>v{cur.version} · compare ▾</span>
+          <span style={css("opacity:.4")}>·</span>
+          <span
+            onClick={() => downloadMarkdown(sceneMarkdownFilename(cur, chapter), buildSceneMarkdown(cur, chapter, annotations, suggestions))}
+            title="Download this scene + reviewer feedback as Markdown"
+            style={css("cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)")}>⬇ Markdown</span>
         </div>
       </div>
 
