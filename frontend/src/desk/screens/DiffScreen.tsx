@@ -1,15 +1,29 @@
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+"use client";
+
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { css } from "../css";
-import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { lineDiff } from "../lib/diff";
 import type { SceneVersionOut } from "../api/types";
 
 export default function DiffScreen() {
-  const { go } = useDesk();
+  const router = useRouter();
+  const params = useParams<{ sceneId?: string }>();
+  const sceneId = params.sceneId ?? null;
   const data = useDeskData();
   const versions = data.versions;
   const cur = data.detail;
+
+  // /diff/[sceneId] is shareable and refresh-safe: load that scene into the provider if it isn't the
+  // one already open. Bare /diff just compares whatever scene is currently loaded.
+  const loadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (sceneId && sceneId !== loadedRef.current) {
+      loadedRef.current = sceneId;
+      data.openSceneById(sceneId);
+    }
+  }, [sceneId, data]);
 
   // Which two versions to compare. Default to the last two; reset whenever the lineage changes
   // (e.g. after a revert or revision adds a version).
@@ -28,7 +42,7 @@ export default function DiffScreen() {
     return (
       <Centered>
         Open a scene from the inbox, then compare its versions here.
-        <Back go={() => go("inbox")} />
+        <Back go={() => router.push("/inbox")} />
       </Centered>
     );
   }
@@ -36,7 +50,7 @@ export default function DiffScreen() {
     return (
       <Centered>
         Scene {cur.scene_no} has only one version — request a revision to create the next one.
-        <Back go={() => go("scene")} label="Back to scene" />
+        <Back go={() => router.push(`/scene/${cur.id}`)} label="Back to scene" />
       </Centered>
     );
   }

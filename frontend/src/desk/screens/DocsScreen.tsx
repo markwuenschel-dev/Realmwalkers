@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { css } from "../css";
 import { api } from "../api/client";

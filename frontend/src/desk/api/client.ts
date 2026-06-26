@@ -1,5 +1,6 @@
 // HTTP client for the Writers' Desk. One thin fetch wrapper over the FastAPI boundary; every screen
-// reads real story state through here. Base URL comes from VITE_API_BASE (defaults to local dev).
+// reads real story state through here. Requests go to the same-origin Next BFF proxy at /api/desk,
+// which forwards to FastAPI (server-side API_BASE) — so the browser never needs the backend host.
 import type {
   AnnotationIn,
   AnnotationOut,
@@ -44,12 +45,10 @@ import type {
   ThreadOut,
 } from "./types";
 
-// API base resolution, in order: explicit VITE_API_BASE override → in a production build, same-origin
-// (relative ""), because FastAPI serves this bundle itself, so there's no separate host/CORS/localhost
-// → in dev, whatever host the page was loaded from on :8000 (so a LAN IP works, not just localhost).
-const BASE =
-  import.meta.env.VITE_API_BASE ??
-  (import.meta.env.PROD ? "" : `http://${window.location.hostname}:8000`);
+// Same-origin proxy mount. The Next route handler at /api/desk/[...path] forwards to FastAPI, so
+// there is no separate host, CORS, or localhost concern in the browser; point the backend at the
+// API_BASE env var on the server instead (see src/app/api/desk/[...path]/route.ts).
+const BASE = "/api/desk";
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

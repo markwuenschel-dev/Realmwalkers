@@ -3,3 +3,8 @@ dist/
 .vite/
 *.local
 *.tsbuildinfo
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts

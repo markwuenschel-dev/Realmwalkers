@@ -1,4 +1,6 @@
-import { Fragment, useMemo, useState } from "react";
+"use client";
+
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { wordCount } from "../lib/format";
@@ -27,8 +29,15 @@ export default function ManuscriptScreen() {
   const [layout, setLayout] = useState<Layout>("wide");
   const [source, setSource] = useState<Source>("approved");
   // Author name for the Shunn submission header/byline — persisted so it isn't re-typed each export.
-  const [author, setAuthor] = useState<string>(() => localStorage.getItem("ms_author") ?? "");
-  const saveAuthor = (v: string) => { setAuthor(v); localStorage.setItem("ms_author", v); };
+  // Read after mount (not in the initializer) so server prerender never touches localStorage.
+  const [author, setAuthor] = useState<string>("");
+  useEffect(() => {
+    try { const v = localStorage.getItem("ms_author"); if (v) setAuthor(v); } catch { /* unavailable */ }
+  }, []);
+  const saveAuthor = (v: string) => {
+    setAuthor(v);
+    try { localStorage.setItem("ms_author", v); } catch { /* ignore */ }
+  };
 
   // Draft compile: assemble each scene's current (latest-version) prose into manuscript form, whatever
   // its status — built entirely client-side from data already loaded, so viewing/exporting it never

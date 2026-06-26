@@ -1,21 +1,14 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { DraftPill } from "./DraftActivity";
+import { DESK_ROUTES, activeRouteId } from "../routes";
 import type { ThemeId } from "../theme";
 import type { Screen } from "../types";
-
-const SCREENS: { id: Screen; label: string }[] = [
-  { id: "inbox", label: "Inbox" },
-  { id: "scene", label: "Scene" },
-  { id: "chapters", label: "Chapters" },
-  { id: "packets", label: "Packets" },
-  { id: "diff", label: "Versions" },
-  { id: "manuscript", label: "Manuscript" },
-  { id: "ledger", label: "Ledger" },
-  { id: "docs", label: "Canon" },
-  { id: "settings", label: "Models" },
-];
 
 const THEMES: { id: ThemeId; label: string; title: string }[] = [
   { id: "grimoire", label: "Grimoire", title: "Dark fantasy — refined" },
@@ -24,8 +17,10 @@ const THEMES: { id: ThemeId; label: string; title: string }[] = [
 ];
 
 export default function TopBar() {
-  const { screen, themeId, go, setTheme, togglePalette } = useDesk();
+  const { themeId, setTheme, togglePalette } = useDesk();
   const { pending, books, bookId } = useDeskData();
+  const pathname = usePathname();
+  const activeId = activeRouteId(pathname);
   const badgeFor = (id: Screen): string | null =>
     id === "inbox" && pending.length ? String(pending.length) : null;
   // Initial of the active book (the desk is book-scoped); fall back to the Dominion mark.
@@ -34,27 +29,28 @@ export default function TopBar() {
   return (
     <header className="no-print" style={css("position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;height:60px;background:var(--bg2b);border-bottom:1px solid var(--line)")}>
       <div style={css("display:flex;align-items:center;gap:20px;min-width:0")}>
-        <div onClick={() => go("inbox")} style={css("display:flex;align-items:center;gap:11px;cursor:pointer;flex:none")}>
+        <Link href="/inbox" style={css("display:flex;align-items:center;gap:11px;cursor:pointer;flex:none;text-decoration:none")}>
           <div style={css("width:26px;height:26px;border-radius:6px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:15px;color:var(--accent);background:var(--accentSoft)")}>D</div>
           <div style={css("font-family:var(--display);font-size:15.5px;letter-spacing:.02em;color:var(--ink);white-space:nowrap")}>
             The Dominion Realm <span style={css("color:var(--dim)")}>· Writers' Desk</span>
           </div>
-        </div>
+        </Link>
         <nav style={css("display:flex;gap:2px")}>
-          {SCREENS.map((n) => {
-            const active = screen === n.id;
+          {DESK_ROUTES.filter((n) => n.nav).map((n) => {
+            const active = activeId === n.id;
             const badge = badgeFor(n.id);
             return (
-              <button
+              <Link
                 key={n.id}
-                onClick={() => go(n.id)}
-                style={css(`padding:7px 10px;border:none;border-radius:8px;cursor:pointer;font-family:var(--ui);font-size:13px;white-space:nowrap;background:${active ? "var(--accentSoft)" : "transparent"};color:${active ? "var(--ink)" : "var(--dim)"};font-weight:${active ? "500" : "400"}`)}
+                href={n.href}
+                aria-current={active ? "page" : undefined}
+                style={css(`display:inline-flex;align-items:center;padding:7px 10px;border:none;border-radius:8px;cursor:pointer;font-family:var(--ui);font-size:13px;white-space:nowrap;text-decoration:none;background:${active ? "var(--accentSoft)" : "transparent"};color:${active ? "var(--ink)" : "var(--dim)"};font-weight:${active ? "500" : "400"}`)}
               >
                 {n.label}
                 {badge && (
                   <span style={css("margin-left:7px;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:999px;background:var(--accent);color:var(--onAccent)")}>{badge}</span>
                 )}
-              </button>
+              </Link>
             );
           })}
         </nav>
@@ -76,7 +72,7 @@ export default function TopBar() {
             );
           })}
         </div>
-        <button onClick={togglePalette} style={css("display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>
+        <button onClick={togglePalette} aria-label="Open command palette" style={css("display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:12.5px;cursor:pointer;font-family:var(--ui)")}>
           Search
           <span style={css("font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--dim)")}>⌘K</span>
         </button>

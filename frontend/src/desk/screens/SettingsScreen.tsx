@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";

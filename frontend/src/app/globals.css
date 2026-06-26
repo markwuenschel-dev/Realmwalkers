@@ -1,8 +1,8 @@
 /* Global rules from the .dc prototype's <style> block. Everything else is inline-styled and themed
-   via the CSS custom properties set on the root element (see desk/theme.ts). */
+   via the CSS custom properties set on the desk root element (see desk/theme.ts). */
 * { box-sizing: border-box; }
-html, body, #root { margin: 0; padding: 0; }
-#root { min-height: 100vh; }
+html, body { margin: 0; padding: 0; }
+body { min-height: 100vh; }
 
 ::selection { background: var(--accentSoft); }
 
