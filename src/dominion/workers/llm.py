@@ -11,10 +11,13 @@ import asyncio
 from functools import lru_cache
 
 import anthropic
+import structlog
 from anthropic import AsyncAnthropic
 
 from dominion.shared.config import settings
 from dominion.workers.budget import TokenBudget, Usage
+
+log = structlog.get_logger()
 
 
 @lru_cache
@@ -68,6 +71,13 @@ async def complete(
                 raise
             await asyncio.sleep(settings.llm_retry_base_delay_s * 2**attempt)
             attempt += 1
+
+    # Truncation is silent at the API level: the response just stops mid-output. Surface it so callers
+    # that parse JSON (packet author/QA, reviewers) can see *why* their parse failed instead of only a
+    # generic "no usable result". The text is still returned — the caller decides whether to fail closed.
+    if getattr(resp, "stop_reason", None) == "max_tokens":
+        log.warning("llm.truncated", model=model, max_tokens=max_tokens,
+                    output_tokens=resp.usage.output_tokens)
 
     # Only a successful response charges; BudgetExceeded propagates (it is not a transient error).
     usage = Usage(resp.usage.input_tokens, resp.usage.output_tokens)

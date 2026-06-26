@@ -192,6 +192,12 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter) -> ChapterP
     canon_meta = await canon_rag.retrieve_with_meta(session, book_id=book_id, query=outline, k=_CANON_K)
     handles = {f"C{i}": meta for i, meta in enumerate(canon_meta, start=1)}
 
+    # Three distinct fail-closed paths, kept distinguishable in both the stored reason and the logs so a
+    # block is debuggable after the fact (they used to collapse into one generic, unlogged reason):
+    #   1. the author *call* raised — timeout / budget / API error (logged below);
+    #   2. it returned text we couldn't parse to an object — usually truncation (see llm.truncated);
+    #   3. it parsed but the packet was too thin (no scene seeds or no claims list).
+    author_error: str | None = None
     try:
         packet = await asyncio.wait_for(
             author_mod.author_packet(
@@ -203,10 +209,17 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter) -> ChapterP
         )
     except Exception as exc:  # noqa: BLE001 — any author failure (timeout/budget/API) must fail closed
         log.error("packet.author_failed", chapter=str(chapter.id), error=str(exc))
+        author_error = type(exc).__name__
         packet = None
 
-    if packet is None or not _valid_packet(packet):
-        return await fail_closed("packet author returned no usable packet")
+    if author_error is not None:
+        return await fail_closed(f"packet author call failed ({author_error})")
+    if packet is None:
+        log.warning("packet.author_unparsable", chapter=str(chapter.id))
+        return await fail_closed("packet author response could not be parsed (possibly truncated)")
+    if not _valid_packet(packet):
+        log.warning("packet.author_thin", chapter=str(chapter.id))
+        return await fail_closed("packet author returned an incomplete packet (no scene seeds or claims)")
 
     _mint_seed_ids(packet)
     _resolve_provenance(packet, handles)

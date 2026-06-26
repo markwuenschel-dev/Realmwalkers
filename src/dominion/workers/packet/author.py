@@ -18,7 +18,10 @@ from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
 from dominion.workers.packet.parse import extract_object
 
-_AUTHOR_MAX_TOKENS = 8000
+# The packet schema is large (20+ array fields, nested scene_seeds + per-claim provenance), so a
+# verbose chapter can run long. Headroom here prevents truncation mid-JSON, which would parse to None
+# and fail the packet closed for a non-content reason. Truncation is logged (llm.truncated) if hit.
+_AUTHOR_MAX_TOKENS = 16000
 
 _SYSTEM = (
     "You are the Chapter Packet Author. Do NOT write prose.\n\n"
