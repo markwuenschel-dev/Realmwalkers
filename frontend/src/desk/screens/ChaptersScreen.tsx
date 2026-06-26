@@ -19,8 +19,13 @@ export default function ChaptersScreen() {
   const { t } = desk;
   const data = useDeskData();
 
-  // current state of each (chapter, scene) — derived once in the data layer
-  const latest = data.latestScenes;
+  // current state of each (chapter, scene) — derived once in the data layer. A latest row can only be
+  // `superseded` when the scene was rejected (revisions create a newer version, so a superseded row is
+  // never the latest), so dropping them here is what makes a rejected scene vanish from the board.
+  const latest = useMemo(
+    () => data.latestScenes.filter((s) => s.status !== "superseded"),
+    [data.latestScenes],
+  );
   const scenesByChapter = (chapterId: string): SceneOut[] =>
     latest.filter((s) => s.chapter_id === chapterId).sort((a, b) => a.scene_no - b.scene_no);
 
