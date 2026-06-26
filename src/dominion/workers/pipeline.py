@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
@@ -17,6 +18,8 @@ from dominion.shared.models import Critique, Job, Scene
 from dominion.workers import progress
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context import assemble_context
+
+log = structlog.get_logger()
 from dominion.workers.router import passes_for, reviewers_for
 from dominion.workers.specialists.base import PassError
 from dominion.workers.specialists.drafter import drafter
@@ -123,4 +126,18 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     elif prior is not None:
         prior.status = SceneStatus.SUPERSEDED
 
+    log.info(
+        "scene.cache_summary",
+        scene=str(scene.id),
+        total_tokens=ctx.budget.used,
+        cache_creation_tokens=ctx.budget.total_cache_creation,
+        cache_read_tokens=ctx.budget.total_cache_read,
+        cache_hit_ratio=round(ctx.budget.cache_hit_ratio, 3),
+    )
+    progress.set_cache_stats(
+        str(job.id),
+        cache_hit_ratio=round(ctx.budget.cache_hit_ratio, 3),
+        total_cache_read_tokens=ctx.budget.total_cache_read,
+        total_cache_creation_tokens=ctx.budget.total_cache_creation,
+    )
     return scene

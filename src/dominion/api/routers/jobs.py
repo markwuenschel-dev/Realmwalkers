@@ -143,8 +143,15 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     if active:
         job_id, chapter_no, scene_no = active
         phase, elapsed_s = progress.get(str(job_id))  # live sub-stage from the in-process registry
+        cache = progress.get_cache_stats(str(job_id))
         active_scene = ActiveScene(
-            chapter_no=chapter_no, scene_no=scene_no, phase=phase, elapsed_s=elapsed_s,
+            chapter_no=chapter_no,
+            scene_no=scene_no,
+            phase=phase,
+            elapsed_s=elapsed_s,
+            cache_hit_ratio=cache["cache_hit_ratio"] if cache else None,
+            total_cache_read_tokens=cache["total_cache_read_tokens"] if cache else None,
+            total_cache_creation_tokens=cache["total_cache_creation_tokens"] if cache else None,
         )
     return JobsStatusOut(
         running=running,

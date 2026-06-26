@@ -227,15 +227,18 @@ def test_contract_block_appears_in_both_prompts():
         "exit_state": "the scrim begins",
         "canon_locks": ["the Realm is real"],
     }
-    for prompt in (_beat_prompt(_ctx(contract)), _revise_prompt(_ctx(contract, revise=True))):
-        assert "CONTRACT — obey exactly" in prompt
-        assert "Serra is the assassin" in prompt        # forbidden reveal
-        assert "Marcus uses his Aspect" in prompt       # forbidden beat
-        assert "the cohort is converging" in prompt     # required reveal
-        assert "the scrim begins" in prompt             # exit state
-        assert "the Realm is real" in prompt            # immutable lock
-        assert "MUST NOT:" in prompt and "MUST:" in prompt and "IMMUTABLE" in prompt
+    for prefix, user in (_beat_prompt(_ctx(contract)), _revise_prompt(_ctx(contract, revise=True))):
+        # contract goes into the stable prefix; beat/revision content goes in user
+        full = (prefix or "") + "\n" + user
+        assert "CONTRACT — obey exactly" in full
+        assert "Serra is the assassin" in full        # forbidden reveal
+        assert "Marcus uses his Aspect" in full       # forbidden beat
+        assert "the cohort is converging" in full     # required reveal
+        assert "the scrim begins" in full             # exit state
+        assert "the Realm is real" in full            # immutable lock
+        assert "MUST NOT:" in full and "MUST:" in full and "IMMUTABLE" in full
 
 
 def test_no_contract_means_no_block():
-    assert "CONTRACT — obey exactly" not in _beat_prompt(_ctx(None))
+    prefix, user = _beat_prompt(_ctx(None))
+    assert "CONTRACT — obey exactly" not in (prefix or "") + user

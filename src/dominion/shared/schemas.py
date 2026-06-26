@@ -245,6 +245,10 @@ class ActiveScene(BaseModel):
     # come from the in-process phase registry (workers/progress.py); null when unknown.
     phase: str | None = None
     elapsed_s: int | None = None
+    # Cache performance for the scene just completed (null while the scene is still drafting).
+    cache_hit_ratio: float | None = None
+    total_cache_read_tokens: int | None = None
+    total_cache_creation_tokens: int | None = None
 
 
 class JobsStatusOut(BaseModel):
