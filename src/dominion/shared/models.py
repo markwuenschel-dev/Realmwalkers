@@ -65,13 +65,22 @@ class Run(Base):
 
 
 class Job(Base):
-    """One unit of worker work: draft one scene OR one revision (DESIGN §4)."""
+    """One unit of worker work: draft one scene OR one revision (DESIGN §4).
+
+    Direct ID routing (scene-packet contract system): every new draft/revision job carries the
+    book/chapter/beat/scene_packet ids so `assemble_context` resolves work without `run_id` —
+    `run_id` is now batch/provenance metadata, not the routing key.
+    """
     __tablename__ = "jobs"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
     kind: Mapped[str] = mapped_column(Text)                      # draft | revise_full | revise_pass
     target_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     target_pass: Mapped[str | None] = mapped_column(Text, nullable=True)
+    book_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True)
+    chapter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapters.id"), nullable=True)
+    beat_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("beats.id"), nullable=True)
+    scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
     chapter_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     token_budget: Mapped[int] = mapped_column(Integer)
@@ -93,6 +102,9 @@ class Beat(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
     scene_seed_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)  # links to packet scene_seed
+    # The stronger link under the scene-packet contract system: a beat is the display/routing
+    # projection of an approved ScenePacket. Hard constraints stay in the packet, never copied here.
+    scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
     scene_no: Mapped[int] = mapped_column(Integer)
     characters_present: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)  # routes specialists
@@ -112,6 +124,10 @@ class Scene(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     parent_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     status: Mapped[str] = mapped_column(Text, default="draft")
+    # The approved ScenePacket this draft was written against — the contract of record for review.
+    scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
+    word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    length_status: Mapped[str | None] = mapped_column(Text, nullable=True)  # see enums.LengthStatus
     prose: Mapped[str | None] = mapped_column(Text, nullable=True)
     prose_source: Mapped[str] = mapped_column(Text, default="agent")  # agent | agent+human_edit
     agent_original: Mapped[str | None] = mapped_column(Text, nullable=True)  # for training capture
@@ -148,8 +164,63 @@ class ChapterPacket(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ScenePacket(Base):
+    """Scene-local knowledge contract derived from an approved ChapterPacket (scene-packet system).
+
+    The ChapterPacket stays macro-authoritative; the ScenePacket becomes scene-local authoritative for
+    reader/POV knowledge state, allowed/forbidden reveals, intentional mysteries, reviewer
+    false-positive traps, and the per-scene word budget. The drafter writes against it and the
+    reviewers critique against it. `body` follows the ScenePacket body contract (DESIGN: scene-packet).
+
+    `source_hash` is the canonical hash of every input the packet was derived from (chapter packet,
+    scene seed, word budget, prior approved scenes, owner-file/canon hashes); when an input changes the
+    packet is marked `stale` and cannot create a new draft job until re-derived or re-approved.
+    """
+    __tablename__ = "scene_packets"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    chapter_packet_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapter_packets.id"))
+    scene_seed_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)  # sync key back to the seed
+    scene_no: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(Text, default="proposed")  # see enums.ScenePacketStatus
+    qa_verdict: Mapped[str | None] = mapped_column(Text, nullable=True)
+    qa_warnings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    body: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class DraftAttempt(Base):
+    """A preserved stage of one scene's prose pipeline (provenance for compress/expand/enrich).
+
+    The pipeline rewrites model output before the human sees it (enrichment, length guard); each stage
+    is recorded here so the evidence of what every stage did is never destroyed. `stage` is an
+    enums.DraftStage value. Append-only; never mutated."""
+    __tablename__ = "draft_attempts"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id"), nullable=True)
+    scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
+    scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
+    stage: Mapped[str] = mapped_column(Text)
+    prose: Mapped[str | None] = mapped_column(Text, nullable=True)
+    word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CanonEntity(Base):
-    """Story bible / canon, retrievable via pgvector (DESIGN §7)."""
+    """Story bible / canon, retrievable via pgvector (DESIGN §7).
+
+    Hybrid-retrieval metadata (scene-packet RAG upgrade): `doc_path`/`heading_path` carry provenance,
+    `owner_topic`/`source_priority` drive owner-file precedence over semantic hits, and
+    `content_hash`/`embedding_*` make ingest incremental (skip unchanged chunks, re-embed changed ones).
+    """
     __tablename__ = "canon_entities"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
@@ -158,6 +229,13 @@ class CanonEntity(Base):
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
     published: Mapped[bool] = mapped_column(Boolean, default=False)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+    doc_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    heading_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    owner_topic: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_priority: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_version: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class CharacterState(Base):
@@ -187,6 +265,7 @@ class Critique(Base):
     __tablename__ = "critiques"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
     version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reviewer: Mapped[str] = mapped_column(Text)                  # continuity|combat|sensory|...
     severity: Mapped[str] = mapped_column(Text)                  # info|warn|hard

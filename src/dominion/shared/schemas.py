@@ -20,6 +20,7 @@ class CritiqueOut(_ORM):
     severity: str
     note: str | None = None
     payload: dict[str, Any] | None = None
+    scene_packet_id: uuid.UUID | None = None  # which scene contract this critique was raised against
 
 
 class SceneOut(_ORM):
@@ -28,6 +29,9 @@ class SceneOut(_ORM):
     scene_no: int
     version: int
     status: str
+    scene_packet_id: uuid.UUID | None = None
+    word_count: int | None = None
+    length_status: str | None = None
     prose: str | None = None
     prose_source: str
     passes_run: list[str] | None = None
@@ -87,6 +91,7 @@ class BeatOut(_ORM):
     id: uuid.UUID
     chapter_id: uuid.UUID
     scene_seed_id: uuid.UUID | None = None       # set when the beat was derived from a packet scene_seed
+    scene_packet_id: uuid.UUID | None = None     # the approved ScenePacket this beat projects
     scene_no: int
     beat_text: str | None = None
     characters_present: list[str] | None = None
@@ -207,6 +212,56 @@ class PacketProposeOut(BaseModel):
     running: bool
     phase: str | None = None        # authoring | qa | None
     elapsed_s: int | None = None
+
+
+# --- Contract-first drafting: scene packets (scene-local contract) --------------------------------
+
+class ScenePacketOut(_ORM):
+    """A derived scene-local contract for the Desk. `body` follows the ScenePacket body contract
+    (reader/POV knowledge state, allowed/forbidden reveals, intentional mysteries, false-positive
+    traps, word budget); `qa_warnings` carries the ScenePacket QA verdict's residual risks + issues."""
+    id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_id: uuid.UUID
+    chapter_packet_id: uuid.UUID
+    scene_seed_id: uuid.UUID | None = None
+    scene_no: int
+    status: str                                  # proposed | approved | blocked | stale
+    qa_verdict: str | None = None
+    qa_warnings: dict[str, Any] | None = None
+    body: dict[str, Any] = {}
+    source_hash: str | None = None
+    stale_reason: str | None = None
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class ScenePacketUpdateIn(BaseModel):
+    """PUT body to edit/adjudicate a scene packet. Editing the body after approval returns it to
+    proposed unless status is explicitly set back to approved in the same call."""
+    body: dict[str, Any] | None = None
+    status: str | None = None
+
+
+class ScenePacketDeriveOut(BaseModel):
+    """Result of deriving scene packets for a chapter from its approved ChapterPacket."""
+    created: int = 0
+    updated: int = 0
+    blocked: int = 0
+    stale: int = 0
+    packets: list[ScenePacketOut] = []
+
+
+class ScenePacketApproveIn(BaseModel):
+    """Optional POST body for batch approve: restrict to a subset of packets."""
+    packet_ids: list[uuid.UUID] | None = None
+
+
+class ScenePacketQaOut(BaseModel):
+    """Result of running QA against one scene packet."""
+    packet_id: uuid.UUID
+    verdict: str
+    warnings: dict[str, Any] | None = None
 
 
 # --- History + manuscript read surfaces (DESIGN §9, §13) ------------------------------------------

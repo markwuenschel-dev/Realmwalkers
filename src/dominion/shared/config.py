@@ -51,6 +51,33 @@ class Settings(BaseSettings):
     # have several chapters of observed packet quality. Flip True later to let green auto-proceed.
     packet_auto_approve_green: bool = False
 
+    # Scene-packet contract system. The ScenePacket builder localizes the approved ChapterPacket into
+    # one scene's reader/POV/reveal/word contract; QA attacks each one. Builder rides Sonnet (it shapes
+    # the contract every later writer obeys), QA rides Haiku (a checker, like packet_qa_model).
+    scene_packet_author_model: str = "claude-sonnet-4-6"
+    scene_packet_qa_model: str = "claude-haiku-4-5"
+    # Length guard rewrites (compress/expand) are targeted edits on an existing draft, so they ride the
+    # cheap/fast Haiku tier like the enrichment passes — never the main draft model.
+    length_compress_model: str = "claude-haiku-4-5"
+    length_expand_model: str = "claude-haiku-4-5"
+
+    # Length guard policy (DESIGN: word budgeting). Default to NOT auto-rewriting: an over-max draft
+    # lands with a WARN critique for the human, an under-min draft lands with INFO. Only a hard-max
+    # overflow is auto-compressed, and if still over hard_max it is quarantined as a DRAFT.
+    length_auto_compress_over_max: bool = False
+    length_auto_expand_under_min: bool = False
+    length_hard_fail_over_hard_max: bool = True
+
+    # Hybrid canon retrieval (RAG upgrade). One concrete embedding provider path. owner_file_boost is
+    # added to a chunk's rerank score when it comes from a forced owner file, so owner precedence
+    # always beats a semantic-only hit.
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    rag_semantic_k: int = 12
+    rag_keyword_k: int = 12
+    rag_final_k: int = 8
+    rag_owner_file_boost: int = 100
+
     # Authoring source-of-truth docs loaded into the drafter. Relative paths resolve from the
     # project root (falling back to CWD). dialogue_rules.md is authoritative for ALL dialogue —
     # it wins over the per-POV voice spec where they disagree (see drafter._voice_system).

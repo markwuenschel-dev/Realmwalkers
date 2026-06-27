@@ -28,11 +28,18 @@ _SYSTEM = (
 )
 
 _KNOWLEDGE_SYSTEM = (
-    "You check a POV character's narration for KNOWLEDGE the character could not have. You are given "
-    "everything this POV knows so far. Flag only concrete references — to events, names, places, or "
-    "facts — that the narration treats as known but that are absent from that knowledge. Do not flag "
-    "things a person could reasonably perceive or infer within the scene itself. If nothing is out of "
-    "bounds, report nothing."
+    "You check a scene against its reader-state contract for knowledge problems. You are given what "
+    "the reader and the POV character each know before the scene, what the reader must learn, may only "
+    "infer, and must not know, plus the scene's intentional mysteries and reviewer false-positive "
+    "traps.\n\n"
+    "Flag concrete problems and classify each with a `kind`:\n"
+    "- reader_context_gap: the prose assumes the reader knows something they do not.\n"
+    "- pov_knowledge_leak: the narration uses knowledge this POV cannot have.\n"
+    "- premature_reveal: something forbidden/hidden is revealed too early.\n"
+    "- confusing_mystery: an intentional mystery is rendered confusing beyond the contract.\n\n"
+    "Do NOT flag intentional mysteries as missing context. Do NOT flag the listed false-positive traps "
+    "unless the prose makes the intended mystery confusing beyond the contract. Do NOT treat "
+    "author-only/omniscient canon as reader knowledge. If nothing is out of bounds, report nothing."
 )
 
 
@@ -49,12 +56,37 @@ def _extract_prompt(prose: str, watched: dict[str, list[str]]) -> str:
     return "\n".join(lines)
 
 
-def _knowledge_prompt(prose: str, pov: str, pov_summary: str) -> str:
+def _contract_section(reader_state: dict[str, Any] | None) -> str:
+    """Render the reader-state contract for the knowledge check (empty when absent)."""
+    if not reader_state:
+        return ""
+    import json as _json
+    known = reader_state.get("known_before_scene") or {}
+    learned = reader_state.get("learned_during_scene") or {}
+    hidden = reader_state.get("must_remain_hidden") or {}
+    pov_perms = reader_state.get("pov_permissions") or {}
+    lines = [
+        "READER-STATE CONTRACT:",
+        f"- Known to reader before scene: {_json.dumps(known.get('reader') or [])}",
+        f"- Known to POV before scene: {_json.dumps(known.get('pov') or [])}",
+        f"- Reader must learn: {_json.dumps(learned.get('reader_must_learn') or [])}",
+        f"- Reader may infer only: {_json.dumps(learned.get('reader_may_infer_only') or [])}",
+        f"- Reader must NOT know: {_json.dumps(hidden.get('reader') or [])}",
+        f"- POV must NOT know: {_json.dumps((hidden.get('pov') or []) + (pov_perms.get('must_not_know') or []))}",
+        f"- Intentional mysteries: {_json.dumps(reader_state.get('intentional_mysteries') or [])}",
+        f"- False-positive traps (do not flag): {_json.dumps(reader_state.get('reviewer_false_positive_traps') or [])}",
+    ]
+    return "\n".join(lines) + "\n\n"
+
+
+def _knowledge_prompt(prose: str, pov: str, pov_summary: str | None, reader_state: dict[str, Any] | None) -> str:
+    knows = f"WHAT {pov} KNOWS SO FAR:\n{pov_summary}\n\n" if pov_summary else ""
     return (
-        f"POV character: {pov}\n\nWHAT {pov} KNOWS SO FAR:\n{pov_summary}\n\nSCENE:\n{prose}\n\n"
+        f"POV character: {pov}\n\n{_contract_section(reader_state)}{knows}SCENE:\n{prose}\n\n"
         'Return ONLY a JSON array (no prose, no code fences). Each item: '
-        '{"reference": str (the out-of-bounds reference), "note": str (why it is outside what '
-        f'{pov} knows)}}. Empty array [] if nothing is out of bounds.'
+        '{"reference": str, "kind": '
+        '"reader_context_gap|pov_knowledge_leak|premature_reveal|confusing_mystery", '
+        '"note": str}. Empty array [] if nothing is out of bounds.'
     )
 
 
@@ -156,12 +188,13 @@ class ContinuityReviewer:
         """POV-knowledge asymmetry (DESIGN §7): advisory-flag narration that references anything
         outside what this POV knows. Silent (and free) when there is no POV summary to measure
         against. Strictly advisory — never HARD, never the continuity panel."""
-        if not ctx.pov_summary or not scene_prose.strip():
+        # Run when there's either a POV summary or a reader-state contract to measure against.
+        if (not ctx.pov_summary and not ctx.reader_state_contract) or not scene_prose.strip():
             return []
         raw, _usage = await llm.complete(
             model=settings.review_model,
             system=_KNOWLEDGE_SYSTEM,
-            user=_knowledge_prompt(scene_prose, ctx.pov, ctx.pov_summary),
+            user=_knowledge_prompt(scene_prose, ctx.pov, ctx.pov_summary, ctx.reader_state_contract),
             max_tokens=_KNOWLEDGE_MAX_TOKENS,
             budget=ctx.budget,
             expect_cache=False,
@@ -172,11 +205,12 @@ class ContinuityReviewer:
             if not note:
                 continue
             reference = str(item.get("reference", "")).strip()
+            kind = str(item.get("kind", "")).strip() or "knowledge"
             flags.append(Flag(
                 reviewer=self.name,
                 severity=Severity.WARN,
                 note=note,
-                payload={"kind": "knowledge", "reference": reference},
+                payload={"kind": kind, "reference": reference},
             ))
         return flags
 
