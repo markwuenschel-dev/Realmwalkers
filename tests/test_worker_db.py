@@ -14,10 +14,11 @@ from dominion.shared.enums import (
 from dominion.shared.models import Beat, Book, Chapter, Job, Run, Scene
 from dominion.workers import worker
 from dominion.workers.specialists import drafter as drafter_mod
+from tests.conftest import seed_scene_packet
 
 
 async def _seed_job(factory) -> object:
-    """Create book -> chapter -> approved beat -> run -> queued draft job. Returns the job id."""
+    """Create book -> chapter -> approved beat (+ scene packet) -> run -> queued draft job."""
     async with factory() as s:
         book = Book(title="Test Book")
         s.add(book)
@@ -25,10 +26,13 @@ async def _seed_job(factory) -> object:
         chapter = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(chapter)
         await s.flush()
-        s.add(Beat(
+        beat = Beat(
             chapter_id=chapter.id, scene_no=1, tags=[], status=BeatStatus.APPROVED,
             beat_text="Marcus wakes in the Realm.",
-        ))
+        )
+        s.add(beat)
+        await s.flush()
+        await seed_scene_packet(s, chapter=chapter, beat=beat)
         run = Run(
             book_id=book.id, scope_json={"chapter": 1, "scene": 1},
             gate_mode=GateMode.PAUSE_EACH, token_budget=40_000,

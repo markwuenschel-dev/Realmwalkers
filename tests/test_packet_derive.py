@@ -12,7 +12,6 @@ from dominion.api.routers import packets
 from dominion.shared.enums import PacketStatus, PacketVerdict
 from dominion.shared.models import Beat, Book, Chapter, ChapterPacket
 from dominion.shared.schemas import PacketUpdateIn
-from dominion.workers import context as context_mod
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.budget import TokenBudget
 from dominion.workers.context import SceneContext
@@ -117,41 +116,9 @@ async def test_update_packet_mints_missing_seed_ids_preserving_existing(db_facto
 
 
 # --- the contract the drafter is scoped to ---------------------------------------------------------
-
-async def test_load_contract_pulls_chapter_and_scene_constraints(db_factory):
-    async with db_factory() as s:
-        ch = await _seed_chapter(s)
-        sid = str(uuid.uuid4())
-        await _approved_packet(
-            s, ch,
-            [_seed(1, "job", scene_type="combat", required=["land the hit"], exit_state="wounded", seed_id=sid)],
-            forbidden_reveals=["Serra is the assassin"], forbidden_knowledge=["the cohort is rigged"],
-            required_reveals=["Marcus distrusts the model"], canon_locks=["the Realm is real"],
-            timeline_locks=["this is the same night"],
-        )
-        c = await context_mod._load_contract(s, chapter_id=ch.id, scene_seed_id=uuid.UUID(sid))
-        assert c is not None
-        assert c["forbidden_reveals"] == ["Serra is the assassin"]
-        assert c["forbidden_knowledge"] == ["the cohort is rigged"]
-        assert c["required_reveals"] == ["Marcus distrusts the model"]
-        assert c["canon_locks"] == ["the Realm is real"]
-        assert c["required_beats"] == ["land the hit"]      # scene-level, lifted from the seed
-        assert c["exit_state"] == "wounded"
-        # a plan-call beat (no link) has no contract
-        assert await context_mod._load_contract(s, chapter_id=ch.id, scene_seed_id=None) is None
-
-
-async def test_load_contract_none_without_approved_packet(db_factory):
-    async with db_factory() as s:
-        ch = await _seed_chapter(s)
-        sid = str(uuid.uuid4())
-        s.add(ChapterPacket(
-            book_id=ch.book_id, chapter_id=ch.id, status=PacketStatus.PROPOSED,
-            body=_body([_seed(1, "x", seed_id=sid)]), open_questions={"items": []},
-        ))
-        await s.flush()
-        # a merely-proposed packet must not leak constraints to the writer
-        assert await context_mod._load_contract(s, chapter_id=ch.id, scene_seed_id=uuid.UUID(sid)) is None
+# (The legacy chapter-packet contract loader was removed in the fail-closed cutover; the drafter now
+# reads the flat contract from the approved ScenePacket — see tests/test_scene_packet.py. The drafter
+# prompt-formatting of a flat contract dict is still covered below.)
 
 
 def _ctx(contract: dict[str, Any] | None, *, revise: bool = False) -> SceneContext:

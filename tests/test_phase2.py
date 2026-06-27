@@ -33,6 +33,7 @@ from dominion.workers import enqueue, llm, worker
 from dominion.workers.budget import Usage
 from dominion.workers.memory import canon_rag, ledger, summaries
 from dominion.workers.specialists import drafter as drafter_mod
+from tests.conftest import seed_scene_packet
 
 
 async def _book(s, title="Dominion Realm"):
@@ -62,6 +63,7 @@ async def _beat(s, ch, scene_no=1, *, esc=None, chars=("Marcus",), text="Marcus 
              expected_state_changes=esc, status=BeatStatus.APPROVED, beat_text=text)
     s.add(b)
     await s.flush()
+    await seed_scene_packet(s, chapter=ch, beat=b)  # drafting is fail-closed on an approved packet
     return b
 
 

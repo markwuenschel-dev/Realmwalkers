@@ -20,7 +20,6 @@ from dominion.shared.config import settings
 from dominion.shared.enums import (
     BeatStatus,
     Decision,
-    PacketStatus,
     ScenePacketStatus,
     SceneStatus,
 )
@@ -230,17 +229,17 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
     ctx.pov_summary = await summaries.pov_summary(session, book_id=book_id, pov=chapter.pov)
     ctx.prior_scene_tail = await _prior_tail(session, chapter_id=chapter.id, scene_no=scene_no)
 
-    # Scene-packet contract system: when the job names a ScenePacket it must be approved + non-stale,
-    # and it becomes the scene-local authority (reader/POV knowledge, reveals, mysteries, word budget,
-    # reviewer instructions). Fail closed otherwise — never silently fall back to the chapter packet.
-    # A job WITHOUT a scene_packet_id (legacy/manual enqueue) still reads chapter-packet constraints.
+    # Scene-packet contract system: drafting is fail-closed on the scene-local contract. The job's (or
+    # beat's) ScenePacket must be approved + non-stale; it is the authority for reader/POV knowledge,
+    # reveals, mysteries, word budget, and reviewer instructions. There is no chapter-packet fallback —
+    # a beat with no scene packet cannot be drafted (derive + approve one first).
     sp_id = job.scene_packet_id or beat.scene_packet_id
-    if sp_id is not None:
-        await _load_scene_packet(session, ctx, scene_packet_id=sp_id)
-    else:
-        ctx.contract = await _load_contract(
-            session, chapter_id=chapter.id, scene_seed_id=beat.scene_seed_id
+    if sp_id is None:
+        raise ScenePacketRequiredError(
+            f"no scene packet for ch{chapter.chapter_no} sc{scene_no} — derive and approve a scene "
+            "packet before drafting"
         )
+    await _load_scene_packet(session, ctx, scene_packet_id=sp_id)
 
     # Revision: pull the prior draft + the latest revision feedback for the target scene.
     if job.target_scene_id is not None:
@@ -293,55 +292,6 @@ async def _load_exemplars(
         if len(exemplars) >= settings.exemplar_max_count:
             break
     return exemplars
-
-
-# Chapter-wide constraints (apply to every scene) + the per-seed scene constraints, lifted from the
-# approved packet body into the drafter's contract. Kept as a flat dict the drafter formats verbatim.
-_CONTRACT_CHAPTER_KEYS: tuple[str, ...] = (
-    "allowed_knowledge", "forbidden_knowledge", "required_reveals", "forbidden_reveals",
-    "canon_locks", "roster_locks", "relationship_locks", "timeline_locks",
-    "allowed_ui_concepts", "forbidden_ui_concepts",
-)
-_CONTRACT_SCENE_KEYS: tuple[str, ...] = ("required_beats", "forbidden_beats", "exit_state", "scene_type")
-
-
-async def _load_contract(
-    session: AsyncSession, *, chapter_id: uuid.UUID, scene_seed_id: uuid.UUID | None
-) -> dict[str, Any] | None:
-    """Assemble the drafting contract for a seed-linked beat from the chapter's APPROVED packet:
-    chapter-wide knowledge/reveal/lock rules plus this seed's scene-level constraints. Returns None for
-    a plan-call beat (no scene_seed_id) or when no approved packet exists."""
-    if scene_seed_id is None:
-        return None
-    body = (await session.execute(
-        select(ChapterPacket.body)
-        .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED)
-        .order_by(ChapterPacket.created_at.desc())
-        .limit(1)
-    )).scalar_one_or_none()
-    if not isinstance(body, dict):
-        return None
-
-    contract: dict[str, Any] = {}
-    for key in _CONTRACT_CHAPTER_KEYS:
-        value = body.get(key)
-        if isinstance(value, list) and any(str(v).strip() for v in value):
-            contract[key] = [str(v).strip() for v in value if str(v).strip()]
-
-    seed = next(
-        (s for s in (body.get("scene_seeds") or [])
-         if isinstance(s, dict) and str(s.get("seed_id")) == str(scene_seed_id)),
-        None,
-    )
-    if isinstance(seed, dict):
-        for key in _CONTRACT_SCENE_KEYS:
-            value = seed.get(key)
-            if isinstance(value, list) and any(str(v).strip() for v in value):
-                contract[key] = [str(v).strip() for v in value if str(v).strip()]
-            elif isinstance(value, str) and value.strip():
-                contract[key] = value.strip()
-
-    return contract or None
 
 
 # Chapter-level locks that still bind every scene; lifted from the chapter packet into the flat

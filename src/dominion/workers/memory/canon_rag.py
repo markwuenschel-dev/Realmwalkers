@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.models import Book, CanonEntity
-from dominion.workers.memory.embedding import embed
+from dominion.workers.memory.embedding import embed, embedding_version
 from dominion.workers.memory.owner_router import _RULES
 
 _PASSAGE_KIND = "passage"
@@ -31,7 +31,6 @@ _OWNER_BY_FILE: dict[str, str] = {
     path: rule.owner_topic for rule in _RULES for path in rule.doc_paths
 }
 _OWNER_PRIORITY = 100
-_EMBEDDING_VERSION = "v1"  # bump when the embed() implementation changes, to force a re-embed
 
 
 def _content_hash(text: str) -> str:
@@ -180,6 +179,7 @@ async def ingest_incremental(
     seen_keys: set[tuple[str | None, str | None]] = set()
     indexed = skipped = 0
 
+    version = embedding_version()  # encodes the active embedding backend + model
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in {".md", ".markdown", ".txt"}:
             continue
@@ -189,14 +189,16 @@ async def ingest_incremental(
             chash = _content_hash(chunk)
             seen_keys.add((doc_path, heading_path))
             row = existing.get((doc_path, heading_path, chash))
-            if row is not None and row.embedding_version == _EMBEDDING_VERSION:
+            # Skip only when both the content AND the embedding backend are unchanged; a provider
+            # switch changes `version`, forcing a re-embed into the new vector space.
+            if row is not None and row.embedding_version == version:
                 skipped += 1
                 continue
             session.add(CanonEntity(
                 book_id=book_id, kind=kind, name=path.stem, body=chunk, embedding=embed(chunk),
                 doc_path=doc_path, heading_path=heading_path or None, owner_topic=owner_topic,
                 source_priority=priority, content_hash=chash,
-                embedding_model=settings.embedding_model, embedding_version=_EMBEDDING_VERSION,
+                embedding_model=settings.embedding_model, embedding_version=version,
             ))
             indexed += 1
 

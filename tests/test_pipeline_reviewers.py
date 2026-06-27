@@ -22,6 +22,7 @@ from dominion.workers import pipeline
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.reviewers.base import Flag
 from dominion.workers.specialists import drafter as drafter_mod
+from tests.conftest import seed_scene_packet
 
 
 async def _setup_draft_job(s):
@@ -35,8 +36,11 @@ async def _setup_draft_job(s):
               token_budget=40_000, status=RunStatus.ACTIVE)
     s.add(run)
     await s.flush()
-    s.add(Beat(chapter_id=ch.id, scene_no=1, tags=[], characters_present=["Marcus"],
-               status=BeatStatus.APPROVED, beat_text="Marcus presses on."))
+    beat = Beat(chapter_id=ch.id, scene_no=1, tags=[], characters_present=["Marcus"],
+                status=BeatStatus.APPROVED, beat_text="Marcus presses on.")
+    s.add(beat)
+    await s.flush()
+    await seed_scene_packet(s, chapter=ch, beat=beat)
     job = Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
               token_budget=40_000, status=JobStatus.QUEUED)
     s.add(job)

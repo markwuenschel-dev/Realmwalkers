@@ -28,7 +28,7 @@ from dominion.shared.models import (
 )
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
 from dominion.workers.job_routing import draft_job_for_beat, revision_job_for_scene
-from dominion.workers.memory import ledger, summaries
+from dominion.workers.memory import knowledge, ledger, summaries
 from dominion.workers.stat_render import render_stat_blocks
 
 log = structlog.get_logger()
@@ -103,6 +103,10 @@ async def decide(
         scene.status = SceneStatus.APPROVED
         if first_approval:
             await ledger.commit_declared_deltas(session, scene_id=scene.id)  # fast (DB) — keep inline
+            try:  # record the scene's reveals into the knowledge ledger (advisory, never gates)
+                await knowledge.record_scene_reveals(session, scene_id=scene.id)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("knowledge.record_failed", scene=str(scene.id), error=str(exc))
             next_job = await _auto_advance(session, scene)
         # Rolling-summary fold is two LLM calls — defer so the inbox responds instantly. A re-approval
         # re-folds the (edited) text, which is correct and idempotent.

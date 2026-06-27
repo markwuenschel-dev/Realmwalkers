@@ -9,6 +9,7 @@ from dominion.shared.models import Beat, Book, Chapter, CharacterState, Critique
 from dominion.workers import llm, worker
 from dominion.workers.budget import Usage
 from dominion.workers.specialists import drafter as drafter_mod
+from tests.conftest import seed_scene_packet
 
 SPINE = "Marcus stands at the gate. The panel reads LEVEL 5, stark and certain."
 
@@ -40,6 +41,7 @@ async def _beat(s, ch, scene_no=1, *, chars=("Marcus",), text="Marcus opens his 
              expected_state_changes=None, status=BeatStatus.APPROVED, beat_text=text)
     s.add(b)
     await s.flush()
+    await seed_scene_packet(s, chapter=ch, beat=b)  # drafting is fail-closed on an approved packet
     return b
 
 

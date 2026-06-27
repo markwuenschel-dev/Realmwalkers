@@ -20,7 +20,16 @@ export interface CritiqueOut {
   severity: "info" | "warn" | "hard" | string;
   note: string | null;
   payload: Record<string, unknown> | null;
+  scene_packet_id?: string | null;
 }
+
+// Where a drafted scene's word count landed against its ScenePacket word budget.
+export type LengthStatus =
+  | "under_min"
+  | "within_budget"
+  | "over_max"
+  | "over_hard_max_compressed"
+  | "over_hard_max_quarantined";
 
 export interface SceneOut {
   id: string;
@@ -28,6 +37,9 @@ export interface SceneOut {
   scene_no: number;
   version: number;
   status: string;
+  scene_packet_id?: string | null;
+  word_count?: number | null;
+  length_status?: LengthStatus | string | null;
   prose: string | null;
   prose_source: string;
   passes_run: string[] | null;
@@ -433,4 +445,114 @@ export interface PacketProposeOut {
   running: boolean;
   phase?: string | null; // authoring | qa
   elapsed_s?: number | null;
+}
+
+// --- scene packets (scene-local contract derived from an approved chapter packet) ---
+export interface SceneWordBudget {
+  min?: number;
+  target?: number;
+  max?: number;
+  hard_max?: number;
+  compression_priority?: string[];
+  expansion_priority?: string[];
+  must_not_spend_words_on?: string[];
+}
+
+export interface ScenePacketBody {
+  scene_no?: number;
+  scene_job?: string;
+  scene_type?: string;
+  chapter_position?: string;
+  word_budget?: SceneWordBudget;
+  known_before_scene?: { reader?: string[]; pov?: string[]; omniscient_author?: string[] };
+  learned_during_scene?: {
+    reader_must_learn?: string[];
+    reader_may_learn?: string[];
+    reader_may_infer_only?: string[];
+  };
+  must_remain_hidden?: { reader?: string[]; pov?: string[]; all_surface_prose?: string[] };
+  pov_permissions?: {
+    may_notice?: string[];
+    may_infer?: string[];
+    must_not_know?: string[];
+    may_be_wrong_about?: string[];
+  };
+  intentional_mysteries?: {
+    mystery?: string;
+    desired_reader_effect?: string;
+    do_not_explain?: boolean;
+  }[];
+  reviewer_false_positive_traps?: string[];
+  required_beats?: string[];
+  forbidden_beats?: string[];
+  exit_state?: string;
+  tone_pressure?: string;
+  phrases_to_avoid_echoing?: string[];
+  reviewer_instructions?: Record<string, string[]>;
+  blocked_reason?: string;
+}
+
+export type ScenePacketStatus = "proposed" | "approved" | "blocked" | "stale";
+
+export interface ScenePacketOut {
+  id: string;
+  book_id: string;
+  chapter_id: string;
+  chapter_packet_id: string;
+  scene_seed_id: string | null;
+  scene_no: number;
+  status: ScenePacketStatus | string;
+  qa_verdict: string | null;
+  qa_warnings: PacketWarnings | null;
+  body: ScenePacketBody;
+  source_hash: string | null;
+  stale_reason: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ScenePacketDeriveOut {
+  created: number;
+  updated: number;
+  blocked: number;
+  stale: number;
+  packets: ScenePacketOut[];
+}
+
+// Status of a background scene-packet derive (Author + QA run per scene server-side).
+export interface ScenePacketDeriveStatusOut {
+  running: boolean;
+  phase?: string | null; // deriving
+  elapsed_s?: number | null;
+  result?: ScenePacketDeriveOut | null;
+}
+
+export interface ScenePacketUpdateIn {
+  body?: ScenePacketBody | null;
+  status?: string | null;
+}
+
+// --- draft-attempt provenance (preserved prose stages) ---
+export interface DraftAttemptOut {
+  id: string;
+  stage: string; // drafter_raw | enrichment_* | length_compression | length_expansion | final_rendered
+  word_count: number | null;
+  model: string | null;
+  prose: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+}
+
+// --- knowledge ledger (who knows what when) ---
+export interface KnowledgeFactOut {
+  id: string;
+  book_id: string;
+  fact: string;
+  status: string; // hidden | revealed
+  known_by_character: string | null;
+  source_scene_id: string | null;
+  known_by_reader_after_scene_id: string | null;
+  known_by_character_after_scene_id: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
 }

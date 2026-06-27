@@ -15,13 +15,73 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import BeatStatus, GateMode, JobKind, JobStatus
-from dominion.shared.models import Beat, Book, Chapter, Job, Run
+from dominion.shared.enums import (
+    BeatStatus,
+    GateMode,
+    JobKind,
+    JobStatus,
+    PacketStatus,
+    ScenePacketStatus,
+)
+from dominion.shared.models import Beat, Book, Chapter, ChapterPacket, Job, Run, ScenePacket
 
 _PLACEHOLDER = "TODO: write this beat (gate 1)."
+
+
+async def _ensure_scene_packet(
+    s: AsyncSession, *, book: Book, chapter: Chapter, beat: Beat
+) -> ScenePacket:
+    """Drafting is fail-closed on an approved ScenePacket. The manual enqueue path has no chapter
+    packet / scene-packet flow, so mint a minimal APPROVED ChapterPacket + ScenePacket for this scene
+    and link the beat to it. Idempotent per (chapter, scene_no): reuse an existing one."""
+    existing: ScenePacket | None = (await s.execute(
+        select(ScenePacket).where(
+            ScenePacket.chapter_id == chapter.id, ScenePacket.scene_no == beat.scene_no
+        ).order_by(ScenePacket.created_at.desc())
+    )).scalars().first()
+    if existing is not None:
+        existing.status = ScenePacketStatus.APPROVED
+        beat.scene_packet_id = existing.id
+        return existing
+
+    cp = (await s.execute(
+        select(ChapterPacket).where(ChapterPacket.chapter_id == chapter.id).limit(1)
+    )).scalar_one_or_none()
+    if cp is None:
+        cp = ChapterPacket(
+            book_id=book.id, chapter_id=chapter.id, status=PacketStatus.APPROVED,
+            confidence="green", body={"scene_seeds": [], "manual": True},
+            open_questions={"items": []},
+        )
+        s.add(cp)
+        await s.flush()
+
+    target = beat.target_words or 1500
+    sp = ScenePacket(
+        book_id=book.id, chapter_id=chapter.id, chapter_packet_id=cp.id, scene_no=beat.scene_no,
+        status=ScenePacketStatus.APPROVED, qa_verdict="approve",
+        body={
+            "scene_no": beat.scene_no,
+            "scene_job": beat.beat_text or "",
+            "word_budget": {
+                "target": target, "min": round(target * 0.7),
+                "max": round(target * 1.35), "hard_max": round(target * 1.6),
+            },
+            "known_before_scene": {"reader": [], "pov": [], "omniscient_author": []},
+            "learned_during_scene": {"reader_must_learn": [], "reader_may_learn": [], "reader_may_infer_only": []},
+            "must_remain_hidden": {"reader": [], "pov": [], "all_surface_prose": []},
+            "manual": True,
+        },
+        source_hash="manual",
+    )
+    s.add(sp)
+    await s.flush()
+    beat.scene_packet_id = sp.id
+    return sp
 
 
 async def enqueue_scene(
@@ -76,6 +136,10 @@ async def enqueue_scene(
             if expected_state_changes is not None:
                 beat.expected_state_changes = expected_state_changes
             beat.status = BeatStatus.APPROVED
+        await s.flush()
+
+        # Drafting is fail-closed on an approved ScenePacket — mint/link a minimal one for this scene.
+        await _ensure_scene_packet(s, book=book, chapter=chapter, beat=beat)
         await s.flush()
 
         # Don't stack un-drafted jobs: if one is already queued for this scene, just keep the

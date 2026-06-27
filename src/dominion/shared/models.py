@@ -214,6 +214,31 @@ class DraftAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class KnowledgeFact(Base):
+    """A discrete story fact and WHO knows it WHEN (scene-packet knowledge ledger).
+
+    Separates durable knowledge-state from the lossy rolling summaries: a fact can be hidden, known to
+    the reader after a given scene, and/or known to a character after a given scene. Populated
+    best-effort from approved scenes' ScenePacket reveals (learned_during_scene.reader_must_learn);
+    queryable so later tooling can answer "what did the reader know before scene N?" deterministically.
+    """
+    __tablename__ = "knowledge_facts"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    fact: Mapped[str] = mapped_column(Text)
+    source_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
+    known_by_reader_after_scene_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("scenes.id"), nullable=True
+    )
+    known_by_character: Mapped[str | None] = mapped_column(Text, nullable=True)
+    known_by_character_after_scene_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("scenes.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(Text, default="hidden")  # hidden | revealed
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CanonEntity(Base):
     """Story bible / canon, retrievable via pgvector (DESIGN §7).
 

@@ -16,11 +16,12 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
+from dominion.shared.db import SessionFactory
 from dominion.shared.enums import (
     PacketStatus,
     ScenePacketStatus,
@@ -30,10 +31,12 @@ from dominion.shared.models import ChapterPacket, ScenePacket
 from dominion.shared.schemas import (
     ScenePacketApproveIn,
     ScenePacketDeriveOut,
+    ScenePacketDeriveStatusOut,
     ScenePacketOut,
     ScenePacketQaOut,
     ScenePacketUpdateIn,
 )
+from dominion.workers import progress
 from dominion.workers.budget import TokenBudget
 from dominion.workers.scene_packet import beats as beats_mod
 from dominion.workers.scene_packet import derive as derive_mod
@@ -43,6 +46,15 @@ log = structlog.get_logger()
 router = APIRouter(tags=["scene-packets"])
 
 _BLOCKING_VERDICTS = {ScenePacketVerdict.BLOCK_DRAFTING, ScenePacketVerdict.REVISE_REQUIRED}
+
+# Chapters whose derive is running in the background (single-flight, mirrors packets._inflight), plus
+# the last finished counts per chapter so a poll after completion can report what happened.
+_inflight: set[str] = set()
+_last_result: dict[str, dict[str, int]] = {}
+
+
+def _derive_key(chapter_id: uuid.UUID) -> str:
+    return f"derive:{chapter_id}"
 
 
 def _has_blocking_qa(packet: ScenePacket) -> bool:
@@ -72,11 +84,71 @@ async def _latest_approved_chapter_packet(
     )).scalar_one_or_none()
 
 
-@router.post("/chapters/{chapter_id}/scene-packets/derive", response_model=ScenePacketDeriveOut)
-async def derive_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> ScenePacketDeriveOut:
-    """Build/refresh one ScenePacket per scene seed from the chapter's APPROVED ChapterPacket.
-    Requires an approved chapter packet (a blocked/absent one is a 409 — never derive from an
-    unapproved contract)."""
+async def _run_derive(chapter_id: uuid.UUID) -> None:
+    """Background derive for one chapter, on its own session+commit (the request already returned).
+    The ScenePacket Author + QA run once per scene, so a 12-scene chapter is ~25 LLM calls — far too
+    long to block the request. Always frees the in-flight slot + clears the progress phase when done."""
+    key = _derive_key(chapter_id)
+    try:
+        async with SessionFactory() as session:
+            cp = await _latest_approved_chapter_packet(session, chapter_id)
+            if cp is not None:
+                counts = await derive_mod.derive_scene_packets(session, packet=cp)
+                await session.commit()
+                _last_result[str(chapter_id)] = counts
+    except Exception as exc:  # noqa: BLE001 — never let a background crash strand the slot
+        log.error("scene_packet.derive_bg_failed", chapter=str(chapter_id), error=str(exc))
+    finally:
+        progress.clear(key)
+        _inflight.discard(key)
+
+
+@router.post("/chapters/{chapter_id}/scene-packets/derive", response_model=ScenePacketDeriveStatusOut)
+async def derive_scene_packets(
+    chapter_id: uuid.UUID, background: BackgroundTasks, session: SessionDep
+) -> ScenePacketDeriveStatusOut:
+    """Kick off scene-packet derivation in the BACKGROUND and return immediately. Requires an approved
+    ChapterPacket (a blocked/absent one is a 409). The Desk polls `.../derive/status` for the live
+    phase and refetches the list when it finishes. Single-flight: a re-trigger reports the running run."""
+    cp = await _latest_approved_chapter_packet(session, chapter_id)
+    if cp is None:
+        raise HTTPException(
+            status_code=409, detail="no approved chapter packet — approve the chapter packet first"
+        )
+    key = _derive_key(chapter_id)
+    if key not in _inflight:
+        _inflight.add(key)
+        _last_result.pop(str(chapter_id), None)
+        progress.set_phase(key, "deriving")  # optimistic so the first poll already has a phase
+        background.add_task(_run_derive, chapter_id)
+    phase, elapsed_s = progress.get(key)
+    return ScenePacketDeriveStatusOut(running=True, phase=phase or "deriving", elapsed_s=elapsed_s)
+
+
+@router.get("/chapters/{chapter_id}/scene-packets/derive/status", response_model=ScenePacketDeriveStatusOut)
+async def derive_status(chapter_id: uuid.UUID, session: SessionDep) -> ScenePacketDeriveStatusOut:
+    """Live status of a background derive so the Desk (any tab) can rejoin a run in progress. `running`
+    is False once it finishes; `result` then carries the counts."""
+    key = _derive_key(chapter_id)
+    phase, elapsed_s = progress.get(key)
+    running = key in _inflight
+    result: ScenePacketDeriveOut | None = None
+    if not running and (counts := _last_result.get(str(chapter_id))) is not None:
+        rows = (await session.execute(
+            select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
+        )).scalars().all()
+        result = ScenePacketDeriveOut(
+            created=counts["created"], updated=counts["updated"],
+            blocked=counts["blocked"], stale=counts["stale"],
+            packets=[ScenePacketOut.model_validate(r) for r in rows],
+        )
+    return ScenePacketDeriveStatusOut(
+        running=running, phase=phase, elapsed_s=elapsed_s, result=result
+    )
+
+
+async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePacketDeriveOut:
+    """Synchronous derive (used by tests). The HTTP route runs this in the background."""
     cp = await _latest_approved_chapter_packet(session, chapter_id)
     if cp is None:
         raise HTTPException(

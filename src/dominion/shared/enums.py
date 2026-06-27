@@ -156,6 +156,12 @@ class LengthStatus(StrEnum):
     OVER_HARD_MAX_QUARANTINED = "over_hard_max_quarantined"
 
 
+class KnowledgeStatus(StrEnum):
+    """Lifecycle of a KnowledgeFact: hidden until a scene reveals it to the reader."""
+    HIDDEN = "hidden"
+    REVEALED = "revealed"
+
+
 class DraftStage(StrEnum):
     """A preserved stage of one scene's prose pipeline (DraftAttempt provenance)."""
     DRAFTER_RAW = "drafter_raw"
