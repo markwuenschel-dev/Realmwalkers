@@ -5,11 +5,13 @@
 # --- 1) build the Next.js frontend -> standalone server -----------------------------------------
 FROM node:20-slim AS frontend
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
+# The frontend uses pnpm (pnpm-lock.yaml, no package-lock.json); install pnpm 10 to match CI.
+RUN npm install -g pnpm@10
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
 # output: "standalone" => .next/standalone/server.js + traced node_modules; static assets separate.
-RUN npm run build
+RUN pnpm build
 
 # --- 2) python + node runtime --------------------------------------------------------------------
 FROM python:3.12-slim AS app
