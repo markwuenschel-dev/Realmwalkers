@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     # bump the author to Sonnet there for a chapter that needs a richer contract.
     scene_packet_author_model: str = "claude-haiku-4-5"
     scene_packet_qa_model: str = "claude-haiku-4-5"
+    # The ScenePacket body is a large JSON object; if Haiku runs out of output tokens mid-object the
+    # response is truncated and the parse fails closed ("incomplete body"). Give the author generous
+    # headroom, and on an invalid/truncated body retry ONCE escalated to a stronger model — which both
+    # fixes a genuine truncation and covers a model that just can't emit clean JSON for this schema.
+    # An empty fallback disables the escalation (the single attempt then stands or blocks).
+    scene_packet_author_max_tokens: int = 8000
+    scene_packet_qa_max_tokens: int = 3000
+    scene_packet_author_fallback_model: str = "claude-sonnet-4-6"
+    scene_packet_qa_fallback_model: str = "claude-sonnet-4-6"
     # Scene packets are independent per scene, so their Author+QA pairs run concurrently (DB reads and
     # writes stay serial; only the LLM calls fan out). Bounds in-flight scenes so a wide chapter can't
     # spike rate limits. Author->QA within a scene stays sequential (QA reads the author's output).

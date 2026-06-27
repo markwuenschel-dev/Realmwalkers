@@ -16,10 +16,17 @@ from typing import Any
 
 from dominion.shared.config import settings
 from dominion.workers import llm
-from dominion.workers.budget import TokenBudget
-from dominion.workers.scene_packet.parse import extract_object
+from dominion.workers.budget import TokenBudget, Usage
+from dominion.workers.scene_packet.parse import extract_object, valid_scene_packet_body
 
-_AUTHOR_MAX_TOKENS = 6000
+# Headroom for the fallback attempt: a genuine truncation needs more room than the first cap gave it.
+_FALLBACK_MAX_TOKENS_FLOOR = 12000
+
+
+class ScenePacketAuthorError(RuntimeError):
+    """The author could not produce a usable ScenePacket body (truncated/unparseable/thin), even after
+    escalating to the fallback model. Carries a human-readable cause so the derive can persist *why*
+    the scene blocked instead of a generic 'incomplete body'."""
 
 _SYSTEM = (
     "You are the ScenePacket Author. Do NOT write prose. Do NOT invent story. Do NOT resolve "
@@ -103,6 +110,21 @@ def build_prompt(
     return "\n\n".join(parts)
 
 
+def _stamp(body: dict[str, Any], word_budget: dict[str, Any]) -> dict[str, Any]:
+    body["word_budget"] = word_budget  # planner is authoritative, never the model
+    return body
+
+
+def _why(body: Any, usage: Usage, *, model: str, max_tokens: int) -> str:
+    """A specific cause for an unusable body, so a blocked scene names its real reason."""
+    if usage.truncated:
+        return (f"{model} response truncated at max_tokens={max_tokens} "
+                f"({usage.output_tokens} output tokens) — JSON cut off mid-object")
+    if not isinstance(body, dict):
+        return f"{model} returned no parseable JSON object"
+    return f"{model} returned a thin body (missing required contract sections)"
+
+
 async def author_scene_packet(
     *,
     pov: str,
@@ -116,25 +138,46 @@ async def author_scene_packet(
     owner_snippets: list[str] | None = None,
     canon_snippets: list[str] | None = None,
     budget: TokenBudget,
-) -> dict[str, Any] | None:
-    """One bounded call -> a ScenePacket body dict, or None when nothing usable came back. The word
-    budget is re-stamped server-side so the model can never override the planner's numbers."""
-    raw, _usage = await llm.complete(
-        model=settings.scene_packet_author_model,
-        system=_SYSTEM,
-        user_prefix=build_prefix(
-            chapter_packet_body=chapter_packet_body,
-            pov_summary=pov_summary, omniscient_summary=omniscient_summary,
-        ),
-        user=build_prompt(
-            pov=pov, scene_seed=scene_seed, word_budget=word_budget,
-            prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
-            owner_snippets=owner_snippets, canon_snippets=canon_snippets,
-        ),
-        max_tokens=_AUTHOR_MAX_TOKENS,
-        budget=budget,
+) -> dict[str, Any]:
+    """Produce one usable ScenePacket body. The word budget is re-stamped server-side so the model can
+    never override the planner's numbers.
+
+    Fail loud, not thin: if the primary model returns a truncated/unparseable/thin body, retry ONCE
+    escalated to the configured fallback model with extra token headroom (which fixes both a real
+    truncation and a model that can't emit clean JSON for this schema). If it still can't, raise
+    ScenePacketAuthorError carrying the cause — the derive persists that as the scene's blocked reason."""
+    prefix = build_prefix(
+        chapter_packet_body=chapter_packet_body,
+        pov_summary=pov_summary, omniscient_summary=omniscient_summary,
     )
-    body = extract_object(raw)
-    if isinstance(body, dict):
-        body["word_budget"] = word_budget  # planner is authoritative, never the model
-    return body
+    user = build_prompt(
+        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
+        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
+    )
+
+    async def _attempt(model: str, max_tokens: int) -> tuple[Any, Usage]:
+        raw, usage = await llm.complete(
+            model=model, system=_SYSTEM, user_prefix=prefix, user=user,
+            max_tokens=max_tokens, budget=budget,
+        )
+        return extract_object(raw), usage
+
+    primary = settings.scene_packet_author_model
+    primary_max = settings.scene_packet_author_max_tokens
+    body, usage = await _attempt(primary, primary_max)
+    if valid_scene_packet_body(body):
+        return _stamp(body, word_budget)
+
+    first_cause = _why(body, usage, model=primary, max_tokens=primary_max)
+    fallback = (settings.scene_packet_author_fallback_model or "").strip()
+    if not fallback or fallback == primary:
+        raise ScenePacketAuthorError(f"{first_cause}; no fallback model configured")
+
+    fb_max = max(primary_max, _FALLBACK_MAX_TOKENS_FLOOR)
+    body2, usage2 = await _attempt(fallback, fb_max)
+    if valid_scene_packet_body(body2):
+        return _stamp(body2, word_budget)
+    raise ScenePacketAuthorError(
+        f"{first_cause}; fallback {_why(body2, usage2, model=fallback, max_tokens=fb_max)}"
+    )

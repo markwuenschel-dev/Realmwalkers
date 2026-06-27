@@ -17,6 +17,7 @@ from anthropic import AsyncAnthropic
 from anthropic.types import TextBlockParam
 
 from dominion.shared.config import settings
+from dominion.workers import telemetry
 from dominion.workers.budget import TokenBudget, Usage
 
 log = structlog.get_logger()
@@ -94,6 +95,7 @@ async def complete(
     ]
 
     attempt = 0
+    call_started = time.time()
     while True:
         try:
             resp = await _client().messages.create(
@@ -108,11 +110,13 @@ async def complete(
                 raise
             await asyncio.sleep(settings.llm_retry_base_delay_s * 2**attempt)
             attempt += 1
+    latency_ms = int((time.time() - call_started) * 1000)
 
     # Truncation is silent at the API level: the response just stops mid-output. Surface it so callers
     # that parse JSON (packet author/QA, reviewers) can see *why* their parse failed instead of only a
     # generic "no usable result". The text is still returned — the caller decides whether to fail closed.
-    if getattr(resp, "stop_reason", None) == "max_tokens":
+    truncated = getattr(resp, "stop_reason", None) == "max_tokens"
+    if truncated:
         log.warning("llm.truncated", model=model, max_tokens=max_tokens,
                     output_tokens=resp.usage.output_tokens)
 
@@ -123,6 +127,7 @@ async def complete(
         output_tokens=ru.output_tokens,
         cache_creation_tokens=getattr(ru, "cache_creation_input_tokens", 0) or 0,
         cache_read_tokens=getattr(ru, "cache_read_input_tokens", 0) or 0,
+        truncated=truncated,
     )
 
     # Warn when cache_control was sent but nothing was written or read: the prompt was below
@@ -150,6 +155,17 @@ async def complete(
         cache_ratio=round(usage.cache_read_tokens / total_prompt, 3) if total_prompt else 0.0,
         elapsed_since_first_s=elapsed_since_first_s,
         system_chars=len(system),
+    )
+    # Record this call for any active telemetry sink (set by an instrumented orchestrator). No-op
+    # otherwise, so uninstrumented callers are unaffected.
+    telemetry.record(
+        model=model,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cache_creation_tokens=usage.cache_creation_tokens,
+        cache_read_tokens=usage.cache_read_tokens,
+        truncated=truncated,
+        latency_ms=latency_ms,
     )
     text = "".join(block.text for block in resp.content if block.type == "text")
     return text, usage

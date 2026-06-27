@@ -30,6 +30,7 @@ from dominion.api.routers import (
     runs,
     scene_packets,
     scenes,
+    telemetry,
     threads,
     world,
 )
@@ -75,6 +76,7 @@ app.include_router(chapters.router)
 app.include_router(beats.router)
 app.include_router(packets.router)
 app.include_router(scene_packets.router)
+app.include_router(telemetry.router)
 app.include_router(jobs.router)
 app.include_router(world.router)
 app.include_router(threads.router)

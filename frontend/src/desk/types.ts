@@ -10,6 +10,7 @@ export type Screen =
   | "manuscript"
   | "ledger"
   | "docs"
+  | "telemetry"
   | "settings";
 export type Tab = "continuity" | "notes" | "changes";
 export type Mode = "reading" | "suggesting" | "editing";
