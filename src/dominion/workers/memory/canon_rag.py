@@ -202,8 +202,8 @@ async def ingest_incremental(
 
     # retire chunks whose (doc_path, heading_path) vanished from disk
     retired = 0
-    for (doc_path, heading_path, _chash), row in existing.items():
-        if (doc_path, heading_path) not in seen_keys:
+    for (ex_doc, ex_heading, _chash), row in existing.items():
+        if (ex_doc, ex_heading) not in seen_keys:
             await session.delete(row)
             retired += 1
 

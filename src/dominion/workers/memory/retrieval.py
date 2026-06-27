@@ -26,7 +26,7 @@ _TOKEN = re.compile(r"[a-z0-9']+")
 _STOP = {"the", "a", "an", "and", "or", "of", "to", "in", "is", "it", "this", "that", "on", "for"}
 
 
-def _tokens(text: str) -> set[str]:
+def _tokens(text: str | None) -> set[str]:
     return {t for t in _TOKEN.findall((text or "").lower()) if t not in _STOP and len(t) > 2}
 
 

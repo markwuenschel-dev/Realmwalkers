@@ -48,8 +48,8 @@ def _chapter_targets(body: dict[str, Any], seeds: list[dict[str, Any]]) -> tuple
     if isinstance(target, int) and target > 0:
         return target, body.get("chapter_max_words") if isinstance(body.get("chapter_max_words"), int) else None
     seed_targets = [
-        wb.get("target") for s in seeds
-        if isinstance((wb := s.get("word_budget")), dict) and isinstance(wb.get("target"), int)
+        t for s in seeds
+        if isinstance((wb := s.get("word_budget")), dict) and isinstance((t := wb.get("target")), int)
     ]
     chapter_target = sum(seed_targets) if seed_targets else _DEFAULT_SCENE_TARGET * len(seeds)
     return chapter_target, None
@@ -143,7 +143,8 @@ async def derive_scene_packets(
             seed_id = uuid.UUID(str(seed["seed_id"]))
         except (ValueError, AttributeError, TypeError):
             continue
-        scene_no = seed.get("scene_no") if isinstance(seed.get("scene_no"), int) else 0
+        scene_no = seed["scene_no"] if isinstance(seed.get("scene_no"), int) else 0
+        scene_no = int(scene_no)
         word_budget = budgets.get(str(seed_id), {})
 
         prior_keys = await _prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
@@ -179,7 +180,7 @@ async def derive_scene_packets(
             scene_body = None
 
         qa: dict[str, Any] | None = None
-        if valid_scene_packet_body(scene_body):
+        if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
             try:
                 qa = await qa_mod.qa_scene_packet(
                     scene_body, chapter_packet_body=body, budget=budget

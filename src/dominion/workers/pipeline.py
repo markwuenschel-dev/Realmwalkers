@@ -79,17 +79,17 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     if not budget_exceeded and ctx.word_budget:
         progress.set_phase(jid, "length guard")
         try:
-            result = await length_guard.apply_length_guard(
+            guard_result = await length_guard.apply_length_guard(
                 prose, word_budget=ctx.word_budget, scene_contract=ctx.scene_contract,
                 budget=ctx.budget,
             )
-            prose = result.prose
-            word_count = result.word_count
-            length_status = result.length_status
-            length_critique = result.critique
-            for stage in result.stages:
-                record(stage.stage, stage.prose, stage.model)
-            if result.quarantine:
+            prose = guard_result.prose
+            word_count = guard_result.word_count
+            length_status = guard_result.length_status
+            length_critique = guard_result.critique
+            for stage_rec in guard_result.stages:
+                record(stage_rec.stage, stage_rec.prose, stage_rec.model)
+            if guard_result.quarantine:
                 budget_exceeded = True  # reuse the quarantine path: persist as DRAFT, keep prior
         except BudgetExceeded:
             budget_exceeded = True
