@@ -15,7 +15,9 @@ from dominion.shared.models import (
     CharacterState,
     Critique,
     DraftAttempt,
+    EditPair,
     Job,
+    KnowledgeFact,
     PovProfile,
     Scene,
     Suggestion,
@@ -189,14 +191,18 @@ async def revert_scene(scene_id: uuid.UUID, session: SessionDep) -> Scene:
 @router.delete("/{scene_id}")
 async def delete_scene(scene_id: uuid.UUID, session: SessionDep) -> dict[str, str]:
     """Hard-delete one scene version and everything that points at it. Scenes are referenced by
-    critiques / annotations / approvals / suggestions (NOT NULL) and softly by the ledger, summaries,
-    jobs, and child versions — so we remove the hard dependents and null the soft refs first, then the
-    row, or the FK constraints would block the delete. Used by the inbox's bulk 'delete selected'."""
+    critiques / annotations / approvals / suggestions and edit-pairs (NOT NULL) and softly by the
+    ledger, summaries, jobs, child versions, draft-attempt provenance, and knowledge facts — so we
+    remove the hard dependents and null the soft refs first, then the row, or the FK constraints
+    (a nullable FK still blocks a delete; there is no ON DELETE SET NULL) would fail the delete.
+    Used by the inbox's bulk 'delete selected'."""
     scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
 
-    for model in (Critique, Annotation, Suggestion, Approval):
+    # Hard dependents: NOT NULL scene_id, meaningless without this scene version. EditPair is training
+    # data keyed to (scene_id, version) — once the version is gone the before/after pair is dangling.
+    for model in (Critique, Annotation, Suggestion, Approval, EditPair):
         await session.execute(delete(model).where(model.scene_id == scene_id))
     # Soft references: keep the rows, just detach them from the scene being removed.
     await session.execute(
@@ -212,6 +218,17 @@ async def delete_scene(scene_id: uuid.UUID, session: SessionDep) -> dict[str, st
     await session.execute(
         update(Scene).where(Scene.parent_scene_id == scene_id).values(parent_scene_id=None)
     )
+    # DraftAttempt is append-only provenance ("never destroyed") — detach, don't delete.
+    await session.execute(
+        update(DraftAttempt).where(DraftAttempt.scene_id == scene_id).values(scene_id=None)
+    )
+    # KnowledgeFact is a book-level ledger; it can reference the deleted scene from three columns.
+    for col in (
+        KnowledgeFact.source_scene_id,
+        KnowledgeFact.known_by_reader_after_scene_id,
+        KnowledgeFact.known_by_character_after_scene_id,
+    ):
+        await session.execute(update(KnowledgeFact).where(col == scene_id).values({col: None}))
     await session.execute(delete(Scene).where(Scene.id == scene_id))
     await session.commit()
     return {"deleted": str(scene_id)}
