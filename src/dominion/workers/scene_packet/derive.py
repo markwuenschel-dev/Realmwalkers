@@ -249,7 +249,7 @@ async def derive_scene_packets(
 
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
-    for item, (scene_body, qa) in zip(work, results):
+    for item, (scene_body, qa) in zip(work, results, strict=True):
         status, blocked_reason = _status_for(scene_body, qa)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         qa_warnings = (
