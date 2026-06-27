@@ -14,6 +14,7 @@ from functools import lru_cache
 import anthropic
 import structlog
 from anthropic import AsyncAnthropic
+from anthropic.types import TextBlockParam
 
 from dominion.shared.config import settings
 from dominion.workers.budget import TokenBudget, Usage
@@ -76,13 +77,21 @@ async def complete(
         )
 
     # Build the user content: plain string or a two-block list with a cached stable prefix.
+    user_content: str | list[TextBlockParam]
     if user_prefix:
-        user_content: str | list[dict] = [
-            {"type": "text", "text": user_prefix, "cache_control": {"type": "ephemeral"}},
-            {"type": "text", "text": user},
+        user_content = [
+            TextBlockParam(type="text", text=user_prefix, cache_control={"type": "ephemeral"}),
+            TextBlockParam(type="text", text=user),
         ]
     else:
         user_content = user
+
+    # Cache the (large, stable) system prefix — _CRAFT + voice + exemplars + dialogue rules. Cheaper +
+    # lower time-to-first-token, reused across a POV's scenes within the cache TTL. Below the model's
+    # minimum cacheable length the breakpoint is simply ignored.
+    system_blocks: list[TextBlockParam] = [
+        TextBlockParam(type="text", text=system, cache_control={"type": "ephemeral"})
+    ]
 
     attempt = 0
     while True:
@@ -90,10 +99,7 @@ async def complete(
             resp = await _client().messages.create(
                 model=model,
                 max_tokens=max_tokens,
-                # Cache the (large, stable) system prefix — _CRAFT + voice + exemplars + dialogue rules.
-                # Cheaper + lower time-to-first-token, and reused across a POV's scenes within the cache
-                # TTL. Below the model's minimum cacheable length the breakpoint is simply ignored.
-                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+                system=system_blocks,
                 messages=[{"role": "user", "content": user_content}],
             )
             break
