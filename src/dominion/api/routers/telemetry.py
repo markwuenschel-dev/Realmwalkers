@@ -13,7 +13,8 @@ No write paths: telemetry is produced by the workers, never by the Desk.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from fastapi import APIRouter
 from sqlalchemy import select
@@ -32,7 +33,7 @@ from dominion.shared.schemas import (
 router = APIRouter(tags=["telemetry"])
 
 
-def _totals(calls: Iterable[LlmCall]) -> dict:
+def _totals(calls: Iterable[LlmCall]) -> dict[str, Any]:
     """Roll a set of calls into the shared totals fields (raw sums + derived cache/latency)."""
     calls = list(calls)
     input_t = sum(c.input_tokens for c in calls)
@@ -54,7 +55,9 @@ def _totals(calls: Iterable[LlmCall]) -> dict:
     )
 
 
-def _group(calls: list[LlmCall], key) -> list:
+def _group(
+    calls: list[LlmCall], key: Callable[[LlmCall], object]
+) -> list[TelemetryGroupOut]:
     """Group calls by `key(call)` (skipping None keys), each bucket rolled into TelemetryGroupOut,
     sorted by call volume descending."""
     buckets: dict[str, list[LlmCall]] = {}

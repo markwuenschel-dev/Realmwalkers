@@ -74,12 +74,15 @@ async def _author_then_qa(
     Each call runs inside a telemetry `call_context` tagged with this scene's dimensions, so its cache/
     usage/truncation lands in the shared `sink` (persisted later) under the right stage + scene."""
     error_detail: str | None = None
-    dims = dict(book_id=book_id, chapter_id=chapter_id,
-                scene_no=item.scene_no, seed_id=str(item.seed_id))
+
+    def _ctx(stage: str) -> telemetry.CallContext:
+        return telemetry.CallContext(
+            sink=sink, stage=stage, book_id=book_id, chapter_id=chapter_id,
+            scene_no=item.scene_no, seed_id=str(item.seed_id),
+        )
+
     try:
-        with telemetry.call_context(
-            telemetry.CallContext(sink=sink, stage="scene_packet_author", **dims)
-        ):
+        with telemetry.call_context(_ctx("scene_packet_author")):
             scene_body: dict[str, Any] | None = await author_mod.author_scene_packet(
                 pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=item.seed,
                 word_budget=item.word_budget, pov_summary=pov_summary,
@@ -95,9 +98,7 @@ async def _author_then_qa(
     qa: dict[str, Any] | None = None
     if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
         try:
-            with telemetry.call_context(
-                telemetry.CallContext(sink=sink, stage="scene_packet_qa", **dims)
-            ):
+            with telemetry.call_context(_ctx("scene_packet_qa")):
                 qa = await qa_mod.qa_scene_packet(
                     scene_body, chapter_packet_body=chapter_packet_body, budget=item.budget
                 )
