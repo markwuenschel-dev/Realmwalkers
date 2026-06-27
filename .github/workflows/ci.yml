@@ -97,7 +97,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"  # keep in sync with Dockerfile (node:24-slim + NodeSource setup_24.x)
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
@@ -125,7 +125,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"  # keep in sync with Dockerfile (node:24-slim + NodeSource setup_24.x)
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
