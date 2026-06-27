@@ -35,7 +35,7 @@ from dominion.shared.models import (
     ScenePacket,
 )
 from dominion.workers.budget import TokenBudget
-from dominion.workers.memory import canon_rag, summaries
+from dominion.workers.memory import owner_router, retrieval, summaries
 from dominion.workers.oracle import Oracle
 
 
@@ -224,8 +224,19 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
     ctx.exemplars = await _load_exemplars(session, profile, exclude_scene_id=job.target_scene_id)
 
     # Memory: beat-scoped canon, the POV's rolling summary, the previous approved scene's tail.
+    # Hybrid retrieval with owner-file precedence (relationship invariants, cast, mechanics dossiers
+    # win over a semantic guess) — the same authority path the scene-packet builder uses. Owner-forced
+    # snippets lead so the drafter sees canon before supporting context. Falls back to plain semantic
+    # bodies if nothing is owner-routed.
     retrieval_query = " ".join(p for p in [beat.beat_text or "", *ctx.characters_present] if p)
-    ctx.canon = await canon_rag.retrieve(session, book_id=book_id, query=retrieval_query, k=6)
+    routing = owner_router.route(retrieval_query, characters=ctx.characters_present)
+    snippets = await retrieval.retrieve_hybrid(
+        session, book_id=book_id, query=retrieval_query,
+        owner_topics=routing.owner_topics, required_doc_paths=routing.doc_paths, k=6,
+    )
+    owner_first = [s for s in snippets if s["retrieval_reason"] == "owner_forced"]
+    rest = [s for s in snippets if s["retrieval_reason"] != "owner_forced"]
+    ctx.canon = [s["body"] for s in [*owner_first, *rest] if s["body"]]
     ctx.pov_summary = await summaries.pov_summary(session, book_id=book_id, pov=chapter.pov)
     ctx.prior_scene_tail = await _prior_tail(session, chapter_id=chapter.id, scene_no=scene_no)
 

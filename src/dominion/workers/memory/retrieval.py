@@ -79,7 +79,12 @@ async def retrieve_hybrid(
     if required_doc_paths or owner_topics:
         conds = []
         if required_doc_paths:
+            # Owner rules name docs by bare filename (e.g. "mc.md"), but ingest stores doc_path as the
+            # path relative to series/canon (e.g. "characters/major/mc.md"). Match the exact path AND
+            # any nested path ending in that filename, so force-inclusion works regardless of folder.
             conds.append(CanonEntity.doc_path.in_(required_doc_paths))
+            for p in required_doc_paths:
+                conds.append(CanonEntity.doc_path.like(f"%/{p}"))
         if owner_topics:
             conds.append(CanonEntity.owner_topic.in_(owner_topics))
         rows = (await session.execute(
