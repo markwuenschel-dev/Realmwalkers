@@ -3,7 +3,9 @@
 # 127.0.0.1:8000 — so there is still no separate API host, no CORS, and no "localhost" in the client.
 
 # --- 1) build the Next.js frontend -> standalone server -----------------------------------------
-FROM node:20-slim AS frontend
+# Node 24 (current LTS). Keep this major in sync with the runtime stage's NodeSource setup_24.x and
+# with .github/workflows/ci.yml (node-version "24").
+FROM node:24-slim AS frontend
 WORKDIR /app/frontend
 # The frontend uses pnpm (pnpm-lock.yaml, no package-lock.json); install pnpm 10 to match CI.
 RUN npm install -g pnpm@10
@@ -24,10 +26,10 @@ ENV PYTHONUNBUFFERED=1 \
     HOSTNAME=0.0.0.0 \
     API_BASE=http://127.0.0.1:8001
 
-# Node 20 runtime (runs the Next standalone server) alongside Python.
+# Node 24 runtime (runs the Next standalone server) alongside Python — matches the build stage above.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && apt-get purge -y curl && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
