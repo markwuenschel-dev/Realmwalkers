@@ -427,3 +427,67 @@ async def test_chapter_packet_edit_marks_scene_packets_stale(db_factory, monkeyp
         new_body["canon_locks"] = ["the Realm is real", "a NEW lock"]
         await packets_router.update_packet(ch.id, PacketUpdateIn(body=new_body), s)
         assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.STALE
+
+
+# --- background derive endpoint -------------------------------------------------------------------
+
+async def test_derive_endpoint_requires_approved_chapter_packet(db_factory):
+    from fastapi import BackgroundTasks, HTTPException
+
+    async with db_factory() as s:
+        _book, ch = await _seed_book_chapter(s)  # no approved chapter packet
+        await s.commit()
+        with pytest.raises(HTTPException) as exc:
+            await sp_router.derive_scene_packets(ch.id, BackgroundTasks(), s)
+        assert exc.value.status_code == 409
+
+
+async def test_derive_endpoint_schedules_background_run(db_factory):
+    from fastapi import BackgroundTasks
+
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        await s.commit()
+        bg = BackgroundTasks()
+        out = await sp_router.derive_scene_packets(ch.id, bg, s)
+        try:
+            assert out.running and out.phase == "deriving"
+            assert bg.tasks  # a background task was scheduled
+        finally:
+            sp_router._inflight.discard(sp_router._derive_key(ch.id))  # don't leak state across tests
+
+
+# --- knowledge ledger -----------------------------------------------------------------------------
+
+async def test_knowledge_facts_recorded_from_scene_reveals(db_factory):
+    from dominion.shared.enums import KnowledgeStatus
+    from dominion.shared.models import KnowledgeFact, Scene
+    from dominion.workers.memory import knowledge
+
+    body = _scene_body()
+    body["learned_during_scene"]["reader_must_learn"] = ["the cohort is converging", "the gate is real"]
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp = ScenePacket(book_id=book.id, chapter_id=ch.id, chapter_packet_id=cp.id, scene_no=1,
+                         status=ScenePacketStatus.APPROVED, body=body, source_hash="h")
+        s.add(sp)
+        await s.flush()
+        scene = Scene(chapter_id=ch.id, scene_no=1, status="approved", prose="x", scene_packet_id=sp.id)
+        s.add(scene)
+        await s.flush()
+
+        n = await knowledge.record_scene_reveals(s, scene_id=scene.id)
+        await s.commit()
+        assert n == 2
+        facts = (await s.execute(select(KnowledgeFact).where(KnowledgeFact.book_id == book.id))).scalars().all()
+        assert {f.fact for f in facts} == {"the cohort is converging", "the gate is real"}
+        assert all(f.status == KnowledgeStatus.REVEALED for f in facts)
+        assert all(f.known_by_reader_after_scene_id == scene.id for f in facts)
+
+        # idempotent: re-running does not duplicate
+        await knowledge.record_scene_reveals(s, scene_id=scene.id)
+        await s.commit()
+        again = (await s.execute(select(KnowledgeFact).where(KnowledgeFact.book_id == book.id))).scalars().all()
+        assert len(again) == 2

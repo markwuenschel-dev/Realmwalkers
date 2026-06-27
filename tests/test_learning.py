@@ -28,6 +28,7 @@ from dominion.shared.schemas import DecisionIn, ExemplarIn
 from dominion.workers import set_exemplars as set_exemplars_mod
 from dominion.workers.context import assemble_context
 from dominion.workers.memory import canon_rag, summaries
+from tests.conftest import seed_scene_packet
 
 # --- fixtures (mirror test_phase2's tiny builders) ------------------------------------------------
 
@@ -138,8 +139,11 @@ async def _draft_job(s, book, ch, scene_no=2):
               token_budget=40_000, status=RunStatus.ACTIVE)
     s.add(run)
     await s.flush()
-    s.add(Beat(chapter_id=ch.id, scene_no=scene_no, tags=[], characters_present=["Marcus"],
-               status=BeatStatus.APPROVED, beat_text="Marcus presses on."))
+    beat = Beat(chapter_id=ch.id, scene_no=scene_no, tags=[], characters_present=["Marcus"],
+                status=BeatStatus.APPROVED, beat_text="Marcus presses on.")
+    s.add(beat)
+    await s.flush()
+    await seed_scene_packet(s, chapter=ch, beat=beat)
     job = Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=ch.chapter_no, scene_no=scene_no,
               token_budget=40_000)
     s.add(job)

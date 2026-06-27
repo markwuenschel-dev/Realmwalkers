@@ -33,6 +33,42 @@ def _split_db(url: str) -> tuple[str, str]:
     return f"{base}/postgres", dbname
 
 
+async def seed_scene_packet(s, *, chapter, beat, body: dict | None = None):
+    """Test helper: drafting is fail-closed on an approved ScenePacket, so any test that runs the
+    pipeline must give its beat one. Creates a minimal approved ChapterPacket + ScenePacket and links
+    `beat.scene_packet_id` (which assemble_context reads). Returns the ScenePacket.
+
+    Importable from tests: `from conftest import seed_scene_packet` (tests/ is on sys.path).
+    """
+    from dominion.shared.models import ChapterPacket, ScenePacket
+
+    cp = ChapterPacket(
+        book_id=chapter.book_id, chapter_id=chapter.id, status="approved", confidence="green",
+        body={"scene_seeds": []}, open_questions={"items": []},
+    )
+    s.add(cp)
+    await s.flush()
+    # No word_budget by default, so the length guard stays inert for tests that fake short prose
+    # (a budget would trigger an expansion LLM call). Tests exercising length pass an explicit body.
+    sp = ScenePacket(
+        book_id=chapter.book_id, chapter_id=chapter.id, chapter_packet_id=cp.id,
+        scene_no=(beat.scene_no if beat is not None else 1), status="approved", qa_verdict="approve",
+        body=body or {
+            "scene_no": beat.scene_no if beat is not None else 1,
+            "known_before_scene": {"reader": [], "pov": [], "omniscient_author": []},
+            "learned_during_scene": {"reader_must_learn": [], "reader_may_learn": [], "reader_may_infer_only": []},
+            "must_remain_hidden": {"reader": [], "pov": [], "all_surface_prose": []},
+        },
+        source_hash="test",
+    )
+    s.add(sp)
+    await s.flush()
+    if beat is not None:
+        beat.scene_packet_id = sp.id
+        await s.flush()
+    return sp
+
+
 @pytest.fixture
 async def db_factory():
     maint_url, dbname = _split_db(_TEST_URL)

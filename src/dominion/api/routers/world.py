@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState
+from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState, KnowledgeFact
 from dominion.shared.schemas import (
     CanonEntityIn,
     CanonEntityOut,
@@ -21,6 +21,7 @@ from dominion.shared.schemas import (
     CanonIngestOut,
     CharacterStateIn,
     CharacterStateOut,
+    KnowledgeFactOut,
 )
 from dominion.workers.memory import canon_rag
 from dominion.workers.memory.embedding import embed
@@ -153,6 +154,21 @@ async def delete_character(
     await session.delete(row)
     await session.commit()
     return {"deleted": character}
+
+
+@router.get("/books/{book_id}/knowledge", response_model=list[KnowledgeFactOut])
+async def list_knowledge(book_id: uuid.UUID, session: SessionDep) -> list[KnowledgeFact]:
+    """The knowledge ledger: discrete story facts + who knows them when (scene-packet knowledge layer).
+    Populated from approved scenes' ScenePacket reveals."""
+    book = await session.get(Book, book_id)
+    if book is None:
+        raise HTTPException(status_code=404, detail="book not found")
+    rows = (await session.execute(
+        select(KnowledgeFact)
+        .where(KnowledgeFact.book_id == book_id)
+        .order_by(KnowledgeFact.created_at)
+    )).scalars().all()
+    return list(rows)
 
 
 @router.get("/books/{book_id}/canon", response_model=list[CanonEntityOut])

@@ -68,11 +68,21 @@ class Settings(BaseSettings):
     length_auto_expand_under_min: bool = False
     length_hard_fail_over_hard_max: bool = True
 
-    # Hybrid canon retrieval (RAG upgrade). One concrete embedding provider path. owner_file_boost is
-    # added to a chunk's rerank score when it comes from a forced owner file, so owner precedence
-    # always beats a semantic-only hit.
+    # Hybrid canon retrieval (RAG upgrade). owner_file_boost is added to a chunk's rerank score when it
+    # comes from a forced owner file, so owner precedence always beats a semantic-only hit.
+    #
+    # Embedding seam: `embedding_provider` selects the backend behind workers.memory.embedding.embed().
+    #   "openai" — real semantic vectors via the OpenAI embeddings REST API (text-embedding-3-small,
+    #              1536-dim, matching the Vector column). Used automatically once an OpenAI key is set.
+    #   "hash"   — deterministic feature-hashing (no key, no network). The default + offline/CI/test
+    #              fallback, and the silent fallback if "openai" is selected but no key is present.
+    # The embedding_version stamped on each chunk encodes provider+model, so switching providers
+    # re-embeds changed chunks on the next ingest instead of mixing incompatible vector spaces.
+    embedding_provider: str = "openai"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
+    embedding_time_budget_s: float = 30.0
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     rag_semantic_k: int = 12
     rag_keyword_k: int = 12
     rag_final_k: int = 8

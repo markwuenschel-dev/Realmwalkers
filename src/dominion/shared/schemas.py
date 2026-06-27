@@ -257,6 +257,16 @@ class ScenePacketApproveIn(BaseModel):
     packet_ids: list[uuid.UUID] | None = None
 
 
+class ScenePacketDeriveStatusOut(BaseModel):
+    """Status of an in-flight scene-packet derivation (the ScenePacket Author + QA run per scene in the
+    background, so a large chapter never hangs the request). The Desk polls and refetches the list when
+    `running` flips False. `result` carries the counts once the run finishes."""
+    running: bool
+    phase: str | None = None        # deriving | None
+    elapsed_s: int | None = None
+    result: ScenePacketDeriveOut | None = None
+
+
 class ScenePacketQaOut(BaseModel):
     """Result of running QA against one scene packet."""
     packet_id: uuid.UUID
@@ -385,6 +395,20 @@ class CharacterStateIn(BaseModel):
 class CanonIngestOut(BaseModel):
     """Result of rebuilding the retrieval index from the on-disk canon docs."""
     indexed: int
+
+
+class KnowledgeFactOut(_ORM):
+    """A discrete story fact + who knows it when (scene-packet knowledge ledger)."""
+    id: uuid.UUID
+    book_id: uuid.UUID
+    fact: str
+    status: str
+    known_by_character: str | None = None
+    source_scene_id: uuid.UUID | None = None
+    known_by_reader_after_scene_id: uuid.UUID | None = None
+    known_by_character_after_scene_id: uuid.UUID | None = None
+    metadata_json: dict[str, Any] | None = None
+    created_at: datetime
 
 
 # --- World threads (curated arcs across scenes) ---------------------------------------------------
