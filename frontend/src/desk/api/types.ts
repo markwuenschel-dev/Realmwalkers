@@ -532,6 +532,48 @@ export interface ScenePacketUpdateIn {
   status?: string | null;
 }
 
+// --- LLM call telemetry (persisted per-call cost/cache, aggregated) ---
+export interface TelemetryTotals {
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_tokens: number;
+  cache_read_tokens: number;
+  cache_hit_ratio: number;
+  cache_tokens_saved: number;
+  truncations: number;
+  errors: number;
+  avg_latency_ms: number | null;
+}
+
+export interface SceneTelemetryOut extends TelemetryTotals {
+  scene_no: number | null;
+  models: string[];
+}
+
+export interface ChapterTelemetryOut {
+  chapter_id: string;
+  totals: TelemetryTotals;
+  scenes: SceneTelemetryOut[];
+}
+
+export interface TelemetryGroupOut extends TelemetryTotals {
+  key: string;
+}
+
+export interface ChapterRollupOut extends TelemetryTotals {
+  chapter_id: string;
+  chapter_no: number | null;
+  title: string | null;
+}
+
+export interface BookTelemetryOut {
+  totals: TelemetryTotals;
+  by_chapter: ChapterRollupOut[];
+  by_stage: TelemetryGroupOut[];
+  by_model: TelemetryGroupOut[];
+}
+
 // --- draft-attempt provenance (preserved prose stages) ---
 export interface DraftAttemptOut {
   id: string;

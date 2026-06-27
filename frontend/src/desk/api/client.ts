@@ -9,6 +9,8 @@ import type {
   BeatUpdateIn,
   BookIn,
   BookOut,
+  BookTelemetryOut,
+  ChapterTelemetryOut,
   CanonEntityIn,
   CanonEntityOut,
   CanonEntityUpdateIn,
@@ -190,6 +192,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ packet_ids: packetIds ?? null }),
     }),
+
+  // --- LLM call telemetry (persisted per-call cost/cache, aggregated) -----------------------------
+  chapterTelemetry: (chapterId: string) =>
+    http<ChapterTelemetryOut>(`/chapters/${chapterId}/telemetry`),
+  bookTelemetry: (bookId: string) => http<BookTelemetryOut>(`/books/${bookId}/telemetry`),
 
   // --- draft-attempt provenance (preserved prose stages for a scene) ------------------------------
   draftAttempts: (sceneId: string) => http<DraftAttemptOut[]>(`/scenes/${sceneId}/draft-attempts`),

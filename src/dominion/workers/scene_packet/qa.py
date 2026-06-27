@@ -17,7 +17,8 @@ from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
 from dominion.workers.scene_packet.parse import parse_scene_qa
 
-_QA_MAX_TOKENS = 2500
+# Headroom for the fallback attempt when the first QA pass is cut off mid-verdict.
+_QA_FALLBACK_MAX_TOKENS_FLOOR = 5000
 
 _SYSTEM = (
     "You are the ScenePacket QA agent. Do NOT improve prose. Do NOT draft. Attack the scene packet.\n\n"
@@ -55,14 +56,28 @@ async def qa_scene_packet(
     chapter_packet_body: dict[str, Any] | None = None,
     budget: TokenBudget,
 ) -> dict[str, Any] | None:
-    """One bounded call -> {verdict, residual_risks, issues}, or None on a malformed response."""
-    raw, _usage = await llm.complete(
-        model=settings.scene_packet_qa_model,
-        system=_SYSTEM,
-        user_prefix=build_prefix(chapter_packet_body),
-        user=build_prompt(scene_packet),
-        max_tokens=_QA_MAX_TOKENS,
-        budget=budget,
-        expect_cache=False,
-    )
-    return parse_scene_qa(raw)
+    """One bounded call -> {verdict, residual_risks, issues}, or None on a malformed response (the
+    caller fails closed on None). If the first pass is truncated or unparseable, retry ONCE escalated
+    to the fallback model with extra headroom before giving up — a cut-off verdict is recoverable."""
+    prefix = build_prefix(chapter_packet_body)
+    user = build_prompt(scene_packet)
+
+    async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, bool]:
+        raw, usage = await llm.complete(
+            model=model, system=_SYSTEM, user_prefix=prefix, user=user,
+            max_tokens=max_tokens, budget=budget, expect_cache=False,
+        )
+        return parse_scene_qa(raw), usage.truncated
+
+    primary = settings.scene_packet_qa_model
+    result, truncated = await _attempt(primary, settings.scene_packet_qa_max_tokens)
+    if result is not None:
+        return result
+
+    fallback = (settings.scene_packet_qa_fallback_model or "").strip()
+    if not fallback or fallback == primary:
+        return None
+    fb_max = max(settings.scene_packet_qa_max_tokens, _QA_FALLBACK_MAX_TOKENS_FLOOR) if truncated \
+        else settings.scene_packet_qa_max_tokens
+    result, _ = await _attempt(fallback, fb_max)
+    return result

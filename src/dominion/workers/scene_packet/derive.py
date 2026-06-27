@@ -24,7 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict, SceneStatus
-from dominion.shared.models import Chapter, ChapterPacket, Scene, ScenePacket, Summary
+from dominion.shared.models import Chapter, ChapterPacket, LlmCall, Scene, ScenePacket, Summary
+from dominion.workers import telemetry
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
 from dominion.workers.memory import owner_router, retrieval
@@ -61,32 +62,50 @@ async def _author_then_qa(
     pov: str,
     pov_summary: str | None,
     omniscient_summary: str | None,
-) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    sink: telemetry.TelemetrySink,
+    book_id: str,
+    chapter_id: str,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
     """One scene's Author then QA. QA reads the author's output, so the two stay ordered; only
     different scenes run concurrently. Fails CLOSED: any author/QA error returns a None in the slot
-    that makes `_status_for` block the packet, never raising into the gather."""
+    that makes `_status_for` block the packet, never raising into the gather — but the failure's real
+    cause is captured (3rd return value) so the blocked packet names *why*, not just "incomplete body".
+
+    Each call runs inside a telemetry `call_context` tagged with this scene's dimensions, so its cache/
+    usage/truncation lands in the shared `sink` (persisted later) under the right stage + scene."""
+    error_detail: str | None = None
+    dims = dict(book_id=book_id, chapter_id=chapter_id,
+                scene_no=item.scene_no, seed_id=str(item.seed_id))
     try:
-        scene_body = await author_mod.author_scene_packet(
-            pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=item.seed,
-            word_budget=item.word_budget, pov_summary=pov_summary,
-            omniscient_summary=omniscient_summary,
-            owner_snippets=item.owner_snippets or None, canon_snippets=item.canon_snippets or None,
-            budget=item.budget,
-        )
+        with telemetry.call_context(
+            telemetry.CallContext(sink=sink, stage="scene_packet_author", **dims)
+        ):
+            scene_body: dict[str, Any] | None = await author_mod.author_scene_packet(
+                pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=item.seed,
+                word_budget=item.word_budget, pov_summary=pov_summary,
+                omniscient_summary=omniscient_summary,
+                owner_snippets=item.owner_snippets or None, canon_snippets=item.canon_snippets or None,
+                budget=item.budget,
+            )
     except Exception as exc:  # noqa: BLE001 — any author failure fails this scene closed
         log.error("scene_packet.author_failed", seed=str(item.seed_id), error=str(exc))
         scene_body = None
+        error_detail = str(exc)
 
     qa: dict[str, Any] | None = None
     if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
         try:
-            qa = await qa_mod.qa_scene_packet(
-                scene_body, chapter_packet_body=chapter_packet_body, budget=item.budget
-            )
+            with telemetry.call_context(
+                telemetry.CallContext(sink=sink, stage="scene_packet_qa", **dims)
+            ):
+                qa = await qa_mod.qa_scene_packet(
+                    scene_body, chapter_packet_body=chapter_packet_body, budget=item.budget
+                )
         except Exception as exc:  # noqa: BLE001
             log.error("scene_packet.qa_failed", seed=str(item.seed_id), error=str(exc))
             qa = None
-    return scene_body, qa
+            error_detail = str(exc)
+    return scene_body, qa, error_detail
 
 
 def _as_str_list(value: Any) -> list[str]:
@@ -141,13 +160,21 @@ async def _pov_summary(session: AsyncSession, *, book_id: uuid.UUID, pov: str) -
     )).scalar_one_or_none()
 
 
-def _status_for(body: dict[str, Any] | None, qa: dict[str, Any] | None) -> tuple[str, str | None]:
+def _status_for(
+    body: dict[str, Any] | None, qa: dict[str, Any] | None, error_detail: str | None = None
+) -> tuple[str, str | None]:
     """(status, blocked_reason). Fail closed: a thin body or unusable QA blocks the packet; a
-    BLOCK_DRAFTING verdict blocks it; otherwise it lands proposed for the human to approve."""
+    BLOCK_DRAFTING verdict blocks it; otherwise it lands proposed for the human to approve. When the
+    author/QA call captured a specific cause (truncation, a model error), that is the blocked reason —
+    so the Desk shows the real failure, not a generic 'incomplete body'."""
     if not valid_scene_packet_body(body):
-        return ScenePacketStatus.BLOCKED, "scene packet author returned an incomplete body"
+        return ScenePacketStatus.BLOCKED, (
+            error_detail or "scene packet author returned an incomplete body"
+        )
     if qa is None:
-        return ScenePacketStatus.BLOCKED, "scene packet QA returned no usable verdict"
+        return ScenePacketStatus.BLOCKED, (
+            error_detail or "scene packet QA returned no usable verdict"
+        )
     if qa["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
         return ScenePacketStatus.BLOCKED, "scene packet QA blocked drafting"
     return ScenePacketStatus.PROPOSED, None
@@ -236,21 +263,26 @@ async def derive_scene_packets(
 
     # ---- Phase 2 (concurrent, LLM only): the scenes are independent, so their Author+QA pairs fan out
     # under a concurrency cap. No DB access happens here (each task only touches its own _SceneWork).
+    # One shared telemetry sink collects every call's cache/usage/truncation (tagged per scene+stage
+    # inside _author_then_qa); it is flushed to the DB in Phase 3.
     sem = asyncio.Semaphore(max(1, settings.scene_packet_concurrency))
+    sink = telemetry.TelemetrySink()
+    book_id_str, chapter_id_str = str(packet.book_id), str(packet.chapter_id)
 
-    async def _run(item: _SceneWork) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    async def _run(item: _SceneWork) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
         async with sem:
             return await _author_then_qa(
                 item, chapter_packet_body=body, pov=pov or "",
                 pov_summary=pov_summary, omniscient_summary=omniscient,
+                sink=sink, book_id=book_id_str, chapter_id=chapter_id_str,
             )
 
     results = await asyncio.gather(*(_run(item) for item in work))
 
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
-    for item, (scene_body, qa) in zip(work, results, strict=True):
-        status, blocked_reason = _status_for(scene_body, qa)
+    for item, (scene_body, qa, error_detail) in zip(work, results, strict=True):
+        status, blocked_reason = _status_for(scene_body, qa, error_detail)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         qa_warnings = (
             {"residual_risks": qa["residual_risks"], "issues": qa["issues"]} if qa
@@ -278,7 +310,31 @@ async def derive_scene_packets(
         if status == ScenePacketStatus.BLOCKED:
             counts["blocked"] += 1
 
+    _persist_telemetry(session, sink, book_id=packet.book_id, chapter_id=packet.chapter_id)
     return counts
+
+
+def _persist_telemetry(
+    session: AsyncSession,
+    sink: telemetry.TelemetrySink,
+    *,
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+) -> None:
+    """Flush the run's collected per-call telemetry to `llm_calls` (the caller commits). Pure exhaust:
+    a bad row is dropped rather than failing the derive that produced real packets."""
+    for rec in sink.records:
+        try:
+            seed_id = uuid.UUID(rec.seed_id) if rec.seed_id else None
+        except (ValueError, TypeError):
+            seed_id = None
+        session.add(LlmCall(
+            book_id=book_id, chapter_id=chapter_id, scene_no=rec.scene_no, scene_seed_id=seed_id,
+            stage=rec.stage, model=rec.model,
+            input_tokens=rec.input_tokens, output_tokens=rec.output_tokens,
+            cache_creation_tokens=rec.cache_creation_tokens, cache_read_tokens=rec.cache_read_tokens,
+            truncated=rec.truncated, latency_ms=rec.latency_ms, error=rec.error,
+        ))
 
 
 async def _chapter_pov(session: AsyncSession, chapter_id: uuid.UUID) -> str | None:

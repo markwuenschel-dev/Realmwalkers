@@ -15,6 +15,9 @@ class Usage:
     output_tokens: int
     cache_creation_tokens: int = 0
     cache_read_tokens: int = 0
+    # True when the model stopped because it hit max_tokens (the JSON/prose was cut off). Surfaced so
+    # callers that parse structured output can tell a truncation apart from a genuinely malformed body.
+    truncated: bool = False
 
     @property
     def total(self) -> int:

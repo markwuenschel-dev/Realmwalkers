@@ -96,6 +96,16 @@ export const DESK_ROUTES: readonly DeskRoute[] = [
     nav: true,
   },
   {
+    id: "telemetry",
+    label: "Telemetry",
+    paletteLabel: "Open LLM telemetry",
+    href: "/telemetry",
+    key: "t",
+    shortcut: "G T",
+    icon: "∿",
+    nav: true,
+  },
+  {
     id: "settings",
     label: "Models",
     paletteLabel: "Open Model settings",

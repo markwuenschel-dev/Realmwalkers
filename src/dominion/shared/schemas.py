@@ -274,6 +274,56 @@ class ScenePacketQaOut(BaseModel):
     warnings: dict[str, Any] | None = None
 
 
+# --- LLM call telemetry (persisted per-call cost/cache, aggregated for the Desk) -------------------
+
+class TelemetryTotals(BaseModel):
+    """Aggregated cost/cache/health over a set of LLM calls (one scene, chapter, stage, model, or all)."""
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_creation_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_hit_ratio: float = 0.0          # cache_read / total prompt tokens
+    cache_tokens_saved: int = 0           # ~90% of cache_read tokens (cached reads bill at ~10%)
+    truncations: int = 0                  # calls cut off at max_tokens
+    errors: int = 0                       # calls that recorded a failure
+    avg_latency_ms: int | None = None
+
+
+class SceneTelemetryOut(TelemetryTotals):
+    """One scene's derive telemetry (Author + QA calls), for the per-chapter panel."""
+    scene_no: int | None = None
+    models: list[str] = []
+
+
+class ChapterTelemetryOut(BaseModel):
+    """Per-chapter derive telemetry: chapter totals + a per-scene breakdown."""
+    chapter_id: uuid.UUID
+    totals: TelemetryTotals = TelemetryTotals()
+    scenes: list[SceneTelemetryOut] = []
+
+
+class TelemetryGroupOut(TelemetryTotals):
+    """A named aggregation bucket for the global tab (by stage or by model)."""
+    key: str = ""
+
+
+class ChapterRollupOut(TelemetryTotals):
+    """One chapter's totals for the global cross-chapter comparison."""
+    chapter_id: uuid.UUID
+    chapter_no: int | None = None
+    title: str | None = None
+
+
+class BookTelemetryOut(BaseModel):
+    """Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,
+    and models — the cross-chapter/scene view the global Telemetry tab renders."""
+    totals: TelemetryTotals = TelemetryTotals()
+    by_chapter: list[ChapterRollupOut] = []
+    by_stage: list[TelemetryGroupOut] = []
+    by_model: list[TelemetryGroupOut] = []
+
+
 # --- History + manuscript read surfaces (DESIGN §9, §13) ------------------------------------------
 
 class SceneVersionOut(SceneOut):

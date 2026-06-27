@@ -6,6 +6,7 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { api } from "../api/client";
 import { Spinner, formatElapsed } from "./DraftActivity";
+import { ChapterTelemetryPanel } from "./Telemetry";
 import type { ScenePacketBody, ScenePacketOut } from "../api/types";
 
 // Scene packets are the scene-local contract derived from an APPROVED chapter packet: per scene, what
@@ -29,12 +30,15 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped whenever packets reload (chapter change, derive finish) so the telemetry panel re-pulls.
+  const [telemetryKey, setTelemetryKey] = useState(0);
   const pollRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setPackets(await api.scenePackets(chapterId));
+      setTelemetryKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -211,6 +215,8 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
           ))}
         </div>
       )}
+
+      <ChapterTelemetryPanel chapterId={chapterId} refreshKey={telemetryKey} />
     </div>
   );
 }

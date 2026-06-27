@@ -214,6 +214,34 @@ class DraftAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class LlmCall(Base):
+    """One model call's persisted telemetry (cache/usage/truncation/latency) — the durable record the
+    in-process progress registry never kept.
+
+    Written by an instrumented orchestrator (currently the scene-packet derive) from the context-scoped
+    telemetry sink (`workers/telemetry.py`). `stage` distinguishes call sites (scene_packet_author,
+    scene_packet_qa, …) so cost and cache efficiency can be compared across chapters/scenes/models, and
+    `truncated`/`error` make a blocked derive diagnosable after the fact without server-log access.
+    Pure runtime exhaust: append-only, never mutated, safe to prune.
+    """
+    __tablename__ = "llm_calls"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True)
+    chapter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapters.id"), nullable=True)
+    scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    scene_seed_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    stage: Mapped[str] = mapped_column(Text)                     # scene_packet_author | scene_packet_qa | ...
+    model: Mapped[str] = mapped_column(Text)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_creation_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    truncated: Mapped[bool] = mapped_column(Boolean, default=False)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class KnowledgeFact(Base):
     """A discrete story fact and WHO knows it WHEN (scene-packet knowledge ledger).
 

@@ -202,6 +202,55 @@ def _patch_scene_agents(monkeypatch, body, verdict=ScenePacketVerdict.APPROVE):
     monkeypatch.setattr(sp_qa, "qa_scene_packet", fake_qa)
 
 
+# --- fake Anthropic client: exercises the REAL author/QA + llm.complete (incl. telemetry capture,
+# truncation detection, and the fallback-model escalation) without a network call -------------------
+
+class _FakeBlock:
+    type = "text"
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+
+class _FakeUsage:
+    def __init__(self) -> None:
+        self.input_tokens = 2000
+        self.output_tokens = 500
+        self.cache_creation_input_tokens = 0
+        self.cache_read_input_tokens = 1500
+
+
+class _FakeResp:
+    def __init__(self, text: str, stop_reason: str = "end_turn") -> None:
+        self.content = [_FakeBlock(text)]
+        self.usage = _FakeUsage()
+        self.stop_reason = stop_reason
+
+
+class _FakeMessages:
+    def __init__(self, responder) -> None:
+        self._responder = responder
+
+    async def create(self, *, model, max_tokens, system, messages):
+        sys_text = system[0]["text"] if isinstance(system[0], dict) else system[0].text
+        return self._responder(model=model, system_text=sys_text, max_tokens=max_tokens)
+
+
+class _FakeClient:
+    def __init__(self, responder) -> None:
+        self.messages = _FakeMessages(responder)
+
+
+def _patch_llm_client(monkeypatch, responder) -> None:
+    from dominion.workers import llm
+    monkeypatch.setattr(llm, "_client", lambda: _FakeClient(responder))
+
+
+def _qa_ok() -> str:
+    import json
+    return json.dumps({"verdict": "approve", "residual_risks": [], "issues": []})
+
+
 # --- derivation -----------------------------------------------------------------------------------
 
 async def test_derive_creates_one_scene_packet_per_seed(db_factory, monkeypatch):
@@ -263,6 +312,89 @@ async def test_derive_gives_each_scene_its_own_budget(db_factory, monkeypatch):
         # (Summed across 3 scenes that's 90k, well over a single shared 40k — the bug this guards.)
         assert counts["created"] == 3
         assert counts["blocked"] == 0
+
+
+async def test_derive_persists_per_call_telemetry(db_factory, monkeypatch):
+    """The derive captures one llm_calls row per Author/QA call, tagged with stage + scene + cache."""
+    import json
+
+    from dominion.shared.models import LlmCall
+
+    body = _scene_body()
+
+    def responder(*, model, system_text, max_tokens):
+        if "QA agent" in system_text:
+            return _FakeResp(_qa_ok())
+        return _FakeResp(json.dumps(body))
+
+    _patch_llm_client(monkeypatch, responder)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["created"] == 1 and counts["blocked"] == 0
+
+        calls = (await s.execute(select(LlmCall).where(LlmCall.chapter_id == ch.id))).scalars().all()
+        assert sorted(c.stage for c in calls) == ["scene_packet_author", "scene_packet_qa"]
+        author = next(c for c in calls if c.stage == "scene_packet_author")
+        assert author.scene_no == 1
+        assert author.model == settings.scene_packet_author_model
+        assert author.cache_read_tokens == 1500 and not author.truncated
+
+
+async def test_derive_blocks_with_specific_truncation_reason(db_factory, monkeypatch):
+    """A truncated author body names the real cause (not a generic 'incomplete body'), and both the
+    primary + escalated attempts are recorded as truncated telemetry."""
+    from dominion.shared.models import LlmCall
+
+    def responder(*, model, system_text, max_tokens):
+        # Author always cut off mid-object; QA never reached (body never valid).
+        return _FakeResp('{"scene_no": 1, "known_before_scene":', stop_reason="max_tokens")
+
+    _patch_llm_client(monkeypatch, responder)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["blocked"] == 1
+
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.BLOCKED
+        reason = (row.qa_warnings or {}).get("blocked_reason") or row.body.get("blocked_reason")
+        assert reason and "truncated" in reason
+
+        calls = (await s.execute(select(LlmCall))).scalars().all()
+        assert len(calls) == 2 and all(c.truncated for c in calls)
+        assert {c.model for c in calls} == {
+            settings.scene_packet_author_model, settings.scene_packet_author_fallback_model
+        }
+
+
+async def test_author_escalates_to_fallback_model_on_bad_primary(db_factory, monkeypatch):
+    """A primary model that can't emit valid JSON is rescued by the one-shot fallback escalation."""
+    import json
+
+    body = _scene_body()
+
+    def responder(*, model, system_text, max_tokens):
+        if "QA agent" in system_text:
+            return _FakeResp(_qa_ok())
+        if model == settings.scene_packet_author_model:
+            return _FakeResp("sorry, here is the packet: (not actually json)")  # primary fails
+        return _FakeResp(json.dumps(body))  # fallback model succeeds
+
+    _patch_llm_client(monkeypatch, responder)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["created"] == 1 and counts["blocked"] == 0
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.PROPOSED
+        assert "known_before_scene" in row.body
 
 
 # --- beat derivation + approval gate (router) ------------------------------------------------------
