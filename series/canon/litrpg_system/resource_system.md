@@ -1,55 +1,47 @@
 ---
 id: resource_system
-name: Dominion Realm System Synthesis
+name: Resources & Capacity — Dominion Realm
 kind: system
-status: synthesis draft
-last_updated: 2026-06-23
-source: distilled from dominion_realm_resource_system.md and current author decisions
+status: canon
+last_updated: 2026-06-27
 ---
 
-# Dominion Realm System Synthesis
+# Resources & Capacity — Dominion Realm
 
-> **Purpose:** Compact working synthesis of the current LitRPG mechanics for Book 1 drafting and future expansion.
-> **Scope:** Core resources, Reserve, regeneration, Eyes of Meszkhal costs, XP/level pacing, species growth, class templates, Insight, and current Book 1 progression assumptions.
-> **Status:** Good enough for Book 1 first-pass use. Series-scale systems still need damage, healing, affinity, spell mastery, items/gems, specializations, and Riftwalker costs.
-> **Precedence / wiring:** see `canon_index.md`. Owns the resource/number system. **Tier ladders** — Soul Level, Spell Strength, Item/Gem Quality, Class Rarity — live in `mechanics.md` / `core_rules.md` / `classes.md`; this file uses their tier names and does not redefine them.
+> **Owner field:** Resources & Capacity.
+> **Owns:** HP, Mana, Stamina, Reserve, resource caps, resource formulas, regeneration, depletion states, crash states, Reserve buffering, Book-1 XP curve/pacing until split.
+> **Does not own:** detailed injury anatomy (`embodiment_injury.md`), combat damage/penetration (`combat_defense.md`), class taxonomy and class attribute profiles (`classes.md`), tier ladder prose (`mechanics.md`), interface display style (`interface_abstraction.md` / style rules).
 
 ---
 
-## 1. Current Design Thesis
+## 1. Core Thesis
 
-The interface translates real biological, magical, and metaphysical conditions into numbers. The numbers are useful, but they are not the underlying reality.
+The interface translates real biological, magical, and metaphysical conditions into numbers.
 
-The system should remain **mechanical enough to support stakes**, but not so rigid that every scene becomes spreadsheet combat.
+The numbers are useful, but they are not the underlying reality.
 
-Core rule:
-
-$$
-\boxed{\text{The UI is a translation layer, not the world itself.}}
-$$
+```text
+The UI is a translation layer, not the world itself.
+```
 
 ---
 
 ## 2. Four Primary Resources
 
-$$
-\boxed{HP,\quad Mana,\quad Stamina,\quad Reserve}
-$$
-
-| Resource | Represents | Zero State |
+| Resource | Represents | Zero state |
 |---|---|---|
 | **HP** | Immediate survivability, trauma tolerance, bodily integrity under damage | Death, dying, or catastrophic incapacitation |
-| **Mana** | Usable magical fuel and magical nervous-system tolerance | Mana crash; not necessarily unconsciousness |
-| **Stamina** | Physical exertion capacity, muscular output, breath, coordination | Collapse, pass out, or hard physical stop |
-| **Reserve** | Deep system strain tolerance: interface load, overuse buffering, organ stress, soul/metaphysical strain | Worst non-HP crash: interface crash, organ stress, seizure-equivalent, soul strain, metaphysical injury |
+| **Mana** | Usable magical fuel and magical nervous-system tolerance | Mana crash; magical numbness, sensory distortion, failed casting |
+| **Stamina** | Physical exertion capacity, breath, muscular output, coordination | Collapse, pass out, or hard physical stop |
+| **Reserve** | Deep strain tolerance: interface load, overuse buffering, organ stress, soul/metaphysical routing | Interface crash, severe organ stress, seizure-equivalent, soul strain, metaphysical injury risk |
 
 Important distinction:
 
-$$
-\boxed{HP \neq Injury}
-$$
+```text
+HP ≠ Injury
+```
 
-A character can be at full current HP while still having an injury condition that reduces max HP, regeneration, movement, concentration, or recovery.
+A character can have high current HP and still suffer an injury condition that reduces max HP, movement, regeneration, concentration, or organ function.
 
 ---
 
@@ -69,97 +61,128 @@ A character can be at full current HP while still having an injury condition tha
 | FAI | Faith |
 | OCC | Occult |
 
-Faith and Occult are true hidden attributes for all creatures, including non-sapient animals. Baseline humans normally start at:
+Faith and Occult are true hidden attributes for all creatures, including non-sapient animals. Baseline humans normally have:
 
-$$
-\boxed{FAI = 5,\quad OCC = 5}
-$$
+```text
+FAI = 5
+OCC = 5
+```
 
-Undead, demons, animals, monsters, and Xyloryn use Faith and Occult normally, though their values, alignments, or interactions may be unusual.
+They are usually hidden until an interface, ritual, species trait, divine/occult exposure, or special condition makes them visible.
 
 ---
 
 ## 4. Canonical Resource Formula
 
-Use the full formula when building tables or system references.
+Class rarity no longer grants bonus attribute point cadence. Class influence enters resource math through **class attribute multipliers** defined in `classes.md`.
 
-$$
-\boxed{
+### General formula
+
+```text
 FinalResource_R =
-(BaseResource_R + AttributeResource_R + ClassBonusResource_R)
-\times RaceMod_R
-\times ClassMod_R
-\times ConditionMod_R
-}
-$$
+(BaseResource_R + AttributeResource_R + FeatureResource_R)
+× RaceMod_R
+× ConditionMod_R
+```
 
-Reserve-specific formula:
+### Attribute resource term
 
-$$
-\boxed{
-FinalReserve =
-(BaseReserve + AttributeReserve + ClassBonusReserve)
-\times SoulMultiplier
-\times RaceReserveMod
-\times ClassReserveMod
-\times ConditionReserveMod
-}
-$$
+```text
+AttributeResource_R =
+Σ(Attribute_A × ResourceWeight_R,A × ClassAttributeMultiplier_C,A)
+```
 
-| Component | Meaning |
+Where:
+
+| Term | Meaning |
 |---|---|
-| `BaseResource` | Species/body baseline before attributes; usually 0 for ordinary humanoids unless a template grants a flat baseline. |
-| `AttributeResource` | Resource generated by current attributes. |
-| `ClassBonusResource` | Extra capacity from class features/milestones; usually 0 in early Book 1. |
-| `RaceMod` | Species scaling. |
-| `ClassMod` | Class silhouette; fixed once class is acquired. |
-| `ConditionMod` | Injury, illness, curse, buff, exhaustion, suppression, environment. |
-| `SoulMultiplier` | Reserve-specific metaphysical multiplier. |
+| `Attribute_A` | Current raw attribute value. |
+| `ResourceWeight_R,A` | How strongly that attribute feeds the resource. |
+| `ClassAttributeMultiplier_C,A` | Class multiplier for that attribute: Prime, Core, Secondary, Neutral, or Dissonant. Defined by `classes.md`. |
+| `FeatureResource_R` | Explicit resource feature, milestone, item, blessing, curse, or story effect. Not a class cadence bonus. |
+| `RaceMod_R` | Species/body scaling. |
+| `ConditionMod_R` | Injury, illness, curse, buff, exhaustion, suppression, environment. |
 
-Book 1 shorthand when `BaseResource = 0` and `ClassBonusResource = 0`:
+### Reserve formula
 
-$$
-\boxed{FinalResource \approx AttributeResource \times RaceMod \times ClassMod \times ConditionMod}
-$$
+```text
+FinalReserve =
+(BaseReserve + AttributeReserve + FeatureReserve)
+× SoulMultiplier
+× RaceReserveMod
+× ConditionReserveMod
+```
+
+Reserve does not use an ordinary class rarity bonus. A class or interface may have a named feature that affects Reserve, but that feature must be explicit.
 
 ---
 
-## 5. Attribute Resource Formulas
+## 5. Attribute Resource Weights
 
-$$
-\boxed{AttributeHP = 6CON + 2END + 2STR}
-$$
+Base weights before class multipliers, race modifiers, conditions, and explicit features:
 
-$$
-\boxed{AttributeMana = 6INT + 3WIS + CHA}
-$$
+```text
+AttributeHP      = 6CON + 2END + 2STR
+AttributeMana    = 6INT + 3WIS + CHA
+AttributeStamina = 5END + 2CON + STR + AGI + DEX
+AttributeReserve = 2CON + 2END + 2WIS + FAI + OCC
+```
 
-$$
-\boxed{AttributeStamina = 5END + 2CON + STR + AGI + DEX}
-$$
+Baseline human with all visible and hidden attributes at 5, before class multipliers:
 
-$$
-\boxed{AttributeReserve = 2CON + 2END + 2WIS + FAI + OCC}
-$$
-
-Baseline human at all 5s, before multipliers:
-
-| Resource | Attribute Value |
+| Resource | Attribute value |
 |---|---:|
 | HP | 50 |
 | Mana | 50 |
 | Stamina | 50 |
 | Reserve | 40 |
 
+Luck feeds no base pool. It tilts unresolved margins and never makes impossible outcomes happen.
+
 ---
 
-## 6. Soul Multiplier
+## 6. Class Attribute Multipliers
 
-Soul Level modifies Reserve as a multiplier, not a flat bonus.
+Class profiles live in `classes.md`.
 
-> Keyed to the canon **Soul Level** ladder (`mechanics.md`), not rarity tiers. Multiplier values are a tunable default.
+Default values:
 
-| Soul Level (canon ladder) | Reserve Multiplier |
+| Attribute role | Default multiplier | Meaning |
+|---|---:|---|
+| Prime | 1.15 | Defining class resonance. The class gets more out of this attribute. |
+| Core | 1.08 | Important support resonance. |
+| Secondary | 1.03 | Useful but not defining. Optional; use only if class profile names it. |
+| Neutral | 1.00 | Normal value. |
+| Dissonant | 0.95 | Only when explicitly locked; avoid casual penalties. |
+
+Agent rules:
+
+- Multipliers are not extra attribute points.
+- Multipliers do not retroactively change prior level allocations.
+- Rarity does not automatically increase multiplier size.
+- Legendary/Mythic/Unique classes may define custom multipliers only in their class profile.
+- If a class profile does not define a multiplier for an attribute, treat it as Neutral.
+- Do not stack multiple active classes casually; multiclass rules need their own future section.
+
+### Worked shorthand
+
+A Warrior with STR 10, CON 10, END 10 and all three marked Prime would calculate those attributes as 11.5 for class-resource purposes before rounding conventions.
+
+Rounding convention for tables:
+
+```text
+Round final displayed resource down unless a feature says otherwise.
+```
+
+---
+
+## 7. Soul Multiplier
+
+Soul Level modifies Reserve as a multiplier, not a flat bonus. The tier ladder is owned by `mechanics.md`.
+
+Default tuning:
+
+| Soul Level | Reserve Multiplier |
 |---|---:|
 | Fractured | 0.90 |
 | Faint | 0.94 |
@@ -180,141 +203,130 @@ This keeps Soul Level relevant without making ordinary mortal Reserve explode.
 
 ---
 
-## 7. Regeneration Formulas
+## 8. Regeneration Formulas
 
-### HP Regeneration
+### HP regeneration
 
 Safe rest, per hour:
 
-$$
-\boxed{SafeRestHPRegen = (MaxHP \times 0.03) + \frac{CON}{2}}
-$$
+```text
+SafeRestHPRegen = (MaxHP × 0.03) + CON/2
+```
 
 Light rest, per hour:
 
-$$
-\boxed{LightRestHPRegen = (MaxHP \times 0.015) + \frac{CON}{4}}
-$$
+```text
+LightRestHPRegen = (MaxHP × 0.015) + CON/4
+```
 
 Active travel, per hour:
 
-$$
-\boxed{ActiveTravelHPRegen = MaxHP \times 0.005}
-$$
+```text
+ActiveTravelHPRegen = MaxHP × 0.005
+```
 
 Combat:
 
-$$
-\boxed{CombatHPRegen = 0}
-$$
+```text
+CombatHPRegen = 0
+```
 
-### Mana Regeneration
+### Mana regeneration
 
 Meditation, per minute:
 
-$$
-\boxed{MeditationManaRegen = (MaxMana \times 0.05) + \frac{WIS}{5}}
-$$
+```text
+MeditationManaRegen = (MaxMana × 0.05) + WIS/5
+```
 
 Calm noncombat, per minute:
 
-$$
-\boxed{CalmManaRegen = (MaxMana \times 0.02) + \frac{WIS}{10}}
-$$
+```text
+CalmManaRegen = (MaxMana × 0.02) + WIS/10
+```
 
 Active travel, per minute:
 
-$$
-\boxed{ActiveManaRegen = MaxMana \times 0.01}
-$$
+```text
+ActiveManaRegen = MaxMana × 0.01
+```
 
 Combat stress, per minute:
 
-$$
-\boxed{CombatManaRegen = MaxMana \times 0.005}
-$$
+```text
+CombatManaRegen = MaxMana × 0.005
+```
 
 Sustained channeling may suppress mana regeneration:
 
-$$
-\boxed{ChannelingManaRegen = ManaRegen \times ChannelSuppression}
-$$
+```text
+ChannelingManaRegen = ManaRegen × ChannelSuppression
+0.00 ≤ ChannelSuppression ≤ 0.50
+```
 
-$$
-0.00 \leq ChannelSuppression \leq 0.50
-$$
-
-### Stamina Regeneration
+### Stamina regeneration
 
 Full rest, per minute:
 
-$$
-\boxed{FullRestStaminaRegen = (MaxStamina \times 0.12) + \frac{END}{2}}
-$$
+```text
+FullRestStaminaRegen = (MaxStamina × 0.12) + END/2
+```
 
 Catching breath, per minute:
 
-$$
-\boxed{CatchingBreathStaminaRegen = (MaxStamina \times 0.08) + \frac{END}{3}}
-$$
+```text
+CatchingBreathStaminaRegen = (MaxStamina × 0.08) + END/3
+```
 
 Light movement, per minute:
 
-$$
-\boxed{LightMovementStaminaRegen = MaxStamina \times 0.03}
-$$
+```text
+LightMovementStaminaRegen = MaxStamina × 0.03
+```
 
 Combat, when not actively exerting, per minute:
 
-$$
-\boxed{CombatStaminaRegen = MaxStamina \times 0.01}
-$$
+```text
+CombatStaminaRegen = MaxStamina × 0.01
+```
 
-Heavy exertion creates active drain:
+Heavy exertion creates active drain rather than passive regen.
 
-$$
-\boxed{HeavyExertion = -StaminaDrain}
-$$
-
-### Reserve Regeneration
+### Reserve regeneration
 
 Deep sleep, per hour:
 
-$$
-\boxed{DeepSleepReserveRegen = (MaxReserve \times 0.08) + \frac{WIS}{4}}
-$$
+```text
+DeepSleepReserveRegen = (MaxReserve × 0.08) + WIS/4
+```
 
 Meditation / trained recovery, per hour:
 
-$$
-\boxed{MeditationReserveRegen = (MaxReserve \times 0.05) + \frac{WIS}{5}}
-$$
+```text
+MeditationReserveRegen = (MaxReserve × 0.05) + WIS/5
+```
 
 Ordinary rest, per hour:
 
-$$
-\boxed{OrdinaryRestReserveRegen = MaxReserve \times 0.03}
-$$
+```text
+OrdinaryRestReserveRegen = MaxReserve × 0.03
+```
 
 Active travel, per hour:
 
-$$
-\boxed{ActiveReserveRegen = MaxReserve \times 0.01}
-$$
+```text
+ActiveReserveRegen = MaxReserve × 0.01
+```
 
 Combat / active interface strain:
 
-$$
-\boxed{CombatReserveRegen = 0}
-$$
+```text
+CombatReserveRegen = 0
+```
 
-Optional emotional/mental recovery modifier:
+Optional recovery condition:
 
-$$
-\boxed{FinalReserveRegen = BaseReserveRegen \times RecoveryCondition}
-$$
-
-| Recovery Condition | Modifier |
+| Recovery condition | Modifier |
 |---|---:|
 | Safe, calm, sleeping | 1.00 |
 | Comfortable / emotionally supported | 1.10 |
@@ -324,11 +336,9 @@ $$
 | Panic / nightmare / hostile environment | 0.25 |
 | Active corruption / soul wound | 0.00 |
 
-Reserve recovery can be affected narratively without requiring heavy math in every scene.
-
 ---
 
-## 8. Depletion States
+## 9. Depletion States
 
 ### HP
 
@@ -339,8 +349,6 @@ Reserve recovery can be affected narratively without requiring heavy math in eve
 | 49–25% | Impaired, pain penalties, concentration harder |
 | 24–1% | Critical, unstable, likely injury conditions |
 | 0% | Death, dying, or catastrophic incapacitation |
-
-Decapitation, heart destruction, soul severing, or lethal poison usually force HP to zero. Name erasure does **not** kill by default; it affects identity, recognition, addressability, records, binding/vow targeting, memory anchoring, and metaphysical continuity.
 
 ### Mana
 
@@ -374,121 +382,97 @@ Zero Stamina is a hard physical stop.
 | 9–1% | System warning, soul/body routing failure |
 | 0% | Interface crash, severe organ stress, seizure-equivalent, soul strain, metaphysical injury risk |
 
-Reserve hitting zero is the worst non-HP crash.
+Zero Reserve is the worst non-HP crash.
 
 ---
 
-## 9. Reserve Buffer Rule
+## 10. Reserve Buffer Rule
 
 Reserve begins buffering when Mana or Stamina falls below 20%.
 
-$$
-\boxed{If\ Mana < 20\%,\ forced\ casting\ consumes\ Reserve}
-$$
-
-$$
-\boxed{If\ Stamina < 20\%,\ forced\ exertion\ consumes\ Reserve}
-$$
+```text
+If Mana < 20%, forced casting consumes Reserve.
+If Stamina < 20%, forced exertion consumes Reserve.
+```
 
 Forced overuse may borrow from Reserve:
 
-$$
-\boxed{1\ Reserve = 5\ Mana\ deficit}
-$$
-
-$$
-\boxed{1\ Reserve = 5\ Stamina\ deficit}
-$$
+```text
+1 Reserve = 5 Mana deficit
+1 Reserve = 5 Stamina deficit
+```
 
 Zero Reserve is a hard stop. Borrowing past zero requires catastrophic injury or story-level consequence.
 
+This is the canonical Reserve conversion rule. Do not replace it with quadratic Reserve-strain accounting. A quadratic expression may be used only as an author-facing risk/severity estimator, not as the resource debit.
+
 ---
 
-## 10. Reserve Depletion vs Reserve Injury
+## 11. Reserve Depletion vs. Reserve Injury
 
-$$
-\boxed{ReserveDepletion = temporary\ strain}
-$$
-
-$$
-\boxed{ReserveInjury = actual\ damage\ to\ the\ routing\ system}
-$$
+```text
+ReserveDepletion = temporary strain
+ReserveInjury    = actual damage to the routing system
+```
 
 | Type | Examples | Recovery |
 |---|---|---|
 | Reserve depletion | Eye strain, headache, pressure fatigue, post-interface crash | Rest, meditation, sleep, stabilization |
 | Reserve injury | Blood tears, neural scarring, soul bruise, damaged channels, severance backlash | Treatment, time, specialized healing, story intervention |
 
-Reserve injury can permanently reduce max Reserve until treated.
+Reserve injury can reduce max Reserve until treated.
 
 ---
 
-## 11. Injury Logic
+## 12. Injury Interface Boundary
 
-Injuries can affect multiple layers at once:
+This file may record simple resource consequences of injury. It does not own detailed anatomy, disease, poison, trauma, organ damage, or long-term wound modeling.
 
-1. Current HP damage
-2. Max HP reduction
-3. Regeneration penalty
-4. Functional penalty
-5. Pain / concentration penalty
-6. Status condition
+For detailed injury rules, use `embodiment_injury.md`.
 
-Minor torture / cut example:
+Example shorthand allowed here:
 
 ```text
-Damage: -1 HP
-Condition: Superficial Laceration
-Status: Pain Spike / Concentration Disruption
-```
-
-Cracked rib example:
-
-```text
-Immediate Damage: -6 HP
-Max HP: -8 until healed
-Health Regen: -20%
+Cracked Rib:
+Immediate HP Damage: -6
+Temporary Max HP: -8 until healed
+HP Regen: -20%
 Stamina Regen: -15%
-Penalty: pain when sprinting, climbing, or casting under pressure
+Functional Penalty: pain when sprinting, climbing, or casting under pressure
 ```
 
 ---
 
-## 12. Eyes of Meszkhal
+## 13. Eyes of Meszkhal Resource Costs
 
-The Eyes have one mode for now.
+The Eyes of Meszkhal currently have one active mode.
 
-Base cost:
+Activation:
 
-$$
-BaseActivation = 20\ Mana
-$$
+```text
+BaseActivation = 20 Mana
+```
 
-$$
-BaseUpkeep = 1\%\ MaxMana/second
-$$
+Upkeep:
 
-Cost scales by reducing the remaining cost by 10% per Eyes Mastery level:
+```text
+BaseUpkeep = 1% MaxMana per second
+```
 
-$$
-\boxed{Activation_n = 20 \times 0.9^{n-1}}
-$$
+Cost scaling by Eyes Mastery:
 
-$$
-\boxed{Upkeep_n = 1.0\% \times 0.9^{n-1}}
-$$
+```text
+Activation_n = 20 × 0.9^(n-1)
+Upkeep_n     = 1.0% × 0.9^(n-1)
+```
 
-Where:
+Where `n = Eyes Mastery`.
 
-$$
-n = Eyes\ Mastery
-$$
+Eyes Mastery uses hidden attunement with scene-based thresholds, not visible XP. Eyes Mastery can level mid-fight. Eyes Mastery 2 gives cost reduction only.
 
-Eyes Mastery uses hidden attunement with scene-based thresholds, not visible XP. Eyes Mastery can level mid-fight. Eyes Mastery 2 gives cost reduction only. Book 1 likely ends around mid Eyes Mastery, not level 10.
+### Eyes cost table at 50 Max Mana
 
-### Eyes Cost Table at 50 Max Mana
-
-| Eyes Mastery | Activation | Upkeep | Mana/sec at 50 Max Mana | Continuous Use After Activation |
+| Eyes Mastery | Activation | Upkeep | Mana/sec at 50 Max Mana | Continuous use after activation |
 |---:|---:|---:|---:|---:|
 | 1 | 20.00 | 1.000%/sec | 0.500/sec | 60 sec |
 | 2 | 18.00 | 0.900%/sec | 0.450/sec | 71 sec |
@@ -505,109 +489,77 @@ Reserve appears on Marcus's UI after Eyes backlash, not immediately.
 
 ---
 
-## 13. Insight
+## 14. Insight Resource Cost
 
 Insight costs:
 
-$$
-\boxed{InsightCost = 5\ Mana}
-$$
+```text
+InsightCost = 5 Mana
+```
 
-Insight succeeds relatively often, but may be partial. Partial success reveals exact information for some parsed elements rather than vague information about everything.
-
-Possible parsed elements:
-
-- HP / Mana / Stamina
-- Reserve, if perception is advanced enough
-- Level or level estimate
-- Species/type
-- Class
-- Active condition
-- Weakness/resistance
-- Threat ratio
-- Hidden resource strain
-
-Insight should not always reveal every category. It can succeed by showing one exact, useful category.
+Perception behavior belongs in `perception_information.md` once expanded. Core summary remains in `core_rules.md`.
 
 ---
 
-## 14. Growth Rules
+## 15. Growth Rules
 
-### Class Rarity Ladder
-
-$$
-\boxed{Common \rightarrow Uncommon \rightarrow Rare \rightarrow Exceptional \rightarrow Legendary \rightarrow Mythic \rightarrow Unique}
-$$
-
-### Class Rarity Bonus Points
-
-Class rarity grants extra attribute points. These points are fully free within class-relevant attributes.
-
-| Class Rarity | Bonus Attribute Point Cadence |
-|---|---:|
-| Common | +1 every 5 levels |
-| Uncommon | +1 every 4 levels |
-| Rare | +1 every 3 levels |
-| Exceptional | +1 every 2 levels |
-| Legendary | +1 every level |
-| Mythic | +1 every level |
-| Unique | +1 every level, plus story-defined effects |
-
-Base class resource modifiers stay fixed once a class is acquired.
-
-Class rarity bonus points count only after the class is acquired:
-
-$$
-\boxed{ClassEffectiveLevels = \max(0, CharacterLevel - ClassAcquisitionLevel)}
-$$
-
-$$
-\boxed{ClassBonusPoints = \left\lfloor \frac{ClassEffectiveLevels}{ClassCadence} \right\rfloor}
-$$
-
-Where `ClassCadence` is the number of effective class levels required per bonus point.
-
-### Species Growth
+### Attribute points
 
 Every creature gains attribute points every level.
 
 Humans:
 
-$$
-\boxed{HumanGrowth = 4\ free\ attribute\ points/level}
-$$
+```text
+HumanGrowth = 4 free attribute points / level
+```
 
 Most sapient non-human species:
 
-$$
-\boxed{4\text{–}5\ attribute\ points/level}
-$$
+```text
+4–5 attribute points / level
+```
 
 Powerful or rare species:
 
-$$
-\boxed{6\ attribute\ points/level}
-$$
+```text
+6 attribute points / level
+```
 
 Humans have no forced growth, but less total growth. Non-human species often have forced or semi-forced biological growth.
 
-### Monster Growth
+### Removed rule
 
-Monsters have levels. Many also have maturity stages.
+Do **not** use class rarity bonus attribute point cadence.
 
-$$
-\boxed{Creature = SpeciesTemplate + MaturityStage + Level + Traits}
-$$
+Class rarity affects XP burden, energy burden, and possible class-profile sophistication. It does not hand out recurring bonus points after a fixed number of class-held levels.
 
-Maturity thresholds can change both point distribution and point quantity. Monsters grow according to species template rather than free allocation.
+### Species growth
+
+Species templates may define:
+
+```text
+FreePoints
+ForcedPoints
+FavoredAttributes
+ForbiddenOrDissonantGrowth
+MaturityStageGrowth
+```
+
+Monsters use:
+
+```text
+Creature = SpeciesTemplate + MaturityStage + Level + Traits
+```
+
+Maturity stages can change point distribution and point quantity.
 
 ---
 
-## 15. XP Curve and Level Pacing
+## 16. XP Curve and Level Pacing
 
-### Book-by-Book Pacing Target
+### Book-by-book pacing target
 
-| Story Point | Average Level Range | Notes |
+| Story point | Average level range | Notes |
 |---|---:|---|
 | Arrival | 1 | New arrivals are functionally level 1. |
 | Early Book 1 | 2–4 | Survival, first kills, first lessons, early class pressure. |
@@ -618,31 +570,31 @@ Maturity thresholds can change both point distribution and point quantity. Monst
 
 Rule of thumb:
 
-$$
-\boxed{Average\ cast\ growth \approx 10\ levels/book}
-$$
+```text
+Average cast growth ≈ 10 levels/book
+```
 
-### Class Acquisition
+### Class acquisition
 
-Character Level exists even before a formal class is acquired.
+Character Level exists before formal class acquisition.
 
 Before class acquisition:
 
 ```text
 XP Multiplier: 1.00
-Class resource modifiers: none
-Class rarity bonus points: none
+Class attribute multipliers: none
+Class features: none
 ```
 
 After class acquisition, future level thresholds use the active class rarity multiplier. Past levels are not recalculated.
 
-$$
-\boxed{Class\ acquisition\ changes\ future\ growth,\ not\ past\ level\ history.}
-$$
+```text
+Class acquisition changes future growth, not past level history.
+```
 
-### Book 1 Class Acquisition Order
+### Book 1 class acquisition order
 
-| Character | Book 1 Class | Rarity | Approximate Timing | Reason |
+| Character | Book 1 Class | Rarity | Approximate timing | Reason |
 |---|---|---|---|---|
 | Seb | Warrior | Common | Very early | Broker pressure / martyr scene / direct violent commitment. |
 | Serra | Warrior | Common | Very early | Hand-to-hand survival and direct combat during false-rescue arc. |
@@ -651,19 +603,19 @@ $$
 | Mara | Psion | Rare | Late court arc or Walking Grove | Timing unresolved. |
 | Marcus | Mage | Common | Later | Needs Vultures/spell instruction before repeated casting can earn Mage. |
 
-Book 1 specializations are not active for the main cast.
+Book 1 specializations are not active for the main cast except Seb.
 
-> **Exception — Seb's Reaver.** Canon grants Seb the **Reaver** specialization early (broker-granted at a level he shouldn't have it; `seb.md`, `classes.md`), and the finale has him using Reaver/Pyric Blood. Seb is the standing exception to the "specializations not active in Book 1" rule above.
+> **Exception — Seb's Reaver:** broker-granted early at a level where he should not have it.
 
-### Base XP Curve
+### Base XP curve
 
-XP required to advance from level **L** to **L+1**:
+XP required to advance from level `L` to `L+1`:
 
-$$
-\boxed{BaseXP(L)=75L+25L\log_2(L+1)+4L(L-1)}
-$$
+```text
+BaseXP(L) = 75L + 25L log2(L+1) + 4L(L-1)
+```
 
-| Current Level | Base XP to Next Level |
+| Current level | Base XP to next level |
 |---:|---:|
 | 1 | 100 |
 | 2 | 237 |
@@ -682,13 +634,13 @@ $$
 | 40 | 14,598 |
 | 50 | 20,641 |
 
-### XP Multipliers by Class Rarity
+### XP multipliers by class rarity
 
-$$
-\boxed{XPToNext = BaseXP(L) \times ClassRarityMultiplier}
-$$
+```text
+XPToNext = BaseXP(L) × ClassRarityMultiplier
+```
 
-| Class Rarity | XP Multiplier | Design Intent |
+| Class rarity | XP multiplier | Design intent |
 |---|---:|---|
 | Unclassed / Common | 1.00 | Baseline growth. |
 | Uncommon | 1.08 | Noticeably slower, still practical. |
@@ -700,11 +652,11 @@ $$
 
 Marcus and Serra do not pay Legendary XP costs until those Legendary paths are active.
 
-### XP Awards
+### XP awards
 
 XP rewards meaningful pressure, not only kills.
 
-| Event Type | Suggested Award |
+| Event type | Suggested award |
 |---|---:|
 | Routine practice / low-risk repetition | Tiny; often no character XP. |
 | Useful training under real difficulty | 5–15% of next level. |
@@ -715,23 +667,23 @@ XP rewards meaningful pressure, not only kills.
 
 Anti-grind rule:
 
-$$
-\boxed{Low\text{-}risk\ repeated\ actions\ produce\ sharply\ diminishing\ XP.}
-$$
+```text
+Low-risk repeated actions produce sharply diminishing XP.
+```
 
 XP follows contribution and consequence: scouting, healing, stabilizing, protecting, discovering, negotiating, surviving, and identifying a weakness can all award XP if they materially change the outcome.
 
 ---
 
-## 16. Threat Readout
+## 17. Threat Readout
 
 Threat readout is a reference frame, not exact encounter math.
 
-$$
-\boxed{ThreatRatio = \frac{EnemyHP}{ObserverHP}}
-$$
+```text
+ThreatRatio = EnemyHP / ObserverHP
+```
 
-| Threat Ratio | Interpretation |
+| Threat ratio | Interpretation |
 |---:|---|
 | 0.5–1.5x | Peer range |
 | 2–4x | Dangerous if trained |
@@ -740,21 +692,38 @@ $$
 | 25x+ | Solve sideways or run |
 | 50x+ | Environmental threat, boss, monster, or scripted death risk |
 
-A creature with 1,890 HP against Level 1 Marcus at 50 HP has:
+A creature with 1,890 HP against Level 1 Marcus at 50 HP:
 
-$$
-\frac{1890}{50} = 37.8
-$$
+```text
+1890 / 50 = 37.8
+```
 
-This does not necessarily mean apex cosmic being. It means Marcus is massively outclassed and cannot trade damage.
+This means Marcus is massively outclassed and cannot trade damage. It does not automatically mean apex cosmic being.
 
 ---
 
-## 17. Book 1 Combat Standing
+## 18. Class Template Snapshot
 
-Current intended standing:
+Class templates now express **attribute multiplier profiles**, not bonus attribute point cadence.
 
-| Character | Book 1 Combat Role |
+Detailed profiles live in `classes.md`. This snapshot exists only for resource-facing shorthand.
+
+| Class | Rarity | Prime Attributes | Core Attributes | Primary resource shape |
+|---|---|---|---|---|
+| Warrior | Common | STR, CON, END | AGI, DEX | HP / Stamina durability |
+| Mage | Common | INT, WIS | CHA, DEX, END | Mana / control |
+| Rogue | Common | DEX, AGI | INT, WIS, END | Stamina / burst exploitation |
+| Scout | Common | AGI, END, WIS | DEX, INT, CON | Stamina / routes / threat-reading |
+| Healer | Common | WIS, INT | CHA, CON, DEX | Mana / stabilization |
+| Warden | Uncommon | CON, WIS, END | STR, CHA, FAI | HP / Reserve / boundary endurance |
+| Psion | Rare | WIS, CHA, INT | DEX, END, OCC | Mana / Reserve pressure |
+| Adventurer | Common | END, WIS, LUCK | STR, AGI, DEX, CON, INT | Flexible survival |
+
+---
+
+## 19. Book 1 Combat Standing
+
+| Character | Book 1 combat role |
 |---|---|
 | Seb | Strongest direct fighter early; Warrior first due to Broker/martyr pressure. |
 | Serra | Second strongest raw fighter; Warrior early through false-rescue hand-to-hand combat. |
@@ -763,113 +732,31 @@ Current intended standing:
 | Brent | Situational/malleable; Warden makes him durable/supportive rather than pure healer. |
 | Mathias | Weakest direct combatant; Scout/Emissary direction remains non-brawler/contact-specialist. |
 
-Long-term Marcus can overtake others, but Book 1 should not make him the strongest general fighter.
-
 ---
 
-## 18. Species / Creature Template Snapshot
+## 20. Working Locks / Do-Not-Drift Notes
 
-Approximate starting resources before class.
-
-| Template | HP | Mana | Stamina | Reserve |
-|---|---:|---:|---:|---:|
-| Human | 50 | 50 | 50 | 40 × Soul |
-| Elf | 40 | 56 | 54 | 40 × Soul |
-| Dwarf | 75 | 47 | 70 | 50 × Soul |
-| Orc | 78 | 37 | 66 | 46 × Soul |
-| Wolf | 50 | 16 | 66 | 42 × Soul |
-| Giant Spider | 46 | 20 | 59 | 41 × Soul |
-| Undead Humanoid | 71 | 27 | 48 | 55 × Soul |
-| Unnamed Demon Placeholder | 120 | 40 | 92 | 72 × Soul |
-| Xyloryn Drone | 75 | 21 | 75 | 53 × Soul |
-
-Notes:
-
-- **Unnamed Demon Placeholder** is not canon and should not be treated as the Eyes-giving entity without future author decision.
-- **Xyloryn Drone** is only a baseline form. Finale threat is a **Myrmidon**, not a drone.
-- Hunter/Brute are not confirmed Xyloryn caste names. Use functional descriptors until Xyloryn taxonomy is settled.
-
----
-
-## 19. Class Template Snapshot
-
-Approximate class effect on a baseline human before species variation, injuries, gear, or SoulMultiplier above Common.
-
-| Class | Rarity | HP | Mana | Stamina | Reserve | Primary Shape |
-|---|---|---:|---:|---:|---:|---|
-| Warrior | Common | 55 | 48 | 55 | 42 × Soul | Direct combat durability |
-| Mage | Common | 48 | 58 | 48 | 42 × Soul | Spellcasting and mana |
-| Rogue | Common | 45 | 45 | 55 | 46 × Soul | Burst exploitation and weak-point pressure |
-| Scout | Common | 48 | 45 | 63 | 40 × Soul | Sustained movement, routes, and threat-reading |
-| Healer | Common | 50 | 55 | 50 | 44 × Soul | Restoration and stabilization |
-| Warden | Uncommon | 55 | 53 | 53 | 46 × Soul | Boundaries and protection |
-| Psion | Rare | 48 | 55 | 48 | 48 × Soul | Will, mind, and Reserve pressure |
-| Adventurer | Common | 52 | 50 | 53 | 41 × Soul | Flexible survival |
-
-Scout/Rogue distinction:
-
-- **Scout:** “I can keep moving.”
-- **Rogue:** “I can force one impossible opening.”
-
----
-
-## 20. Current Book 1 Sufficiency
-
-This system is sufficient for a first-pass Book 1 draft because it now has:
-
-1. Core resources and formulas.
-2. Regeneration rules.
-3. Depletion meanings.
-4. Reserve as a general fourth system.
-5. Eyes cost scaling.
-6. Species and class growth logic.
-7. XP curve and pacing.
-8. Class acquisition order.
-9. Threat readout.
-10. Initial species and class template snapshots.
-
-It is **not** yet sufficient as a full-series mechanical bible.
-
----
-
-## 21. Future Sections To Add
-
-Highest-value next additions:
-
-1. **Damage and injury model** — simple damage bands, armor/mitigation, healing.
-2. **Spell Strength / Spell Skill Mastery cleanup** — keep simple; avoid overformula if it does not vibe.
-3. **Affinity rules** — likely gentler decay; no Unbound/Chaotic Affinity unless deliberately reintroduced.
-4. **Item Quality / Gemstone Quality mechanics** — reliability, mana storage, leakage, enchantment stability.
-5. **Specialization template format** — not active for main cast in Book 1.
-6. **Riftwalker cost model** — Book 2+ load-bearing system.
-7. **Soul Level details** — namebinding, resurrection, possession, vow resistance.
-8. **Xyloryn caste/maturity taxonomy** — Drone vs Myrmidon vs other forms.
-9. **Main cast Level 1/5/10 stat references** — already partially stress-tested, but can be formalized later.
-
----
-
-## 22. Working Locks / Do-Not-Drift Notes
-
-- Reserve is **general**, not Marcus-specific.
+- Reserve is general, not Marcus-specific.
 - Reserve appears on Marcus's UI after Eyes backlash.
-- Eyes keep **20 mana activation** and **1% max mana/sec upkeep**.
+- Eyes keep 20 Mana activation and 1% MaxMana/sec upkeep.
 - Eyes use the 10%-remaining scaling formula.
 - Eyes Mastery 2 is cost reduction only.
 - Eyes Mastery can level mid-fight.
 - Mana crash is not automatically unconsciousness.
 - Zero Stamina is collapse/pass-out/hard stop.
 - Zero Reserve is the worst non-HP crash.
-- Name erasure does not kill.
+- Name erasure does not kill by default.
 - Monsters have levels; many also have maturity stages.
-- Maturity stages can alter both point distribution and point quantity.
+- Maturity stages can alter point distribution and point quantity.
 - Humans get 4 fully free points per level and no forced growth.
 - Most sapient species get 4–5 points per level, often partially forced.
 - Powerful/rare species can get 6 points per level.
-- Class rarity bonus points are free only within class-relevant attributes.
-- Book 1 main cast does not have active specializations.
+- Class rarity bonus points are removed.
+- Classes use Prime/Core attribute multipliers instead of bonus point cadence.
+- Book 1 main cast does not have active specializations except Seb.
 - Book 1 finale target is roughly Level 8–12.
 - Book 2 average is roughly Level 20; Book 3 roughly Level 30.
 - Seb and Serra are the top direct fighters in Book 1.
 - Marcus is situational/middle in Book 1, not the strongest general fighter.
 - Mathias is not a brawler and remains weakest direct combatant.
-- Finale Xyloryn threat is a **Myrmidon**, not a drone.
+- Finale Xyloryn threat is a Myrmidon, not a drone.

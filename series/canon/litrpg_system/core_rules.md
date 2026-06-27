@@ -1,92 +1,221 @@
+---
+id: core_rules
+name: LitRPG System — Core Rules
+kind: system
+status: canon
+---
+
 # LitRPG System — Core Rules
 
-> **Purpose:** Defines how the game-like system works in Dominion Realm, how prominent it is in the reading experience, and the rules governing its use in prose. The system exists between lite and medium — it is real and progression matters, but it serves character and story rather than being a draw in itself.
+> **Purpose:** Single source of truth for the Dominion Realm LitRPG system architecture. This file defines the interface premise, the top-level mechanical boundaries, prose-use rules, and the routing map agents must follow before expanding any subsystem.
+> **Agent rule:** Start here. Do not invent or relocate mechanics until you have checked the owner file named below. If a subsystem does not exist yet, create or use its scaffold; do not bury new rules in an unrelated document.
 
 ---
 
-## The Foundational Truth
+## 0. SSOT / Agent Routing
 
-The interface is not the world. It is Marcus's implant translating incomprehensible metaphysical structures into data his mind can process — because his mind is a gamer's mind, and RPG logic is the framework it reaches for.
+Core Rules owns the **system boundary**, not every detailed formula. It tells agents where each rule belongs and what must not be conflated.
 
-Other beings in the Realm do not see panels or numbers. Natives experience the same underlying reality through instinct, tradition, ritual, sensation, faith, bloodline memory, or training. When a Realm-born warrior has mastered a combat technique, they don't see a skill level. They have calluses and muscle memory and the accumulated weight of ten thousand repetitions.
+### Precedence
 
-Marcus sees numbers. This is not superior. It is different — and it has specific advantages and specific blind spots.
+1. Latest explicit author decision.
+2. `core_rules.md` for system-wide architecture, interface premise, routing, terminology, and prose-use rules.
+3. The subsystem owner file listed in the taxonomy below.
+4. Scaffolds/placeholders for missing subsystems.
+5. Older synthesis notes, drafts, or manuscript passages.
 
-**The blind spot:** Numbers feel like certainty. They are not. The interface is a translation layer built by people who didn't fully understand what they were building. It can be wrong. It can be incomplete. It can fail to render something entirely.
+If a detail appears in the wrong file, move it to the owner file or leave a cross-reference. Do not duplicate competing versions.
+
+### System Taxonomy
+
+| Parent domain | Detailed field | Owner / scaffold | Subsystem examples |
+|---|---|---|---|
+| **Resources & Capacity** | Resources & Capacity | `resource_system.md` | HP, mana, stamina, reserve, caps, regen, depletion, crash states |
+| **Embodiment & Injury** | Embodiment & Injury | `embodiment_injury.md` *(scaffold)* | anatomy, wounds, trauma, disease, poison, organ damage |
+| **Action Systems** | Motion & Positioning | `motion_positioning.md` *(scaffold)* | movement, balance, momentum, terrain traversal |
+| **Action Systems** | Combat & Defense | `combat_defense.md` *(scaffold)* | attacks, penetration, armor, shields, timing, tactics |
+| **Action Systems** | Power Expression | `power_expression.md` *(scaffold; domains cross-ref `classes.md` / `mechanics.md`)* | spells, domains, rituals, class abilities, resonance |
+| **Action Systems** | Perception & Information | `perception_information.md` *(scaffold; Insight baseline summarized here)* | senses, Insight, stealth, illusion, salience, inference |
+| **Action Systems / Social & Strategic** | Strategy & Decision Systems | `strategy_decision_systems.md` *(scaffold)* | AI, tactics, risk, counterplay, planning |
+| **World Systems** | Space & Environment | `space_environment.md` *(scaffold)* | terrain, portals, zones, boundaries, weather, hazards |
+| **Growth Systems** | Progression & Identity | `progression_identity.md` *(scaffold; class taxonomy in `classes.md`; tier ladders in `mechanics.md`)* | levels, classes, skills, soul, species, mastery |
+| **Creation & Infrastructure** | Crafting & Materials | `crafting_materials.md` *(scaffold; item/gem ladders in `mechanics.md`)* | gear, alchemy, enchanting, repair, construction materials |
+| **Creation & Infrastructure** | Base & Infrastructure | `base_infrastructure.md` *(scaffold)* | buildings, supply lines, wards, defenses, population support |
+| **Creation & Infrastructure / Social & Strategic** | Economy & Logistics | `economy_logistics.md` *(scaffold)* | costs, trade, transport, scarcity, production chains |
+| **Social & Strategic Systems** | Social & Faction Systems | `social_faction_systems.md` *(scaffold)* | reputation, diplomacy, law, alliances, institutions |
+| **Interface & Abstraction** | Interface & Abstraction | `interface_abstraction.md` *(scaffold; foundational premise here)* | stat display, hidden values, diagnostics, system compression |
+
+### Existing Owner Files
+
+| File | Owns | Does not own |
+|---|---|---|
+| `resource_system.md` | Resource formulas, caps, regen, depletion states, Reserve buffer, resource crash states, XP curve/pacing until split | Class taxonomy, tier ladder prose, combat injury detail |
+| `classes.md` | Base classes, specializations, class rarity, class attribute profiles/multipliers, domain terminology firewall | Resource formulas, bonus attribute point cadence, full spell/item/soul ladders |
+| `mechanics.md` | Tier ladders: Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level | Resource formulas, class attribute growth, domain taxonomy ownership |
+| `system_taxonomy.md` | Expanded routing table, scaffold instructions, unresolved subsystem list | Detailed mechanics |
+| Scaffold docs | Boundaries, placeholders, questions, eventual owner content | Contradicting owner files |
 
 ---
 
-## System Prominence — Between Lite and Medium
+## 1. Foundational Truth
 
-### What this means in practice
+The interface is not the world.
 
-The system is real and Marcus engages with it consciously — especially early, when he's learning to read it. Progression matters. Skill development matters. The interface provides information that affects decisions.
+It is Marcus's implant translating incomprehensible biological, magical, social, and metaphysical structures into data his mind can process. Because Marcus is a gamer and systems thinker, the implant compresses reality into RPG-like terms: levels, attributes, resources, statuses, warnings, and skills.
 
-But the system does not pause the story to deliver rewards. It does not generate excitement through level-up announcements. Progression is felt through capability and cost, not through numerical celebrations.
+Other beings in the Realm do not see panels or numbers. Natives experience the same underlying reality through instinct, tradition, ritual, sensation, faith, bloodline memory, training, pain, social practice, and learned judgment.
 
-**The test:** If removing a system notification from a scene would lose something essential, it belongs. If removing it would make the prose cleaner and the scene stronger, it doesn't.
+Marcus sees numbers. This is not superior. It is different.
 
-### Early story — system is prominent
+**Blind spot:** numbers feel like certainty. They are not certainty. The interface is a translation layer built from an incomplete model. It can be wrong, partial, compressed, delayed, misleading, or unable to render something at all.
 
-Marcus is learning to read the interface. Notifications appear frequently, sometimes at bad moments, sometimes with information he doesn't understand yet. Some appear to be errors or incomplete translations. The system is present in nearly every significant scene.
-
-### Mid story — system recedes
-
-Marcus has internalized much of the interface's logic. Notifications become less frequent. He doesn't need to check his status to know roughly where he stands. The system surfaces for significant changes — new abilities, meaningful thresholds, things the interface catches that he missed.
-
-### Late story — system is sparse and significant
-
-A system notification in late story carries weight precisely because it's rare. When the interface fires unexpectedly, something has changed that Marcus couldn't have anticipated. Its appearance is information in itself.
+> **Core test:** The interface can describe a pressure pattern. It cannot guarantee Marcus understands what the pressure means.
 
 ---
 
-## Core Mechanics
+## 2. System Prominence — Between Lite and Medium
 
-### Attributes
+The system is real and progression matters, but it serves character and story rather than becoming the main attraction.
 
-Nine primary attributes plus two that appear after Marcus's hybrid transformation:
+### Early story
+
+Marcus is learning to read the interface. Notifications appear often, sometimes at bad moments, and sometimes with incomplete or confusing information. The system is prominent because he is dependent on it.
+
+### Mid story
+
+Marcus internalizes the interface's ordinary logic. Notifications become less frequent. The system surfaces for meaningful thresholds, unexpected changes, or information Marcus would otherwise miss.
+
+### Late story
+
+A system notification is rare enough to be significant. When the interface appears unexpectedly, it is information in itself.
+
+**Prose test:** If removing a notification from a scene would lose something essential, it belongs. If removing it makes the prose cleaner and the scene stronger, it does not.
+
+---
+
+## 3. Core Terminology
+
+### Attribute
+
+A primary measurable trait. The public nine are:
 
 | Attribute | Governs |
 |---|---|
 | Strength | Physical force output |
-| Agility | Speed, reaction time |
-| Dexterity | Fine motor control, precision |
-| Constitution | Physical resilience, health pool |
-| Endurance | Sustained effort, stamina pool |
-| Intelligence | Mental processing, learning rate |
-| Wisdom | Judgment, magical sensitivity |
-| Charisma | Social force, presence |
-| Luck | Probability nudges — unpredictable |
-| Faith | Post-hybrid; divine resonance |
-| Occult | Post-hybrid; demonic/chaos resonance |
+| Agility | Speed, reaction time, balance, directional change |
+| Dexterity | Fine motor control, precision, hand/weapon control |
+| Constitution | Physical resilience, tissue integrity, toxin/organ stress tolerance |
+| Endurance | Sustained effort, fatigue resistance, recovery under exertion |
+| Intelligence | Processing, learning efficiency, working memory, structured analysis |
+| Wisdom | Judgment, regulation, magical sensitivity/control, disruption resistance |
+| Charisma | Force of presence, projection, social/magical imprint |
+| Luck | Probability nudges within plausible margins |
 
-**Derived stats:**
-- **Health** = Constitution×6 + Endurance×2 + Strength×2  *(start 5/5/5 → 50)*
-- **Mana** = Intelligence×6 + Wisdom×3 + Charisma×1  *(→ 50)*
-- **Stamina** = Endurance×5 + Constitution×2 + Strength + Agility + Dexterity  *(→ 50)*
-- Luck does not feed the pools; it tilts unresolved outcomes. Full per-attribute effects and the leveling/racial-growth model live in `mechanics.md`.
+Two hidden attributes exist for all creatures but normally remain unseen:
 
-### Skills and Affinities
+| Hidden Attribute | Governs |
+|---|---|
+| Faith | Divine/covenantal resonance, conviction-pressure, sacred addressability |
+| Occult | Demonic/chaotic/forbidden resonance, appetite-pressure, occult addressability |
 
-Skills are learned through use. Each skill has an affinity — a percentage representing natural aptitude.
+Faith and Occult are not created by Marcus's transformation. The transformation makes them visible and relevant to his interface.
 
-**Affinity mechanics (from original draft):**
-- Affinity is the chance of leveling a skill upon reaching 100% experience at the current level
-- If you don't level up, you lose all experience at that level but keep the affinity
-- If you do level up, affinity decreases by an amount tied to natural ability for that skill
-- Unbound Affinity (Marcus's ability) inverts this: affinity increases instead of decreasing on level-up
+### Resource
 
-**What this means narratively:** Some people hit natural ceilings — the genius factor. Marcus's Unbound Affinity means he doesn't have that ceiling, but the increase is random. His growth is unpredictable rather than constrained.
+A capacity pool such as HP, Mana, Stamina, or Reserve. Detailed formulas, regen, caps, crash states, and Reserve buffering live in `resource_system.md`.
 
-**Spell Skill Mastery (per discipline).** Separate from a skill's affinity (the *chance* it levels) and its raw level, each magical discipline carries a **mastery tier** (Novice → Divine) granting escalating Spell Strength and resistance bonuses. Affinity is the dice; mastery is the payoff; the full ladder lives in `mechanics.md`. Marcus's Meszkhal +100% skill XP just means he climbs it twice as fast — when he can afford the mana.
+Quick current pools:
 
-### Insight — the baseline read-skill
+```text
+HP      = survivability / immediate bodily integrity under damage
+Mana    = usable magical fuel and magical nervous-system tolerance
+Stamina = physical exertion capacity
+Reserve = deep strain tolerance: interface load, overuse buffering, organ stress, soul/metaphysical strain
+```
+
+### Skill Affinity
+
+Skill Affinity is a progression mechanic, not a power type.
+
+- A skill has XP.
+- When skill XP reaches 100% for the current level, Skill Affinity is the chance that the skill actually levels.
+- On ordinary success, Skill Affinity decreases by an amount tied to natural aptitude.
+- On failure, XP resets while Skill Affinity remains.
+- Marcus's **Unbound Affinity** inverts this: Skill Affinity increases on successful level-up.
+
+### Domain
+
+Domain means power expression/source category: Fire, Water, Shadow, Death, Psychic, Planar, Celestial, and so on.
+
+**Do not use Affinity to mean Domain.**
+
+Domain taxonomy currently lives in `classes.md` and will eventually be expanded in `power_expression.md`.
+
+### Class
+
+Class is the Realm recognizing a repeated method of becoming.
+
+- **Base Class = method**
+- **Specialization = refined role**
+- **Domain = power expression/source**
+- **Skill Affinity = progression aptitude**
+- **Legendary / Mythic / Unique titles = rare evolved expressions, recognitions, mutations, or states**
+
+Full taxonomy lives in `classes.md`.
+
+---
+
+## 4. Resource Summary
+
+The current resource owner is `resource_system.md`.
+
+Core current formula shape:
+
+```text
+FinalResource =
+(BaseResource + AttributeResource + FeatureResource)
+× RaceMod
+× ConditionMod
+```
+
+For Reserve:
+
+```text
+FinalReserve =
+(BaseReserve + AttributeReserve + FeatureReserve)
+× SoulMultiplier
+× RaceReserveMod
+× ConditionReserveMod
+```
+
+Class influence no longer uses bonus attribute point cadence. Class influence comes through class attribute profiles/multipliers and class feature/resource rules owned by `classes.md` and resolved in `resource_system.md`.
+
+### Attribute pool shorthand
+
+Current base formulas before species, class multipliers, conditions, and special features:
+
+```text
+AttributeHP      = 6CON + 2END + 2STR
+AttributeMana    = 6INT + 3WIS + CHA
+AttributeStamina = 5END + 2CON + STR + AGI + DEX
+AttributeReserve = 2CON + 2END + 2WIS + FAI + OCC
+```
+
+Luck feeds no base pool. It tilts unresolved margins and should never make impossible outcomes happen.
+
+---
+
+## 5. Insight — Baseline Read Skill
 
 > `Congratulations! You have learned the skill: Insight. Cost: 5 Mana. Focus on a being to discern available information.`
 
-The load-bearing phrase is **available information** — Insight is *not* omniscience. At low level it resolves only what the interface currently can, and surfaces `????` for the rest:
+The load-bearing phrase is **available information**.
 
-```
+Insight is not omniscience. At low level it may reveal only the categories the interface can parse and show `????` for the rest.
+
+Example:
+
+```text
 Name: ????
 Level: ????
 Health: 1,890 / 1,890
@@ -95,118 +224,161 @@ Stamina: ????
 Race: Human
 ```
 
-As it levels it may reveal condition, injuries, emotional state, resistances, class, affiliations, active effects — but never automatically everything important. Blocked names, hidden classes, disguised races, appraisal-resistance, and over-level targets all read as `????`. This preserves mystery and keeps wrong interpretation possible. Marcus **learns Insight before the mindscape**, so he carries a read into it. (Distinct from the Eyes: Insight is the cheap baseline; the Meszkhal item is the expensive interpretive overlay.)
+As Insight improves it may reveal condition, injuries, emotional state, resistances, class, affiliations, active effects, hidden resource strain, or threat category. It does not automatically reveal true names, hidden classes, disguised species, or every important fact.
 
-### Levels
+Insight can succeed partially by revealing one exact useful category rather than vague information about everything.
 
-Levels exist. Their specific mechanical meaning is deliberately vague in early story — Marcus doesn't know what level 50 means relative to level 200, and the interface can't always tell him what level something is. This is a feature, not a gap. The uncertainty keeps the Realm dangerous.
-
-What levels represent thematically: accumulated experience with the Realm's underlying systems. A level 1 Marcus has been here for days. A level ??? archdemon has existed across planes for centuries. The gap is not primarily about numbers.
-
-### Health, Mana, and Stamina
-
-Real costs in this world. Losing health hurts. Going to zero means death — and death in the Realm is different from logging out; Marcus knows this now from direct experience. Mana and stamina depletion have real effects on capability and cognition.
-
-The interface displays these as bars and numbers. The body feels them as exhaustion, pain, mental fog, and diminishing returns on everything.
+Full future expansion belongs in `perception_information.md`.
 
 ---
 
-## The Class System
+## 6. Levels and Growth
 
-Full taxonomy lives in `classes.md`; the tier ladders for spells, items, gems, skill-mastery, and souls live in `mechanics.md`. The class model and the rules that matter in prose:
+Levels exist. Their exact meaning remains deliberately incomplete early because Marcus does not yet understand the Realm's scale.
 
-- **Base class = method** (Warrior, Fighter, Mage, Rogue, Scout, Adventurer, Psion…) — *how* a person solves problems.
-- **Specialization = refined role** (Reaver, Trickster, Troubleshooter…) — earned through behavior, not selected.
-- **Affinity = power domain** (Fire, Shadow, Gravity, Aether…) — flavors the class.
-- **Legendary / Mythic / Unique titles = rare evolved expressions** (Riftwalker, Aetherist, one-of-one breach classes) — outcomes, not professions.
+Levels represent accumulated integration with the Realm's underlying systems. A level 1 arrival is barely integrated. A level ??? archdemon or cosmic being has existed through orders of magnitude more pressure, practice, metaphysical weight, and world interaction.
 
-Classes are **earned, not chosen.** The interface may *label* something early, but the class is shaped by what a person actually does; specializations unlock progressively as it develops.
+### Attribute growth
 
-### Class Tiers
+Detailed growth currently lives in `resource_system.md`.
 
-Seven rarity tiers — and rarity sets cost, not just prestige:
+Current lock:
 
-| Tier | What it is | In the world |
-|---|---|---|
-| Common | The civilization layer | Every village has Warriors, Fighters, Healers, Artisans, Adventurers |
-| Uncommon | Needs training or unusual aptitude | Known, but not in every hamlet |
-| Rare | Culturally significant | A kingdom may hold only a handful (Psion, Binder, Oracle, Soulkeeper) |
-| Exceptional | Known but noteworthy | Many people may never meet one |
-| Legendary | Evolved, institution-level | Named in histories (Riftwalker, Archmage) |
-| Mythic | Principle-scale | Spoken of like myth (Aetherist, Name-Eater) |
-| Unique | One-of-one | Tied to artifacts, gods, breaches, world-events |
+- Humans gain **4 free attribute points per level** and have no forced allocation.
+- Specialized species may receive forced/favored growth plus fewer free points.
+- Exotic/powerful species may receive more total growth but less freedom.
+- Class rarity does **not** grant bonus attribute point cadence.
 
-**The cost rule (load-bearing for Marcus).** The rarer the class, the **more XP it takes to level** *and* **the more energy its signature abilities demand.** A rare or legendary class is not a free power-up handed to a low-level character — it is a heavier engine than their body can yet fuel.
+### Class rarity
 
-> **Worked example — Marcus.** His Mage class upgrades to **Riftwalker** (Legendary) late in Book 1 when a Realm Walker recruits him. Plane/world/distance-crossing is the marquee Riftwalker ability — and at ~level 20 he cannot afford its energy cost, while the class now levels slower than a common one. He owns a power he can't use. That gap is the engine of his progression into Book 2 — by design, not a flaw in the build.
+Class rarity still matters through cost, not bonus points.
+
+Rarity ladder:
+
+```text
+Common → Uncommon → Rare → Exceptional → Legendary → Mythic → Unique
+```
+
+Rarer classes cost more XP to level and demand more energy from signature abilities. A rare or legendary class is a heavier engine, not a free stat fountain.
 
 ---
 
-## Marcus's Specific Abilities
+## 7. Class System Summary
+
+Full taxonomy lives in `classes.md`.
+
+Agent rules:
+
+- Do not add a new base class if it is really a domain-shaped title.
+- Do not add a specialization if it is really a base method.
+- Do not use class rarity to hand out bonus attribute points.
+- Do use class profiles to identify **Prime Attributes** and **Core Attributes**.
+- Do treat Legendary/Mythic/Unique as rare outcomes, recognitions, states, or evolved expressions.
+
+### Class attribute multipliers
+
+Classes may define multipliers for class-relevant attributes:
+
+```text
+Prime Attribute   = strongest class resonance
+Core Attribute    = important support resonance
+Secondary         = usable but not defining
+Neutral           = ordinary effect
+Dissonant         = only if explicitly locked
+```
+
+Default values and class profiles live in `classes.md`; resource application lives in `resource_system.md`.
+
+---
+
+## 8. Marcus's Specific Abilities
 
 ### Unbound Affinity
+
 *Passive — always active*
 
-Affinities for skills increase instead of decrease upon leveling. The amount of increase is random.
+Skill Affinities increase instead of decrease upon successful level-up. The increase is random.
 
-**Narrative meaning:** Marcus doesn't cap out the way most people do. His growth is unpredictable and slightly chaotic — sometimes a big jump, sometimes a small one. He cannot plan his development the way a more linearly-progressing character could. This is consistent with his character: a systems thinker who has to deal with a system that won't be fully systematized.
+Narrative meaning: Marcus does not hit natural ceilings the way most people do, but his growth is unpredictable rather than cleanly planned.
 
 ### The Eyes — Two Separate Systems
 
-Marcus has two distinct ocular systems; **never conflate them** (full detail in `mc.md`):
+Marcus has two distinct ocular systems. Never conflate them.
 
-**Eyes of Meszkhal — _Unique item_** (archdemon Xazzidiuk's gift; Item Rarity **Unique**, see `mechanics.md`).
-*Active — costs **20 mana** to activate, then **1% of maximum mana per second** while sustained (at 50 mana ≈ 0.5/sec; ~60s fully drains him). See `mechanics.md` / `mc.md` for the cost curve, the physical damage progression, and the visible-activation tells.*
-By actively watching combat actions, Marcus absorbs the muscle memory required to replicate them; **skill experience +100% while active** (it accelerates his climb up the skill-mastery ladder). The item also *interprets* — collapsing ambiguity into one confident, demon-biased verdict that can be wrong. It bills in **mana**, so it competes with his casting.
+#### Eyes of Meszkhal — Unique item
 
-**Neurochromatic Eyes — _interface_** (emergent, biological; six stages → Prism Coherence / Prism Fracture).
-*Perception only, and accurate.* Reallocates perceptual/cognitive bandwidth by emotional state; creates no power. Bills in **the body** — its ocular cost is the Eyes-specific face of the general **Reserve** resource (full resource / regen / depletion / buffer model in `resource_system.md`) — not mana. **Current stage:** Stage 1 (Limbal Shift). Full stage breakdown in `mc.md`. Whether it ever echoes the item's copycat/XP power (weaker or stronger) is **undecided**.
+The Eyes of Meszkhal are an external Unique item gifted by Xazzidiuk. They are not Marcus's interface.
 
-**Narrative meaning:** he sees patterns, he sees too much — his flaw is *accurate perception paired with flawed interpretation.* The interface sees true; the item supplies the confident, sometimes-false conclusion.
+- Costs Mana.
+- Copies/accelerates observed combat learning.
+- Grants +100% skill XP while active.
+- Interprets ambiguity through a demon-biased certainty overlay that can be wrong.
+- Competes with Marcus's casting because it bills in Mana.
+
+#### Neurochromatic Eyes — interface
+
+The Neurochromatic Eyes are Marcus's emergent biological/metaphysical interface.
+
+- Perception only.
+- Accurate within what they can actually perceive.
+- Creates no power by itself.
+- Bills in the body/Reserve strain rather than Mana.
+- Its danger is not false sight, but accurate perception paired with flawed interpretation.
+
+Full stage breakdown belongs in Marcus's character file and `interface_abstraction.md` when that scaffold matures.
 
 ---
 
-## Notification Formatting
+## 9. Notification Formatting
 
-See `style/system_message_rules.md` for complete formatting spec. Summary:
+Complete formatting belongs in `style/system_message_rules.md`.
 
-- Standard: `[ SYSTEM ]` — three lines max
-- Warning: `[ WARNING ]` — three lines max
-- Ability change: `[ INTERFACE ]` — four lines max
-- Stat panel: boxed — early story only, deliberate consultation only
-- Ayla: `[ AYLA ]` — her register, not the system's
+Summary:
 
-**The interface is never excited.** No exclamation points. No dramatic flair. It is functional. The drama is in the prose around it, not the notification itself.
+- Standard: `[ SYSTEM ]` — three lines max.
+- Warning: `[ WARNING ]` — three lines max.
+- Ability change: `[ INTERFACE ]` — four lines max.
+- Stat panel: boxed — early story only, deliberate consultation only.
+- Ayla: `[ AYLA ]` — her register, not the system's.
+
+The interface is never excited. No exclamation points. No dramatic flair. The drama belongs in the prose around the notification.
 
 ---
 
-## What the System Cannot Do
+## 10. What the Interface Cannot Do
 
 The interface cannot:
-- Classify something it has never encountered before
-- Accurately render N'hal entities — they damage the conditions that make classification possible
-- Access true names — these exist below the layer the implant reads
-- Override Marcus's instincts when his instincts are wrong
-- Tell him what a number means in context — it can give him the stat, not the wisdom to interpret it
+
+- Classify something it has never encountered before.
+- Accurately render N'hal entities.
+- Access true names by default.
+- Tell Marcus what a number means in social, tactical, or moral context.
+- Override Marcus's instincts when his instincts are wrong.
+- Turn partial data into wisdom.
 
 The interface sometimes:
-- Mistranslates a Realm concept into an Earth framework that doesn't quite fit
-- Produces a warning with no actionable information
-- Goes silent at a critical moment
-- Displays something that looks like an error but isn't
 
-**When the interface fails or goes silent, that is a story event.** Marcus has encountered something outside the implant's model of the Realm. This is always significant.
+- Mistranslates a Realm concept into an Earth framework.
+- Produces a warning with no actionable information.
+- Goes silent at a critical moment.
+- Displays something that looks like an error but is really a category failure.
+
+When the interface fails or goes silent, that is a story event.
 
 ---
 
-## The Naming System
+## 11. Naming System
 
-True names are metaphysically dangerous — resistance is governed by **Soul Level** (`mechanics.md`): **any soul can be bound or overwritten in principle; Soul Level governs the difficulty and cost, not whether it's possible** — low/average souls are cheap and routine (what the namebinding faction preys on), high souls prohibitively costly, and the top tiers (Brilliant → Absolute) approach but never quite reach true immunity. This keeps "Absolute = near-immutable identity" intact. The interface enforces this:
-- His **public name** ("Marcus," full **Marcus Vye**) is safe to speak openly — it is *not* his true name. He keeps it in the Realm; he does **not** take an alias.
-- His **true name** is separate and hidden, sitting *below* the layer the implant reads (his status shows `????` there, never "Marcus") — that is the name that could bind or overwrite him if spoken.
-- Ayla's warning is absolute: never say your true name — the hidden one, not "Marcus."
+True names are metaphysically dangerous. Resistance is governed by Soul Level in `mechanics.md`.
 
-The distinction, in Ayla's words:
+Any soul can be bound or overwritten in principle. Soul Level governs difficulty and cost, not a yes/no immunity switch. Low and average souls are cheap and routine. High souls are prohibitively costly. The top tiers approach but never reach practical immunity.
+
+- Marcus's public name, **Marcus Vye**, is safe to speak.
+- His hidden true name is separate and must not be casually assigned.
+- The interface cannot read true names by default.
+- Ayla's warning means never reveal the hidden true name, not never say "Marcus."
+
+Ayla's distinction:
 
 > **Marcus:** "You're saying I shouldn't tell people my name?"
 >
@@ -220,26 +392,42 @@ The distinction, in Ayla's words:
 >
 > **Ayla:** "You are using the vocabulary of a species that names pets and sandwiches. The distinction is important."
 
-**Narrative use:** True names are a later-story tool. The danger established early becomes plot-relevant when something needs his true name to do what it does. Do not assign casually. Track in `unresolved_character_threads.md` when it becomes relevant.
+---
+
+## 12. Expansion Rules for Agents
+
+When adding a mechanic:
+
+1. Identify the taxonomy field first.
+2. Check the owner file.
+3. If no owner exists, use the scaffold.
+4. Define what the mechanic owns and what it explicitly does not own.
+5. Add cross-references instead of duplicating formulas.
+6. Preserve terminology firewalls:
+   - Affinity ≠ Domain.
+   - Interface ≠ Class.
+   - HP ≠ Injury.
+   - Soul Level ≠ combat level.
+   - Item Quality ≠ Item Rarity.
+   - Spell Strength ≠ Spell Skill Mastery.
+   - Aether ≠ ordinary domain.
+   - Frost/Poison/Arcane ≠ domains.
+7. Prefer placeholders over fake precision.
+8. Do not add class bonus attribute cadence.
 
 ---
 
-## Progression Philosophy
+## 13. Progression Philosophy
 
-Marcus's progression should feel earned through reasoning and cost, not granted through power spikes.
+Progression should feel earned through reasoning and cost, not delivered as a prize for reaching a checkpoint.
 
-His victories come from:
-- Finding the leverage point in a system
-- Using what he observes through the Eyes
-- Accepting the cost of what the interface demands
-- The gap between what the interface tells him and what he figures out himself
+Victories come from:
 
-His growth is not linear. Unbound Affinity means some skills jump unexpectedly. The Eyes mean he can develop certain abilities faster than his level would suggest — but only if he's actively watching and learning. Progress has a price: the ocular reserve, the mana cost, the risk of false certainty.
+- Finding leverage points.
+- Understanding what the interface can and cannot tell him.
+- Accepting real costs.
+- Using skills under pressure.
+- Translating numbers back into bodily, social, and tactical reality.
+- Learning when the interface is compressing too much.
 
-**The rule:** every significant progression moment should cost something real or require something genuinely clever. Nothing should feel like a reward delivered by the story for reaching a checkpoint.
-
----
-
-*Cross-reference: `style/system_message_rules.md` for notification formatting. `characters/major/mc.md` for Marcus's full ability progression.*
-
-*Last updated: working draft — change history in `CHANGELOG.md`.*
+**Rule:** every significant progression moment should cost something real, require something genuinely clever, or force a meaningful change in identity, relationship, body, or capacity.
