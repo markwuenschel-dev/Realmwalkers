@@ -12,7 +12,8 @@ import type { Token } from "../prose";
 import type { Marker } from "../types";
 import { applyAcceptedSuggestions, sceneLabel, statValue, wordCount } from "../lib/format";
 import { buildSceneMarkdown, downloadMarkdown, sceneMarkdownFilename } from "../lib/sceneMarkdown";
-import type { CritiqueOut, DecisionKind } from "../api/types";
+import { api } from "../api/client";
+import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus } from "../api/types";
 
 const KEEP_BTN =
   "flex:1;padding:8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:11.5px;cursor:pointer";
@@ -45,6 +46,7 @@ export default function SceneScreen() {
   const params = useParams<{ sceneId?: string }>();
   const focusSceneId = params.sceneId ?? null;
   const [committing, setCommitting] = useState(false);
+  const [stagesOpen, setStagesOpen] = useState(false); // draft-attempt provenance expander
   // selection toolbar + inline markup composer (replace the old window.prompt flows)
   const [sel, setSel] = useState<{ text: string; x: number; y: number } | null>(null);
   const [composer, setComposer] = useState<{
@@ -482,6 +484,7 @@ export default function SceneScreen() {
             >
               ● {cur.status.replace(/_/g, " ")}
             </span>
+            <LengthBadge status={cur.length_status} wordCount={cur.word_count} />
           </div>
         </div>
         <div
@@ -525,6 +528,16 @@ export default function SceneScreen() {
           </span>
           <span style={css("opacity:.4")}>·</span>
           <span
+            onClick={() => setStagesOpen((v) => !v)}
+            title="Preserved prose stages: raw draft → enrichment → length guard → final"
+            style={css(
+              "cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)",
+            )}
+          >
+            stages {stagesOpen ? "▴" : "▾"}
+          </span>
+          <span style={css("opacity:.4")}>·</span>
+          <span
             onClick={() =>
               downloadMarkdown(
                 sceneMarkdownFilename(cur, chapter),
@@ -540,6 +553,8 @@ export default function SceneScreen() {
           </span>
         </div>
       </div>
+
+      {stagesOpen && <StagesPanel sceneId={cur.id} />}
 
       {focused && cur.status !== "pending_review" && (
         <div
@@ -1361,5 +1376,102 @@ function MarkupComposer({
         </div>
       </div>
     </>
+  );
+}
+
+// --- length budget badge + draft-attempt provenance (scene-packet contract system) ---
+
+const LENGTH_META: Record<string, { label: string; tone: string }> = {
+  within_budget: { label: "within budget", tone: "--good" },
+  under_min: { label: "under min", tone: "--warn" },
+  over_max: { label: "over max", tone: "--warn" },
+  over_hard_max_compressed: { label: "compressed", tone: "--info" },
+  over_hard_max_quarantined: { label: "over hard max", tone: "--bad" },
+};
+
+function LengthBadge({
+  status,
+  wordCount: wc,
+}: {
+  status?: LengthStatus | string | null;
+  wordCount?: number | null;
+}) {
+  if (!status) return null;
+  const meta = LENGTH_META[status] ?? { label: String(status).replace(/_/g, " "), tone: "--dim" };
+  return (
+    <span
+      style={css(
+        `display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(${meta.tone});background:color-mix(in srgb,var(${meta.tone}) 12%,transparent);border:1px solid color-mix(in srgb,var(${meta.tone}) 38%,transparent);border-radius:999px;padding:4px 11px`,
+      )}
+      title="How the draft's length landed against its ScenePacket word budget"
+    >
+      {meta.label}
+      {wc != null ? ` · ${wc}w` : ""}
+    </span>
+  );
+}
+
+// The preserved prose stages for this scene (raw draft → enrichment passes → length guard → final),
+// so a compression/expansion or an enrichment pass is auditable. Fetched lazily on first open.
+function StagesPanel({ sceneId }: { sceneId: string }) {
+  const [stages, setStages] = useState<DraftAttemptOut[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setStages(null);
+    setError(null);
+    api
+      .draftAttempts(sceneId)
+      .then((s) => alive && setStages(s))
+      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      alive = false;
+    };
+  }, [sceneId]);
+
+  return (
+    <div
+      style={css(
+        "margin-bottom:16px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 14px",
+      )}
+    >
+      <div
+        style={css(
+          "font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:9px",
+        )}
+      >
+        Draft stages · provenance
+      </div>
+      {error && <div style={css("font-size:12px;color:var(--bad)")}>{error}</div>}
+      {!stages && !error && (
+        <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>loading…</div>
+      )}
+      {stages && stages.length === 0 && (
+        <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
+          No recorded stages (drafted before provenance tracking).
+        </div>
+      )}
+      {stages && stages.length > 0 && (
+        <div style={css("display:flex;flex-direction:column;gap:5px")}>
+          {stages.map((s) => (
+            <div
+              key={s.id}
+              style={css(
+                "display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-size:11.5px",
+              )}
+            >
+              <span style={css("color:var(--ink);min-width:170px")}>
+                {s.stage.replace(/_/g, " ")}
+              </span>
+              <span style={css("color:var(--dim)")}>
+                {s.word_count != null ? `${s.word_count}w` : "—"}
+                {s.model ? ` · ${s.model}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

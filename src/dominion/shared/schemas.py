@@ -281,6 +281,17 @@ class SceneVersionOut(SceneOut):
     agent_original: str | None = None
 
 
+class DraftAttemptOut(_ORM):
+    """One preserved stage of a scene's prose pipeline (provenance: raw → enrichment → length → final)."""
+    id: uuid.UUID
+    stage: str
+    word_count: int | None = None
+    model: str | None = None
+    prose: str | None = None
+    metadata_json: dict[str, Any] | None = None
+    created_at: datetime
+
+
 class ManuscriptScene(BaseModel):
     scene_no: int
     prose: str | None = None

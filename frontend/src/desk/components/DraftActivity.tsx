@@ -71,8 +71,15 @@ export function DraftPill() {
           {active?.phase ? <span style={css("color:var(--info)")}> · {active.phase}</span> : null}
         </span>
         {elapsed && <span style={css("color:var(--dim)")}>{elapsed}</span>}
+        <CacheBadge ratio={active?.cache_hit_ratio} />
         {jobs.queued > 0 && <span style={css("color:var(--dim)")}>+{jobs.queued}</span>}
       </span>
+    );
+  }
+  // Idle but with a recent scene's cache result — keep it visible in the top bar, not just the Inbox.
+  if (jobs.last_cache_hit_ratio != null) {
+    return (
+      <CacheBadge ratio={jobs.last_cache_hit_ratio} savedTokens={jobs.last_cache_tokens_saved} />
     );
   }
   if (jobs.queued > 0) {

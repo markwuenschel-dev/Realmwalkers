@@ -7,6 +7,7 @@ import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { Spinner, formatElapsed } from "../components/DraftActivity";
+import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
 import type {
   PacketBody,
   PacketClaim,
@@ -344,11 +345,17 @@ export default function PacketsScreen() {
                 `font-family:var(--mono);font-size:11.5px;color:var(${CONFIDENCE_VAR.green})`,
               )}
             >
-              {packet.body?.scene_seeds?.length ?? 0} scene contract
-              {(packet.body?.scene_seeds?.length ?? 0) === 1 ? "" : "s"} now scope the drafter.
+              {packet.body?.scene_seeds?.length ?? 0} scene seed
+              {(packet.body?.scene_seeds?.length ?? 0) === 1 ? "" : "s"} — derive scene packets
+              below.
             </span>
           )}
         </div>
+      )}
+
+      {/* Scene packets: the scene-local contract, available once the chapter packet is approved. */}
+      {!loading && packet && !editing && packet.status === "approved" && chapterId && (
+        <ScenePacketsPanel chapterId={chapterId} />
       )}
     </div>
   );

@@ -14,13 +14,21 @@ from dominion.shared.models import (
     Chapter,
     CharacterState,
     Critique,
+    DraftAttempt,
     Job,
     PovProfile,
     Scene,
     Suggestion,
     Summary,
 )
-from dominion.shared.schemas import CritiqueOut, ExemplarIn, SceneDetail, SceneOut, SceneVersionOut
+from dominion.shared.schemas import (
+    CritiqueOut,
+    DraftAttemptOut,
+    ExemplarIn,
+    SceneDetail,
+    SceneOut,
+    SceneVersionOut,
+)
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 
@@ -101,6 +109,18 @@ async def set_exemplar(
     profile.exemplar_scene_ids = ids or None
     await session.commit()
     return {"scene": str(scene_id), "is_exemplar": body.enabled}
+
+
+@router.get("/{scene_id}/draft-attempts", response_model=list[DraftAttemptOut])
+async def scene_draft_attempts(scene_id: uuid.UUID, session: SessionDep) -> list[DraftAttempt]:
+    """Provenance: every preserved stage of this scene's prose pipeline (raw draft, each enrichment
+    pass, length compress/expand, final rendered), oldest first."""
+    rows = (await session.execute(
+        select(DraftAttempt)
+        .where(DraftAttempt.scene_id == scene_id)
+        .order_by(DraftAttempt.created_at)
+    )).scalars().all()
+    return list(rows)
 
 
 @router.get("/{scene_id}/versions", response_model=list[SceneVersionOut])

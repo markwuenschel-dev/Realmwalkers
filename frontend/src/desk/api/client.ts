@@ -21,15 +21,18 @@ import type {
   DecisionIn,
   DocDetail,
   DocMeta,
+  DraftAttemptOut,
   DraftNextOut,
   FailedJobOut,
   JobsStatusOut,
+  KnowledgeFactOut,
   ManuscriptOut,
   ModelSettingOut,
   ModelSettingsOut,
   PacketOut,
   PacketProposeOut,
   PacketUpdateIn,
+  PacketWarnings,
   RetryFailedOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
@@ -37,6 +40,9 @@ import type {
   RunStartOut,
   SceneDetail,
   SceneOut,
+  ScenePacketDeriveStatusOut,
+  ScenePacketOut,
+  ScenePacketUpdateIn,
   SceneVersionOut,
   SuggestionIn,
   SuggestionOut,
@@ -155,6 +161,41 @@ export const api = {
     http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "PUT", body: JSON.stringify(body) }),
   approvePacket: (chapterId: string) =>
     http<PacketOut>(`/chapters/${chapterId}/packet/approve`, { method: "POST" }),
+
+  // --- scene packets (scene-local contract; derive runs Author+QA per scene in the background) -----
+  scenePackets: (chapterId: string) =>
+    http<ScenePacketOut[]>(`/chapters/${chapterId}/scene-packets`),
+  deriveScenePackets: (chapterId: string) =>
+    http<ScenePacketDeriveStatusOut>(`/chapters/${chapterId}/scene-packets/derive`, {
+      method: "POST",
+    }),
+  deriveStatus: (chapterId: string) =>
+    http<ScenePacketDeriveStatusOut>(`/chapters/${chapterId}/scene-packets/derive/status`),
+  updateScenePacket: (id: string, body: ScenePacketUpdateIn) =>
+    http<ScenePacketOut>(`/scene-packets/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  qaScenePacket: (id: string) =>
+    http<{ packet_id: string; verdict: string; warnings: PacketWarnings | null }>(
+      `/scene-packets/${id}/qa`,
+      { method: "POST" },
+    ),
+  approveScenePacket: (id: string) =>
+    http<ScenePacketOut>(`/scene-packets/${id}/approve`, { method: "POST" }),
+  approveScenePackets: (chapterId: string, packetIds?: string[]) =>
+    http<ScenePacketOut[]>(`/chapters/${chapterId}/scene-packets/approve`, {
+      method: "POST",
+      body: JSON.stringify({ packet_ids: packetIds ?? null }),
+    }),
+  markScenePacketsStale: (chapterId: string, packetIds?: string[]) =>
+    http<ScenePacketOut[]>(`/chapters/${chapterId}/scene-packets/mark-stale`, {
+      method: "POST",
+      body: JSON.stringify({ packet_ids: packetIds ?? null }),
+    }),
+
+  // --- draft-attempt provenance (preserved prose stages for a scene) ------------------------------
+  draftAttempts: (sceneId: string) => http<DraftAttemptOut[]>(`/scenes/${sceneId}/draft-attempts`),
+
+  // --- knowledge ledger ---------------------------------------------------------------------------
+  knowledge: (bookId: string) => http<KnowledgeFactOut[]>(`/books/${bookId}/knowledge`),
 
   // --- canon / planning / style docs (read-only Domain-B markdown) --------------------------------
   // route is /library (not /docs — FastAPI serves Swagger UI at /docs).
