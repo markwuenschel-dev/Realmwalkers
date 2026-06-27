@@ -237,6 +237,34 @@ async def test_derive_blocks_on_thin_body(db_factory, monkeypatch):
         assert row.status == ScenePacketStatus.BLOCKED
 
 
+async def test_derive_gives_each_scene_its_own_budget(db_factory, monkeypatch):
+    """Regression: deriving a multi-scene chapter must NOT share one per-scene token budget across all
+    scenes. The bug exhausted a single shared budget after the first scene (its QA call tipped it over),
+    then every later author call started already-over-budget and failed closed — surfacing as "QA
+    returned no usable verdict" on scene 1 and "author returned an incomplete body" on scenes 2+."""
+    from dominion.workers.budget import Usage
+
+    async def charging_author(*, budget, **kw):
+        budget.charge(Usage(input_tokens=0, output_tokens=20_000))
+        return _scene_body()
+
+    async def charging_qa(_b, *, budget, **kw):
+        budget.charge(Usage(input_tokens=0, output_tokens=10_000))
+        return {"verdict": ScenePacketVerdict.APPROVE, "residual_risks": [], "issues": []}
+
+    monkeypatch.setattr(sp_author, "author_scene_packet", charging_author)
+    monkeypatch.setattr(sp_qa, "qa_scene_packet", charging_qa)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        seeds = [_seed(str(uuid.uuid4()), scene_no=i) for i in range(1, 4)]  # three scenes
+        cp = await _approved_chapter_packet(s, book, ch, seeds)
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        # 30k spent per scene < the 40k per-scene budget -> all three proposed, none starved.
+        # (Summed across 3 scenes that's 90k, well over a single shared 40k — the bug this guards.)
+        assert counts["created"] == 3
+        assert counts["blocked"] == 0
+
+
 # --- beat derivation + approval gate (router) ------------------------------------------------------
 
 async def test_approve_scene_packet_derives_beat(db_factory, monkeypatch):

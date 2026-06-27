@@ -24,6 +24,27 @@ from dominion.workers.memory.owner_router import _RULES
 _PASSAGE_KIND = "passage"
 _TARGET_CHARS = 1000
 
+# Top-level folder under series/canon → the CanonEntity.kind ingested chunks get tagged with, so the
+# ledger groups them into real categories instead of one "passage" pile. `kind` is display/organization
+# only — retrieval (retrieve/retrieve_hybrid) never filters on it. Character docs route to "cast" (a
+# browsable category) rather than "character", which is reserved for the hand-authored stat-description
+# rows the Characters tab resolves by name. Unmapped folders / root-level docs fall back to "lore".
+_KIND_BY_FOLDER: dict[str, str] = {
+    "characters": "cast",
+    "factions": "faction",
+    "locations": "location",
+    "litrpg_system": "system",
+    "world": "lore",
+    "continuity": "continuity",
+}
+_DEFAULT_INGEST_KIND = "lore"
+
+
+def _kind_for(doc_path: str) -> str:
+    """Map a chunk's relative doc_path to its display kind by top-level folder."""
+    top = doc_path.split("/", 1)[0] if "/" in doc_path else ""
+    return _KIND_BY_FOLDER.get(top, _DEFAULT_INGEST_KIND)
+
 # Filename → owner topic / source priority. Owner files (relationship invariants, cast, mechanics, …)
 # get a high source_priority so the reranker keeps them above generic passages. Built from the owner
 # routing rules so the two never drift.
@@ -159,21 +180,29 @@ async def ingest_path(
 
 
 async def ingest_incremental(
-    session: AsyncSession, *, book_id: uuid.UUID, root: str | Path, kind: str = _PASSAGE_KIND
+    session: AsyncSession, *, book_id: uuid.UUID, root: str | Path, kind: str | None = None
 ) -> dict[str, int]:
     """Incrementally (re)build canon chunks with provenance + content hashing (RAG upgrade).
 
     Walks .md/.txt under root, chunks by heading, computes a content_hash per chunk, and:
+      * tags each chunk's `kind` from its top-level folder (_kind_for) so the ledger groups them —
+        unless `kind` is given, which forces a single kind (back-compat / a single-purpose corpus);
       * skips a chunk whose (doc_path, heading_path, content_hash, embedding_version) already exists;
       * embeds + inserts changed/new chunks with doc_path/heading_path/owner_topic/source_priority;
       * retires chunks whose (doc_path, heading_path) no longer appears on disk.
+
+    Ingested rows are identified by a non-null `doc_path`, so a rebuild replaces/retires only
+    previously-ingested chunks and NEVER touches hand-authored canon entities (which have doc_path
+    NULL) — even now that ingested chunks carry real kinds like "faction"/"location".
     Returns {indexed, skipped, retired}. The caller commits.
     """
     root = Path(root)
     existing = {
         (r.doc_path, r.heading_path, r.content_hash): r
         for r in (await session.execute(
-            select(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.kind == kind)
+            select(CanonEntity).where(
+                CanonEntity.book_id == book_id, CanonEntity.doc_path.isnot(None)
+            )
         )).scalars()
     }
     seen_keys: set[tuple[str | None, str | None]] = set()
@@ -184,6 +213,7 @@ async def ingest_incremental(
         if not path.is_file() or path.suffix.lower() not in {".md", ".markdown", ".txt"}:
             continue
         doc_path = str(path.relative_to(root)).replace("\\", "/")
+        row_kind = kind or _kind_for(doc_path)
         owner_topic, priority = _owner_meta(path)
         for heading_path, chunk in _chunk_by_heading(path.read_text(encoding="utf-8")):
             chash = _content_hash(chunk)
@@ -195,7 +225,7 @@ async def ingest_incremental(
                 skipped += 1
                 continue
             session.add(CanonEntity(
-                book_id=book_id, kind=kind, name=path.stem, body=chunk, embedding=embed(chunk),
+                book_id=book_id, kind=row_kind, name=path.stem, body=chunk, embedding=embed(chunk),
                 doc_path=doc_path, heading_path=heading_path or None, owner_topic=owner_topic,
                 source_priority=priority, content_hash=chash,
                 embedding_model=settings.embedding_model, embedding_version=version,

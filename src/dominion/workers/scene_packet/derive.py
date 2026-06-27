@@ -117,7 +117,12 @@ async def derive_scene_packets(
     if not seeds:
         return counts
 
-    budget = budget or TokenBudget(max_tokens=settings.scene_token_budget)
+    # Each scene's Author+QA pair gets its own token budget so deriving a whole chapter doesn't share
+    # one per-scene ceiling across N scenes (which exhausted after the first scene or two: the QA call
+    # tipped it over, then every later author call started already-over-budget and failed closed —
+    # surfacing as "QA returned no usable verdict" on scene 1 and "incomplete body" on the rest). A
+    # caller that passes an explicit budget keeps the shared semantics (it's bounding the whole run).
+    external_budget = budget
     chapter_target, chapter_max = _chapter_targets(body, seeds)
     budgets = length_planner.plan_word_budgets(
         chapter_target_words=chapter_target, chapter_max_words=chapter_max,
@@ -146,6 +151,8 @@ async def derive_scene_packets(
         scene_no = seed["scene_no"] if isinstance(seed.get("scene_no"), int) else 0
         scene_no = int(scene_no)
         word_budget = budgets.get(str(seed_id), {})
+        # Fresh per-scene budget unless the caller bounded the whole run with an explicit one.
+        seed_budget = external_budget or TokenBudget(max_tokens=settings.scene_token_budget)
 
         prior_keys = await _prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
         src_hash = hash_mod.source_hash(
@@ -173,7 +180,7 @@ async def derive_scene_packets(
                 pov=pov or "", chapter_packet_body=body, scene_seed=seed, word_budget=word_budget,
                 pov_summary=pov_summary, omniscient_summary=omniscient,
                 owner_snippets=owner_snips or None, canon_snippets=canon or None,
-                budget=budget,
+                budget=seed_budget,
             )
         except Exception as exc:  # noqa: BLE001 — any author failure fails this scene closed
             log.error("scene_packet.author_failed", seed=str(seed_id), error=str(exc))
@@ -183,7 +190,7 @@ async def derive_scene_packets(
         if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
             try:
                 qa = await qa_mod.qa_scene_packet(
-                    scene_body, chapter_packet_body=body, budget=budget
+                    scene_body, chapter_packet_body=body, budget=seed_budget
                 )
             except Exception as exc:  # noqa: BLE001
                 log.error("scene_packet.qa_failed", seed=str(seed_id), error=str(exc))

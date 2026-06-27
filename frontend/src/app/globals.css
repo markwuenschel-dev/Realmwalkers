@@ -76,16 +76,32 @@ select:focus {
   outline: none;
 }
 
+/* Scrollbars: keep them visible. The thumb uses --dim (the muted-text token) rather than --line
+   (the border token), which is nearly indistinguishable from the panel backgrounds; the track gets a
+   faint themed tint so the gutter reads even when there's nothing to scroll past. The border insets
+   the thumb so it looks like a rounded pill rather than a full-width block. Firefox ignores the
+   ::-webkit- pseudo-elements, so it gets scrollbar-width/scrollbar-color instead. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dim) var(--bg3);
+}
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: var(--dim);
   border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink);
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--bg3);
+  border-radius: 8px;
 }
 
 /* --- print: book-typography PDF via the browser's "Save as PDF" (no deps) ------------------------
