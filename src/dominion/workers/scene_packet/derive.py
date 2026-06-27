@@ -13,7 +13,9 @@ contract. The word budget comes from the deterministic Length Planner, never the
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 import structlog
@@ -35,6 +37,56 @@ log = structlog.get_logger()
 
 _DEFAULT_SCENE_TARGET = 1500
 _CANON_K = 6
+
+
+@dataclass
+class _SceneWork:
+    """One scene's fully-assembled inputs, gathered serially (Phase 1) so the concurrent Author+QA
+    fan-out (Phase 2) never touches the shared AsyncSession."""
+    seed: dict[str, Any]
+    seed_id: uuid.UUID
+    scene_no: int
+    word_budget: dict[str, Any]
+    src_hash: str
+    row: ScenePacket | None
+    owner_snippets: list[str]
+    canon_snippets: list[str]
+    budget: TokenBudget
+
+
+async def _author_then_qa(
+    item: _SceneWork,
+    *,
+    chapter_packet_body: dict[str, Any],
+    pov: str,
+    pov_summary: str | None,
+    omniscient_summary: str | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """One scene's Author then QA. QA reads the author's output, so the two stay ordered; only
+    different scenes run concurrently. Fails CLOSED: any author/QA error returns a None in the slot
+    that makes `_status_for` block the packet, never raising into the gather."""
+    try:
+        scene_body = await author_mod.author_scene_packet(
+            pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=item.seed,
+            word_budget=item.word_budget, pov_summary=pov_summary,
+            omniscient_summary=omniscient_summary,
+            owner_snippets=item.owner_snippets or None, canon_snippets=item.canon_snippets or None,
+            budget=item.budget,
+        )
+    except Exception as exc:  # noqa: BLE001 — any author failure fails this scene closed
+        log.error("scene_packet.author_failed", seed=str(item.seed_id), error=str(exc))
+        scene_body = None
+
+    qa: dict[str, Any] | None = None
+    if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
+        try:
+            qa = await qa_mod.qa_scene_packet(
+                scene_body, chapter_packet_body=chapter_packet_body, budget=item.budget
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.error("scene_packet.qa_failed", seed=str(item.seed_id), error=str(exc))
+            qa = None
+    return scene_body, qa
 
 
 def _as_str_list(value: Any) -> list[str]:
@@ -143,16 +195,16 @@ async def derive_scene_packets(
     pov = await _chapter_pov(session, packet.chapter_id)
     pov_summary = await _pov_summary(session, book_id=packet.book_id, pov=pov) if pov else None
 
+    # ---- Phase 1 (serial, DB): assemble each scene's inputs. The shared AsyncSession is not safe for
+    # concurrent use, so every DB read (prior-scene keys, hybrid retrieval) is done here, up front.
+    work: list[_SceneWork] = []
     for seed in seeds:
         try:
             seed_id = uuid.UUID(str(seed["seed_id"]))
         except (ValueError, AttributeError, TypeError):
             continue
-        scene_no = seed["scene_no"] if isinstance(seed.get("scene_no"), int) else 0
-        scene_no = int(scene_no)
+        scene_no = int(seed["scene_no"]) if isinstance(seed.get("scene_no"), int) else 0
         word_budget = budgets.get(str(seed_id), {})
-        # Fresh per-scene budget unless the caller bounded the whole run with an explicit one.
-        seed_budget = external_budget or TokenBudget(max_tokens=settings.scene_token_budget)
 
         prior_keys = await _prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
         src_hash = hash_mod.source_hash(
@@ -173,29 +225,31 @@ async def derive_scene_packets(
             session, book_id=packet.book_id, query=query,
             owner_topics=routing.owner_topics, required_doc_paths=routing.doc_paths, k=_CANON_K,
         )
-        owner_snips = [s["body"] for s in snippets if s["retrieval_reason"] == "owner_forced"]
-        canon = [s["body"] for s in snippets if s["retrieval_reason"] != "owner_forced"]
-        try:
-            scene_body = await author_mod.author_scene_packet(
-                pov=pov or "", chapter_packet_body=body, scene_seed=seed, word_budget=word_budget,
+        work.append(_SceneWork(
+            seed=seed, seed_id=seed_id, scene_no=scene_no, word_budget=word_budget,
+            src_hash=src_hash, row=row,
+            owner_snippets=[s["body"] for s in snippets if s["retrieval_reason"] == "owner_forced"],
+            canon_snippets=[s["body"] for s in snippets if s["retrieval_reason"] != "owner_forced"],
+            # Fresh per-scene budget unless the caller bounded the whole run with one explicit budget.
+            budget=external_budget or TokenBudget(max_tokens=settings.scene_token_budget),
+        ))
+
+    # ---- Phase 2 (concurrent, LLM only): the scenes are independent, so their Author+QA pairs fan out
+    # under a concurrency cap. No DB access happens here (each task only touches its own _SceneWork).
+    sem = asyncio.Semaphore(max(1, settings.scene_packet_concurrency))
+
+    async def _run(item: _SceneWork) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        async with sem:
+            return await _author_then_qa(
+                item, chapter_packet_body=body, pov=pov or "",
                 pov_summary=pov_summary, omniscient_summary=omniscient,
-                owner_snippets=owner_snips or None, canon_snippets=canon or None,
-                budget=seed_budget,
             )
-        except Exception as exc:  # noqa: BLE001 — any author failure fails this scene closed
-            log.error("scene_packet.author_failed", seed=str(seed_id), error=str(exc))
-            scene_body = None
 
-        qa: dict[str, Any] | None = None
-        if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
-            try:
-                qa = await qa_mod.qa_scene_packet(
-                    scene_body, chapter_packet_body=body, budget=seed_budget
-                )
-            except Exception as exc:  # noqa: BLE001
-                log.error("scene_packet.qa_failed", seed=str(seed_id), error=str(exc))
-                qa = None
+    results = await asyncio.gather(*(_run(item) for item in work))
 
+    # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
+    # scene's freshly-derived packet, so the write order doesn't change any result.
+    for item, (scene_body, qa) in zip(work, results):
         status, blocked_reason = _status_for(scene_body, qa)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         qa_warnings = (
@@ -203,22 +257,23 @@ async def derive_scene_packets(
             else {"residual_risks": [], "blocked_reason": blocked_reason}
         )
 
+        row = item.row
         if row is None:
             row = ScenePacket(
                 book_id=packet.book_id, chapter_id=packet.chapter_id,
-                chapter_packet_id=packet.id, scene_seed_id=seed_id, scene_no=scene_no,
+                chapter_packet_id=packet.id, scene_seed_id=item.seed_id, scene_no=item.scene_no,
             )
             session.add(row)
             counts["created"] += 1
         else:
             counts["updated"] += 1
         row.chapter_packet_id = packet.id
-        row.scene_no = scene_no
+        row.scene_no = item.scene_no
         row.status = status
         row.qa_verdict = qa["verdict"] if qa else ScenePacketVerdict.BLOCK_DRAFTING
         row.qa_warnings = qa_warnings
         row.body = persisted_body
-        row.source_hash = src_hash
+        row.source_hash = item.src_hash
         row.stale_reason = None
         if status == ScenePacketStatus.BLOCKED:
             counts["blocked"] += 1
