@@ -56,22 +56,37 @@ _SCHEMA_HINT = (
 )
 
 
+def build_prefix(
+    *,
+    chapter_packet_body: dict[str, Any],
+    pov_summary: str | None = None,
+    omniscient_summary: str | None = None,
+) -> str:
+    """The chapter-wide context that is IDENTICAL across every scene of the chapter, sent as a cached
+    block so scenes 2..N read it instead of re-paying for it. Everything scene-specific lives in
+    build_prompt below the cache breakpoint."""
+    parts = ["APPROVED CHAPTER PACKET (chapter-wide authority):\n"
+             + json.dumps(chapter_packet_body, ensure_ascii=False, indent=2)]
+    if pov_summary:
+        parts.append(f"What this POV knows so far:\n{pov_summary}")
+    if omniscient_summary:
+        parts.append(f"Story so far (all viewpoints):\n{omniscient_summary}")
+    return "\n\n".join(parts)
+
+
 def build_prompt(
     *,
     pov: str,
-    chapter_packet_body: dict[str, Any],
     scene_seed: dict[str, Any],
     word_budget: dict[str, Any],
     prior_scene_summaries: list[str] | None = None,
     prior_exit_state: str | None = None,
-    pov_summary: str | None = None,
-    omniscient_summary: str | None = None,
     owner_snippets: list[str] | None = None,
     canon_snippets: list[str] | None = None,
 ) -> str:
+    """The scene-specific part of the prompt (varies per scene, so it is NOT cached). The chapter-wide
+    authority and summaries are sent ahead of this as the cached prefix (build_prefix)."""
     parts: list[str] = [f"POV: {pov}"]
-    parts.append("APPROVED CHAPTER PACKET (chapter-wide authority):\n"
-                 + json.dumps(chapter_packet_body, ensure_ascii=False, indent=2))
     parts.append("THIS SCENE'S SEED:\n" + json.dumps(scene_seed, ensure_ascii=False, indent=2))
     parts.append("WORD BUDGET (use verbatim):\n" + json.dumps(word_budget, ensure_ascii=False, indent=2))
     if prior_exit_state:
@@ -79,10 +94,6 @@ def build_prompt(
     if prior_scene_summaries:
         parts.append("Prior approved scenes (summaries):\n"
                      + "\n".join(f"- {s}" for s in prior_scene_summaries))
-    if pov_summary:
-        parts.append(f"What this POV knows so far:\n{pov_summary}")
-    if omniscient_summary:
-        parts.append(f"Story so far (all viewpoints):\n{omniscient_summary}")
     if owner_snippets:
         parts.append("OWNER FILES (authority over retrieved snippets):\n"
                      + "\n\n".join(owner_snippets))
@@ -111,16 +122,17 @@ async def author_scene_packet(
     raw, _usage = await llm.complete(
         model=settings.scene_packet_author_model,
         system=_SYSTEM,
+        user_prefix=build_prefix(
+            chapter_packet_body=chapter_packet_body,
+            pov_summary=pov_summary, omniscient_summary=omniscient_summary,
+        ),
         user=build_prompt(
-            pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=scene_seed,
-            word_budget=word_budget, prior_scene_summaries=prior_scene_summaries,
-            prior_exit_state=prior_exit_state, pov_summary=pov_summary,
-            omniscient_summary=omniscient_summary, owner_snippets=owner_snippets,
-            canon_snippets=canon_snippets,
+            pov=pov, scene_seed=scene_seed, word_budget=word_budget,
+            prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
+            owner_snippets=owner_snippets, canon_snippets=canon_snippets,
         ),
         max_tokens=_AUTHOR_MAX_TOKENS,
         budget=budget,
-        expect_cache=False,
     )
     body = extract_object(raw)
     if isinstance(body, dict):

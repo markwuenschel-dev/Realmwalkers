@@ -36,13 +36,17 @@ _SYSTEM = (
 )
 
 
-def build_prompt(scene_packet: dict[str, Any], *, chapter_packet_body: dict[str, Any] | None) -> str:
-    parts = ["Attack this scene packet and return your verdict.\n"]
-    if chapter_packet_body:
-        parts.append("CHAPTER PACKET (the macro authority it must not contradict):\n"
-                     + json.dumps(chapter_packet_body, ensure_ascii=False, indent=2))
-    parts.append("SCENE PACKET:\n" + json.dumps(scene_packet, ensure_ascii=False, indent=2))
-    return "\n\n".join(parts)
+def build_prefix(chapter_packet_body: dict[str, Any] | None) -> str | None:
+    """The chapter packet is identical across every scene's QA, so it rides ahead as a cached block."""
+    if not chapter_packet_body:
+        return None
+    return ("CHAPTER PACKET (the macro authority it must not contradict):\n"
+            + json.dumps(chapter_packet_body, ensure_ascii=False, indent=2))
+
+
+def build_prompt(scene_packet: dict[str, Any]) -> str:
+    return ("Attack this scene packet and return your verdict.\n\n"
+            "SCENE PACKET:\n" + json.dumps(scene_packet, ensure_ascii=False, indent=2))
 
 
 async def qa_scene_packet(
@@ -55,7 +59,8 @@ async def qa_scene_packet(
     raw, _usage = await llm.complete(
         model=settings.scene_packet_qa_model,
         system=_SYSTEM,
-        user=build_prompt(scene_packet, chapter_packet_body=chapter_packet_body),
+        user_prefix=build_prefix(chapter_packet_body),
+        user=build_prompt(scene_packet),
         max_tokens=_QA_MAX_TOKENS,
         budget=budget,
         expect_cache=False,

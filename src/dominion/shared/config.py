@@ -52,10 +52,16 @@ class Settings(BaseSettings):
     packet_auto_approve_green: bool = False
 
     # Scene-packet contract system. The ScenePacket builder localizes the approved ChapterPacket into
-    # one scene's reader/POV/reveal/word contract; QA attacks each one. Builder rides Sonnet (it shapes
-    # the contract every later writer obeys), QA rides Haiku (a checker, like packet_qa_model).
-    scene_packet_author_model: str = "claude-sonnet-4-6"
+    # one scene's reader/POV/reveal/word contract; QA attacks each one. Both default to Haiku: unlike
+    # the once-per-chapter ChapterPacket author, these run ONCE PER SCENE (~12+ calls/chapter), so the
+    # per-call latency/cost dominates the run. Both are exposed in the models tab (settings ROLES), so
+    # bump the author to Sonnet there for a chapter that needs a richer contract.
+    scene_packet_author_model: str = "claude-haiku-4-5"
     scene_packet_qa_model: str = "claude-haiku-4-5"
+    # Scene packets are independent per scene, so their Author+QA pairs run concurrently (DB reads and
+    # writes stay serial; only the LLM calls fan out). Bounds in-flight scenes so a wide chapter can't
+    # spike rate limits. Author->QA within a scene stays sequential (QA reads the author's output).
+    scene_packet_concurrency: int = 5
     # Length guard rewrites (compress/expand) are targeted edits on an existing draft, so they ride the
     # cheap/fast Haiku tier like the enrichment passes — never the main draft model.
     length_compress_model: str = "claude-haiku-4-5"

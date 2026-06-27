@@ -35,9 +35,27 @@ async def test_get_models_lists_roles_and_tiers(db_factory):
     async with db_factory() as s:
         out = await settings_router.get_models(s)
         keys = {a.setting for a in out.agents}
-        assert {"draft_model", "review_model", "enrich_model", "packet_author_model", "packet_qa_model"} <= keys
+        assert {
+            "draft_model", "review_model", "enrich_model", "packet_author_model", "packet_qa_model",
+            "scene_packet_author_model", "scene_packet_qa_model",  # per-scene contract stage
+        } <= keys
         assert out.tiers["opus"] == "claude-opus-4-8"
         assert out.tiers["haiku"] == "claude-haiku-4-5"
+
+
+async def test_scene_packet_author_model_is_settable_from_tab(db_factory):
+    """Regression: the per-scene Author/QA stage was hardwired to its config default and absent from the
+    models tab, so picking Haiku there never reached it. It must now be a real, switchable role."""
+    original = cfg.scene_packet_author_model
+    try:
+        async with db_factory() as s:
+            out = await settings_router.set_model(
+                ModelSettingUpdateIn(setting="scene_packet_author_model", tier="sonnet"), s,
+            )
+            assert out.model == "claude-sonnet-4-6"
+            assert cfg.scene_packet_author_model == "claude-sonnet-4-6"   # live mutation reaches the stage
+    finally:
+        cfg.scene_packet_author_model = original
 
 
 async def test_set_model_rejects_unknown_setting_or_tier(db_factory):
