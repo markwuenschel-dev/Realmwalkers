@@ -21,6 +21,24 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS title TEXT",
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS scene_seed_id UUID",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_error TEXT",
+    # Scene-packet contract system: new nullable links + per-scene fields. New tables
+    # (scene_packets, draft_attempts) are provisioned by create_all.
+    "ALTER TABLE beats ADD COLUMN IF NOT EXISTS scene_packet_id UUID",
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS book_id UUID",
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS chapter_id UUID",
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS beat_id UUID",
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS scene_packet_id UUID",
+    "ALTER TABLE scenes ADD COLUMN IF NOT EXISTS scene_packet_id UUID",
+    "ALTER TABLE scenes ADD COLUMN IF NOT EXISTS word_count INTEGER",
+    "ALTER TABLE scenes ADD COLUMN IF NOT EXISTS length_status TEXT",
+    "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS scene_packet_id UUID",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS doc_path TEXT",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS heading_path TEXT",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS owner_topic TEXT",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS source_priority INTEGER",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS content_hash TEXT",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS embedding_model TEXT",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS embedding_version TEXT",
 )
 
 

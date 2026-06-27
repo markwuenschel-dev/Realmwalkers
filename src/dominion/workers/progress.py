@@ -19,11 +19,11 @@ from typing import TypedDict
 _phases: dict[str, tuple[str, float]] = {}
 
 # job_id -> cache stats while the job is still RUNNING (cleared with phases on job completion).
-_cache_stats: dict[str, "CacheStats"] = {}
+_cache_stats: dict[str, CacheStats] = {}
 
 # The most recent completed scene's cache stats — persists until the next job starts so the Desk
 # can display it during the idle window after drafting completes.
-_last_cache: "CacheStats | None" = None
+_last_cache: CacheStats | None = None
 
 
 class CacheStats(TypedDict):
@@ -84,7 +84,7 @@ def set_cache_stats(
         pass
 
 
-def get_cache_stats(job_id: str | None) -> "CacheStats | None":
+def get_cache_stats(job_id: str | None) -> CacheStats | None:
     """Cache stats for a currently-running job, or None if not yet recorded."""
     if not job_id:
         return None
@@ -94,7 +94,7 @@ def get_cache_stats(job_id: str | None) -> "CacheStats | None":
         return None
 
 
-def get_last_cache() -> "CacheStats | None":
+def get_last_cache() -> CacheStats | None:
     """Cache stats for the most recently completed scene — available during idle windows."""
     return _last_cache
 

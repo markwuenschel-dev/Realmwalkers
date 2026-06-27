@@ -1,0 +1,429 @@
+"""Scene-packet contract system: planner, length guard, derivation, beats, routing, context.
+
+Pure helpers run without a DB; the rest hit real Postgres (skip if unreachable) with the LLM agents
+mocked — mirrors tests/test_packet_pipeline.py (router/worker functions called directly with a session).
+"""
+from __future__ import annotations
+
+import uuid
+from typing import Any
+
+import pytest
+from fastapi import HTTPException
+from sqlalchemy import select
+
+from dominion.api.routers import scene_packets as sp_router
+from dominion.shared.config import settings
+from dominion.shared.enums import LengthStatus, ScenePacketStatus, ScenePacketVerdict
+from dominion.shared.models import (
+    Beat,
+    Book,
+    Chapter,
+    ChapterPacket,
+    DraftAttempt,
+    Job,
+    ScenePacket,
+)
+from dominion.workers.budget import TokenBudget
+from dominion.workers.context import ScenePacketRequiredError, assemble_context
+from dominion.workers.length import guard as guard_mod
+from dominion.workers.length import planner as planner_mod
+from dominion.workers.scene_packet import author as sp_author
+from dominion.workers.scene_packet import derive as sp_derive
+from dominion.workers.scene_packet import hash as sp_hash
+from dominion.workers.scene_packet import qa as sp_qa
+
+# --- length planner (pure) ------------------------------------------------------------------------
+
+def _seed(seed_id: str, **kw: Any) -> dict[str, Any]:
+    return {"seed_id": seed_id, "scene_no": kw.pop("scene_no", 1), **kw}
+
+
+def test_planner_targets_sum_close_to_chapter_target():
+    seeds = [_seed("11111111-1111-1111-1111-111111111111", scene_type="bridge", scene_no=1),
+             _seed("22222222-2222-2222-2222-222222222222", scene_type="combat", scene_no=2),
+             _seed("33333333-3333-3333-3333-333333333333", scene_type="dialogue", scene_no=3)]
+    budgets = planner_mod.plan_word_budgets(
+        chapter_target_words=9000, chapter_max_words=None, scene_seeds=seeds
+    )
+    assert abs(sum(b["target"] for b in budgets.values()) - 9000) <= 3  # rounding only
+
+
+def test_planner_combat_outweighs_bridge_and_emits_hard_max_and_priorities():
+    bridge = _seed("11111111-1111-1111-1111-111111111111", scene_type="bridge")
+    combat = _seed("22222222-2222-2222-2222-222222222222", scene_type="combat")
+    budgets = planner_mod.plan_word_budgets(
+        chapter_target_words=6000, chapter_max_words=None, scene_seeds=[bridge, combat]
+    )
+    b = budgets[bridge["seed_id"]]
+    c = budgets[combat["seed_id"]]
+    assert c["target"] > b["target"]                       # combat earns more page-space
+    assert b["hard_max"] > 0 and b["compression_priority"] # full budget emitted
+
+
+def test_planner_manual_budget_overrides_allocation():
+    manual = _seed("11111111-1111-1111-1111-111111111111", word_budget={"target": 2222})
+    auto = _seed("22222222-2222-2222-2222-222222222222", scene_type="dialogue")
+    budgets = planner_mod.plan_word_budgets(
+        chapter_target_words=8000, chapter_max_words=None, scene_seeds=[manual, auto]
+    )
+    assert budgets[manual["seed_id"]]["target"] == 2222
+
+
+def test_planner_must_not_spend_from_forbidden():
+    seed = _seed("11111111-1111-1111-1111-111111111111", forbidden_reveals=["the twist"])
+    budgets = planner_mod.plan_word_budgets(
+        chapter_target_words=2000, chapter_max_words=None, scene_seeds=[seed]
+    )
+    mns = budgets[seed["seed_id"]]["must_not_spend_words_on"]
+    assert any("the twist" in m for m in mns)
+
+
+# --- length guard ---------------------------------------------------------------------------------
+
+_BUDGET = {"min": 700, "target": 1000, "max": 1350, "hard_max": 1600}
+
+
+async def _noop(prose, **kw):
+    return prose
+
+
+def test_guard_counts_words():
+    assert guard_mod.count_words("one two three") == 3
+    assert guard_mod.count_words("") == 0
+
+
+async def test_guard_within_budget_passes():
+    r = await guard_mod.apply_length_guard(
+        "word " * 1000, word_budget=_BUDGET, scene_contract={},
+        budget=TokenBudget(max_tokens=100000), compress=_noop, expand=_noop,
+    )
+    assert r.length_status == LengthStatus.WITHIN_BUDGET and not r.stages
+
+
+async def test_guard_over_hard_max_compresses():
+    async def shrink(prose, **kw):
+        return "word " * 900
+    r = await guard_mod.apply_length_guard(
+        "word " * 5000, word_budget=_BUDGET, scene_contract={},
+        budget=TokenBudget(max_tokens=100000), compress=shrink, expand=_noop,
+    )
+    assert r.word_count == 900
+    assert [s.stage for s in r.stages] == ["length_compression"]
+    assert not r.quarantine
+
+
+async def test_guard_still_over_hard_max_quarantines():
+    async def still_big(prose, **kw):
+        return "word " * 5000
+    r = await guard_mod.apply_length_guard(
+        "word " * 6000, word_budget=_BUDGET, scene_contract={},
+        budget=TokenBudget(max_tokens=100000), compress=still_big, expand=_noop,
+    )
+    assert r.length_status == LengthStatus.OVER_HARD_MAX_QUARANTINED and r.quarantine
+
+
+async def test_guard_under_min_no_expand_unless_configured(monkeypatch):
+    # ~80% of min is under but not skeletal, and auto-expand is off -> INFO, no rewrite.
+    monkeypatch.setattr(settings, "length_auto_expand_under_min", False)
+    r = await guard_mod.apply_length_guard(
+        "word " * 600, word_budget=_BUDGET, scene_contract={},
+        budget=TokenBudget(max_tokens=100000), compress=_noop, expand=_noop,
+    )
+    assert r.length_status == LengthStatus.UNDER_MIN and not r.stages
+
+
+# --- source hash (staleness) ----------------------------------------------------------------------
+
+def test_source_hash_is_stable_and_input_sensitive():
+    base = dict(chapter_packet_id="cp", chapter_packet_body={"a": 1}, scene_seed={"s": 1},
+                chapter_word_budget={"target": 1000})
+    assert sp_hash.source_hash(**base) == sp_hash.source_hash(**base)
+    changed = {**base, "scene_seed": {"s": 2}}
+    assert sp_hash.source_hash(**changed) != sp_hash.source_hash(**base)
+
+
+# --- DB helpers -----------------------------------------------------------------------------------
+
+async def _seed_book_chapter(s) -> tuple[Book, Chapter]:
+    book = Book(title="X")
+    s.add(book)
+    await s.flush()
+    ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus", outline="o")
+    s.add(ch)
+    await s.flush()
+    return book, ch
+
+
+async def _approved_chapter_packet(s, book, ch, seeds: list[dict[str, Any]]) -> ChapterPacket:
+    cp = ChapterPacket(
+        book_id=book.id, chapter_id=ch.id, status="approved", confidence="green",
+        body={"scene_seeds": seeds, "characters_present": ["Marcus", "Serra"],
+              "characters_absent": ["Eriadne"], "canon_locks": ["the Realm is real"]},
+        open_questions={"items": []},
+    )
+    s.add(cp)
+    await s.flush()
+    return cp
+
+
+def _scene_body(word_budget: dict[str, Any] | None = None) -> dict[str, Any]:
+    mole = "Serra is the mole"
+    return {
+        "scene_no": 1, "scene_job": "Marcus intercepts.", "scene_type": "combat",
+        "word_budget": word_budget or {"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400},
+        "known_before_scene": {"reader": ["the route"], "pov": ["the route"], "omniscient_author": [mole]},
+        "learned_during_scene": {
+            "reader_must_learn": ["the cohort is converging"],
+            "reader_may_learn": [], "reader_may_infer_only": [],
+        },
+        "must_remain_hidden": {"reader": [mole], "pov": [], "all_surface_prose": []},
+        "pov_permissions": {
+            "may_notice": [], "may_infer": [], "must_not_know": [mole], "may_be_wrong_about": [],
+        },
+        "intentional_mysteries": [
+            {"mystery": "who tipped the cohort", "desired_reader_effect": "unease", "do_not_explain": True},
+        ],
+        "reviewer_false_positive_traps": ["the missing tip source is intentional"],
+        "required_beats": ["land the hit"], "forbidden_beats": ["Marcus uses his Aspect"],
+        "exit_state": "both wounded", "phrases_to_avoid_echoing": ["reader must learn"],
+        "reviewer_instructions": {"combat": ["track stamina"], "continuity": []},
+    }
+
+
+def _patch_scene_agents(monkeypatch, body, verdict=ScenePacketVerdict.APPROVE):
+    async def fake_author(**kw):
+        return dict(body)
+
+    async def fake_qa(_b, **kw):
+        return {"verdict": verdict, "residual_risks": [], "issues": []}
+
+    monkeypatch.setattr(sp_author, "author_scene_packet", fake_author)
+    monkeypatch.setattr(sp_qa, "qa_scene_packet", fake_qa)
+
+
+# --- derivation -----------------------------------------------------------------------------------
+
+async def test_derive_creates_one_scene_packet_per_seed(db_factory, monkeypatch):
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        sid = str(uuid.uuid4())
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(sid, scene_no=1, scene_type="combat")])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.flush()
+        assert counts["created"] == 1
+        rows = (await s.execute(select(ScenePacket).where(ScenePacket.chapter_id == ch.id))).scalars().all()
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.status == ScenePacketStatus.PROPOSED
+        assert row.source_hash                                   # staleness anchor recorded
+        assert row.body["word_budget"]["target"] == 1500         # planner budget folded in
+        assert "known_before_scene" in row.body
+
+
+async def test_derive_blocks_on_thin_body(db_factory, monkeypatch):
+    async def thin(**kw):
+        return {"scene_no": 1}  # missing required contract sections
+
+    monkeypatch.setattr(sp_author, "author_scene_packet", thin)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        sid = str(uuid.uuid4())
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(sid)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        assert counts["blocked"] == 1
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.BLOCKED
+
+
+# --- beat derivation + approval gate (router) ------------------------------------------------------
+
+async def test_approve_scene_packet_derives_beat(db_factory, monkeypatch):
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        sid = str(uuid.uuid4())
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(sid, scene_type="combat")])
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        sp = (await s.execute(select(ScenePacket))).scalars().one()
+
+        await sp_router.approve_scene_packet(sp.id, s)
+        beats = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert len(beats) == 1
+        beat = beats[0]
+        assert beat.scene_packet_id == sp.id
+        assert beat.target_words == 1500                          # mirrors word_budget.target
+        assert beat.tags == ["combat"]
+        assert beat.characters_present == ["Marcus", "Serra"]     # chapter cast minus absent
+        # hard constraints are NOT copied onto the beat
+        assert not hasattr(beat, "must_remain_hidden")
+        assert "must_remain_hidden" not in (beat.beat_text or "")
+
+
+async def test_beats_rederive_idempotent_and_prune_keeps_drafted(db_factory):
+    from dominion.shared.models import Scene
+    from dominion.workers.scene_packet import beats as beats_mod
+
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp1 = ScenePacket(book_id=book.id, chapter_id=ch.id, chapter_packet_id=cp.id, scene_no=1,
+                          status=ScenePacketStatus.APPROVED, body=_scene_body(), source_hash="h1")
+        sp2 = ScenePacket(book_id=book.id, chapter_id=ch.id, chapter_packet_id=cp.id, scene_no=2,
+                          status=ScenePacketStatus.APPROVED, body=_scene_body(), source_hash="h2")
+        s.add_all([sp1, sp2])
+        await s.flush()
+
+        assert await beats_mod.derive_beats(s, chapter_id=ch.id) == 2
+        await s.flush()
+        first = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert len(first) == 2
+        ids = {b.scene_packet_id: b.id for b in first}
+
+        # re-derive: same packets -> updated in place, no duplicates
+        assert await beats_mod.derive_beats(s, chapter_id=ch.id) == 2
+        await s.flush()
+        again = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert len(again) == 2 and {b.id for b in again} == set(ids.values())
+
+        # scene 2 drafted; un-approve both packets -> scene-1 beat pruned, scene-2 beat kept
+        s.add(Scene(chapter_id=ch.id, scene_no=2, status="pending_review", prose="drafted"))
+        sp1.status = sp2.status = ScenePacketStatus.PROPOSED
+        await s.flush()
+        assert await beats_mod.derive_beats(s, chapter_id=ch.id) == 0
+        await s.flush()
+        remaining = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert [b.scene_no for b in remaining] == [2]
+
+
+async def test_blocked_scene_packet_cannot_be_approved(db_factory, monkeypatch):
+    async def thin(**kw):
+        return {"scene_no": 1}
+
+    monkeypatch.setattr(sp_author, "author_scene_packet", thin)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        sp = (await s.execute(select(ScenePacket))).scalars().one()
+        with pytest.raises(HTTPException) as exc:
+            await sp_router.approve_scene_packet(sp.id, s)
+        assert exc.value.status_code == 409
+
+
+# --- context assembly requires an approved scene packet --------------------------------------------
+
+async def _approved_scene_packet_with_beat(s, book, ch, cp) -> tuple[ScenePacket, Beat]:
+    sp = ScenePacket(
+        book_id=book.id, chapter_id=ch.id, chapter_packet_id=cp.id, scene_seed_id=uuid.uuid4(),
+        scene_no=1, status=ScenePacketStatus.APPROVED, qa_verdict=ScenePacketVerdict.APPROVE,
+        body=_scene_body(), source_hash="h",
+    )
+    s.add(sp)
+    await s.flush()
+    beat = Beat(chapter_id=ch.id, scene_packet_id=sp.id, scene_no=1, status="approved",
+                characters_present=["Marcus"], beat_text="Marcus intercepts.", target_words=1500)
+    s.add(beat)
+    await s.flush()
+    return sp, beat
+
+
+async def test_assemble_context_loads_scene_contract_without_run_id(db_factory):
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp, beat = await _approved_scene_packet_with_beat(s, book, ch, cp)
+        job = Job(kind="draft", status="queued", token_budget=40000,
+                  book_id=book.id, chapter_id=ch.id, beat_id=beat.id, scene_packet_id=sp.id)
+        s.add(job)
+        await s.flush()
+
+        ctx = await assemble_context(s, job)
+        assert ctx.scene_packet_id == sp.id
+        assert ctx.scene_contract and ctx.reader_state_contract and ctx.word_budget
+        assert ctx.word_budget["target"] == 1500
+        assert ctx.reviewer_contract["forbidden_beats"] == ["Marcus uses his Aspect"]
+        # flat drafter contract carries scene reveal rules + chapter locks
+        assert "Serra is the mole" in ctx.contract["forbidden_reveals"]
+        assert ctx.contract["canon_locks"] == ["the Realm is real"]
+
+
+async def test_assemble_context_fails_closed_on_unapproved_scene_packet(db_factory):
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp = ScenePacket(book_id=book.id, chapter_id=ch.id, chapter_packet_id=cp.id, scene_no=1,
+                         status=ScenePacketStatus.PROPOSED, body=_scene_body(), source_hash="h")
+        s.add(sp)
+        await s.flush()
+        beat = Beat(chapter_id=ch.id, scene_packet_id=sp.id, scene_no=1, status="approved")
+        s.add(beat)
+        await s.flush()
+        job = Job(kind="draft", status="queued", token_budget=40000,
+                  book_id=book.id, chapter_id=ch.id, beat_id=beat.id, scene_packet_id=sp.id)
+        s.add(job)
+        await s.flush()
+        with pytest.raises(ScenePacketRequiredError):
+            await assemble_context(s, job)
+
+
+# --- pipeline integration: provenance + length + scene-packet stamping -----------------------------
+
+async def test_pipeline_records_draft_attempts_and_scene_packet_fields(db_factory, monkeypatch):
+    from dominion.workers import pipeline
+    from dominion.workers.specialists import drafter as drafter_mod
+
+    async def fake_draft(self, prose, ctx):
+        return "word " * 1500  # within the 1500-target budget
+
+    monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
+    monkeypatch.setattr(pipeline, "reviewers_for", lambda tags: [])
+    monkeypatch.setattr(pipeline, "passes_for", lambda tags: [])
+
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp, beat = await _approved_scene_packet_with_beat(s, book, ch, cp)
+        job = Job(kind="draft", status="queued", token_budget=40000,
+                  book_id=book.id, chapter_id=ch.id, beat_id=beat.id, scene_packet_id=sp.id)
+        s.add(job)
+        await s.commit()
+
+        scene = await pipeline.generate_one_scene(s, job)
+        await s.commit()
+
+        assert scene.scene_packet_id == sp.id
+        assert scene.word_count and scene.length_status == LengthStatus.WITHIN_BUDGET
+        attempts = (await s.execute(
+            select(DraftAttempt).where(DraftAttempt.scene_id == scene.id)
+        )).scalars().all()
+        stages = {a.stage for a in attempts}
+        assert "drafter_raw" in stages and "final_rendered" in stages
+        assert all(a.scene_packet_id == sp.id for a in attempts)
+
+
+# --- staleness ------------------------------------------------------------------------------------
+
+async def test_chapter_packet_edit_marks_scene_packets_stale(db_factory, monkeypatch):
+    from dominion.api.routers import packets as packets_router
+    from dominion.shared.schemas import PacketUpdateIn
+
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        sid = str(uuid.uuid4())
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(sid, scene_type="combat")])
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        sp = (await s.execute(select(ScenePacket))).scalars().one()
+        await sp_router.approve_scene_packet(sp.id, s)
+        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.APPROVED
+
+        # editing the chapter-packet body changes the derived inputs -> scene packet goes stale
+        new_body = dict(cp.body)
+        new_body["canon_locks"] = ["the Realm is real", "a NEW lock"]
+        await packets_router.update_packet(ch.id, PacketUpdateIn(body=new_body), s)
+        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.STALE

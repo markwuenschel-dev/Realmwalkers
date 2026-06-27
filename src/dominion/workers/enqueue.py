@@ -105,6 +105,8 @@ async def enqueue_scene(
 
         job = Job(
             run_id=run.id, kind=JobKind.DRAFT, chapter_no=chapter_no, scene_no=scene_no,
+            book_id=book.id, chapter_id=chapter.id, beat_id=beat.id,
+            scene_packet_id=beat.scene_packet_id,
             token_budget=settings.scene_token_budget, status=JobStatus.QUEUED,
         )
         s.add(job)

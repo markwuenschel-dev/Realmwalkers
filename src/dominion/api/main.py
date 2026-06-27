@@ -28,6 +28,7 @@ from dominion.api.routers import (
     packets,
     reviews,
     runs,
+    scene_packets,
     scenes,
     threads,
     world,
@@ -73,6 +74,7 @@ app.include_router(books.router)
 app.include_router(chapters.router)
 app.include_router(beats.router)
 app.include_router(packets.router)
+app.include_router(scene_packets.router)
 app.include_router(jobs.router)
 app.include_router(world.router)
 app.include_router(threads.router)

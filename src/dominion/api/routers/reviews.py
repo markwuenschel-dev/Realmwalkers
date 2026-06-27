@@ -14,8 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.config import settings
-from dominion.shared.enums import Decision, GateMode, JobKind, JobStatus, SceneStatus
+from dominion.shared.enums import Decision, GateMode, JobStatus, SceneStatus
 from dominion.shared.models import (
     Approval,
     Beat,
@@ -28,6 +27,7 @@ from dominion.shared.models import (
     Scene,
 )
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
+from dominion.workers.job_routing import draft_job_for_beat, revision_job_for_scene
 from dominion.workers.memory import ledger, summaries
 from dominion.workers.stat_render import render_stat_blocks
 
@@ -213,10 +213,7 @@ async def _auto_advance(session: SessionDep, scene: Scene) -> uuid.UUID | None:
     )
     if existing is not None:
         return existing
-    job = Job(
-        run_id=run.id, kind=JobKind.DRAFT, chapter_no=chapter.chapter_no, scene_no=next_no,
-        token_budget=run.token_budget, status=JobStatus.QUEUED,
-    )
+    job = draft_job_for_beat(beat=beat, chapter=chapter, run=run)
     session.add(job)
     await session.flush()
     return job.id
@@ -229,15 +226,8 @@ async def _enqueue_revision(
     if chapter is None:
         return None
     run = await _latest_run(session, chapter.book_id)
-    job = Job(
-        run_id=run.id if run else None,
-        kind=JobKind.REVISE_PASS if target_pass else JobKind.REVISE_FULL,
-        target_scene_id=scene.id,
-        target_pass=target_pass,
-        chapter_no=chapter.chapter_no,
-        scene_no=scene.scene_no,
-        token_budget=run.token_budget if run else settings.scene_token_budget,
-        status=JobStatus.QUEUED,
+    job = await revision_job_for_scene(
+        session, scene=scene, chapter=chapter, run=run, target_pass=target_pass
     )
     session.add(job)
     await session.flush()

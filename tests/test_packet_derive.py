@@ -9,15 +9,14 @@ from typing import Any
 from sqlalchemy import select
 
 from dominion.api.routers import packets
-from dominion.shared.enums import BeatStatus, PacketStatus, PacketVerdict, SceneStatus
-from dominion.shared.models import Beat, Book, Chapter, ChapterPacket, Scene
+from dominion.shared.enums import PacketStatus, PacketVerdict
+from dominion.shared.models import Beat, Book, Chapter, ChapterPacket
 from dominion.shared.schemas import PacketUpdateIn
 from dominion.workers import context as context_mod
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.budget import TokenBudget
 from dominion.workers.context import SceneContext
 from dominion.workers.packet import author as author_mod
-from dominion.workers.packet import derive as derive_mod
 from dominion.workers.packet import qa as qa_mod
 from dominion.workers.specialists.drafter import _beat_prompt, _revise_prompt
 
@@ -75,80 +74,26 @@ def _patch(monkeypatch, body: dict[str, Any]) -> None:
     monkeypatch.setattr(qa_mod, "qa_packet", fake_qa)
 
 
-# --- approval derives beats (end to end through the router) ----------------------------------------
+# --- chapter-packet approval no longer derives beats directly (scene-packet cutover) ---------------
 
-async def test_approve_derives_one_beat_per_seed(db_factory, monkeypatch):
+async def test_chapter_packet_approval_does_not_derive_beats(db_factory, monkeypatch):
+    # Beats now derive from APPROVED ScenePackets, not from chapter-packet scene seeds. Approving the
+    # chapter packet alone must not create beats.
     _patch(monkeypatch, _body(
-        [_seed(1, "Cold open on the anomaly.", scene_type="dialogue", required=["log the anomaly"], target=900),
-         _seed(2, "The duel.", scene_type="combat", required=["Serra strikes"], target=1500,
-               exit_state="both wounded")],
-        characters_present=["Marcus", "Serra"], characters_absent=["Eriadne"],
+        [_seed(1, "Cold open on the anomaly.", scene_type="dialogue", target=900)],
+        characters_present=["Marcus"],
     ))
     async with db_factory() as s:
         ch = await _seed_chapter(s)
         await packet_pipeline.propose_packet(s, chapter=ch)
-        approved = await packets.approve_packet(ch.id, s)
-
-        seed_ids = {sd["seed_id"] for sd in approved.body["scene_seeds"]}
-        beats = (await s.execute(
-            select(Beat).where(Beat.chapter_id == ch.id).order_by(Beat.scene_no)
-        )).scalars().all()
-        assert len(beats) == 2
-        assert {str(b.scene_seed_id) for b in beats} == seed_ids       # linked by the stable seed id
-        b1, b2 = beats
-        assert b1.status == BeatStatus.APPROVED                        # packet approval == gate 1
-        assert "Cold open on the anomaly." in (b1.beat_text or "")
-        assert b1.target_words == 900                                  # from word_budget.target
-        assert b1.tags == ["dialogue"] and b2.tags == ["combat"]       # scene_type routed to lanes
-        assert b1.characters_present == ["Marcus", "Serra"]            # present minus absent
+        await packets.approve_packet(ch.id, s)
+        beats = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert beats == []
 
 
-# --- idempotent re-derive (update in place, no duplicates) -----------------------------------------
-
-async def test_rederive_updates_in_place_no_duplicates(db_factory):
-    async with db_factory() as s:
-        ch = await _seed_chapter(s)
-        sid = str(uuid.uuid4())
-        pkt = await _approved_packet(s, ch, [_seed(1, "First job.", target=800, seed_id=sid)])
-        assert await derive_mod.derive_beats(s, packet=pkt) == 1
-        await s.flush()
-        first = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
-        assert len(first) == 1
-        beat_id = first[0].id
-
-        # same seed_id, edited fields -> the same beat row is updated, not duplicated
-        pkt.body = _body([_seed(1, "Revised job.", target=1200, seed_id=sid)])
-        assert await derive_mod.derive_beats(s, packet=pkt) == 1
-        await s.flush()
-        again = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
-        assert len(again) == 1
-        assert again[0].id == beat_id
-        assert again[0].target_words == 1200
-        assert "Revised job." in (again[0].beat_text or "")
-
-
-# --- prune removed seeds, but never a beat whose scene is already drafted --------------------------
-
-async def test_rederive_prunes_removed_seed_but_keeps_drafted(db_factory):
-    async with db_factory() as s:
-        ch = await _seed_chapter(s)
-        s1, s2 = str(uuid.uuid4()), str(uuid.uuid4())
-        pkt = await _approved_packet(s, ch, [_seed(1, "Scene one.", seed_id=s1), _seed(2, "Scene two.", seed_id=s2)])
-        await derive_mod.derive_beats(s, packet=pkt)
-        await s.flush()
-
-        s.add(Scene(chapter_id=ch.id, scene_no=2, status=SceneStatus.PENDING_REVIEW, prose="drafted"))
-        await s.flush()
-
-        # drop BOTH seeds: scene-1 beat (undrafted) is pruned; scene-2 beat (drafted) is preserved
-        pkt.body = _body([])
-        assert await derive_mod.derive_beats(s, packet=pkt) == 0
-        await s.flush()
-        remaining = (await s.execute(
-            select(Beat).where(Beat.chapter_id == ch.id)
-        )).scalars().all()
-        assert [b.scene_no for b in remaining] == [2]
-        assert str(remaining[0].scene_seed_id) == s2
+# Beat derivation now flows from approved ScenePackets (idempotency + prune-but-keep-drafted are
+# covered in tests/test_scene_packet.py against scene_packet.beats); the old chapter-packet→beat
+# derivation was removed in the scene-packet cutover.
 
 
 # --- seed-id minting on the human-edit path --------------------------------------------------------

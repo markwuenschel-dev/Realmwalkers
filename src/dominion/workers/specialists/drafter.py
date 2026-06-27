@@ -105,11 +105,46 @@ def _contract_block(ctx: SceneContext) -> str | None:
     if not sections:
         return None
     header = (
-        "CONTRACT — obey exactly. This scene is bound by the chapter's approved knowledge packet. "
+        "CONTRACT — obey exactly. This scene is bound by its approved scene packet. "
         "These constraints OVERRIDE the beat and any canon below wherever they conflict; violating one "
-        "is a failed scene, however well-written."
+        "is a failed scene, however well-written. Do NOT echo these contract labels or phrasings into "
+        "the prose — translate every constraint into lived action, perception, dialogue, and consequence."
     )
     return header + "\n\n" + "\n\n".join(sections)
+
+
+def _length_instruction(ctx: SceneContext) -> str | None:
+    """A firm length instruction from the ScenePacket word budget (falls back to target_words)."""
+    wb = ctx.word_budget or {}
+    target = wb.get("target") or ctx.target_words
+    if not target:
+        return None
+    parts = [f"Aim for about {target} words."]
+    if wb.get("max"):
+        parts.append(f"Do not exceed {wb['max']} unless the required beats cannot fit.")
+    if wb.get("hard_max"):
+        parts.append(f"Never exceed {wb['hard_max']}.")
+    mns = [str(m).strip() for m in (wb.get("must_not_spend_words_on") or []) if str(m).strip()]
+    if mns:
+        parts.append("Do not spend words on: " + "; ".join(mns) + ".")
+    if wb.get("compression_priority"):
+        parts.append("If space is tight, compress in this order: "
+                     + " ".join(str(p) for p in wb["compression_priority"]) )
+    return "LENGTH:\n" + " ".join(parts)
+
+
+def _phrase_avoidance(ctx: SceneContext) -> str | None:
+    """Phrases the drafter must not echo into prose, from the scene contract — keeps packet/contract
+    language out of the lived scene."""
+    body = ctx.scene_contract or {}
+    phrases = [str(p).strip() for p in (body.get("phrases_to_avoid_echoing") or []) if str(p).strip()]
+    if not phrases:
+        return None
+    return (
+        "DO NOT echo contract labels or packet phrasing into prose. Translate constraints into lived "
+        "action, perception, dialogue, and consequence. Avoid these phrasings:\n"
+        + "\n".join(f"- {p}" for p in phrases)
+    )
 
 
 def _beat_prompt(ctx: SceneContext) -> tuple[str | None, str]:
@@ -140,8 +175,14 @@ def _beat_prompt(ctx: SceneContext) -> tuple[str | None, str]:
             "Developments to land by the end (reflect naturally; do NOT write a stat block): " + changes
         )
     volatile_parts.append("THE BEAT — what happens in this scene:\n" + (ctx.beat_text or "(no beat text provided)"))
-    if ctx.target_words:
-        volatile_parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
+    if phrases := _phrase_avoidance(ctx):
+        volatile_parts.append(phrases)
+    if length := _length_instruction(ctx):
+        volatile_parts.append(length)
+    elif ctx.target_words:
+        volatile_parts.append(
+            f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit."
+        )
     volatile_parts.append(f"\nWrite the scene now, in {ctx.pov}'s point of view. Output only the prose.")
 
     prefix = "\n\n".join(prefix_parts) if prefix_parts else None
@@ -163,8 +204,14 @@ def _revise_prompt(ctx: SceneContext) -> tuple[str | None, str]:
     volatile_parts.append("THE BEAT this scene must hit:\n" + (ctx.beat_text or "(no beat text provided)"))
     volatile_parts.append("YOUR PRIOR DRAFT of this scene:\n" + (ctx.prior_prose or "(none)"))
     volatile_parts.append("REVISION NOTES from the author — address these:\n" + (ctx.revise_feedback or "(none)"))
-    if ctx.target_words:
-        volatile_parts.append(f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit.")
+    if phrases := _phrase_avoidance(ctx):
+        volatile_parts.append(phrases)
+    if length := _length_instruction(ctx):
+        volatile_parts.append(length)
+    elif ctx.target_words:
+        volatile_parts.append(
+            f"Length: aim for roughly {ctx.target_words} words — a guide for scope, not a hard limit."
+        )
     volatile_parts.append(
         f"\nRewrite the scene in {ctx.pov}'s POV, addressing the notes while keeping what already "
         "works. Output only the revised prose."

@@ -23,14 +23,44 @@ _MIN_PROSE_CHARS = 1000  # below this there isn't enough scene to assess a dimen
 _SYSTEM = (
     "You review ONE dimension of a scene of prose: {focus}. Report only concrete, specific problems in "
     "THAT dimension — a line or moment that fails it. Do not rewrite, do not praise, do not invent, and "
-    "do not comment on any other dimension. If this dimension holds, report nothing."
+    "do not comment on any other dimension. Respect the scene contract: do not ask for anything its "
+    "forbidden beats exclude, and do not flag a predeclared false-positive trap. If this dimension "
+    "holds, report nothing."
 )
 
 
-def _prompt(prose: str, beat_text: str | None) -> str:
+def _scene_section(ctx: SceneContext, name: str) -> str:
+    """Scene-specific review constraints from the ScenePacket reviewer contract (empty when absent)."""
+    rc = ctx.reviewer_contract or {}
+    if not rc:
+        return ""
+    import json as _json
+    lines: list[str] = []
+    if rc.get("scene_job"):
+        lines.append(f"Scene job: {rc['scene_job']}")
+    if rc.get("scene_type"):
+        lines.append(f"Scene type: {rc['scene_type']}")
+    if rc.get("required_beats"):
+        lines.append(f"Required beats: {_json.dumps(rc['required_beats'])}")
+    if rc.get("forbidden_beats"):
+        lines.append(f"Forbidden beats (do not ask for these): {_json.dumps(rc['forbidden_beats'])}")
+    lane_instr = (rc.get("reviewer_instructions") or {}).get(name)
+    if lane_instr:
+        lines.append(f"Instructions for this lane: {_json.dumps(lane_instr)}")
+    if rc.get("reviewer_false_positive_traps"):
+        lines.append(f"False-positive traps (do not flag): {_json.dumps(rc['reviewer_false_positive_traps'])}")
+    wb = rc.get("word_budget") or {}
+    if wb.get("target"):
+        lines.append(f"Word budget target: {wb.get('target')} (min {wb.get('min')}, max {wb.get('max')})")
+    return ("SCENE CONTRACT:\n" + "\n".join(lines) + "\n\n") if lines else ""
+
+
+def _prompt(prose: str, ctx: SceneContext, name: str) -> str:
     parts: list[str] = []
-    if beat_text:
-        parts.append(f"INTENDED BEAT (what this scene should accomplish):\n{beat_text}")
+    if section := _scene_section(ctx, name):
+        parts.append(section.rstrip())
+    if ctx.beat_text:
+        parts.append(f"INTENDED BEAT (what this scene should accomplish):\n{ctx.beat_text}")
     parts.append("SCENE:\n" + prose)
     parts.append(
         '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
@@ -47,7 +77,7 @@ async def lane_review(scene_prose: str, ctx: SceneContext, *, name: str, focus: 
     raw, _usage = await llm.complete(
         model=settings.review_model,
         system=_SYSTEM.format(focus=focus),
-        user=_prompt(scene_prose, ctx.beat_text),
+        user=_prompt(scene_prose, ctx, name),
         max_tokens=_REVIEW_MAX_TOKENS,
         budget=ctx.budget,
         expect_cache=False,

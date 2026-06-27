@@ -124,3 +124,44 @@ class ClaimSource(StrEnum):
     PLAUSIBLE_INFERENCE = "plausible_inference"
     UNRESOLVED = "unresolved"          # needs human
     FORBIDDEN = "forbidden"
+
+
+# --- contract-first drafting: scene packets (Phase 2 → scene-local contract) ----------------------
+# A ScenePacket localizes the chapter-wide ChapterPacket into one scene's reader/POV/reveal/word
+# constraints. It is the scene-local authority for review; the ChapterPacket stays macro-authoritative.
+
+class ScenePacketStatus(StrEnum):
+    """A scene packet's lifecycle. STALE means an upstream input changed (chapter packet, prior
+    scene, owner file, word budget) and the packet must be re-derived or re-approved before drafting."""
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    BLOCKED = "blocked"
+    STALE = "stale"
+
+
+class ScenePacketVerdict(StrEnum):
+    """The ScenePacket QA agent's verdict on a derived scene packet (mirrors PacketVerdict)."""
+    APPROVE = "approve"
+    APPROVE_WARN = "approve_warn"
+    REVISE_REQUIRED = "revise_required"
+    BLOCK_DRAFTING = "block_drafting"
+
+
+class LengthStatus(StrEnum):
+    """Where a drafted scene's word count landed against its ScenePacket word_budget (DESIGN: length)."""
+    UNDER_MIN = "under_min"
+    WITHIN_BUDGET = "within_budget"
+    OVER_MAX = "over_max"
+    OVER_HARD_MAX_COMPRESSED = "over_hard_max_compressed"
+    OVER_HARD_MAX_QUARANTINED = "over_hard_max_quarantined"
+
+
+class DraftStage(StrEnum):
+    """A preserved stage of one scene's prose pipeline (DraftAttempt provenance)."""
+    DRAFTER_RAW = "drafter_raw"
+    ENRICHMENT_COMBAT = "enrichment_combat"
+    ENRICHMENT_SENSORY = "enrichment_sensory"
+    ENRICHMENT_DIALOGUE = "enrichment_dialogue"
+    LENGTH_COMPRESSION = "length_compression"
+    LENGTH_EXPANSION = "length_expansion"
+    FINAL_RENDERED = "final_rendered"

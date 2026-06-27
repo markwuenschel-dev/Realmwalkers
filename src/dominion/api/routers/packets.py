@@ -20,7 +20,7 @@ from dominion.shared.models import Chapter, ChapterPacket
 from dominion.shared.schemas import PacketOut, PacketProposeOut, PacketUpdateIn
 from dominion.workers import packet as packet_pipeline
 from dominion.workers import progress
-from dominion.workers.packet import derive as packet_derive
+from dominion.workers.scene_packet import staleness as packet_staleness
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["packets"])
@@ -112,11 +112,13 @@ async def update_packet(
     row = await _latest(session, chapter_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+    body_changed = False
     if body.body is not None:
         # Stamp ids on any seeds the human added so they stay linkable once derived; existing ids are
         # preserved (reassign, not in-place mutate, so SQLAlchemy flags the JSONB change).
         new_body = body.body
         packet_pipeline.mint_seed_ids(new_body)
+        body_changed = new_body != row.body
         row.body = new_body
     if body.open_questions is not None:
         row.open_questions = body.open_questions
@@ -125,6 +127,10 @@ async def update_packet(
             row.confidence = PacketConfidence(body.confidence.strip().lower())
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="confidence must be green|yellow|red") from exc
+    # A chapter-packet body edit can invalidate already-derived scene packets — mark drifted ones
+    # stale so they block drafting until re-derived/re-approved (staleness detection).
+    if body_changed:
+        await packet_staleness.recompute_and_mark(session, chapter_id=row.chapter_id)
     await session.commit()
     await session.refresh(row)
     return row
@@ -144,10 +150,10 @@ async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> ChapterP
     if _open_items(row):
         raise HTTPException(status_code=409, detail="resolve the packet's open questions first")
     row.status = PacketStatus.APPROVED
-    # Contract-first (Phase 2): approval is gate 1 — derive this chapter's beats from the packet's
-    # scene_seeds so the writer drafts against the approved contract, not an unlinked plan-call.
-    derived = await packet_derive.derive_beats(session, packet=row)
     await session.commit()
     await session.refresh(row)
-    log.info("packet.approved", chapter=str(chapter_id), packet=str(row.id), derived_beats=derived)
+    # Scene-packet contract system: chapter-packet approval no longer derives beats directly. The
+    # human next derives ScenePackets (POST .../scene-packets/derive), approves them, and beats are
+    # derived from the approved ScenePackets — the writer drafts against the scene-local contract.
+    log.info("packet.approved", chapter=str(chapter_id), packet=str(row.id))
     return row

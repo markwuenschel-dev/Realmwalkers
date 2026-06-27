@@ -14,9 +14,8 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import BeatStatus, ChapterStatus, JobKind, JobStatus, SceneStatus
+from dominion.shared.enums import BeatStatus, ChapterStatus, JobStatus, SceneStatus
 from dominion.shared.models import Beat, Chapter, Job, Run, Scene
 from dominion.shared.schemas import (
     ApproveBeatsIn,
@@ -28,6 +27,7 @@ from dominion.shared.schemas import (
     RedraftIn,
     SceneOut,
 )
+from dominion.workers.job_routing import draft_job_for_beat, draft_job_for_scene
 from dominion.workers.memory import summaries
 
 log = structlog.get_logger()
@@ -142,14 +142,7 @@ async def approve_beats(
         if existing is not None:
             job_ids.append(str(existing))
             continue
-        job = Job(
-            run_id=run.id if run else None,
-            kind=JobKind.DRAFT,
-            chapter_no=chapter.chapter_no,
-            scene_no=beat.scene_no,
-            token_budget=run.token_budget if run else settings.scene_token_budget,
-            status=JobStatus.QUEUED,
-        )
+        job = draft_job_for_beat(beat=beat, chapter=chapter, run=run)
         session.add(job)
         await session.flush()
         job_ids.append(str(job.id))
@@ -221,12 +214,7 @@ async def redraft_scenes(
         if existing is not None:
             job_ids.append(str(existing))
             continue
-        job = Job(
-            run_id=run.id if run else None, kind=JobKind.DRAFT,
-            chapter_no=chapter.chapter_no, scene_no=scene.scene_no, target_scene_id=scene.id,
-            token_budget=run.token_budget if run else settings.scene_token_budget,
-            status=JobStatus.QUEUED,
-        )
+        job = await draft_job_for_scene(session, scene=scene, chapter=chapter, run=run)
         session.add(job)
         await session.flush()
         job_ids.append(str(job.id))
@@ -276,12 +264,7 @@ async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> dict[str,
         if existing is not None:
             job_ids.append(str(existing))
             continue
-        job = Job(
-            run_id=run.id if run else None, kind=JobKind.DRAFT,
-            chapter_no=chapter.chapter_no, scene_no=beat.scene_no,
-            token_budget=run.token_budget if run else settings.scene_token_budget,
-            status=JobStatus.QUEUED,
-        )
+        job = draft_job_for_beat(beat=beat, chapter=chapter, run=run)
         session.add(job)
         await session.flush()
         job_ids.append(str(job.id))

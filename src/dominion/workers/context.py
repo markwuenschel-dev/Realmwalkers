@@ -17,7 +17,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
-from dominion.shared.enums import BeatStatus, Decision, PacketStatus, SceneStatus
+from dominion.shared.enums import (
+    BeatStatus,
+    Decision,
+    PacketStatus,
+    ScenePacketStatus,
+    SceneStatus,
+)
 from dominion.shared.models import (
     Approval,
     Beat,
@@ -27,10 +33,17 @@ from dominion.shared.models import (
     PovProfile,
     Run,
     Scene,
+    ScenePacket,
 )
 from dominion.workers.budget import TokenBudget
 from dominion.workers.memory import canon_rag, summaries
 from dominion.workers.oracle import Oracle
+
+
+class ScenePacketRequiredError(RuntimeError):
+    """A draft job referenced a ScenePacket that is missing, not approved, or stale. Drafting fails
+    closed rather than silently falling back to the chapter packet (scene-packet contract system)."""
+
 
 _PRIOR_TAIL_CHARS = 800
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]  # …/src/dominion/workers/context.py -> repo root
@@ -111,42 +124,64 @@ class SceneContext:
     pov_summary: str | None = None                              # what this POV knows
     ledger: dict[str, dict[str, Any]] = field(default_factory=dict)  # Oracle read of hard stats
     contract: dict[str, Any] | None = None                      # packet constraints the writer obeys
+    # Scene-packet contract system: the scene-local contract and its projections. `contract` stays as
+    # the drafter's flat MUST/MUST-NOT view; these named fields are the structured source.
+    scene_packet_id: uuid.UUID | None = None
+    chapter_contract: dict[str, Any] | None = None              # the approved chapter packet body
+    scene_contract: dict[str, Any] | None = None               # the full approved ScenePacket body
+    reader_state_contract: dict[str, Any] | None = None        # reader/POV knowledge + reveals + mysteries
+    word_budget: dict[str, Any] | None = None                  # planned per-scene word budget
+    reviewer_contract: dict[str, Any] | None = None            # per-lane reviewer instructions + traps
     prior_scene_tail: str | None = None                         # in-chapter continuity
     prior_prose: str | None = None                              # revise: the draft being revised
     revise_feedback: str | None = None                          # revise: the author's notes
 
 
 async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
-    """Load everything a draft (or revision) needs for this job's (chapter_no, scene_no)."""
-    if job.run_id is None or job.chapter_no is None or job.scene_no is None:
-        raise ValueError("job is missing run_id / chapter_no / scene_no")
+    """Load everything a draft (or revision) needs, routing by the job's DIRECT ids (book/chapter/beat/
+    scene_packet). `run_id` is provenance only; the legacy (run_id, chapter_no, scene_no) lookup is a
+    fallback for jobs created before direct-ID routing. A job that names a ScenePacket must reference an
+    approved, non-stale one — otherwise drafting fails closed (no silent chapter-packet fallback)."""
+    # book id: direct, else via the run.
+    book_id = job.book_id
+    if book_id is None:
+        if job.run_id is None:
+            raise ValueError("job is missing book_id and run_id — cannot resolve the book")
+        book_id = (await session.execute(
+            select(Run.book_id).where(Run.id == job.run_id)
+        )).scalar_one()
 
-    book_id = (await session.execute(
-        select(Run.book_id).where(Run.id == job.run_id)
-    )).scalar_one()
-
-    # Tolerate duplicate rows: a re-run plan-call / re-enqueue can leave more than one Chapter for a
-    # (book, chapter_no) or more than one Beat for a (chapter, scene_no). scalar_one[_or_none]() raises
-    # MultipleResultsFound on those, which used to fail the draft before it began — so pick a canonical
-    # row deterministically (lowest id) instead of crashing the scene.
-    chapter = (await session.execute(
-        select(Chapter)
-        .where(Chapter.book_id == book_id, Chapter.chapter_no == job.chapter_no)
-        .order_by(Chapter.id)
-    )).scalars().first()
+    # chapter: direct id, else legacy (book, chapter_no). Tolerate duplicate rows by picking the
+    # lowest-id canonical row instead of crashing the scene.
+    chapter: Chapter | None = None
+    if job.chapter_id is not None:
+        chapter = await session.get(Chapter, job.chapter_id)
+    if chapter is None and job.chapter_no is not None:
+        chapter = (await session.execute(
+            select(Chapter)
+            .where(Chapter.book_id == book_id, Chapter.chapter_no == job.chapter_no)
+            .order_by(Chapter.id)
+        )).scalars().first()
     if chapter is None:
-        raise ValueError(f"no chapter {job.chapter_no} for this book")
+        raise ValueError("no chapter for this job (missing chapter_id / chapter_no)")
 
-    beats = (await session.execute(
-        select(Beat)
-        .where(Beat.chapter_id == chapter.id, Beat.scene_no == job.scene_no)
-        .order_by(Beat.id)
-    )).scalars().all()
-    # Prefer an approved beat when duplicates exist (it's the one the human signed off / a packet derived).
-    beat = next((b for b in beats if b.status == BeatStatus.APPROVED), beats[0] if beats else None)
+    # beat: direct id, else legacy (chapter, scene_no).
+    beat: Beat | None = None
+    if job.beat_id is not None:
+        beat = await session.get(Beat, job.beat_id)
+    if beat is None:
+        scene_no = job.scene_no
+        if scene_no is None:
+            raise ValueError("job is missing beat_id and scene_no — cannot resolve the beat")
+        beats = (await session.execute(
+            select(Beat)
+            .where(Beat.chapter_id == chapter.id, Beat.scene_no == scene_no)
+            .order_by(Beat.id)
+        )).scalars().all()
+        beat = next((b for b in beats if b.status == BeatStatus.APPROVED), beats[0] if beats else None)
     if beat is None:
         raise ValueError(
-            f"no beat for ch{job.chapter_no} sc{job.scene_no} — propose/approve beats first (gate 1)"
+            f"no beat for ch{chapter.chapter_no} sc{job.scene_no} — derive/approve a scene packet first"
         )
 
     # limit(1): tolerate a duplicate POV profile for (book, character) — a re-seed can leave two, and
@@ -158,11 +193,12 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         .limit(1)
     )).scalar_one_or_none()
 
+    scene_no = beat.scene_no if beat.scene_no is not None else job.scene_no
     ctx = SceneContext(
         book_id=book_id,
         chapter_id=chapter.id,
         pov=chapter.pov,
-        scene_no=job.scene_no,
+        scene_no=scene_no,
         tags=list(beat.tags or []),
         characters_present=list(beat.characters_present or []),
         beat_text=beat.beat_text,
@@ -192,13 +228,19 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
     retrieval_query = " ".join(p for p in [beat.beat_text or "", *ctx.characters_present] if p)
     ctx.canon = await canon_rag.retrieve(session, book_id=book_id, query=retrieval_query, k=6)
     ctx.pov_summary = await summaries.pov_summary(session, book_id=book_id, pov=chapter.pov)
-    ctx.prior_scene_tail = await _prior_tail(session, chapter_id=chapter.id, scene_no=job.scene_no)
+    ctx.prior_scene_tail = await _prior_tail(session, chapter_id=chapter.id, scene_no=scene_no)
 
-    # Contract-first (Phase 2): a beat derived from a packet scene_seed is bound by that packet's
-    # constraints. Read them live from the approved packet so a packet edit takes effect next draft.
-    ctx.contract = await _load_contract(
-        session, chapter_id=chapter.id, scene_seed_id=beat.scene_seed_id
-    )
+    # Scene-packet contract system: when the job names a ScenePacket it must be approved + non-stale,
+    # and it becomes the scene-local authority (reader/POV knowledge, reveals, mysteries, word budget,
+    # reviewer instructions). Fail closed otherwise — never silently fall back to the chapter packet.
+    # A job WITHOUT a scene_packet_id (legacy/manual enqueue) still reads chapter-packet constraints.
+    sp_id = job.scene_packet_id or beat.scene_packet_id
+    if sp_id is not None:
+        await _load_scene_packet(session, ctx, scene_packet_id=sp_id)
+    else:
+        ctx.contract = await _load_contract(
+            session, chapter_id=chapter.id, scene_seed_id=beat.scene_seed_id
+        )
 
     # Revision: pull the prior draft + the latest revision feedback for the target scene.
     if job.target_scene_id is not None:
@@ -300,6 +342,94 @@ async def _load_contract(
                 contract[key] = value.strip()
 
     return contract or None
+
+
+# Chapter-level locks that still bind every scene; lifted from the chapter packet into the flat
+# drafter contract alongside the scene-local constraints.
+_CHAPTER_LOCK_KEYS: tuple[str, ...] = (
+    "canon_locks", "roster_locks", "relationship_locks", "timeline_locks",
+    "allowed_ui_concepts", "forbidden_ui_concepts",
+)
+
+
+def _str_list(value: Any) -> list[str]:
+    return [str(v).strip() for v in value if str(v).strip()] if isinstance(value, list) else []
+
+
+def _flat_contract(scene_body: dict[str, Any], chapter_body: dict[str, Any]) -> dict[str, Any]:
+    """Translate the structured ScenePacket (+ chapter locks) into the flat MUST/MUST-NOT view the
+    drafter's _contract_block already formats. Scene-local reveal/hidden rules become the reveal
+    constraints; chapter locks remain immutable."""
+    hidden = scene_body.get("must_remain_hidden") or {}
+    learned = scene_body.get("learned_during_scene") or {}
+    pov_perms = scene_body.get("pov_permissions") or {}
+    contract: dict[str, Any] = {}
+    forbidden_reveals = _str_list(hidden.get("reader")) + _str_list(hidden.get("all_surface_prose"))
+    if forbidden_reveals:
+        contract["forbidden_reveals"] = forbidden_reveals
+    forbidden_knowledge = _str_list(hidden.get("pov")) + _str_list(pov_perms.get("must_not_know"))
+    if forbidden_knowledge:
+        contract["forbidden_knowledge"] = forbidden_knowledge
+    required_reveals = _str_list(learned.get("reader_must_learn"))
+    if required_reveals:
+        contract["required_reveals"] = required_reveals
+    for key in ("required_beats", "forbidden_beats"):
+        if vals := _str_list(scene_body.get(key)):
+            contract[key] = vals
+    if isinstance(scene_body.get("exit_state"), str) and scene_body["exit_state"].strip():
+        contract["exit_state"] = scene_body["exit_state"].strip()
+    for key in _CHAPTER_LOCK_KEYS:
+        if vals := _str_list(chapter_body.get(key)):
+            contract[key] = vals
+    return contract
+
+
+async def _load_scene_packet(
+    session: AsyncSession, ctx: SceneContext, *, scene_packet_id: uuid.UUID
+) -> None:
+    """Load the approved, non-stale ScenePacket and populate the scene-local contract fields. Fails
+    closed (ScenePacketRequiredError) when the packet is missing, unapproved, or stale."""
+    sp = await session.get(ScenePacket, scene_packet_id)
+    if sp is None:
+        raise ScenePacketRequiredError(f"no scene packet {scene_packet_id} for this draft job")
+    if sp.status == ScenePacketStatus.STALE:
+        raise ScenePacketRequiredError(
+            f"scene packet {scene_packet_id} is stale ({sp.stale_reason or 'inputs changed'}) — "
+            "re-derive or re-approve it before drafting"
+        )
+    if sp.status != ScenePacketStatus.APPROVED:
+        raise ScenePacketRequiredError(
+            f"scene packet {scene_packet_id} is {sp.status}, not approved — approve it before drafting"
+        )
+
+    body = sp.body or {}
+    chapter_body = (await session.execute(
+        select(ChapterPacket.body).where(ChapterPacket.id == sp.chapter_packet_id)
+    )).scalar_one_or_none()
+    chapter_body = chapter_body if isinstance(chapter_body, dict) else {}
+
+    ctx.scene_packet_id = sp.id
+    ctx.scene_contract = body
+    ctx.chapter_contract = chapter_body
+    ctx.word_budget = body.get("word_budget") if isinstance(body.get("word_budget"), dict) else None
+    ctx.reader_state_contract = {
+        "known_before_scene": body.get("known_before_scene") or {},
+        "learned_during_scene": body.get("learned_during_scene") or {},
+        "must_remain_hidden": body.get("must_remain_hidden") or {},
+        "pov_permissions": body.get("pov_permissions") or {},
+        "intentional_mysteries": body.get("intentional_mysteries") or [],
+        "reviewer_false_positive_traps": body.get("reviewer_false_positive_traps") or [],
+    }
+    ctx.reviewer_contract = {
+        "scene_job": body.get("scene_job"),
+        "scene_type": body.get("scene_type"),
+        "required_beats": _str_list(body.get("required_beats")),
+        "forbidden_beats": _str_list(body.get("forbidden_beats")),
+        "reviewer_false_positive_traps": body.get("reviewer_false_positive_traps") or [],
+        "reviewer_instructions": body.get("reviewer_instructions") or {},
+        "word_budget": ctx.word_budget,
+    }
+    ctx.contract = _flat_contract(body, chapter_body) or None
 
 
 async def _prior_tail(
