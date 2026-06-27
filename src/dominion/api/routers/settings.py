@@ -27,8 +27,10 @@ ROLES: list[tuple[str, str, str]] = [
     ("enrich_model", "Enrichment specialists", "Combat / sensory / dialogue enrichment passes"),
     ("packet_author_model", "Packet author", "Authors the chapter knowledge packet from canon + outline"),
     ("packet_qa_model", "Packet QA", "Validates the proposed packet before approval"),
-    ("scene_packet_author_model", "ScenePacket author", "Localizes the chapter packet into each scene's reader/POV/reveal contract (runs once per scene)"),
-    ("scene_packet_qa_model", "ScenePacket QA", "Attacks each scene packet before approval (runs once per scene)"),
+    ("scene_packet_author_model", "ScenePacket author",
+     "Localizes the chapter packet into each scene's reader/POV/reveal contract (once per scene)"),
+    ("scene_packet_qa_model", "ScenePacket QA",
+     "Attacks each scene packet before approval (once per scene)"),
 ]
 _ROLE_KEYS = {r[0] for r in ROLES}
 
