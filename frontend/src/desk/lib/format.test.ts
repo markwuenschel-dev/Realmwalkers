@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyAcceptedSuggestions,
-  sceneLabel,
-  snippet,
-  statValue,
-  wordCount,
-} from "./format";
+import { applyAcceptedSuggestions, sceneLabel, snippet, statValue, wordCount } from "./format";
 
 describe("wordCount", () => {
   it("returns 0 for null/undefined/empty", () => {
