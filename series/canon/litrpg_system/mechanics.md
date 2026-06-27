@@ -7,26 +7,32 @@ status: canon
 # Mechanics & Tiers — Dominion Realm
 
 > **Status:** Canon · working draft
-> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level — plus affinity tiers. Class rarity → `core_rules.md` / `classes.md`. Calendar → `realm_calendar.md`. **Resource formulas, regen/depletion, the Soul→Reserve multiplier, XP curve, threat readout, and stat templates → `resource_system.md`.**
+> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level. Class rarity → `core_rules.md` / `classes.md`. Domains → `classes.md` now and `power_expression.md` when expanded. Calendar → `realm_calendar.md`. **Resource formulas, regen/depletion, the Soul→Reserve multiplier, XP curve, threat readout, and stat templates → `resource_system.md`.**
 
 ## Read-this-first notes
 
 - **These ladders are independent.** "Divine," "Mythic," "Legendary," "Exceptional," "Rare," "Common" recur across several ladders — a Divine *soul* ≠ a Divine *item* ≠ a Divine *spell-skill tier*. Don't conflate them.
 - **Soul Level is load-bearing for the story.** It governs resistance to being altered, erased, bound, possessed, or overwritten — the engine under **true-names / namebinding** (Serra's arc; **any soul can be bound in principle — Soul Level sets the difficulty and cost, not a yes/no.** Low and average souls are cheap and routine — what the faction preys on; high souls are prohibitively costly; the top tiers (Brilliant → Absolute) approach but never reach true immunity), **death & resurrection** (Marcus), **the broker holding Seb's brother's soul**, and **vow enforcement** (Xazzidiuk/Zazriel). Cross-ref from `core_rules.md` (Naming) and `relationship_map.md`.
-- **Spell Skill Mastery composes with affinity, not against it.** Affinity = the *chance* a skill levels (Marcus's Unbound Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). See `core_rules.md` → Skills and Affinities.
+- **Spell Skill Mastery composes with Skill Affinity, not against it.** Skill Affinity = the *chance* a skill levels (Marcus's Unbound Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). Domains are separate and live in `classes.md` / `power_expression.md`. See `core_rules.md` → Skills and Affinities.
 - **The Eyes of Meszkhal is a _Unique_ item** (Item Rarity, below). Its copycat / +100%-skill-XP is the *item's* power, billed in mana; the Neurochromatic interface is separate and bills in the body.
 
 ---
 
-## Affinity Tiers
+## Domain / Skill Affinity Boundary
 
-Affinities group into three tiers of escalating rarity/scope. ⚠ *Source layout was visually garbled; this grouping is my best-effort column-parse of it — confirm exact membership.*
+This file no longer owns "Affinity Tiers."
 
-- **Elemental** (foundational, most common): **Fire, Water, Air, Earth, Light, Life, Shadow, Death** — the eight foundational affinities — plus **Aether**.
-- **Primordial** (uncommon, structural): **Runic, Psychic, Spirit, Blood.**
-- **Cosmic** (rare, reality-scale): **Chaos, Eldritch, Celestial, Time, Void, Gravity, Planar.**
+Terminology lock:
 
-> **Aether flag:** the source places Aether in the Elemental row, but elsewhere Aether is the *synthesis* of the eight foundational affinities (the center, not a member). Treat as synthesis pending a decision. **Chaos** sits in Cosmic — consistent with cosmology (Chaos = cosmic appetite-with-intent).
+- **Skill Affinity** = progression aptitude; the chance a skill levels after reaching 100% XP.
+- **Domain** = power expression/source category such as Fire, Death, Psychic, Planar, Celestial, Void.
+- **Aether** = higher-order synthesis of the eight Elemental Domains, not an ordinary domain.
+- **Frost, Poison, and Arcane** = disciplines/schools/recipes, not domains.
+
+Domain taxonomy lives in `classes.md` for now and should move or expand into `power_expression.md` when that scaffold matures.
+
+---
+
 
 ---
 
@@ -346,18 +352,20 @@ Class rarity uses the same seven-tier ladder — **Common · Uncommon · Rare ·
 
 ---
 
-# Attributes, Derived Pools & Growth *(owner)*
+# Attribute / Growth Boundary
 
-**Derived pools** (canonical formulas; Marcus starts 5 in each → 50/50/50):
-- **Health** = Constitution×6 + Endurance×2 + Strength×2 — Con is structural durability; a high-Strength build can hold a big pool without Con's tissue/poison resilience.
-- **Mana** = Intelligence×6 + Wisdom×3 + Charisma×1 — Int = capacity/processing, Wis = control/stability, Cha = force of presence into the substrate (not attractiveness).
-- **Stamina** = Endurance×5 + Constitution×2 + Strength + Agility + Dexterity.
-- **Luck** feeds none of the pools; it tilts unresolved margins (which plausible outcome wins), never makes the impossible happen.
+`mechanics.md` does **not** own resource formulas, attribute growth, class attribute multipliers, class XP curves, or stat templates.
 
-**What attributes physically do** — real biology, immediate effect + slower adaptation, never an instant finished body:
-Strength (force output → denser fibres/tendons) · Agility (balance/direction change → refined movement) · Dexterity (precision/steady hands → fine-motor pathways) · Constitution (stress tolerance → denser tissue, bone, organ/toxin resilience) · Endurance (slow fatigue/recovery → cardiovascular/metabolic gains) · Intelligence (processing/working memory → learning efficiency; **does not grant knowledge**) · Wisdom (regulation/judgment/mana control → mental-disruption resistance) · Charisma (projection/presence → aura/leadership; **does not make people agree**).
+Use:
 
-**Leveling & racial growth:**
-- **Humans: 4 free attribute points per level, no forced allocation.** The human advantage isn't raw power — it's being *less constrained* in what they can become.
-- **Specialized races** get some forced points + fewer free (e.g. Wood Elf: +1 Agi, +1 Dex, 2 free).
-- **Exotic races** may total more than four but mostly fixed (e.g. Stone Behemothkin: +1 Str, +2 Con, +2 End, 1 free). Tradeoff: humans = adaptability; specialized = greater total growth, narrower shape.
+- `resource_system.md` for derived pools, regeneration, depletion, Reserve, XP curve, species growth, and resource-facing stat snapshots.
+- `classes.md` for class attribute profiles and Prime/Core multipliers.
+- `core_rules.md` for system-level routing and terminology.
+
+Current locks to preserve when editing owner files:
+
+- Humans gain **4 free attribute points per level**.
+- Specialized and exotic species may receive forced/favored growth.
+- Class rarity bonus attribute point cadence is removed.
+- Class rarity still affects XP burden and energy burden.
+- Class influence uses Prime/Core attribute multipliers, not recurring bonus points.
