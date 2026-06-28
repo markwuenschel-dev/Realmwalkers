@@ -22,11 +22,11 @@ too — `GET /library` serves the on-disk Markdown, rendered through the same `P
   table style).
 - **Phase 3 (PDF):** ✅ manuscript PDF via the browser's **Save as PDF** (no deps) — a print
   stylesheet in `index.css` (`@page` margins, `.ms-chapter { break-before: page }`, title page,
-  black-on-white, widow/orphan + `break-inside` control; app chrome carries `.no-print`) and a
-  **Print / PDF** button in the manuscript toolbar (`window.print()`). Page numbers are real in CSS
-  Paged engines (the `@bottom-center` margin box, honoured by WeasyPrint/Prince); in Chrome use the
-  print dialog's "Headers and footers" toggle. A server-side WeasyPrint route can later render the
-  *same HTML* for headless, page-numbered PDFs.
+  black-on-white, widow/orphan + `break-inside` control; app chrome carries `.no-print`). Use the
+  browser's print dialog (Ctrl/Cmd+P) from the manuscript view. Page numbers are real in CSS Paged
+  engines (the `@bottom-center` margin box, honoured by WeasyPrint/Prince); in Chrome use the print
+  dialog's "Headers and footers" toggle. A server-side WeasyPrint route can later render the *same
+  HTML* for headless, page-numbered PDFs.
 - **Canon viewer (Domain B):** ✅ `GET /library` + `/library/{path}` (`api/routers/docs.py`,
   read-only, sandboxed to `series/{canon,style}` + `book1/planning`, `.md` only, no traversal) → the **Canon**
   screen (`DocsScreen.tsx`) renders any doc through `ProseBlocks`. Blockquotes become tone-coloured
@@ -35,13 +35,13 @@ too — `GET /library` serves the on-disk Markdown, rendered through the same `P
   it stays out of the main bundle. The emitter consumes the same `parseBlocks`/`parseInline` AST as the
   on-screen renderer ("many emitters, one parse"): **Domain A** — the manuscript as book typography
   (title page, chapters on fresh pages, justified serif prose, scene-break `⁂`, monospace stat windows,
-  page-numbered footer) via the **⬇ Word** button in the manuscript toolbar; **Domain B** — any canon
+  page-numbered footer, LitRPG `@interface` panels) via **Export Reader DOCX** in the manuscript
+  toolbar; **Domain B** — any canon
   doc with MarketMind styling (navy-header tables, accent callout boxes from blockquotes, code/stat
   panels, lists, inline formatting, page numbers) via the **⬇ Word** button in the Canon viewer.
-- **Deferred:** the **Shunn submission profile** (monospace, double-spaced, `Surname / TITLE / page#`
-  running head) — same content, different page setup, but the running head needs an **author/surname**
-  field the data model doesn't have yet. Server-side **WeasyPrint** PDF (headless, real page numbers
-  from the same HTML) is the other natural follow-on.
+- **Shunn submission profile:** ✅ ships via **Export Shunn DOCX** — monospace, double-spaced,
+  `Surname / TITLE / page#` running head; author name field in the manuscript toolbar. Server-side
+  **WeasyPrint** PDF (headless, real page numbers from the same HTML) remains a natural follow-on.
 
 ---
 
@@ -127,8 +127,8 @@ zone structure.
 the view we already render). Use **LibreOffice conversion** only if Domain-B PDFs must byte-match the
 DOCX.
 
-> ✅ **Done (Phase 3):** the browser-`print()` half of the HTML+CSS-Paged path ships now — print
-> stylesheet in `index.css` + the manuscript **Print / PDF** button. The server-side **WeasyPrint**
+> ✅ **Done (Phase 3):** the browser-print half of the HTML+CSS-Paged path ships now — print
+> stylesheet in `index.css` (use Ctrl/Cmd+P from the manuscript view). The server-side **WeasyPrint**
 > half (headless, real `@bottom-center` page numbers, no print-dialog step) is the natural follow-on
 > and reuses the *same* `ProseBlocks` HTML.
 
@@ -193,8 +193,8 @@ PASS/Gate:`) is reusable.
 - **Which domain first** — built **both**: manuscript (book typography) and canon docs (MarketMind).
 - **DOCX engine** — **docx-js** (`docx` v9), client-side, lazy-loaded. Not `python-docx`.
 - **"Manuscript page" meaning** — in-app **Shunn estimate** (Phase 1) + **real page numbers** on
-  export (Phase 3 PDF + Phase 4 DOCX footer). The full **Shunn submission profile** is deferred
-  (needs an author/surname field).
+  export (Phase 3 PDF + Phase 4 DOCX footer). **Shunn submission profile** ships via Export Shunn
+  DOCX (author field in toolbar).
 - **MarketMind styling scope** — **Domain-B docs only** (tables/callouts/code); the novel keeps book
   typography.
 - **New dependency tolerance** — kept the **backend dep-free** (no `python-docx`/`weasyprint`/

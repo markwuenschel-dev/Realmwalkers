@@ -8,7 +8,7 @@ import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
 // table style), fenced code, monospace stat windows (the backend's box-drawing art,
 // kept aligned), and rules. Inline `code`/**bold**/*em*/links are rendered too. Used
 // by the manuscript reading view and the canon-doc viewer; kept generic so the
-// print/PDF path reuses the same HTML.
+// DOCX export path reuses the same parse AST.
 
 const TONE_COLOR: Record<Tone, string> = {
   note: "var(--accent)",
