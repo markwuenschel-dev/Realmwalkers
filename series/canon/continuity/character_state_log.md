@@ -23,9 +23,9 @@
 
 ## Checkpoint: Post-Mindscape (Marcus's first death & resurrection)
 
-- **Marcus:** resurrected, changed; **Eyes of Meszkhal (item) acquired** from Xazzidiuk (interpretation/certainty overlay); the native **Neurochromatic Eyes interface** begins emerging (Stage 1, Limbal Shift), separate from the item. **No Angelic Fortitude — Zazriel gave nothing.** Ayla attached. Status: Human (Hybrid), Chaotic Neutral. Has died and returned.
+- **Marcus:** resurrected, changed; **Eyes of Meszkhal (item) acquired** from Xazzidiuk (interpretation/certainty overlay); the native **Neurochromatic Eyes interface** begins emerging (Stage 1, Limbal Shift), separate from the item. **No Angelic Fortitude — Zazriel gave nothing.** Illyri (Illyristranthe) attached. Status: Human (Hybrid), Chaotic Neutral. Has died and returned.
   - *Active questions:* exactly what he owes Xazzidiuk; when the native interface fully awakens vs. the item (MC-04).
-- **Ayla:** attached to the implant; fragmented memory; questions not answers.
+- **Illyristranthe:** attached to the implant; fragmented memory; questions not answers.
 
 ---
 

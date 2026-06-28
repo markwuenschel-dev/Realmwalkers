@@ -24,8 +24,8 @@ Beats: neuroquantum announcement → 404:Aim Not Found vs. Dead Hand scrim (**Se
 *Notes:* Earth name **Marcus Vye** (public **Marcus**); **no Realm alias** — he uses his real name in the Realm. Serra = self-made social anchor (**no SWAT**). Seed the implant as receiver/translator, not upgrade.
 
 ## Act 2 — Scattering
-**Purpose:** break the guild; force separate trajectories. *(Partially drafted through resurrection/Ayla.)*
-Beats: wake in the void → voice sends them toward Eriadne → scattered → Marcus wakes level 1 → UI interprets, doesn't create → paladin/Mallev/Xazzidiuk/Zazriel → mindscape bargain → **gains the Eyes of Meszkhal (item); Zazriel gives nothing (no Angelic Fortitude)** → Xazzidiuk kills him → resurrects → **Ayla attaches**; the native **Neurochromatic Eyes interface** begins emerging → **rejects Phoenix, keeps his own name (Marcus)** → moves toward survival and Eriadne.
+**Purpose:** break the guild; force separate trajectories. *(Partially drafted through resurrection/Illyri.)*
+Beats: wake in the void → voice sends them toward Eriadne → scattered → Marcus wakes level 1 → UI interprets, doesn't create → paladin/Mallev/Xazzidiuk/Zazriel → mindscape bargain → **gains the Eyes of Meszkhal (item); Zazriel gives nothing (no Angelic Fortitude)** → Xazzidiuk kills him → resurrects → **Illyri attaches**; the native **Neurochromatic Eyes interface** begins emerging → **rejects Phoenix, keeps his own name (Marcus)** → moves toward survival and Eriadne.
 **Function:** Marcus stops being a player and becomes an exile.
 
 ## Act 3 — First Threads / False Rescue

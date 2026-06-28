@@ -29,7 +29,7 @@ These are the genre walls. The story can press against them. It should not pass 
 
 The Realm is not a server. Characters do not respawn without consequence. Death has identity cost. Pain is real. The people Marcus meets are not NPCs with behavior scripts. Eriadne is not a quest hub.
 
-**Pressing against the wall:** Marcus catching himself thinking in game terms and having to correct. The UI rendering something in RPG logic that doesn't quite fit the metaphysical reality underneath. Ayla finding his interface-mediated understanding of the Realm subtly incomplete.
+**Pressing against the wall:** Marcus catching himself thinking in game terms and having to correct. The UI rendering something in RPG logic that doesn't quite fit the metaphysical reality underneath. Illyri finding his interface-mediated understanding of the Realm subtly incomplete.
 
 **Breaking through the wall:** Characters treating deaths as resets. Combat that feels like clearing content. The plot rewarding Marcus for playing optimally instead of for making human choices. The Realm having no stakes beyond progression.
 
@@ -45,7 +45,7 @@ Violence has weight and consequence. Bad things happen and they matter. The stor
 
 Marcus is funny. His humor is a survival mechanism and a social tool and a genuine part of who he is. The story can be funny. It is not a comedy. The humor exists inside the story's stakes, not above them.
 
-**Pressing against the wall:** Marcus's playful chaos defusing real tension. Ayla's dry contempt producing genuine laughs. The absurdity of the Realm rendered with appropriate irony.
+**Pressing against the wall:** Marcus's playful chaos defusing real tension. Illyri's dry contempt producing genuine laughs. The absurdity of the Realm rendered with appropriate irony.
 
 **Breaking through the wall:** Constant quipping that deflates stakes. Pop culture references used as substitutes for actual wit. Characters who exist to be comic relief and nothing else. Humor that signals the author doesn't take the story seriously.
 

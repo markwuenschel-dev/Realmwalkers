@@ -61,7 +61,7 @@ Every act of violence costs something — physically, emotionally, morally — e
 
 ### 5. The Realm is not explained to the reader. It is experienced by the character.
 
-Worldbuilding enters through Marcus's perception, not through authorial exposition. He does not know what things are called. He does not understand how things work. He observes and the reader observes with him. Ayla may name things, but her knowledge is fragmented and her explanations create as many questions as they answer.
+Worldbuilding enters through Marcus's perception, not through authorial exposition. He does not know what things are called. He does not understand how things work. He observes and the reader observes with him. Illyri may name things, but her knowledge is fragmented and her explanations create as many questions as they answer.
 
 **Violation looks like:** A paragraph explaining the history of ley lines in Eriadne before Marcus has any reason to know it.
 

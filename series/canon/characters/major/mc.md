@@ -15,7 +15,7 @@ status: active
 
 ## Identity
 
-> **Names —** **Full:** Marcus Vye · **Public / Realm:** Marcus (he uses his real name; no alias) · **Intimate short:** **Marc** (only people he lets in — e.g. Serra as she is let in, close 404 guildmates; a relationship beat, not a default) · **True name:** separate, hidden, deferred (**S-09**) — this is what Ayla's "never say your true name" warning protects, *not* "Marcus."
+> **Names —** **Full:** Marcus Vye · **Public / Realm:** Marcus (he uses his real name; no alias) · **Intimate short:** **Marc** (only people he lets in — e.g. Serra as she is let in, close 404 guildmates; a relationship beat, not a default) · **True name:** separate, hidden, deferred (**S-09**) — this is what Illyri's "never say your true name" warning protects, *not* "Marcus."
 
 | Field | Value |
 |---|---|
@@ -297,7 +297,7 @@ Dysregulated Marcus cross-examines, introduces every exception, revises definiti
 
 **With Seb** — strategic shorthand and increasingly exact disagreements over whether collective framing matches individual consent.
 
-**With Ayla** — argumentative curiosity, irritated dependency, and constant testing of her wording for omissions.
+**With Illyri** — argumentative curiosity, irritated dependency, and constant testing of her wording for omissions.
 
 ### Drafting Guardrails
 
@@ -501,8 +501,8 @@ This makes the Book 1 severance sharper. He is not only choosing reality over th
 ### Sebastion "Seb" Rainier
 Mirror-rival dynamic. Both care deeply. Both are high-agency. Both fear helplessness. Seb chooses control. Marcus must learn connection. They are the same drive expressed in opposite directions.
 
-### Ayla
-Voice in his head. Ancient celestial consciousness attached to his implant after his first death. Mentor, but unreliable and incomplete. She helps him ask better questions, not hand him easy answers. She should not solve too much.
+### Illyristranthe (Illyri)
+Voice in his head. Ancient celestial consciousness attached to his implant after his first death. Full name: Illyristranthe. Allows: Illyri. Close friends may call her Ily — she hates it, then hates that she's stopped hating it. Mentor, but unreliable and incomplete. She helps him ask better questions, not hand him easy answers. She should not solve too much.
 
 ### Mara Valeria
 Mara challenges Marcus's tendency to treat systems as puzzles rather than communities. She reminds him that people are not resources, projects, or variables.
@@ -519,7 +519,7 @@ Grounds Marcus. Turns abstract problems into practical constraints. Useful when 
 
 ### Book 1 Function
 
-Primary narrative lens. Arrives in the Realm, survives the implant activation event, gains Eyes of Meszkhal through mindscape bargaining with Xazzidiuk, dies, resurrects, meets Ayla. The archangel Zazriel was present but gave no boon — impassive, indifferent to a mortal's fate. Moves toward Eriadne. Claims unclaimed ground on the ruin-fringe (shelter/water). Becomes politically relevant through perception and the finale — **not** construction. **Actual settlement-building is Book 2.**
+Primary narrative lens. Arrives in the Realm, survives the implant activation event, gains Eyes of Meszkhal through mindscape bargaining with Xazzidiuk, dies, resurrects, meets Illyri (Illyristranthe). The archangel Zazriel was present but gave no boon — impassive, indifferent to a mortal's fate. Moves toward Eriadne. Claims unclaimed ground on the ruin-fringe (shelter/water). Becomes politically relevant through perception and the finale — **not** construction. **Actual settlement-building is Book 2.**
 
 ### Core Arc Question
 
@@ -541,7 +541,7 @@ The danger in Eriadne is not that Marcus becomes a tyrant because he loves power
 
 Marcus is one half of the series **endgame axis** (with Serra). His escalation is real and long (movement, interface uniqueness, cosmic relevance via the Realm Walkers, perception synergy with Serra's severance, Eriadne/Realm-scale consequence). His terminal function is **reconstructing the real causal map** — finding the true structure under the deception — which is the half that pairs with Serra's *breaking* it. Together they become the **answer to deception and control** and face the hidden final actor; this is *why* the cohort was assembled as keys (`dominion_realm_story_bible.md` → *The Six — Origin Cohort*; `cosmology.md` Realm Walkers / N'hal). He is also the one **forced to defeat Seb** when Seb is turned (FORK 2; `seb.md`) — the mirror collision finally landing. *(Trajectory; the six do not remain a balanced party — Marcus scales toward the cosmic axis while others take different scales/roles.)*
 
-Under the plot arc sits the emotional arc: Marcus must build a self wider than usefulness. Book 1 strips him down to the operator. Eriadne tempts him to make the operator civic-scale. Serra forces him to confront desire without ownership. Ayla/Illyri forces him to accept guidance without surrendering judgment. Mara, Mathias, and Brent each challenge the idea that usefulness equals selfhood from a different angle.
+Under the plot arc sits the emotional arc: Marcus must build a self wider than usefulness. Book 1 strips him down to the operator. Eriadne tempts him to make the operator civic-scale. Serra forces him to confront desire without ownership. Illyri forces him to accept guidance without surrendering judgment. Mara, Mathias, and Brent each challenge the idea that usefulness equals selfhood from a different angle.
 
 ### The Frame–Reality Spine — opening ↔ ending mirror
 
@@ -569,7 +569,7 @@ The book's deepest mirror is **thematic, not romantic**: it is Marcus's relation
 
 ## Continuity Notes
 
-- Died once. Resurrected. Ayla attached during or after this event.
+- Died once. Resurrected. Illyri (Illyristranthe) attached during or after this event.
 - Gained Eyes of Meszkhal through mindscape bargain with Xazzidiuk — the archdemon's vow, fulfilled by killing Marcus.
 - Zazriel (archangel) was present in the mindscape but gave no boon. Impassive. Indifferent to a mortal's survival. His presence and what it means long-term is unresolved — but he gave nothing.
 - Angelic Fortitude does not exist. Removed from canon.
@@ -594,7 +594,7 @@ The following elements originate entirely from the author's writing and should b
 - The boulder bargain and the smug chin-raise
 - The archangel Zazriel's presence in the mindscape — impassive, gave no boon. His presence is canon; the boon is not.
 - The death and resurrection sequence
-- Ayla's introduction as a wisp — her voice, her dry contempt, "No idiot, an inanimate machine is not spontaneously talking to you"
+- Illyristranthe's introduction — her voice, her dry contempt, "No idiot, an inanimate machine is not spontaneously talking to you" [original draft appearance revised: angelic/winged imagery retired; celestial/astral flavor locked]
 - The DNA/quantum computing concept: the implant uses quantum AI processing fused with human DNA as dense biological storage — this is the author's original concept and the foundation of the entire magic translation system
 - The name Phoenix being considered and rejected (useful for the naming scene — Marcus tries Phoenix, sees it appear on his status, and **keeps his own name instead**, refusing the game-handle)
 

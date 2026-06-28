@@ -38,7 +38,7 @@
 >
 > He stood there longer than he meant to.
 >
-> Ayla said nothing, which was unusual enough that he noticed.
+> Illyri said nothing, which was unusual enough that he noticed.
 >
 > He picked up the bowl. Set it back down. Kept moving.
 
@@ -90,7 +90,7 @@
 >
 > His eyes did something at the edges, the limbal warmth he hadn't learned to control yet, and he blinked it back.
 >
-> *Interesting,* Ayla said.
+> *Interesting,* Illyri said.
 >
 > "That's not helpful."
 >
@@ -125,15 +125,15 @@
 
 ---
 
-## 7. Ayla's Voice
+## 7. Illyri's Voice
 
 **Wrong — too human, too explanatory:**
 
-> "The ley lines here are very ancient," Ayla told him. "They were built by a civilization that existed long before the current inhabitants of this region. The convergence beneath Eriadne is particularly significant because it connects to multiple planar anchors."
+> "The ley lines here are very ancient," Illyri told him. "They were built by a civilization that existed long before the current inhabitants of this region. The convergence beneath Eriadne is particularly significant because it connects to multiple planar anchors."
 
 **Correct — her specific register:**
 
-> *The ground here remembers being somewhere else,* Ayla said.
+> *The ground here remembers being somewhere else,* Illyri said.
 >
 > "That doesn't mean anything."
 >
@@ -184,7 +184,7 @@
 **Same information, three different characters delivering it:**
 
 **Marcus:**
-> "The passage goes left and then — I think left, the interface gave me something earlier but it was partial, it might have been left — and there's a drop somewhere, Ayla mentioned a drop, I'm not sure what kind of drop we're talking about —"
+> "The passage goes left and then — I think left, the interface gave me something earlier but it was partial, it might have been left — and there's a drop somewhere, Illyri mentioned a drop, I'm not sure what kind of drop we're talking about —"
 
 **Serra:**
 > "Left passage. Drop at the end. We go in pairs."

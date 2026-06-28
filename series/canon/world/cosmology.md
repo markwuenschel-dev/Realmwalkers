@@ -8,7 +8,7 @@ status: canon
 
 > **Status:** Canon · working draft. Several **names** are still open (flagged ⚠ NAME); everything else here is decided.
 > **The spine:** one substrate, many interfaces — and every cosmic power has taken **one true thing** and made it supreme. None of them is actually evil. The horror is always a truth elevated above all others. This is the same identity as the magic system (one underlying reality; each culture interprets it differently).
-> **Book-1 dosage:** the empires are *distant weather.* They reach the page as rumors, old curses, scraps of doctrine, factional symbols, and Ayla's damaged references — not lore dumps. Full reveals are Book 2+.
+> **Book-1 dosage:** the empires are *distant weather.* They reach the page as rumors, old curses, scraps of doctrine, factional symbols, and Illyri's damaged references — not lore dumps. Full reveals are Book 2+.
 
 ---
 

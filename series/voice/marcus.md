@@ -72,7 +72,7 @@ perceives; perception is powerful but is not the same as correct interpretation,
 > Dialogue (how Marcus speaks) is governed by series/style/dialogue_rules.md.
 
 ## Forms of address
-He is **Marcus** by default and in public. **"Marc"** is the intimate short form — used only by people he has let in (Serra as she is let in, close 404 guildmates); it signals earned closeness, so its *first* use is a relationship beat, not a default. His **true name** (separate, hidden, deferred — S-09) is never spoken; that, not "Marcus," is what Ayla's warning protects.
+He is **Marcus** by default and in public. **"Marc"** is the intimate short form — used only by people he has let in (Serra as she is let in, close 404 guildmates); it signals earned closeness, so its *first* use is a relationship beat, not a default. His **true name** (separate, hidden, deferred — S-09) is never spoken; that, not "Marcus," is what Illyri's warning protects.
 
 ## Register by relationship (only when that character is in the scene)
 - **Serra** — more subtext and unfinished sentences, lighter and more alive humor, but his questions
@@ -85,7 +85,7 @@ He is **Marcus** by default and in public. **"Marc"** is the intimate short form
 - **Mara** — he over-explains to fill her silence until he learns it is active observation, not
   absence.
 - **Mathias** — exploratory, systems-heavy, not adversarial; they widen each other's models.
-- **Ayla** (the voice in his head) — argumentative curiosity, irritated dependency, constant testing
+- **Illyri** (the voice in his head) — argumentative curiosity, irritated dependency, constant testing
   of definitions; she answers with better questions, not verdicts.
 - **Strangers** — humor as a probe: a small, specific disruption, then he watches the reaction for
   information (and over-trusts that one reaction as a complete read).

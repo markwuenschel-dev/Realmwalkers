@@ -339,7 +339,7 @@ Summary:
 - Warning: `[ WARNING ]` — three lines max.
 - Ability change: `[ INTERFACE ]` — four lines max.
 - Stat panel: boxed — early story only, deliberate consultation only.
-- Ayla: `[ AYLA ]` — her register, not the system's.
+- Illyri: `[ ILLYRI ]` — her register, not the system's.
 
 The interface is never excited. No exclamation points. No dramatic flair. The drama belongs in the prose around the notification.
 
@@ -376,21 +376,21 @@ Any soul can be bound or overwritten in principle. Soul Level governs difficulty
 - Marcus's public name, **Marcus Vye**, is safe to speak.
 - His hidden true name is separate and must not be casually assigned.
 - The interface cannot read true names by default.
-- Ayla's warning means never reveal the hidden true name, not never say "Marcus."
+- Illyri's warning means never reveal the hidden true name, not never say "Marcus."
 
-Ayla's distinction:
+Illyri's distinction:
 
 > **Marcus:** "You're saying I shouldn't tell people my name?"
 >
-> **Ayla:** "No, idiot. I'm saying you shouldn't tell people your real name."
+> **Illyri:** "No, idiot. I'm saying you shouldn't tell people your real name."
 >
 > **Marcus:** "Marcus is my real name."
 >
-> **Ayla:** "Marcus is one of them."
+> **Illyri:** "Marcus is one of them."
 >
 > **Marcus:** "One of them?"
 >
-> **Ayla:** "You are using the vocabulary of a species that names pets and sandwiches. The distinction is important."
+> **Illyri:** "You are using the vocabulary of a species that names pets and sandwiches. The distinction is important."
 
 ---
 

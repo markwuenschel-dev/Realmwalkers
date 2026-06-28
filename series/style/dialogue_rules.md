@@ -189,14 +189,14 @@ Each character has a distinct spoken register. When a line of dialogue could bel
 
 ---
 
-### Ayla
+### Illyristranthe (Illyri)
 **How she talks:** Complete thoughts that don't follow conversational rhythm. Asks the question underneath the question, not the surface one. Occasionally phrases things slightly wrong in ways that feel old rather than broken — idioms that have drifted, concepts that don't map cleanly to human expression. No filler. No "I mean" or "anyway." Every word is chosen.
 
 **What she doesn't do:** Explain things in paragraphs. Give easy answers. Say more than she has to.
 
 **From the original draft:** "No idiot, an inanimate machine is not spontaneously talking to you." and "Never say your true name" and "I am a celestial being." These are already her. Short. Dry. Slightly off-center. She doesn't elaborate unless pressed, and even then she only adds one more layer.
 
-**Critical:** Do not let Ayla become an exposition machine. The moment she starts explaining the world at length, she stops being Ayla. Her knowledge is fragmented. Her answers create new questions. That is her function.
+**Critical:** Do not let Illyri become an exposition machine. The moment she starts explaining the world at length, she stops being Illyri. Her knowledge is fragmented. Her answers create new questions. That is her function.
 
 ---
 
@@ -226,7 +226,7 @@ Fix: identify what each character wants from this conversation. Make sure those 
 **Is the scene resolving too cleanly?**
 Fix: leave one thing unaddressed. The best dialogue scenes end with something unsaid that the reader is still holding.
 
-**Is Ayla explaining too much?**
+**Is Illyri explaining too much?**
 Fix: cut her longest speech in half. Then in half again. Whatever she can't say in two or three lines, she doesn't say yet.
 
 ---
@@ -259,7 +259,7 @@ Fix: cut her longest speech in half. Then in half again. Whatever she can't say 
 - Sounds identical across characters
 - Wraps scenes up too cleanly
 - Uses said-bookisms (he ejaculated, she opined, he intoned)
-- Has Ayla explain things at length
+- Has Illyri explain things at length
 
 ---
 

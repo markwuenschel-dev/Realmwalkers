@@ -75,7 +75,7 @@
 - Quips that arrive before the character has earned the right to be funny (he's terrified but cracks wise anyway with no acknowledgment of the terror)
 - Pop culture references — especially stacked ones — used to establish Marcus's voice
 - The humor creates distance from the scene rather than living inside it
-- Ayla's dry responses start to feel like a comedy duo setup
+- Illyri's dry responses start to feel like a comedy duo setup
 
 **Correction:** Space the humor. Marcus's playful chaos is most effective when it arrives unexpectedly against a backdrop of genuine tension. One well-placed, specific joke beats three generic ones. The humor should feel like stress response, not performance. Refer to the original draft's mindscape sequence — the chin-raise while being choked works because it's surrounded by genuine horror.
 
@@ -86,12 +86,12 @@
 **What it is:** The prose stops to explain the Realm — its history, its politics, its magic systems, its factions — in ways that prioritize reader information over character experience. The world is told rather than encountered.
 
 **Warning signs:**
-- Ayla delivers a paragraph explaining how ley lines work
+- Illyri delivers a paragraph explaining how ley lines work
 - Marcus thinks through faction politics in complete sentences that convey information he wouldn't actually think through this way
 - A new location is described comprehensively before Marcus has had a chance to notice anything about it
 - The prose summarizes worldbuilding in the narrative voice rather than filtering it through a character
 
-**Correction:** Everything the reader learns about the Realm should come through Marcus's encounter with it. He notices one thing. He misunderstands it. Ayla corrects him incompletely. He draws a wrong conclusion. This is slower but it makes the world feel real rather than documented. See `prose_contract.md` Rule 5.
+**Correction:** Everything the reader learns about the Realm should come through Marcus's encounter with it. He notices one thing. He misunderstands it. Illyri corrects him incompletely. He draws a wrong conclusion. This is slower but it makes the world feel real rather than documented. See `prose_contract.md` Rule 5.
 
 ---
 
