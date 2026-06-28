@@ -417,7 +417,9 @@ export interface ResolvedQuestion {
 
 export interface PacketWarnings {
   residual_risks?: string[];
-  issues?: { kind?: string; detail?: string }[];
+  // severity drives the approval gate: an issue at "block" blocks approval even when the verdict is
+  // approve/approve_warn (mirrors the backend's _has_blocking_qa in api/routers/scene_packets.py).
+  issues?: { kind?: string; detail?: string; severity?: "info" | "warn" | "block" | string }[];
   blocked_reason?: string;
 }
 

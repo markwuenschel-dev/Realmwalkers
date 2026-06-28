@@ -474,6 +474,62 @@ async def test_blocked_scene_packet_cannot_be_approved(db_factory, monkeypatch):
         assert exc.value.status_code == 409
 
 
+async def _proposed_scene_packet(s, book, ch, cp, *, verdict, warnings) -> ScenePacket:
+    sp = ScenePacket(
+        book_id=book.id, chapter_id=ch.id, chapter_packet_id=cp.id, scene_seed_id=uuid.uuid4(),
+        scene_no=1, status=ScenePacketStatus.PROPOSED, qa_verdict=verdict, qa_warnings=warnings,
+        body=_scene_body(), source_hash="h",
+    )
+    s.add(sp)
+    await s.flush()
+    return sp
+
+
+async def test_proposed_packet_with_blocking_qa_cannot_be_approved(db_factory):
+    """The gap that produced the silent 409: a packet that is PROPOSED (not BLOCKED) but whose QA gates
+    drafting. `_has_blocking_qa` must refuse it for a revise_required verdict AND for a block-severity
+    issue even under a non-blocking verdict (approve_warn). Mirrors the frontend's blockingQa()."""
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+
+        revise = await _proposed_scene_packet(
+            s, book, ch, cp,
+            verdict=ScenePacketVerdict.REVISE_REQUIRED,
+            warnings={"residual_risks": [], "issues": []},
+        )
+        with pytest.raises(HTTPException) as exc:
+            await sp_router.approve_scene_packet(revise.id, s)
+        assert exc.value.status_code == 409
+
+        # approve_warn verdict, but an issue is severity:"block" -> still gated (the trap that read as
+        # an enabled Approve button on the old frontend).
+        warn_but_blocked = await _proposed_scene_packet(
+            s, book, ch, cp,
+            verdict=ScenePacketVerdict.APPROVE_WARN,
+            warnings={"residual_risks": [], "issues": [{"kind": "leak", "detail": "x", "severity": "block"}]},
+        )
+        with pytest.raises(HTTPException) as exc:
+            await sp_router.approve_scene_packet(warn_but_blocked.id, s)
+        assert exc.value.status_code == 409
+
+
+async def test_proposed_packet_with_approve_warn_and_no_block_issue_approves(db_factory, monkeypatch):
+    """The flip side: approve_warn with only info/warn issues is NOT gated — approval proceeds and
+    derives the beat (so the gate doesn't over-block legitimate warn-level packets)."""
+    _patch_scene_agents(monkeypatch, _scene_body())  # only needed for beat derivation inputs
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp = await _proposed_scene_packet(
+            s, book, ch, cp,
+            verdict=ScenePacketVerdict.APPROVE_WARN,
+            warnings={"residual_risks": ["minor echo risk"], "issues": [{"detail": "soft", "severity": "warn"}]},
+        )
+        await sp_router.approve_scene_packet(sp.id, s)
+        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.APPROVED
+
+
 # --- context assembly requires an approved scene packet --------------------------------------------
 
 async def _approved_scene_packet_with_beat(s, book, ch, cp) -> tuple[ScenePacket, Beat]:
