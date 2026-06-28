@@ -22,6 +22,32 @@ const STATUS_VAR: Record<string, string> = {
   proposed: "--info",
 };
 
+// Mirror of the backend approval gate (api/routers/scene_packets.py:_has_blocking_qa). Approval is
+// refused when the QA verdict is revise_required/block_drafting OR any issue is severity:"block" — so
+// the Approve button must read the SAME rule, or it offers an action the server will reject with a 409.
+function blockingQa(packet: ScenePacketOut): boolean {
+  const v = packet.qa_verdict;
+  if (v === "block_drafting" || v === "revise_required") return true;
+  const issues = packet.qa_warnings?.issues;
+  return Array.isArray(issues) && issues.some((i) => i?.severity === "block");
+}
+
+// Human-readable reasons a packet can't be approved yet — shown on the card so a refused approval is
+// never silent (and so the old "click Approve → unexplained 409" can't recur).
+function blockingReasons(packet: ScenePacketOut): string[] {
+  const reasons: string[] = [];
+  const v = packet.qa_verdict;
+  if (v === "block_drafting")
+    reasons.push("QA verdict: block drafting — no prose may be written from this packet.");
+  else if (v === "revise_required")
+    reasons.push("QA verdict: revise required — the contract must be fixed first.");
+  for (const i of packet.qa_warnings?.issues ?? []) {
+    if (i?.severity === "block")
+      reasons.push(`Blocking issue${i.kind ? ` (${i.kind})` : ""}: ${i.detail ?? "unspecified"}`);
+  }
+  return reasons;
+}
+
 export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const { t } = useDesk();
   const [packets, setPackets] = useState<ScenePacketOut[]>([]);
@@ -209,8 +235,10 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
             <ScenePacketCard
               key={p.id}
               packet={p}
-              busy={busy === p.id}
-              onApprove={() => run(p.id, () => api.approveScenePacket(p.id))}
+              busy={busy}
+              onApprove={() => run(`approve:${p.id}`, () => api.approveScenePacket(p.id))}
+              onReQa={() => run(`qa:${p.id}`, () => api.qaScenePacket(p.id))}
+              onSave={(body) => run(`save:${p.id}`, () => api.updateScenePacket(p.id, { body }))}
             />
           ))}
         </div>
@@ -225,12 +253,17 @@ function ScenePacketCard({
   packet,
   busy,
   onApprove,
+  onReQa,
+  onSave,
 }: {
   packet: ScenePacketOut;
-  busy: boolean;
+  busy: string | null;
   onApprove: () => void;
+  onReQa: () => void;
+  onSave: (body: ScenePacketBody) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const b: ScenePacketBody = packet.body ?? {};
   const wb = b.word_budget ?? {};
   const known = b.known_before_scene ?? {};
@@ -238,7 +271,16 @@ function ScenePacketCard({
   const hidden = b.must_remain_hidden ?? {};
   const statusVar = STATUS_VAR[packet.status] ?? "--dim";
   const blocked = packet.qa_warnings?.blocked_reason ?? b.blocked_reason;
-  const canApprove = packet.status === "proposed" && packet.qa_verdict !== "block_drafting";
+  const residual = packet.qa_warnings?.residual_risks ?? [];
+  const issues = packet.qa_warnings?.issues ?? [];
+  const reasons = blockingReasons(packet);
+  // Same gate the server enforces — no more enabled-Approve-that-409s.
+  const canApprove = packet.status === "proposed" && !blockingQa(packet);
+
+  // Per-action busy flags (the panel keys busy as "<action>:<id>"). cardBusy disables every action on
+  // this card while any one of them is in flight.
+  const mine = (action: string) => busy === `${action}:${packet.id}`;
+  const cardBusy = mine("approve") || mine("qa") || mine("save");
 
   return (
     <div
@@ -261,7 +303,10 @@ function ScenePacketCard({
         </span>
         <Chip label={packet.status} colorVar={statusVar} />
         {packet.qa_verdict && (
-          <Chip label={`QA: ${packet.qa_verdict.replace(/_/g, " ")}`} colorVar="--info" />
+          <Chip
+            label={`QA: ${packet.qa_verdict.replace(/_/g, " ")}`}
+            colorVar={blockingQa(packet) ? "--bad" : "--info"}
+          />
         )}
         {wb.target ? (
           <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
@@ -269,17 +314,42 @@ function ScenePacketCard({
             {wb.hard_max ? ` · ≤${wb.hard_max}` : ""}
           </span>
         ) : null}
-        <span style={css("margin-left:auto;display:flex;align-items:center;gap:10px")}>
-          {canApprove && (
+        <span style={css("margin-left:auto;display:flex;align-items:center;gap:8px")}>
+          {!editing && canApprove && (
             <button
-              disabled={busy}
+              disabled={cardBusy}
               onClick={(e) => {
                 e.stopPropagation();
                 onApprove();
               }}
-              style={btn(!busy, "var(--good)", "var(--bg)")}
+              style={btn(!cardBusy, "var(--good)", "var(--bg)")}
             >
-              {busy ? "Approving…" : "Approve"}
+              {mine("approve") ? "Approving…" : "Approve"}
+            </button>
+          )}
+          {!editing && packet.status !== "approved" && (
+            <button
+              disabled={cardBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReQa();
+              }}
+              style={btn(!cardBusy, "var(--bg3)", "var(--ink)")}
+            >
+              {mine("qa") ? "Re-running QA…" : "Re-run QA"}
+            </button>
+          )}
+          {!editing && packet.status !== "approved" && (
+            <button
+              disabled={cardBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(true);
+                setEditing(true);
+              }}
+              style={btn(!cardBusy, "var(--bg3)", "var(--ink)")}
+            >
+              Edit
             </button>
           )}
           <span style={css("font-family:var(--mono);font-size:14px;color:var(--dim)")}>
@@ -299,45 +369,209 @@ function ScenePacketCard({
         </div>
       )}
 
-      {open && (
-        <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px")}>
-          {b.scene_job && (
-            <div style={css("font-size:13px;color:var(--ink);line-height:1.45")}>{b.scene_job}</div>
+      {/* Why approval is refused — the data that used to be hidden behind a bare 409. */}
+      {reasons.length > 0 && packet.status === "proposed" && (
+        <div
+          style={css(
+            "margin-top:9px;border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--bg2));border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:4px",
           )}
-          <Pills label="Reader knows before" items={known.reader} tone="dim" />
-          <Pills label="POV knows before" items={known.pov} tone="dim" />
-          <Pills label="Reader must learn" items={learned.reader_must_learn} tone="info" />
-          <Pills label="Reader may infer only" items={learned.reader_may_infer_only} tone="warn" />
-          <Pills label="Must stay hidden (reader)" items={hidden.reader} tone="bad" />
-          <Pills label="Required beats" items={b.required_beats} tone="good" />
-          <Pills label="Forbidden beats" items={b.forbidden_beats} tone="bad" />
-          {(b.intentional_mysteries?.length ?? 0) > 0 && (
-            <div>
-              <Label text="Intentional mysteries (don't explain)" />
-              <div style={css("display:flex;flex-direction:column;gap:5px")}>
-                {b.intentional_mysteries!.map((m, i) => (
-                  <div key={i} style={css("font-size:12.5px;color:var(--ink)")}>
-                    {m.mystery}
-                    {m.desired_reader_effect ? (
-                      <span style={css("color:var(--dim)")}> — {m.desired_reader_effect}</span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
+        >
+          <div style={css("font-family:var(--mono);font-size:11px;color:var(--bad)")}>
+            QA blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:
+          </div>
+          {reasons.map((r, i) => (
+            <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
+              · {r}
             </div>
-          )}
-          <Pills
-            label="Reviewer false-positive traps"
-            items={b.reviewer_false_positive_traps}
-            tone="dim"
-          />
-          {b.exit_state && (
-            <div style={css("font-size:12px;color:var(--dim)")}>Exit: {b.exit_state}</div>
-          )}
+          ))}
         </div>
+      )}
+
+      {editing ? (
+        <ScenePacketEditor
+          body={b}
+          busy={mine("save")}
+          onSave={(body) => {
+            onSave(body);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        open && (
+          <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px")}>
+            {b.scene_job && (
+              <div style={css("font-size:13px;color:var(--ink);line-height:1.45")}>
+                {b.scene_job}
+              </div>
+            )}
+            <Pills label="Reader knows before" items={known.reader} tone="dim" />
+            <Pills label="POV knows before" items={known.pov} tone="dim" />
+            <Pills label="Reader must learn" items={learned.reader_must_learn} tone="info" />
+            <Pills
+              label="Reader may infer only"
+              items={learned.reader_may_infer_only}
+              tone="warn"
+            />
+            <Pills label="Must stay hidden (reader)" items={hidden.reader} tone="bad" />
+            <Pills label="Required beats" items={b.required_beats} tone="good" />
+            <Pills label="Forbidden beats" items={b.forbidden_beats} tone="bad" />
+            {(b.intentional_mysteries?.length ?? 0) > 0 && (
+              <div>
+                <Label text="Intentional mysteries (don't explain)" />
+                <div style={css("display:flex;flex-direction:column;gap:5px")}>
+                  {b.intentional_mysteries!.map((m, i) => (
+                    <div key={i} style={css("font-size:12.5px;color:var(--ink)")}>
+                      {m.mystery}
+                      {m.desired_reader_effect ? (
+                        <span style={css("color:var(--dim)")}> — {m.desired_reader_effect}</span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Pills
+              label="Reviewer false-positive traps"
+              items={b.reviewer_false_positive_traps}
+              tone="dim"
+            />
+            {b.exit_state && (
+              <div style={css("font-size:12px;color:var(--dim)")}>Exit: {b.exit_state}</div>
+            )}
+
+            {/* QA detail — every residual risk and issue, with severity. Previously rendered nowhere,
+                which is why a gated packet looked identical to a clean one. */}
+            {(residual.length > 0 || issues.length > 0) && (
+              <div
+                style={css(
+                  "margin-top:4px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px",
+                )}
+              >
+                <Label text="QA report" />
+                {issues.map((it, i) => {
+                  const sev = it.severity ?? "info";
+                  const sevVar = sev === "block" ? "--bad" : sev === "warn" ? "--warn" : "--dim";
+                  return (
+                    <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
+                      <Chip label={sev} colorVar={sevVar} />{" "}
+                      {it.kind ? <strong>{it.kind}: </strong> : null}
+                      {it.detail}
+                    </div>
+                  );
+                })}
+                <Pills label="Residual risks (non-blocking)" items={residual} tone="warn" />
+              </div>
+            )}
+          </div>
+        )
       )}
     </div>
   );
+}
+
+// Edit the high-leverage scene-contract fields and PUT the whole body. Works on a local draft (Save
+// persists, Cancel discards). Editing the body returns an approved packet to `proposed` server-side;
+// after a save the human re-runs QA, then approves. Mirrors PacketEditor on the chapter-packet screen.
+function ScenePacketEditor({
+  body,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  body: ScenePacketBody;
+  busy: boolean;
+  onSave: (body: ScenePacketBody) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<ScenePacketBody>(() => structuredClone(body));
+
+  const setField = (k: keyof ScenePacketBody, v: unknown) => setDraft((d) => ({ ...d, [k]: v }));
+  // Immutably set a nested list field, e.g. known_before_scene.reader.
+  const setNested = (group: keyof ScenePacketBody, key: string, v: string[]) =>
+    setDraft((d) => ({ ...d, [group]: { ...(d[group] as Record<string, unknown>), [key]: v } }));
+
+  return (
+    <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px")}>
+      <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
+        <Chip label="editing scene packet" colorVar="--info" />
+        <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+          Save replaces the contract and returns it to proposed — Re-run QA, then Approve.
+        </span>
+      </div>
+
+      <EditText
+        label="Scene job"
+        value={draft.scene_job}
+        onChange={(v) => setField("scene_job", v)}
+        multiline
+      />
+      <EditList
+        label="Reader knows before"
+        value={known(draft).reader}
+        onChange={(v) => setNested("known_before_scene", "reader", v)}
+      />
+      <EditList
+        label="POV knows before"
+        value={known(draft).pov}
+        onChange={(v) => setNested("known_before_scene", "pov", v)}
+      />
+      <EditList
+        label="Reader must learn"
+        value={draft.learned_during_scene?.reader_must_learn}
+        onChange={(v) => setNested("learned_during_scene", "reader_must_learn", v)}
+      />
+      <EditList
+        label="Reader may infer only"
+        value={draft.learned_during_scene?.reader_may_infer_only}
+        onChange={(v) => setNested("learned_during_scene", "reader_may_infer_only", v)}
+      />
+      <EditList
+        label="Must stay hidden (reader)"
+        value={draft.must_remain_hidden?.reader}
+        onChange={(v) => setNested("must_remain_hidden", "reader", v)}
+      />
+      <EditList
+        label="Required beats"
+        value={draft.required_beats}
+        onChange={(v) => setField("required_beats", v)}
+      />
+      <EditList
+        label="Forbidden beats"
+        value={draft.forbidden_beats}
+        onChange={(v) => setField("forbidden_beats", v)}
+      />
+      <EditList
+        label="Reviewer false-positive traps"
+        value={draft.reviewer_false_positive_traps}
+        onChange={(v) => setField("reviewer_false_positive_traps", v)}
+      />
+      <EditText
+        label="Exit state"
+        value={draft.exit_state}
+        onChange={(v) => setField("exit_state", v)}
+        multiline
+      />
+
+      <div style={css("display:flex;gap:9px")}>
+        <button
+          disabled={busy}
+          onClick={() => onSave(draft)}
+          style={btn(!busy, "var(--good)", "var(--bg)")}
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button disabled={busy} onClick={onCancel} style={btn(!busy, "var(--bg3)", "var(--ink)")}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Narrow accessor so the nested-list editors don't repeat the `?? {}` dance.
+function known(b: ScenePacketBody): { reader?: string[]; pov?: string[] } {
+  return b.known_before_scene ?? {};
 }
 
 // --- small local helpers (kept self-contained; PacketsScreen's are not exported) ---
@@ -407,5 +641,79 @@ function Muted({ text }: { text: string }) {
 function btn(enabled: boolean, bg: string, fg: string): CSSProperties {
   return css(
     `height:30px;padding:0 13px;border-radius:8px;border:none;font-family:var(--ui);font-size:12.5px;font-weight:500;cursor:${enabled ? "pointer" : "default"};background:${enabled ? bg : "var(--bg3)"};color:${enabled ? fg : "var(--dim)"};opacity:${enabled ? 1 : 0.7}`,
+  );
+}
+
+function inputStyle(): CSSProperties {
+  return css(
+    "width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--ui);font-size:13px;color:var(--ink);resize:vertical",
+  );
+}
+
+function EditText({
+  label,
+  value,
+  onChange,
+  multiline,
+  rows,
+}: {
+  label: string;
+  value?: string;
+  onChange: (v: string) => void;
+  multiline?: boolean;
+  rows?: number;
+}) {
+  return (
+    <div>
+      <Label text={label} />
+      {multiline ? (
+        <textarea
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          rows={rows ?? 2}
+          style={inputStyle()}
+        />
+      ) : (
+        <input
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          style={inputStyle()}
+        />
+      )}
+    </div>
+  );
+}
+
+// A string-array field edited as one item per line. Local text buffer so blank/intermediate lines
+// don't fight the cursor; the trimmed, non-empty list is pushed up on every change. (Mirrors the
+// chapter-packet editor's EditList, which isn't exported from PacketsScreen.)
+function EditList({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value?: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [text, setText] = useState(() => (value ?? []).join("\n"));
+  return (
+    <div>
+      <Label text={`${label} · one per line`} />
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(
+            e.target.value
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          );
+        }}
+        rows={Math.max(2, value?.length ?? 0)}
+        style={inputStyle()}
+      />
+    </div>
   );
 }
