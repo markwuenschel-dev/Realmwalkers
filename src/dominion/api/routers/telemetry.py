@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable, Iterable
-from typing import Any
+from datetime import datetime
+from typing import Any, cast
 
 from fastapi import APIRouter
 from sqlalchemy import select
@@ -156,7 +157,7 @@ async def book_telemetry(book_id: uuid.UUID, session: SessionDep) -> BookTelemet
     # Newest run first; the legacy (no-run_id) bucket has no timestamp, so it always sorts last.
     dated = sorted(
         (r for r in by_run if r.started_at is not None),
-        key=lambda r: r.started_at, reverse=True,  # type: ignore[arg-type,return-value]
+        key=lambda r: cast(datetime, r.started_at), reverse=True,
     )
     by_run = dated + [r for r in by_run if r.started_at is None]
 

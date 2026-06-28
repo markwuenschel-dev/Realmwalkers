@@ -6,7 +6,7 @@ other router tests.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from dominion.api.routers import telemetry as tel_router
 from dominion.shared.models import Book, Chapter, LlmCall
@@ -64,7 +64,7 @@ async def test_chapter_telemetry_scopes_to_latest_run(db_factory):
     async with db_factory() as s:
         book, ch, _ = await _book_with_chapters(s)
         run_old, run_new = uuid.uuid4(), uuid.uuid4()
-        t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        t0 = datetime(2026, 1, 1, tzinfo=UTC)
         s.add_all([
             LlmCall(run_id=run_old, book_id=book.id, chapter_id=ch.id, scene_no=1,
                     stage="scene_packet_author", model="haiku", input_tokens=999, output_tokens=10,
@@ -89,7 +89,7 @@ async def test_book_telemetry_per_run_history_newest_first(db_factory):
     async with db_factory() as s:
         book, ch, _ = await _book_with_chapters(s)
         run_a, run_b = uuid.uuid4(), uuid.uuid4()
-        t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        t0 = datetime(2026, 1, 1, tzinfo=UTC)
         s.add_all([
             LlmCall(run_id=run_a, book_id=book.id, chapter_id=ch.id, scene_no=1,
                     stage="scene_packet_author", model="haiku", input_tokens=10, output_tokens=1,
