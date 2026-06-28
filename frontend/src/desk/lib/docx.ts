@@ -204,9 +204,7 @@ function interfacePanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
     ln.trim()
       ? new Paragraph({
           spacing: { after: 40, line: 240, lineRule: "auto" },
-          children: [
-            new TextRun({ text: ln, font: "Consolas", size: 18, color: surface.text }),
-          ],
+          children: [new TextRun({ text: ln, font: "Consolas", size: 18, color: surface.text })],
         })
       : new Paragraph({ spacing: { after: 40 }, children: [new TextRun("")] }),
   );
@@ -238,19 +236,18 @@ function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
 
   const header = new TableRow({
     tableHeader: true,
-    children: b.head.map((h, i) =>
-      new TableCell({
-        shading: { type: ShadingType.CLEAR, fill: surface.headerFill, color: "auto" },
-        margins: cellMargins,
-        children: [
-          new Paragraph({
-            alignment: align(i),
-            children: [
-              new TextRun({ text: h, bold: true, color: surface.headerText }),
-            ],
-          }),
-        ],
-      }),
+    children: b.head.map(
+      (h, i) =>
+        new TableCell({
+          shading: { type: ShadingType.CLEAR, fill: surface.headerFill, color: "auto" },
+          margins: cellMargins,
+          children: [
+            new Paragraph({
+              alignment: align(i),
+              children: [new TextRun({ text: h, bold: true, color: surface.headerText })],
+            }),
+          ],
+        }),
     ),
   });
 
