@@ -1,14 +1,27 @@
 ---
-description: Git workflow — always commit to main unless user explicitly asks for a PR branch
+description: Git workflow — work on main; branch/PR/merge/cleanup only on "ship it"
 alwaysApply: true
 ---
 
-# Git: work on main
+# Git workflow
 
-- **Default:** commit and push to `main`. The user pulls `main` — that is the only delivery path.
-- **Do not** create feature branches (`cursor/*`, `feat/*`, etc.) unless the user explicitly requests a PR or branch.
-- **Do not** finish tasks with code only on a side branch. Merge to `main` and push before done.
-- **Do not** instruct the user to fetch/checkout agent branches.
-- If a PR is requested: merge to `main` anyway when complete; branch is optional history, not the source of truth.
+## Normal tasks → `main`
 
-See [AGENTS.md](../../AGENTS.md) for full agent git policy.
+- Implement on **`main`**. Commit and push to **`origin/main`**.
+- Owner pulls **`main`**. No feature branches. No "checkout my branch."
+
+## "Ship it" only → branch + PR + merge + cleanup
+
+When the owner says **ship it**, run the full ship flow ([`.claude/commands/ship.md`](../../.claude/commands/ship.md)):
+
+1. Create branch → commit → push
+2. Detailed PR
+3. **Wait for CI green**
+4. Merge PR
+5. Delete merged branch (local + GitHub)
+6. Scan/prune stale branches and remote-tracking refs
+7. Fast-forward `main`
+
+Do **not** create ship branches during ordinary work.
+
+Full policy: [AGENTS.md](../../AGENTS.md)
