@@ -3,8 +3,9 @@
 The contract JSON is large and the author call is output-bound (~12.5s per 1k output tokens, measured),
 so one monolithic call emits ~6k tokens and takes >50s every time. Output generation is sequential
 WITHIN a request but parallel ACROSS requests, so this module splits the contract into ~5 SECTION calls
-that each emit a disjoint slice, runs them concurrently, and merges the slices server-side back into the
-exact same body shape `parse.valid_scene_packet_body` and the rest of the system already expect.
+that each emit a disjoint slice — priming one shared cached prefix, then running the rest concurrently —
+and merges the slices server-side back into the exact same body shape `parse.valid_scene_packet_body`
+and the rest of the system already expect.
 
 Split along dependency seams, not arbitrarily: the knowledge cluster (known_before / learned_during /
 must_remain_hidden / pov_permissions) partitions ONE fact-space — a fact lives in exactly one bucket —
@@ -35,7 +36,7 @@ from dominion.workers.scene_packet.author import (
     _SYSTEM,
     ScenePacketAuthorError,
     build_prefix,
-    build_prompt,
+    build_scene_context,
 )
 from dominion.workers.scene_packet.parse import extract_object, valid_scene_packet_body
 
@@ -221,25 +222,36 @@ async def author_scene_packet_sectioned(
     `author.author_scene_packet` — the caller (`derive._author_then_qa`) treats them interchangeably.
 
     word_budget is stamped server-side so the model can never override the planner's numbers."""
+    # Everything that is identical across this scene's section calls — the chapter-wide authority AND the
+    # scene context (seed, budget, retrieved canon) — rides as ONE cached prefix. Only the per-section
+    # directive (`user`, below) varies. This is what lets the priming call WRITE the shared prefix once
+    # and the rest READ it (charged at 0.1x), instead of every section re-sending the full context.
     prefix = build_prefix(
         chapter_packet_body=chapter_packet_body,
         pov_summary=pov_summary, omniscient_summary=omniscient_summary,
+    ) + "\n\n" + build_scene_context(
+        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
+        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
     )
 
     async def _run(section: _Section) -> dict[str, Any]:
-        user = build_prompt(
-            pov=pov, scene_seed=scene_seed, word_budget=word_budget,
-            prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
-            owner_snippets=owner_snippets, canon_snippets=canon_snippets,
-            closing=_section_closing(section),
-        )
         return await _author_section(
-            section, system=_section_system(section), prefix=prefix, user=user, budget=budget
+            section, system=_section_system(section), prefix=prefix,
+            user=_section_closing(section), budget=budget,
         )
 
-    # Any section raising ScenePacketAuthorError fails the whole packet closed (gather re-raises the
-    # first); the derive persists that reason as the scene's blocked_reason.
-    slices = await asyncio.gather(*(_run(s) for s in _SECTIONS))
+    # Prime the shared-prefix cache before fanning out. Running all sections concurrently means they ALL
+    # miss the cold cache and each WRITES the full prefix at full budget weight — which summed past the
+    # per-scene ceiling (the 68k > 60k blocks). So run the cheapest section (smallest output, fastest to
+    # return) FIRST to warm the cache; the remaining sections then run concurrently and READ it (0.1x).
+    # Any section raising ScenePacketAuthorError fails the whole packet closed (the derive persists the
+    # reason as the scene's blocked_reason).
+    primer = min(_SECTIONS, key=lambda s: s.max_tokens)
+    rest = [s for s in _SECTIONS if s is not primer]
+    first = await _run(primer)
+    others = await asyncio.gather(*(_run(s) for s in rest))
+    slices = [first, *others]
 
     body: dict[str, Any] = {}
     for part in slices:

@@ -88,7 +88,7 @@ def build_prefix(
     return "\n\n".join(parts)
 
 
-def build_prompt(
+def build_scene_context(
     *,
     pov: str,
     scene_seed: dict[str, Any],
@@ -97,14 +97,11 @@ def build_prompt(
     prior_exit_state: str | None = None,
     owner_snippets: list[str] | None = None,
     canon_snippets: list[str] | None = None,
-    closing: str | None = None,
 ) -> str:
-    """The scene-specific part of the prompt (varies per scene, so it is NOT cached). The chapter-wide
-    authority and summaries are sent ahead of this as the cached prefix (build_prefix).
-
-    `closing` overrides the trailing instruction — the sectioned author passes a per-section directive
-    ("emit ONLY these fields") + its schema subset here, while reusing all of the shared scene context
-    above it (so the section calls share an identical, cacheable body)."""
+    """The scene-specific CONTEXT (seed, word budget, prior state, retrieved canon) — everything that is
+    constant across a scene's author call(s) but varies per scene, carrying NO closing instruction. The
+    sectioned author caches this whole block as a prefix and varies only the per-section directive below
+    it, so all of a scene's section calls share (and the priming call writes) one identical cached body."""
     parts: list[str] = [f"POV: {pov}"]
     parts.append("THIS SCENE'S SEED:\n" + _compact(scene_seed))
     parts.append("WORD BUDGET (use verbatim):\n" + _compact(word_budget))
@@ -118,10 +115,32 @@ def build_prompt(
                      + "\n\n".join(owner_snippets))
     if canon_snippets:
         parts.append("RETRIEVED CANON (supporting context):\n" + "\n\n".join(canon_snippets))
-    parts.append(
-        closing or ("Produce the ScenePacket as ONE JSON object with exactly this shape:\n" + _SCHEMA_HINT)
-    )
     return "\n\n".join(parts)
+
+
+def build_prompt(
+    *,
+    pov: str,
+    scene_seed: dict[str, Any],
+    word_budget: dict[str, Any],
+    prior_scene_summaries: list[str] | None = None,
+    prior_exit_state: str | None = None,
+    owner_snippets: list[str] | None = None,
+    canon_snippets: list[str] | None = None,
+    closing: str | None = None,
+) -> str:
+    """The full scene-specific prompt: the shared scene context plus a trailing instruction (the default
+    whole-packet schema, or a `closing` override). The chapter-wide authority/summaries ride ahead of
+    this as the cached prefix (build_prefix)."""
+    context = build_scene_context(
+        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
+        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
+    )
+    closing_text = closing or (
+        "Produce the ScenePacket as ONE JSON object with exactly this shape:\n" + _SCHEMA_HINT
+    )
+    return context + "\n\n" + closing_text
 
 
 def _stamp(body: dict[str, Any], word_budget: dict[str, Any]) -> dict[str, Any]:
