@@ -567,9 +567,18 @@ export interface ChapterRollupOut extends TelemetryTotals {
   title: string | null;
 }
 
+export interface RunRollupOut extends TelemetryTotals {
+  run_id: string | null;
+  started_at: string | null;
+  chapter_id: string | null;
+  chapter_no: number | null;
+  title: string | null;
+}
+
 export interface BookTelemetryOut {
   totals: TelemetryTotals;
   by_chapter: ChapterRollupOut[];
+  by_run: RunRollupOut[];
   by_stage: TelemetryGroupOut[];
   by_model: TelemetryGroupOut[];
 }

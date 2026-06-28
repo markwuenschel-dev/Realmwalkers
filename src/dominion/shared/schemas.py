@@ -315,11 +315,22 @@ class ChapterRollupOut(TelemetryTotals):
     title: str | None = None
 
 
+class RunRollupOut(TelemetryTotals):
+    """One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`
+    is the run's earliest call; `chapter_no`/`title` label which chapter the run derived."""
+    run_id: uuid.UUID | None = None
+    started_at: datetime | None = None
+    chapter_id: uuid.UUID | None = None
+    chapter_no: int | None = None
+    title: str | None = None
+
+
 class BookTelemetryOut(BaseModel):
     """Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,
     and models — the cross-chapter/scene view the global Telemetry tab renders."""
     totals: TelemetryTotals = TelemetryTotals()
     by_chapter: list[ChapterRollupOut] = []
+    by_run: list[RunRollupOut] = []
     by_stage: list[TelemetryGroupOut] = []
     by_model: list[TelemetryGroupOut] = []
 

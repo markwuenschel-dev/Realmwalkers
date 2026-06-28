@@ -226,6 +226,10 @@ class LlmCall(Base):
     """
     __tablename__ = "llm_calls"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    # One derive invocation stamps all of its calls with the same run_id, so the telemetry surfaces can
+    # show a single run in isolation (the Packets panel = latest run) and a per-run history (the
+    # Telemetry tab) instead of one ever-growing cumulative total. Nullable: legacy rows predate it.
+    run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     book_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True)
     chapter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapters.id"), nullable=True)
     scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)

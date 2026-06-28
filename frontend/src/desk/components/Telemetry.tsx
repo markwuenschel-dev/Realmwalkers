@@ -201,7 +201,7 @@ export function ChapterTelemetryPanel({
 
   return (
     <div style={css("margin-top:18px")}>
-      <SectionLabel text={`Derive telemetry · ${data.totals.calls} model calls`} />
+      <SectionLabel text={`Derive telemetry · latest run · ${data.totals.calls} model calls`} />
       <TotalsStrip t={data.totals} />
       <SectionLabel text="Per scene" />
       <TotalsTable<SceneTelemetryOut>
