@@ -138,6 +138,74 @@ function monoPanel(lines: string[], fill: string): Table {
   );
 }
 
+// LitRPG interface panels — role/domain/creature drive accent colour and header text.
+const ROLE_COLOR: Record<string, string> = {
+  insight: "2E5AAC",
+  status: "2F7D57",
+  combat: "A23A52",
+  inventory: "6B4FA0",
+  quest: "9A6A1F",
+};
+const DOMAIN_TINT: Record<string, string> = {
+  death: "F5E8EE",
+  life: "EAF4EE",
+  fire: "FDF0E8",
+  water: "E8F0F8",
+  shadow: "EEEEF5",
+};
+
+function interfaceAccent(attrs: Record<string, string>): string {
+  return ROLE_COLOR[attrs.role?.toLowerCase() ?? ""] ?? "1F3864";
+}
+
+function interfaceFill(attrs: Record<string, string>): string {
+  return DOMAIN_TINT[attrs.domain?.toLowerCase() ?? ""] ?? "F0F4FA";
+}
+
+function interfaceHeaderText(attrs: Record<string, string>): string {
+  const role = (attrs.role ?? "interface").toUpperCase();
+  const creature = attrs.creature?.toUpperCase();
+  const domain = attrs.domain?.toUpperCase();
+  const parts = [role];
+  if (creature) parts.push(`CREATURE · ${creature}`);
+  if (domain) parts.push(domain);
+  if (attrs.intensity) parts.push(attrs.intensity.toUpperCase());
+  return parts.join(" · ");
+}
+
+function interfacePanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
+  const accent = interfaceAccent(b.attrs);
+  const children: Paragraph[] = [
+    new Paragraph({
+      spacing: { after: 80 },
+      children: [
+        new TextRun({ text: interfaceHeaderText(b.attrs), bold: true, color: accent, size: 18 }),
+      ],
+    }),
+  ];
+  for (const ln of b.lines) {
+    if (ln.trim()) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 40, line: 240, lineRule: "auto" },
+          children: [new TextRun({ text: ln, font: "Consolas", size: 18, color: "1A1A1A" })],
+        }),
+      );
+    }
+  }
+  if (children.length === 1) children.push(new Paragraph(""));
+  return panel(children, interfaceFill(b.attrs), accent);
+}
+
+/** Plain Shunn header for an @interface block — exported for tests. */
+export function formatInterfaceShunnHeader(attrs: Record<string, string>): string {
+  const role = (attrs.role ?? "unknown").toUpperCase();
+  let header = `[ ${role} ] CREATURE SCAN`;
+  if (attrs.creature) header += ` · ${attrs.creature.toUpperCase()}`;
+  if (attrs.domain) header += ` · ${attrs.domain.toUpperCase()}`;
+  return header;
+}
+
 function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
   const align = (i: number) =>
     b.align[i] === "center"
@@ -234,6 +302,9 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
         break;
       case "stat":
         pushTable(monoPanel(b.lines, "FAFAFA"));
+        break;
+      case "interface":
+        pushTable(interfacePanel(b));
         break;
       case "hr":
         out.push(
@@ -402,6 +473,73 @@ function shunnHeader(surname: string, titleUpper: string): Header {
   });
 }
 
+function shunnBody(text: string): Paragraph {
+  return new Paragraph({
+    spacing: DOUBLE,
+    indent: { firstLine: convertInchesToTwip(0.5) },
+    children: [shunnRun(text)],
+  });
+}
+
+function shunnCenter(text: string, extra: object = {}): Paragraph {
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: DOUBLE,
+    ...extra,
+    children: [shunnRun(text)],
+  });
+}
+
+/** Turn parsed prose blocks into plain Shunn paragraphs — no panels or styling. */
+function shunnPlainBlocks(blocks: ProseBlock[]): Paragraph[] {
+  const out: Paragraph[] = [];
+  for (const b of blocks) {
+    switch (b.kind) {
+      case "p":
+        out.push(shunnBody(b.text.replace(/\s+/g, " ").trim()));
+        break;
+      case "interface": {
+        out.push(shunnCenter(formatInterfaceShunnHeader(b.attrs), { indent: undefined }));
+        out.push(new Paragraph({ spacing: DOUBLE, children: [shunnRun("")] }));
+        for (const ln of b.lines) {
+          if (ln.trim()) out.push(shunnBody(ln.trim()));
+        }
+        break;
+      }
+      case "table": {
+        const rows = [b.head, ...b.rows];
+        for (const row of rows) out.push(shunnCenter(`| ${row.join(" | ")} |`, { indent: undefined }));
+        break;
+      }
+      case "code":
+      case "stat":
+        for (const ln of b.lines) {
+          if (ln.trim()) out.push(shunnCenter(ln, { indent: undefined }));
+        }
+        break;
+      case "callout":
+        if (b.title) out.push(shunnBody(`[${b.title}]`));
+        for (const ln of b.lines) {
+          if (ln.trim()) out.push(shunnBody(ln.replace(/\s+/g, " ").trim()));
+        }
+        break;
+      case "heading":
+        out.push(shunnCenter(b.text.toUpperCase(), { indent: undefined, spacing: { before: 120, ...DOUBLE } }));
+        break;
+      case "ul":
+        for (const it of b.items) out.push(shunnBody(`- ${it.replace(/\s+/g, " ").trim()}`));
+        break;
+      case "ol":
+        b.items.forEach((it, i) => out.push(shunnBody(`${i + 1}. ${it.replace(/\s+/g, " ").trim()}`)));
+        break;
+      case "hr":
+        out.push(shunnCenter("#", { indent: undefined }));
+        break;
+    }
+  }
+  return out;
+}
+
 /** Domain A, submission variant — the manuscript in standard (Shunn) format for agents/editors. */
 export function buildShunnDoc(
   manuscript: ManuscriptOut,
@@ -413,13 +551,6 @@ export function buildShunnDoc(
   const surname = byline.split(/\s+/).pop() || byline;
   const titleUpper = title.toUpperCase();
   const rightTab = convertInchesToTwip(6.5); // 8.5" page − 2×1" margins
-
-  const body = (text: string) =>
-    new Paragraph({
-      spacing: DOUBLE,
-      indent: { firstLine: convertInchesToTwip(0.5) },
-      children: [shunnRun(text)],
-    });
 
   // Title page: contact (left) + word count (right), then the title ~1/3 down, then the byline.
   const children: Paragraph[] = [
@@ -465,11 +596,8 @@ export function buildShunnDoc(
           }),
         );
       }
-      // Plain prose: split on blank lines into paragraphs; collapse internal whitespace (reflow).
-      for (const block of (sc.prose ?? "").split(/\n{2,}/)) {
-        const text = block.replace(/\s+/g, " ").trim();
-        if (text) children.push(body(text));
-      }
+      // Plain prose via parseBlocks — submission-safe, no coloured panels.
+      for (const para of shunnPlainBlocks(parseBlocks(sc.prose ?? ""))) children.push(para);
     });
   }
 
@@ -489,6 +617,64 @@ export function buildShunnDoc(
 /** Safe-ish filename stem from a title. */
 export function docxFilename(title: string): string {
   return (title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "document") + ".docx";
+}
+
+/** Safe-ish filename stem from a title — Markdown variant. */
+export function markdownFilename(title: string): string {
+  return (title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript") + ".md";
+}
+
+function yamlQuote(s: string): string {
+  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/** Semantic Markdown export — YAML front matter, scene comments, prose preserved verbatim. */
+export function buildManuscriptMarkdown(
+  manuscript: ManuscriptOut,
+  opts: { compile?: "approved" | "draft" } = {},
+): string {
+  const compile = opts.compile ?? "approved";
+  const title = manuscript.title || "Untitled";
+  const lines: string[] = [
+    "---",
+    `title: ${yamlQuote(title)}`,
+    `book_id: ${yamlQuote(manuscript.book_id)}`,
+    "export: semantic-markdown",
+    `compile: ${compile}`,
+    "---",
+    "",
+  ];
+
+  for (const ch of manuscript.chapters) {
+    const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
+    if (scenes.length === 0) continue;
+    lines.push(
+      "",
+      `## Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`,
+      "",
+      `*POV — ${ch.pov}*`,
+      "",
+    );
+    scenes.forEach((sc, si) => {
+      if (si > 0) lines.push("", "* * *", "");
+      lines.push(`<!-- Scene ${sc.scene_no} -->`, "");
+      lines.push((sc.prose ?? "").trim());
+    });
+    lines.push("", `— End of Chapter ${ch.chapter_no} —`, "");
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+/** Build a Markdown blob and download it client-side. */
+export function saveMarkdown(content: string, filename: string): void {
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /** Pack a Document to a .docx blob and download it client-side. */

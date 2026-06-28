@@ -19,6 +19,14 @@ const TONE_COLOR: Record<Tone, string> = {
 
 const HSIZE = ["1.7em", "1.4em", "1.2em", "1.05em", "0.95em", "0.9em"];
 
+function interfacePreviewLine(attrs: Record<string, string>): string {
+  const role = (attrs.role ?? "interface").toUpperCase();
+  const parts = [role];
+  if (attrs.creature) parts.push(`CREATURE · ${attrs.creature.toUpperCase()}`);
+  if (attrs.domain) parts.push(attrs.domain.toUpperCase());
+  return parts.join(" · ");
+}
+
 function Inline({ text }: { text: string }) {
   return (
     <>
@@ -235,9 +243,11 @@ export default function ProseBlocks({
             );
           case "stat":
             return <StatWindow key={i} lines={b.lines} />;
-          case "code":
-            return <CodeBlock key={i} lines={b.lines} />;
-          case "table":
+      case "code":
+        return <CodeBlock key={i} lines={b.lines} />;
+      case "interface":
+        return <CodeBlock key={i} lines={[interfacePreviewLine(b.attrs), ...b.lines]} />;
+      case "table":
             return <Table key={i} block={b} />;
           default:
             return (

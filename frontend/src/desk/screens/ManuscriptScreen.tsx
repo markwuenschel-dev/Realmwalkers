@@ -85,42 +85,18 @@ export default function ManuscriptScreen() {
     .reduce((acc, s) => acc + wordCount(s.prose), 0);
   const pages = Math.max(1, Math.ceil(totalWords / WORDS_PER_PAGE));
 
-  // Assemble the approved manuscript as Markdown and download it client-side (no deps, no server call).
-  const exportMarkdown = () => {
-    const title = active?.title ?? "Untitled";
-    const lines: string[] = [
-      `# ${title}`,
-      "",
-      `_Book One — ${isDraft ? "working draft (all scenes, including unapproved)" : "the approved manuscript, in reading order"}_`,
-      "",
-    ];
-    for (const ch of chapters) {
-      const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
-      if (scenes.length === 0) continue;
-      lines.push(
-        "",
-        `## Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`,
-        "",
-        `*POV — ${ch.pov}*`,
-        "",
-      );
-      scenes.forEach((sc, si) => {
-        if (si > 0) lines.push("", "\\* \\* \\*", ""); // scene break
-        lines.push((sc.prose ?? "").trim());
-      });
-      lines.push("", `— End of Chapter ${ch.chapter_no} —`, "");
-    }
-    const blob = new Blob([lines.join("\n") + "\n"], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript"}${isDraft ? "_draft" : ""}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const titleStem = (active?.title || "manuscript").replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript";
+  const draftSuffix = isDraft ? "_draft" : "";
+
+  const exportMarkdown = async () => {
+    if (!active) return;
+    const exp = await import("../lib/docx");
+    exp.saveMarkdown(
+      exp.buildManuscriptMarkdown(active, { compile: isDraft ? "draft" : "approved" }),
+      exp.markdownFilename(titleStem + draftSuffix),
+    );
   };
 
-  // Word export (book typography, page-numbered) — docx-js is lazy-loaded so it stays out of the
-  // main bundle and only downloads when you click.
   const exportDocx = async () => {
     if (!active) return;
     const docx = await import("../lib/docx");
@@ -129,11 +105,10 @@ export default function ManuscriptScreen() {
         active,
         isDraft ? "working draft — all scenes, including unapproved" : undefined,
       ),
-      docx.docxFilename((active.title || "manuscript") + (isDraft ? " draft" : "")),
+      docx.docxFilename(titleStem + draftSuffix),
     );
   };
 
-  // Standard manuscript (Shunn) export — submission format for agents; needs the author name.
   const exportShunn = async () => {
     if (!active) return;
     const name =
@@ -144,7 +119,7 @@ export default function ManuscriptScreen() {
     const docx = await import("../lib/docx");
     await docx.saveDocx(
       docx.buildShunnDoc(active, name, totalWords),
-      docx.docxFilename((active.title || "manuscript") + " Shunn" + (isDraft ? " draft" : "")),
+      docx.docxFilename(`${titleStem}_shunn${draftSuffix}`),
     );
   };
 
@@ -204,32 +179,32 @@ export default function ManuscriptScreen() {
           <button
             onClick={exportMarkdown}
             disabled={!hasProse}
-            title="Download the approved manuscript as Markdown"
+            title="Semantic Markdown — YAML front matter, preserved @interface blocks for agents"
             style={css(
               `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
             )}
           >
-            ⬇ Markdown
+            Export Markdown
           </button>
           <button
             onClick={exportDocx}
             disabled={!hasProse}
-            title="Download as Word (.docx) — book format, page-numbered"
+            title="Reader DOCX — styled book format with LitRPG interface panels"
             style={css(
               `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
             )}
           >
-            ⬇ Word
+            Export Reader DOCX
           </button>
           <button
             onClick={exportShunn}
             disabled={!hasProse}
-            title="Download as standard manuscript (Shunn) format — monospace, double-spaced, page header; for agent/editor submission"
+            title="Shunn DOCX — plain submission format for agents/editors"
             style={css(
               `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
             )}
           >
-            ⬇ Shunn
+            Export Shunn DOCX
           </button>
           <input
             value={author}

@@ -37,6 +37,7 @@ export type ProseBlock =
   | { kind: "hr" }
   | { kind: "stat"; lines: string[] } // pre-rendered box-drawing window
   | { kind: "code"; lines: string[]; lang: string } // ``` fenced block
+  | { kind: "interface"; attrs: Record<string, string>; lines: string[] } // ``` + @interface directive
   | { kind: "table"; head: string[]; rows: string[][]; align: Align[] };
 
 const BOX = /^\s*[┌│├└]/; // first non-space char of a rendered stat-window line
@@ -119,6 +120,18 @@ function collect(lines: string[], i: number, re: RegExp): [string[], number] {
   return [items, i];
 }
 
+const INTERFACE_DIRECTIVE = /^@interface\s+(.+)$/;
+
+/** Parse `@interface role=insight creature=archdemon …` into a key/value map. */
+export function parseInterfaceAttrs(raw: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  for (const part of raw.trim().split(/\s+/)) {
+    const eq = part.indexOf("=");
+    if (eq > 0) attrs[part.slice(0, eq)] = part.slice(eq + 1);
+  }
+  return attrs;
+}
+
 export function parseBlocks(text: string): ProseBlock[] {
   const out: ProseBlock[] = [];
   const lines = text.split("\n");
@@ -137,7 +150,17 @@ export function parseBlocks(text: string): ProseBlock[] {
       const start = i + 1;
       let j = start;
       while (j < lines.length && !FENCE_CLOSE.test(lines[j])) j++;
-      out.push({ kind: "code", lines: lines.slice(start, j), lang });
+      const inner = lines.slice(start, j);
+      const iface = INTERFACE_DIRECTIVE.exec((inner[0] ?? "").trim());
+      if (iface) {
+        out.push({
+          kind: "interface",
+          attrs: parseInterfaceAttrs(iface[1]),
+          lines: inner.slice(1),
+        });
+      } else {
+        out.push({ kind: "code", lines: inner, lang });
+      }
       i = j < lines.length ? j + 1 : j; // step past the closing fence
       continue;
     }
