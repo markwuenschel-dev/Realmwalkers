@@ -34,6 +34,8 @@ Unusually compatible in *action*, poorly matched in *how they create relational 
 
 **Serra — present-tense authorship.** She holds that warmth can be genuine without promising a future, that past intimacy doesn't dictate present obligation, that care stays real even when she leaves, and that every choice must remain hers *as she makes it.* Her danger is the drift from "my future is mine" → "I alone decide what our shared history is allowed to mean" → "withdrawal should communicate the decision without my having to expose or negotiate it." She never intends cruelty; she intends **autonomy**. But autonomy becomes unilateral control over relational meaning.
 
+Serra's personal-history root is **misaligned devotion** (`serra_hawthorne.md`): she once built a private future out of shared motion with Ellie, then learned the other person had experienced the same motion as a finite season rather than a shared destiny. This makes Marcus's cumulative-meaning frame uniquely dangerous to her. She recognizes the truth in it and fears the claim inside it.
+
 **Shared question:** *When two people repeatedly choose each other, does that create something beyond the individual moment — or does naming that cumulative meaning turn connection into a claim?*
 
 **The mature resolution must hold both truths:** shared history matters; shared history does not own the future.
@@ -44,27 +46,42 @@ Unusually compatible in *action*, poorly matched in *how they create relational 
 
 They understand each other **in motion** before they understand each other **biographically**. They synchronize socially (celebration), physically (the kiss), competitively (the scrim), practically (False Rescue), and eventually through Realm abilities — long before they know each other's history, shame, family, ambitions, failure modes, or behavior after sustained hurt. The pattern recurs series-wide: they coordinate without speaking while still misunderstanding what the coordination *means*.
 
+Their most dangerous shared pattern is **shared motion vs. shared meaning**. They can move like a unit before they can agree what that motion obligates.
+
 ---
 
 ## 4. The Earth Sequence — Recognition Architecture
 
 > **Team fact (locked):** Serra and Mara are **both on Dead Hand** — Dead Hand's double-assassin core. Serra is the late-arriving star rogue who duels Marcus on-page; Mara is the *overlooked* half, salience-suppressed, never surfaced on-page (the dark/blind roster slot). 404 is Marcus's team (Seb lead, Brent, Mathias, Kip).
 
-**Two recognitions + one unrecognized resonance.** Do not call the resonance a "recognition" — nobody recognizes it; that's the point.
+**Recognition happens in layers.** Do not collapse them.
 
 - **Competitive recognition (scrim):** Marcus identifies the anonymous opponent as Dead Hand's elite assassin through **kit-independent decision architecture** — how she selects targets, attacks *through* interference rather than around it, converts a failed entry into a second attack, refuses to reset when disruption can become leverage, and reclassifies an unexpected obstacle as the new high-value problem. Not a combo, animation, weapon, or voice. *Prose stays compact:* "The abilities were different. The decision wasn't." → *Dead Hand's assassin.*
-- **Unrecognized resonance (scrim):** they reproduce the celebration's disproportionate mutual attention and escalating rhythm — without either knowing the opponent's personal identity.
-- **Personal recognition (facility):** they discover the anonymous opponent and the altana person were the same individual.
+- **Unrecognized resonance (early duel):** before personal identity, they reproduce the celebration's disproportionate mutual attention and escalating rhythm. This is felt by the shape of the exchange, not named as romance.
+- **Personal recognition (mid-duel):** Marcus recognizes Serra first when he tears away her hood/veil and sees red hair / face. Serra recognizes Marcus a fraction later during an Aspect transition, when his unmodified biometric avatar appears for a beat before the next form manifests. Both happen in the same combat beat, Marcus first by a fraction.
+- **After-recognition duel:** after mutual recognition, they do not stop. They enter a more synchronized, more dangerous exchange. Playful, obvious feints and creative bait may appear here as flavor within the mutual flow; before recognition, keep the exchange professional and tactical.
 
 **The guild-seal is a character beat, not plot convenience.** Marcus doesn't know Serra is Dead Hand's assassin because, at the celebration, his attraction pulls him out of his normal diagnostic mode — he's *unusually present* rather than modeling her. He learns what she drinks, what she finds funny, which sponsor rep she thinks is lying, that she likes the skyline from above — and never asks her guild. He *later* notices the omission and finds it uncharacteristic (and may decline to dig via Discord because, after kissing her, it feels invasive). Lock: **Serra is one of the first people who pulls Marcus from observation into participation.**
 
-**Serra's professional underestimation (her edge stays sharp).** She likes Marcus personally *and* rates 404 as marginal and him as probably-competent-not-elite — a hard ranking she's proud of, because accurate reads are her identity. The duel forces a tier revision. The facility reveal therefore **injures something she trusts about herself**: *she had not mistaken him for incompetent; she had mistaken the distance between competent and dangerous.* Keep warmth toward Marcus-the-person and steel in Serra-the-evaluator.
+**Serra's professional underestimation (her edge stays sharp).** She likes Marcus personally *and* rates 404 as marginal and him as probably-competent-not-elite — a hard ranking she's proud of, because accurate reads are her identity. The duel forces a tier revision. The personal reveal therefore **injures something she trusts about herself**: *she had not mistaken him for incompetent; she had mistaken the distance between competent and dangerous.* Keep warmth toward Marcus-the-person and steel in Serra-the-evaluator.
 
 **The team cost — "one exchange too long."** The duel is tactically justified until it isn't; both stay one beat past necessity; a gap opens; someone pays (a casualty, lost objective, formation hole) on *both* sides. Seb clocks it: *"Marcus, break contact." "Marcus, return to formation." "Marcus."* Marcus hears him and stays one exchange longer. This plants the relationship's lifelong danger in miniature: **their mutual attention can become exclusionary, and others absorb the cost.** Astria interrupts before resolution.
 
-**Facility reveal — the emotional climax of the Earth sequence, staged asymmetrically.**
-1. Marcus learns Serra was the assassin (adds a second dimension to someone already compelling — strong, but he stays functional).
-2. Serra learns Marcus was the Aspect — **the larger detonation.** Her social read, her competitive read, and the altana all collapse into one person she selected *twice* without knowing. Reaction stays in-character (an answer a half-beat late, sustained attention, a question she wouldn't normally ask, seeking him out privately) — not melodrama, but the scene stays with her long enough to land.
+**Facility aftermath — the reveal lands after the duel even though identity was exposed in it.** The emotional processing remains staggered. Marcus has to reconcile the altana woman / studied pro / enemy assassin as one person and stay functional. Serra has the larger professional detonation: Marcus was the anonymous Aspect, and she selected him **twice** without knowing. Reaction stays in-character — an answer a half-beat late, sustained attention, a question she wouldn't normally ask, seeking him out privately — not melodrama, but the scene stays with her long enough to land.
+
+**Discord exchange — she reopens the door without naming it.** Locked exchange direction:
+
+> Serra: "I checked. You really did qualify twenty-fifth."  
+> Marcus: "We prefer 'the final team deemed worthy.'"  
+> Serra: "You qualified by four points."  
+> Marcus: "Four points is a dominant margin if you stop comparing it to larger numbers."  
+> Serra: "You were more convincing last night."  
+> Marcus: "Different venue."  
+> Serra: "Better venue?"  
+> Marcus: "The view was better."  
+> Serra: "It was."
+
+Serra's read: she initiated, returned the conversation to the altana, and gave him an opening without making it heavy. Marcus's congruent read: she acknowledged the moment but never named what it was. He should not think she ignored the kiss; he should think she touched the door without saying whether it was open.
 
 **Who-knows-what-when (keep this ledger current; it's what keeps the staggered reveal airtight through revision):**
 
@@ -72,16 +89,14 @@ They understand each other **in motion** before they understand each other **bio
 |---|---|---|
 | Celebration | Serra = attractive fellow qualifier; guild/handle unknown | Marcus = 404, final qualifier |
 | After altana | They kissed; he believes she withdrew first | They kissed; she believes he withdrew first |
-| Discord | (his read) she contained the kiss | (her read) she reopened the door |
-| Scrim | fighting Dead Hand's assassin anonymously | fighting an anonymous, better-than-expected 404 Aspect |
-| Facility #1 | learns Serra was the assassin | not yet aware Marcus was the Aspect |
-| Facility #2 | full connection | learns Marcus was the Aspect — **largest revision** |
+| Discord | (his read) she acknowledged the moment but contained its name | (her read) she reopened the door without making it heavy |
+| Scrim opening | fighting Dead Hand's assassin anonymously | fighting an anonymous, better-than-expected 404 Aspect |
+| Mid-duel reveal | Serra = altana woman + Dead Hand assassin | Marcus = altana man + anonymous Aspect |
+| Facility aftermath | full connection, emotionally delayed | full connection; larger professional revision |
 
 *(Mara likely knows Serra's competitive identity throughout — tandem partner — and simply has no reason to tell Marcus.)*
 
 **Entry to the Realm.** Before surgery, one narrow personal beat: it acknowledges the growing shared history, resolves nothing about the kiss, declares no relationship, and ends on Serra's **"See you after, Marcus."** Then Marcus dies in the Realm. *(See §9 — the altana's full content is delivered in Serra's first Realm POV as flashback, so "See you after" carries weight the reader can't yet fully cash.)*
-
----
 
 ## 5. Book 1 Romantic Progression
 
@@ -94,8 +109,8 @@ Earth no longer performs the *work* of love — it establishes attraction, fasci
 5. **Convergence — Connection without maturity.** *We can still find each other. We still don't know how to stay.*
 
 **Book 1 beat-map (the Marcus–Serra spine).** The five movements above, rendered as the working beat sequence. *Chapter integers are current pointers into `book1_chapter_timeline.md`, not locks — anchor to beat identity ("the second kiss," "the severance"), never the number.*
-1. **Ch 1 — the duel.** Equals revealed; her recognition earned and one-directional; charge live but invisible. Interrupted.
-2. **Ch 2–3 — the facility.** Staggered identity reveal (Marcus first; Serra's the larger detonation). **"See you after, Marcus"** → he dies. *Plants "the after."*
+1. **Ch 1 — the duel.** Equals revealed; her competitive recognition earned; early resonance live but invisible; personal reveal occurs mid-duel through red hair/face + Marcus's biometric flicker. Interrupted.
+2. **Ch 2–3 — the facility.** Staggered emotional processing of the identity reveal; Serra's professional revision is the larger detonation. **"See you after, Marcus"** → he dies. *Plants "the after."*
 3. **Ch 6A — Serra's arrival POV.** Altana flashback, her side, her misread; retro-charges everything.
 4. **Ch 8 — falling into step.** Earth shorthand survives. *Plants: finding each other is easy.*
 5. **Ch 9–11 — the private mode.** First Realm tandem; control-group fruit; watch rotation; decompression beside him; **height ritual established.**
@@ -120,7 +135,7 @@ Earth no longer performs the *work* of love — it establishes attraction, fasci
 - **Conflict & repair** — Marcus prioritizes the individual victim; Serra sees the system and fears local rescue becomes emotional absolution. Each wounds the other because each expected to be understood. Repair: *the person in front of us matters; the structure that put them there matters too.*
 - **Choice** — each chooses the other at a cost (Marcus trusts a decision he can't supervise / sacrifices a cleaner plan to preserve her agency; Serra delays momentum / returns when leaving is easier / shares information that reduces her control). Proves specificity: *not because someone needs help — because you are you.*
 
-**The cap — the second kiss (Serra initiates).** At the end of the False-Rescue arc (placement: `book1_chapter_timeline.md` Ch 14), once the six components are in motion and after conflict/repair, Serra **initiates** a kiss on a Realm height — the quiet twin of the Earth kiss, with the polarity reversed. Two load-bearing justifications, keep both: *the knife* — she does the thing she's constitutionally unable to do (claim an uncertain thing); that she reaches is the growth, that she later leaves what she reached for is the wound. *The repair of Earth* — she answers the exact question the Earth kiss left her holding (*did he think it was a mistake?*), closing the Earth misread behaviorally. Meaning: Earth kiss = *maybe*; second kiss = *yes — but we still don't know what yes requires.* It is **present-tense authorship** (*I choose this now*, not *I promise the after*); on reread it is beautiful and heartbreaking at once — write it so the reader doesn't see the heartbreak yet. It **caps** these six components; it does **not** replace them (conflict/repair precede it on-page) and declares **no** category — no sex scene, no exclusivity, no future promise. It resolves one ambiguity (do we want each other) and **intensifies** the other (what are we building, and what does it oblige) — the fuel for the Ch 30 severance.
+**The cap — the second kiss (Serra initiates).** At the end of the False-Rescue arc (placement: `book1_chapter_timeline.md` Ch 14), once the six components are in motion and after conflict/repair, Serra **initiates** a kiss on a Realm height — the quiet twin of the Earth kiss, with the polarity reversed. Two load-bearing justifications, keep both: *the knife* — she does the thing she's constitutionally unable to do (claim an uncertain thing); that she reaches is the growth, that she later leaves what she reached for is the wound. *The repair of Earth* — she answers the exact question the Earth kiss left her holding (*did he think it was a mistake?*), closing the Earth misread behaviorally. Meaning: Earth kiss = *maybe*; second kiss = *yes — but we still don't know what yes requires.* It is **present-tense authorship** (*I choose this now*, not *I promise the after*); on reread it is beautiful and heartbreaking at once — write it so the reader doesn't see the heartbreak yet. The new Serra layer makes the heartbreak sharper: she knows shared motion can become private destiny, wants Marcus anyway, and still cannot ask for or define the after without feeling wanting become a claim. It **caps** these six components; it does **not** replace them (conflict/repair precede it on-page) and declares **no** category — no sex scene, no exclusivity, no future promise. It resolves one ambiguity (do we want each other) and **intensifies** the other (what are we building, and what does it oblige) — the fuel for the Ch 30 severance.
 
 ---
 
@@ -130,7 +145,7 @@ Earth no longer performs the *work* of love — it establishes attraction, fasci
 
 **Marcus** is closer to naming it: Serra isn't interchangeable, he wants her in ordinary life, her absence reshapes the future he imagines. He may think *I think I love her* — then audit whether danger, scarcity, shared origin, and projection distorted the conclusion. Feeling real; confidence in its meaning unstable.
 
-**Serra** experiences love behaviorally: seeks him without practical need, changes plans for him, lets him see uncertainty, misses him, returns partly because of him, and is frightened by how much his presence shapes her choices. Her equivalent of the word: *if he asked me to stay, I didn't know what I'd say* / *returning to him had started to feel too much like returning somewhere.* She resists the word because names can feel like obligations.
+**Serra** experiences love behaviorally: seeks him without practical need, changes plans for him, lets him see uncertainty, misses him, returns partly because of him, and is frightened by how much his presence shapes her choices. Her equivalent of the word: *if he asked me to stay, I didn't know what I'd say* / *returning to him had started to feel too much like returning somewhere.* She resists the word because names can feel like obligations, and because shared motion once taught her that wanting the same future cannot be assumed from moving together.
 
 **Not yet earned:** stable trust, explicit commitment, negotiated expectations, conflict repair across time, a mutually authored future. **They fall in love in Book 1; they do not learn how to be together in Book 1.**
 
@@ -174,6 +189,7 @@ Serra confirms the connection without letting it dictate her next move: *"I wasn
 
 - **Height / open air.** The altana (stars, wind, city lights, standing close without speaking) seeds it; later echoes — a watchtower, a cliff above Eriadne, a skyship deck, a ruined observatory, a position above a battlefield. Recurring question: *are they still the people who stood on that rooftop?*
 - **Finding each other.** Crowd → anonymous scrim → a road in another world → a chaotic operation → larger wars. Evolves from *they keep finding each other* (early) to *finding each other is no longer the hard part* (later).
+- **Shared motion / shared meaning.** They move together before they can agree what the movement means. For Marcus, repetition accumulates into structure. For Serra, repetition can stay real without becoming permission.
 - **Interruption.** Early conversations interrupted before resolution; growth is eventually marked by *the interruption comes, and they finish the conversation anyway.*
 - **Private language.** Tailored teasing, deliberately weak arguments, competitive challenges, tactical feints, references that mean slightly different things to each — both intimacy *and* avoidance.
 - **The after.** Marcus and Serra keep forming the relationship around an expected *after* — after surgery, after the operation, after the mission, after the war — believing the next threshold will finally give them room to define it. It never does. Anchored on the pre-surgery line **"See you after, Marcus"** (Ch 3); echoed when the post-operation "after" is destroyed by what the operation produces (Ch 15). **Reader-rule applies: never on the page.** If a character ever says "we keep doing this," the motif is dead.
@@ -207,6 +223,7 @@ Stage #1 as the quiet twin of **Serra's one rule enacted** (§8; she takes the *
 
 - Serra is not a prize Marcus earns; Marcus is not the home Serra receives after her "real" story.
 - Serra does not secretly want conventional stability all along.
+- Serra does want deep connection, shared aliveness, softness, and wanting without claim or self-humiliation; do not flatten autonomy into emotional coldness.
 - Marcus's accurate perception never grants authority over Serra's choices.
 - Don't excuse Serra's indirectness just because Marcus over-interprets.
 - Repeated separation is not the only source of tension; reunions don't all follow one pattern.
@@ -227,14 +244,14 @@ Stage #1 as the quiet twin of **Serra's one rule enacted** (§8; she takes the *
 
 ---
 
-## 14. Banked Mechanic — the biometric flicker
+## 14. Biometric Flicker — Recognition Mechanic
 
-Aetherfall avatars are biometric (based on the real body); during an Aspect transition the previous form sheds, Marcus's **unmodified personal avatar appears for a beat**, then the next form loads. **Not spent as scrim-recognition plumbing** (the duel recognition is by *play*). Banked for a later, loaded moment — most powerful as a *glimpse*, not a sustained metaphor: e.g., mid-battle Marcus shifts fast and **Serra alone tracks the half-second personal form** while everyone else tracks the weapon/power. Thematically: *the person beneath the role appears only in transition.* Do not over-literalize into a "form-prison" set piece unless the plot independently demands it.
+Aetherfall avatars are biometric (based on the real body); during an Aspect transition the previous form sheds, Marcus's **unmodified personal avatar appears for a beat**, then the next form loads. Current use: this flicker participates in the mid-duel Serra→Marcus personal recognition. Marcus recognizes Serra first by red hair/face; Serra recognizes Marcus a fraction later through the biometric flicker. Thematically: *the person beneath the role appears only in transition.* Keep it a glimpse, not a sustained metaphor or form-prison set piece unless the plot independently demands it.
 
 ---
 
 ## 15. Compact Thesis
 
-> Marcus and Serra are drawn to one another before either understands why. Marcus sees patterns and wants repeated choices to mean something stable; Serra feels connection deeply but resists letting history dictate her future. In the Realm, attraction becomes trust, companionship, moral partnership, and early love — but their different responses to uncertainty pull them apart just as they begin imagining a shared life. Across the series they must learn that seeing someone does not mean owning the meaning of what is seen, and preserving autonomy does not require leaving before connection can become mutual.
+> Marcus and Serra are drawn to one another before either understands why. Marcus sees patterns and wants repeated choices to mean something stable; Serra feels connection deeply but resists letting shared motion become a claim on her future. In the Realm, attraction becomes trust, companionship, moral partnership, and early love — but their different responses to uncertainty pull them apart just as they begin imagining a shared life. Across the series they must learn that seeing someone does not mean owning the meaning of what is seen, and preserving autonomy does not require leaving before connection can become mutual.
 
 *Cross-refs: INV-1 (recognition direction), INV-3 (Serra never flattened), `forbidden_drift.md` #10, `mc.md`, `serra_hawthorne.md`, `mara.md` (tandem), `book1_chapter_timeline.md` (placement), `setup_payoff_tracker.md` (Earth plants).*

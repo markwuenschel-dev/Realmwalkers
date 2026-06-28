@@ -37,17 +37,23 @@ _SYSTEM = (
 )
 
 
+def _compact(obj: Any) -> str:
+    """Compact JSON dump — see scene_packet.author._compact. The chapter packet rides on every QA call
+    as a cached prefix; pretty-printing it just doubles the prefix (and its cache-write cost)."""
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
+
 def build_prefix(chapter_packet_body: dict[str, Any] | None) -> str | None:
     """The chapter packet is identical across every scene's QA, so it rides ahead as a cached block."""
     if not chapter_packet_body:
         return None
     return ("CHAPTER PACKET (the macro authority it must not contradict):\n"
-            + json.dumps(chapter_packet_body, ensure_ascii=False, indent=2))
+            + _compact(chapter_packet_body))
 
 
 def build_prompt(scene_packet: dict[str, Any]) -> str:
     return ("Attack this scene packet and return your verdict.\n\n"
-            "SCENE PACKET:\n" + json.dumps(scene_packet, ensure_ascii=False, indent=2))
+            "SCENE PACKET:\n" + _compact(scene_packet))
 
 
 async def qa_scene_packet(

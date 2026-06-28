@@ -8,7 +8,7 @@ status: active
 # Serra Hawthorne — Character File
 
 > **Status:** Active — separates from main party early Book 1, returns at intervals
-> **Last updated:** working draft
+> **Last updated:** working draft — updated with misaligned-devotion / Ellie / Coach K layer
 > **File type:** Major
 
 ---
@@ -22,7 +22,7 @@ status: active
 | True Name | — unassigned |
 | Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
-| Origin | Self-made; ordinary background, no connections or shortcuts |
+| Origin | Self-made; ordinary warm-family background, no connections or shortcuts |
 | Guild Role (Earth) | Disruptor-Assassin; tandem with Mara Valeria |
 | Realm Class | Warrior (base, Book 1) → Worldbreaker (Legendary-lane evolved direction; Book 2) |
 | Realm Role | Disruptor / Severance Pulse Interface user / Intermittent — comes and goes |
@@ -48,17 +48,19 @@ status: active
 
 Serra is not socially timid. She is **selectively permeable**.
 
-She can be animated, magnetic, playful, attentive, and capable of making a room feel more alive without granting everyone equal access to her interior life. Her warmth is genuine. It is not a performance, a strategy, or a promise about what a relationship will become. She opens through familiarity, shared momentum, and repeated comfort more readily than through explicit emotional definition.
+She can be animated, magnetic, playful, attentive, and capable of making a room feel more alive without granting everyone equal access to her interior life. Her warmth is genuine. It is not fake charm, a seduction strategy, or a promise about what a relationship will become. She opens through familiarity, shared momentum, repeated comfort, and present-tense aliveness more readily than through explicit emotional definition.
 
 She regulates relationships through access. At her best, she gives people real presence, practical care, remembered details, and specific attention without making the interaction heavy. At her worst, she assumes that changes in access should communicate what she has not said directly. If she concludes that softness has created more ambiguity rather than less, she overcorrects into decisive closure and removes every opening for reinterpretation.
 
-She came from an ordinary background and built herself through competence, social intelligence, and mastery. She wants to belong at the top because she earned it, but her deeper struggle is learning who she is when there is no scoreboard, no group to anchor, and no external structure proving she belongs.
+She came from an ordinary but warm background and built herself through competence, social intelligence, competitiveness, and mastery. She was not shaped by cruelty at home; the wound is more specific. Serra learned early that excellence could make adults proud while making peers colder, and that wanting to win visibly came with social cost. She became good at making ambition survivable without surrendering it.
+
+Her formative wound is **misaligned devotion**: she once believed a best friend and teammate was building the same future beside her, only to discover the friend had experienced it as a meaningful season, not a shared destiny. That loss taught Serra that shared motion can feel like a future to one person and a finite season to the other. It did not make her cold. It made her careful about turning wanting into pressure.
+
+Her warmth remains real, but after that wound it becomes partly governed. She can distribute aliveness, fun, and intimacy widely enough that no single person becomes load-bearing. She wants deep connection as much as Marcus does, but without control, claim, self-humiliation, or the shame of wanting something openly and then being wrong about what it meant.
 
 ### Central Thematic Sentence
 
-> Serra is a selectively open social anchor whose warmth creates genuine intimacy without necessarily implying commitment: when resourced, she energizes people, notices what matters, and moves decisively; when strained, she assumes her behavioral limits should have been understood, interprets clarification as negotiation, and preserves certainty through severance at the cost of connection.
-
----
+> Serra is a selectively open social anchor whose warmth creates genuine intimacy without necessarily implying commitment: when resourced, she energizes people, notices what matters, competes with joy, and lets the room feel more alive; when strained, she mistakes private meaning for shared direction, assumes her behavioral limits should have been understood, and preserves certainty through severance at the cost of connection.
 
 ## Personality
 
@@ -72,6 +74,9 @@ She came from an ordinary background and built herself through competence, socia
 - **Decisiveness** — processes privately, commits quickly, and does not linger once she believes the direction is clear
 - **Mastery drive** — wants her position to rest on real ability rather than luck, favoritism, or social capital
 - **Conflict composure** — can remain measured and controlled even when her actual decision is severe
+- **Competitive excellence** — takes chosen arenas seriously and raises the level of the people around her
+- **Aliveness** — enjoys travel, climbing, movement, dates, games, food, and present-tense experience without needing every joy to become a plan
+- **Regulated warmth** — can make people feel welcome while still managing how much access they receive
 
 ### Social Layers
 
@@ -106,6 +111,9 @@ Her best traits extend past their healthy limits:
 - Momentum → keeps people moving → may treat emotional definition as stagnation or pressure
 - Selective trust → makes access meaningful → can make revoked access feel like total disappearance
 - Commitment → gives her extraordinary force → makes her most dangerous when she cares most
+- Competitiveness → raises the standard → can become domination when hurt wants the room to confess she mattered
+- Warmth → keeps people close → can become distributed intimacy that prevents any one bond from becoming load-bearing
+- Present-tense aliveness → creates joy → may resist definition when definition would reveal wanting
 
 Her central relational error is not excessive warmth. It is assuming that once she has decided what something means, further discussion can only distort, pressure, or reopen the decision.
 
@@ -117,11 +125,63 @@ Her loneliness is structural: she is skilled at becoming the person others lean 
 
 She can still value someone after closing access to them. What she does not believe is that private value creates an obligation to preserve contact.
 
+### Early Engine — Misaligned Devotion
+
+Serra's depth does not come from a cruel childhood. She had warmth, family, social access, and at least one adult who could reach her when she was breaking. That matters: she is not Marcus with a different haircut. Her wound is not *nobody came.* Her wound is that people can come, comfort, love, admire, and still not want the same road.
+
+As a kid and teenager she was competitive across arenas, not only athletics. She could win an academic contest, a school role, a game, a race, a match, or a drill and feel the room change around her. Adults often loved it. Peers sometimes punished it. Boys tested whether she could take a hit and get back up without complaining. Girls could punish the social meaning of her intensity — that she wanted male attention, thought she was better, was too intense, too athletic, too unfeminine, or not playing the expected role correctly. Serra learned two literacies at once: physical tests and social tests.
+
+The core relationship prototype is **Ellie** *(working name; changeable)* — a best friend and teammate from high school. Serra and Ellie were a tandem. They played together, trained together, won together, and Serra quietly built a future out of that shared motion: next season, the next sport, college applications, scholarships, still being on the same team. Ellie loved the season and loved Serra, but she did not want the same life.
+
+The last normal version of the bond is simple: after a win, they get ice cream and Serra is already talking about the next season. Ellie says some version of:
+
+> "I don't want this to be my whole life."
+
+Serra hears:
+
+> "I don't want *us* to be my whole life."
+
+Her fear response is not clean anger. It is: *Did this matter to you? Did I matter to you? Did winning matter to you? Did the losses matter to you? Was this real, or did I misread everything?* She tries to solve it at first — train less, come to practices, still show up — because treating Ellie's identity decision as a logistics problem lets Serra avoid the deeper fact: Ellie is leaving the shared future, not merely adjusting a schedule.
+
+Ellie is not the villain. Her version is true too: with Serra, everything could become proof. Every practice, loss, and future choice started to feel drafted into a life she had not chosen. She needed Serra to be curious about what she wanted next, not only to preserve the existing team.
+
+After Ellie drifts away, Serra's mask is **generous superiority**. She becomes extra composed, extra team-first, extra warm, but the warmth has a blade under it. She smiles in group settings and goes silent in drills. She plays harder but less cleanly. She corrects teammates too sharply. She starts trying to dominate rather than win.
+
+Coach K *(working name; Serra calls her Coach or Coach K, never by first name)* sees the seam because she has known Serra long enough to know the difference between discipline and hurt wearing discipline. The tell is not that Serra is sad. It is that Serra publicly corrects a teammate, Ava, for a minor mistake she would normally brush off with humor and instruction.
+
+Coach K's function is not therapy. She gives Serra one or two sentences she cannot dodge, something in the lane of:
+
+> "You keep saying she should've told you. I think she did. You were already planning next season."
+
+Or:
+
+> "You're not mad she left. You're mad your pride says this shouldn't hurt this much."
+
+The exact line can change, but the wound it exposes should not: Serra is ashamed that needing Ellie hurt more than losing did. When Serra breaks, she tries to turn away, gets angry at her voice for failing, tries to leave, and has to be held in the room by someone whose authority she respects. Coach K does not smother her. She moves beside her, makes her look up, and stays.
+
+**Healthy lesson:** do not punish people for not wanting what you want.
+
+**Distorted lesson:** let people leave cleanly. Do not show them the damage. Do not make your wanting their burden.
+
+This becomes the seed of her adult rule: **I don't ask people to stay.**
+
+### Ordinary Life Texture
+
+Serra loves aliveness. When nobody is leaving, nobody is watching, and nothing has to be won, she wants presence: a coffee shop, a street she has never walked, a climb she has never tried, a city opening by accident because something caught her eye.
+
+She travels when she can. She likes climbing, especially as a reason to see new places. She trains most days, but she is not joyless or rigid. Martial arts fit her body and temperament — jiu-jitsu and Muay Thai more than a generic MMA identity. She enjoys dates, friends, casual games, social drinking games, and can lose something dumb and laugh without making it a referendum on her worth.
+
+She has a mild sweet tooth. Ice cream remains emotionally marked by Ellie, but not ruined; she kept the sweetness because not every scar gets to own the thing around it.
+
+She is a cat person and probably loves her cat with embarrassing intensity. This is one of the cleanest places to show private tenderness without making it about Marcus.
+
+Serra wants softness, sweetness, femininity, and wanting to be allowed without anyone treating those things as evidence that she is less formidable. She does not secretly want to be diminished or managed. She wants to be able to put her guard down without feeling as if she has handed someone authority over what that means.
+
 ### The One Rule — "I don't ask people to stay" [LOCKED — CCB-007 R-5]
 
 Her oldest armor, and her entire canon in one line: she **does not ask people to stay.** It is the "after" motif (`marcus_serra_relationship.md` §10) at the character-rule level — she never asks for the *after* because she doesn't ask anyone to stay. Not a perception rule and not a Marcus-centric rule; a rule about *her own wanting.*
 
-**What it protects.** Serra never lets her wanting someone become their burden or her claim. To ask someone to stay is to expose the need and hand them its weight. Her guardedness is exactly this: *my wanting is mine; I don't make it your problem or my demand.* The rule has always been **free to keep** — because she has never wanted anyone enough to be tempted to break it.
+**What it protects.** Serra never lets her wanting someone become their burden or her claim. To ask someone to stay is to expose the need and hand them its weight. Her guardedness is exactly this: *my wanting is mine; I don't make it your problem or my demand.* The rule begins in the Ellie wound: shared motion became a future for Serra before it became one for the other person, and she learned not to make leaving harder by showing the damage. The rule has usually been **free to keep** — because she has rarely wanted anyone enough to be tempted to break it.
 
 **Enacted — the second kiss.** During the false-rescue tandem she **initiates** the Realm kiss (a height vantage, the night before the magistrate operation) and takes the *now* without asking for the *after.* Performed, never stated; the quiet twin of Marcus's restraint (he withholds the *what does this mean* question). She enacts the rule precisely when she'd have the most reason to break it — which is where it is *felt/established* in-text, retro-legible after the severance.
 
@@ -136,7 +196,9 @@ On the surface, she wants to prove that she belongs at the top because she earne
 
 More deeply, she wants to know that she can be fully herself without being defined by a scoreboard, a role, another person's interpretation, or the social gravity she creates. She wants to be seen accurately without having to surrender authorship over what that access means.
 
----
+Her positive desire is not defensive: she wants deep connection, shared aliveness, and a person beside her who wants the road without being dragged, convinced, or managed. She wants to put her guard down, want something openly, and not hate herself if it goes badly.
+
+For Serra, maturity is not learning to want less. It is learning that wanting does not have to become a claim, a test, or a humiliation.
 
 ## Voice and Dialogue
 
@@ -149,6 +211,8 @@ Her natural movement is:
 > notice the person → establish ease → give specific attention → state or imply direction → move
 
 She often makes people feel included by treating their relevance as already established rather than asking them to justify speaking.
+
+Her warmth is governed, not false. The distinction matters. She can genuinely enjoy someone, give them focused attention, and make a moment feel alive while still keeping the future unpromised.
 
 > "Mathias, you've been staring at that wall for two minutes. What did the rest of us miss?"
 
@@ -316,9 +380,19 @@ She experiences the final boundary as the end of a long communication process. T
 
 ### Earth Life
 
-Serra's background is ordinary in the specific way that produces people who are anything but. A family without connections, a neighborhood without obvious paths upward, no shortcuts and no one handing her anything. She developed social skill early as a survival tool before it was a personality trait — reading rooms, managing tension, making people comfortable — and got very good at it very young.
+Serra's background is ordinary in the specific way that produces people who are anything but. A warm family without connections, a neighborhood without obvious paths upward, no shortcuts and no one handing her anything. She was not raised by dictators, stage parents, or cruelty. Her self-making begins in a more ordinary contradiction: people loved her, but the world still asked her to prove where she belonged.
 
-She found gaming in her teens and discovered something her social world couldn't give her: a scoreboard with no politics. Performance was the only currency. She clawed into a top-25 guild through pure mastery, not luck or nepotism. On Earth she's the person with the chaotic apartment full of people most nights, the group chat she's always managing, the friend who shows up. She probably doesn't sleep enough. She listens more than she talks about herself.
+She was competitive early and across domains. Not only sport: school contests, class roles, games, performances, and anything she chose to take seriously. Adults often praised her for being more than one thing — athletic, bright, socially vivid, capable of surprising them. Peers could turn colder for the same reason. The lesson was not *do not excel.* The lesson was *excel without making the room feel accused by your excellence.*
+
+She played physical games with boys and learned the test: take the hit, get back up, do not complain, do not make them feel guilty if you win, do not make them feel superior if you lose. She also learned the social tests from girls her age: intensity could be reframed as attention-seeking, unfeminine, too much, or proof that she thought she was better. Serra did not shrink. She learned diplomacy, humor, sidestepping, and how to seem less threatening without surrendering the win.
+
+Her deeper adolescent scar is Ellie, her best friend and teammate. They were a tandem until Ellie changed direction. The relationship did not explode; it visibly drifted. Everyone knew they had been close. Then they were simply less close. Serra smiled, behaved well enough, and did not ask for the old access back.
+
+Coach K is the adult witness to that wound. She is the one who sees Serra's composure stop matching her behavior and catches the moment when discipline becomes displaced hurt. Coach K does not fix the lost future. She stops the bleeding and gives Serra a lesson Serra half-learns.
+
+After Ellie, Serra becomes warmer in a broader way — not because she fully heals, and not because the warmth is fake, but because warmth lets her keep people close without letting any one bond become the entire structure. This is why she can be socially radiant and still lonely in a way social success does not solve.
+
+On Earth she is also vividly ordinary: climbing trips, martial arts, wandering from coffee shops into unfamiliar streets, dates, friends, casual games, a mild sweet tooth, a cat she loves too much, and enough training that her body feels wrong if she goes too long without movement.
 
 ### Guild Role
 
@@ -452,6 +526,8 @@ The air around her doesn't distort exactly, but it behaves wrong. Dust doesn't s
 
 She is the social anchor — the person everyone orbits. Her power makes that physical and then makes it costly. The harder she fights, the more she pushes people away. Her arc is about learning to commit fully without destroying what she's committing for. This is not a power problem. It is her character problem made visible.
 
+Worldbreaker has an emotional root: healthy Serra wants earned presence — proof that she can stand where she chooses and no one can move her off her ground. Unhealthy Serra wants domination, because domination makes the room confess she mattered.
+
 The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra makes it fail.** Different interfaces. Complementary and occasionally catastrophic in combination.
 
 ### Class Direction — Worldbreaker (Book 2)
@@ -475,6 +551,8 @@ For Serra, repeated warmth may remain fully genuine without implying a future ca
 
 > I am comfortable with you here. That does not automatically define what comes next.
 
+The new Serra wound makes this sharper. With Ellie, Serra learned that shared motion can become a future in one person's heart before it is ever agreed upon by the other. That history makes Marcus's cumulative-meaning model both compelling and frightening. She knows the hunger underneath it because she once had it. She also knows how unfair it can feel to the person who did not consent to that future.
+
 Marcus mistakes experiential intimacy for relational commitment. Serra mistakes his need for definitional certainty as a disguised attempt to negotiate the outcome.
 
 This creates a self-reinforcing trap:
@@ -487,6 +565,8 @@ This creates a self-reinforcing trap:
 Sometimes Serra's read will be correct: part of him may still hope that clarity changes the outcome. Sometimes he genuinely needs to understand which reality he is standing in. Her failure is assuming those motives are always the same.
 
 They remain naturally effective together. He sees weak points; she acts before hesitation closes the window. He analyzes what a signal means; she trusts the signal and moves. Their compatibility is real. So is the danger in how differently they assign meaning to access, warmth, and uncertainty.
+
+**The second kiss.** Serra initiates because the moment is real. It is present-tense authorship: *I choose this now,* not *I promise the after.* The tragedy is that she knowingly repeats the old pattern at the point where she most needs to outgrow it. She wants Marcus, knows he is not casual to her, and still cannot ask for or define the after without feeling as if wanting has become a claim.
 
 **The finale — two movements (late Book 1).** *Movement one — the Myrmidon (body-rupture):* reunited in tandem, the kill requires Marcus to hold an opening at lethal risk while she lands the blow — she misses the depth, brushes off his danger, finishes it; he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he reads her right and doesn't hold it against her. Being *seen* in that moment is what she can't survive — note it is **involuntary** (his power steals her conflict), **distinct** from the rule-break below. *Movement two — the severance (word-rupture), after days of forced proximity:* Marcus names the connection's *existence* (not a category); **Serra severs the bond** — her choice, partly to free him — and **Marcus does not follow.** This is where her one rule **cost-breaks** (see *The One Rule* above): she still doesn't ask him to stay, but holding the line finally costs her — she cuts the bond *to keep from asking.* The faction she still hunts and the unresolved party night compound it. She owns the choice and can't look at him. (`relationship_map.md` is tiebreak; `marcus_serra_relationship.md` §8 owns the naming.)
 
@@ -513,7 +593,7 @@ Her Severance Pulse interface **activates/realizes at the Act-5 finale severance
 
 ### Core Arc Question
 
-> Who is she when there's no one to anchor, no scoreboard to climb, and no one to hold together — and does what she finds out cost her more than she expected?
+> Who is she when there's no one to anchor, no scoreboard to climb, no shared future to assume, and no one to hold together — and can she want something openly without turning it into claim, test, or severance?
 
 ### Starting Point
 
@@ -551,6 +631,8 @@ Serra is the other half of the **endgame axis**. Her terminal function is **brea
 - Parallel to Marcus's system is explicit and intentional: he sees the weak point, she makes it fail.
 - **Earth kiss reconciles to INV-1 Axis E:** **Marcus initiates**; the pullback is **mutual and simultaneous**; each registers only the other's, blind to their own half. (Owner: `relationship_invariants.md`.)
 - **Her one rule, "I don't ask people to stay" (CCB-007 R-5):** enacted at the Realm second kiss, **cost-breaks** at the severance; never stated on the page, never collapsed into the Myrmidon "being seen" beat. (See *The One Rule*.)
+- **Ellie / Coach K layer:** formative wound is misaligned devotion, not lovelessness or trauma. Ellie is a working name and can change; the function is locked unless revised: shared motion became a future for Serra before it was a future for the other person.
+- **Warmth discipline:** warmth is genuine but governed. Do not write her as fake, manipulative, or secretly cold.
 
 ---
 

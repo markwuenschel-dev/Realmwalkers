@@ -278,7 +278,18 @@ async def derive_scene_packets(
                 sink=sink, book_id=book_id_str, chapter_id=chapter_id_str,
             )
 
-    results = await asyncio.gather(*(_run(item) for item in work))
+    # Prime the prefix cache before fanning out. The author and QA prefixes (chapter packet + chapter-
+    # wide summaries) are IDENTICAL across every scene of this chapter, so deriving the first scene alone
+    # WRITES that prefix to Anthropic's ephemeral cache; scenes 2..N then READ it instead of each re-
+    # writing the full prefix. Without priming, all N scenes start concurrently, every one misses the
+    # cold cache and writes its own copy (the 0% hit ratio we saw) — paying the full prefix cost N times.
+    # With it, only scene 1 pays the write and the rest run concurrently off the warm cache.
+    if len(work) > 1:
+        first = await _run(work[0])
+        rest = await asyncio.gather(*(_run(item) for item in work[1:]))
+        results = [first, *rest]
+    else:
+        results = await asyncio.gather(*(_run(item) for item in work))
 
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
