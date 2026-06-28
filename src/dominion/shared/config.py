@@ -71,6 +71,17 @@ class Settings(BaseSettings):
     # writes stay serial; only the LLM calls fan out). Bounds in-flight scenes so a wide chapter can't
     # spike rate limits. Author->QA within a scene stays sequential (QA reads the author's output).
     scene_packet_concurrency: int = 5
+    # Split the scene-packet author into ~5 concurrent SECTION calls (each emits a disjoint slice of the
+    # contract) instead of one monolithic call. Output generation is sequential WITHIN a call but parallel
+    # ACROSS calls, so this cuts author wall-clock latency ~3-4x — the contract JSON is large and the work
+    # is output-bound (~12.5s per 1k output tokens, measured). The monolithic author stays as the
+    # fallback-only path until the sectioned path clears its acceptance window (then it's deleted).
+    scene_packet_author_sectioned: bool = True
+    # Global ceiling on concurrently in-flight scene-packet author SECTION calls, across ALL scenes of a
+    # derive. The sectioned author fans each scene into ~5 calls; scenes already fan out at
+    # scene_packet_concurrency, so without a global cap a wide chapter (scenes x sections) spikes
+    # Anthropic's RPM/TPM and the 429 backoff eats the latency win. Bounds total in-flight section calls.
+    scene_packet_max_inflight_llm: int = 8
     # Length guard rewrites (compress/expand) are targeted edits on an existing draft, so they ride the
     # cheap/fast Haiku tier like the enrichment passes — never the main draft model.
     length_compress_model: str = "claude-haiku-4-5"

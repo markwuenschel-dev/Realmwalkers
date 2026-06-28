@@ -30,6 +30,7 @@ from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
 from dominion.workers.memory import owner_router, retrieval
 from dominion.workers.scene_packet import author as author_mod
+from dominion.workers.scene_packet import author_sections as author_sections_mod
 from dominion.workers.scene_packet import hash as hash_mod
 from dominion.workers.scene_packet import qa as qa_mod
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
@@ -81,9 +82,19 @@ async def _author_then_qa(
             scene_no=item.scene_no, seed_id=str(item.seed_id),
         )
 
+    # Sectioned author fans the contract into concurrent section calls (the default — fixes the
+    # output-bound >50s latency); the monolithic author is the fallback path. Both share a signature and
+    # the same fail-closed body contract, so the rest of the flow is identical. Every section call still
+    # records under this one `scene_packet_author` telemetry context (stage unchanged), so the Desk
+    # panels just see more, shorter author rows per scene.
+    author_fn = (
+        author_sections_mod.author_scene_packet_sectioned
+        if settings.scene_packet_author_sectioned
+        else author_mod.author_scene_packet
+    )
     try:
         with telemetry.call_context(_ctx("scene_packet_author")):
-            scene_body: dict[str, Any] | None = await author_mod.author_scene_packet(
+            scene_body: dict[str, Any] | None = await author_fn(
                 pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=item.seed,
                 word_budget=item.word_budget, pov_summary=pov_summary,
                 omniscient_summary=omniscient_summary,

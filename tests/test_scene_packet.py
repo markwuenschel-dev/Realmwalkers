@@ -29,6 +29,7 @@ from dominion.workers.context import ScenePacketRequiredError, assemble_context
 from dominion.workers.length import guard as guard_mod
 from dominion.workers.length import planner as planner_mod
 from dominion.workers.scene_packet import author as sp_author
+from dominion.workers.scene_packet import author_sections as sp_sections
 from dominion.workers.scene_packet import derive as sp_derive
 from dominion.workers.scene_packet import hash as sp_hash
 from dominion.workers.scene_packet import qa as sp_qa
@@ -198,7 +199,11 @@ def _patch_scene_agents(monkeypatch, body, verdict=ScenePacketVerdict.APPROVE):
     async def fake_qa(_b, **kw):
         return {"verdict": verdict, "residual_risks": [], "issues": []}
 
+    # Fake BOTH author entry points so the derive's faked output is honored on either path (the
+    # sectioned author is the default; the monolithic one is the fallback). Without the sectioned patch,
+    # a derive on the default path would bypass the fake and hit the real API.
     monkeypatch.setattr(sp_author, "author_scene_packet", fake_author)
+    monkeypatch.setattr(sp_sections, "author_scene_packet_sectioned", fake_author)
     monkeypatch.setattr(sp_qa, "qa_scene_packet", fake_qa)
 
 
@@ -275,6 +280,7 @@ async def test_derive_blocks_on_thin_body(db_factory, monkeypatch):
     async def thin(**kw):
         return {"scene_no": 1}  # missing required contract sections
 
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # exercise the monolithic path
     monkeypatch.setattr(sp_author, "author_scene_packet", thin)
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
@@ -301,6 +307,7 @@ async def test_derive_gives_each_scene_its_own_budget(db_factory, monkeypatch):
         budget.charge(Usage(input_tokens=0, output_tokens=10_000))
         return {"verdict": ScenePacketVerdict.APPROVE, "residual_risks": [], "issues": []}
 
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # per-scene budget is derive-level
     monkeypatch.setattr(sp_author, "author_scene_packet", charging_author)
     monkeypatch.setattr(sp_qa, "qa_scene_packet", charging_qa)
     async with db_factory() as s:
@@ -320,6 +327,7 @@ async def test_derive_persists_per_call_telemetry(db_factory, monkeypatch):
 
     from dominion.shared.models import LlmCall
 
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # monolithic: exactly 1 author call
     body = _scene_body()
 
     def responder(*, model, system_text, max_tokens):
@@ -347,6 +355,8 @@ async def test_derive_blocks_with_specific_truncation_reason(db_factory, monkeyp
     """A truncated author body names the real cause (not a generic 'incomplete body'), and both the
     primary + escalated attempts are recorded as truncated telemetry."""
     from dominion.shared.models import LlmCall
+
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # monolithic: primary+fallback = 2 calls
 
     def responder(*, model, system_text, max_tokens):
         # Author always cut off mid-object; QA never reached (body never valid).
@@ -376,6 +386,7 @@ async def test_author_escalates_to_fallback_model_on_bad_primary(db_factory, mon
     """A primary model that can't emit valid JSON is rescued by the one-shot fallback escalation."""
     import json
 
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # monolithic single-body escalation
     body = _scene_body()
 
     def responder(*, model, system_text, max_tokens):
@@ -395,6 +406,105 @@ async def test_author_escalates_to_fallback_model_on_bad_primary(db_factory, mon
         row = (await s.execute(select(ScenePacket))).scalars().one()
         assert row.status == ScenePacketStatus.PROPOSED
         assert "known_before_scene" in row.body
+
+
+# --- sectioned author (concurrent section calls merged server-side) -------------------------------
+
+# A body carrying every key any section owns (the base _scene_body lacks chapter_position/tone_pressure).
+def _complete_scene_body() -> dict[str, Any]:
+    return {**_scene_body(), "chapter_position": "middle", "tone_pressure": "rising dread"}
+
+
+def _section_responder(monkeypatch, *, overrides: dict[tuple[str, str], tuple[str, str]] | None = None):
+    """Drive the REAL sectioned author + llm.complete with a fake client that returns the correct JSON
+    slice per section. `overrides[(section_name, 'primary'|'fallback')] = (raw_text, stop_reason)` forces
+    a specific (bad) response for one section on one model, to exercise escalation / fail-closed."""
+    import json
+
+    overrides = overrides or {}
+    complete = _complete_scene_body()
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", True)
+
+    def responder(*, model, system_text, max_tokens):
+        if "QA agent" in system_text:
+            return _FakeResp(_qa_ok())
+        for sec in sp_sections._SECTIONS:
+            if f"[section:{sec.name}]" in system_text:
+                tier = "primary" if model == settings.scene_packet_author_model else "fallback"
+                if (sec.name, tier) in overrides:
+                    raw, stop = overrides[(sec.name, tier)]
+                    return _FakeResp(raw, stop_reason=stop)
+                return _FakeResp(json.dumps({k: complete[k] for k in sec.keys}))
+        raise AssertionError(f"unrecognized section system prompt: {system_text[:120]}")
+
+    _patch_llm_client(monkeypatch, responder)
+
+
+async def test_sectioned_author_merges_sections_into_one_packet(db_factory, monkeypatch):
+    """Default path: the author fans into one call PER SECTION (concurrently), and the slices merge into
+    a single valid packet — same body shape the monolithic author produced."""
+    from dominion.shared.models import LlmCall
+
+    _section_responder(monkeypatch)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["created"] == 1 and counts["blocked"] == 0
+
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.PROPOSED
+        # every section's keys made it into the merged body, plus the server-stamped budget
+        assert {"known_before_scene", "learned_during_scene", "must_remain_hidden", "pov_permissions",
+                "intentional_mysteries", "reviewer_false_positive_traps", "reviewer_instructions",
+                "phrases_to_avoid_echoing", "tone_pressure"} <= set(row.body)
+        assert row.body["word_budget"]["target"] == 1500
+
+        # one llm_calls row per section (all under the unchanged scene_packet_author stage) + one QA
+        authors = [c for c in (await s.execute(select(LlmCall))).scalars() if c.stage == "scene_packet_author"]
+        assert len(authors) == len(sp_sections._SECTIONS)
+        assert all(c.scene_no == 1 for c in authors)
+
+
+async def test_sectioned_author_escalates_only_the_failed_section(db_factory, monkeypatch):
+    """Point 4: a section that fails on the primary reruns on the fallback model ALONE — the other
+    sections are not re-run. So total author calls = sections + 1."""
+    from dominion.shared.models import LlmCall
+
+    _section_responder(monkeypatch, overrides={("knowledge", "primary"): ("not json at all", "end_turn")})
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["created"] == 1 and counts["blocked"] == 0
+
+        authors = [c for c in (await s.execute(select(LlmCall))).scalars() if c.stage == "scene_packet_author"]
+        assert len(authors) == len(sp_sections._SECTIONS) + 1            # exactly one extra (the rerun)
+        assert sum(c.model == settings.scene_packet_author_fallback_model for c in authors) == 1
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.PROPOSED and "known_before_scene" in row.body
+
+
+async def test_sectioned_author_blocks_when_a_section_is_unrecoverable(db_factory, monkeypatch):
+    """A section that fails on BOTH primary and fallback fails the whole packet closed, with a reason
+    naming the section (never a partial contract)."""
+    _section_responder(monkeypatch, overrides={
+        ("knowledge", "primary"): ("garbage", "end_turn"),
+        ("knowledge", "fallback"): ("still garbage", "end_turn"),
+    })
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["blocked"] == 1
+
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.BLOCKED
+        reason = (row.qa_warnings or {}).get("blocked_reason") or row.body.get("blocked_reason")
+        assert reason and "knowledge" in reason
 
 
 # --- beat derivation + approval gate (router) ------------------------------------------------------
@@ -462,6 +572,7 @@ async def test_blocked_scene_packet_cannot_be_approved(db_factory, monkeypatch):
     async def thin(**kw):
         return {"scene_no": 1}
 
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)
     monkeypatch.setattr(sp_author, "author_scene_packet", thin)
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
