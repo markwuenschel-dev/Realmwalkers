@@ -19,6 +19,14 @@ from dominion.workers import llm
 from dominion.workers.budget import TokenBudget, Usage
 from dominion.workers.scene_packet.parse import extract_object, valid_scene_packet_body
 
+
+def _compact(obj: Any) -> str:
+    """Dump JSON with no indentation/whitespace. The chapter packet rides on every author + QA call as
+    a cached prefix; pretty-printing (indent=2) roughly doubles its token count for no model benefit —
+    these are machine-read contracts, not human-read. Compact keeps the prefix (and its cache-write
+    cost) about half the size."""
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
 # Headroom for the fallback attempt: a genuine truncation needs more room than the first cap gave it.
 _FALLBACK_MAX_TOKENS_FLOOR = 12000
 
@@ -72,8 +80,7 @@ def build_prefix(
     """The chapter-wide context that is IDENTICAL across every scene of the chapter, sent as a cached
     block so scenes 2..N read it instead of re-paying for it. Everything scene-specific lives in
     build_prompt below the cache breakpoint."""
-    parts = ["APPROVED CHAPTER PACKET (chapter-wide authority):\n"
-             + json.dumps(chapter_packet_body, ensure_ascii=False, indent=2)]
+    parts = ["APPROVED CHAPTER PACKET (chapter-wide authority):\n" + _compact(chapter_packet_body)]
     if pov_summary:
         parts.append(f"What this POV knows so far:\n{pov_summary}")
     if omniscient_summary:
@@ -94,8 +101,8 @@ def build_prompt(
     """The scene-specific part of the prompt (varies per scene, so it is NOT cached). The chapter-wide
     authority and summaries are sent ahead of this as the cached prefix (build_prefix)."""
     parts: list[str] = [f"POV: {pov}"]
-    parts.append("THIS SCENE'S SEED:\n" + json.dumps(scene_seed, ensure_ascii=False, indent=2))
-    parts.append("WORD BUDGET (use verbatim):\n" + json.dumps(word_budget, ensure_ascii=False, indent=2))
+    parts.append("THIS SCENE'S SEED:\n" + _compact(scene_seed))
+    parts.append("WORD BUDGET (use verbatim):\n" + _compact(word_budget))
     if prior_exit_state:
         parts.append(f"Prior scene exit state:\n{prior_exit_state}")
     if prior_scene_summaries:

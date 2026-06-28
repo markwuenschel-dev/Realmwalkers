@@ -8,7 +8,7 @@ status: active
 # Mara Valeria — Character File
 
 > **Status:** Active — separated, solo arc in progress
-> **Last updated:** rebuilt from ground up
+> **Last updated:** updated with Earth-control-mage lane, Serra friendship/roommate dynamic, school design wound, and revised brilliance/belonging spine
 > **File type:** Major
 
 ---
@@ -23,7 +23,7 @@ status: active
 | Soul Level | TBD — deferred (do not assign) |
 | Age | TBD |
 | Origin | Semi-rural outskirts of an average-sized city; average household |
-| Guild Role (Earth) | Assassin (setup/precision) — tandem with Serra Hawthorne **(both Dead Hand)** |
+| Guild Role (Earth) | Control Mage / positional setup — assassin-function tandem with Serra Hawthorne **(both Dead Hand)** |
 | Realm Role | Specular Salience Transducer — full spectrum attention operator |
 | Power Interface | Specular Salience Transduction |
 | Current Location | Separated — never connects with Serra before Serra's solo arc begins; own path |
@@ -37,7 +37,7 @@ status: active
 
 **Core look:** attractive but not radiant like Serra — quieter, smaller, more observant, more complicated about being noticed. ~5'4"–5'6"; small / slim build; blonde to dirty-blonde hair, shoulder-blade to mid-back length; hazel-green eyes; pretty but not socially luminous; softer features than Serra; less athletic-looking. She gets noticed before she speaks and doesn't enjoy it — which ties straight to her wound: people responded to how she looked before they knew anything about her.
 
-**Body language:** watches before speaking; slightly closed posture in groups, more open one-on-one; hair often becomes a shield (tucked behind an ear, over the shoulder, partly hiding her face); makes quick, accurate observations; lets others talk themselves into revealing things.
+**Body language:** watches before speaking; slightly closed posture in groups, more open one-on-one; hair often becomes a shield (tucked behind an ear, over the shoulder, partly hiding her face); makes quick, accurate observations; lets others talk themselves into revealing things. When thinking, she makes small lip/mouth expressions she does not fully realize she makes; Serra learns to read some of them before Mara names the habit herself.
 
 **Realm:** her visual arc is about *choosing visibility* — early she backgrounds herself in practical, muted clothing and avoids attention; later she presents deliberately and uses visibility as a tool, learning to be seen without being consumed. When Specular Salience activates she doesn't glow; the room's emphasis shifts around her while she stays quiet.
 
@@ -60,6 +60,14 @@ Her preferred hierarchy is:
 
 She would rather be overlooked than flattened, but she would rather be accurately understood than overlooked.
 
+Mara is genuinely brilliant. The distinction from Marcus is not intelligence level; it is how that intelligence presents. Marcus tends to externalize cognition through explanation, modeling, and system-building. Mara compresses cognition inward through anticipation, interpretation, and frame-control. People may experience Marcus as smarter because he shows the machinery. Mara often reveals the conclusion only after deciding whether the listener's attention is accurate enough to deserve the process.
+
+Her deepest social want is not merely one person who sees her correctly. She wants a tight-knit circle where accurate recognition is normal enough that she does not have to keep proving she exists correctly. The danger is absorption: becoming the version of herself the group finds easiest to keep, disappointing expectations she did not consent to, or changing to fit a room before she notices the change.
+
+Her desire can be summarized as:
+
+> Belonging without absorption.
+
 ### Central Thematic Sentence
 
 > Mara wants to be seen accurately more than she wants to be seen often: when resourced, she notices what the room is overlooking and redirects attention toward what matters; when threatened, privacy becomes concealment, perception becomes covert control, and her wish to be understood without explaining herself becomes a test no one knows they are taking.
@@ -72,6 +80,8 @@ She would rather be overlooked than flattened, but she would rather be accuratel
 
 - **Controlled self-disclosure** — reveals herself deliberately rather than reflexively
 - **Process intelligence** — understands not only what happened, but why a decision or system worked
+- **Raw academic/logical intelligence** — capable of matching or exceeding Marcus in pure cognitive horsepower, though less likely to display the machinery publicly
+- **Anticipatory reading** — predicts where a conversation, conflict, or tactical exchange is going before others have consciously arrived there
 - **Attention mapping** — notices who is watching whom, what is being ignored, and which interpretation is becoming socially dominant
 - **Specific recognition** — sees the internal logic behind another person's good decision and can make them feel accurately understood
 - **One-on-one depth** — forms strong private bonds once trust exists
@@ -143,6 +153,9 @@ Her central relational error is:
 Mara is less afraid of vulnerability itself than of vulnerability being misread, trivialized, exposed, or used to define her publicly.
 
 Competence is her safest route into intimacy because it gives her a legitimate reason to be present and a controlled way to be known. But usefulness does not substitute entirely for intimacy. Once trust is real, she can remain when there is nothing to solve and can directly reveal need.
+
+Control makes Mara feel safe because it keeps danger at a distance. Distance gives her time to read the field, shape the frame, and prevent the body from having to answer before the mind finishes. Her attraction to positional control, frost-style slowing, and delayed collapse is therefore emotional as well as tactical: a controlled field is a survivable field.
+
 
 Her danger is believing that if she manages visibility precisely enough, she can prevent misrecognition.
 
@@ -429,9 +442,24 @@ Mara changes what the momentum organizes around.
 
 Grew up on the semi-rural outskirts of an average-sized city. Average household — not wealthy, not struggling, not dramatic. The kind of upbringing that does not produce obvious narrative wounds but shapes a person quietly through accumulated ordinary experience.
 
-She is creative. Her Earth work is in design, writing, or art — something that uses her broad intelligence and pattern recognition in an applied, made-thing direction. The specifics are TBD but the flavor is: she makes things, she thinks visually and structurally, she is good at understanding how elements relate and what a whole should feel like.
+Mara's intelligence showed early as anticipation rather than performance. She could hear when adults were lying before she could prove it, predict what people were about to say mid-conversation, track tone and subtext, and understand books above her age because implication and motive came easily to her. She was probably near the edge of gifted-track recognition without being cleanly recognized by the systems around her. Adults often saw quietness, softness, maturity, or "good girl" ease before they saw the scale of her mind.
 
-She found gaming through someone she knew — a social connection that became competitive. She discovered she was good at it in a way that surprised her, and then discovered why: the setup role in competitive play uses exactly the kind of attention she naturally has. Reading terrain, modeling how opponents think, designing the conditions that make someone else's moment possible. She was not trying to be an assassin. She was trying to understand the system. The assassin part followed from that.
+The ordinary wound is accumulated misrecognition: in childhood her competence was easy to miss because it did not demand attention; in early high school, appearance-based attention began arriving before accurate recognition. Boys noticed the surface. Adults mischaracterized her as quiet, soft, pretty, compliant, or harmless. Even her parents may not have understood how much she wanted to be seen for ability rather than manageability.
+
+She is creative. Her Earth work points toward design, writing, visual communication, UX, presentation design, art, or a hybrid field where intelligence becomes an applied made thing. She thinks visually and structurally: how elements relate, where the eye goes first, what the whole implies before anyone explains it, and how a presentation teaches the viewer what reality they think they are seeing.
+
+A formative school wound likely comes through a regional student design / architecture / public-space competition. Mara's team builds a technically defensible model, but she sees that the design is communicating the wrong story: the entrance is visually subordinate, the support emphasis makes the communal space feel blocked, the dramatic feature pulls attention away from the actual purpose, and the judges will read it as showcase architecture rather than livable design. She waits too long because she hopes someone else will notice first and she can support them without becoming the center. When no one does, she finally explains the problem. The advisor recognizes she is right. Another girl on the team accuses her of being a know-it-all teacher's pet who waited until someone important was listening, then claims to speak for everyone. No one contradicts her.
+
+That teaches Mara several things at once:
+
+- Being right does not protect you from being misread.
+- Being quiet early can be used as proof that your later clarity is fake.
+- A room will often let one person define the story if correcting it costs social comfort.
+- Presentation is not decoration; presentation decides what people understand.
+
+This is the Earth seed of Specular Salience: Mara learns that where attention goes first can decide what truth becomes socially real.
+
+In ordinary life, Mara is low-key and vibe-oriented rather than austere. She is more orderly than Serra but not a clean freak: curated scatter, not filth. Her room likely has open sketchbooks, reference images, color or texture scraps, books stacked where she last used them, soft lighting, plants or objects chosen for mood, and small piles that look random until she finds the exact thing in seconds. She is vegetarian from animal-care ethics more than health optimization. Recreational weed fits her as a way to soften constant frame-tracking; psychedelics interest her because they alter salience and expose how unstable perception can be.
 
 ### Why She Accepted Astria's Offer
 
@@ -439,13 +467,24 @@ TBD — her specific motivation for accepting needs development. The offer would
 
 ### Guild Role
 
-Setup assassin in tandem with Serra Hawthorne. Where Serra is entry — reads the seam and goes through it — Mara is preparation. She studies the target, the terrain, the crowd movement, the behavioral tells of people under different kinds of pressure. She designs the conditions that make Serra's entry possible.
+Mara's Earth-game role is now best understood as **control mage / positional setup**, not pure rogue. Frost Mage is the closest model: slows, roots, defensive tools, frustrating reset denial, positional punishment, and forcing opponents into bad choices until panic makes them predictable. She is not primarily a stealth player or illusionist. She wins by shaping the field.
 
-Mara watches. Serra moves. The gap between those two things is where the kill happens.
+Her assassin function remains. She does not have to be a rogue to be part of an assassination tandem. In Dead Hand terms:
 
-Her rogue class was not her obvious fit. She discovered she was good at it because patience, observation, and systems thinking translate directly into assassination approach. She is not a flashy rogue. She is a methodical one. Every entry Serra makes was made possible by something Mara did first.
+> Serra is entry and execution.  
+> Mara is control and positional authorship.
 
-In the guild she was valued for this. Whether she was valued for much else is a more complicated question.
+Serra reads the seam and goes through it. Mara decides what choices remain available when Serra arrives. Mara slows you into panic, freezes mistakes in place, exhausts escapes, and makes it easy for Serra or the team to collapse on you. She does not kill you by surprising you; she kills you by making every available choice worse until you choose the one she already prepared.
+
+Mara and Serra's friendship begins through competence. They work well together first. Serra, more openly competitive, challenges Mara to a duel. Mara rolls her eyes and accepts. Mara nearly wins because she models Serra's movement, pressure instincts, and escape rhythm with uncomfortable accuracy. She is not reacting to Serra's movement; she is reacting to when Serra decides movement is necessary.
+
+Serra wins by doing the one thing Mara cannot safely model as optimal: she refuses to escape when escape is correct. She eats damage, stays in a bad position long enough to bait Mara's finishing commitment, then uses the saved escape/mobility tool offensively instead of defensively. She crosses the one gap Mara left for herself and wins at critical health. Mara's first reaction is irritation — not meekness, not awe — because she was controlling the duel and believed her read. The ugly private thought is: *Of course she can win from there too.*
+
+The bond begins after the duel, during the postmortem. Serra does not merely praise the outcome. She reconstructs Mara's process: the false escape rhythm, the held spell, the moment Mara was reading the decision rather than the movement. That process-level recognition gets through Mara's defenses. Serra saw her mind work.
+
+Dead Hand becomes the first almost-home. Mara starts as the quiet one who makes impossible entries happen. Repeated success earns respect, then responsibility, then real inclusion. The guild is online and not identical to a full offline friend circle, but it gives her the first taste of a tight-knit group where usefulness might become belonging. Being transported tears her away from the first structure that almost gave her what she wanted.
+
+Reconcile note: older files may still call her a Rogue / double-assassin core. The cleaner current direction is **control mage with assassin-function setup**, while Serra remains the rogue/disruptor entry specialist. This should be propagated to any relationship or chapter planning file that still assumes Mara's Earth class is Rogue.
 
 ---
 
@@ -616,22 +655,48 @@ The early-stage transduction was already active in Aetherfall. She thought it wa
 
 ---
 
-## Aetherfall Class — Rogue (Setup/Precision)
+## Aetherfall Class — Control Mage (Frost / Positional Setup)
 
-Not her obvious fit. She discovered she was good at it because the setup role uses exactly the attention she naturally has. Patient, observational, focused on conditions rather than execution. She was always the reason the kill was possible. She was rarely the one who made it.
+Mara's Aetherfall class lane is **Control Mage**, with Frost Mage as the cleanest tactical analogue. Her gameplay is positional, patient, defensive when needed, and deeply frustrating to play against. She slows opponents into mistakes, punishes movement timing, denies clean resets, and holds enemies where her team can collapse.
 
-In retrospect, her early-stage mirror-salience transduction was already active in Aetherfall — she was suppressing her own salience, making herself harder to notice and respond to, without knowing it was a power rather than skill. The Realm clarifies what was already happening.
+Her control style is emotional as well as tactical. Control lets her keep danger at a distance. If danger is far enough away, she can map it, shape it, and keep the interaction inside a frame she can survive.
 
-### SCENE-001 — Dead Hand's Overlooked Assassin (Earth canon)
+This preserves the assassin-function without making her a pure rogue. In Dead Hand, "assassin" describes the team's kill architecture; "control mage" describes Mara's personal kit. She is the reason the kill becomes possible. Serra is the one who turns that possibility into entry.
 
-In SCENE-001 Mara is the overlooked half of **Dead Hand's double-assassin core** — present on the enemy roster but salience-suppressed (her Specular Salience already running as what she believes is ordinary "rogue skill"), so neither the reader nor Marcus registers her. She is the **dark/unlit roster slot Mathias flags** ("where's the other one?"). **Serra** is Dead Hand's late-arriving star rogue who duels Marcus on-page; **Mara never surfaces on-page** — keep this OFF-page, dossier-only. Serra and Mara are tandem partners on the **same team**. (404 is Marcus's team — Seb, Brent, Mathias, Kip. See `serra_hawthorne.md` for Serra's on-page duel; `marcus_serra_relationship.md` §4 for the locked team fact.)
+In retrospect, her early-stage specular salience was already present in Aetherfall as nonmagical-looking skill: choosing which threat became urgent, suppressing the significance of her own setup until too late, and making an opponent's obvious answer feel correct until it trapped them. The Realm clarifies what was already happening.
+
+### SCENE-001 — Dead Hand's Overlooked Control Half (Earth canon)
+
+In SCENE-001 Mara is the overlooked half of **Dead Hand's Serra–Mara tandem** — present on the enemy roster but salience-suppressed, so neither the reader nor Marcus registers her. She is the **dark/unlit roster slot Mathias flags** ("where's the other one?"). **Serra** is Dead Hand's late-arriving star rogue who duels Marcus on-page; **Mara never surfaces on-page** — keep this OFF-page, dossier-only. Serra and Mara are tandem partners on the **same team**. (404 is Marcus's team — Seb, Brent, Mathias, Kip. See `serra_hawthorne.md` for Serra's on-page duel; `marcus_serra_relationship.md` §4 may need reconciliation if it still names the old double-assassin wording.)
 
 ---
 
 ## Relationships
 
 ### Serra Hawthorne
-They never connect in the Realm before Serra's solo arc begins. Their tandem exists entirely as Earth history — a working relationship built over guild time that the Realm has not had a chance to strain or test yet. When they eventually find each other, they will both be different people operating in a world the guild structure never prepared them for. The question of whether the tandem still works — whether Mara's setup instinct and Serra's entry instinct still point at the same targets — is unresolved.
+
+They never connect in the Realm before Serra's solo arc begins. Their tandem exists as Earth history first — guild competence, friendship, roommate intimacy, and an almost-sister dynamic that the Realm has not yet had a chance to strain or test.
+
+The relationship is reciprocal, not protective in one direction.
+
+Serra protects Mara from unsafe attention without making Mara feel weak. Early in their in-person friendship, Serra may redirect too quickly while still calibrating. Later, she trusts Mara's silence unless Mara signals otherwise. Serra can bring Mara into social spaces, give her status through playful introduction, and make room without turning Mara into "Serra's quiet friend."
+
+Mara protects Serra perceptually. Serra reads emotional atmosphere and can miss danger when she is finally relaxed, present, wanted, or just enjoying the moment. Mara reads attention structure: who is isolating whom, who is testing compliance, who is managing witnesses, and which interpretation someone is trying to make dominant. In social or romantic situations, Mara may pull Serra away by deflecting attention diplomatically, naming the red flag privately, or giving Serra enough of the pattern that her own guard snaps back online.
+
+Their Earth roommate life gives them ordinary intimacy, not only tactical trust:
+- Serra learns Mara's lip/mouth thinking expressions and teases her with accurate guesses.
+- Mara is more orderly; Serra is messier.
+- Mara is vegetarian; Serra eats meat, creating low-stakes friction.
+- Mara's low-key, vibe-oriented life makes Serra more comfortable with silence.
+- Mara broadens Serra's food and domestic rhythms beyond athletic regimentation.
+- Serra helps Mara enter livelier social spaces without consuming her.
+- Mara helps Serra understand that admiration is not always clean.
+
+Professional overlap also works: Serra's high-performance consulting / keynote-adjacent work can draw on Mara's visual design, presentation, and audience-attention skill. Serra moves the room; Mara shapes what the room understands.
+
+The envy is real and should not be sanitized. Mara loves Serra, but Serra represents a kind of visibility Mara finds unfair: Serra can be radiant, physically confident, socially loved, and still recognized as formidable. Mara's ugly private thought is not simply "Serra is prettier." It is closer to: *Of course people keep looking long enough to find her depth. They want to.* Mara hates the thought because Serra is also one of the first people who saw Mara accurately.
+
+When they eventually find each other in the Realm, both will be changed. The question is whether Mara's control/setup instinct and Serra's entry/momentum instinct still point at the same targets — and whether their old reciprocity survives outside the guild frame.
 
 ### Marcus
 No Realm contact yet. In the eventual dynamic, Marcus's pattern-recognition and Mara's salience-reading will create an interesting overlap — he sees hidden structure, she shifts what structures feel important. They could be complementary or they could create a feedback problem. Her challenge to him — that people are not variables — remains in the file as a future dynamic.
@@ -678,12 +743,15 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 ## Open Questions
 
 - What is her specific motivation for accepting Astria's offer?
+- What is Mara's exact Earth job title: UX designer, visual designer, presentation/communications designer, writer-designer, art director, or hybrid?
+- How should the control-mage/Frost Mage lane be reconciled across `marcus_serra_relationship.md`, `serra_hawthorne.md`, and any chapter plan that still calls her a Rogue or half of a double-assassin core?
 - How do the Psion class and Specular Salience interface integrate in combat? ⚠ Needs development
 - What is the first situation that activates the transduction — what makes her discover it?
 - Does she connect with any of the cast before Book 1 ends?
 - What does she do with the power once she understands it? Does she use it proactively or resist?
 - What is the first snapback event — who is the person whose coherent identity reverses her frame?
 - What is Mara's Psion specialization, and its mechanics?
+- How much of her recreational drug/psychedelic curiosity belongs on-page versus remaining dossier texture?
 
 ---
 
@@ -704,4 +772,4 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 
 ---
 
-*Last updated: Realm class set to **Psion** (rare); Rogue/Trickster demoted to Aetherfall + instinct; Specular Salience fully detailed; four-layer architecture applied*
+*Last updated: Earth-game lane revised from pure Rogue to **Control Mage / Frost positional setup** with assassin-function tandem; Serra roommate/friendship reciprocity, school design wound, brilliance/belonging spine, and lifestyle texture added. Realm class remains **Psion** (rare); Specular Salience remains the interface.*

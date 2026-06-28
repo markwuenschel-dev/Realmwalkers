@@ -8,7 +8,7 @@ status: active
 # Marcus — Character File (Protagonist)
 
 > **Status:** Active — primary narrative lens
-> **Last updated:** working draft
+> **Last updated:** working draft — updated with self-made competence / successful misbuild layer
 > **File type:** Major
 
 ---
@@ -51,15 +51,19 @@ status: active
 
 ## Core Identity
 
-Marcus is a principled, high-agency protector-builder whose deepest drives are integrity, competence, responsibility, connection, and meaning. He is not primarily motivated by status, dominance, or winning, but recognition still matters to him: he wants his effort, usefulness, originality, and moral intent to be seen accurately.
+Marcus is a self-made, principled, high-agency protector-builder whose competence formed before his self did. His deepest drives are integrity, competence, responsibility, connection, warmth, and meaning. He is not primarily motivated by status, dominance, or winning, but recognition still matters to him: he wants his effort, usefulness, originality, and moral intent to be seen accurately.
 
-He wants to make things work, prevent harm, and still be able to respect himself afterward. He wants warmth first and understanding second. When someone offers kindness, his instinct is to trust it too quickly. This creates vulnerability in a world where warmth can be sincere, manipulative, transactional, or magically weaponized.
+He did not become competent because he felt secure. He became competent because competence was the first substitute he found for guidance. If no one could tell him where to stand, he would build the map. If no one could tell him what mattered, he would infer the pattern. If no one could protect the future, he would become useful enough that the future had to keep him.
 
-His pride is tied to agency. He needs to believe intelligence, effort, courage, creativity, and better execution can move reality. He tolerates difficulty more easily than helplessness. A difficult problem gives him another diagnostic step. An uncontrollable loss threatens not only hope, but his trust in his own perception, judgment, and ability to adapt.
+He wants to make things work, prevent harm, and still be able to respect himself afterward. He wants warmth first and understanding second. When someone offers kindness, his instinct is to trust it too quickly because scarcity turns evidence into destiny. A single data point of being wanted, understood, or chosen can start carrying the weight of an unlived life.
+
+His pride is tied to agency, but the pride is not vanity. It is survival evidence. Everything he has, he had to build. Do not casually tell him it was nothing. Do not casually tell him to start over. Do not casually tell him he should have known better when no one was there to teach him. Bad advice does not merely sound wrong to Marcus; it can feel like erasure of the cost of self-construction.
+
+He needs to believe intelligence, effort, courage, creativity, and better execution can move reality because, for most of his life, those were the only tools that answered back. He tolerates difficulty more easily than helplessness. A difficult problem gives him another diagnostic step. An uncontrollable loss threatens not only hope, but his trust in his own perception, judgment, and ability to adapt.
 
 ### Central Thematic Sentence
 
-> Marcus is a principled, high-agency protector-builder who believes effort, clarity, and courage should be able to move reality: when resourced, he creates safety, meaning, and connection; when overloaded, ambiguity becomes threat, helplessness becomes control, and perceived moral failure becomes identity collapse, until he rebuilds a self that can remain worthy and connected without forcing certainty, outcomes, or reciprocity.
+> Marcus is a self-made, high-agency protector-builder whose competence formed before his self did. He believes effort, clarity, courage, and better execution should be able to move reality because, for most of his life, those were the only tools that answered back. When resourced, he creates safety, meaning, systems, and connection; when wounded, scarcity turns warmth into destiny, ambiguity becomes threat, and a wrong life feels like proof of a wrong self. His arc is learning that survival is not selfhood, perception is not ownership, and being useful is not the same as being chosen.
 
 ---
 
@@ -68,6 +72,7 @@ His pride is tied to agency. He needs to believe intelligence, effort, courage, 
 ### Baseline Strengths
 
 - **High agency / builder energy** — creates structure, systems, plans, and usable order out of chaos
+- **Self-made competence** — built systems, models, procedures, and reliability where guidance should have been
 - **Strong moral spine / protector energy** — cares about consent, fairness, least harm, and responsibility
 - **Honest self-audit / truth-teller energy** — names his mistakes, faces ugly truths, and does not outsource accountability
 - **Intensity and sincerity / depth energy** — attaches deeply, builds deeply, and is capable of real devotion
@@ -95,10 +100,28 @@ His best traits extend past their healthy limits:
 - Competence → disappearance into operations
 - Humor → armor
 - Desire for recognition → evidentiary audit of praise
+- Scarcity → destiny projection
+- Lost possibility → identity collapse
+- Rare warmth → overinterpretation
+- Self-made competence → contempt for shallow reassurance
+- Defensible success → delayed grief
+- Pride → refusal to abandon a bad investment until the evidence is undeniable
 
 He is often correct that an asymmetry exists. His risk is moving from the observable imbalance to a conclusion about motive or moral meaning.
 
-His most dangerous inner collapse is **identity contamination**. Not "I made a mistake" — "I am the mistake."
+His most dangerous inner collapse is **identity contamination**. Not "I made a mistake" — "I am the mistake." The deeper horror is that he may have spent years becoming excellent at a life that was too small, too narrow, or fundamentally misbuilt.
+
+> "What if the self I built was only the part that could survive, and the person I needed to become never got made?"
+
+Marcus is not always obsessive because he is irrational. He becomes obsessive when a scarce thing appears to contain an entire unlived life: rare romantic warmth, rare recognition, rare belonging, rare mentorship, or rare proof that he could have been different.
+
+### Competence as a Substitute for Guidance
+
+Marcus became competent because nobody was reliably coming to name his shape, redirect his overinvestment, or tell him which survival-valid paths would leave him underbuilt later.
+
+Systems answered back. Procedures answered back. Models answered back. Competence became the first structure that did not require someone else to see him accurately before it worked.
+
+This makes his competence both impressive and tragic. His pride is the evidence trail that he survived without a blueprint.
 
 ### The Operator Without a Self
 
@@ -108,16 +131,30 @@ He still acts responsibly. He still builds, organizes, solves, documents, and pr
 
 He does not necessarily lose all contact with himself. He temporarily treats the operator as the only legitimate part of himself because needs without measurable outputs — grief, companionship, rest, uncertainty — feel too vague or dangerous to prioritize. Others may see him functioning and assume he is fine.
 
+The operator is not only a stress mode. It is a whole false adulthood. He can build, solve, protect, optimize, and endure, but when asked what he wants, what would make him alive, or who he is outside usefulness, there is a missing floor.
+
+### Developmental Grief
+
+Marcus carries grief not only for losses that happened, but for versions of life he never got to live.
+
+He started too late. He had to build alone. He did not get the mentor. He did not get the early romance. He did not get the exploratory years. He did not get the social reps when failure was cheaper. He did not get to become expansive before he became responsible.
+
+This grief should not read as passive or self-pitying. It is a quiet, corrosive awareness that certain doors were time-sensitive.
+
+The Realm hits hard because it is not only danger. It is a second adolescence under lethal conditions — a horrifying gift. Marcus is dropped into a world where everything is beginning again, but not cleanly. He gets adventure, impossible growth, strange companions, class progression, and the chance to become something wider only after he has already been scarred by the life where those things did not happen.
+
 ### Hidden Weak Point
 
-He wants warmth badly enough that he can overvalue rare kindness and assign it more future meaning than it carries.
+He wants warmth badly enough that he can overvalue rare kindness and assign it more future meaning than it carries. Rare warmth is dangerous to him because scarcity turns evidence into destiny.
 
-His deeper wound is not incompetence or cruelty. It is that any perceived violation of his code can collapse into shame, identity crisis, and distrust of his own perception. He does not merely fear having done wrong. He fears discovering that the person doing the interpreting was fundamentally unsafe, selfish, or deluded.
+His deeper wound is not incompetence or cruelty. It is that any perceived violation of his code can collapse into shame, identity crisis, and distrust of his own perception. He does not merely fear having done wrong. He fears discovering that the person doing the interpreting was fundamentally unsafe, selfish, deluded, or built from the wrong life too well.
 
 Helplessness wounds him twice:
 
 1. He could not change the outcome.
 2. He may have misunderstood the reality badly enough that he never saw the outcome coming.
+
+Lost possibility wounds him a third way: it suggests that his effort, hope, and identity may have been spent in the wrong place.
 
 ### Receiving Recognition
 
@@ -133,7 +170,7 @@ He wants to prove that he can be trusted, that his effort matters, that his perc
 
 He wants the warmth he gives to be returned, but not merely out of obligation. He wants to be chosen specifically and understood accurately.
 
-The deeper drive is to remain connected without losing himself — and to remain worthy even when reality cannot be forced into a solvable shape.
+The deeper drive is to remain connected without losing himself, to become more than the part of him that survives, and to remain worthy even when reality cannot be forced into a solvable shape.
 
 ---
 
@@ -296,9 +333,21 @@ Dysregulated Marcus cross-examines, introduces every exception, revises definiti
 
 Marcus Vye is a **machine-learning engineer at Astria** — the model-building kind, working on predictive systems (aptitude/performance/retention models among them). A systems thinker by training and a gamer by temperament: he sees structure under everything and can't stop optimizing it.
 
+Astria is not his dream life. It is the life he built after too many defensible choices. He does not hate it cleanly, which is part of the trap. He is competent, respected enough, useful, and intellectually engaged. The life is not obviously bad enough to reject. It is just not alive enough to inhabit.
+
+It uses real parts of him: pattern recognition, precision, technical patience, responsibility. But it does not use all of him. It rewards the operator and leaves the rest of him underdeveloped. His Earth life should feel like a successful misbuild — not failure, but misbuild.
+
 His first glimpse behind Astria's curtain is professional, not dramatic — a model anomaly he can't explain: a **sealed control cohort that converges** on outcomes it was specifically built **not** to act on, as if something *outside* the model is reaching in and arranging the results to match, while the model takes the credit. He's traced it for two weeks; it isn't a leak (he knows what leaks look like — he's found three this year). He notices because noticing is the job. It is the first thread of the steering/selection truth he won't understand until much later. *(SCENE-001 — confirmed on-page: "Something else is doing the work, and I'm getting paid for it.")*
 
 He works in ML; he does **not** work on the device. The quantum processor Astria is three days from unveiling — marketed as the thing that will "*reshape the very fabric of our lives*" — comes out of a part of the building he doesn't have the badge for. He is a member of a top-25 Aetherfall guild; high strategic and systems competence.
+
+### Early Romantic Scar (provisional structure)
+
+Marcus should carry one pre-Serra romantic wound where he overcommitted to an unavailable woman because she represented the first evidence that his romantic self existed. The specifics and name remain open; do not copy a prior placeholder directly unless chosen later.
+
+The key is not that he loved the wrong woman. The key is that she became proof-of-life for a self he had almost no other evidence for.
+
+This wound explains why rare warmth is dangerous to him. When Marcus has only one data point for being wanted, understood, or chosen, he can mistake the data point for fate. The scar should be quiet rather than melodramatic: the pain is not humiliation over rejection, but the discovery that an entire unlived self can attach to one person who never agreed to carry that meaning.
 
 ### Guild Role
 
@@ -427,6 +476,7 @@ Marcus is not primarily tempted by greed or domination. He is tempted by certain
 - "Let me make people readable."
 - "Let me make rejection impossible."
 - "Let me prove you are good."
+- "Let me show you which warmth was real enough to build your life around."
 - "Let me guarantee you never hurt anyone again."
 
 These attack his real wound.
@@ -439,6 +489,10 @@ These attack his real wound.
 There was a moment on Earth that neither of them addressed. It didn't damage what they were; it made it more charged. In the Realm they find each other early, survive something together, and separate when she makes a call he understands but cannot follow.
 
 He will read her accurately when they reunite — she's changed, and he'll know it, and she won't say how. He ruminates on what he reads. She's already decided. He wants warmth without conditions. She gives warmth freely but not the inside. They are good for each other and hard for each other.
+
+Serra is not a repetition of the earlier unavailable-warmth wound. She is the test that proves whether Marcus can desire someone intensely without turning that desire into entitlement, destiny, or proof of self. The older wound taught him to overcommit to rare warmth because he had no abundance and no self outside longing. Serra gives him real warmth, real conflict, and real care — but he must accept that accurate perception does not grant him authority over her choice.
+
+This makes the Book 1 severance sharper. He is not only choosing reality over the Eyes. He is choosing reality over the oldest hunger in him: *if this is real, it has to mean I finally get to keep it.*
 
 **The finale severance (late Book 1):** during the Myrmidon fight Marcus holds an opening at lethal risk; Serra lands the kill but brushes off his danger and he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he chooses correctly and doesn't hold it against her. Being seen in that moment — plus the faction she hunts and the still-unresolved party thing — sends her off. (Governed by INV-1, `relationship_invariants.md`; precedence `canon_index.md`.)
 
@@ -470,18 +524,24 @@ Primary narrative lens. Arrives in the Realm, survives the implant activation ev
 ### Core Arc Question
 
 > Learn when to trust what he sees, when to question what he sees, and when to stop looking and actually connect.
+>
+> Can Marcus become more than the part of him that survives?
 
 ### Starting Point
 
-Survivor. Analyst. Builder. Alone. Just died and came back. Has a voice in his head, eyes that are starting to change, and a map he's building from fragments toward a city he's heard about but never seen.
+Survivor. Analyst. Builder. Operator. Alone. Just died and came back. Has a voice in his head, eyes that are starting to change, and a map he's building from fragments toward a city he's heard about but never seen.
 
 ### End Direction
 
 Book 1 ends with Marcus tied to Eriadne — not in control of it, but essential to it. The old guild identity is dead. The new question is whether these powerful, changed people can align without becoming enemies.
 
+The danger in Eriadne is not that Marcus becomes a tyrant because he loves power. It is that he becomes indispensable because being indispensable is safer than being known. Settlement-building can tempt him to become the operator at larger scale unless the city also forces him to build a self wider than usefulness.
+
 ### Long Arc (beyond Book 1) — trajectory, not Book-1 canon
 
 Marcus is one half of the series **endgame axis** (with Serra). His escalation is real and long (movement, interface uniqueness, cosmic relevance via the Realm Walkers, perception synergy with Serra's severance, Eriadne/Realm-scale consequence). His terminal function is **reconstructing the real causal map** — finding the true structure under the deception — which is the half that pairs with Serra's *breaking* it. Together they become the **answer to deception and control** and face the hidden final actor; this is *why* the cohort was assembled as keys (`dominion_realm_story_bible.md` → *The Six — Origin Cohort*; `cosmology.md` Realm Walkers / N'hal). He is also the one **forced to defeat Seb** when Seb is turned (FORK 2; `seb.md`) — the mirror collision finally landing. *(Trajectory; the six do not remain a balanced party — Marcus scales toward the cosmic axis while others take different scales/roles.)*
+
+Under the plot arc sits the emotional arc: Marcus must build a self wider than usefulness. Book 1 strips him down to the operator. Eriadne tempts him to make the operator civic-scale. Serra forces him to confront desire without ownership. Ayla/Illyri forces him to accept guidance without surrendering judgment. Mara, Mathias, and Brent each challenge the idea that usefulness equals selfhood from a different angle.
 
 ### The Frame–Reality Spine — opening ↔ ending mirror
 
