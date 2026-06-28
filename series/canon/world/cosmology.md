@@ -116,7 +116,7 @@ The cast does **not** defeat the world-scale beings.
 ### Eight Great Ley Lines & their tributaries → regional dungeons
 There are **eight Great Ley Lines, one per foundational element** (Fire, Water, Earth, Air/Wind, Light, Shadow, Life, Death). **Eriadne sits at a rare full / near-full convergence of all eight** (`eriadne.md` owns the Eriadne-specific detail; not duplicated here). Elsewhere, smaller **branches, tributaries, eddies, and local intersections** exist — enabling **regional dungeons** and local anomalies without making other locations magically irrelevant.
 
-**Dungeons are ley-reactive pressure systems** that pool in caves, tombs, old roads, ruins, and buried infrastructure, and can **absorb local history** — which is what lets Serra's underground delve carry old trade-route architecture, **the Toll-King**, and Eriadne references (a **local ley intersection**, not the full eight-line knot). See `serra_hawthorne.md`.
+**Dungeons are ley-reactive pressure systems** that pool in caves, tombs, old roads, ruins, and buried infrastructure, and can **absorb local history** — which is what lets Serra's underground delve carry old trade-route architecture and Eriadne references (a **local ley intersection**, not the full eight-line knot). **Ley-reactive dungeons can shift** with instability (subtle, local — not collapse melodrama); Serra's Book-1 boss is a **dungeon predator using changed layout**, not the Toll-King. *(Toll-King: provisional/retired as Serra-arc boss; may remain as world texture elsewhere.)* See `serra_hawthorne.md`, `vessa.md`.
 
 ---
 

@@ -7,6 +7,15 @@
 
 ---
 
+---
+
+## Act 1 — Earth (brief)
+
+### Earth night — common area `[all six]`
+One contained night after transport/consent, before surgery. Setup: separate rooms + **shared common area**. Function: last six-together Earth memory; cross-group texture (404 four know each other; Serra/Mara know each other; brief cross-group reads). Texture only: fear, jokes, consent forms, corporate calm, failed sleep, nervousness — **not** exposition arc. *(Illyri absent — attaches Ch 6.)* See `marcus_serra_relationship.md` §4.
+
+---
+
 ## Act 2 — Opening (drafted/revision)
 
 ### SCENE-002 — Naming (the refusal) `[M]`

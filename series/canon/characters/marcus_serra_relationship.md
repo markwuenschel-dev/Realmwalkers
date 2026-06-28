@@ -96,6 +96,8 @@ Serra's read: she initiated, returned the conversation to the altana, and gave h
 
 *(Mara likely knows Serra's competitive identity throughout — tandem partner — and simply has no reason to tell Marcus.)*
 
+**Earth night (common area).** After formal consent, before surgery: one contained night — separate rooms, **shared common area**. The six get a brief shared Earth memory before separation (404 four know each other; Serra/Mara know each other; brief cross-group reads). Texture only: fear, jokes, consent forms, too-clean corporate calm, failed sleep, nervousness — **not** a bonding arc. This is the last full-six window before the Realm scatters them. *(See `scene_queue.md` Act 1 brief.)*
+
 **Entry to the Realm.** Before surgery, one narrow personal beat: it acknowledges the growing shared history, resolves nothing about the kiss, declares no relationship, and ends on Serra's **"See you after, Marcus."** Then Marcus dies in the Realm. *(See §9 — the altana's full content is delivered in Serra's first Realm POV as flashback, so "See you after" carries weight the reader can't yet fully cash.)*
 
 ## 5. Book 1 Romantic Progression
@@ -180,8 +182,8 @@ Serra confirms the connection without letting it dictate her next move: *"I wasn
 - **Early False Rescue** — a POV chapter: Marcus affecting her, what she notices about his post-resurrection instability, why his presence is both grounding and dangerous.
 - **Child's capture / namebinding** — she grasps the system-level meaning before Marcus does; her interface direction begins aligning against imposed identity and ownership.
 - **Magistrate kill — Serra POV** — confrontation, deliberate killing, the registry-fragment discovery (a *cold* Book-2 lead), the realization that the magistrate is a replaceable node, the choice to keep going on her own. She leaves not because Marcus failed her but because she's found something she can't ignore. *(Her Book-1 solo arc is the dungeon; the network / Court-of-Seals hunt is Book 2; her interface activates at the Act-5 finale, not here.)*
-- **First solo chapter (the dungeon)** — the cost of leaving (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants). **Vessa** — a 13-yo tunnel-runner who *is* young Serra (R-5 at thirteen: she doesn't ask people to stay) — is why she stays; recognizing herself in the child is the engine of the arc, and getting Vessa through the delve pays down the guilt of leaving Marcus (`vessa.md`). She continues anyway.
-- **Return toward convergence** — she returns at real cost (a lost lead, surrendered momentum, exposure); Marcus may never fully know what she sacrificed to come back.
+- **First solo chapter (the dungeon)** — the cost of leaving (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants). **Vessa** — changing delve, trust/failure/repair, boss fight requiring Vessa's route knowledge (`vessa.md`, `scene_queue.md`). She continues anyway.
+- **Return toward convergence (~Ch 25)** — she returns at real cost (a lost lead, surrendered momentum, exposure); Marcus may never fully know what she sacrificed to come back. **First full six-person reunion since Earth** — old guild familiarity + one-night cohort memory + Realm-changed estrangement. **Mara** may quietly notice the Vessa wound hurt Serra more than Serra shows (visibility beat — intimacy without romance; see `mara.md`).
 
 ---
 
@@ -197,7 +199,34 @@ Serra confirms the connection without letting it dictate her next move: *"I wasn
 
 ---
 
-## 11. Series-Scale Forms (deliberately open; the relationship changes *category*, not just repeats separation)
+## 11. Eriadne Interval (Ch 18–25)
+
+> **Placement:** After the second kiss (Ch 14) and magistrate split (Ch 15); before the finale rupture (Ch 30). Altana kiss + Serra-initiated second kiss **already happened.**
+
+**State:** Not together. Not casual. Not deniable. More honest than before, but not safe yet. The finale rupture has not happened yet. The relationship should feel real enough to hurt but undefined enough to rupture.
+
+**Serra:** Wants Marcus. Knows she wants him. Trying not to make wanting into debt, promise, category, surrender, or humiliation. She cannot internally frame the whole connection as something Marcus imposed or imagined — she **chose toward him** at the second kiss.
+
+**Marcus:** Knows Serra chose him once. Trying not to turn that evidence into jurisdiction over what comes next. Does not chase or claim. Does not reset her to cold denial.
+
+**On the page:** Visible through proximity, attention, tactical synchronization, private language, and small physical beats — **not** overt couple behavior. See §12 for physical-intimacy guardrails.
+
+**Illyri witness:** Illyri is tethered to Marcus (visible floating knot of old light; present unless withdrawn). Marcus and Serra's intimacy is never fully one-on-one. Serra may feel protective curiosity, irritation, and unease about Illyri's witness role — Illyri makes visible wanting harder. Illyri is not a joke-only chaperone; her presence adds warmth, awkwardness, and pressure.
+
+---
+
+## 12. Physical Intimacy — Book 1 Guardrails
+
+- **No additional kisses** after the second Serra-initiated kiss (Ch 14).
+- **Avoid:** casual public handholding, repeated cuddling, sleeping in each other's arms, couple-coded names, any sense they have already chosen a future.
+- **Allowed / useful:** standing close, shoulder brushing, brief hand contact, Serra touching Marcus's wrist/forearm/shoulder to get attention, walking together slightly apart from the group, charged quiet, sitting near each other on watch, one meaningful hand-hold or almost-hand-hold after danger.
+- Any true hand-hold should feel like a **meaningful breach**, not a habit.
+
+*(Drift guard: `forbidden_drift.md`.)*
+
+---
+
+## 13. Series-Scale Forms (deliberately open; the relationship changes *category*, not just repeats separation)
 
 1. **Recognition** — *I see something in you.* (B1 Earth)
 2. **Reliance** — *I function differently when you're beside me.* (False Rescue)
@@ -219,7 +248,7 @@ Stage #1 as the quiet twin of **Serra's one rule enacted** (§8; she takes the *
 
 ---
 
-## 12. Guardrails
+## 14. Guardrails
 
 - Serra is not a prize Marcus earns; Marcus is not the home Serra receives after her "real" story.
 - Serra does not secretly want conventional stability all along.
@@ -235,7 +264,7 @@ Stage #1 as the quiet twin of **Serra's one rule enacted** (§8; she takes the *
 
 ---
 
-## 13. Inspirations (craft north-stars, not plot templates)
+## 15. Inspirations (craft north-stars, not plot templates)
 
 - **Raynor & Kerrigan (StarCraft)** — a bond that stays central across separation and war; reunions between changed people. **Avoid:** Serra as a corrupted woman Marcus must restore. Marcus's challenge is *can I love who Serra chose to become?*, not *can I get the old Serra back?*
 - **Vi & Caitlyn (Arcane)** — closest model: chemistry across different positions, respect through danger, ideological disagreement attraction doesn't erase, each with an independent political/moral role. Marcus diagnoses/redesigns structures; Serra sees who's harmed while reform is attempted and when destruction is more honest than repair.
@@ -244,13 +273,13 @@ Stage #1 as the quiet twin of **Serra's one rule enacted** (§8; she takes the *
 
 ---
 
-## 14. Biometric Flicker — Recognition Mechanic
+## 16. Biometric Flicker — Recognition Mechanic
 
 Aetherfall avatars are biometric (based on the real body); during an Aspect transition the previous form sheds, Marcus's **unmodified personal avatar appears for a beat**, then the next form loads. Current use: this flicker participates in the mid-duel Serra→Marcus personal recognition. Marcus recognizes Serra first by red hair/face; Serra recognizes Marcus a fraction later through the biometric flicker. Thematically: *the person beneath the role appears only in transition.* Keep it a glimpse, not a sustained metaphor or form-prison set piece unless the plot independently demands it.
 
 ---
 
-## 15. Compact Thesis
+## 17. Compact Thesis
 
 > Marcus and Serra are drawn to one another before either understands why. Marcus sees patterns and wants repeated choices to mean something stable; Serra feels connection deeply but resists letting shared motion become a claim on her future. In the Realm, attraction becomes trust, companionship, moral partnership, and early love — but their different responses to uncertainty pull them apart just as they begin imagining a shared life. Across the series they must learn that seeing someone does not mean owning the meaning of what is seen, and preserving autonomy does not require leaving before connection can become mutual.
 

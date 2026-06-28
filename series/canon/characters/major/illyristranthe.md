@@ -60,6 +60,13 @@ The damaged aspect reads as structural, not decorative: like a constellation wit
 
 **Not angelic.** No seraphic resonance, no cathedral imagery, no -iel / -ael flavor, no divine-in-the-religious-sense. She suggests age in the cosmic sense — the kind of old that does not comfort.
 
+### Default visible form + tether
+
+- **Physically tethered to Marcus** — cannot go far from his implant/core.
+- **Default visible form:** a floating knot of old light (readable in prose as a "ball of light" — **not** angelic wings).
+- **Presence:** through the MarcusↄSerra arc unless deliberately withdrawn or hidden. *(Absent on Earth — attaches Ch 6.)*
+- **Function:** intimacy is never fully one-on-one; witness pressure on visible wanting. Not a joke-only chaperone.
+
 ---
 
 ## Voice & Role

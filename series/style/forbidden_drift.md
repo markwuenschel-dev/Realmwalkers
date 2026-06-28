@@ -257,6 +257,21 @@
 
 ---
 
+### 18. Marcus/Serra Couple-Coding (Eriadne Interval)
+
+**What it is:** During the Eriadne interval (Ch 18–25), the prose drifts toward established-couple behavior — repeated kisses, public handholding habit, cuddling, couple-coded names, chosen-future vibe — when the locked state is **not together, not casual, not deniable**.
+
+**Warning signs:**
+- Additional kisses after the Ch 14 second kiss
+- Casual public handholding or repeated cuddling as habit
+- Sleeping in each other's arms without narrative breach
+- Couple-coded pet names or "we're building a future" subtext
+- Eriadne reunion treated as relationship reset to cold denial
+
+**Correction:** Hold the Eriadne interval guardrails (`marcus_serra_relationship.md` §11–12): warm + undefined; small physical beats only; any hand-hold is a meaningful breach, not a habit. No kisses after Ch 14.
+
+---
+
 ## Quick Diagnostic
 
 When a scene feels off, run through this list:

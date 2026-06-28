@@ -56,7 +56,7 @@
 | CH-022 | Mathias | **Injured proving his warning**; perception/contact, not frontline (locked, `finale_spine.md` b5) | active | Plants that his value is sensing/contact, not combat → Book-2 **stewardship of Eriadne** while Marcus/Serra go cosmic. **Survives** Book 1. (`mathias.md` → *Long Arc*.) |
 | CH-023 | Brent | **Mara + Brent identify the Myrmidon weakness** (locked, `finale_spine.md` b8); structural reader | active | Plants the structural-judge role → *if/when* he dies (Book-2+) it cashes out as **structural cost, not a healer trope** (`forbidden_drift.md` #16). **Survives** Book 1. |
 | CH-024 | Mara | Mara+Brent find the weakness; court reframe (CH-009) | active | Plants the **non-Marcus/Serra riser** — salience/mirror danger escalating toward execution/combat lethality; may surpass Seb if he lives long enough. Stays jagged, never team-glue. Book-2+. |
-| CH-025 | The six | The **"happy group" window** — the machine fires once (locked, `finale_spine.md` b4) | active | Plants the alternate-timeline glimpse; pays as **grief** when the cohort fractures (the severance now; divergence/deaths Book-2+) — without a false found-family promise. (`forbidden_drift.md` #15.) |
+| CH-025 | The six | The **"happy group" window** — the machine fires once (locked, `finale_spine.md` b4) | active | Plants the alternate-timeline glimpse; pays as **grief** when the cohort fractures (the severance now; divergence/deaths Book-2+) — without a false found-family promise. (`forbidden_drift.md` #15.) **Earth night** (Act 1 common area) plants the last full-six memory that Ch 25 reunion grief can rhyme against. |
 
 ---
 

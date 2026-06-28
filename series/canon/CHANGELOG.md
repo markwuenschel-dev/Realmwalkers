@@ -2,6 +2,19 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-28 — Serra / Marcus–Serra Book 1 relationship canon integration
+
+> **Execution locks and guardrails** for Book-1 Serra and MarcusↄSerra — not new moral scaffolding.
+
+- **Serra Book 1 spine** (`serra_hawthorne.md`): aliveness vs fear of visible wanting; facility consent beat; solo arc reframed (changing dungeon + Eriadne fragment; no Toll-King/toll-seal).
+- **Vessa arc rewrite** (`vessa.md`, `scene_queue.md`): ley-instability shifting delve; trust/failure/repair; predator boss; Eriadne fragment/clue.
+- **MarcusↄSerra** (`marcus_serra_relationship.md`): §11 Eriadne Interval (Ch 18–25); §12 physical-intimacy guardrails; Earth night in §4; §9 dungeon + Ch 25 reunion updated.
+- **Planning mirrors:** `book1_chapter_plan.md`, `book1_chapter_timeline.md`, `master_timeline.md`, `character_state_log.md`.
+- **Illyri tether:** default visible form + physical tether (`illyristranthe.md`, `relationship_map.md`, `relationship_invariants.md` INV-4 appendix).
+- **Earth night:** Act 1 common-area brief across scene_queue + Ch 2–3 planning + story bible.
+- **Mara Ch 25 visibility beat** (`mara.md` + planning stubs).
+- **Drift fixes:** relationship_map (Warrior foreshadow, Eriadne interval block); story_bible (namebinding ≠ solo arc); cosmology (ley-reactive shifting; Toll-King retired as Serra boss); `forbidden_drift.md` #18 couple-coding guardrail.
+
 ## 2026-06-28 — Illyristranthe rename (CCR-008)
 
 > **Ayla → Illyristranthe.** Full name Illyristranthe; short form **Illyri**; nickname **Ily** (close friends). Celestial/astral flavor locked; angelic/wisp lane retired. Character file `ayla.md` → `illyristranthe.md`. Roth demoted to Minor in cast_index. Interface tag `[ AYLA ]` → `[ ILLYRI ]`. Soul-band origin **superseded**: celestial fragment defeated in battle (series antagonist — identity deferred); spent permanent power on Marcus's resurrection; bilateral anchor deal retained.

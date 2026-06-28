@@ -34,14 +34,14 @@ status: working
 
 **Ch 2 — The Facility** · Marcus · Day 1 · *drafted*
 - **Function:** assemble the six in the flesh; first physical Marcus/Serra beat; lay out terms so consent is on the record.
-- **Beats:** pickup (Eldrin, Selia); facility; Withers/Vail; patio reunion; **Serra arrives, introduces herself from Dead Hand, the wink** (reader-recognition, no visible romance); Mara arrives late; LeBlanc/Roth/Withers lay out terms/risks; formal consent; medical exams.
+- **Beats:** pickup (Eldrin, Selia); facility; Withers/Vail; patio reunion; **Serra arrives, introduces herself from Dead Hand, the wink** (reader-recognition, no visible romance); Mara arrives late; LeBlanc/Roth/Withers lay out terms/risks; formal consent; medical exams; **Earth night — shared common area** (last full-six window; texture only — see `scene_queue.md` Act 1 brief).
 - **Pays:** SP-003 (UI as interpretive layer, seed) · SP-002.
 - **End state:** six committed; Earth Thing now in-person but unaddressed.
 - **Gate:** ✅ drafted.
 
 **Ch 3 — Reins** · Marcus → LeBlanc · Day 1 night · *drafted*
 - **Function:** plant the off-world hand behind Astria; deliver the six into the Realm; scatter them.
-- **Beats:** implant surgery; **⟢ LeBlanc/Roth private (LeBlanc POV): "We will take the reins in the Dominion Realm"** (Soulkeepers' Exchange shaping Astria from outside); limbo void; the voice explains the Realm + the Eriadne directive; mists separate them.
+- **Beats:** **Earth night — shared common area** (last full-six window; see `scene_queue.md`); **pre-surgery — one narrow personal beat** (acknowledges shared history, resolves nothing about the kiss, ends on Serra's **"See you after, Marcus"**); implant surgery; **⟢ LeBlanc/Roth private (LeBlanc POV): "We will take the reins in the Dominion Realm"** (Soulkeepers' Exchange shaping Astria from outside); limbo void; the voice explains the Realm + the Eriadne directive; mists separate them.
 - **Pays:** SP-001 (Astria = infrastructure, not source) · SP-007 (resurrection weight, seed) · SP-009 (Eriadne destination).
 - **End state:** six separated; Eriadne directive known to reader.
 - **Gate:** ✅ drafted.
@@ -207,7 +207,7 @@ status: working
 **Ch 16–17 — The Long Road** · Marcus · Days ~23–44 · ⚠
 - **Function:** travel to Eriadne; show non-combat power; first Xyloryn diagnostic; ignite Seb; advance Serra solo.
 - **Beats:** rumors of the thread city; **playful-chaos defusion** (turns a crowd, gives a face-saving exit — non-combat power); **Eyes emotional-leak social cost** (Stage-2 tells betray him; data ≠ truth); first **Xyloryn diagnostic hint** — a **diagnostic signal / trace from the other side** (something is *sampling*, gathering information — **not an embodied attack**); felt ley pull; reach outskirts ~Day 45.
-- **Interludes:** ⟢ Seb — **organizes the salt-flat camp until the trust costs someone** → kills his captor **barehanded** → **then** the broker speaks (*"you can have more,"* the brother's soul dangled — **a real offer, not a bluff**; the lie is "restored *cleanly*") → **Reaver + Pyric Blood ignite**; shortest, among the most powerful. **⟢ SERRA POV — the dungeon** (first solo chapter): held by a small town beside a delve; **Vessa** — a 13-yo tunnel-runner, the young-Serra mirror — is why she stays (`vessa.md`; 5-scene map in `scene_queue.md`); the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed) with Vessa functional alongside her, never asked; the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished**; the **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants) — she continues anyway; the one thread she won't sever is him. *(Court of Seals hunt = Book 2; interface still dormant.)*
+- **Interludes:** ⟢ Seb — **organizes the salt-flat camp until the trust costs someone** → kills his captor **barehanded** → **then** the broker speaks (*"you can have more,"* the brother's soul dangled — **a real offer, not a bluff**; the lie is "restored *cleanly*") → **Reaver + Pyric Blood ignite**; shortest, among the most powerful. **⟢ SERRA POV — the dungeon** (first solo chapter): held by a small town beside a delve; **Vessa** — a 13-yo tunnel-runner, the young-Serra mirror — is why she stays (`vessa.md`; 5-scene map in `scene_queue.md`); the delve **shifts via ley instability** — Vessa notices first, Serra believes her, then almost repeats the adult override pattern (trust/failure/repair); boss: dungeon predator using the changed layout — Serra fights, **trusts Vessa's live read**; the delve yields an **Eriadne fragment/clue** (independent pull — not toll-seal, not namebinding); hardens her **Warrior** identity, interface dormant; ends **unfinished**; the **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants) — she continues anyway; the one thread she won't sever is him. *(Court of Seals hunt = Book 2.)*
 - **Scenes:** `SCENE-010` (Xyloryn first hint) · `SCENE-009` deepen (Seb noble cost) · `Serra solo` deepen/crest.
 - **Pays:** CH-001 (playful-chaos) · SYS-006 (Eyes leak) · WF-005 (Xyloryn) · CH-008 (Seb cost payoff) · SE-06 latent (Coherence vs Saturation = Book 2); SE-05 deferred to the finale (interface dormant in the solo arc).
 - **End state:** Marcus at Eriadne's edge; Seb powered + leashed; Serra deep in her hunt.
@@ -275,8 +275,8 @@ status: working
 
 **Ch 25 — The Reunion** · Marcus + Serra · ~Day 95 · ⚠
 - **Function:** Serra returns changed; reunion becomes tension; Mathias delivers the warning.
-- **Beats:** **Serra returns, changed**; he reads what it cost her, she won't confirm; reunion → tension (her mission vs his fragile position).
-- **Interlude:** ⟢ Mathias confirms the **Xyloryn + the portal**; becomes the warning no one wants. **⟢ SERRA POV (return-at-cost):** she returns at **real cost** — a lost lead, surrendered momentum, exposure; **Marcus may never fully know what she sacrificed to come back** (§9).
+- **Beats:** **Serra returns, changed**; he reads what it cost her, she won't confirm; reunion → tension (her mission vs his fragile position). **First full six-person reunion since Earth** — old guild familiarity + one-night cohort memory + Realm-changed estrangement.
+- **Interlude:** ⟢ Mathias confirms the **Xyloryn + the portal**; becomes the warning no one wants. **⟢ SERRA POV (return-at-cost):** she returns at **real cost** — a lost lead, surrendered momentum, exposure; **Marcus may never fully know what she sacrificed to come back** (§9). **Mara visibility beat:** Mara quietly notices Vessa hurt Serra more than Serra shows (`mara.md` — intimacy without romance; not a Mara POV chapter).
 - **Scenes:** Reunion `[M]+[S]` · `Mathias: The Ruins` (crest).
 - **Pays:** CH-007 / CH-019 (changed; the space remains) · CH-010 (Mathias warning).
 - **End state:** Serra back; warning on the table; five of six near Eriadne.
