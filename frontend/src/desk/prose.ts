@@ -28,6 +28,76 @@ export function seg(text: string): Block[] {
 export type Align = "left" | "center" | "right";
 export type Tone = "note" | "info" | "good" | "warn" | "bad";
 
+export type UiRole =
+  | "system"
+  | "warning"
+  | "combat"
+  | "damage"
+  | "healing"
+  | "defense"
+  | "resource"
+  | "progression"
+  | "xp"
+  | "crafting"
+  | "insight"
+  | "corruption"
+  | "name"
+  | "vow"
+  | "item";
+
+export type MagicDomain =
+  | "fire"
+  | "water"
+  | "air"
+  | "earth"
+  | "light"
+  | "shadow"
+  | "life"
+  | "death"
+  | "runic"
+  | "blood"
+  | "spirit"
+  | "mind"
+  | "force"
+  | "chaos"
+  | "celestial"
+  | "void"
+  | "planar"
+  | "time"
+  | "entropy"
+  | "eldritch"
+  | "aether";
+
+export type CreatureKind =
+  | "mortal"
+  | "beast"
+  | "monster"
+  | "demon"
+  | "archdemon"
+  | "angel"
+  | "archangel"
+  | "undead"
+  | "dragon"
+  | "construct"
+  | "spirit"
+  | "fae"
+  | "celestial"
+  | "voidborn"
+  | "eldritch"
+  | "xyloryn"
+  | "nhal";
+
+export type Intensity = "subtle" | "standard" | "strong" | "apex";
+
+export type InterfaceSpec = {
+  role?: UiRole;
+  domain?: MagicDomain;
+  creature?: CreatureKind;
+  intensity?: Intensity;
+  skill?: string;
+  tier?: string;
+};
+
 export type ProseBlock =
   | { kind: "p"; text: string; n: number }
   | { kind: "heading"; level: number; text: string }
@@ -37,7 +107,7 @@ export type ProseBlock =
   | { kind: "hr" }
   | { kind: "stat"; lines: string[] } // pre-rendered box-drawing window
   | { kind: "code"; lines: string[]; lang: string } // ``` fenced block
-  | { kind: "interface"; attrs: Record<string, string>; lines: string[] } // ``` + @interface directive
+  | { kind: "interface"; spec: InterfaceSpec; lines: string[] } // ``` + @interface directive
   | { kind: "table"; head: string[]; rows: string[][]; align: Align[] };
 
 const BOX = /^\s*[┌│├└]/; // first non-space char of a rendered stat-window line
@@ -122,14 +192,104 @@ function collect(lines: string[], i: number, re: RegExp): [string[], number] {
 
 const INTERFACE_DIRECTIVE = /^@interface\s+(.+)$/;
 
-/** Parse `@interface role=insight creature=archdemon …` into a key/value map. */
-export function parseInterfaceAttrs(raw: string): Record<string, string> {
-  const attrs: Record<string, string> = {};
+const UI_ROLES = new Set<UiRole>([
+  "system",
+  "warning",
+  "combat",
+  "damage",
+  "healing",
+  "defense",
+  "resource",
+  "progression",
+  "xp",
+  "crafting",
+  "insight",
+  "corruption",
+  "name",
+  "vow",
+  "item",
+]);
+
+const MAGIC_DOMAINS = new Set<MagicDomain>([
+  "fire",
+  "water",
+  "air",
+  "earth",
+  "light",
+  "shadow",
+  "life",
+  "death",
+  "runic",
+  "blood",
+  "spirit",
+  "mind",
+  "force",
+  "chaos",
+  "celestial",
+  "void",
+  "planar",
+  "time",
+  "entropy",
+  "eldritch",
+  "aether",
+]);
+
+const CREATURE_KINDS = new Set<CreatureKind>([
+  "mortal",
+  "beast",
+  "monster",
+  "demon",
+  "archdemon",
+  "angel",
+  "archangel",
+  "undead",
+  "dragon",
+  "construct",
+  "spirit",
+  "fae",
+  "celestial",
+  "voidborn",
+  "eldritch",
+  "xyloryn",
+  "nhal",
+]);
+
+const INTENSITIES = new Set<Intensity>(["subtle", "standard", "strong", "apex"]);
+
+function asEnum<T extends string>(value: string, allowed: Set<T>): T | undefined {
+  return allowed.has(value as T) ? (value as T) : undefined;
+}
+
+/** Parse `@interface role=insight creature=archdemon …` into a typed InterfaceSpec. */
+export function parseInterfaceSpec(raw: string): InterfaceSpec {
+  const spec: InterfaceSpec = {};
   for (const part of raw.trim().split(/\s+/)) {
     const eq = part.indexOf("=");
-    if (eq > 0) attrs[part.slice(0, eq)] = part.slice(eq + 1);
+    if (eq <= 0) continue;
+    const key = part.slice(0, eq);
+    const value = part.slice(eq + 1);
+    switch (key) {
+      case "role":
+        spec.role = asEnum(value, UI_ROLES);
+        break;
+      case "domain":
+        spec.domain = asEnum(value, MAGIC_DOMAINS);
+        break;
+      case "creature":
+        spec.creature = asEnum(value, CREATURE_KINDS);
+        break;
+      case "intensity":
+        spec.intensity = asEnum(value, INTENSITIES);
+        break;
+      case "skill":
+        spec.skill = value;
+        break;
+      case "tier":
+        spec.tier = value;
+        break;
+    }
   }
-  return attrs;
+  return spec;
 }
 
 export function parseBlocks(text: string): ProseBlock[] {
@@ -155,7 +315,7 @@ export function parseBlocks(text: string): ProseBlock[] {
       if (iface) {
         out.push({
           kind: "interface",
-          attrs: parseInterfaceAttrs(iface[1]),
+          spec: parseInterfaceSpec(iface[1]),
           lines: inner.slice(1),
         });
       } else {

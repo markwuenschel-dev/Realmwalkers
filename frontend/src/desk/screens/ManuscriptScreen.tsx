@@ -88,21 +88,26 @@ export default function ManuscriptScreen() {
   const titleStem = (active?.title || "manuscript").replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript";
   const draftSuffix = isDraft ? "_draft" : "";
 
+  const compiled = (): ManuscriptOut | null =>
+    active ? { ...active, chapters } : null;
+
   const exportMarkdown = async () => {
-    if (!active) return;
+    const ms = compiled();
+    if (!ms) return;
     const exp = await import("../lib/docx");
     exp.saveMarkdown(
-      exp.buildManuscriptMarkdown(active, { compile: isDraft ? "draft" : "approved" }),
+      exp.buildManuscriptMarkdown(ms, { draft: isDraft }),
       exp.markdownFilename(titleStem + draftSuffix),
     );
   };
 
   const exportDocx = async () => {
-    if (!active) return;
+    const ms = compiled();
+    if (!ms) return;
     const docx = await import("../lib/docx");
     await docx.saveDocx(
       docx.buildManuscriptDoc(
-        active,
+        ms,
         isDraft ? "working draft — all scenes, including unapproved" : undefined,
       ),
       docx.docxFilename(titleStem + draftSuffix),
@@ -110,7 +115,8 @@ export default function ManuscriptScreen() {
   };
 
   const exportShunn = async () => {
-    if (!active) return;
+    const ms = compiled();
+    if (!ms) return;
     const name =
       author.trim() ||
       (window.prompt("Author name for the manuscript header / byline:") ?? "").trim();
@@ -118,7 +124,7 @@ export default function ManuscriptScreen() {
     if (name !== author) saveAuthor(name);
     const docx = await import("../lib/docx");
     await docx.saveDocx(
-      docx.buildShunnDoc(active, name, totalWords),
+      docx.buildShunnDoc(ms, name, totalWords),
       docx.docxFilename(`${titleStem}_shunn${draftSuffix}`),
     );
   };
@@ -215,16 +221,6 @@ export default function ManuscriptScreen() {
               "width:130px;padding:5px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:var(--ui);font-size:12px",
             )}
           />
-          <button
-            onClick={() => window.print()}
-            disabled={!hasProse}
-            title="Print, or save as a PDF — chapters break to new pages (enable the print dialog's headers/footers for page numbers)"
-            style={css(
-              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
-            )}
-          >
-            ⎙ Print / PDF
-          </button>
         </div>
         <div
           style={css(

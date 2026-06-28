@@ -1,8 +1,6 @@
-// DOCX emitter (Phase 4) — the "many emitters, one parse" DOCX side. Consumes the same
-// parseBlocks/parseInline AST the on-screen renderer uses, so a Word export matches what you read.
-// Two domains: the manuscript (Domain A — book typography) and canon docs (Domain B — MarketMind
-// styling: navy-header tables, accent callout boxes, code blocks). Runs client-side via docx-js;
-// lazy-imported from the export buttons so it stays out of the main bundle.
+// DOCX emitter — "many emitters, one parse". Consumes parseBlocks/parseInline AST.
+// Domain A: manuscript book typography + LitRPG interface panels.
+// Domain B: canon docs with professional tables/callouts.
 import {
   AlignmentType,
   BorderStyle,
@@ -26,11 +24,17 @@ import {
   type IBorderOptions,
 } from "docx";
 import type { ManuscriptOut } from "../api/types";
+import {
+  formatInterfaceHeader,
+  formatInterfaceShunnHeader,
+  neutralSurface,
+  PALETTE,
+  resolveSurface,
+  tableSurface,
+  type Surface,
+} from "./litrpgSurfaces";
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
 
-// Print colours (theme-independent — a Word doc isn't themed). Navy header is the MarketMind table
-// look; callout tones map to fixed ink colours.
-const NAVY = "1F3864";
 const TONE_COLOR: Record<Tone, string> = {
   note: "1F3864",
   info: "2E5AAC",
@@ -57,8 +61,10 @@ function line(color: string, size = 4): IBorderOptions {
 
 type Run = TextRun | ExternalHyperlink;
 
-// One line of inline markdown -> docx runs. `base` carries prose font/size; code/link override it.
-function inlineRuns(text: string, base: { font?: string; size?: number } = {}): Run[] {
+function inlineRuns(
+  text: string,
+  base: { font?: string; size?: number; color?: string } = {},
+): Run[] {
   return parseInline(text).map((tok): Run => {
     switch (tok.t) {
       case "code":
@@ -73,183 +79,224 @@ function inlineRuns(text: string, base: { font?: string; size?: number } = {}): 
           children: [new TextRun({ ...base, text: tok.s, color: "0563C1", underline: {} })],
         });
       default:
-        return new TextRun({ ...base, text: tok.s });
+        return new TextRun({ ...base, text: tok.s, color: base.color });
     }
   });
 }
 
-// A single-cell table — the MarketMind shape for callouts and code/stat blocks (fill + optional
-// accent edge). docx renders box-art and code best in a shaded cell with a monospace font.
-function panel(children: Paragraph[], fill: string, leftAccent?: string): Table {
+/** Layout-only panel — callers supply pre-coloured Paragraph rows. */
+function panel(rows: TableRow[], surface: Surface): Table {
+  const accent = line(surface.accent, surface.leftBorderSize);
+  const outer = line(surface.border, 4);
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: {
-      top: NO_BORDER,
-      bottom: NO_BORDER,
-      right: NO_BORDER,
+      top: outer,
+      bottom: outer,
+      right: outer,
+      left: accent,
       insideHorizontal: NO_BORDER,
       insideVertical: NO_BORDER,
-      left: leftAccent ? line(leftAccent, 24) : NO_BORDER,
     },
-    rows: [
+    rows,
+  });
+}
+
+function singleCellPanel(children: Paragraph[], surface: Surface): Table {
+  return panel(
+    [
       new TableRow({
         children: [
           new TableCell({
-            shading: { type: ShadingType.CLEAR, fill, color: "auto" },
+            shading: { type: ShadingType.CLEAR, fill: surface.fill, color: "auto" },
             margins: cellMargins,
             children,
           }),
         ],
       }),
     ],
-  });
+    surface,
+  );
 }
 
 function calloutPanel(b: Extract<ProseBlock, { kind: "callout" }>): Table {
-  const color = TONE_COLOR[b.tone];
+  const accent = TONE_COLOR[b.tone];
+  const surface = neutralSurface();
   const children: Paragraph[] = [];
   if (b.title) {
     children.push(
       new Paragraph({
         spacing: { after: 60 },
-        children: [new TextRun({ text: b.title.toUpperCase(), bold: true, color, size: 18 })],
+        children: [
+          new TextRun({ text: b.title.toUpperCase(), bold: true, color: accent, size: 18 }),
+        ],
       }),
     );
   }
   for (const ln of b.lines) {
-    if (ln.trim())
-      children.push(new Paragraph({ spacing: { after: 40 }, children: inlineRuns(ln) }));
-  }
-  if (children.length === 0) children.push(new Paragraph(""));
-  return panel(children, "F3F4F6", color);
-}
-
-function monoPanel(lines: string[], fill: string): Table {
-  const rows = lines.length ? lines : [""];
-  return panel(
-    rows.map(
-      (l) =>
-        new Paragraph({
-          spacing: { after: 0, line: 240, lineRule: "auto" },
-          children: [new TextRun({ text: l || " ", font: "Consolas", size: 18 })],
-        }),
-    ),
-    fill,
-  );
-}
-
-// LitRPG interface panels — role/domain/creature drive accent colour and header text.
-const ROLE_COLOR: Record<string, string> = {
-  insight: "2E5AAC",
-  status: "2F7D57",
-  combat: "A23A52",
-  inventory: "6B4FA0",
-  quest: "9A6A1F",
-};
-const DOMAIN_TINT: Record<string, string> = {
-  death: "F5E8EE",
-  life: "EAF4EE",
-  fire: "FDF0E8",
-  water: "E8F0F8",
-  shadow: "EEEEF5",
-};
-
-function interfaceAccent(attrs: Record<string, string>): string {
-  return ROLE_COLOR[attrs.role?.toLowerCase() ?? ""] ?? "1F3864";
-}
-
-function interfaceFill(attrs: Record<string, string>): string {
-  return DOMAIN_TINT[attrs.domain?.toLowerCase() ?? ""] ?? "F0F4FA";
-}
-
-function interfaceHeaderText(attrs: Record<string, string>): string {
-  const role = (attrs.role ?? "interface").toUpperCase();
-  const creature = attrs.creature?.toUpperCase();
-  const domain = attrs.domain?.toUpperCase();
-  const parts = [role];
-  if (creature) parts.push(`CREATURE · ${creature}`);
-  if (domain) parts.push(domain);
-  if (attrs.intensity) parts.push(attrs.intensity.toUpperCase());
-  return parts.join(" · ");
-}
-
-function interfacePanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
-  const accent = interfaceAccent(b.attrs);
-  const children: Paragraph[] = [
-    new Paragraph({
-      spacing: { after: 80 },
-      children: [
-        new TextRun({ text: interfaceHeaderText(b.attrs), bold: true, color: accent, size: 18 }),
-      ],
-    }),
-  ];
-  for (const ln of b.lines) {
     if (ln.trim()) {
       children.push(
         new Paragraph({
-          spacing: { after: 40, line: 240, lineRule: "auto" },
-          children: [new TextRun({ text: ln, font: "Consolas", size: 18, color: "1A1A1A" })],
+          spacing: { after: 40 },
+          children: inlineRuns(ln, { color: surface.text }),
         }),
       );
     }
   }
-  if (children.length === 1) children.push(new Paragraph(""));
-  return panel(children, interfaceFill(b.attrs), accent);
+  if (children.length === 0) children.push(new Paragraph(""));
+  return panel(
+    [
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { type: ShadingType.CLEAR, fill: surface.fill, color: "auto" },
+            margins: cellMargins,
+            children,
+          }),
+        ],
+      }),
+    ],
+    { ...surface, accent },
+  );
 }
 
-/** Plain Shunn header for an @interface block — exported for tests. */
-export function formatInterfaceShunnHeader(attrs: Record<string, string>): string {
-  const role = (attrs.role ?? "unknown").toUpperCase();
-  let header = `[ ${role} ] CREATURE SCAN`;
-  if (attrs.creature) header += ` · ${attrs.creature.toUpperCase()}`;
-  if (attrs.domain) header += ` · ${attrs.domain.toUpperCase()}`;
-  return header;
+function monoPanel(lines: string[], surface: Surface): Table {
+  const rows = lines.length ? lines : [""];
+  return singleCellPanel(
+    rows.map(
+      (l) =>
+        new Paragraph({
+          spacing: { after: 0, line: 240, lineRule: "auto" },
+          children: [
+            new TextRun({ text: l || " ", font: "Consolas", size: 18, color: surface.text }),
+          ],
+        }),
+    ),
+    surface,
+  );
 }
+
+function interfacePanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
+  const surface = resolveSurface(b.spec);
+  const headerRow = new TableRow({
+    children: [
+      new TableCell({
+        shading: { type: ShadingType.CLEAR, fill: surface.headerFill, color: "auto" },
+        margins: cellMargins,
+        children: [
+          new Paragraph({
+            spacing: { after: 0 },
+            children: [
+              new TextRun({
+                text: formatInterfaceHeader(b.spec),
+                bold: true,
+                color: surface.headerText,
+                size: 18,
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  const bodyParagraphs: Paragraph[] = b.lines.map((ln) =>
+    ln.trim()
+      ? new Paragraph({
+          spacing: { after: 40, line: 240, lineRule: "auto" },
+          children: [
+            new TextRun({ text: ln, font: "Consolas", size: 18, color: surface.text }),
+          ],
+        })
+      : new Paragraph({ spacing: { after: 40 }, children: [new TextRun("")] }),
+  );
+  if (bodyParagraphs.length === 0) bodyParagraphs.push(new Paragraph(""));
+
+  const bodyRow = new TableRow({
+    children: [
+      new TableCell({
+        shading: { type: ShadingType.CLEAR, fill: surface.fill, color: "auto" },
+        margins: cellMargins,
+        children: bodyParagraphs,
+      }),
+    ],
+  });
+
+  return panel([headerRow, bodyRow], surface);
+}
+
+export { formatInterfaceShunnHeader };
 
 function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
+  const surface = tableSurface();
   const align = (i: number) =>
     b.align[i] === "center"
       ? AlignmentType.CENTER
       : b.align[i] === "right"
         ? AlignmentType.RIGHT
         : AlignmentType.LEFT;
+
   const header = new TableRow({
     tableHeader: true,
-    children: b.head.map(
-      (h, i) =>
-        new TableCell({
-          shading: { type: ShadingType.CLEAR, fill: NAVY, color: "auto" },
-          margins: cellMargins,
-          children: [
-            new Paragraph({
-              alignment: align(i),
-              children: [new TextRun({ text: h, bold: true, color: "FFFFFF" })],
-            }),
-          ],
-        }),
+    children: b.head.map((h, i) =>
+      new TableCell({
+        shading: { type: ShadingType.CLEAR, fill: surface.headerFill, color: "auto" },
+        margins: cellMargins,
+        children: [
+          new Paragraph({
+            alignment: align(i),
+            children: [
+              new TextRun({ text: h, bold: true, color: surface.headerText }),
+            ],
+          }),
+        ],
+      }),
     ),
   });
+
   const body = b.rows.map(
-    (r) =>
+    (r, ri) =>
       new TableRow({
-        children: r.map(
-          (c, i) =>
-            new TableCell({
-              margins: cellMargins,
-              children: [new Paragraph({ alignment: align(i), children: inlineRuns(c) })],
-            }),
-        ),
+        children: r.map((c, i) => {
+          const fill = ri % 2 === 0 ? PALETTE.paper : PALETTE.pale;
+          const borders =
+            i === 0
+              ? {
+                  top: line(surface.border),
+                  bottom: line(surface.border),
+                  left: line(surface.accent, 12),
+                  right: line(surface.border),
+                }
+              : {
+                  top: line(surface.border),
+                  bottom: line(surface.border),
+                  left: line(surface.border),
+                  right: line(surface.border),
+                };
+          return new TableCell({
+            shading: { type: ShadingType.CLEAR, fill, color: "auto" },
+            margins: cellMargins,
+            borders,
+            children: [
+              new Paragraph({
+                alignment: align(i),
+                children: inlineRuns(c, { color: surface.text }),
+              }),
+            ],
+          });
+        }),
       }),
   );
+
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: {
-      top: line("CCCCCC"),
-      bottom: line("CCCCCC"),
-      left: line("CCCCCC"),
-      right: line("CCCCCC"),
-      insideHorizontal: line("CCCCCC"),
-      insideVertical: line("CCCCCC"),
+      top: line(surface.border),
+      bottom: line(surface.border),
+      left: line(surface.border),
+      right: line(surface.border),
+      insideHorizontal: line(surface.border),
+      insideVertical: line(surface.border),
     },
     rows: [header, ...body],
   });
@@ -268,15 +315,14 @@ function paraFor(text: string, book: boolean): Paragraph {
       });
 }
 
-// AST -> docx body. `book` switches paragraphs to justified serif book prose (the manuscript) vs.
-// left-aligned doc prose (canon). Tables are followed by an empty paragraph so adjacent tables don't
-// merge and Word is happy ending a section after one.
 function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const pushTable = (t: Table) => {
     out.push(t);
     out.push(new Paragraph(""));
   };
+  const neutral = neutralSurface();
+
   for (const b of blocks) {
     switch (b.kind) {
       case "heading":
@@ -298,10 +344,10 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
         pushTable(dataTable(b));
         break;
       case "code":
-        pushTable(monoPanel(b.lines, "F5F5F5"));
+        pushTable(monoPanel(b.lines, { ...neutral, fill: "F5F5F5" }));
         break;
       case "stat":
-        pushTable(monoPanel(b.lines, "FAFAFA"));
+        pushTable(monoPanel(b.lines, { ...neutral, fill: "FAFAFA" }));
         break;
       case "interface":
         pushTable(interfacePanel(b));
@@ -310,7 +356,9 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
         out.push(
           new Paragraph({
             spacing: { before: 120, after: 120 },
-            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "CCCCCC", space: 1 } },
+            border: {
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: PALETTE.border, space: 1 },
+            },
           }),
         );
         break;
@@ -336,7 +384,6 @@ function pageFooter(): Footer {
 const inch = convertInchesToTwip(1);
 const pageMargin = { top: inch, bottom: inch, left: inch, right: inch };
 
-/** Domain B — a canon/planning/style doc as a Word file (MarketMind styling, page-numbered). */
 export function buildDocDoc(title: string, content: string): Document {
   return new Document({
     creator: "Writers' Desk",
@@ -351,8 +398,6 @@ export function buildDocDoc(title: string, content: string): Document {
   });
 }
 
-/** Domain A — the manuscript as a Word file: title page, chapters on fresh pages, book prose.
- *  `subtitle` defaults to the approved-manuscript line; pass a draft-compile line for an unapproved export. */
 export function buildManuscriptDoc(
   manuscript: ManuscriptOut,
   subtitle = "the approved manuscript, in reading order",
@@ -441,16 +486,10 @@ export function buildManuscriptDoc(
   });
 }
 
-// --- Shunn standard manuscript format (submission) -----------------------------------------------
-// Monospaced (Courier New 12pt), double-spaced, 1" margins, 0.5" paragraph indent; a running header
-// `Surname / TITLE / page#` on every page but the first; a title page with contact + word count and
-// the title a third of the way down; scenes separated by a centered "#". This is the format agents
-// expect — deliberately plain (no markdown styling), unlike the book-typography export above.
 const SHUNN_FONT = "Courier New";
-const SHUNN_SIZE = 24; // 12pt in half-points
-const DOUBLE = { line: 480 }; // double line spacing (240 = single)
+const SHUNN_SIZE = 24;
+const DOUBLE = { line: 480 };
 
-// Shunn rounds the cover word count: nearest 100 under 25k, nearest 1000 above.
 function roundWords(n: number): number {
   return n < 25000 ? Math.round(n / 100) * 100 : Math.round(n / 1000) * 1000;
 }
@@ -490,7 +529,6 @@ function shunnCenter(text: string, extra: object = {}): Paragraph {
   });
 }
 
-/** Turn parsed prose blocks into plain Shunn paragraphs — no panels or styling. */
 function shunnPlainBlocks(blocks: ProseBlock[]): Paragraph[] {
   const out: Paragraph[] = [];
   for (const b of blocks) {
@@ -499,22 +537,24 @@ function shunnPlainBlocks(blocks: ProseBlock[]): Paragraph[] {
         out.push(shunnBody(b.text.replace(/\s+/g, " ").trim()));
         break;
       case "interface": {
-        out.push(shunnCenter(formatInterfaceShunnHeader(b.attrs), { indent: undefined }));
+        out.push(shunnCenter(formatInterfaceShunnHeader(b.spec), { indent: undefined }));
         out.push(new Paragraph({ spacing: DOUBLE, children: [shunnRun("")] }));
         for (const ln of b.lines) {
-          if (ln.trim()) out.push(shunnBody(ln.trim()));
+          if (ln.trim()) out.push(shunnBody(ln));
+          else out.push(new Paragraph({ spacing: DOUBLE, children: [shunnRun("")] }));
         }
         break;
       }
       case "table": {
-        const rows = [b.head, ...b.rows];
-        for (const row of rows) out.push(shunnCenter(`| ${row.join(" | ")} |`, { indent: undefined }));
+        for (const row of [b.head, ...b.rows]) {
+          out.push(shunnCenter(`| ${row.join(" | ")} |`, { indent: undefined }));
+        }
         break;
       }
       case "code":
       case "stat":
         for (const ln of b.lines) {
-          if (ln.trim()) out.push(shunnCenter(ln, { indent: undefined }));
+          out.push(shunnCenter(ln || " ", { indent: undefined }));
         }
         break;
       case "callout":
@@ -524,13 +564,20 @@ function shunnPlainBlocks(blocks: ProseBlock[]): Paragraph[] {
         }
         break;
       case "heading":
-        out.push(shunnCenter(b.text.toUpperCase(), { indent: undefined, spacing: { before: 120, ...DOUBLE } }));
+        out.push(
+          shunnCenter(b.text.toUpperCase(), {
+            indent: undefined,
+            spacing: { before: 120, ...DOUBLE },
+          }),
+        );
         break;
       case "ul":
         for (const it of b.items) out.push(shunnBody(`- ${it.replace(/\s+/g, " ").trim()}`));
         break;
       case "ol":
-        b.items.forEach((it, i) => out.push(shunnBody(`${i + 1}. ${it.replace(/\s+/g, " ").trim()}`)));
+        b.items.forEach((it, i) =>
+          out.push(shunnBody(`${i + 1}. ${it.replace(/\s+/g, " ").trim()}`)),
+        );
         break;
       case "hr":
         out.push(shunnCenter("#", { indent: undefined }));
@@ -540,7 +587,6 @@ function shunnPlainBlocks(blocks: ProseBlock[]): Paragraph[] {
   return out;
 }
 
-/** Domain A, submission variant — the manuscript in standard (Shunn) format for agents/editors. */
 export function buildShunnDoc(
   manuscript: ManuscriptOut,
   author: string,
@@ -550,9 +596,8 @@ export function buildShunnDoc(
   const byline = author.trim() || "Author";
   const surname = byline.split(/\s+/).pop() || byline;
   const titleUpper = title.toUpperCase();
-  const rightTab = convertInchesToTwip(6.5); // 8.5" page − 2×1" margins
+  const rightTab = convertInchesToTwip(6.5);
 
-  // Title page: contact (left) + word count (right), then the title ~1/3 down, then the byline.
   const children: Paragraph[] = [
     new Paragraph({
       tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
@@ -596,7 +641,6 @@ export function buildShunnDoc(
           }),
         );
       }
-      // Plain prose via parseBlocks — submission-safe, no coloured panels.
       for (const para of shunnPlainBlocks(parseBlocks(sc.prose ?? ""))) children.push(para);
     });
   }
@@ -614,12 +658,10 @@ export function buildShunnDoc(
   });
 }
 
-/** Safe-ish filename stem from a title. */
 export function docxFilename(title: string): string {
   return (title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "document") + ".docx";
 }
 
-/** Safe-ish filename stem from a title — Markdown variant. */
 export function markdownFilename(title: string): string {
   return (title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript") + ".md";
 }
@@ -628,20 +670,33 @@ function yamlQuote(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
-/** Semantic Markdown export — YAML front matter, scene comments, prose preserved verbatim. */
+function chapterComment(ch: ManuscriptOut["chapters"][number]): string {
+  const title = ch.title ? ` title=${yamlQuote(ch.title)}` : "";
+  return `<!-- chapter number=${ch.chapter_no}${title} pov=${yamlQuote(ch.pov)} -->`;
+}
+
+/** Semantic Markdown export — dominion-manuscript/v1 front matter, prose preserved verbatim. */
 export function buildManuscriptMarkdown(
   manuscript: ManuscriptOut,
-  opts: { compile?: "approved" | "draft" } = {},
+  opts: { draft?: boolean } = {},
 ): string {
-  const compile = opts.compile ?? "approved";
+  const draft = opts.draft ?? false;
   const title = manuscript.title || "Untitled";
   const lines: string[] = [
     "---",
+    "schema: dominion-manuscript/v1",
     `title: ${yamlQuote(title)}`,
-    `book_id: ${yamlQuote(manuscript.book_id)}`,
-    "export: semantic-markdown",
-    `compile: ${compile}`,
+    'series: "Dominion Realm"',
+    "book: 1",
+    `exported_at: ${yamlQuote(new Date().toISOString())}`,
+    "source: writers-desk",
+    "format: semantic-markdown",
+    "interface_style: professional",
+    "litrpg_ui: true",
+    `draft: ${draft}`,
     "---",
+    "",
+    `# ${title}`,
     "",
   ];
 
@@ -649,24 +704,20 @@ export function buildManuscriptMarkdown(
     const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
     if (scenes.length === 0) continue;
     lines.push(
-      "",
-      `## Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`,
-      "",
-      `*POV — ${ch.pov}*`,
+      `# Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`,
+      chapterComment(ch),
       "",
     );
     scenes.forEach((sc, si) => {
-      if (si > 0) lines.push("", "* * *", "");
-      lines.push(`<!-- Scene ${sc.scene_no} -->`, "");
-      lines.push((sc.prose ?? "").trim());
+      lines.push(`<!-- scene index=${si + 1} scene_no=${sc.scene_no} -->`, "");
+      lines.push(sc.prose ?? "");
+      lines.push("");
     });
-    lines.push("", `— End of Chapter ${ch.chapter_no} —`, "");
   }
 
-  return lines.join("\n") + "\n";
+  return lines.join("\n");
 }
 
-/** Build a Markdown blob and download it client-side. */
 export function saveMarkdown(content: string, filename: string): void {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -677,7 +728,6 @@ export function saveMarkdown(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Pack a Document to a .docx blob and download it client-side. */
 export async function saveDocx(doc: Document, filename: string): Promise<void> {
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);

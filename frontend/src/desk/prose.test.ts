@@ -1,14 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { parseBlocks, parseInterfaceAttrs } from "./prose";
+import { parseBlocks, parseInterfaceSpec } from "./prose";
 
-describe("parseInterfaceAttrs", () => {
-  it("parses space-separated key=value pairs", () => {
-    expect(parseInterfaceAttrs("role=insight creature=archdemon domain=death intensity=strong")).toEqual({
+describe("parseInterfaceSpec", () => {
+  it("parses typed key=value pairs", () => {
+    expect(
+      parseInterfaceSpec("role=insight creature=archdemon domain=death intensity=strong"),
+    ).toEqual({
       role: "insight",
       creature: "archdemon",
       domain: "death",
       intensity: "strong",
     });
+  });
+
+  it("preserves skill and tier as strings", () => {
+    expect(parseInterfaceSpec("role=combat skill=Rift Slash tier=legendary")).toEqual({
+      role: "combat",
+      skill: "Rift",
+      tier: "legendary",
+    });
+  });
+
+  it("ignores unknown enum values", () => {
+    expect(parseInterfaceSpec("role=notarole domain=notadomain")).toEqual({});
+  });
+
+  it("ignores unknown keys", () => {
+    expect(parseInterfaceSpec("role=insight foo=bar")).toEqual({ role: "insight" });
   });
 });
 
@@ -17,7 +35,8 @@ describe("parseBlocks @interface", () => {
 @interface role=insight creature=archdemon domain=death intensity=strong
 Name: ????
 Level: ????
-Race: Archdemon
+
+Threat model: Failed.
 \`\`\``;
 
   it("detects @interface inside a fenced code block", () => {
@@ -25,13 +44,13 @@ Race: Archdemon
     expect(blocks).toHaveLength(1);
     expect(blocks[0]).toMatchObject({
       kind: "interface",
-      attrs: {
+      spec: {
         role: "insight",
         creature: "archdemon",
         domain: "death",
         intensity: "strong",
       },
-      lines: ["Name: ????", "Level: ????", "Race: Archdemon"],
+      lines: ["Name: ????", "Level: ????", "", "Threat model: Failed."],
     });
   });
 
