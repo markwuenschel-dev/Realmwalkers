@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatInterfaceHeader,
-  readableText,
-  resolveSurface,
-} from "./litrpgSurfaces";
+import { formatInterfaceHeader, readableText, resolveSurface } from "./litrpgSurfaces";
 
 describe("readableText", () => {
   it("returns white on dark fills", () => {
@@ -41,9 +37,7 @@ describe("formatInterfaceHeader", () => {
   });
 
   it("formats domain-only healing", () => {
-    expect(formatInterfaceHeader({ role: "healing", domain: "life" })).toBe(
-      "[ HEALING ] LIFE",
-    );
+    expect(formatInterfaceHeader({ role: "healing", domain: "life" })).toBe("[ HEALING ] LIFE");
   });
 });
 
