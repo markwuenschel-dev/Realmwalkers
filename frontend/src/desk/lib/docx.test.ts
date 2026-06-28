@@ -52,7 +52,8 @@ const sampleManuscript = (): ManuscriptOut => ({
       scenes: [
         {
           scene_no: 1,
-          prose: "The sky hummed.\n\n```text\n@interface role=insight creature=archdemon domain=death\nName: ????\n```",
+          prose:
+            "The sky hummed.\n\n```text\n@interface role=insight creature=archdemon domain=death\nName: ????\n```",
         },
         {
           scene_no: 2,

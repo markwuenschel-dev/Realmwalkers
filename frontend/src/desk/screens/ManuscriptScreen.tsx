@@ -85,11 +85,11 @@ export default function ManuscriptScreen() {
     .reduce((acc, s) => acc + wordCount(s.prose), 0);
   const pages = Math.max(1, Math.ceil(totalWords / WORDS_PER_PAGE));
 
-  const titleStem = (active?.title || "manuscript").replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript";
+  const titleStem =
+    (active?.title || "manuscript").replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript";
   const draftSuffix = isDraft ? "_draft" : "";
 
-  const compiled = (): ManuscriptOut | null =>
-    active ? { ...active, chapters } : null;
+  const compiled = (): ManuscriptOut | null => (active ? { ...active, chapters } : null);
 
   const exportMarkdown = async () => {
     const ms = compiled();
