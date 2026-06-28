@@ -9,7 +9,7 @@
 The clearest version of this story's voice exists in three sequences from the original draft:
 - The paladin vs. blood mage scene (first real Realm encounter)
 - The mindscape sequence (archdemon possession attempt, bargaining, death)
-- The Ayla introduction (resurrection, the wisp, first conversation)
+- The Illyristranthe introduction (resurrection, the astral presence, first conversation)
 
 These sections share specific qualities that define the voice. Everything in this document is derived from them.
 
@@ -45,13 +45,13 @@ This is the protagonist's core competency: systems intelligence. He finds the le
 
 ### It handles the strange matter-of-factly
 
-Ayla's introduction. A ball of light with tiny wings floats a few feet from his head. The prose doesn't linger on how weird this is. It just describes it and moves. "It didn't have eyes or even a face." Then: "What do you want?"
+Illyristranthe's introduction. A knot of old light — edges that don't resolve, not quite warm — drifts a few feet from his head. The prose doesn't linger on how weird this is. It just describes it and moves. "It didn't have eyes or even a face." Then: "What do you want?"
 
 The Realm's strangeness lands harder when the narrative doesn't perform amazement at it.
 
 **The rule:** describe strange things the way you'd describe ordinary things. No exclamation. No dwelling. The reader's imagination fills in the wonder; the prose provides the specific image and gets out of the way.
 
-### Ayla has a specific voice that must be preserved
+### Illyristranthe / Illyri has a specific voice that must be preserved
 
 Her voice in the original is already sharp and distinct. Key qualities:
 - Dry contempt that isn't cruel — "No idiot" not "you fool"
@@ -61,7 +61,7 @@ Her voice in the original is already sharp and distinct. Key qualities:
 - When she's amused she doesn't signal it. "I am a celestial being." Said simply. Slightly deadpan.
 - She says less than she knows. Always.
 
-Do not let Ayla become an exposition machine. The moment she starts explaining the world in paragraphs, she stops being Ayla.
+Do not let Illyri become an exposition machine. The moment she starts explaining the world in paragraphs, she stops being Illyri.
 
 ---
 
@@ -88,7 +88,7 @@ These are lenses, not prescriptions. The actual voice comes from the writing abo
 | Serra's POV | Faster, tighter, less spiral — she's already decided |
 | Xyloryn encounters | Clinical horror; the body is data; dread accumulates |
 | Zalgoran presence | Reality slightly wrong; the language itself should feel unstable |
-| Ayla's voice | Dry, old, complete thoughts, pauses with meaning |
+| Illyri's voice | Dry, old, complete thoughts, pauses with meaning |
 | Earth flashbacks | Specific and ordinary; the contrast with the Realm is the point |
 
 ---
@@ -129,7 +129,7 @@ Occasional shifts permitted. Rules:
 
 **Aftermath:** Long sentences that go somewhere unexpected then stop short. The mind trying to reassemble.
 
-**Ayla:** Unusual rhythm. Complete thoughts that don't follow conversational cadence. Pauses that mean something.
+**Illyri:** Unusual rhythm. Complete thoughts that don't follow conversational cadence. Pauses that mean something.
 
 ---
 
@@ -140,7 +140,7 @@ Occasional shifts permitted. Rules:
 - General description where a specific detail would do work
 - Characters delivering exposition they'd already know
 - Victories through power spikes rather than earned reasoning
-- Ayla explaining too much
+- Illyri explaining too much
 - Making the strange feel strange by dwelling on its strangeness
 
 ---

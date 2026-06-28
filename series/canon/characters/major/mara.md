@@ -698,6 +698,10 @@ The envy is real and should not be sanitized. Mara loves Serra, but Serra repres
 
 When they eventually find each other in the Realm, both will be changed. The question is whether Mara's control/setup instinct and Serra's entry/momentum instinct still point at the same targets — and whether their old reciprocity survives outside the guild frame.
 
+### Eriadne — seeing Serra wrong
+
+At Eriadne convergence (~Ch 25), after Serra returns from the solo arc: a quiet moment when Mara notices **Vessa hurt Serra more than Serra shows**. Tests Serra's willingness to be **accurately seen** by someone who already knows her. Intimacy without romance — not a new moral subplot. Mara does **not** join the solo dungeon.
+
 ### Marcus
 No Realm contact yet. In the eventual dynamic, Marcus's pattern-recognition and Mara's salience-reading will create an interesting overlap — he sees hidden structure, she shifts what structures feel important. They could be complementary or they could create a feedback problem. Her challenge to him — that people are not variables — remains in the file as a future dynamic.
 

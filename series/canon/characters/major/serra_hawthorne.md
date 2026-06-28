@@ -528,11 +528,38 @@ She is the social anchor — the person everyone orbits. Her power makes that ph
 
 Worldbreaker has an emotional root: healthy Serra wants earned presence — proof that she can stand where she chooses and no one can move her off her ground. Unhealthy Serra wants domination, because domination makes the room confess she mattered.
 
-The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra makes it fail.** Different interfaces. Complementary and occasionally catastrophic in combination.
+The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra makes it fail.** Different interfaces. Complementary and occasionally catastrophic in combination. *(Book 2+ expression via Worldbreaker; Book 1 = **Warrior** — not structure-breaking.)*
 
 ### Class Direction — Worldbreaker (Book 2)
 
 **Warrior** (base, Book 1) → **Worldbreaker** (Legendary-lane evolved direction; **Book 2**). Worldbreaker is the *severance-at-scale* expression of Severance Pulse — it "breaks the impossible opposition," a parallel-not-copy to Marcus's Riftwalker ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
+
+---
+
+### Book 1 Character Spine (execution lock)
+
+> **Status:** Serra is development-complete for Book 1 at the character level. This section locks execution — not new moral-test scaffolding.
+
+**Central pressure:** Serra loves **aliveness** — danger, motion, skill, connection, being fully awake. **Visible wanting** feels dangerous because wanting can become humiliating, pressuring, unfair, or claimable.
+
+**Book 1 question:** *Can Serra let what she wants matter before she knows it is safe to want it?*
+
+**Vessa sub-question:** *Can she protect someone without deciding for them?*
+
+**Guardrails:**
+- Do **not** frame Book 1 Serra as abstract "breaking structures" or "opening new paths" — that is **Worldbreaker / series endgame** language (see Long Arc below).
+- Do **not** reduce her to a symbolic breaker beside Marcus.
+- Preserve aliveness, warmth, danger-seeking, guarded access, and fear of visible wanting.
+
+---
+
+### Facility consent — why she says yes
+
+**Public reason:** Serra would frame it cleanly — the terms were clear enough, the risk was real, and she made the call.
+
+**Practical reason:** Astria/site authority, elite-player involvement, technical credibility, and high-risk/high-reward framing make the decision plausible under incomplete information.
+
+**Private reason:** She wants to be where the real thing is happening — drawn to the edge, the live wire, the place where skill, danger, choice, and consequence become real. Marcus can intensify the charge around the decision, but he should **not** be the reason she says yes. She is not following him. She recognizes that the offer, the scrim, the kiss, and the night all feel like reality opening under her feet.
 
 ---
 
@@ -585,7 +612,7 @@ Tandem partner from the guild. Serra is force; Mara is setup. Serra asks who mus
 
 Intermittent major presence. Meets Marcus early; they build their first real tandem during the false-rescue/naming arc and survive it together. During that tandem — on a Realm height the night before the magistrate operation — **she initiates the second kiss**: present-tense authorship, no category named, her one rule enacted (she takes the *now*, never asks the *after*; see *The One Rule*). She separates when she **kills the magistrate** running a namebinding outpost and learns he is a **node, not the source** — true names are **sub-leased from a master registry.** At the kill she takes a **registry-fragment** — a physical lead that points up the chain. The **registry-fragment becomes a *cold* lead** she carries — her **Book-1 → Book-2 bridge object** — that does **not** drive her Book-1 solo arc. The hunt up the chain toward the namebinding faction's parent organization — the **Court of Seals** (a regional limb of the cosmic **Aurelian Sovereignty**, `cosmology.md`), and the cosmology beat where she learns the Sovereignty exists — is **Book 2**, not Book 1.
 
-**Book-1 solo arc — the dungeon.** After the split she takes the road alone and is held by a small town built beside a delve. She means to move on; **Vessa keeps her** — a thirteen-year-old tunnel-runner who *is* the beginning of Serra (warmth-to-function, the fear under the competence, the refusal to ask; `vessa.md`). Recognizing herself in the child, Serra can't walk past the choice she just failed to make; getting Vessa through the delve alive is how she pays down the guilt of leaving Marcus. The dungeon runs underground: old buried trade-road infrastructure, chitinous/insect and webbed-tunnel ecology, corpse-insects, level-appropriate danger and loot. The boss is **the Toll-King** *(proposed, not locked)* — an undead road-lord / toll authority still collecting passage-debt after death, tied to the old Eriadne trade route. The dungeon is where her **Warrior** combat identity hardens (toward the **Worldbreaker** direction — Book 2). **Her Eriadne pull is her own:** the delve yields a marker/toll-seal/road-pass the locals recognize — *“that came from Eriadne”* — and the trade-route trail points her there. She goes because her arc points there, not because Marcus or the Broker told her to.
+**Book-1 solo arc — the dungeon.** After the split she takes the road alone and is held by a small town built beside a delve. She means to move on; **Vessa keeps her** — a thirteen-year-old tunnel-runner who *is* the beginning of Serra (warmth-to-function, the fear under the competence, the refusal to ask; `vessa.md`). Recognizing herself in the child, Serra can't walk past the choice she just failed to make. The delve is **changing** — subtle ley-line instability, small local shifts Vessa notices first. Serra believes Vessa, then almost repeats the adult pattern (protecting by overriding agency); the repair and boss fight prove she can let Vessa's knowledge matter under pressure. The dungeon is where her **Warrior** combat identity hardens. **Her Eriadne pull is her own:** the changed route yields an **Eriadne fragment/clue** — not toll-seal, not namebinding — and the trail points her there. She goes because her arc points there, not because Marcus or the Broker told her to. *(Full beat map: `scene_queue.md`, `vessa.md`.)*
 
 Her Severance Pulse interface **activates/realizes at the Act-5 finale severance** — under full emotional pressure, the same event as the relationship rupture (parallel to Marcus's Neurochromatic Eyes igniting in the Myrmidon movement). It is *not* unlocked at the magistrate kill; through her solo arc she develops as a **Warrior**, interface still dormant. She returns at the Act-5 finale, changed. Her arc runs parallel to Marcus's and intersects at key moments without depending on it.
 
@@ -593,7 +620,9 @@ Her Severance Pulse interface **activates/realizes at the Act-5 finale severance
 
 ### Core Arc Question
 
-> Who is she when there's no one to anchor, no scoreboard to climb, no shared future to assume, and no one to hold together — and can she want something openly without turning it into claim, test, or severance?
+> Can Serra let what she wants matter before she knows it is safe to want it — and can she protect someone without deciding for them?
+
+*(Book 1 expression: visible wanting vs aliveness; Vessa arc. Severance behavior is real but not the Book 1 thesis — that is series-scale.)*
 
 ### Starting Point
 
@@ -628,7 +657,8 @@ Serra is the other half of the **endgame axis**. Her terminal function is **brea
 - The Earth moment between her and Marcus is unaddressed as of their Realm reunion. Neither has named it.
 - She makes the call to separate — circumstances create pressure, she makes the final decision.
 - Her power is strongest when the stakes are most personal to her. This is also when it's most dangerous to allies.
-- Parallel to Marcus's system is explicit and intentional: he sees the weak point, she makes it fail.
+- Parallel to Marcus's system is explicit and intentional: he sees the weak point, she makes it fail — **Book 2+ interface expression**; Book 1 = Warrior fundamentals only.
+- **Eriadne reunion ≠ reset:** altana kiss + second kiss already happened; not together, not casual, not deniable (see `marcus_serra_relationship.md` §11).
 - **Earth kiss reconciles to INV-1 Axis E:** **Marcus initiates**; the pullback is **mutual and simultaneous**; each registers only the other's, blind to their own half. (Owner: `relationship_invariants.md`.)
 - **Her one rule, "I don't ask people to stay" (CCB-007 R-5):** enacted at the Realm second kiss, **cost-breaks** at the severance; never stated on the page, never collapsed into the Myrmidon "being seen" beat. (See *The One Rule*.)
 - **Ellie / Coach K layer:** formative wound is misaligned devotion, not lovelessness or trauma. Ellie is a working name and can change; the function is locked unless revised: shared motion became a future for Serra before it was a future for the other person.

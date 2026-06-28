@@ -90,17 +90,17 @@ Rules:
 - Maximum one per chapter in early story; zero in mid-to-late story
 - Do not use for flavor; only when the content of the stats matters to a decision he's making
 
-### Ayla's Interface Voice
-When Ayla communicates through the implant, her messages are formatted differently from system notifications — they feel older, less precise, slightly off-center.
+### Illyri's Interface Voice
+When Illyri communicates through the implant, her messages are formatted differently from system notifications — they feel older, less precise, slightly off-center.
 
 ```
-[ AYLA ]
+[ ILLYRI ]
 That thing has a name. I knew it once.
 Ask me again when I remember it.
 ```
 
 Rules:
-- Sentence fragments permitted in Ayla's messages — she does not complete thoughts she doesn't have
+- Sentence fragments permitted in Illyri's messages — she does not complete thoughts she doesn't have
 - Her messages can be cryptic; they should never be decorative
 - Do not italicize or stylize her text beyond the tag format — the strangeness is in the content, not the formatting
 
@@ -168,7 +168,7 @@ When the interface fails or mistranslates, that is a story event. It tells Marcu
 | Warning | `[ WARNING ]` | 3 lines | Urgent flags, threat detection |
 | Ability change | `[ INTERFACE ]` | 4 lines | Stage advancement, new capability |
 | Stat panel | `STATUS` (boxed) | 6 lines | Early story, deliberate consultation only |
-| Ayla message | `[ AYLA ]` | 2–3 lines | Her communication through the implant |
+| Illyri message | `[ ILLYRI ]` | 2–3 lines | Her communication through the implant |
 
 ---
 

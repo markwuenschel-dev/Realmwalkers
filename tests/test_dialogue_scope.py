@@ -27,7 +27,7 @@ Serra says it and stops.
 
 ---
 
-### Ayla
+### Illyristranthe (Illyri)
 Short. Dry. Off-center.
 
 ---
@@ -44,7 +44,8 @@ def _headers(text: str) -> list[str]:
 def test_header_names_parses_aliases():
     assert _header_names("Marcus (Marc)") == {"marcus", "marc"}
     assert _header_names("Serra") == {"serra"}
-    assert _header_names("Ayla") == {"ayla", "marcus"}  # rides along with Marcus
+    assert _header_names("Illyristranthe (Illyri)") == {"illyristranthe", "illyri", "marcus"}
+    assert _header_names("Ayla") == {"ayla", "illyri", "marcus"}  # RAG alias → Illyri
 
 
 def test_scope_keeps_general_and_present_drops_absent():
@@ -60,23 +61,23 @@ def test_scope_keeps_general_and_present_drops_absent():
     assert "Short. Dry. Off-center." not in scoped
 
 
-def test_scope_matches_pov_and_ayla_rides_with_marcus():
+def test_scope_matches_pov_and_illyri_rides_with_marcus():
     scoped = _scope_dialogue_rules(_DOC, ["Marcus"])
-    assert _headers(scoped) == ["Marcus", "Ayla"]
+    assert _headers(scoped) == ["Marcus", "Illyristranthe (Illyri)"]
     assert "Serra says it and stops." not in scoped
 
 
 def test_scope_empty_present_returns_everything():
     scoped = _scope_dialogue_rules(_DOC, [])
-    assert _headers(scoped) == ["Marcus", "Serra", "Ayla"]
+    assert _headers(scoped) == ["Marcus", "Serra", "Illyristranthe (Illyri)"]
 
 
 def test_load_dialogue_rules_scopes_the_real_file():
     full = _load_dialogue_rules([])
     marcus = _load_dialogue_rules(["Marcus"])
     assert full is not None and marcus is not None
-    # only the POV profile (and Ayla, bound to Marcus) survive
-    assert set(_headers(marcus)) == {"Marcus", "Ayla"}
+    # only the POV profile (and Illyri, bound to Marcus) survive
+    assert set(_headers(marcus)) == {"Marcus", "Illyristranthe (Illyri)"}
     assert "Serra" not in _headers(marcus)
     # general craft is always-on
     assert "## Formatting" in marcus

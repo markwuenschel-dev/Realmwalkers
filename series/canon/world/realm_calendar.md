@@ -76,7 +76,7 @@ Book 1 scope (a few months to three-quarters of a Realm year maximum):
 ## Narrative Use
 
 ### Early story
-Marcus does not know the calendar. The interface may display a date but he has no frame of reference. Ayla knows the system but her sense of current date is unreliable — she has been dormant for an unknown period.
+Marcus does not know the calendar. The interface may display a date but he has no frame of reference. Illyri knows the system but her sense of current date is unreliable — she has been dormant for an unknown period.
 
 ### Mid story
 Marcus learns month names through contact with locals. Eriadne residents use the calendar naturally. Certain months carry seasonal and political significance.

@@ -139,7 +139,7 @@ The eyes are his interface; the Riftwalker class is his planar-crossing path. Th
 | Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Pyric Blood |
 | Brent Donovan | Civil engineer | Healer/Support | **Warden** → **Reckoner** (Book-2 dir.) | Piezoelectric Bones |
 | Mathias Sterling | TBD (IT/infrastructure lean) | Ranger (Scout) | **Scout** | Enteric Lattice |
-| Ayla | N/A — celestial | N/A | N/A | Ancient celestial interface |
+| Illyristranthe (Illyri) | N/A — celestial | N/A | N/A | Ancient celestial interface — diminished fragment |
 
 ---
 

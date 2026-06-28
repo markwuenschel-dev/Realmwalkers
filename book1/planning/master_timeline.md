@@ -51,6 +51,7 @@
 ### June 28 — Night
 | Event | POV |
 |---|---|
+| **Earth night — shared common area** (last full-six window before surgery; texture only — not a bonding arc) | All six |
 | Implant surgery | All six |
 | **LeBlanc & Roth's private conversation** — the hidden broker's voice: *"We will take the reins in the Dominion Realm."* (on-page) | LeBlanc |
 | The six wake in the limbo void; the voice explains the Realm and the Eriadne directive; the mists separate them | All six |
@@ -73,7 +74,7 @@
 | Event | POV |
 |---|---|
 | Void interlude; the approaching light | Marcus |
-| Day 3: wakes in new terrain; **Ayla** negotiates attachment; deal struck | Marcus |
+| Day 3: wakes in new terrain; Illyri negotiates attachment; deal struck | Marcus |
 | Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item) | Marcus |
 | Rejects "Phoenix"; **keeps his own name** (refuses the game-handle) | Marcus |
 
@@ -113,7 +114,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 | Marcus reaches the thread city; claims the **ruin-fringe**; the ruins respond to his ocular interface | ~Day 45 |
 | Becomes useful to the ignored; first faction friction (Iron Vultures see competition) | Days ~47–68 |
 | **Brent + Mara** converge together (Brent: civil engineer, Warden→Reckoner dir.; Mara: Psion, Specular Salience — challenges treating people as systems) — they meet on the coast where the Grove's migration reaches the tidal plain and finish the approach together | ~approx (proposed) |
-| The Under-City partially activates; ley-knot significance clarifies; Ayla's gap surfaces | Days ~60–64 |
+| The Under-City partially activates; ley-knot significance clarifies; Illyri's gap surfaces | Days ~60–64 |
 | The ruin/ley-convergence significance deepens; the dormant portal registers to Marcus's ocular read (Xyloryn only — N'hal stay **unnamed/unrevealed** in Book 1; the corpse, if adopted [W-01], is present on-page as a dead *place*, not *named* N'hal until Book 2) | Days ~74–78 |
 
 > **The Brent + Mara splice (the behemoth crossing).** Brent's sea arc lands him on a coastal/tidal stretch of the old port network; the Walking Grove's migration carries the **behemoth** (civilization-scale wonder — see the scale hierarchy in `world/cosmology.md`) across the same tidal plain. **Brent witnesses the behemoth cross the tidal plain** (his apex-scale spectacle beat); Mara disembarks the Grove there; the two make the **final approach to Eriadne together** (short coastal hop / overland leg). The behemoth itself does **not** go to Eriadne. *(Alt that also holds: Mara leaves the Grove inland and they meet at the port — continuity unaffected either way.)*
@@ -137,7 +138,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 > **Governing principle:** Book 1 is driven by **sequence and converging pressure, not exact day counts.** Day numbers elsewhere in this file are kept only as `~approx (proposed)`; causal order leads. Each of the six reaches Eriadne by an *independent* pull — the Broker/Nightbound push is real but no longer the sole reason.
 
 - **Marcus** — the magistrate / elven-child arc reveals the local harm is *not* isolated: it connects to old roads, trade ledgers, name-records, displaced people, and ruin traffic leading toward Eriadne. He follows the evidence and realizes Eriadne is the nearest place with enough records/infrastructure/factions to stop running and start building. Eriadne is his *choice* (a base + information node), not a command.
-- **Serra** — the dungeon's trade-clue: the delve yields a marker the locals tie to Eriadne, and the old trade-route trail points her there (her own pull — not Marcus's, not the Broker's). See `serra_hawthorne.md` (Book-1 solo arc — the dungeon).
+- **Serra** — the dungeon's **Eriadne fragment/clue**: the changing delve yields a marker tied to Eriadne and an independent pull toward the thread city (her own pull — not Marcus's, not the Broker's). See `serra_hawthorne.md` (Book-1 solo arc — the dungeon) and `vessa.md`.
 - **Mara** — the Walking Grove's suppressed-significance pattern plus the behemoth's wound/migration carry her to the coast; she finishes to Eriadne with Brent (the behemoth does **not** go to Eriadne).
 - **Mathias** — his contact-drive pulls him straight to **Eriadne's ruin-fringe**.
 - **Brent** — his sea route lands him on the old port/trade network that feeds Eriadne; he meets Mara at the tidal-plain crossing and they finish together.
@@ -149,7 +150,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 
 | Character | Arc |
 |---|---|
-| **Serra** | Splits during the False Rescue (after the magistrate kill; takes the **registry-fragment** as a *cold* Book-2 lead) → **Book-1 solo arc = the dungeon** (a delve beside a small town; the **Toll-King**; the trade-clue that points her to Eriadne); she develops as a **Warrior**, interface dormant. The up-the-chain hunt (Court of Seals → Aurelian Sovereignty) is **Book 2**; her **Severance Pulse interface activates at the Act-5 finale, not before.** Ends **unfinished**; returns for the reunion/severance. |
+| **Serra** | Splits during the False Rescue (after the magistrate kill; takes the **registry-fragment** as a *cold* Book-2 lead) → **Book-1 solo arc = the dungeon** (changing delve beside a small town; **Vessa** trust/failure/repair; predator boss using altered layout; **Eriadne fragment/clue** — not toll-seal/namebinding); she develops as a **Warrior**, interface dormant. The up-the-chain hunt (Court of Seals → Aurelian Sovereignty) is **Book 2**; her **Severance Pulse interface activates at the Act-5 finale, not before.** Ends **unfinished**; returns for the reunion/severance. |
 | **Seb** | Lands desolate → **salt-flat forced-labor camp** (white glare, brine pits, evaporation pans; control via **contracts / debt / collars, not simple chains**; water rationed like currency) → his brother already dead (the wound the Broker will exploit), he survives by **organizing** (ration flow, guard patterns, fewer casualties, hope) **until the trust costs someone** → kills his captor barehanded → *then* the broker speaks ("you can have more") → **shortest solo arc**, camp straight to Eriadne. The Broker **tells Seb how to reach Eriadne** — but does not merely lie: he gives **real survival information while normalizing dangerous power use** ("if this power can save people, refusing to use it starts to feel irresponsible"). The route reads as **survival-useful, not pure obedience.** *(Why the Broker wants Seb at Eriadne quietly ties Seb's leash to the finale mechanism — see `planning/finale_spine.md`; thread, not locked.)* Reaver + Pyric Blood; among the most powerful. |
 | **Mara** | Lands in **Veshara**, a stratified **status-by-display court city-state** (regard is the currency); taken in for her beauty by a decent patron; a predatory courtier (**First Curator of Civic Regard**) targets her; she goes un-salient (the ball), then exposes him before the full court (room-scale Specular Salience — her interface unlocks when she *authors* attention, not when she hides). Leaves the court for the **Walking Grove** (a moving civilization on a sick ancient behemoth); a salience-suppression threat there is the perfect Specular Salience foil — she makes the community perceive the danger at once; the behemoth's wound/migration routes her toward Eriadne. Does not meet Serra before Eriadne. |
 | **Mathias** | His contact-drive pulls him straight to **Eriadne's ruin-fringe**; he falls in fast with a loose ruin-fringe band (the scholars / treasure-hunters / desperate the fringe already draws — his "finds a group fast"). Plausibly **Marcus's first reunion** — already haunting the ruin-fringe when Marcus arrives to claim it. His **Enteric Lattice** (interface, unchanged) detects the **Xyloryn / portal** as **signal / trace / portal-pressure from the other side** (**no embodied drone before the finale** — the first living breach is the finale Myrmidon); loads his **Scout** class through research; becomes the group's warning. **Lives** (injured at the finale proving the warning). Combat ranking: Seb > Mathias ≈ Mara > Marcus. |

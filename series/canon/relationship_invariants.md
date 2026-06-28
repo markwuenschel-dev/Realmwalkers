@@ -54,12 +54,13 @@ Each invariant also carries an **Independence** line (which axes are orthogonal 
 - **Independence:** A does not grant B. Being the lens confers no leadership, no dominance, no default claim on the others' attention or arcs.
 - **Both poles:** Marcus-centrism (every character exists to advance his arc — Serra Flattening generalized to the whole cast), and observer-erasure (writing him passive when he *is* the decisive variable in his lane). Each of the five others must want something that is not about Marcus.
 
-## INV-4 — Marcus ⇄ Ayla (guide bandwidth)
+## INV-4 — Marcus ⇄ Illyristranthe (Illyri) (guide bandwidth)
 
 - **Axis A — Function. [FIXED]** Mentor/guide; helps him ask better questions.
 - **Axis B — Completeness. [FIXED · LIMITED]** Unreliable and incomplete; says less than she knows, withholds on purpose. Does not solve too much.
 - **Independence:** A does not imply answers. A guide is not an oracle; her dryness is flavor, not function.
-- **Both poles:** Ayla as exposition machine / answer-dispenser (`forbidden_drift.md` #6), and Ayla as pure comic foil whose lines are a duo bit (#5). A withholding guide with a dry edge — both at once.
+- **Both poles:** Illyri as exposition machine / answer-dispenser (`forbidden_drift.md` #6), and Illyri as pure comic foil whose lines are a duo bit (#5). A withholding guide with a dry edge — both at once.
+- **Witness role (Book 1):** Illyri is tethered to Marcus and default-visible — not comic chaperone only; her presence adds witness pressure on MarcusↄSerra intimacy (`illyristranthe.md`, `marcus_serra_relationship.md` §11).
 
 ## INV-5 — Marcus ⇄ the three foils (Mara / Mathias / Brent)
 

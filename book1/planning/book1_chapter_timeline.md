@@ -33,6 +33,7 @@ status: working
 - Conference room: **LeBlanc, Roth, Withers** lay out terms and risks; unanimous formal consent; medical exams.
 
 **Ch 3 — Reins** · *Marcus → LeBlanc* · Earth Day 1, night
+- **Earth night — shared common area:** one contained night after consent, before surgery — separate rooms, shared common area; last full-six Earth memory (404 four / Serra-Mara cross-group texture; fear, jokes, consent forms, corporate calm — not a bonding arc). *(See `scene_queue.md` Act 1 brief; `marcus_serra_relationship.md` §4.)*
 - **Pre-surgery — one narrow personal beat:** acknowledges the growing shared history, **resolves nothing about the kiss, declares no relationship**, and ends on Serra's **"See you after, Marcus."** *(Weight the reader can't yet fully cash — the altana that charges it lands in Serra's Ch 6A flashback; see `marcus_serra_relationship.md` §4.)*
 - Implant surgery (all six).
 - **⟢ LeBlanc & Roth's private conversation (LeBlanc POV):** the hidden broker's voice — *"We will take the reins in the Dominion Realm."* The first on-page sign that an agent of the **Soulkeepers' Exchange** has shaped Astria from outside.
@@ -51,8 +52,8 @@ status: working
 - The vow is fulfilled by impaling him — *"Nothing is free."* **Death.**
 
 **Ch 6 — The Light** · Days 1–3
-- Void interlude; the approaching light. Day 3: wakes in new terrain; **Ayla** negotiates attachment — the deal is struck.
-- Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" (the game-handle) and **keeps his own name — Marcus —** refusing to perform a new self; Ayla's true-name warning lands (his true name, S-09, stays hidden).
+- Void interlude; the approaching light. Day 3: wakes in new terrain; **Illyri** negotiates attachment — spent permanent power to resurrect him; the bilateral deal is struck (anchor for foothold; this is why his return is exceptional).
+- Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" (the game-handle) and **keeps his own name — Marcus —** refusing to perform a new self; Illyri's true-name warning lands (his true name, S-09, stays hidden).
 - *(End of the currently drafted manuscript ≈ here.)*
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · *Serra* · ~Days 1–3 · **(inserted; lettered to avoid renumbering Chs 7–30 — see Open Questions)**
@@ -64,7 +65,7 @@ status: working
 
 ## ACT 3 — THE FALSE RESCUE (Days ~3–23) · *Marcus + Serra*
 
-**Ch 7 — Alone** · Day 3–7 · Survival (water, shelter, first cost); the Eyes wake involuntarily; Ayla established with limits. Finds the road.
+**Ch 7 — Alone** · Day 3–7 · Survival (water, shelter, first cost); the Eyes wake involuntarily; Illyri established with limits. Finds the road.
 
 **Ch 8 — The Road** · Day ~7 · **Marcus nearly walks into Serra** — both at zero, she has a blade and he has nothing, the Earth Thing immediately present and unaddressed. They fall into step.
 
@@ -98,11 +99,13 @@ status: working
 
 **Ch 16–17 — The Long Road** · Compressed travel toward Eriadne: rumors of the thread city; the standalone **playful-chaos defusion** beat; the Eyes' emotional-leak social cost; a first **Xyloryn diagnostic hint** (a *signal / trace* from the other side — sampling, **not an embodied attack**); the felt ley pull. Reaches Eriadne's outskirts ~Day 45.
 - **⟢ INTERLUDE (Seb):** **organizes the salt-flat camp until the trust costs someone** → kills his captor **barehanded** → *then* the broker (Soulkeepers' agent) speaks — *"you can have more,"* dangling the brother's soul. **Reaver + Pyric Blood** ignite. Shortest arc; straight toward Eriadne; among the most powerful.
-- **⟢ SERRA POV — First Solo Chapter (the dungeon):** held by a small town beside a **delve**; **Vessa** (a 13-yo tunnel-runner — the young-Serra mirror) is why she stays (`vessa.md`); the underground arc hardens her **Warrior** identity (the **Toll-King**, proposed); the delve yields a **trade-clue that points her to Eriadne**; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. *(Court of Seals hunt = Book 2; interface still dormant.)* (§9.)
+- **⟢ SERRA POV — First Solo Chapter (the dungeon):** held by a small town beside a **delve**; **Vessa** (a 13-yo tunnel-runner — the young-Serra mirror) is why she stays (`vessa.md`; 5-scene map in `scene_queue.md`); the delve **shifts via ley instability** — Vessa notices first, Serra believes her, then almost repeats the adult override pattern (trust/failure/repair); boss: dungeon predator using the changed layout — Serra fights, **trusts Vessa's live read**; the delve yields an **Eriadne fragment/clue** (independent pull — not toll-seal, not namebinding); hardens her **Warrior** identity, interface dormant; ends **unfinished.** The **cost of leaving** surfaces (his absence, lost provisional belonging, the suspicion that mission is partly *easier* than defining what she wants); she continues anyway. *(Court of Seals hunt = Book 2.)* (§9.)
 
 ---
 
 ## ACT 4 — ERIADNE (Days ~45–78) · *Marcus, then the convergence*
+
+> **MarcusↄSerra (Eriadne interval, Ch 18–25):** Altana + second kiss already happened; state is **not together, not casual, not deniable** — warm and undefined, not couple-coded reset. Small physical beats only; no kisses after Ch 14. Illyri tethered/visible as witness. See `marcus_serra_relationship.md` §11–12.
 
 **Ch 18 — The Thread City** · ~Day 45 · Marcus reaches Eriadne; claims the **ruin-fringe**; the ruins *respond* to his ocular interface — the first hint he reads translation-layers others can't (the Realm-Walker tell). They sit on the **convergence of the eight elemental ley lines**, a **dormant natural portal** at the knot (he resolves this in Ch 23).
 
@@ -113,7 +116,7 @@ status: working
 **Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Specular Salience), arriving from her court arc — challenges Marcus for treating people as systems.
 - **⟢ INTERLUDE (Mara, just prior):** in **Veshara** (status-by-display court city-state), the predatory **First Curator of Civic Regard** weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Specular Salience — her interface unlocks when she *authors* attention, not when she hides); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Specular Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
 
-**Ch 22 — The Under-City** · Days ~60–64 · The Under-City partially activates; the ley-knot significance clarifies; **Ayla's gap surfaces** (the limit of her damaged knowledge).
+**Ch 22 — The Under-City** · Days ~60–64 · The Under-City partially activates; the ley-knot significance clarifies; **Illyri's gap surfaces** (fragment damage + resurrection cost; the limit of her damaged knowledge).
 
 **Ch 23 — The Convergence** · Days ~74–78 · Marcus's ocular read of the ruins resolves the shape: the ruins sit on the **convergence of the eight elemental ley lines**, and a **dormant natural portal** sits at the knot. He doesn't grasp the full stakes, but the structure is now legible to him in a way it is to no one else in the city. *(No N'hal on-page — the unsettling-classification beat is retired.)*
 
@@ -123,8 +126,9 @@ status: working
 
 **Ch 24 — Pressure** · Days ~80–90 · The threat becomes more than rumor; Marcus's position turns politically vulnerable.
 
-**Ch 25 — The Reunion** · ~Day 95 · *Marcus + Serra* · **Serra returns, changed.** He reads what it cost her; she won't confirm. Reunion becomes tension — her mission vs. his fragile position.
+**Ch 25 — The Reunion** · ~Day 95 · *Marcus + Serra* · **Serra returns, changed.** He reads what it cost her; she won't confirm. Reunion becomes tension — her mission vs. his fragile position. **First full six-person reunion since Earth** — old guild familiarity + one-night cohort memory + Realm-changed estrangement.
 - **⟢ SERRA POV (return-at-cost):** she returns at **real cost** — a lost lead, surrendered momentum, exposure; **Marcus may never fully know what she sacrificed to come back.** (Return toward convergence; §9.)
+- **Mara visibility beat:** quiet moment — Mara notices **Vessa hurt Serra more than Serra shows**; tests willingness to be accurately seen; intimacy without romance (`mara.md`). Not a Mara POV chapter.
 - **⟢ INTERLUDE (Mathias):** confirms the **Xyloryn and the portal** near the ruins; becomes the group's warning no one wants to hear.
 
 **Ch 26–28 — The Myrmidon** · Days ~98–104 · ⚠ *finale choreography pending* · *Ensemble*
@@ -158,7 +162,7 @@ status: working
 
 | Character | Shape across Book 1 | Converges |
 |---|---|---|
-| **Serra** *(⟢ SERRA POV — deuteragonist, **not** interlude)* | Realm arrival (Ch 6A, altana flashback) → early False-Rescue POV → magistrate kill (her POV, Ch 15) → first solo chapter / **the dungeon** (delve + Toll-King + Eriadne trade-clue; Court-of-Seals hunt = Book 2; interface dormant); ends unfinished → return-at-cost | Ch 25 reunion |
+| **Serra** *(⟢ SERRA POV — deuteragonist, **not** interlude)* | Realm arrival (Ch 6A, altana flashback) → early False-Rescue POV → magistrate kill (her POV, Ch 15) → first solo chapter / **the dungeon** (changing delve + Vessa trust/failure/repair + Eriadne fragment/clue; Court-of-Seals hunt = Book 2; interface dormant); ends unfinished → return-at-cost | Ch 25 reunion |
 | **Seb** | Desolate → enslaved → kills captor barehanded → broker speaks → shortest arc (Reaver + Pyric Blood) | ~Act 4/5 (off-page until late) |
 | **Mara** | Court city-state → predator weaponizes regard → un-salient exposure (Psion/Specular Salience) → routed out | Ch 21 |
 | **Mathias** | Solo near ruins → finds Xyloryn + portal → loads Scout → the warning; **lives** (injured finale) | Ch 25 / finale |
