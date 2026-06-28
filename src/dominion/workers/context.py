@@ -55,8 +55,12 @@ _dialogue_rules_warned = False
 _CHAR_BLOCK_RE = re.compile(
     r"^### (?P<header>[^\n]+)\n.*?(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL
 )
-# Ayla is Marcus's in-head companion; her dialogue rules ride along whenever Marcus is on the page.
-_BLOCK_ALIASES: dict[str, set[str]] = {"ayla": {"ayla", "marcus"}}
+# Illyri is Marcus's in-head companion; her dialogue rules ride along whenever Marcus is on the page.
+_BLOCK_ALIASES: dict[str, set[str]] = {
+    "illyri": {"illyri", "marcus"},
+    "illyristranthe": {"illyri", "marcus"},
+    "ayla": {"illyri", "marcus"},  # RAG continuity alias
+}
 
 
 def _header_names(header: str) -> set[str]:

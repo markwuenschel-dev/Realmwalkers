@@ -17,7 +17,7 @@
 | SP-005 | Marcus gains the **Eyes of Meszkhal (item)** from Xazzidiuk | seeded | The *item* (interpretation/certainty overlay) tempts him to outsource judgment; trusting a confident wrong verdict costs him. Separate from his Neurochromatic Eyes interface. |
 | SP-006 | Zazriel was present in the mindscape and **gave nothing** | active | His indifference/interest (not transactional) resurfaces. No Angelic Fortitude. |
 | SP-007 | Marcus dies and resurrects | seeded | Resurrection has identity/soul/memory weight; not a free respawn. |
-| SP-008 | Ayla attaches to the implant | seeded | Her damaged memory both helps and misdirects; she gives questions, not answers. |
+| SP-008 | Illyri (Illyristranthe) attaches to the implant | seeded | Her damaged memory both helps and misdirects; she gives questions, not answers. |
 | SP-009 | Eriadne is the destination | active | The thread city proves politically and metaphysically central. |
 | SP-010 | The old guild is scattered | active | Reunions are complicated; no easy team reset. |
 | SP-011 | Marcus & Serra find each other before any faction forms | paid (planned) | The raw "both lost" beat precedes the Iron Vultures. |
@@ -43,7 +43,7 @@
 | CH-009 | Mara | Creative/observer; authorship of attention | seeded | Court-exposure reframe (Psion + Specular Salience). **Not** the sole biologist. |
 | CH-010 | Mathias | Connection/systems sense | seeded | Reads the Xyloryn as one organism; warns the group. **Survives** (injured at finale). |
 | CH-011 | Brent | Practical competence | seeded | Civil engineer; Warden → Reckoner (Book-2 dir.) + Piezoelectric Bones (open); the structural reader (fortifying = Book 2). |
-| CH-012 | Ayla | Ancient but damaged guide | seeded | Her gap causes a costly wrong assumption; questions not answers. |
+| CH-012 | Illyri | Ancient but damaged guide | seeded | Her gap causes a costly wrong assumption; questions not answers. |
 | CH-013 | Marcus | Home-building drive | active | Surfaces *from* the warmth-trap; the ruin-fringe claim is personal before political. |
 | CH-014 | Marcus | First Eyes-interface use (partial) | active | By Eriadne the Eyes are genuinely useful in social/combat reads. |
 | CH-015 | Marcus | Maera: accurate read, wrong model | active | Later he catches the same pattern and reads the difference correctly. |

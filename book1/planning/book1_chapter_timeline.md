@@ -51,8 +51,8 @@ status: working
 - The vow is fulfilled by impaling him — *"Nothing is free."* **Death.**
 
 **Ch 6 — The Light** · Days 1–3
-- Void interlude; the approaching light. Day 3: wakes in new terrain; **Ayla** negotiates attachment — the deal is struck.
-- Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" (the game-handle) and **keeps his own name — Marcus —** refusing to perform a new self; Ayla's true-name warning lands (his true name, S-09, stays hidden).
+- Void interlude; the approaching light. Day 3: wakes in new terrain; **Illyri** negotiates attachment — spent permanent power to resurrect him; the bilateral deal is struck (anchor for foothold; this is why his return is exceptional).
+- Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" (the game-handle) and **keeps his own name — Marcus —** refusing to perform a new self; Illyri's true-name warning lands (his true name, S-09, stays hidden).
 - *(End of the currently drafted manuscript ≈ here.)*
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · *Serra* · ~Days 1–3 · **(inserted; lettered to avoid renumbering Chs 7–30 — see Open Questions)**
@@ -64,7 +64,7 @@ status: working
 
 ## ACT 3 — THE FALSE RESCUE (Days ~3–23) · *Marcus + Serra*
 
-**Ch 7 — Alone** · Day 3–7 · Survival (water, shelter, first cost); the Eyes wake involuntarily; Ayla established with limits. Finds the road.
+**Ch 7 — Alone** · Day 3–7 · Survival (water, shelter, first cost); the Eyes wake involuntarily; Illyri established with limits. Finds the road.
 
 **Ch 8 — The Road** · Day ~7 · **Marcus nearly walks into Serra** — both at zero, she has a blade and he has nothing, the Earth Thing immediately present and unaddressed. They fall into step.
 
@@ -113,7 +113,7 @@ status: working
 **Ch 21 — Mara** · ~Day 58 · **Mara converges** (**Psion**; Specular Salience), arriving from her court arc — challenges Marcus for treating people as systems.
 - **⟢ INTERLUDE (Mara, just prior):** in **Veshara** (status-by-display court city-state), the predatory **First Curator of Civic Regard** weaponizes *regard*; she goes **un-salient at the ball**, then exposes him before the full court (room-scale Specular Salience — her interface unlocks when she *authors* attention, not when she hides); then she leaves the court and crosses the **Walking Grove** — a moving civilization on a sick, erratic ancient **behemoth** — where a hidden **salience-suppression** threat (everyone has normalized ignoring one region of the creature) is the perfect test of Specular Salience: her climax is making the whole community *perceive the danger at once*. The behemoth's wound/migration points her toward Eriadne. *(She does not meet Serra before Eriadne.)*
 
-**Ch 22 — The Under-City** · Days ~60–64 · The Under-City partially activates; the ley-knot significance clarifies; **Ayla's gap surfaces** (the limit of her damaged knowledge).
+**Ch 22 — The Under-City** · Days ~60–64 · The Under-City partially activates; the ley-knot significance clarifies; **Illyri's gap surfaces** (fragment damage + resurrection cost; the limit of her damaged knowledge).
 
 **Ch 23 — The Convergence** · Days ~74–78 · Marcus's ocular read of the ruins resolves the shape: the ruins sit on the **convergence of the eight elemental ley lines**, and a **dormant natural portal** sits at the knot. He doesn't grasp the full stakes, but the structure is now legible to him in a way it is to no one else in the city. *(No N'hal on-page — the unsettling-classification beat is retired.)*
 

@@ -10,7 +10,7 @@
 ## Act 2 — Opening (drafted/revision)
 
 ### SCENE-002 — Naming (the refusal) `[M]`
-Marcus reaches for a game-handle ("Phoenix"), rejects it as performed — and instead of authoring a new name, **keeps his own: Marcus.** The claim is refusing to perform a new self. Ayla's true-name warning lands — about his **true name** (S-09), not "Marcus," which is a safe public name. No alias; the UI shows his chosen public name.
+Marcus reaches for a game-handle ("Phoenix"), rejects it as performed — and instead of authoring a new name, **keeps his own: Marcus.** The claim is refusing to perform a new self. Illyri's true-name warning lands — about his **true name** (S-09), not "Marcus," which is a safe public name. No alias; the UI shows his chosen public name.
 *Acceptance:* he does **not** rename himself; the beat reads as **refusing the frame**, not posing, not authoring an alias.
 
 ### SCENE-003 — First Water / First Cost `[M]`

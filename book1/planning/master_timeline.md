@@ -73,7 +73,7 @@
 | Event | POV |
 |---|---|
 | Void interlude; the approaching light | Marcus |
-| Day 3: wakes in new terrain; **Ayla** negotiates attachment; deal struck | Marcus |
+| Day 3: wakes in new terrain; Illyri negotiates attachment; deal struck | Marcus |
 | Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item) | Marcus |
 | Rejects "Phoenix"; **keeps his own name** (refuses the game-handle) | Marcus |
 
@@ -113,7 +113,7 @@ Compressed travel funneling to Eriadne: rumors of the thread city; the standalon
 | Marcus reaches the thread city; claims the **ruin-fringe**; the ruins respond to his ocular interface | ~Day 45 |
 | Becomes useful to the ignored; first faction friction (Iron Vultures see competition) | Days ~47–68 |
 | **Brent + Mara** converge together (Brent: civil engineer, Warden→Reckoner dir.; Mara: Psion, Specular Salience — challenges treating people as systems) — they meet on the coast where the Grove's migration reaches the tidal plain and finish the approach together | ~approx (proposed) |
-| The Under-City partially activates; ley-knot significance clarifies; Ayla's gap surfaces | Days ~60–64 |
+| The Under-City partially activates; ley-knot significance clarifies; Illyri's gap surfaces | Days ~60–64 |
 | The ruin/ley-convergence significance deepens; the dormant portal registers to Marcus's ocular read (Xyloryn only — N'hal stay **unnamed/unrevealed** in Book 1; the corpse, if adopted [W-01], is present on-page as a dead *place*, not *named* N'hal until Book 2) | Days ~74–78 |
 
 > **The Brent + Mara splice (the behemoth crossing).** Brent's sea arc lands him on a coastal/tidal stretch of the old port network; the Walking Grove's migration carries the **behemoth** (civilization-scale wonder — see the scale hierarchy in `world/cosmology.md`) across the same tidal plain. **Brent witnesses the behemoth cross the tidal plain** (his apex-scale spectacle beat); Mara disembarks the Grove there; the two make the **final approach to Eriadne together** (short coastal hop / overland leg). The behemoth itself does **not** go to Eriadne. *(Alt that also holds: Mara leaves the Grove inland and they meet at the port — continuity unaffected either way.)*

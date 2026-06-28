@@ -9,7 +9,7 @@ status: active
 
 > **Status:** Active — created ahead of need; **does NOT appear in SCENE-001** (the hijack is SCENE-002)
 > **Last updated:** created from T-s01 canonization (forward-provision for SCENE-002/003)
-> **File type:** Supporting (provisional)
+> **File type:** Minor (provisional)
 > **Lifecycle:** provisional · **Mortality:** alive · **Canon level:** dossier (light)
 
 ---

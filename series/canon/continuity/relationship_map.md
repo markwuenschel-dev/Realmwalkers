@@ -69,11 +69,11 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 ---
 
-### Marcus ↔ Ayla
+### Marcus ↔ Illyristranthe (Illyri)
 
 **Charge:** The oldest relationship Marcus has in the Realm. She was there when he had nothing else.
 
-**Foundation:** She attached to his implant during or just after the resurrection. She needed an anchor; he needed a guide. The deal was practical on both sides. It has become something else.
+**Foundation:** She attached to his implant during or just after the resurrection. She needed an anchor; he needed a guide. The deal was practical on both sides. It has become something else. *(Her full name: Illyristranthe. She allows Illyri. Close friends may call her Ily — she hates it, then hates that she's stopped hating it.)*
 
 **Dynamic:** She is not a mentor in any comfortable sense. Her knowledge is fragmented. She answers questions with better questions. She says less than she knows, always. When she does say something directly, it matters.
 
@@ -83,7 +83,7 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 **Core tension:** She is ancient and her priorities are not entirely human. She has her own perspective on what Marcus is becoming and what the Realm is. Occasionally what she wants from him and what he wants from himself are not the same thing. She doesn't push. She waits. That is sometimes more unnerving than pushing.
 
-**Trajectory:** Her fragmented knowledge has gaps that become significant later. Something she cannot remember — something the entity that trapped her deliberately destroyed — is relevant to what Marcus is building near Eriadne.
+**Trajectory:** Her fragmented knowledge has gaps that become significant later — structural damage from defeat, not deliberate memory-theft. What she cannot recover may be relevant to what Marcus is building near Eriadne.
 
 ---
 

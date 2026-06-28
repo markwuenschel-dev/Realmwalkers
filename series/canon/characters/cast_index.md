@@ -1,5 +1,5 @@
 ---
-known_entities: [ayla]
+known_entities: [illyristranthe, illyri, ily, ayla]
 ---
 # Cast Index — Dominion Realm
 
@@ -22,13 +22,13 @@ known_entities: [ayla]
 
 | Name | Earth Name | Realm Name | Role | Status | File |
 |---|---|---|---|---|---|
-| Marcus | Marcus Vye | Marcus (no alias; **Marc** to intimates) | Protagonist / Astria ML engineer (Earth) / Aetherfall Aspect / Mage → Riftwalker / Neurochromatic Eyes | Active | `major/mc.md` |
-| Serra Hawthorne | Serra Hawthorne | Serra (TBD / may keep Serra) | Romantic interest / Disruptor-Assassin / Warrior / Severance Pulse Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
+| Marcus Vye | Marcus Vye | Marcus (uses own name) | Protagonist / Astria ML engineer (Earth) / Realm Walker / Neurochromatic Eyes | Active | `major/mc.md` |
+| Serra Hawthorne | Serra Hawthorne | Serra | Deuteragonist / Ashblade / Pressure-Severance Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
 | Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Pyric Blood / Mirror-rival to Marcus | Active | `major/seb.md` |
 | Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Specular Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
 | Mathias Sterling | Mathias Sterling | TBD | Aetherfall Ranger/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
 | Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Warden → Reckoner (Book-2 dir.) / Piezoelectric Bones (open) | Active — survives Book 1 | `major/brent.md` |
-| Ayla | N/A | Ayla | Ancient celestial consciousness / Attached to Marcus's implant | Active — internal | `major/ayla.md` |
+| Illyristranthe | N/A | Illyristranthe / Illyri / Ily | Ancient celestial consciousness — diminished fragment / Attached to Marcus's implant | Active — internal | `major/illyristranthe.md` |
 
 ---
 
@@ -36,7 +36,7 @@ known_entities: [ayla]
 
 | Name | Earth Name | Location | Role | Status | File |
 |---|---|---|---|---|---|
-| Roth | Roth (kept unnamed on-page) | Earth — Astria | Suited Astria figure / the hijacker who commandeers the scrim | Active — provisional; **does NOT appear in SCENE-001**, first on-page in SCENE-002 | `major/roth.md` |
+| — | — | — | — | — | — |
 
 ---
 
@@ -46,7 +46,8 @@ known_entities: [ayla]
 
 | Name | Location | Function | Status | File |
 |---|---|---|---|---|
-| Kip | Earth — 404: Aim Not Found (Aetherfall) | Frontline warrior; impatient forward-pressure foil to Mathias | Active — recurring_minor; first appearance SCENE-001 | `major/kip.md` |
+| Roth | Earth — Astria | Suited Astria figure; the hijacker who commandeers the scrim (kept unnamed on-page) | Active — provisional; does NOT appear in SCENE-001, first on-page in SCENE-002 | `minor/roth.md` |
+| Kip | Earth — 404: Aim Not Found (Aetherfall) | Frontline warrior; impatient forward-pressure foil to Mathias | Active — recurring_minor; first appearance SCENE-001 | `minor/kip.md` |
 | Dead Hand leader (unnamed) | Earth — Dead Hand (Aetherfall) | Incidental — patches in early to say their rogue is missing, before she logs in late (SCENE-001) | Incidental / scene-local | — |
 
 ---
@@ -61,8 +62,9 @@ known_entities: [ayla]
 
 ## Naming Notes
 
-- **Marcus** is the protagonist's name in both worlds — **no Realm alias** (he keeps his real name; no self-rename). Full name **Marcus Vye**; **Marc** is the intimate short form (people he lets in); his **true name** is separate, hidden, deferred (S-09). (Never ~~Chad~~.)
-- **Serra** is Serra Hawthorne's working Realm name. May stay Serra. Unresolved.
+- **Marcus Vye** is the protagonist. He uses his own name in the Realm (no alias). ~~Soren~~ (fully retired). ~~Marcus Fahr~~ (retired).
+- **Serra Hawthorne** uses her real name in the Realm. ~~Sarah~~ (dictation false-read; never use).
+- **Illyristranthe** is the ancient celestial's full name — not built for human mouths; the awkwardness is intentional. **Illyri** (ill-EER-ee) is the short form she allows others to use. **Ily** (ILL-ee) is the nickname close friends earn. ~~Ayla~~ (fully retired; retained as alias for RAG continuity).
 - No other characters have confirmed Realm names yet.
 - True names are metaphysically dangerous in the Realm. Track separately when assigned.
 - **Roth** is the canon name of the suited Astria hijacker; he is kept **unnamed on-page** in the manuscript.
@@ -73,4 +75,4 @@ known_entities: [ayla]
 
 ---
 
-*Last updated: SCENE-001 (T-s01) canonized — Earth-side facts added for Marcus (Astria ML engineer / control-cohort anomaly / Aetherfall Aspect / 404 guild / capture chair), Brent (404 medic, NOT fire mage), Mathias (404 Ranger flags the missing rogue), Seb (404 leader, brother lever NOT yet introduced); Serra-as-Dead-Hand-rogue (logs in late, duels Marcus on-page) and Mara-as-Dead-Hand's-overlooked-second-assassin (off-page; reframed from the earlier "404 hidden sixth" — both are Dead Hand's double-assassin core, tandem, same team); Kip (recurring_minor) and Roth (provisional, Astria hijacker) added; stale Realm-role index rows reconciled to current dossiers. Realm canon left intact.* <!-- propagated: CCR-007 -->
+*Last updated: Illyristranthe rename (CCR-008); Roth demoted to Minor; cast_index path fixes for minor/ characters.* <!-- propagated: CCR-008 -->

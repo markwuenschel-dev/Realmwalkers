@@ -87,14 +87,14 @@
 
 ---
 
-## Ayla
+## Illyristranthe (Illyri)
 
 | # | Priority | Thread | Notes |
 |---|---|---|---|
-| A-01 | ✅ RESOLVED | What is the limit of her damaged knowledge? | She is a **fallen top-band soul** (Resplendent→Absolute before her fall), fragmented by the fall, the long drift in the void, and **expending part of her power to resurrect Marcus** — that bounds what she can recall/do (asks better questions, doesn't hand answers). (`ayla.md`.) |
+| A-01 | ✅ RESOLVED | What is the limit of her damaged knowledge? | She is a **celestial fragment** — defeated in battle by an entity that could not fully annihilate her; structural damage + long diminishment bound what she can recall (asks better questions, doesn't hand answers). (`illyristranthe.md`.) |
 | A-02 | 🟢 | What is her relationship to Meszkhal — the entity the eyes are named for? | May be significant. Defer until needed. |
-| A-03 | ✅ RESOLVED | Does she have an arc of her own? | **Yes.** She **paid permanent power** to re-anchor through Marcus; her own stakes are re-anchoring into existence and possibly recovering what she lost. (`ayla.md`.) |
-| A-04 | 🟢 | The exact cause of her fall | Battle / contract / punishment / other — open. (`ayla.md`.) |
+| A-03 | ✅ RESOLVED | Does she have an arc of her own? | **Yes.** She **spent permanent power** to resurrect Marcus and re-anchor through him; her stakes include recovering what she lost. (`illyristranthe.md`.) |
+| A-04 | 🟡 | Who defeated her? | **Battle lane locked** — defeated by the **series main antagonist** (identity not yet in canon). Not soul-band / not a trapper who selectively erased memory. (`illyristranthe.md`.) |
 
 ---
 

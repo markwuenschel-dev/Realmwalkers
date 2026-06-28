@@ -128,7 +128,7 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 
 ## Drafting Readiness
 
-**Ready to draft now (canon locked):** the **opening** — Act 1 (Earth / Astria / scrim / coerced consent / LeBlanc hidden-voice) and Act 2 (mindscape → death → resurrection → Ayla → naming = keeps Marcus, refusing the game-handle). The Marcus–Serra Earth Thing is locked, so the early emotional charge can be written.
+**Ready to draft now (canon locked):** the **opening** — Act 1 (Earth / Astria / scrim / coerced consent / LeBlanc hidden-voice) and Act 2 (mindscape → death → resurrection → Illyri attaches → Marcus keeps his own name). The Marcus–Serra Earth Thing is locked, so the early emotional charge can be written.
 → **Gate cleared (Batch 2):** the series bible is now consistent, so an agent can be pointed at the opening. (Batch 3 files are planning/tracking docs, not character/world references — they won't poison drafting, but should be finished before deep Act 3+ work.)
 
 **Not yet draft-ready (open):** Act 5 **finale choreography** (Xyloryn invasion × reunion × severance) and who forces the portal (W-05); Brent's first practical discovery (BR-02). *(Resolved: Seb = Warlord + disclosed-vs-hidden cost; Mara's post-court arc = the Walking Grove.)*

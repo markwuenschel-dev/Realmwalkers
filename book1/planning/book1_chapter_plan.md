@@ -65,12 +65,12 @@ status: working
 - **Gate:** ✅ drafted.
 
 **Ch 6 — The Light** · Days 1–3 · *drafted*
-- **Function:** resurrection with a cost; Ayla bound; self-naming as identity, not pose.
-- **Beats:** void interlude → light; Day 3 wakes; **Ayla negotiates attachment** (fallen, diminished top-band soul; needs an *anchor*; **spends permanent power** to resurrect him; mutual — life for a foothold; this is why his resurrection is *exceptional*, not cheap); status review (Human Hybrid, Chaotic Neutral); **Neurochromatic Eyes interface begins emerging** (separate from the item); rejects "Phoenix" (the game-handle), **keeps his own name — Marcus.**
+- **Function:** resurrection with a cost; Illyri bound; self-naming as identity, not pose.
+- **Beats:** void interlude → light; Day 3 wakes; **Illyri negotiates attachment** (celestial fragment — defeated in battle, could not be annihilated; needs an *anchor*; **spent permanent power** to resurrect him; mutual — life for a foothold; this is why his resurrection is *exceptional*, not cheap); status review (Human Hybrid, Chaotic Neutral); **Neurochromatic Eyes interface begins emerging** (separate from the item); rejects "Phoenix" (the game-handle), **keeps his own name — Marcus.**
 - **Scenes:** `SCENE-002` Naming (the refusal).
-- **Pays:** SP-008 (Ayla = questions not answers) · SP-002 (accepts the Realm is real) · SP-007.
-- **End state:** Marcus, alive, Eyes Stage 1 emerging, Ayla attached.
-- **Gate:** ✅ drafted. *(Open, non-blocking: A-02 Ayla↔Meszkhal link; A-04 the exact cause of her fall.)*
+- **Pays:** SP-008 (Illyri = questions not answers) · SP-002 (accepts the Realm is real) · SP-007.
+- **End state:** Marcus, alive, Eyes Stage 1 emerging, Illyri attached.
+- **Gate:** ✅ drafted. *(Open, non-blocking: A-02 Illyri↔Meszkhal link; A-04 who defeated her — series antagonist, identity deferred.)*
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · Serra · ~Days 1–3 · ⚠ *(new; lettered to avoid renumbering 7–30)*
 - **Function:** graduate Serra from interlude to deuteragonist; deliver the Earth origin from *her* side; open her Book-1 throughline.
@@ -94,12 +94,12 @@ status: working
 
 **Ch 7 — Alone** · Marcus · Days 3–7 · ✅
 - **Function:** survival orientation; establish the Eyes' rules and cost; set him on the road.
-- **Beats:** water/shelter/first cost solved by **observation not power**; Eyes wake involuntarily; Ayla established with limits (not the UI/implant AI); finds the road.
+- **Beats:** water/shelter/first cost solved by **observation not power**; Eyes wake involuntarily; Illyri established with limits (not the UI/implant AI); finds the road.
 - **Scenes:** `SCENE-003` First Water/First Cost.
 - **Scene map:**
   - **7.1 — Waking diminished.** Register "recently dead, no buffer" in the body — weak, world indifferent, no power to lean on. *Anchors:* Ch-6 end-state terrain *[canon]*; he lands in the **open south — pale limestone hills, dry grass, scrub, shallow washes** — and moves toward the **forest line** (shelter/water/cover), then the **old road**.
   - **7.2 — First water / first cost (`SCENE-003`).** Thesis scene — survival solved by **observation, not power**; the Eyes wake **involuntarily**, the cost lands (reserve/stability drain). *Anchors:* the water source + the read *[suggest: a hazard the Eyes reveal — safe vs. tainted, a track, a pattern]*. *Plants:* **SYS-006** fires · SP-008.
-  - **7.3 — Ayla, with limits.** Ayla a *bounded* presence — questions not answers, misdirects from her own damage. *Plants:* SP-008 · CH-012 (damaged guide).
+  - **7.3 — Illyri, with limits.** Illyri a *bounded* presence — questions not answers, misdirects from her own damage. *Plants:* SP-008 · CH-012 (damaged guide).
   - **7.4 — Finds the road.** Movement; end on orientation, not safety. *End state:* moving, Eyes Stage 1.
 - **Pays:** SYS-006 (Eyes cost reserve/stability) · SP-008.
 - **End state:** functional, oriented, moving; Eyes Stage 1.
@@ -250,9 +250,9 @@ status: working
 - **Gate:** ⚠ **Decide MA-02 — the nature of the Walking Grove threat** (mundane parasite / Xyloryn-seed / rhyming-unrelated; *no N'hal link*). Blocks the Grove interlude's climax meaning.
 
 **Ch 22 — The Under-City** · Marcus · Days ~60–64 · ⚠
-- **Beats:** Under-City partially activates; **ley-knot significance clarifies** (the eight-leyline natural convergence; richer/volatile); **Ayla's gap surfaces** — its limit is her *fall and diminishment* (top-band soul reduced by the fall + long drift + the power she spent on him; A-01 resolved).
-- **Pays:** WF-004 (ley knot) · A-01 (Ayla limit) · SP-008.
-- **End state:** the nexus's importance legible to Marcus; Ayla's ceiling clear.
+- **Beats:** Under-City partially activates; **ley-knot significance clarifies** (the eight-leyline natural convergence; richer/volatile); **Illyri's gap surfaces** — its limit is her *fragment state* (battle defeat + permanent power spent on Marcus's resurrection; A-01 resolved).
+- **Pays:** WF-004 (ley knot) · A-01 (Illyri limit) · SP-008.
+- **End state:** the nexus's importance legible to Marcus; Illyri's ceiling clear.
 - **Gate:** ⚠ **W-01 (ruins-builder)** open — *the ley node is natural (resolved); who built the **ruins** around it and why is open.* Draftable as mystery; the ruins' purpose is a later reveal.
 
 **Ch 23 — The Convergence** · Marcus · Days ~74–78 · ✅

@@ -2,7 +2,10 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
-## 2026-06-24 — Series-architecture pass — origin-cohort model, long-arc role split, guardrails
+## 2026-06-28 — Illyristranthe rename (CCR-008)
+
+> **Ayla → Illyristranthe.** Full name Illyristranthe; short form **Illyri**; nickname **Ily** (close friends). Celestial/astral flavor locked; angelic/wisp lane retired. Character file `ayla.md` → `illyristranthe.md`. Roth demoted to Minor in cast_index. Interface tag `[ AYLA ]` → `[ ILLYRI ]`. Soul-band origin **superseded**: celestial fragment defeated in battle (series antagonist — identity deferred); spent permanent power on Marcus's resurrection; bilateral anchor deal retained.
+
 
 - Bible gains "The Six — Origin Cohort, Not Final Party": the six are keys (Nightbound), not a permanent party; Book 1 proves potential not stability; long-arc role split (Marcus/Serra endgame axis · Seb tragic-responsibility · Brent structural-cost · Mathias stewardship · Mara independent riser); Book-2 seeds (second cohort, retired-pro mirror).
 - Roadmap framing sharpened (Series Identity + Act 5 Function): "potential glimpsed before fracture."
