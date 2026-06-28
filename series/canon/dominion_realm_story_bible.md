@@ -39,11 +39,13 @@ The implant's role is **translation**: the Realm has real metaphysical laws; the
 
 **Earth night:** one shared night in the facility common area after consent, before surgery — the last full-six window; not an extended bonding arc.
 
+**Illyri tether (MarcusↄSerra):** Illyri is physically tethered to Marcus and default-visible from Ch 6 onward — Marcus and Serra's intimacy is never fully one-on-one during the Eriadne interval (Ch 18–25). See `marcus_serra_relationship.md` §11.
+
 ### Marcus (primary POV)
 A principled, high-agency protector-builder. He wants warmth first and understanding second; when someone offers kindness, he trusts it too quickly. **His core flaw is the engine of the series: accurate perception paired with a flawed interpretation model — he reads signals correctly and draws the wrong conclusion.** Resourced, he creates safety, structure, and specific, alive humor. Overloaded, his strengths invert: agency → control, accountability → self-prosecution, warmth-hunger → over-attachment, ambiguity → threat. His deepest danger is identity contamination — not "I made a mistake" but "I am the mistake." His arc: learn when to trust what he sees, when to question it, and when to stop looking and connect.
 
 ### Serra — "Serra"
-A self-made social anchor from an ordinary background: warm, magnetic, fast-deciding, privately guarded and lonely. She came from nothing and made her name *mean* something. **Not SWAT, not justice-from-trauma.** Her drive is to belong to herself when every external scoreboard is stripped away. Her relationship to hope is the inverse of Marcus's: he hopes outward, she cannot claim the uncertain.
+A self-made social anchor from an ordinary background: warm, magnetic, fast-deciding, privately guarded and lonely. She came from nothing and made her name *mean* something. **Not SWAT, not justice-from-trauma.** Her drive is to belong to herself when every external scoreboard is stripped away. Her relationship to hope is the inverse of Marcus's: he hopes outward, she cannot claim the uncertain. **Book 1:** visible wanting vs safety; Vessa agency test — not abstract "structure breaker" framing (see `serra_hawthorne.md` → Book 1 Character Spine).
 
 ### Seb
 Leadership under desperation. His younger brother is recently dead; the cross-world broker dangles a genuine **soul-recall** (Marcus-style, pulling a soul back from the death-parallel) through half-truths. Seb accepts power knowing he may be steered. The power **amplifies** his gray fall — the lust to never let anyone close to him die again — rather than altering him.

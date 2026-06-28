@@ -602,7 +602,7 @@ They remain naturally effective together. He sees weak points; she acts before h
 ### Mara Valeria
 Tandem partner from the guild. Serra is force; Mara is setup. Serra asks who must be stopped; Mara asks what produced the threat. They are distinct enough that the overlap doesn't collapse them into the same character. Their dynamic: Serra prevents harm now, Mara tries to prevent the next person from becoming the same threat. Neither approach fully works without the other.
 
-*Current status:* Unknown — may have separated with Serra or taken a different path. Unresolved.
+*Current status:* **Different solo paths until Eriadne (~Ch 25).** Mara does not travel with Serra after the magistrate split; first meaningful beat = Ch 25 visibility moment (`mara.md`).
 
 ---
 

@@ -61,7 +61,7 @@ Combat training. **Serra's Warrior fundamentals surface** (the ordinary skills t
 Goals begin to diverge. The pitch: real haul, no powerful faction attached. Vultures join on conditions (*A3-08 ✅*: op funds itself · capped risk + exit · one job not an oath · their name stays off it). Continued skill development.
 
 ### NEW-008 — The Operation / The Split `[M]` + `[S]`
-Chaotic, not clean. Marcus extracts the child; others don't make it (he's marked by a correct choice that still cost). **Serra kills the magistrate** — a decision, *off-page from Marcus's POV* — and learns he's a **node, not the source** (true names sub-leased from a higher master registry); she takes a **registry-fragment** and turns toward a larger faction's seat. The split: he extracts/builds, she breaks/leaves. No speech.
+Chaotic, not clean. Marcus extracts the child; others don't make it (he's marked by a correct choice that still cost). **Serra kills the magistrate** — a decision, *off-page from Marcus's POV* — and learns he's a **node, not the source** (true names sub-leased from a higher master registry); she takes a **registry-fragment** (cold Book-2 lead) and **heads into the dungeon solo arc** (changing delve + Vessa + Eriadne fragment — Court of Seals hunt = Book 2). The split: he extracts/builds, she breaks/leaves. No speech.
 *(Resolved: A3-01 = node/registry-fragment; A3-02 = regional offshoot of a larger org, names open; A3-07 = off-page, proposed.)*
 
 ### NEW-009 — After the Split / With the Vultures `[M]`
@@ -112,7 +112,7 @@ Solo near the ruins; **Enteric Lattice** reads the portal lighting up the lattic
 
 - **Reunion** `[M]`+`[S]` — changed; relief + the unaddressed Earth Thing, heavier now.
 - **The invasion** — the dormant portal at the **eight-leyline convergence** is forced open (city largely unaware); swarm visible beyond; **one Myrmidon** comes through and nearly beats all six; Mathias injured. A **Realm Walker, drawn by the breach, witnesses it** (recruitment seed). The crisis briefly reunites the six as a team.
-- **The severance** `[M]`+`[S]` — Marcus names the Earth Thing → Serra severs the thread to free him (breaks her one rule). Ending image: *they can find each other again, but belonging together is no longer guaranteed.*
+- **The severance** `[M]`+`[S]` — Marcus names the Earth Thing → Serra severs the thread to free him (**cost-breaks her one rule (R-5)** — the rule holds in letter; holding it finally breaks *her*). Ending image: *they can find each other again, but belonging together is no longer guaranteed.*
 
 ---
 

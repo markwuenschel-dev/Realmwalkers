@@ -37,7 +37,7 @@
 | SE-06 | 🟡 | Which Final Path does she move toward — Coherence or Saturation? | Is the choice conscious? This is her arc's end-direction question. |
 | SE-07 | 🟢 | What does she build or become during the separation that belongs entirely to her? | Not connected to Marcus. Her own thing. Needed before her return scene. |
 | SE-08 | 🟢 | What does she need from Marcus that she can't get from anyone else — and does she ever admit it? | The inside of the relationship. Affects reunion scenes. |
-| SE-09 | 🟢 | Does she travel with Mara after separation, or do they go different ways? | Affects both characters' solo arcs. |
+| SE-09 | ✅ RESOLVED | Does she travel with Mara after separation, or do they go different ways? | **Different solo paths until Eriadne (~Ch 25).** Mara does not meet Serra in the Realm before Eriadne; first meaningful MaraↄSerra beat = Ch 25 visibility moment (Vessa wound), not shared travel. |
 
 ---
 
@@ -174,7 +174,7 @@
 | # | Priority | Thread | Notes |
 |---|---|---|---|
 | A3-01 | 🟡 | What does Serra learn from the magistrate before she kills him? | Confirmed off-screen from Marcus's POV — reader does not learn this until Serra's solo arc POV scene. The gap is intentional. Do not reveal in any Marcus POV scene. |
-| A3-02 | ✅ RESOLVED | Which city or faction is Serra heading toward after the split? | The **Court of Seals** (regional namebinding offshoot) → up the chain to the cosmic **Aurelian Sovereignty** (`cosmology.md`, `serra_hawthorne.md`). |
+| A3-02 | ✅ RESOLVED | Which city or faction is Serra heading toward after the split? | **Immediate post-split:** dungeon solo arc (changing delve + Vessa + Eriadne fragment). **Book-2 up-chain hunt:** the **Court of Seals** (regional namebinding offshoot) → cosmic **Aurelian Sovereignty** (`cosmology.md`, `serra_hawthorne.md`). Registry-fragment = cold Book-2 lead. |
 | A3-03 | ✅ RESOLVED | Angelic Fortitude removed | Not canon. Zazriel gave no boon. Marcus has Eyes only. |
 | A3-04 | 🟡 | What specific skill does Marcus unlock from the road encounter? | First Eyes use in a live situation — what does the interface log? Should be partial and imperfect. |
 | A3-05 | ✅ | What happens to the elven child after rescue? | **RESOLVED [LOCKED]: Vaeli initially leaves with Dara & Cael** (keeps Marcus's road clear of a child-companion); **circumstances later force the three toward Marcus / Eriadne** — the Book-2 home-building payoff arrives as a *return*, not a tag-along. Hook: a **Strong** soul, so the registry chain comes for her again, and Marcus is the one who broke its grip once. Nudges A3-06 → recurring. |

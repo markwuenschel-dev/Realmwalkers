@@ -73,8 +73,8 @@
 | WF-007 | Xyloryn = failed immune response | needs_decision | **Unconfirmed** — do not write as canon. |
 | WF-008 | Iron Vultures: opportunistic survivors | active | Guides/brokers; later friction over the ruin-fringe's desperate people. |
 | WF-009 | The **False Rescue** system (manufactured rescue → debt → namebinding) | active | Eriadne's power structures echo it at larger scale. |
-| WF-010 | The magistrate operation feeds a larger faction | active | Serra heads toward it; named threat in later acts. |
-| WF-011 | **Namebinding** — true names weaponized into leashes | active | The region's control mechanism; central to Serra's arc; pays off SP-004. |
+| WF-010 | The magistrate operation feeds a larger faction | active | **Book-2 destination:** Court of Seals → Aurelian Sovereignty; registry-fragment is a *cold* lead Serra carries through Book 1 — not her immediate post-split heading (that is the dungeon solo arc). |
+| WF-011 | **Namebinding** — true names weaponized into leashes | active | The region's control mechanism; **central to False Rescue / magistrate arc**, not the solo dungeon arc; pays off SP-004. |
 | WF-012 | The **parent organization** behind the regional offshoot — regional offshoot = **Court of Seals**, parent = the cosmic **Aurelian Sovereignty** | seeded | Serra's registry-fragment points to it; reachable only later in B1 (a power she can't contend with in Book 1). |
 
 ---

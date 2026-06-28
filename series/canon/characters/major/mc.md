@@ -494,6 +494,8 @@ Serra is not a repetition of the earlier unavailable-warmth wound. She is the te
 
 This makes the Book 1 severance sharper. He is not only choosing reality over the Eyes. He is choosing reality over the oldest hunger in him: *if this is real, it has to mean I finally get to keep it.*
 
+**Eriadne interval (Ch 18–25):** not together, not casual, not deniable — small physical beats only; no kisses after Ch 14. **Illyri witness:** tethered to Marcus, default-visible; their intimacy is never fully private; adds pressure on visible wanting (`marcus_serra_relationship.md` §11–12).
+
 **The finale severance (late Book 1):** during the Myrmidon fight Marcus holds an opening at lethal risk; Serra lands the kill but brushes off his danger and he barely survives. His Neurochromatic eyes ignite and read her *conflict*; the Meszkhal item lies that she's *doubling down*; he chooses correctly and doesn't hold it against her. Being seen in that moment — plus the faction she hunts and the still-unresolved party thing — sends her off. (Governed by INV-1, `relationship_invariants.md`; precedence `canon_index.md`.)
 
 *Current status:* Separated. The Earth thing still unaddressed.
