@@ -15,8 +15,9 @@ token mechanism below for every network op. See the `git-push-mechanism` memory 
 1. **Survey.** `git status`, `git branch -vv`, and the real remote state via the REST API (local
    refs lie). Read the diff so the commits and PR body are accurate.
 
-2. **Branch.** If on `main` (the default branch), create a `feat/…` / `fix/…` / `docs/…` branch
-   first — never commit straight to `main`. If already on a feature branch, stay on it.
+2. **Branch.** Default: stay on `main` — commit and push directly to `main`. Only create a
+   `feat/…` / `fix/…` / `docs/…` branch if the user explicitly asked for a PR or separate branch.
+   If work landed on a side branch, merge to `main` and push before reporting done.
 
 3. **Don't commit junk.** Build artifacts / caches (e.g. `frontend/.vite/`, `dist/`, coverage)
    belong in `.gitignore`, not in a commit. Add ignores rather than staging them.
