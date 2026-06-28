@@ -5,6 +5,9 @@ other router tests.
 """
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timedelta, timezone
+
 from dominion.api.routers import telemetry as tel_router
 from dominion.shared.models import Book, Chapter, LlmCall
 
@@ -53,6 +56,53 @@ async def test_chapter_telemetry_empty_when_never_derived(db_factory):
         _book, ch, _ = await _book_with_chapters(s)
         out = await tel_router.chapter_telemetry(ch.id, s)
         assert out.totals.calls == 0 and out.scenes == []
+
+
+async def test_chapter_telemetry_scopes_to_latest_run(db_factory):
+    # The Packets-tab panel must show only the most recent derive run, not a cumulative total across
+    # every run ever (the regression that made one patch's effect unreadable).
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        run_old, run_new = uuid.uuid4(), uuid.uuid4()
+        t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        s.add_all([
+            LlmCall(run_id=run_old, book_id=book.id, chapter_id=ch.id, scene_no=1,
+                    stage="scene_packet_author", model="haiku", input_tokens=999, output_tokens=10,
+                    created_at=t0),
+            LlmCall(run_id=run_new, book_id=book.id, chapter_id=ch.id, scene_no=1,
+                    stage="scene_packet_author", model="haiku", input_tokens=100, output_tokens=20,
+                    created_at=t0 + timedelta(minutes=5)),
+            LlmCall(run_id=run_new, book_id=book.id, chapter_id=ch.id, scene_no=2,
+                    stage="scene_packet_qa", model="haiku", input_tokens=200, output_tokens=30,
+                    created_at=t0 + timedelta(minutes=5)),
+        ])
+        await s.flush()
+
+        out = await tel_router.chapter_telemetry(ch.id, s)
+        assert out.totals.calls == 2                       # latest run only, not 3
+        assert out.totals.input_tokens == 300              # 100 + 200; the old run's 999 is excluded
+        assert {sc.scene_no for sc in out.scenes} == {1, 2}
+
+
+async def test_book_telemetry_per_run_history_newest_first(db_factory):
+    # The Telemetry tab gets a per-run table so each derive/patch is comparable in isolation.
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        run_a, run_b = uuid.uuid4(), uuid.uuid4()
+        t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        s.add_all([
+            LlmCall(run_id=run_a, book_id=book.id, chapter_id=ch.id, scene_no=1,
+                    stage="scene_packet_author", model="haiku", input_tokens=10, output_tokens=1,
+                    created_at=t0),
+            LlmCall(run_id=run_b, book_id=book.id, chapter_id=ch.id, scene_no=1,
+                    stage="scene_packet_author", model="haiku", input_tokens=20, output_tokens=2,
+                    created_at=t0 + timedelta(minutes=1)),
+        ])
+        await s.flush()
+
+        out = await tel_router.book_telemetry(book.id, s)
+        assert [r.run_id for r in out.by_run] == [run_b, run_a]   # newest run first
+        assert out.by_run[0].calls == 1 and out.by_run[0].chapter_no == 1
 
 
 async def test_book_telemetry_rolls_up_chapters_stages_models(db_factory):

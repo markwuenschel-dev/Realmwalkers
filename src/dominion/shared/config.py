@@ -122,8 +122,14 @@ class Settings(BaseSettings):
     distill_pair_max_chars: int = 1200  # per side of each pair, to protect the token budget
     distill_time_budget_s: int = 120
 
-    # Bounded execution
-    scene_token_budget: int = 40_000
+    # Bounded execution. The per-scene token ceiling bounds one scene's Author+QA *work*. With caching
+    # now live (cache reads discounted), the dominant remaining cost is OUTPUT — the scene-packet JSON
+    # contract is large, and output is real, un-cacheable work charged at full weight. The 40k ceiling
+    # was sized before that was understood and blocked legitimate scenes at ~41-47k (observed); the
+    # primer scene also pays the chapter-wide prefix *write* it can't read back. 60k clears both with
+    # headroom. If cost matters more than contract richness later, trim the schema (less output) rather
+    # than lowering this — a smaller ceiling just re-blocks honest work.
+    scene_token_budget: int = 60_000
     scene_time_budget_s: int = 300
     # The gate-1 plan-call runs synchronously inside the POST /runs request, so an unbounded LLM
     # call leaves the browser spinning forever. Bound it: on timeout the request fails cleanly

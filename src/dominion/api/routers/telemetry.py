@@ -25,6 +25,7 @@ from dominion.shared.schemas import (
     BookTelemetryOut,
     ChapterRollupOut,
     ChapterTelemetryOut,
+    RunRollupOut,
     SceneTelemetryOut,
     TelemetryGroupOut,
     TelemetryTotals,
@@ -69,13 +70,25 @@ def _group(
     return sorted(groups, key=lambda g: g.calls, reverse=True)
 
 
+def _latest_run_only(rows: list[LlmCall]) -> list[LlmCall]:
+    """Keep only the calls from the most recent derive run — the run that wrote the call with the
+    newest `created_at`. This is what makes the Packets-tab panel show the LATEST run and effectively
+    'clear' on each re-derive, instead of a cumulative total across every run ever. Pre-`run_id` legacy
+    rows share a None run_id, so they collapse into one bucket (best-effort for old data)."""
+    if not rows:
+        return rows
+    latest = max(rows, key=lambda c: c.created_at)
+    return [c for c in rows if c.run_id == latest.run_id]
+
+
 @router.get("/chapters/{chapter_id}/telemetry", response_model=ChapterTelemetryOut)
 async def chapter_telemetry(chapter_id: uuid.UUID, session: SessionDep) -> ChapterTelemetryOut:
-    """Per-scene derive telemetry for one chapter, plus chapter totals. Empty (zero totals) when the
-    chapter has never been derived."""
-    rows = list((await session.execute(
+    """Per-scene telemetry for one chapter's LATEST derive run, plus that run's totals. Scoped to the
+    latest run (not cumulative) so the panel reflects the run you just kicked off. Empty (zero totals)
+    when the chapter has never been derived."""
+    rows = _latest_run_only(list((await session.execute(
         select(LlmCall).where(LlmCall.chapter_id == chapter_id)
-    )).scalars())
+    )).scalars()))
 
     by_scene: dict[int | None, list[LlmCall]] = {}
     for c in rows:
@@ -122,9 +135,35 @@ async def book_telemetry(book_id: uuid.UUID, session: SessionDep) -> BookTelemet
     ]
     by_chapter.sort(key=lambda r: (r.chapter_no is None, r.chapter_no))
 
+    # Per-run history: one row per derive invocation (calls sharing a run_id), newest first, so the
+    # Telemetry tab can show how each run/patch performed instead of one cumulative blur. Rows with no
+    # run_id (legacy, pre-column) collapse into a single None bucket rather than being dropped.
+    by_run_calls: dict[uuid.UUID | None, list[LlmCall]] = {}
+    for c in rows:
+        by_run_calls.setdefault(c.run_id, []).append(c)
+    by_run: list[RunRollupOut] = []
+    for rid, calls in by_run_calls.items():
+        cid = next((c.chapter_id for c in calls if c.chapter_id is not None), None)
+        ch = chapters.get(cid) if cid is not None else None
+        by_run.append(RunRollupOut(
+            run_id=rid,
+            started_at=min((c.created_at for c in calls), default=None),
+            chapter_id=cid,
+            chapter_no=ch.chapter_no if ch else None,
+            title=ch.title if ch else None,
+            **_totals(calls),
+        ))
+    # Newest run first; the legacy (no-run_id) bucket has no timestamp, so it always sorts last.
+    dated = sorted(
+        (r for r in by_run if r.started_at is not None),
+        key=lambda r: r.started_at, reverse=True,  # type: ignore[arg-type,return-value]
+    )
+    by_run = dated + [r for r in by_run if r.started_at is None]
+
     return BookTelemetryOut(
         totals=TelemetryTotals(**_totals(rows)),
         by_chapter=by_chapter,
+        by_run=by_run,
         by_stage=_group(rows, lambda c: c.stage),
         by_model=_group(rows, lambda c: c.model),
     )

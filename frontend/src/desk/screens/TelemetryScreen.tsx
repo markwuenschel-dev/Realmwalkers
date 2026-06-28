@@ -6,7 +6,22 @@ import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { Spinner } from "../components/DraftActivity";
 import { TotalsStrip, TotalsTable, fmtTokens } from "../components/Telemetry";
-import type { BookTelemetryOut, ChapterRollupOut, TelemetryGroupOut } from "../api/types";
+import type {
+  BookTelemetryOut,
+  ChapterRollupOut,
+  RunRollupOut,
+  TelemetryGroupOut,
+} from "../api/types";
+
+// "2026-06-28 14:07" in local time — compact enough for a table cell; falls back to the run id.
+function fmtRun(r: RunRollupOut): string {
+  const label =
+    r.chapter_no != null ? `Ch ${r.chapter_no}` : r.title ?? r.run_id?.slice(0, 8) ?? "—";
+  if (!r.started_at) return `${label} · (legacy)`;
+  const d = new Date(r.started_at);
+  const stamp = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  return `${stamp} · ${label}`;
+}
 
 // The global Telemetry tab: persisted LLM-call cost/cache/health for the active book, rolled up so a
 // human can compare across chapters, models, and stages (the scene-packet Author/QA, and any later
@@ -109,6 +124,15 @@ export default function TelemetryScreen() {
                   ? `Ch ${r.chapter_no}${r.title ? ` · ${r.title}` : ""}`
                   : (r.title ?? r.chapter_id.slice(0, 8))
               }
+            />
+          </Section>
+
+          <Section label="By run (newest first)">
+            <TotalsTable<RunRollupOut>
+              label="Run"
+              rows={data.by_run}
+              nameOf={fmtRun}
+              emptyText="No derive runs recorded yet."
             />
           </Section>
 

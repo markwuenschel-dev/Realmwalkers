@@ -322,7 +322,11 @@ async def derive_scene_packets(
         if status == ScenePacketStatus.BLOCKED:
             counts["blocked"] += 1
 
-    _persist_telemetry(session, sink, book_id=packet.book_id, chapter_id=packet.chapter_id)
+    # One run_id for every call this derive made, so the Desk can isolate this run (Packets panel) and
+    # build a per-run history (Telemetry tab) instead of reading one ever-growing cumulative total.
+    _persist_telemetry(
+        session, sink, run_id=uuid.uuid4(), book_id=packet.book_id, chapter_id=packet.chapter_id
+    )
     return counts
 
 
@@ -330,6 +334,7 @@ def _persist_telemetry(
     session: AsyncSession,
     sink: telemetry.TelemetrySink,
     *,
+    run_id: uuid.UUID,
     book_id: uuid.UUID,
     chapter_id: uuid.UUID,
 ) -> None:
@@ -341,6 +346,7 @@ def _persist_telemetry(
         except (ValueError, TypeError):
             seed_id = None
         session.add(LlmCall(
+            run_id=run_id,
             book_id=book_id, chapter_id=chapter_id, scene_no=rec.scene_no, scene_seed_id=seed_id,
             stage=rec.stage, model=rec.model,
             input_tokens=rec.input_tokens, output_tokens=rec.output_tokens,
