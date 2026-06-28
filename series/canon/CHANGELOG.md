@@ -2,6 +2,16 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-28 — Serra Book 1 canon reconciliation (aggregate sync)
+
+> Propagate execution locks from owner files to planning/continuity aggregates — no new moral scaffolding.
+
+- **Drift fixes:** `character_state_log.md` (False Rescue + Finale checkpoints — dormant interface, dungeon split, cost-break, Mara beat); `scene_queue.md`, `book1_chapter_plan.md`, `master_timeline.md`, `book_roadmap.md` (split → dungeon, cost-break wording); `setup_payoff_tracker.md` (WF-010/011 — namebinding = False Rescue, not solo arc).
+- **SE-09 resolved:** Serra and Mara take different solo paths until Eriadne (~Ch 25); `relationship_map.md`, `serra_hawthorne.md`, `unresolved_character_threads.md`.
+- **A3-02 clarifier:** immediate post-split = dungeon; Court of Seals = Book 2.
+- **Ch 1 timeline:** reconciled with INV-1 Axis D (in-duel personal recognition; processing at facility).
+- **Light enrichment:** `dominion_realm_story_bible.md` (Serra Book 1 spine one-liner, Illyri tether); `mc.md` (Eriadne interval + Illyri witness cross-ref).
+
 ## 2026-06-28 — Serra / Marcus–Serra Book 1 relationship canon integration
 
 > **Execution locks and guardrails** for Book-1 Serra and MarcusↄSerra — not new moral scaffolding.

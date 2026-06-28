@@ -135,7 +135,7 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 **Dynamic:** Serra is force. Mara is setup. They've been tandem partners long enough that the shorthand is muscle memory. The operational dynamic is efficient: Mara reads the situation and prepares it, Serra executes. But their underlying philosophies are in friction — Serra asks who must be stopped, Mara asks what produced the threat.
 
-**Current status:** Unclear — they may travel together after the separation from Marcus, or Mara may take a different path. ⚠ Unresolved.
+**Current status:** **Different solo paths until Eriadne (~Ch 25).** Mara does not meet Serra in the Realm before Eriadne; first meaningful MaraↄSerra beat = Ch 25 visibility moment (Vessa wound; intimacy without romance — see `mara.md`). SE-09 resolved.
 
 **Tension:** Serra's arc bends toward harder and harder calls. Mara's arc bends toward understanding the system that produces threats rather than eliminating the threats themselves. These trajectories diverge. The question is when.
 

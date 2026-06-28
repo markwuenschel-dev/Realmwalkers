@@ -300,7 +300,7 @@ status: working
 
 **Ch 30 — The Severance** · Marcus + Serra · ~Day 110 · ⚠
 - **Function:** the emotional climax; the bridge to Book 2.
-- **Beats:** Marcus **names the Earth Thing**; **Serra severs the thread to free him** (breaks her one rule); being seen + the faction she still must hunt + the unresolved party night send her off; ending image — *they can find each other again, but belonging together is no longer guaranteed*; Marcus turns toward the interface and **away from the lying item** (B2 bridge).
+- **Beats:** Marcus **names the Earth Thing**; **Serra severs the thread to free him** (**cost-breaks her one rule (R-5)** — the rule holds in letter; holding it finally breaks *her*); being seen + the faction she still must hunt + the unresolved party night send her off; ending image — *they can find each other again, but belonging together is no longer guaranteed*; Marcus turns toward the interface and **away from the lying item** (B2 bridge).
 - **Scenes:** The severance `[M]+[S]`.
 - **Pays:** CH-019 (the space) · SP-012 (turns from the item) · Riftwalker recruitment seed (→ B2).
 - **End state:** pair parted but findable; Marcus pointed at Riftwalker/B2.

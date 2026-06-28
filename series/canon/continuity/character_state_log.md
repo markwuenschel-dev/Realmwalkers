@@ -32,7 +32,7 @@
 ## Checkpoint: Early Realm — False Rescue (Marcus & Serra reunite, then split)
 
 - **Marcus:** functional; Eyes interface developing (→ Stage 2); warmth-hungry; relief at finding Serra; the Earth Thing reactivated. Travels with the Iron Vultures; the home-building ache surfaces from the Maera warmth-trap. Marked by saving the child while others didn't make it.
-- **Serra:** **Warrior** base class taking shape; **Severance Pulse** beginning to manifest (Stage 1–2: Aura Sense / early Compression Field); Warrior fundamentals surfacing as future Severance Pulse delivery. Kills the magistrate; learns he's a **node, not the source**; takes a **registry-fragment**; separates toward a larger faction's seat. The Earth moment unaddressed. She goes.
+- **Serra:** **Warrior** base class taking shape; **Warrior fundamentals only — Severance Pulse dormant until Act-5 finale.** Kills the magistrate; learns he's a **node, not the source**; takes a **registry-fragment** (cold Book-2 lead); splits after the magistrate kill → **Book-1 solo arc = changing dungeon + Vessa + Eriadne fragment.** The Earth moment unaddressed. She goes.
 
 ---
 
@@ -51,7 +51,8 @@
 
 - **All six** briefly converge at/near Eriadne. The **ruins-portal opens** (city largely unaware); a single **Myrmidon** nearly beats all six.
 - **Mathias:** badly **injured — lives**; his warning proven true.
-- **Marcus & Serra:** the **reunion → the severance** (he names the Earth Thing; she severs the thread to free him, breaking her one rule).
+- **Marcus & Serra:** the **reunion → the severance** (he names the Earth Thing; she severs the thread to free him — **cost-breaks her one rule (R-5):** the rule holds in letter; holding it finally breaks *her*).
+- **Mara & Serra:** **Ch 25 visibility beat** — Mara quietly notices the Vessa wound hurt Serra more than Serra shows; intimacy without romance (`mara.md`).
 - **Old guild identity:** dead. New question: can these changed people align without becoming enemies?
 
 ---

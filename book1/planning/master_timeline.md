@@ -98,7 +98,7 @@
 | Magistrate-guild arrives; the elven child is **namebound and taken** (the child is a **Strong** soul — a notable catch, reinforcing "monetized rescue": the guild landing a real prize, not routine debt-resolution); *warmth ≠ loyalty* lands; Marcus's home-building ache surfaces | Days ~15–16 |
 | Pursuit; the pitch to the Vultures (join with conditions) | Days ~16–19 |
 | **The operation** — chaotic; Marcus extracts the child, others don't make it (the **captives / the op**, **not** a main-six member) | Days ~19–20 |
-| **The split** — Serra kills the magistrate (off-page from Marcus's POV); learns he's a **node, not the source** (names sub-leased from a master registry); takes a **registry-fragment**; leaves toward a larger faction's seat. No speech. | Days ~20–21 |
+| **The split** — Serra kills the magistrate (off-page from Marcus's POV); learns he's a **node, not the source** (names sub-leased from a master registry); takes a **registry-fragment** (cold Book-2 lead); **Book-1 solo arc = changing dungeon + Vessa + Eriadne fragment** (Court of Seals hunt = Book 2). No speech. | Days ~20–21 |
 | Marcus travels on with the Vultures toward a larger town (Exile info; hunting the guild) | Days ~21–23 |
 
 ---
