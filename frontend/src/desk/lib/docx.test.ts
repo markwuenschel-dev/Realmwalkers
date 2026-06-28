@@ -1,10 +1,45 @@
 import { describe, expect, it } from "vitest";
 import type { ManuscriptOut } from "../api/types";
+import { parseBlocks } from "../prose";
+import { resolveSurface } from "./litrpgSurfaces";
 import {
+  buildManuscriptDoc,
   buildManuscriptMarkdown,
   formatInterfaceShunnHeader,
   markdownFilename,
 } from "./docx";
+
+describe("export integration", () => {
+  it("docx path resolves interface styling via litrpgSurfaces", () => {
+    const blocks = parseBlocks(
+      "```text\n@interface role=insight creature=archdemon domain=death\nName: ????\n```",
+    );
+    const block = blocks[0];
+    expect(block.kind).toBe("interface");
+    if (block.kind !== "interface") return;
+    expect(resolveSurface(block.spec).accent).toBeTruthy();
+    expect(
+      buildManuscriptDoc({
+        book_id: "b1",
+        title: "Test",
+        chapters: [
+          {
+            chapter_no: 1,
+            title: null,
+            pov: "X",
+            scenes: [
+              {
+                scene_no: 1,
+                prose:
+                  "```text\n@interface role=insight creature=archdemon domain=death\nName: ????\n```",
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBeTruthy();
+  });
+});
 
 const sampleManuscript = (): ManuscriptOut => ({
   book_id: "book-uuid-1",

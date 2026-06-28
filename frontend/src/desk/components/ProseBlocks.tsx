@@ -1,6 +1,6 @@
 import { createElement, Fragment } from "react";
 import { css } from "../css";
-import { formatInterfaceHeader } from "../lib/litrpgSurfaces";
+import { formatInterfaceHeader, resolveSurface } from "../lib/litrpgSurfaces";
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
 
 // Renders a compact Markdown subset as themed blocks: paragraphs, headings, lists,
@@ -91,6 +91,39 @@ function CodeBlock({ lines }: { lines: string[] }) {
     >
       {lines.join("\n")}
     </pre>
+  );
+}
+
+function hex(c: string): string {
+  return c.startsWith("#") ? c : `#${c}`;
+}
+
+function InterfacePanel({ block }: { block: Extract<ProseBlock, { kind: "interface" }> }) {
+  const s = resolveSurface(block.spec);
+  return (
+    <div
+      style={css(
+        `margin:1.4em 0;border:1px solid ${hex(s.border)};border-left:${Math.max(3, s.leftBorderSize / 6)}px solid ${hex(s.accent)};` +
+          `border-radius:var(--r);overflow:hidden;background:${hex(s.fill)};break-inside:avoid`,
+      )}
+    >
+      <div
+        style={css(
+          `padding:9px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;font-weight:650;` +
+            `background:${hex(s.headerFill)};color:${hex(s.headerText)}`,
+        )}
+      >
+        {formatInterfaceHeader(block.spec)}
+      </div>
+      <pre
+        style={css(
+          `font-family:var(--mono);font-size:12.5px;line-height:1.5;white-space:pre-wrap;margin:0;` +
+            `padding:12px 14px;color:${hex(s.text)}`,
+        )}
+      >
+        {block.lines.join("\n")}
+      </pre>
+    </div>
   );
 }
 
@@ -236,11 +269,11 @@ export default function ProseBlocks({
             );
           case "stat":
             return <StatWindow key={i} lines={b.lines} />;
-      case "code":
-        return <CodeBlock key={i} lines={b.lines} />;
-      case "interface":
-        return <CodeBlock key={i} lines={[formatInterfaceHeader(b.spec), ...b.lines]} />;
-      case "table":
+          case "code":
+            return <CodeBlock key={i} lines={b.lines} />;
+          case "interface":
+            return <InterfacePanel key={i} block={b} />;
+          case "table":
             return <Table key={i} block={b} />;
           default:
             return (
