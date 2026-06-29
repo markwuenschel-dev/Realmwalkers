@@ -129,10 +129,9 @@ Beat detail and chronology are owned by `master_timeline.md`; act purpose/themes
 
 > **Hard guard:** every bullet above is **Book-2+ trajectory.** **No main-six character dies in Book 1** (`finale_spine.md` invariant; 7 files). Book 1 ends with the cohort intact and fractured *emotionally* (the severance), not by death.
 
-### Book-2 Seeds (provisional — not started)
+### Book-2 Seeds
 
-- **A second Earth cohort** (Book 2). Introducing another transplanted group breaks the assumption that the first six are uniquely chosen in a simple prophecy sense — it reframes the first six as *one* acquisition among the Nightbound's (or others') operations, not the anointed. *(Provisional; mechanics/timing TBD.)*
-- **The retired-pro-gamer mirror.** A transplant who beats each of the six *individually* — the **distorted power-fantasy mirror**: what Earth-transplants become if they optimize differently. He makes Marcus and Serra's path read as *chosen and specific* (they become what they become through particular relationships, interfaces, and failures — not because Earth people are inherently strong). *(Provisional antagonist/foil; Book 2.)*
+- **The Corrected Cohort (Second Six).** A second Earth cohort brought through the same pipeline as the first — Nightbound → Soulkeepers' Exchange → Broker → Astria — but with more time, data, screening, and conditioning. *The first six were stolen; the second six were shaped.* They are a dark mirror, rival party, and proof the operation scaled. Full architecture: [`continuity/corrected_cohort.md`](continuity/corrected_cohort.md).
 - **Seb's sacrifice breaks the hold over the six** — see FORK 1 (cosmology cross-ref + `seb.md`).
 
 ---

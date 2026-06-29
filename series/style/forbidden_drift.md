@@ -253,7 +253,7 @@
 - Marcus/Serra's escalation attributed to specialness rather than specific choices
 - No sense that other transplants or cohorts exist or could rival them
 
-**Correction:** Keep them **keys, not champions** (`cosmology.md`). Strength is earned, specific, and contingent — relationships, interfaces, failures — not inherited from being Earth-born. Book 2's **second cohort** and the **retired-pro mirror** exist precisely to break this: the retired pro beats each of the six *individually*, proving Earth-origin is not the differentiator. Marcus and Serra are chosen by what they *become*, not by what they *are.*
+**Correction:** Keep them **keys, not champions** (`cosmology.md`, `nightbound.md`). Strength is earned, specific, and contingent — relationships, interfaces, failures — not inherited from being Earth-born. Book 2's **Corrected Cohort** (`continuity/corrected_cohort.md`) breaks the chosen-six assumption: a second six **shaped** (not stolen) as rival party and dark mirror — weaponized replication, not prophecy. They are not evil twins or a replacement chosen party. Marcus and Serra are chosen by what they *become*, not by what they *are.*
 
 ---
 
@@ -295,6 +295,9 @@ When a scene feels off, run through this list:
 | Permanent-party assumption | Are the six written as a stable, co-equal, permanent party rather than a fracturing origin cohort? |
 | Healer-trope death | Does a (Book-2+) Brent death lean on caretaker melodrama instead of structural-cost consequence? |
 | Chosen-six flattening | Is the six's strength framed as destiny / Earth-origin rather than earned and contingent? |
+| Corrected Cohort evil twins | Are second-cohort members written as one-to-one evil duplicates of Marcus/Serra/Seb/Mara/Mathias/Brent? |
+| Chosen second six | Are they framed as a replacement chosen party rather than a shaped replication? (`corrected_cohort.md`) |
+| Interface inflation | Do all six Corrected Cohort members have true interfaces at introduction? |
 
 ---
 

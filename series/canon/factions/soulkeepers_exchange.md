@@ -116,6 +116,7 @@ Commerce in souls is real — but at scale it becomes **half-truth as product**:
 - **LOCK:** Broker is Exchange agent; Seb's tempter.
 - **LOCK:** Soul recall can be real; clean resurrection is the lie.
 - **LOCK:** Not casual resurrection merchants — would cheapen Marcus's exceptional resurrection.
+- **LOCK:** A second cohort operation (Corrected Cohort, Book 2) may use the same contractor chain — see [`../continuity/corrected_cohort.md`](../continuity/corrected_cohort.md). Broker may expect success, failure, or data — **OPEN**.
 
 ## Open Questions
 
@@ -135,4 +136,4 @@ Agents **must not:**
 - Portray recall as automatically clean or moral because it is real.
 
 ---
-*Cross-refs: [`nightbound.md`](nightbound.md), [`../world/cosmology.md`](../world/cosmology.md), [`../characters/major/seb.md`](../characters/major/seb.md), [`pale_imperium.md`](pale_imperium.md). Change history: [`../CHANGELOG.md`](../CHANGELOG.md).*
+*Cross-refs: [`nightbound.md`](nightbound.md), [`../world/cosmology.md`](../world/cosmology.md), [`../characters/major/seb.md`](../characters/major/seb.md), [`pale_imperium.md`](pale_imperium.md), [`../continuity/corrected_cohort.md`](../continuity/corrected_cohort.md). Change history: [`../CHANGELOG.md`](../CHANGELOG.md).*
