@@ -1,106 +1,167 @@
 ---
 id: nightbound
 name: The Nightbound
+aliases: [nightbound, the seven]
 kind: faction
 status: canon
+scale: interventionist_order
 ---
-# The Nightbound — Dominion Realm
+# The Nightbound
 
-> **Status:** Canon · working draft. Two things are held **OPEN on purpose** (why the Realm / what the inheritance is) — and they're open *in the founder's own voice*, not as gaps to be patched. See "Held open" below.
-> **Owns:** the order that brought the six; its founder, premise, and method. Precedence: see `canon_index.md`.
-> **The spine:** a small, coherent order of seven who believe the cosmos is approaching a war it doesn't understand — and that ordinary powers are structurally incapable of preparing in time, so *someone must,* outside consent and law. They are the **client** above the Soulkeepers' Broker. They are not heroes and not would-be rulers; their most dangerous quality is that their reasoning is coherent and they can point to the dead.
+> **Status:** Canon · working draft
+> **Type:** Interventionist order — seven-member cell
+> **Scale:** Small — seven extraordinarily capable individuals; not cosmic empire
+> **Role in series:** Machiavellian preparation for the N'hal war — acquired the six as keys; client above the Broker
+> **Canon confidence:** high (operation chain, threat model, six-as-keys); medium (founder identity, inheritance nature)
+> **Owns:**
+> - Nightbound order, founder premise, six-acquisition client role, keys mapping, moral character, held-open founder blind spots
+> **Does not own:**
+> - N'hal ontology (`nhal.md`); Exchange contractor mechanics (`soulkeepers_exchange.md`); six interface biology (`../characters/major/`, `../world/character_power_architecture.md`)
+> **The spine:** A small, coherent order of seven who believe the cosmos is approaching a war it doesn't understand — and that ordinary powers are structurally incapable of preparing in time, so *someone must,* outside consent and law. They are the **client** above the Soulkeepers' Broker. Not heroes, not would-be rulers; their most dangerous quality is coherent reasoning and the dead they can point to.
 
----
+## One-Sentence Identity
 
-## Core identity
+A seven-member interventionist order that hires continuity merchants to steal keys — because witnesses and empires alike will prepare for the wrong war too slowly.
 
-Seven extraordinarily capable individuals — exiles, scholars, survivors, rogues, apostates — gathered beneath one founder's conclusion. Not a temporary alliance and not a cosmic empire: a disciplined, hierarchical order with internal law, closer in tone to an Akatsuki-style cell than a council of diplomats. They may dislike, compete with, and conceal motives from one another, but they have bought the founder's vision.
+## Core Principle
 
-Their conviction is not *that they deserve to decide the future.* It is that **someone must**, because no one else will in time.
+> When the last war begins, ideals will not matter.
 
-> **Closest to their center (motto still open):** *When the last war begins, survival will not belong to the deserving.*
+Survival preparation is sacred — but their method becomes **coercion**: people become instruments when extinction makes ordinary consent seem like luxury.
 
-They do not reject ideals. They reject the belief that ideals alone preserve existence.
+## What They Are Right About
 
-## The threat they're built around — the N'hal (`cosmology.md`)
+- The N'hal are real and structure-dependent civilization fails against them.
+- Prior civilizations greater than current empires died preparing for the wrong war.
+- Someone *was* killed/trapped/dormant once — impossible hope is still hope.
+- Ordinary powers will not unify apex beings in time.
 
-The N'hal are ontological predators that denature reality and **erase the legible structure** — near them, the interface itself fails (skills, levels, the readout), and refined structure-dependent power comes apart. They advance on their own gradual schedule for reasons no one grasps; that slowness is the only reason preparation is possible. Beatable in principle only if every cosmic power's apex beings unified — which no one will ever do in time. That gap is the Nightbound's entire reason to exist.
+## Where They Go Wrong
 
-## What the founder knows (evidentiary, not prophetic)
+- They decide **who may be used** — the six arrived without meaningful consent.
+- Founder knowledge is evidentiary, not omniscient — yet the order acts with surgical certainty.
+- Machiavellian discipline slides from necessary to habitual — atrocity in service of plan, not glee.
 
-The founder's authority rests on evidence no one else could explain, an interpretation that has repeatedly proven correct, and something offered to each member their old life couldn't give. The register is *"I have walked through what remains of civilizations that made the same choices you are making now,"* **not** *"I have seen the future."*
+## Scale and Reach
 
-What the founder has established (locked):
-- Civilizations **greater than the present cosmic powers** faced the N'hal and still died — because they prepared for the wrong war, leaning on their most refined, most structure-dependent systems, which are exactly what fails.
-- The current powers are repeating it: each grows stronger *within its own paradigm* (progress, preservation, law, desire, adaptation), and none of those paradigms answer a force that unmakes coherence itself.
-- The N'hal are **not invulnerable** — somewhere, somehow, one was killed, trapped, or rendered dormant. That single fact is the foundation of the order's hope.
+- Seven members — exiles, scholars, survivors, rogues, apostates — hierarchical internal law.
+- Akatsuki-style cell: shared founder vision, member-level private motives, not temporary committee.
+- **Founder is female** — combat/interface design **not finalized** (do not lock).
+- Not cosmic scale — influence through operations, not territory.
 
-What the founder does **not** know (and admits, at least to themselves): who killed that N'hal, with what, at what cost, whether it was truly dead, whether the corpse is part of a larger trap. The Nightbound's whole project is an attempt to reconstruct the conditions of that one impossible result.
+## Aesthetic / Texture
 
-## The six as keys (not chosen ones)
+- Disciplined, hierarchical, night-oath register — closer to covert order than diplomatic council.
+- Internal terminology: *Bound to the Night*, *the Long Night*, *Nightbound work*, *Unbound*, *Night's debt*.
+- Outsiders may say "the Seven"; order says Nightbound.
 
-The six were not foretold heroes. They were selected because they are **compatible with six necessary interface inheritances** — and because the other selection criteria overlap rather than resting on prophecy:
+## Power Model
 
-- **Interface compatibility** — biology/psychology/implant-suitability for six distinct interface functions (the founder knew the *categories*, not the final expressions).
-- **Existing cohesion** — already bonded by competitive gaming; people with prior relationships are far likelier to seek one another out and reunite after a destructive cross-world transfer.
-- **Divergent psychology** — connected without being interchangeable, so six distinct interfaces can emerge from one substrate.
-- **Gamer cognition** — minds already fluent in roles, builds, cooldowns, incomplete information, adaptation — unusually compatible with an implant that renders Realm metaphysics as UI.
-- **Earth's isolation** — politically unclaimed; no inherited loyalty to any cosmic power.
+- Member capabilities vary — species, powers, roles **open**.
+- Founder authority: evidence no one else explains, interpretation repeatedly correct, offer each member couldn't get elsewhere.
+- Register: *"I have walked through what remains of civilizations that made the same choices you are making now"* — not prophecy.
 
-The six are **keys, not weapons** — capabilities required during one impossible process: *find it · understand it · reveal it · sever the obstruction · hold the system together · survive the activation cost.* (Indicative mapping below; not literal color-coded keyholes.)
+## Society / Internal Structure
 
-| Character | Interface function | Possible role in the process |
+- Founder + six other members — seven current, whether permanent **open**.
+- Member spectrum: true believer · reluctant pragmatist · instrumentalist · redemption-seeker · self-interested · founder-loyalist · doubter.
+- Disagreement axes: six as people vs. instruments; inheritance as weapon/refuge/path/ascension; warn empires or not; founder's full truth.
+
+## Relationship to the Realm
+
+- Operate outside Realm law and consent when necessary — survival project, not governance.
+- Why the Realm / why now: founder **hypothesis** (ley/planar nexus "registered") — **held open**, not fact.
+
+## Relationship to the Six
+
+Selected as **keys, not chosen ones** — compatible with six necessary interface inheritances:
+
+- Interface compatibility (categories known, expressions not)
+- Existing cohesion (gaming guild bonds)
+- Divergent psychology
+- Gamer cognition / implant UI fit
+- Earth's political isolation
+
+**Keys, not weapons** — process: *find it · understand it · reveal it · sever obstruction · hold system together · survive activation cost.*
+
+| Character | Interface function | Possible role in process |
 |---|---|---|
-| Marcus / Marcus | accurate perception (→ eventual bidirectional gaze) | read the hidden structure correctly |
-| Serra | commitment → pressure → severance | cut a binding that can't otherwise be broken |
-| Seb | threshold crossing / self-consuming restoration | survive or power an otherwise fatal cost |
-| Mara | authorship of salience/attention | make the hidden perceptible; stop minds overlooking it |
-| Mathias | relational topology / dependency sense | map how the pieces connect and where failure propagates |
-| Brent | structural integrity (reinforce / break) | stabilize or dismantle the mechanism |
+| Marcus | accurate perception (→ bidirectional gaze) | read hidden structure correctly |
+| Serra | commitment → pressure → severance | cut binding that can't otherwise break |
+| Seb | threshold crossing / self-consuming restoration | survive or power fatal cost |
+| Mara | authorship of salience/attention | make hidden perceptible |
+| Mathias | relational topology / dependency sense | map connections and failure propagation |
+| Brent | structural integrity (reinforce / break) | stabilize or dismantle mechanism |
 
-## The operation chain (who did what)
+**Operation chain:**
 
 | Layer | Role |
 |---|---|
-| **The Nightbound** | conceived, authorized, funded the operation (the **client**) |
-| **Soulkeepers' Exchange** | independent mercantile contractor hired to perform the cross-world acquisition |
-| **The Broker** | the Exchange's agent assigned to execute it (Seb's tempter) |
-| **Astria** | Earth-side infrastructure manipulated into building/implanting the translation devices |
-| **LeBlanc & associates** | human operators deceived/recruited inside the manipulation |
-| **The six** | selected interface-inheritors brought into the Realm without meaningful consent |
+| **Nightbound** | client — conceived, authorized, funded |
+| **Soulkeepers' Exchange** | contractor |
+| **Broker** | operator (Seb's tempter) |
+| **Astria** | Earth infrastructure |
+| **LeBlanc & associates** | deceived/recruited operators |
+| **Six** | keys — no meaningful consent |
 
-Why use the Exchange rather than act directly: routes the Nightbound can't safely use, soul-handling expertise, deniability, and keeping their own presence away from Earth so as not to distort the interfaces they were cultivating. The Exchange treated it as a contract; the Nightbound treated it as the opening move of a survival project.
+## Relationship to the N'hal
 
-## Moral character
+- Order exists because N'hal denature reality and empires repeat wrong preparation.
+- Founder knows N'hal coming to Realm; understands **trigger** better than expected — extent **open**.
+- Project: reconstruct conditions of one impossible kill/trap/dormancy.
+- Founder does **not** know: who, with what, at what cost, truly dead?, corpse as trap?
 
-Machiavellian anti-villains — **lawful, disciplined, devoted to a coherent long-term plan**, willing to commit atrocities in service of it. Not gleefully cruel; their failure is the *decision that certain people may be used when the stakes are high enough.*
+## Relationship to Other Powers
 
-> The end does not justify every means — but extinction makes more means acceptable than ordinary people will admit.
+- **Realm Walkers:** foils — witnesses vs. interventionists; both critiques true; one Walker may serve inside Nightbound as pathfinder.
+- **Soulkeepers' Exchange:** hired contractor — deniability, routes, soul expertise.
+- **Empires:** may know fragments; Nightbound does not seek to rule them.
 
-Members sit at different points and disagree (without disunity about the core mission): **true believer · reluctant pragmatist · instrumentalist · redemption-seeker · self-interested · founder-loyalist · doubter.** What divides them: whether the six are people or instruments; whether the inheritance is weapon, refuge, path, or ascension; whether to warn the empires; whether the founder has told the whole truth.
+## Story Function
 
-## Relationship to the Realm Walkers (`cosmology.md`)
+- Explains six's origin without prophecy chosen-one frame.
+- Moral engine: threat real, methods atrocious, reasoning coherent.
+- Marcus late Book 1: courted by Walkers, already taken by Nightbound.
+- Book 2+ inheritance disagreement drives member fractures.
 
-Ideological foils. The Realm Walkers **discover, warn, witness, intervene individually** — brave but, to the Nightbound, irresponsible: "witnesses are not enough." The Nightbound **manipulate, position, prepare, coordinate** — to the Realm Walkers, they "turn people into tools and call it preparation." Both critiques are true; keep the conflict morally real. A Realm Walker may sit *inside* the Nightbound as pathfinder/evidence-confirmer (preferred over making the founder a former Realm Walker, which is too easy). This sharpens Marcus's late-Book-1 arc: courted by the witnesses, already *taken* by the interventionists.
+## What They Are Not
 
-## Held open — on purpose (the founder's own blind spots)
+- Not a sixth cosmic empire. Not would-be rulers. Not heroic defense league. Not prophecy cult. Not Realm Walkers under another name. Not origin of N'hal.
+- Not certain the six will save anything or what inheritance does.
+- Not morally justified merely because threat is real.
 
-These are not gaps to fill before drafting; in-story the founder genuinely does not have them, and the order itself disagrees. Write them as uncertainty, not omission.
+## Canon Locks
 
-- **Why the Realm / why now.** The founder knows the N'hal are coming here; the *reason* is a working hypothesis (the Realm matured into a strategic ley/resource/planar nexus and "registered" to them), not a fact. Stays open.
-- **What the inheritance is.** Weapon, dormant defense network, refuge, passage to the dead N'hal, an anchor against denaturation, a method of making the N'hal vulnerable, or simply *evidence* — undefined, and **different members believe different things.** That disagreement is a feature; "the founder believes the six can unlock something that might matter" is sufficient canon to draft all of Book 1. Lock the specific only when a scene needs it.
-- **The founder's identity, nature, history**, and whether their secrecy is tactical or self-serving (did they cause part of the problem? are they altered by N'hal contact? connected to the dead-N'hal civilization?). Open.
-- **Whether all six are truly required / replaceable** — the founder may know they're each necessary while letting other members believe replacements exist. Open.
-- **The seven members** (species, powers, roles, affiliations), the order's **oath, symbol, headquarters, recruitment**, and whether "seven" is permanent or merely current.
+- **LOCK:** Seven-member order; **founder is female**.
+- **LOCK:** Not cosmic empire; not seeking to rule creation.
+- **LOCK:** Hired Soulkeepers' Exchange; know N'hal threat is real.
+- **LOCK:** Founder understands trigger better than expected (details open).
+- **LOCK:** Six selected for interface inheritances — keys, not champions.
+- **LOCK:** Operation chain through Broker and Astria.
+- **LOCK:** Machiavellian, disciplined, coercive, potentially necessary.
+- **LOCK:** Motto direction — *When the last war begins, survival will not belong to the deserving* (exact motto still open).
+- **LOCK:** Do not finalize founder's combat/interface design.
 
-## Internal terminology (optional flavor)
+## Open Questions
 
-*Bound to the Night* (initiated into the full truth) · *the Long Night* (the N'hal assault / its eve) · *Nightbound work* (interventions for the coming war) · *Unbound* (former members, traitors, rejected recruits) · *Night's debt* (sacrifices made to prepare). Outsiders who learn the structure may call them "the Seven"; the order calls itself the Nightbound.
+- **OPEN:** Why the Realm / why now — founder hypothesis only.
+- **OPEN:** What inheritance is — weapon, refuge, anchor, evidence, etc.; members disagree.
+- **OPEN:** Founder identity, nature, history; tactical vs. self-serving secrecy; N'hal contact alteration.
+- **OPEN:** Whether all six required / replaceable — founder may know truth others don't.
+- **OPEN:** Seven members' species, powers, roles; oath, symbol, HQ, recruitment; whether seven is permanent.
+- **OPEN:** Founder's combat/interface design.
 
-## What they are NOT
+## Agent Boundaries
 
-Not a sixth cosmic empire; not would-be rulers; not a heroic defense league; not a prophecy cult; not the Realm Walkers under another name; not the origin of the N'hal; **not certain** the six will save anything or what the inheritance does; and **not morally justified merely because the threat is real.**
+Agents **may:**
+- Write Nightbound as coherent, disciplined, morally frightening preparation.
+- Keep founder blind spots as genuine uncertainty in scenes.
+
+Agents **must not:**
+- Make Nightbound secretly heroic or cartoon evil.
+- Lock inheritance nature or founder identity before scene needs.
+- Finalize founder combat/interface design.
+- Make Exchange the client or Nightbound the six's only manipulator without chain.
 
 ---
-
-*Cross-refs: `cosmology.md` (N'hal, Soulkeepers, Realm Walkers, the empires), `seb.md` (the Broker / soul-recall lie), `core_rules.md` (interface goes dark near N'hal), `character_power_architecture.md` (the six interfaces). Change history in `CHANGELOG.md`.*
+*Cross-refs: [`nhal.md`](nhal.md), [`soulkeepers_exchange.md`](soulkeepers_exchange.md), [`realmwalkers.md`](realmwalkers.md), [`../world/cosmology.md`](../world/cosmology.md), [`../characters/major/seb.md`](../characters/major/seb.md), [`../world/character_power_architecture.md`](../world/character_power_architecture.md). Change history: [`../CHANGELOG.md`](../CHANGELOG.md).*
