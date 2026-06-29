@@ -10,6 +10,7 @@ import uuid
 
 from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
 from dominion.workers import packet as pipeline
+from dominion.workers.packet import approval_policy
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import parse
 from dominion.workers.packet import qa as qa_mod
@@ -105,38 +106,38 @@ def _qa(verdict: PacketVerdict, issues=None):
 
 def test_derive_clean_green_stays_green():
     packet = {"confidence": "green", "open_questions": []}
-    conf, status = pipeline._derive(packet, _qa(PacketVerdict.APPROVE))
+    conf, status = approval_policy.status_from_qa(packet, _qa(PacketVerdict.APPROVE))
     assert conf == PacketConfidence.GREEN and status == PacketStatus.PROPOSED
 
 
 def test_derive_green_downgraded_by_open_questions():
     packet = {"confidence": "green", "open_questions": ["who is present during the hijack?"]}
-    conf, _ = pipeline._derive(packet, _qa(PacketVerdict.APPROVE))
+    conf, _ = approval_policy.status_from_qa(packet, _qa(PacketVerdict.APPROVE))
     assert conf == PacketConfidence.YELLOW
 
 
 def test_derive_green_downgraded_by_qa_issues():
     packet = {"confidence": "green", "open_questions": []}
-    conf, _ = pipeline._derive(packet, _qa(PacketVerdict.APPROVE, issues=[{"kind": "x", "detail": "y"}]))
+    conf, _ = approval_policy.status_from_qa(packet, _qa(PacketVerdict.APPROVE, issues=[{"kind": "x", "detail": "y"}]))
     assert conf == PacketConfidence.YELLOW
 
 
 def test_derive_approve_warn_is_yellow():
     packet = {"confidence": "green", "open_questions": []}
-    conf, status = pipeline._derive(packet, _qa(PacketVerdict.APPROVE_WARN))
+    conf, status = approval_policy.status_from_qa(packet, _qa(PacketVerdict.APPROVE_WARN))
     assert conf == PacketConfidence.YELLOW and status == PacketStatus.PROPOSED
 
 
 def test_derive_block_is_red_and_blocked():
     packet = {"confidence": "green", "open_questions": []}
-    conf, status = pipeline._derive(packet, _qa(PacketVerdict.BLOCK_DRAFTING))
+    conf, status = approval_policy.status_from_qa(packet, _qa(PacketVerdict.BLOCK_DRAFTING))
     assert conf == PacketConfidence.RED and status == PacketStatus.BLOCKED
 
 
 def test_derive_takes_worst_of_author_and_verdict():
     # Author self-assesses red even though QA approves — the worst wins.
     packet = {"confidence": "red", "open_questions": []}
-    conf, status = pipeline._derive(packet, _qa(PacketVerdict.APPROVE))
+    conf, status = approval_policy.status_from_qa(packet, _qa(PacketVerdict.APPROVE))
     assert conf == PacketConfidence.RED and status == PacketStatus.PROPOSED
 
 

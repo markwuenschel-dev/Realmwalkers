@@ -22,11 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import (
-    PacketStatus,
-    ScenePacketStatus,
-    ScenePacketVerdict,
-)
+from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import ChapterPacket, ScenePacket
 from dominion.shared.schemas import (
     ScenePacketApproveIn,
@@ -37,7 +33,10 @@ from dominion.shared.schemas import (
     ScenePacketUpdateIn,
 )
 from dominion.workers import background_work, progress
+from dominion.workers import packet as packet_pipeline
 from dominion.workers.budget import TokenBudget
+from dominion.workers.packet import approval_policy as packet_approval
+from dominion.workers.scene_packet import approval_policy as sp_approval
 from dominion.workers.scene_packet import beats as beats_mod
 from dominion.workers.scene_packet import derive as derive_mod
 from dominion.workers.scene_packet import qa as qa_mod
@@ -45,20 +44,9 @@ from dominion.workers.scene_packet import qa as qa_mod
 log = structlog.get_logger()
 router = APIRouter(tags=["scene-packets"])
 
-_BLOCKING_VERDICTS = {ScenePacketVerdict.BLOCK_DRAFTING, ScenePacketVerdict.REVISE_REQUIRED}
-
 
 def _derive_key(chapter_id: uuid.UUID) -> str:
     return f"derive:{chapter_id}"
-
-
-def _has_blocking_qa(packet: ScenePacket) -> bool:
-    if packet.qa_verdict in {v.value for v in _BLOCKING_VERDICTS}:
-        return True
-    issues = (packet.qa_warnings or {}).get("issues") if isinstance(packet.qa_warnings, dict) else None
-    if isinstance(issues, list):
-        return any(isinstance(i, dict) and i.get("severity") == "block" for i in issues)
-    return False
 
 
 async def _get(session: AsyncSession, packet_id: uuid.UUID) -> ScenePacket:
@@ -71,12 +59,7 @@ async def _get(session: AsyncSession, packet_id: uuid.UUID) -> ScenePacket:
 async def _latest_approved_chapter_packet(
     session: AsyncSession, chapter_id: uuid.UUID
 ) -> ChapterPacket | None:
-    return (await session.execute(
-        select(ChapterPacket)
-        .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED)
-        .order_by(ChapterPacket.created_at.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    return await packet_pipeline.latest_approved(session, chapter_id)
 
 
 async def _run_derive(chapter_id: uuid.UUID) -> None:
@@ -109,10 +92,8 @@ async def derive_scene_packets(
     ChapterPacket (a blocked/absent one is a 409). The Desk polls `.../derive/status` for the live
     phase and refetches the list when it finishes. Single-flight: a re-trigger reports the running run."""
     cp = await _latest_approved_chapter_packet(session, chapter_id)
-    if cp is None:
-        raise HTTPException(
-            status_code=409, detail="no approved chapter packet — approve the chapter packet first"
-        )
+    if refusal := packet_approval.can_derive_scene_packets(cp):
+        raise HTTPException(status_code=409, detail=refusal.detail)
     key = _derive_key(chapter_id)
     if background_work.begin_with_phase(key, "deriving"):
         background_work.pop_derive_result(str(chapter_id))
@@ -138,7 +119,7 @@ async def derive_status(chapter_id: uuid.UUID, session: SessionDep) -> ScenePack
         result = ScenePacketDeriveOut(
             created=counts["created"], updated=counts["updated"],
             blocked=counts["blocked"], stale=counts["stale"],
-            packets=[ScenePacketOut.model_validate(r) for r in rows],
+            packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
         )
     return ScenePacketDeriveStatusOut(
         running=running, phase=phase, elapsed_s=elapsed_s, result=result
@@ -148,10 +129,8 @@ async def derive_status(chapter_id: uuid.UUID, session: SessionDep) -> ScenePack
 async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePacketDeriveOut:
     """Synchronous derive (used by tests). The HTTP route runs this in the background."""
     cp = await _latest_approved_chapter_packet(session, chapter_id)
-    if cp is None:
-        raise HTTPException(
-            status_code=409, detail="no approved chapter packet — approve the chapter packet first"
-        )
+    if refusal := packet_approval.can_derive_scene_packets(cp):
+        raise HTTPException(status_code=409, detail=refusal.detail)
     counts = await derive_mod.derive_scene_packets(session, packet=cp)
     await session.commit()
     rows = (await session.execute(
@@ -160,27 +139,28 @@ async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePac
     return ScenePacketDeriveOut(
         created=counts["created"], updated=counts["updated"],
         blocked=counts["blocked"], stale=counts["stale"],
-        packets=[ScenePacketOut.model_validate(r) for r in rows],
+        packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
     )
 
 
 @router.get("/chapters/{chapter_id}/scene-packets", response_model=list[ScenePacketOut])
-async def list_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> list[ScenePacket]:
+async def list_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> list[ScenePacketOut]:
     rows = (await session.execute(
         select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
     )).scalars().all()
-    return list(rows)
+    return [sp_approval.enrich_scene_packet_out(r) for r in rows]
 
 
 @router.get("/scene-packets/{scene_packet_id}", response_model=ScenePacketOut)
-async def get_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacket:
-    return await _get(session, scene_packet_id)
+async def get_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacketOut:
+    row = await _get(session, scene_packet_id)
+    return sp_approval.enrich_scene_packet_out(row)
 
 
 @router.put("/scene-packets/{scene_packet_id}", response_model=ScenePacketOut)
 async def update_scene_packet(
     scene_packet_id: uuid.UUID, body: ScenePacketUpdateIn, session: SessionDep
-) -> ScenePacket:
+) -> ScenePacketOut:
     """Human edit/adjudication. Editing the body returns an approved packet to `proposed` (re-approval
     required) unless the same call explicitly sets status back to approved."""
     row = await _get(session, scene_packet_id)
@@ -198,7 +178,7 @@ async def update_scene_packet(
             ) from exc
     await session.commit()
     await session.refresh(row)
-    return row
+    return sp_approval.enrich_scene_packet_out(row)
 
 
 @router.post("/scene-packets/{scene_packet_id}/qa", response_model=ScenePacketQaOut)
@@ -213,43 +193,30 @@ async def qa_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> Sc
     result = await qa_mod.qa_scene_packet(
         row.body or {}, chapter_packet_body=cp_body, budget=TokenBudget(max_tokens=20000)
     )
-    if result is None:
-        row.qa_verdict = ScenePacketVerdict.BLOCK_DRAFTING
-        row.qa_warnings = {"residual_risks": [], "blocked_reason": "QA returned no usable verdict"}
-        row.status = ScenePacketStatus.BLOCKED
-        await session.commit()
-        return ScenePacketQaOut(
-            packet_id=row.id, verdict=ScenePacketVerdict.BLOCK_DRAFTING, warnings=row.qa_warnings
-        )
-    row.qa_verdict = result["verdict"]
-    row.qa_warnings = {"residual_risks": result["residual_risks"], "issues": result["issues"]}
-    if result["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
-        row.status = ScenePacketStatus.BLOCKED
+    sp_approval.apply_qa_rerun(row, result)
     await session.commit()
     return ScenePacketQaOut(packet_id=row.id, verdict=str(row.qa_verdict), warnings=row.qa_warnings)
 
 
 @router.post("/scene-packets/{scene_packet_id}/approve", response_model=ScenePacketOut)
-async def approve_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacket:
+async def approve_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacketOut:
     """Approve one ScenePacket, then derive the chapter's beats. Refused when blocked or when QA
     blocks drafting."""
     row = await _get(session, scene_packet_id)
-    if row.status == ScenePacketStatus.BLOCKED:
-        raise HTTPException(status_code=409, detail="scene packet is blocked — re-derive or edit first")
-    if _has_blocking_qa(row):
-        raise HTTPException(status_code=409, detail="scene packet QA blocks drafting — resolve first")
+    if refusal := sp_approval.can_approve(row):
+        raise HTTPException(status_code=409, detail=refusal.detail)
     row.status = ScenePacketStatus.APPROVED
     derived = await beats_mod.derive_beats(session, chapter_id=row.chapter_id)
     await session.commit()
     await session.refresh(row)
     log.info("scene_packet.approved", packet=str(row.id), derived_beats=derived)
-    return row
+    return sp_approval.enrich_scene_packet_out(row)
 
 
 @router.post("/chapters/{chapter_id}/scene-packets/approve", response_model=list[ScenePacketOut])
 async def approve_scene_packets(
     chapter_id: uuid.UUID, session: SessionDep, body: ScenePacketApproveIn | None = None
-) -> list[ScenePacket]:
+) -> list[ScenePacketOut]:
     """Batch approve. Approves only packets that are not blocked and have no blocking QA issues, then
     derives the chapter's beats from the approved set."""
     rows = (await session.execute(
@@ -262,7 +229,7 @@ async def approve_scene_packets(
     for row in rows:
         if selected is not None and row.id not in selected:
             continue
-        if row.status == ScenePacketStatus.BLOCKED or _has_blocking_qa(row):
+        if not sp_approval.is_approvable_for_batch(row):
             continue
         row.status = ScenePacketStatus.APPROVED
         approved += 1
@@ -270,13 +237,13 @@ async def approve_scene_packets(
     await session.commit()
     log.info("scene_packet.batch_approved", chapter=str(chapter_id), approved=approved,
              derived_beats=derived)
-    return list(rows)
+    return [sp_approval.enrich_scene_packet_out(r) for r in rows]
 
 
 @router.post("/chapters/{chapter_id}/scene-packets/mark-stale", response_model=list[ScenePacketOut])
 async def mark_scene_packets_stale(
     chapter_id: uuid.UUID, session: SessionDep, body: ScenePacketApproveIn | None = None
-) -> list[ScenePacket]:
+) -> list[ScenePacketOut]:
     """Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed."""
     rows = (await session.execute(
         select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
@@ -289,4 +256,4 @@ async def mark_scene_packets_stale(
             row.status = ScenePacketStatus.STALE
             row.stale_reason = "manually marked stale"
     await session.commit()
-    return list(rows)
+    return [sp_approval.enrich_scene_packet_out(r) for r in rows]

@@ -195,6 +195,8 @@ class PacketOut(_ORM):
     body: dict[str, Any] = {}
     open_questions: dict[str, Any] | None = None
     created_at: datetime
+    can_approve: bool = False
+    approval_blockers: list[str] = []
 
 
 class PacketUpdateIn(BaseModel):
@@ -234,6 +236,8 @@ class ScenePacketOut(_ORM):
     stale_reason: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
+    can_approve: bool = False
+    approval_blockers: list[str] = []
 
 
 class ScenePacketUpdateIn(BaseModel):

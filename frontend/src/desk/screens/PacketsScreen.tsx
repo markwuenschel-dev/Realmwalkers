@@ -142,11 +142,7 @@ export default function PacketsScreen() {
 
   const openItems = (packet?.open_questions?.items ?? []).filter(Boolean);
   const resolvedItems = packet?.open_questions?.resolved ?? [];
-  const canApprove =
-    !!packet &&
-    packet.status !== "blocked" &&
-    packet.confidence !== "red" &&
-    openItems.length === 0;
+  const canApprove = packet?.can_approve ?? false;
 
   // Resolve a question WITH the human's ruling: drop it from `items`, append it to `resolved` so the
   // adjudication is recorded (not just cleared). Both lists are sent together — the server replaces the
@@ -328,15 +324,9 @@ export default function PacketsScreen() {
                 ? "Approved ✓"
                 : "Approve packet"}
           </button>
-          {!canApprove && packet.status !== "approved" && (
+          {!canApprove && packet.status !== "approved" && packet.approval_blockers.length > 0 && (
             <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
-              {packet.status === "blocked"
-                ? "Blocked — re-propose or edit before approving."
-                : packet.confidence === "red"
-                  ? "Red confidence — resolve before approving."
-                  : openItems.length
-                    ? `Resolve ${openItems.length} open question${openItems.length > 1 ? "s" : ""} to approve.`
-                    : ""}
+              {packet.approval_blockers[0]}
             </span>
           )}
           {packet.status === "approved" && (

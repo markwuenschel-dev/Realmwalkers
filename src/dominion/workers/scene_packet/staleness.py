@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import ChapterPacket, ScenePacket
 from dominion.workers.length import planner as length_planner
-from dominion.workers.scene_packet import derive as derive_mod
 from dominion.workers.scene_packet import hash as hash_mod
+from dominion.workers.scene_packet import inputs as sp_inputs
 
 
 async def recompute_and_mark(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
@@ -43,7 +43,7 @@ async def recompute_and_mark(session: AsyncSession, *, chapter_id: uuid.UUID) ->
             body = cp.body if cp and isinstance(cp.body, dict) else {}
             cp_bodies[sp.chapter_packet_id] = body
             seeds = [s for s in (body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
-            target, cap = derive_mod._chapter_targets(body, seeds)
+            target, cap = sp_inputs.chapter_targets(body, seeds)
             cp_budgets[sp.chapter_packet_id] = length_planner.plan_word_budgets(
                 chapter_target_words=target, chapter_max_words=cap, scene_seeds=seeds,
                 chapter_packet_body=body,
@@ -55,7 +55,7 @@ async def recompute_and_mark(session: AsyncSession, *, chapter_id: uuid.UUID) ->
             None,
         )
         word_budget = cp_budgets[sp.chapter_packet_id].get(str(sp.scene_seed_id), {})
-        prior_keys = await derive_mod._prior_scene_keys(
+        prior_keys = await sp_inputs.prior_scene_keys(
             session, chapter_id=chapter_id, scene_no=sp.scene_no
         )
         current = hash_mod.source_hash(

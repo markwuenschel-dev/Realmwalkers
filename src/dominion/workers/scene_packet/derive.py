@@ -23,21 +23,22 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
-from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict, SceneStatus
-from dominion.shared.models import Chapter, ChapterPacket, LlmCall, Scene, ScenePacket, Summary
+from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict
+from dominion.shared.models import Chapter, ChapterPacket, LlmCall, ScenePacket, Summary
 from dominion.workers import telemetry
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
 from dominion.workers.memory import owner_router, retrieval
 from dominion.workers.scene_packet import author as author_mod
+from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet import author_sections as author_sections_mod
 from dominion.workers.scene_packet import hash as hash_mod
+from dominion.workers.scene_packet import inputs as sp_inputs
 from dominion.workers.scene_packet import qa as qa_mod
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
 
 log = structlog.get_logger()
 
-_DEFAULT_SCENE_TARGET = 1500
 _CANON_K = 6
 
 
@@ -124,37 +125,6 @@ def _as_str_list(value: Any) -> list[str]:
     return [str(v).strip() for v in value if str(v).strip()] if isinstance(value, list) else []
 
 
-def _chapter_targets(body: dict[str, Any], seeds: list[dict[str, Any]]) -> tuple[int, int | None]:
-    """Chapter target + optional hard cap. Prefer an explicit chapter figure, else sum the seeds'
-    own targets, else a per-scene default."""
-    target = body.get("chapter_target_words")
-    if isinstance(target, int) and target > 0:
-        return target, body.get("chapter_max_words") if isinstance(body.get("chapter_max_words"), int) else None
-    seed_targets = [
-        t for s in seeds
-        if isinstance((wb := s.get("word_budget")), dict) and isinstance((t := wb.get("target")), int)
-    ]
-    chapter_target = sum(seed_targets) if seed_targets else _DEFAULT_SCENE_TARGET * len(seeds)
-    return chapter_target, None
-
-
-async def _prior_scene_keys(
-    session: AsyncSession, *, chapter_id: uuid.UUID, scene_no: int
-) -> list[list[Any]]:
-    """Stable keys for the approved scenes before this one — feeds the source hash so a prior-scene
-    change marks downstream packets stale."""
-    rows = (await session.execute(
-        select(Scene.id, Scene.version, Scene.word_count)
-        .where(
-            Scene.chapter_id == chapter_id,
-            Scene.scene_no < scene_no,
-            Scene.status == SceneStatus.APPROVED,
-        )
-        .order_by(Scene.scene_no)
-    )).all()
-    return [[str(sid), ver, wc] for sid, ver, wc in rows]
-
-
 async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str | None:
     return (await session.execute(
         select(Summary.rolling_summary).where(
@@ -170,26 +140,6 @@ async def _pov_summary(session: AsyncSession, *, book_id: uuid.UUID, pov: str) -
         .order_by(Summary.up_to_scene_id.is_(None))
         .limit(1)
     )).scalar_one_or_none()
-
-
-def _status_for(
-    body: dict[str, Any] | None, qa: dict[str, Any] | None, error_detail: str | None = None
-) -> tuple[str, str | None]:
-    """(status, blocked_reason). Fail closed: a thin body or unusable QA blocks the packet; a
-    BLOCK_DRAFTING verdict blocks it; otherwise it lands proposed for the human to approve. When the
-    author/QA call captured a specific cause (truncation, a model error), that is the blocked reason —
-    so the Desk shows the real failure, not a generic 'incomplete body'."""
-    if not valid_scene_packet_body(body):
-        return ScenePacketStatus.BLOCKED, (
-            error_detail or "scene packet author returned an incomplete body"
-        )
-    if qa is None:
-        return ScenePacketStatus.BLOCKED, (
-            error_detail or "scene packet QA returned no usable verdict"
-        )
-    if qa["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
-        return ScenePacketStatus.BLOCKED, "scene packet QA blocked drafting"
-    return ScenePacketStatus.PROPOSED, None
 
 
 async def derive_scene_packets(
@@ -214,7 +164,7 @@ async def derive_scene_packets(
     # surfacing as "QA returned no usable verdict" on scene 1 and "incomplete body" on the rest). A
     # caller that passes an explicit budget keeps the shared semantics (it's bounding the whole run).
     external_budget = budget
-    chapter_target, chapter_max = _chapter_targets(body, seeds)
+    chapter_target, chapter_max = sp_inputs.chapter_targets(body, seeds)
     budgets = length_planner.plan_word_budgets(
         chapter_target_words=chapter_target, chapter_max_words=chapter_max,
         scene_seeds=seeds, chapter_packet_body=body,
@@ -245,7 +195,7 @@ async def derive_scene_packets(
         scene_no = int(seed["scene_no"]) if isinstance(seed.get("scene_no"), int) else 0
         word_budget = budgets.get(str(seed_id), {})
 
-        prior_keys = await _prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
+        prior_keys = await sp_inputs.prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
         src_hash = hash_mod.source_hash(
             chapter_packet_id=packet.id, chapter_packet_body=body, scene_seed=seed,
             chapter_word_budget=word_budget, prior_scene_keys=prior_keys,
@@ -305,7 +255,7 @@ async def derive_scene_packets(
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
     for item, (scene_body, qa, error_detail) in zip(work, results, strict=True):
-        status, blocked_reason = _status_for(scene_body, qa, error_detail)
+        status, blocked_reason = approval_policy.status_after_author_qa(scene_body, qa, error_detail)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         qa_warnings = (
             {"residual_risks": qa["residual_risks"], "issues": qa["issues"]} if qa

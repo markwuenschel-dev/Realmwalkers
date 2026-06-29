@@ -26,6 +26,7 @@ from dominion.shared.models import Chapter, ChapterPacket, Summary
 from dominion.workers import progress
 from dominion.workers.budget import TokenBudget
 from dominion.workers.memory import canon_rag
+from dominion.workers.packet import approval_policy
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
 
@@ -33,25 +34,6 @@ log = structlog.get_logger()
 
 _CANON_K = 16  # the author gets broad canon (scoping protects the writer, not the planner)
 _EXCERPT_CHARS = 240
-_CONF_ORDER = {PacketConfidence.GREEN: 0, PacketConfidence.YELLOW: 1, PacketConfidence.RED: 2}
-_VERDICT_FLOOR = {
-    PacketVerdict.APPROVE: PacketConfidence.GREEN,
-    PacketVerdict.APPROVE_WARN: PacketConfidence.YELLOW,
-    PacketVerdict.REVISE_REQUIRED: PacketConfidence.RED,
-    PacketVerdict.BLOCK_DRAFTING: PacketConfidence.RED,
-}
-
-
-def _worst(a: PacketConfidence, b: PacketConfidence) -> PacketConfidence:
-    return a if _CONF_ORDER[a] >= _CONF_ORDER[b] else b
-
-
-def _as_confidence(value: Any) -> PacketConfidence:
-    try:
-        return PacketConfidence(str(value).strip().lower())
-    except ValueError:
-        return PacketConfidence.YELLOW  # unknown self-assessment -> not green
-
 
 def _valid_packet(packet: dict[str, Any]) -> bool:
     """A usable packet must carry at least one scene seed and a claims list (provenance). Anything
@@ -103,27 +85,6 @@ def _open_questions(packet: dict[str, Any]) -> list[str]:
     return [str(q).strip() for q in oq if str(q).strip()] if isinstance(oq, list) else []
 
 
-def _derive(packet: dict[str, Any], qa: dict[str, Any]) -> tuple[PacketConfidence, PacketStatus]:
-    """Confidence + status from the author's self-assessment and the QA verdict, conservatively.
-    Green requires APPROVE + the author's own green + no open questions + no QA issues (no
-    auto-approve during tuning — even green still needs a human fast-approve)."""
-    verdict: PacketVerdict = qa["verdict"]
-    conf = _worst(_as_confidence(packet.get("confidence")), _VERDICT_FLOOR[verdict])
-    has_flags = bool(_open_questions(packet)) or bool(qa.get("issues"))
-    if conf == PacketConfidence.GREEN and has_flags:
-        conf = PacketConfidence.YELLOW
-    status = PacketStatus.BLOCKED if verdict == PacketVerdict.BLOCK_DRAFTING else PacketStatus.PROPOSED
-    return conf, status
-
-
-async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str | None:
-    return (await session.execute(
-        select(Summary.rolling_summary).where(
-            Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
-        )
-    )).scalar_one_or_none()
-
-
 async def _prior_exit_state(session: AsyncSession, *, book_id: uuid.UUID, chapter_no: int) -> str | None:
     """The previous chapter's approved exit state = this chapter's entry state, if we have it."""
     prior_chapter = (await session.execute(
@@ -140,7 +101,15 @@ async def _prior_exit_state(session: AsyncSession, *, book_id: uuid.UUID, chapte
     return str(body.get("exit_state")) if isinstance(body, dict) and body.get("exit_state") else None
 
 
-async def _latest_approved(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterPacket | None:
+async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str | None:
+    return (await session.execute(
+        select(Summary.rolling_summary).where(
+            Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+        )
+    )).scalar_one_or_none()
+
+
+async def latest_approved(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterPacket | None:
     return (await session.execute(
         select(ChapterPacket)
         .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED)
@@ -182,7 +151,7 @@ async def propose_packet(
     async def fail_closed(reason: str, body: dict[str, Any] | None = None) -> ChapterPacket:
         # A failed (re)propose must never wipe an already-approved packet; otherwise persist a
         # visible blocked packet so the human sees the failure (never silent partial constraints).
-        existing = await _latest_approved(session, chapter.id)
+        existing = await latest_approved(session, chapter.id)
         if existing is not None:
             return existing
         return await _persist(
@@ -242,7 +211,7 @@ async def propose_packet(
     if qa is None:
         return await fail_closed("packet QA returned no usable verdict", body=packet)
 
-    confidence, status = _derive(packet, qa)
+    confidence, status = approval_policy.status_from_qa(packet, qa)
     row = ChapterPacket(
         book_id=book_id,
         chapter_id=chapter.id,
