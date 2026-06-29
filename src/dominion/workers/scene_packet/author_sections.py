@@ -134,18 +134,21 @@ def _inflight_sem() -> asyncio.Semaphore:
     return sem
 
 
-def _section_system(section: _Section) -> str:
-    """The base author rules plus a directive to emit ONLY this section's fields. The `[section:NAME]`
-    marker makes the call identifiable (and lets tests route a fake response per section)."""
+def _section_directive(section: _Section) -> str:
+    """The per-section instruction. It rides in the trailing (uncached) user block, NOT the system
+    prompt, so every one of a scene's section calls shares ONE byte-identical cached prefix (the constant
+    `_SYSTEM` + the shared scene context): the priming call WRITES that prefix once and the rest READ it
+    at 0.1x. When this `[section:NAME]` marker lived in the SYSTEM prompt, each section was a DISTINCT
+    cache prefix (Anthropic caches from the start of the request, system first), so the shared scene
+    context was never read back — every section re-WROTE the full prefix at full budget weight and ~5
+    writes summed past the per-scene ceiling (the 68k>60k blocks). The marker stays in the prompt for
+    identifiability (and test routing), just BELOW the cache breakpoint where it can vary for free."""
     return (
-        f"{_SYSTEM}\n\n[section:{section.name}] Emit ONLY the fields for this section — no other keys, "
-        "no prose, no code fences. Stay consistent with the chapter packet and the scene seed."
+        f"[section:{section.name}] Emit ONLY the fields for this section — no other keys, no prose, "
+        "no code fences. Stay consistent with the chapter packet and the scene seed.\n\n"
+        "Produce ONLY these fields as ONE JSON object (exactly these keys, nothing else):\n"
+        + section.schema_hint
     )
-
-
-def _section_closing(section: _Section) -> str:
-    return ("Produce ONLY these fields as ONE JSON object (exactly these keys, nothing else):\n"
-            + section.schema_hint)
 
 
 def _section_ok(obj: Any, section: _Section) -> bool:
@@ -236,9 +239,11 @@ async def author_scene_packet_sectioned(
     )
 
     async def _run(section: _Section) -> dict[str, Any]:
+        # system is the CONSTANT _SYSTEM (never per-section) — that is what makes the shared prefix below
+        # byte-identical across sections, so the priming call's cache WRITE is actually read back.
         return await _author_section(
-            section, system=_section_system(section), prefix=prefix,
-            user=_section_closing(section), budget=budget,
+            section, system=_SYSTEM, prefix=prefix,
+            user=_section_directive(section), budget=budget,
         )
 
     # Prime the shared-prefix cache before fanning out. Running all sections concurrently means they ALL

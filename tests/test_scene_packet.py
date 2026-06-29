@@ -239,7 +239,17 @@ class _FakeMessages:
 
     async def create(self, *, model, max_tokens, system, messages):
         sys_text = system[0]["text"] if isinstance(system[0], dict) else system[0].text
-        return self._responder(model=model, system_text=sys_text, max_tokens=max_tokens)
+        # The user content is a string (no cached prefix) or a [prefix, trailing] block list. The
+        # sectioned author now carries its per-section directive in the trailing (uncached) user block,
+        # NOT system, so the responder needs the user text to route a fake slice per section.
+        content = messages[0]["content"]
+        if isinstance(content, str):
+            user_text = content
+        else:
+            user_text = "\n".join(b["text"] if isinstance(b, dict) else b.text for b in content)
+        return self._responder(
+            model=model, system_text=sys_text, user_text=user_text, max_tokens=max_tokens
+        )
 
 
 class _FakeClient:
@@ -331,7 +341,7 @@ async def test_derive_persists_per_call_telemetry(db_factory, monkeypatch):
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # monolithic: exactly 1 author call
     body = _scene_body()
 
-    def responder(*, model, system_text, max_tokens):
+    def responder(*, model, system_text, user_text, max_tokens):
         if "QA agent" in system_text:
             return _FakeResp(_qa_ok())
         return _FakeResp(json.dumps(body))
@@ -359,7 +369,7 @@ async def test_derive_blocks_with_specific_truncation_reason(db_factory, monkeyp
 
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # monolithic: primary+fallback = 2 calls
 
-    def responder(*, model, system_text, max_tokens):
+    def responder(*, model, system_text, user_text, max_tokens):
         # Author always cut off mid-object; QA never reached (body never valid).
         return _FakeResp('{"scene_no": 1, "known_before_scene":', stop_reason="max_tokens")
 
@@ -390,7 +400,7 @@ async def test_author_escalates_to_fallback_model_on_bad_primary(db_factory, mon
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # monolithic single-body escalation
     body = _scene_body()
 
-    def responder(*, model, system_text, max_tokens):
+    def responder(*, model, system_text, user_text, max_tokens):
         if "QA agent" in system_text:
             return _FakeResp(_qa_ok())
         if model == settings.scene_packet_author_model:
@@ -426,17 +436,19 @@ def _section_responder(monkeypatch, *, overrides: dict[tuple[str, str], tuple[st
     complete = _complete_scene_body()
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", True)
 
-    def responder(*, model, system_text, max_tokens):
+    def responder(*, model, system_text, user_text, max_tokens):
         if "QA agent" in system_text:
             return _FakeResp(_qa_ok())
+        # The section marker now rides in the trailing user block (kept out of system so every section
+        # shares one cached prefix), so route on user_text.
         for sec in sp_sections._SECTIONS:
-            if f"[section:{sec.name}]" in system_text:
+            if f"[section:{sec.name}]" in user_text:
                 tier = "primary" if model == settings.scene_packet_author_model else "fallback"
                 if (sec.name, tier) in overrides:
                     raw, stop = overrides[(sec.name, tier)]
                     return _FakeResp(raw, stop_reason=stop)
                 return _FakeResp(json.dumps({k: complete[k] for k in sec.keys}))
-        raise AssertionError(f"unrecognized section system prompt: {system_text[:120]}")
+        raise AssertionError(f"unrecognized section user prompt: {user_text[:120]}")
 
     _patch_llm_client(monkeypatch, responder)
 
@@ -466,6 +478,83 @@ async def test_sectioned_author_merges_sections_into_one_packet(db_factory, monk
         authors = [c for c in (await s.execute(select(LlmCall))).scalars() if c.stage == "scene_packet_author"]
         assert len(authors) == len(sp_sections._SECTIONS)
         assert all(c.scene_no == 1 for c in authors)
+
+
+async def test_sectioned_author_shares_one_cached_prefix_so_budget_holds(monkeypatch):
+    """Regression for the 68k>60k scene blocks. Every section call must reuse ONE cached prefix so the
+    priming write is read back at 0.1x. The bug put the `[section:NAME]` marker in the SYSTEM prompt,
+    which made each section a DISTINCT cache key (Anthropic caches from the start of the request, system
+    first) — so the shared scene context was never read, every section re-WROTE the full ~14k prefix at
+    full budget weight, and ~5 writes blew the per-scene ceiling. The earlier fakes hardcoded fixed cache
+    fields per call, so they never modeled this and let the regression through CI.
+
+    This drives the REAL sectioned author with a fake client that models prefix caching faithfully
+    (identical leading system+prefix -> cache_read, otherwise a write) and asserts the primer is the SOLE
+    writer and the per-scene budget stays well under the real 60k ceiling. Under the bug this raises
+    BudgetExceeded (5 full writes ~= 71k), so it fails the moment the marker moves back into system."""
+    import json
+
+    from dominion.workers import llm
+
+    PREFIX = 14_000  # tokens of shared scene context; 5 full writes (~71k) would cross the 60k ceiling
+    writes: list[str] = []
+    seen: set[str] = set()
+    complete = _complete_scene_body()
+
+    class _Usage:
+        def __init__(self, *, creation: int, read: int) -> None:
+            self.input_tokens = 40          # the tiny per-section directive (uncached trailing block)
+            self.output_tokens = 200
+            self.cache_creation_input_tokens = creation
+            self.cache_read_input_tokens = read
+
+    class _Resp:
+        def __init__(self, text: str, usage: _Usage) -> None:
+            self.content = [_FakeBlock(text)]
+            self.usage = usage
+            self.stop_reason = "end_turn"
+
+    class _Messages:
+        async def create(self, *, model, max_tokens, system, messages):
+            sys_text = system[0]["text"]
+            blocks = messages[0]["content"]
+            assert isinstance(blocks, list), "sectioned author must send the shared context as a cached block"
+            prefix_text, trailing = blocks[0]["text"], blocks[1]["text"]
+            # Anthropic matches a cache prefix from the START of the request: system THEN the cached user
+            # block. Model exactly that — an identical (system + prefix) is a READ, a new one is a WRITE.
+            cache_key = sys_text + "\x00" + prefix_text
+            if cache_key in seen:
+                usage = _Usage(creation=0, read=PREFIX)
+            else:
+                seen.add(cache_key)
+                writes.append(cache_key)
+                usage = _Usage(creation=PREFIX, read=0)
+            for sec in sp_sections._SECTIONS:
+                if f"[section:{sec.name}]" in trailing:
+                    return _Resp(json.dumps({k: complete[k] for k in sec.keys}), usage)
+            raise AssertionError(f"no section marker in trailing user block: {trailing[:80]}")
+
+    class _Client:
+        messages = _Messages()
+
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", True)
+    monkeypatch.setattr(llm, "_client", lambda: _Client())
+
+    budget = TokenBudget(max_tokens=settings.scene_token_budget)  # the real 60k ceiling
+    body = await sp_sections.author_scene_packet_sectioned(
+        pov="Marcus",
+        chapter_packet_body={"chapter_job": "x" * 400},
+        scene_seed=_seed(str(uuid.uuid4()), scene_no=1),
+        word_budget={"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400},
+        budget=budget,
+    )
+
+    # the priming section is the ONLY writer; every other section READ the warm cache
+    assert len(writes) == 1, f"expected exactly 1 prefix write (the primer), got {len(writes)}"
+    assert "known_before_scene" in body and body["word_budget"]["target"] == 1500
+    # 1 write + (N-1) reads*0.1x + tiny output — nowhere near the ceiling the bug crossed
+    assert budget.used < settings.scene_token_budget
+    assert budget.used < PREFIX * 2          # < 28k proves reads happened, not 5 full writes (~71k)
 
 
 async def test_sectioned_author_escalates_only_the_failed_section(db_factory, monkeypatch):
