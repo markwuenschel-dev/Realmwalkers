@@ -3531,44 +3531,6 @@
           }
         }
       }
-    },
-    "/{full_path}": {
-      "get": {
-        "summary": "Spa Fallback",
-        "description": "Serve a real static file if it exists; otherwise index.html so client-side routes work.\nRegistered last, so every API route above still takes precedence.",
-        "operationId": "spa_fallback__full_path__get",
-        "parameters": [
-          {
-            "name": "full_path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Full Path"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
