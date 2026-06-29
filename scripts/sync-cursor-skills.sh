@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Copy .agents/skills/ → .cursor/skills/ for Cursor's slash menu.
-# Run locally after pull or skill updates. Do not commit .cursor/skills/ (gitignored).
+# Run locally after pull or skill updates. Do not commit .cursor/skills/.
+# PowerShell 7+: pwsh scripts/sync-cursor-skills.ps1
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 src="$root/.agents/skills"
