@@ -1,10 +1,10 @@
 """Dialogue-rules scoping: general craft is always-on, per-character profiles are scene-scoped."""
 from __future__ import annotations
 
-from dominion.workers.context import (
+from dominion.workers.context.dialogue_rules import (
     _header_names,
-    _load_dialogue_rules,
     _scope_dialogue_rules,
+    load_dialogue_rules,
 )
 
 _DOC = """\
@@ -73,8 +73,8 @@ def test_scope_empty_present_returns_everything():
 
 
 def test_load_dialogue_rules_scopes_the_real_file():
-    full = _load_dialogue_rules([])
-    marcus = _load_dialogue_rules(["Marcus"])
+    full = load_dialogue_rules([])
+    marcus = load_dialogue_rules(["Marcus"])
     assert full is not None and marcus is not None
     # only the POV profile (and Illyri, bound to Marcus) survive
     assert set(_headers(marcus)) == {"Marcus", "Illyristranthe (Illyri)"}
