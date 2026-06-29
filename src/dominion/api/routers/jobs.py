@@ -10,7 +10,6 @@ keeps it safe even if a terminal worker drains concurrently.
 """
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 import structlog
@@ -27,35 +26,10 @@ from dominion.shared.schemas import (
     JobsStatusOut,
     RetryFailedOut,
 )
-from dominion.workers import progress
+from dominion.workers import background_work, progress
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/jobs", tags=["jobs"])
-
-# At most one drain loop per process. FastAPI background tasks share the API event loop, so an
-# asyncio.Lock is the right primitive (no threads involved).
-_drain_lock = asyncio.Lock()
-
-
-async def _drain() -> None:
-    """Draft queued jobs one at a time until the queue empties.
-
-    run_once already persists a failed job as FAILED and logs it; we swallow + keep draining so one
-    bad scene doesn't strand the rest of the chapter. Imported lazily so the API process only loads
-    the LLM stack when it actually drafts (mirrors workers.enqueue)."""
-    if _drain_lock.locked():
-        return
-    async with _drain_lock:
-        from dominion.workers.worker import run_once
-
-        while True:
-            try:
-                did = await run_once()
-            except Exception as exc:  # noqa: BLE001 — already marked FAILED + logged in run_once
-                log.error("draft.drain_error", error=str(exc))
-                did = True  # a FAILED job is no longer QUEUED, so the loop advances
-            if not did:
-                break
 
 
 async def _queue_counts(session: SessionDep, book_id: uuid.UUID | None = None) -> dict[str, int]:
@@ -78,9 +52,9 @@ async def draft_next(
     only scopes the counts we report back so the caller sees its own book's queue."""
     counts = await _queue_counts(session, book_id)
     queued = counts.get(JobStatus.QUEUED, 0)
-    running = _drain_lock.locked()
+    running = background_work.drain_locked()
     if queued and not running:
-        background.add_task(_drain)
+        background.add_task(background_work.drain_queued_jobs)
         running = True
     return DraftNextOut(scheduled=bool(queued) and running, queued=queued, running=running)
 
@@ -112,9 +86,9 @@ async def retry_failed(
 
     counts = await _queue_counts(session, book_id)
     queued = counts.get(JobStatus.QUEUED, 0)
-    running = _drain_lock.locked()
+    running = background_work.drain_locked()
     if queued and not running:
-        background.add_task(_drain)
+        background.add_task(background_work.drain_queued_jobs)
         running = True
     log.info("jobs.retry_failed", book=str(book_id) if book_id else None, requeued=requeued)
     return RetryFailedOut(
@@ -138,7 +112,7 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     )).first()
     running = JobStatus.RUNNING in counts
     if book_id is None:
-        running = running or _drain_lock.locked()
+        running = running or background_work.drain_locked()
     active_scene = None
     if active:
         job_id, chapter_no, scene_no = active

@@ -24,6 +24,7 @@ from dominion.shared.models import (
     Job,
     ScenePacket,
 )
+from dominion.workers import background_work as bw
 from dominion.workers.budget import TokenBudget
 from dominion.workers.context import ScenePacketRequiredError, assemble_context
 from dominion.workers.length import guard as guard_mod
@@ -782,7 +783,27 @@ async def test_derive_endpoint_schedules_background_run(db_factory):
             assert out.running and out.phase == "deriving"
             assert bg.tasks  # a background task was scheduled
         finally:
-            sp_router._inflight.discard(sp_router._derive_key(ch.id))  # don't leak state across tests
+            bw.finish(sp_router._derive_key(ch.id))  # don't leak state across tests
+
+
+async def test_propose_packet_endpoint_schedules_background_run(db_factory):
+    from fastapi import BackgroundTasks
+
+    from dominion.api.routers import packets as packets_router
+
+    async with db_factory() as s:
+        _book, ch = await _seed_book_chapter(s)
+        await s.commit()
+        bg = BackgroundTasks()
+        key = str(ch.id)
+        out = await packets_router.propose_packet(ch.id, bg, s)
+        try:
+            assert out.running and out.phase == "authoring"
+            assert bg.tasks
+            out2 = await packets_router.propose_packet(ch.id, bg, s)
+            assert out2.running
+        finally:
+            bw.finish(key)
 
 
 # --- knowledge ledger -----------------------------------------------------------------------------

@@ -35,6 +35,7 @@ from dominion.shared.schemas import (
     ThreadIn,
     ThreadUpdateIn,
 )
+from dominion.workers import background_work as bw
 from dominion.workers.memory import canon_rag
 from dominion.workers.oracle import Oracle
 
@@ -49,7 +50,7 @@ async def test_drain_runs_until_queue_empty(monkeypatch):
         return calls["n"] < 3  # two drafted, then empty
 
     monkeypatch.setattr("dominion.workers.worker.run_once", fake_run_once)
-    await jobs_router._drain()
+    await bw.drain_queued_jobs()
     assert calls["n"] == 3
 
 
@@ -64,7 +65,7 @@ async def test_drain_keeps_going_after_a_failed_job(monkeypatch):
         return calls["n"] < 3
 
     monkeypatch.setattr("dominion.workers.worker.run_once", flaky_run_once)
-    await jobs_router._drain()
+    await bw.drain_queued_jobs()
     assert calls["n"] == 3  # error didn't strand the rest
 
 
@@ -77,11 +78,11 @@ async def test_drain_is_single_flight(monkeypatch):
         return False
 
     monkeypatch.setattr("dominion.workers.worker.run_once", fake_run_once)
-    await jobs_router._drain_lock.acquire()
+    await bw._drain_lock.acquire()
     try:
-        await jobs_router._drain()
+        await bw.drain_queued_jobs()
     finally:
-        jobs_router._drain_lock.release()
+        bw._drain_lock.release()
     assert called["v"] is False
 
 

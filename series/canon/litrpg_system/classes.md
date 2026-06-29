@@ -11,7 +11,7 @@ status: canon
 > **Rarity ladder:** Common → Uncommon → Rare → Exceptional → Legendary → Mythic → Unique. **Rarer classes cost more XP _and_ more energy per level** (see `core_rules.md` → The Class System / Class Tiers).
 > **Classes are earned through behavior, not selected.** The Realm recognizes what someone repeatedly becomes.
 > **Attribute model:** Classes do not grant bonus attribute-point cadence. They define Prime/Core attribute multipliers that shape how efficiently relevant attributes express through that class.
-> **Cast quick-ref:** Marcus = Mage → **Riftwalker** (Legendary); Serra = **Warrior** → **Worldbreaker** (Legendary-lane; Book-2 direction); Seb = Warrior → **Reaver** (specialization, broker grants it *early*); Mara = **Psion** (Rare) → **Arbiter** *(placeholder specialization; Book-2 direction; rename likely because of Marcus's Arbiter Aspect)*; Mathias = **Scout** → **Emissary** *(specialization; Book-2 direction)*; Brent = **Warden** → **Reckoner** *(specialization; Book-2 direction)*.
+> **Cast quick-ref:** Marcus = Mage → **Realmwalker** (Legendary); Serra = **Warrior** → **Worldbreaker** (Mythic; Book-2 direction); Seb = Warrior → **Reaver** (specialization, broker grants it *early*); Mara = **Psion** (Rare) → **Arbiter** *(placeholder specialization; Book-2 direction; rename likely because of Marcus's Arbiter Aspect)*; Mathias = **Scout** → **Emissary** *(specialization; Book-2 direction)*; Brent = **Warden** → **Reckoner** *(specialization; Book-2 direction)*.
 
 ---
 
@@ -48,7 +48,7 @@ Class taxonomy does not own the whole power system. A full Realm build resolves 
 - **Domain** is the power-source/expression category.
 - **Items** are external tools, artifacts, Uniques, and relics.
 
-A class and an interface can align, conflict, or partially overlap, but they are not the same layer. Serra's **Warrior** class and **Pressure-Severance Interface** both point forward, but Warrior is the Realm's method-label while Pressure-Severance is her personal substrate architecture. Marcus's **Riftwalker** class is not the same thing as his Neurochromatic Eyes or the Eyes of Meszkhal.
+A class and an interface can align, conflict, or partially overlap, but they are not the same layer. Serra's **Warrior** class and **Pressure-Severance Interface** both point forward, but Warrior is the Realm's method-label while Pressure-Severance is her personal substrate architecture. Marcus's **Realmwalker** class is not the same thing as his Neurochromatic Eyes or the Eyes of Meszkhal.
 
 
 ### Class Attribute Multiplier Firewall
@@ -111,7 +111,7 @@ Therefore:
 
 - Serra's Aetherfall assassin role helps explain her disruption instincts, but it does not grant Rogue/Assassin abilities in the Realm.
 - Brent's Aetherfall healer/support role does not make him a Realm Healer. His Realm direction is **Warden → Reckoner**.
-- Marcus's Aetherfall Aspect role shapes his tactical thinking, but his Realm class path is **Mage → Riftwalker**.
+- Marcus's Aetherfall Aspect role shapes his tactical thinking, but his Realm class path is **Mage → Realmwalker**.
 
 ### Spell Mastery Firewall
 
@@ -179,217 +179,148 @@ These profiles define default attribute resonance for base classes. They are tun
 
 ## Common Class Profiles
 
-| Base Class | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape |
-|---|---|---|---|---|
-| **Warrior** | STR, CON, END | AGI, DEX, WIS | CHA | Direct combat durability, weapon pressure, staying power |
-| **Rogue** | DEX, AGI | INT, WIS, END | STR, LUCK | Exploitation, burst movement, weak-point timing |
-| **Mage** | INT, WIS | CHA, DEX, END | CON | Spellcasting capacity, control, structured manipulation |
-| **Hunter** | DEX, WIS, END | AGI, STR, INT | CON | Tracking, pursuit, ranged lethality, survival pressure |
-| **Scout** | AGI, END, WIS | DEX, INT, CON | LUCK | Movement, routes, threat-reading, sustained traversal |
-| **Healer** | WIS, INT | CHA, CON, DEX | FAI | Restoration, stabilization, diagnosis, controlled repair |
-| **Priest** | WIS, CHA, FAI | INT, CON | OCC | Invocation, rites, sacred law, vow pressure |
-| **Artisan** | DEX, INT | STR, WIS, END | CHA | Skilled creation, craft control, material execution |
-| **Merchant** | CHA, INT, WIS | LUCK, DEX | END | Exchange, appraisal, leverage, logistics |
-| **Performer** | CHA, DEX | AGI, WIS, INT | LUCK | Attention, rhythm, presence, social/magical performance |
-| **Laborer** | STR, END, CON | DEX, AGI | WIS | Physical work, endurance, practical force |
-| **Scribe** | INT, DEX | WIS, CHA | END | Records, writing, symbols, administrative precision |
-| **Fighter** | STR, CON, END | AGI, DEX | WIS | Practical combat fundamentals, grit, basic weapons |
-| **Adventurer** | END, WIS, LUCK | STR, AGI, DEX, CON, INT | CHA | Flexible survival and mixed-skill adaptation |
+| Base Class      | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                        |
+| --------------- | ---------------- | --------------- | -------------------- | ------------------------------------------------------------------------------ |
+| **Warrior**     | STR, END         | CON, AGI, DEX   | WIS, CVN             | Stamina-heavy direct confrontation; force, endurance, weapons, commitment.     |
+| **Fighter**     | STR, CON         | END, DEX        | AGI, WIS             | Practical combat fundamentals; grit, weapons, brawling, survival.              |
+| **Rogue**       | DEX, AGI         | WIS, INT        | END, MYS             | Precision, misdirection, weak-point exploitation, concealed movement.          |
+| **Mage**        | INT, WIS         | MYS, CHA        | DEX, END             | Mana-heavy supernatural manipulation through knowledge and shaped intent.      |
+| **Hunter**      | WIS, DEX         | AGI, END        | STR, INT             | Tracking, pursuit, targeting, terrain use, kill-window recognition.            |
+| **Scout**       | AGI, WIS         | END, DEX        | INT, CON             | Movement, pathfinding, reconnaissance, escape, route discovery.                |
+| **Healer**      | WIS, INT         | CHA, CVN        | DEX, END             | Repair, stabilization, restoration, triage, body-system support.               |
+| **Artisan**     | DEX, INT         | END, WIS        | STR, MYS             | Skilled creation, refinement, material understanding, durable output.          |
+| **Merchant**    | CHA, INT         | WIS, DEX        | LCK, CVN             | Exchange, appraisal, leverage, contracts, logistics, value-flow.               |
+| **Performer**   | CHA, DEX         | AGI, WIS        | INT, MYS             | Influence through rhythm, attention, emotion, presence, audience state.        |
+| **Laborer**     | END, STR         | CON, DEX        | WIS, CVN             | Work capacity, hauling, building, mining, farming, repetitive force.           |
+| **Scribe**      | INT, DEX         | WIS, MYS        | CHA, END             | Records, copying, translation, indexing, symbol discipline.                    |
+| **Adventurer**  | END, WIS         | STR, AGI, INT   | DEX, CON, LCK        | Flexible survival, delving, mixed-skill adaptation, practical problem-solving. |
+| **Envoy**       | CHA, WIS         | INT, CVN        | DEX, MYS             | Negotiation, access, representation, de-escalation, faction crossing.          |
+| **Beastkeeper** | WIS, CHA         | END, CON        | DEX, CVN             | Animal partnership, care, training, command through relationship.              |
+| **Mariner**     | END, WIS         | DEX, STR        | AGI, INT             | Ships, tides, weather, sea survival, crew rhythm.                              |
+| **Cultivator**  | WIS, END         | CON, MYS        | INT, DEX             | Growth, land, crops, ecosystems, husbandry, long-cycle improvement.            |
+| **Sentinel**    | WIS, CON         | END, DEX        | STR, CVN             | Vigilance, holding watch, alarm, positional endurance.                         |
+| **Cook**        | DEX, WIS         | END, INT        | CHA, MYS             | Nourishment, preparation, preservation, morale, body-state support.            |
+| **Caretaker**   | WIS, CHA         | CON, END        | CVN, DEX             | Care, maintenance, shelter, recovery, vulnerable-person protection.            |
+| **Courier**     | AGI, END         | WIS, DEX        | CON, LCK             | Speed, delivery, route memory, evasion, endurance movement.                    |
+| **Rider**       | AGI, WIS         | END, CHA        | STR, DEX             | Mounted movement, beast coordination, speed, balance, mobility.                |
+
 
 ## Uncommon Class Profiles
 
-| Base Class | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape |
-|---|---|---|---|---|
-| **Summoner** | CHA, WIS, INT | FAI, OCC, END | DEX | Calling, binding, command, borrowed agency |
-| **Monk** | END, WIS, CON | STR, AGI, DEX | FAI | Internal cultivation, body-soul discipline |
-| **Artificer** | INT, DEX, WIS | END, STR, CHA | Runic/domain-dependent | Magical engineering, devices, imbued tools |
-| **Alchemist** | INT, WIS, DEX | CON, OCC, END | CHA | Transformation through substances, reactions, mutagens |
-| **Scholar** | INT, WIS | DEX, CHA, END | LUCK | Knowledge, analysis, theory, records |
-| **Commander** | CHA, WIS, INT | END, STR, CON | LUCK | Coordination, morale, strategy, authority |
-| **Warden** | CON, WIS, END | STR, CHA, FAI | INT | Protection of places, people, laws, borders, systems |
-| **Tamer** | CHA, WIS, END | CON, DEX, FAI | STR | Partnership with beasts, monsters, mounts |
-| **Navigator** | WIS, INT, END | AGI, DEX, LUCK | CHA | Routes, travel, orientation, stars, currents |
-| **Diplomat** | CHA, WIS, INT | DEX, LUCK, END | FAI | Negotiation, status, treaties, social leverage |
+| Base Class       | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                        |
+| ---------------- | ---------------- | --------------- | -------------------- | ------------------------------------------------------------------------------ |
+| **Priest**       | CVN, CHA         | WIS, MYS        | INT, END             | Invocation, rites, sacred law, purification, vow mediation.                    |
+| **Warden**       | CON, WIS         | END, CVN        | STR, CHA             | Boundaries, protection, containment, structural integrity, transferred cost.   |
+| **Summoner**     | CHA, MYS         | WIS, INT        | CVN, END             | Calling, binding, command, borrowed agency, externalized force.                |
+| **Commander**    | CHA, WIS         | INT, CVN        | END, STR             | Coordination, morale, role assignment, timing, collective action.              |
+| **Tactician**    | INT, WIS         | DEX, CHA        | AGI, MYS             | Positioning, timing, formation logic, engagement structure.                    |
+| **Alchemist**    | INT, DEX         | WIS, MYS        | END, LCK             | Reaction control, distillation, potions, toxins, catalysts.                    |
+| **Artificer**    | INT, DEX         | MYS, WIS        | END, STR             | Magical mechanisms, constructs, devices, engines, repeatable systems.          |
+| **Investigator** | INT, WIS         | DEX, CHA        | MYS, END             | Evidence reconstruction, questioning, pattern linkage, hidden-cause discovery. |
+| **Judge**        | WIS, CVN         | INT, CHA        | MYS, END             | Verdict, consequence, arbitration, lawful settlement, authority pressure.      |
+| **Scholar**      | INT, WIS         | MYS, DEX        | CHA, END             | Study, interpretation, theory, preservation, deep-system comprehension.        |
+| **Mystic**       | WIS, MYS         | CVN, CHA        | INT, END             | Inner revelation, hidden experience, altered awareness, unseen law.            |
+| **Duelist**      | DEX, AGI         | WIS, STR        | END, CHA             | Single-opponent timing, counters, precision pressure, combat rhythm.           |
+| **Keeper**       | WIS, CVN         | CON, INT        | CHA, END             | Preservation, custody, continuity, archives, inherited duties.                 |
+| **Architect**    | INT, WIS         | DEX, CVN        | END, STR             | Structures, cities, fortifications, spatial systems, durable design.           |
+| **Gambler**      | LCK, WIS         | DEX, CHA        | MYS, INT             | Risk, wagers, bluffing, uncertainty exploitation, probability pressure.        |
+
 
 ## Rare Class Profiles
 
-| Base Class | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape |
-|---|---|---|---|---|
-| **Ritualist** | WIS, INT, FAI/OCC | CHA, END, DEX | CON | Preparation, circles, sacrifice, ceremony, scale |
-| **Binder** | CHA, WIS, INT | FAI, OCC, DEX | END | Contracts, seals, names, oaths, containment |
-| **Mystic** | WIS, CHA | INT, FAI, OCC | END | Intuition, altered perception, inner revelation |
-| **Oracle** | WIS, FAI, INT | CHA, LUCK, END | OCC | Prophecy, omens, causal insight |
-| **Shaper** | WIS, INT, CON | DEX, STR, OCC | CHA | Reshaping body, matter, form, environment |
-| **Psion** | WIS, CHA, INT | DEX, END, OCC | CON | Mind, will, pressure, perception, force of intent |
-| **Namekeeper** | INT, WIS, CHA | FAI, OCC, DEX | END | Names, identity, binding, recognition, essence |
-| **Soulkeeper** | WIS, FAI, CHA | OCC, INT, CON | END | Souls, ghosts, afterlife, continuity of self |
+| Base Class     | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                |
+| -------------- | ---------------- | --------------- | -------------------- | ---------------------------------------------------------------------- |
+| **Psion**      | WIS, MYS         | INT, CHA        | DEX, END             | Mind, will, perception, attention, pressure, intent.                   |
+| **Oracle**     | WIS, MYS         | CVN, INT        | CHA, LCK             | Omens, prophecy, causal sensitivity, fate-pressure, uncertain futures. |
+| **Binder**     | CVN, MYS         | INT, CHA        | WIS, DEX             | Contracts, seals, restraints, containment, oath-structures.            |
+| **Namekeeper** | MYS, CVN         | WIS, INT        | CHA, DEX             | Names, recognition, essence, addressability, identity continuity.      |
+| **Soulkeeper** | MYS, WIS         | CVN, CHA        | INT, END             | Souls, ghosts, afterlife thresholds, continuity of self.               |
+| **Shaper**     | MYS, INT         | WIS, DEX        | STR, END             | Body, matter, form, environment reshaping, structural alteration.      |
+| **Votary**     | CVN, END         | CHA, WIS        | CON, MYS             | Self-binding, vows, devotion, sacrifice-fueled endurance.              |
+| **Medium**     | MYS, CHA         | WIS, CVN        | INT, CON             | Spirits, echoes, possession-risk, ghost contact, unseen presences.     |
+| **Seer**       | WIS, MYS         | INT, LCK        | CVN, CHA             | Hidden truths, distant sight, pattern glimpses, incomplete revelation. |
+
+## Exceptional Classes
+
+| Base Class       | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                     |
+| ---------------- | ---------------- | --------------- | -------------------- | --------------------------------------------------------------------------- |
+| **Arbiter**      | WIS, CVN         | INT, CHA        | MYS, END             | Binding judgment, dispute finality, consequence allocation.                 |
+| **Inquisitor**   | WIS, CVN         | INT, DEX        | CHA, MYS             | Truth extraction, corruption detection, pursuit of hidden violation.        |
+| **Thaumaturge**  | INT, MYS         | WIS, CHA        | DEX, END             | Advanced magical method; miracles through technical supernatural precision. |
+| **Runewright**   | INT, DEX         | MYS, WIS        | END, CVN             | Written power, runes, arrays, durable magical instruction.                  |
+| **Exorcist**     | CVN, WIS         | MYS, CHA        | END, INT             | Expulsion, possession resistance, spiritual severance, cleansing rites.     |
+| **Oathbearer**   | CVN, END         | CHA, WIS        | CON, STR             | Power through sworn burdens, promise-weight, personal binding.              |
+| **Dreamwalker**  | MYS, WIS         | CHA, INT        | CVN, LCK             | Dreams, inner landscapes, sleeping minds, symbolic passage.                 |
+| **Void-Touched** | MYS, CON         | WIS, CVN        | INT, END             | Survival against absence, emptiness, null pressure, impossible spaces.      |
+
+## Legendary Classes
+
+| Base Class       | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                             |
+| ---------------- | ---------------- | --------------- | -------------------- | ----------------------------------------------------------------------------------- |
+| **Realmwalker**   | MYS, WIS         | INT, END        | AGI, CVN             | Planar crossing, distance rupture, boundary traversal, world-pathing.               |
+| **Worldbreaker** | STR, CVN         | END, CON        | WIS, MYS             | Catastrophic commitment, severance, pressure, breaking false structures.            |
+| **Archmage**     | INT, MYS         | WIS, CHA        | DEX, END             | Master-scale spell architecture, deep theory, high-order casting.                   |
+| **Saint**        | CVN, CHA         | WIS, MYS        | END, INT             | Sacred authority, miracle-bearing, spiritual gravity, devotion made manifest.       |
+| **Dreadnought**  | CON, END         | STR, CVN        | WIS, MYS             | Immovable endurance, battlefield anchoring, catastrophic punishment tolerance.      |
+| **Dragonrider**  | CHA, WIS         | END, STR        | AGI, CVN             | Apex beast-bond, aerial command, shared will, high-risk mobility.                   |
+| **Gravemaster**  | MYS, WIS         | CVN, INT        | CHA, END             | Death-continuity, grave authority, ancestor/ghost command without cheap necromancy. |
+| **Star-Singer**  | CHA, MYS         | WIS, CVN        | INT, END             | Celestial resonance, song-as-law, harmonic authority over distance and omen.        |
+
+
+## Mythic Classes
+
+| Base Class       | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                                                                  |
+| ---------------- | ---------------- | --------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Aetherist**    | MYS, WIS         | INT, CVN        | CHA, END             | Aether synthesis, foundational elemental harmony, substrate-level manipulation.                                          |
+| **Fatewright**   | LCK, MYS         | WIS, CVN        | INT, CHA             | Probability-flow shaping, fate pressure, entropy cost, uncertain-outcome control.                                        |
+| **Name-Eater**   | MYS, CVN         | WIS, CHA        | INT, CON             | Devouring addressability, erasure pressure, identity predation.                                                          |
+| **Incarnate**    | CVN, MYS         | CON, CHA        | WIS, END             | Embodiment of a principle rather than ordinary technique.                                                                |
+| **Worldroot**    | WIS, CON         | MYS, END        | CVN, CHA             | Ecological anchoring, land-body continuity, place-scale vitality.                                                        |
+| **Chronarch**    | MYS, INT         | WIS, CVN        | END, LCK             | Time authority, sequence pressure, causality burden, temporal rulership.                                                 |
+| **Worldbreaker** | CVN, STR         | END, WIS        | CON, MYS             | Severance-at-scale; breaks impossible opposition, imposed structures, false continuity, and pressure-stabilized systems. |
+
+
+## Unique Classes
+
+| Base Class                    | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                                                                   |
+| ----------------------------- | ---------------- | --------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **First Wound of Heaven**     | CVN, MYS         | WIS, CHA        | END, INT             | A living breach in celestial authority; power emerges from the first successful injury dealt to a divine/celestial order. |
+| **Last Door of the Dead**     | MYS, CVN         | WIS, CON        | INT, CHA             | One-of-one death-threshold class; governs a singular passage no other soul can open, close, or survive.                   |
+| **The Unnamed King**          | MYS, CHA         | CVN, WIS        | INT, CON             | Authority without addressability; rulership that cannot be cleanly invoked, bound, inherited, or erased.                  |
+| **Grief-Engine Saint**        | CVN, END         | WIS, MYS        | CHA, CON             | Converts irrecoverable loss into miracle-pressure; holy not because pure, but because the wound keeps producing force.    |
+| **Crown of the Broken World** | CVN, MYS         | CON, WIS        | CHA, END             | Recognized when a person becomes the stabilizing sovereign-symbol of a reality fracture.                                  |
+| **The Seventh Silence**       | MYS, WIS         | INT, CVN        | DEX, CHA             | A silence-class tied to truths that cannot be spoken without changing the world-state.                                    |
+| **Godsbane Witness**          | WIS, MYS         | CVN, INT        | CON, LCK             | Survives seeing a god, divine law, or cosmic authority fail; perception becomes a permanent wound in certainty.           |
+| **The Unreturning Path**      | MYS, END         | WIS, AGI        | CVN, INT             | A traversal class born from crossing a route that should only be crossed once and cannot be retraced.                     |
+| **Ashes of the First Flame**  | CVN, END         | STR, MYS        | WIS, CON             | One-of-one inheritor of an origin-fire after its extinction; power from what no longer exists.                            |
+| **The Hollow Sun**            | MYS, CON         | WIS, CVN        | INT, CHA             | Radiance turned inward; authority through absence, null light, and impossible containment.                                |
+| **The Mercy That Refused**    | CVN, WIS         | CHA, MYS        | END, INT             | A contradiction-class born when mercy refuses the ordained outcome and survives divine/cosmic correction.                 |
+| **The Name Beneath Names**    | MYS, CVN         | WIS, INT        | CHA, CON             | Identity-root class; touches the substrate beneath true names, addressability, vows, and self-continuity.                 |
+
+
 
 ### Cast Path Notes
 
 | Character | Path | Attribute emphasis |
 |---|---|---|
-| Marcus | Mage → Riftwalker | Mage begins INT/WIS/CHA; Riftwalker later adds Planar movement pressure, likely WIS/INT/END plus Planar-specific cost rules. |
+| Marcus | Mage → Realmwalker | Mage begins INT/WIS/CHA; Realmwalker later adds Planar movement pressure, likely WIS/INT/END plus Planar-specific cost rules. |
 | Serra | Warrior → Worldbreaker | Warrior STR/CON/END, with Worldbreaker likely promoting WIS or FAI/OCC-equivalent commitment/severance pressure once defined. |
 | Seb | Warrior → Reaver | Warrior base with Reaver bending END/CON/STR toward consumption, blood, pain, momentum, and dangerous overextension. |
 | Mara | Psion → Arbiter placeholder | Psion WIS/CHA/INT, with Mirror-Salience interface separate from class. |
 | Mathias | Scout → Emissary | Scout AGI/END/WIS, Emissary likely promotes CHA/INT for first-contact and diplomacy. |
 | Brent | Warden → Reckoner | Warden CON/WIS/END, Reckoner likely promotes INT/CHA for cost/accountability recognition. |
 
-
-# Base Class List
-
-Current normal base-class ecosystem: **32 normal base classes** across Common, Uncommon, and Rare.
-
-## Common Base Classes
-
-| Base Class | Core Method | Example Specializations | Domain-Shaped Examples |
-|---|---|---|---|
-| **Warrior** | Direct confrontation, weapons, endurance | Soldier, Knight, Champion, Guardian, Berserker, Reaver, Duelist, Vanguard, Juggernaut | Death Knight, Flame Champion, Force Juggernaut, Shadow Reaver |
-| **Rogue** | Exploitation, precision, misdirection | Thief, Assassin, Spy, Saboteur, Infiltrator, Trickster, Poisoner, Acrobat | Shadow Assassin, Voidknife, Psychic Spy, Runic Saboteur |
-| **Mage** | Direct spellcasting and supernatural manipulation | Arcanist, Elementalist, Evoker, Warder, Hexer, Illusionist, Battlemage, Spellweaver | Pyromancer, Chronomancer, Void Mage, Force Evoker, Lightweaver |
-| **Hunter** | Tracking, pursuit, survival, targeting | Ranger, Archer, Trapper, Monster Hunter, Sniper, Stalker, Bounty Hunter | Grave Hunter, Shadow Stalker, Celestial Marksman, Planar Pursuer |
-| **Scout** | Movement, discovery, pathfinding, reconnaissance | Pathfinder, Explorer, Outrider, Wayfarer, Cartographer, Courier, Trailblazer | Windrunner, Planar Wayfarer, Time-Lost Scout, Shadow Scout |
-| **Healer** | Repair, restoration, stabilization | Medic, Mender, Surgeon, Herbalist, Lifewarden, Boneknitter, Plague Doctor | Life Mender, Water Healer, Blood Surgeon, Spirit Healer |
-| **Priest** | Invocation, devotion, sacred law, rites | Cleric, Exorcist, Confessor, Shrinekeeper, Inquisitor, Funerary Priest | Celestial Cleric, Light Inquisitor, Death Priest, Spirit Exorcist |
-| **Artisan** | Skilled physical creation | Smith, Mason, Carpenter, Weaver, Tailor, Chef, Jeweler, Architect | Flame Smith, Earth Mason, Lightglass Artisan, Shadow Tailor |
-| **Merchant** | Exchange, logistics, leverage | Trader, Broker, Fence, Quartermaster, Appraiser, Caravan Master, Relic Dealer | Shadow Broker, Death-Tithe Collector, Planar Trader, Fate Broker |
-| **Performer** | Influence through art, story, rhythm, attention | Bard, Dancer, Actor, Storyteller, Herald, Muse, Satirist, Glamourist | Shadow Dancer, Death Dirgesinger, Light Bard, Dream Muse |
-| **Laborer** | Physical work, endurance, practical force | Porter, Miner, Farmer, Builder, Dockhand, Teamster, Hauler | Earth Miner, Flame Kilnworker, Force Hauler, Life Farmer |
-| **Scribe** | Recording, copying, administration, written systems | Clerk, Copyist, Notary, Recordkeeper, Translator, Indexer | Runic Scribe, Light Notary, Shadow Archivist, Spirit Recordkeeper |
-| **Fighter** | Practical combat, grit, basic weapons; winning through fundamentals rather than refined doctrine | Scrapper, Sellsword, Pit Fighter, Guard, Militiaman, Freeblade, Bruiser, Shieldhand, Spearman, Bladehand | Flame Scrapper, Stone Shieldhand, Shadow Sellsword, Light Militiaman, Force Bruiser |
-| **Adventurer** | Flexible problem-solving, survival, exploration, mixed-skill adaptation | Delver, Quest-Taker, Dungeon Runner, Relic Seeker, Wanderer, Troubleshooter, Ruin Explorer, Expeditionary, Freeblade, Survivalist | Flame Delver, Shadow Wanderer, Planar Expeditionary, Death-Touched Ruin Seeker, Lightbound Quest-Taker |
-
-These are the civilization layer. They make the world feel populated instead of only built around adventurers.
-
----
-
-## Uncommon Base Classes
-
-| Base Class | Core Method | Example Specializations | Domain-Shaped Examples |
-|---|---|---|---|
-| **Summoner** | Calling, binding, commanding, borrowing agency | Beast Caller, Spirit Binder, Elemental Caller, Golem Caller, Swarmkeeper, Familiar Sage, Gate Caller | Grave Binder, Celestial Summoner, Eldritch Caller, Planar Invoker |
-| **Monk** | Internal cultivation, discipline, body-soul mastery | Martial Adept, Soul Fist, Iron Body, Ascetic, Breath Master, Temple Guardian | Flame Fist, Void Palm, Force Fist, Light Palm |
-| **Artificer** | Magical engineering, devices, imbued tools | Enchanter, Runesmith, Golemwright, Mechanist, Relic Maker, Wardwright, Clockworker | Runic Engineer, Planar Architect, Force Mechanist, Aetherwright |
-| **Alchemist** | Transformation through substances and reactions | Brewer, Toxicologist, Transmuter, Mutagenist, Bombardier, Elixirist, Apothecary | Blood Alchemist, Chaos Mutagenist, Death Toxicologist, Void Distiller |
-| **Scholar** | Knowledge, analysis, theory, records | Archivist, Historian, Runologist, Monster Scholar, Linguist, Lorekeeper, Theorist | Planar Theorist, Eldritch Scholar, Aether Theorist, Light Archivist |
-| **Commander** | Coordination, morale, strategy, authority | Captain, Marshal, Tactician, Banneret, Drillmaster, Field Commander | Celestial Marshal, Psychic Strategist, Shadow General, Flame Commander |
-| **Warden** | Protection of places, borders, peoples, laws | Sentinel, Guardian, Grove Warden, Oathwarden, Boundary Keeper, Jailor | Planar Gatekeeper, Deathwarden, Light Sentinel, Void Jailor |
-| **Tamer** | Partnership with beasts, monsters, mounts | Beastmaster, Monster Tamer, Falconer, Drake Rider, Packleader, Chimera Handler | Life Beastmaster, Flame Drake Rider, Shadow Houndmaster, Spirit Beastspeaker |
-| **Navigator** | Routes, travel, orientation, stars, currents | Sailor, Star-Reader, Cartographer, Pilot, Caravan Guide, Astral Navigator | Planar Navigator, Celestial Starfinder, Wind Sailor, Time-Lost Navigator |
-| **Diplomat** | Negotiation, status, treaties, social leverage | Envoy, Mediator, Ambassador, Courtier, Hostage-Speaker, Peacebinder | Light Envoy, Shadow Courtier, Psychic Mediator, Celestial Ambassador |
-
-These are still common enough to be known, but they require more structure, training, institution, exposure, or unusual aptitude.
-
----
-
-## Rare Base Classes
-
-| Base Class | Core Method | Example Specializations | Domain-Shaped Examples |
-|---|---|---|---|
-| **Ritualist** | Preparation, circles, sacrifice, ceremony, large-scale magic | Circle Mage, Blood Ritualist, Gate Ritualist, Weather Caller, Cursewright, Funeral Adept | Runic Circle-Mage, Planar Gatewright, Blood Ritekeeper, Void Funeralist |
-| **Binder** | Contracts, seals, names, oaths, containment | Pactbinder, Seal Master, Chain Mage, Oathwright, Namebinder, Spirit Binder | Runic Sealkeeper, Eldritch Binder, Light Oathwright, Planar Sealkeeper |
-| **Mystic** | Intuition, altered perception, inner revelation | Seer, Dreamwalker, Trance Adept, Visionary, Empath, Void Listener | Psychic Seer, Shadow Dreamwalker, Spirit Mystic, Time Visionary |
-| **Oracle** | Prophecy, omens, divine/causal insight | Doomseer, Star Reader, Bone Oracle, Truthspeaker, Omen Keeper, Battle Oracle | Time Oracle, Celestial Starseer, Death Doomseer, Light Truthspeaker |
-| **Shaper** | Reshaping body, matter, form, environment | Flesh Shaper, Stone Shaper, Biomancer, Warper, Transmuter, Formwright | Blood Sculptor, Chaos Mutator, Force Shaper, Life Shaper |
-| **Psion** | Mind, will, pressure, perception, force of intent | Telekinetic, Telepath, Mindblade, Empath, Memory Thief, Thought-Warden | Psychic Mindblade, Force Adept, Shadow Telepath, Light Mindseer |
-| **Namekeeper** | Names, identity, binding, recognition, essence | Name Scholar, True-Namer, Namebinder, Herald, Identity Warden | Runic Namekeeper, Spirit Namer, Eldritch Name-Thief, Light Truthnamer |
-| **Soulkeeper** | Souls, ghosts, afterlife, continuity of self | Medium, Psychopomp, Soul Warden, Ancestor Speaker, Grave Listener | Spirit Soulkeeper, Death Psychopomp, Light Soulwarden, Void Exorcist |
-
-Rare classes are culturally significant. Villages may have Warriors, Mages, Healers, Artisans, Scribes, and Laborers. A kingdom may only have a handful of true Binders, Oracles, Psions, Namekeepers, or Soulkeepers.
-
----
-
-# Classes Moved Out of the Base List
-
-These are useful concepts, but they should not be normal base classes.
-
-| Former Base | New Category | Why |
-|---|---|---|
-| **Riftwalker** | Legendary Planar title/class evolution | Too advanced and too specific for a normal base class. Marcus's Book-1 Legendary upgrade; distinct from the Realm Walkers faction. |
-| **Aetherist** | Legendary/Mythic Aether title | Aether is synthesis, not a normal method or ordinary domain. |
-| **Incarnate** | Mythic/Unique state | Embodiment of a principle, not a profession/class method. |
-| **Archmage** | Legendary Mage evolution | High mastery title, not a starting method. |
-| **Saint** | Exceptional/Legendary Priest/Healer/Mystic evolution | Too spiritually elevated for a base class. |
-| **Fateweaver** | Legendary Time/Celestial/Shadow title | Depends on derived higher-order magic. |
-| **Worldspeaker** | Legendary/Mythic title | Reality-scale authority. |
-
-This keeps the base-class ecosystem cleaner while preserving the “oh damn” outcomes.
-
----
-
-# Back-Pocket Legendary / Mythic / Unique Options
-
-This is where advanced titles, one-off states, and world-recognized evolutions live without breaking the base-class table.
-
-## Legendary Options
-
-| Title | Likely Built From | Concept |
-|---|---|---|
-| **Riftwalker** | Scout/Mage/Warden/Summoner + Planar | Crosses planes, worlds, or distant points without fixed gates. **Marcus's Book-1 Legendary upgrade** — the class, distinct from the **Realm Walkers** faction that recruits him. |
-| **Archmage** | Mage + high mastery | A mage whose spellcraft becomes institution-level power. |
-| **Aetherwright** | Artificer + Aether synthesis | Crafts devices using synthesized eightfold power. |
-| **Aetherblade** | Warrior + Aether synthesis | Weapon master channeling harmonized foundational magic. |
-| **Worldspeaker** | Scholar/Mystic/Priest + Spirit/Planar/Aether synthesis | Speaks to places, worlds, or reality-structures. |
-| **Fateweaver** | Oracle/Mystic + Time/Celestial/Shadow | Reads and alters probability, consequence, or destiny. |
-| **Void Saint** | Priest/Mystic + Void/Light | A holy figure who purifies through emptiness, revelation, or renunciation. |
-| **Force Knight** | Warrior + Force | Armored fighter who controls pressure, weight, impact, and vector expression. |
-| **Eldritch Savant** | Scholar/Mage + Eldritch | Understands alien principles without fully breaking. |
-| **Star Marshal** | Commander + Celestial | Leads through heavenly mandate, omens, and cosmic authority. |
-| **Gatewarden Prime** | Warden + Planar | Guardian of major interplanar thresholds. |
-| **Dragonbound Sovereign** | Tamer/Summoner/Commander + Life/Fire/Spirit | Bonded to a dragon-level entity and recognized as a force of history. |
-| **Worldbreaker** | Warrior + severance/Force | **Warrior Legendary-lane evolved form** for Serra's Book-2 direction. Breaks impossible opposition through severance-at-scale; parallel-not-copy to **Riftwalker**. Folds precise Severance Pulse into overwhelming frontline force; not a generic bruiser. |
-
----
-
-## Mythic Options
-
-| Title | Likely Built From | Concept |
-|---|---|---|
-| **Aetherist** | Any base + Aether synthesis | Someone who can consciously wield harmonized foundational magic. |
-| **Eightfold Vessel** | Any base + Aether synthesis | Body/soul capable of containing all eight foundational domains in harmony. |
-| **Origin Sage** | Scholar/Mystic + Aether synthesis/Time/Celestial | Understands pre-system or creation-level principles. |
-| **Voidborn** | Any base + Void exposure | A person who survived contact with unbeing and came back changed. |
-| **Eldritch Vessel** | Any base + Eldritch | A living conduit for alien law or outer intelligence. |
-| **Time-Lost King** | Commander/Oracle + Time | A ruler displaced across eras, remembered before they appear. |
-| **Soul Ark** | Healer/Priest/Soulkeeper + Spirit/Death/Light | Carries or preserves multitudes of souls. |
-| **Worldseed Bearer** | Warden/Shaper/Mystic + Life/Planar/Aether synthesis | Contains the seed of a future realm or pocket world. |
-| **Entropy Saint** | Priest/Mystic + Entropy/Death/Time/Void | Sacred figure of endings, decay, release, and terminal transformation. |
-| **Unwritten Oracle** | Oracle + Time/Shadow/Eldritch | Sees futures that technically should not exist. |
-| **Lawbreaker Monk** | Monk + Force/Time/Void | Internal cultivation has broken a physical law. |
-| **Name-Eater** | Binder/Namekeeper + Shadow/Eldritch/Void | Consumes names, identities, and remembered existence. |
-
----
-
-## Unique Options
-
-These should be one-of-one, usually tied to artifacts, interfaces, gods, breaches, or world-events.
-
-| Unique Title | Concept |
-|---|---|
-| **The First Aetherist** | First known person to harmonize the eight foundational domains. |
-| **The Last Death** | A Death Incarnate whose existence changes how mortality works. |
-| **The Gate Without a World** | A person who became a living planar threshold. |
-| **The Unnamed King** | A ruler erased from history but still obeyed by oaths. |
-| **The Eighth Witness** | Someone who remembers every version of a changed timeline. |
-| **The Hollow Sun** | Celestial/Void contradiction embodied in one person. |
-| **The Living Grimoire** | A person whose body/soul became a spellbook or magical archive. |
-| **The Boundary That Walks** | A Warden/Planar anomaly who defines where worlds begin and end. |
-| **The Star Beneath the Grave** | Death + Celestial paradox; a dead star, saint, or monarch given form. |
-| **The Aether Scar** | Someone wounded by Aether synthesis and permanently leaking impossible power. |
-| **The One Who Was Not Summoned** | A being/person who entered the Realm without any valid gate, ritual, or cause. |
-| **The Silence After Names** | A Void/Namekeeper entity who erases identity at the conceptual level. |
-
 ---
 
 # Cast-Linked Specializations
 
-Specializations / evolved directions tied to the main cast. **Book-2 trajectory unless noted** — planted in Book 1, not unlocked in it. Marcus's **Riftwalker** and Seb's **Reaver** are the two that *are* Book-1 unlocks; see their files.
+Specializations / evolved directions tied to the main cast. **Book-2 trajectory unless noted** — planted in Book 1, not unlocked in it. Marcus's **Realmwalker** and Seb's **Reaver** are the two that *are* Book-1 unlocks; see their files.
 
 | Spec | Base → | Concept | Cast |
 |---|---|---|---|
 | **Reaver** | Warrior specialization | Consumes advantage, pain, blood, lives, momentum, or enemy collapse to keep pushing past normal limits. Broker grants it early to Seb, bending his leadership-under-desperation into dangerous self/other consumption. | Seb |
 | **Reckoner** | Warden specialization | Accounts for **cost / consequence / debt / transferred risk**; makes the bill visible and **forces it answered**. Not “tank” — responsibility over what must not fail, with a hard edge that names who benefits from harm being hard to see. | Brent |
-| **Worldbreaker** | Warrior → Legendary lane | Breaks the impossible opposition; **severance-at-scale**; parallel to **Riftwalker**. Folds precise Severance Pulse into overwhelming frontline force, not a generic bruiser. Also appears in Legendary Options above. | Serra |
+| **Worldbreaker** | Warrior → Mythic lane | Breaks the impossible opposition; **severance-at-scale**; parallel to **Realmwalker**. Folds precise Severance Pulse into overwhelming frontline force, not a generic bruiser. Also appears in Mythic Options above. | Serra |
 | **Emissary** | Scout specialization | **Contact / diplomacy / first-contact**; opens doors socially, politically, culturally where others trigger rejection. Class spec only — unrelated to Mathias's Enteric Lattice interface, which is unchanged. | Mathias |
 | **Arbiter** *(placeholder; rename on lock)* | Psion specialization | Determines **which interpretation survives the room**; Mindblade-like combat expression: psychic cutting, severing mental bindings, precision execution. Name is a placeholder because it collides with Marcus's Mage **Arbiter Aspect** (`mc.md`, Book-1 canon, kept as-is). | Mara |
 
@@ -411,7 +342,7 @@ Specializations refine that method. A Warrior may become a Knight, Champion, Ber
 
 Domains are separate from classes. Death applied to a Warrior may produce a Death Knight. Death applied to a Mage may produce a Necromancer or Bone Mage. Death applied to a Priest may produce a Funerary Priest or Grave Saint. Death applied to a Summoner may produce a Grave Binder or Necromantic Caller. The domain is the same, but the method changes the final expression.
 
-Likewise, similar fantasy archetypes should not automatically occupy the same system layer. A Death Knight is not a base class because it already implies a martial method, a Death domain expression, and a developed identity. It is better understood as an evolved title: Warrior plus Knight, Champion, Guardian, or Reaver, shaped by Death. A Riftwalker is not a base class either; it is a Legendary Planar title reached through mastery of gates, boundaries, worlds, or dimensional travel. An Incarnate is not a class at all, but a mythic or unique state in which a person embodies a principle rather than merely using it.
+Likewise, similar fantasy archetypes should not automatically occupy the same system layer. A Death Knight is not a base class because it already implies a martial method, a Death domain expression, and a developed identity. It is better understood as an evolved title: Warrior plus Knight, Champion, Guardian, or Reaver, shaped by Death. A Realmwalker is not a base class either; it is a Legendary Planar title reached through mastery of gates, boundaries, worlds, or dimensional travel. An Incarnate is not a class at all, but a mythic or unique state in which a person embodies a principle rather than merely using it.
 
 Rarity measures availability, not raw strength. A Common Warrior can become far more dangerous than a Rare novice Oracle. Common means widely repeatable. Uncommon means regularly seen but requiring more specialized aptitude, training, or circumstance. Rare means dependent on unusual talent, institutions, rituals, or exposure. Exceptional means known but noteworthy; many people may never meet one. Legendary belongs to historical figures and world-shaping masters. Mythic belongs to disputed or barely understood beings. Unique belongs to one-of-one outcomes that cannot normally be duplicated.
 
@@ -461,5 +392,42 @@ Artificer + Runesmith + Aether synthesis = Aetherwright.
 Priest + Exorcist + Celestial = Celestial Exorcist.  
 Mystic + Seer + Void = Void Listener.  
 Scholar + Theorist + Eldritch = Eldritch Scholar.
+
+---
+
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{class}} = (\mathrm{classRole},\ \mathrm{allowedPowers},\ \mathrm{skillSynergy},\ \mathrm{progressionThreshold},\ \mathrm{classConstraint},\ \mathrm{probabilityAccess})
+$$
+
+### LCK in Class Profiles
+
+**LCK** in class attribute profiles is a passive Fortune-coupling coefficient for class resonance — not a standalone Luck system and not a resource weight. Canonical Luck → `luck_fortune.md`; Interface projection → `interface_abstraction.md`.
+
+### Luck-Adjacent Classes
+
+Some classes explicitly manipulate uncertainty through features defined in `power_expression.md`:
+
+| Class | Luck interaction |
+|---|---|
+| **Fatewright** | Active probability-flow shaping; entropy cost; $u_{\mathrm{active},X}$ |
+| **Gambler** | Uncertainty exploitation, wagers, probability pressure |
+| **Oracle** | Omen/prophecy read of uncertain futures; amplitude layer may apply |
+| **Seer**, **Dreamwalker** | Marginal revelation branches; not omniscience |
+
+### Reachability Constraints
+
+Luck cannot make every class a luck class, bypass class identity, override class constraints, or convert ordinary class skill into probability manipulation without explicit feature support.
+
+Most classes do not directly manipulate Luck; they remain subject to subsystem adapters (combat, craft, etc.) when uncertainty remains.
+
+### Notes
+
+Class features that force probability incur entropy/control cost per `luck_fortune.md`. Do not duplicate canonical equations here.
 
 The Realm's class system should feel vast, but not arbitrary. It should allow thousands of possible outcomes while preserving understandable logic. A person is not assigned a class because a menu says so. The Realm recognizes what they repeatedly become.

@@ -24,7 +24,7 @@ status: active
 | Age | TBD |
 | Origin | Self-made; ordinary warm-family background, no connections or shortcuts |
 | Guild Role (Earth) | Disruptor-Assassin; tandem with Mara Valeria |
-| Realm Class | Warrior (base, Book 1) → Worldbreaker (Legendary-lane evolved direction; Book 2) |
+| Realm Class | Warrior (base, Book 1) → Worldbreaker (Mythic evolved direction; Book 2) |
 | Realm Role | Disruptor / Severance Pulse Interface user / Intermittent — comes and goes |
 | Power Interface | Severance Pulse Interface |
 | Current Location | Separates from Marcus; solo arc in progress |
@@ -532,7 +532,7 @@ The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra make
 
 ### Class Direction — Worldbreaker (Book 2)
 
-**Warrior** (base, Book 1) → **Worldbreaker** (Legendary-lane evolved direction; **Book 2**). Worldbreaker is the *severance-at-scale* expression of Severance Pulse — it "breaks the impossible opposition," a parallel-not-copy to Marcus's Riftwalker ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
+**Warrior** (base, Book 1) → **Worldbreaker** (Mythic evolved direction; **Book 2**). Worldbreaker is the *severance-at-scale* expression of Severance Pulse — it "breaks the impossible opposition," a parallel-not-copy to Marcus's **Realmwalker** ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
 
 ---
 

@@ -50,6 +50,72 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{combat}} = (\mathrm{aimError},\ \mathrm{timingError},\ \mathrm{defenderMotion},\ \mathrm{guardAngle},\ \mathrm{weaponPath},\ \mathrm{penetrationAngle},\ \mathrm{woundDepth},\ \mathrm{organProximity},\ \mathrm{footingStability},\ \mathrm{reactionWindow})
+$$
+
+The local possibility state tracks where an attack lands, how deep it goes, and whether marginal timing or geometry resolves favorably.
+
+### Baseline Drift
+
+Without Luck, outcomes evolve according to attacker skill, speed, weapon path, Strength, technique; defender guard, movement, armor, awareness; terrain, visibility, fatigue, and injury.
+
+$$
+b_{\mathrm{combat}}(z,t) \text{ pushes toward skill-weighted expected trajectories.}
+$$
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through chaotic body motion, marginal timing, partial visibility, unstable footing, weapon deflection, armor glance angles, reaction delay, and battlefield interference.
+
+High uncertainty means Luck has more leverage. Low uncertainty means Luck has less leverage.
+
+### Favorability Function
+
+$$
+U_{\mathrm{combat}}(z)
+$$
+
+In this subsystem, favorable outcomes depend on **whose perspective is measured** — graze instead of deep wound for the defender; clean opening instead of bind for the attacker. Define $U_{\mathrm{combat}}$ per side before applying Fortune or Misfortune.
+
+### Luck Interaction
+
+Fortune biases trajectories toward favorable reachable combat states for the favored side. Misfortune biases toward harmful reachable states. Volatility increases spread — miraculous saves and absurd catastrophes from the same instability.
+
+A practical local drift expression:
+
+$$
+u_{L,\mathrm{combat}} = \lambda_L R_{\mathrm{combat}}(z,t)\,\nabla U_{\mathrm{combat}}(z,t)
+$$
+
+### Reachability Constraints
+
+Luck can affect graze vs clean hit, wound path, organ proximity, footing slip, marginal parry angle, timing window, critical severity, stray projectile placement, and whether chaotic melee creates a favorable opening.
+
+Luck cannot negate a clean deterministic strike, make an unblocked lethal blow vanish, replace skill/positioning/armor/speed/awareness, override an overwhelming power gap with no plausible branch, or turn a missed attack into a hit if no physical path exists.
+
+Plain rule: Luck can bias reachable outcomes. It cannot select outcomes with no causal path.
+
+### Result Classifier
+
+$$
+\mathrm{Result}_{\mathrm{combat}} = \mathrm{Classify}_{\mathrm{combat}}(z_{\mathrm{final}})
+$$
+
+Examples: clean miss, near miss, graze, shallow wound, deep wound, disabling wound, organ-threatening wound, lethal wound, armor deflection, weapon bind, footing failure, timing advantage.
+
+### Notes
+
+Luck should not replace combat skill, training, armor, speed, awareness, or enemy agency. It biases uncertainty around those factors.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

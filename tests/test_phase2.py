@@ -31,6 +31,7 @@ from dominion.shared.models import (
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
 from dominion.workers import enqueue, llm, worker
 from dominion.workers.budget import Usage
+from dominion.workers.job_scheduler import schedule_next_after_approval
 from dominion.workers.memory import canon_rag, ledger, summaries
 from dominion.workers.specialists import drafter as drafter_mod
 from tests.conftest import seed_scene_packet
@@ -160,8 +161,8 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
 
     async with db_factory() as s:  # auto-advance is idempotent
         sc1 = (await s.execute(select(Scene).where(Scene.scene_no == 1))).scalars().first()
-        await reviews._auto_advance(s, sc1)
-        await reviews._auto_advance(s, sc1)
+        await schedule_next_after_approval(s, sc1)
+        await schedule_next_after_approval(s, sc1)
         await s.commit()
         jobs = (await s.execute(
             select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)

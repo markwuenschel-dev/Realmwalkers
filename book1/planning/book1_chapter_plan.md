@@ -88,7 +88,7 @@ status: working
 
 ## ACT 3 — THE FALSE RESCUE (Days ~3–23) · *Marcus + Serra* · **DRAFTING FRONTIER STARTS HERE**
 
-> **Act-3 power state (load-bearing for every scene):** Marcus — Eyes **Stage 1 (Limbal Shift)**, perception-only/accurate, *not* a combat tool; Meszkhal *item* dormant as a weapon (thematic only — the confident whisper his model can't justify); Realm class a **general Mage** (no Riftwalker, no weapon, no training); recently dead, **no combat buffer**; wins come from reading, not force. Serra — resourcefulness-acquired blade; **Warrior fundamentals latent, Severance Pulse not yet active**; more capable than Marcus in a fight but not powerful. Iron Vultures — 20–50 scavengers, good-not-heroic, unattached to any major power, won't fight sanctioned ops without incentive.
+> **Act-3 power state (load-bearing for every scene):** Marcus — Eyes **Stage 1 (Limbal Shift)**, perception-only/accurate, *not* a combat tool; Meszkhal *item* dormant as a weapon (thematic only — the confident whisper his model can't justify); Realm class a **general Mage** (no Realmwalker, no weapon, no training); recently dead, **no combat buffer**; wins come from reading, not force. Serra — resourcefulness-acquired blade; **Warrior fundamentals latent, Severance Pulse not yet active**; more capable than Marcus in a fight but not powerful. Iron Vultures — 20–50 scavengers, good-not-heroic, unattached to any major power, won't fight sanctioned ops without incentive.
 >
 > **Pass-1 anchor gaps (decide before drafting the scene maps below):** 6A.1 / 7.1 — two *distinct* solo-landing terrains (Serra vs. Marcus, so the openings don't blur) · 8.1 — the reunion staging/sightline · 9.1 — caravan composition/route · 9.2 — the charter inspectors' specific leverage · 12.1 — Maera Vell's roadhouse sensory (it carries the trap) · interlude anchors (Seb's camp / Mara's court / Mathias's ruins) — launch-only, one scene each. *[anchor TBD]* items in the maps are gaps canon doesn't fill yet — decide, don't invent.
 
@@ -284,9 +284,9 @@ status: working
 
 **Ch 26–28 — The Myrmidon** · Ensemble · Days ~98–104 · 🔴 **finale choreography pending**
 - **Function:** the invasion; the six ignite together; the kill that nearly costs Marcus; everyone survives.
-- **Beats:** the dormant portal is **forced open by a Nightbound agent** (controlled breach-test), swarm beyond; **one Myrmidon comes through** and nearly beats all six; **shared interface ignition** (Serra's pressure builds; Seb cycling Reaver/Pyric Blood; **Brent's Piezoelectric Bones exposes the Myrmidon's structural keystone**; Marcus's eyes turn on); **the kill** — Marcus holds an opening at lethal risk; **Serra lands it but misses the depth and brushes off his danger** — he barely survives; his eyes read her **conflict**; the **Meszkhal item lies** ("doubling down"); he reads her right and doesn't blame her; **Mathias badly injured proving his warning — he lives; so does Brent; all six survive** (the operation's "others don't make it" = captives, not the six); a **Realm Walker, drawn by the breach, witnesses the fight** (Riftwalker recruitment seed).
+- **Beats:** the dormant portal is **forced open by a Nightbound agent** (controlled breach-test), swarm beyond; **one Myrmidon comes through** and nearly beats all six; **shared interface ignition** (Serra's pressure builds; Seb cycling Reaver/Pyric Blood; **Brent's Piezoelectric Bones exposes the Myrmidon's structural keystone**; Marcus's eyes turn on); **the kill** — Marcus holds an opening at lethal risk; **Serra lands it but misses the depth and brushes off his danger** — he barely survives; his eyes read her **conflict**; the **Meszkhal item lies** ("doubling down"); he reads her right and doesn't blame her; **Mathias badly injured proving his warning — he lives; so does Brent; all six survive** (the operation's "others don't make it" = captives, not the six); a **Realm Walker, drawn by the breach, witnesses the fight** (Realmwalker recruitment seed).
 - **Scenes:** The invasion `[ensemble]`.
-- **Pays:** WF-005 (invasion) · BR-02 (keystone read pays) · SP-012/CH-004 (item lies, he reads past it) · CH-010 (Mathias) · Riftwalker seed.
+- **Pays:** WF-005 (invasion) · BR-02 (keystone read pays) · SP-012/CH-004 (item lies, he reads past it) · CH-010 (Mathias) · Realmwalker seed.
 - **End state:** Myrmidon down; six bloodied but alive; Realm Walker has seen Marcus.
 - **Gate:** 🔴 **TWO blockers — the real work of the back half:**
   1. **W-05 — who/what forces the portal open / summons the Myrmidon** (an agent? the Xyloryn? the convergence destabilizing?). The inciting mechanism; nothing downstream stages cleanly without it.
@@ -302,8 +302,8 @@ status: working
 - **Function:** the emotional climax; the bridge to Book 2.
 - **Beats:** Marcus **names the Earth Thing**; **Serra severs the thread to free him** (**cost-breaks her one rule (R-5)** — the rule holds in letter; holding it finally breaks *her*); being seen + the faction she still must hunt + the unresolved party night send her off; ending image — *they can find each other again, but belonging together is no longer guaranteed*; Marcus turns toward the interface and **away from the lying item** (B2 bridge).
 - **Scenes:** The severance `[M]+[S]`.
-- **Pays:** CH-019 (the space) · SP-012 (turns from the item) · Riftwalker recruitment seed (→ B2).
-- **End state:** pair parted but findable; Marcus pointed at Riftwalker/B2.
+- **Pays:** CH-019 (the space) · SP-012 (turns from the item) · Realmwalker recruitment seed (→ B2).
+- **End state:** pair parted but findable; Marcus pointed at Realmwalker/B2.
 - **Gate:** ⚠ **Decide the felt mechanic of the severance** — how Severance Pulse reads *emotionally* when she turns it on the one bond she values. The beat is canon; its execution is the most important thing in the book to over-develop. Draftable only after the finale (Ch 26–28) is staged.
 
 ---

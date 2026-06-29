@@ -29,7 +29,7 @@ status: active
 | Realm Role | Protagonist / Ocular Interface user / Eriadne anchor / claims a ruin-fringe foothold *(settlement-building → Book 2)* |
 | Power Interface | Neurochromatic Eyes (interface — *perception*, accurate) |
 | Key Item | Eyes of Meszkhal — **Unique item** (Xazzidiuk's gift; *interpretation*/false-certainty + copycat & +100% skill-XP; SEPARATE from the interface) |
-| Realm Class | Mage (general) → **Riftwalker** (Legendary — planar-crossing), late Book 1 |
+| Realm Class | Mage (general) → **Realmwalker** (Legendary — planar-crossing), late Book 1 |
 | Current Location | En route to or arriving at Eriadne |
 | Current Allegiance | None yet — forming |
 
@@ -627,13 +627,13 @@ The contrast with Serra: she runs a single-form assassin — maximum commitment,
 
 ---
 
-## Realm Class — Mage → Riftwalker (Legendary)
+## Realm Class — Mage → Realmwalker (Legendary)
 
 **Current (Book 1):** Marcus's Realm class resolves to a **general Mage** — earned through behavior, knowing/perception-leaning rather than a blaster. *(The old "Veilwalker" design — Sightwalker / Voidwalker / Runeblood / Lorewalker specs and Marcus-exclusive transformation bursts — is **retired**.)*
 
-**The upgrade (late Book 1):** his class upgrades to **Riftwalker** (Legendary; `classes.md`) — the planar-crossing class, *distinct from* the **Realm Walkers** cosmic collective that recruits him (`cosmology.md`). His emergent perception flags him to the Walkers, and **an actual Walker comes and recruits him directly, late in Book 1.**
+**The upgrade (late Book 1):** his class upgrades to **Realmwalker** (Legendary; `classes.md`) — the planar-crossing **class** (one word), *distinct from* **the Realm Walkers** / **Realm Walkers** cosmic collective that recruits him (faction, two words; `cosmology.md`). His emergent perception flags him to the Walkers, and **an actual Walker comes and recruits him directly, late in Book 1.**
 
-**The catch — too powerful for his level.** Riftwalker is **Legendary-tier**: far more XP per level than a common class, and its marquee ability — walking between planes, worlds, or distant points in the Realm — demands enormous energy. At ~level 20 Marcus **cannot afford it.** The upgrade reads as getting *screwed*, not chosen: handed the keys to something he can't drive, on a class that now levels slower than everyone else's. Owning a power he can't use is the engine of his progression into Book 2. (Mechanics: `core_rules.md`, Class Tiers. Faction: the **Realm Walkers**, `cosmology.md`.) The Meszkhal item's false-certainty is the **Endless Reach**'s pull — Chaos as *desire*, not madness — the forbidden path he has to refuse.
+**The catch — too powerful for his level.** **Realmwalker** is **Legendary-tier**: far more XP per level than a common class, and its marquee ability — walking between planes, worlds, or distant points in the Realm — demands enormous energy. At ~level 20 Marcus **cannot afford it.** The upgrade reads as getting *screwed*, not chosen: handed the keys to something he can't drive, on a class that now levels slower than everyone else's. Owning a power he can't use is the engine of his progression into Book 2. (Mechanics: `core_rules.md`, Class Tiers. Faction: **the Realm Walkers** / **Realm Walkers**, `cosmology.md`.) The Meszkhal item's false-certainty is the **Endless Reach**'s pull — Chaos as *desire*, not madness — the forbidden path he has to refuse.
 
 ---
 

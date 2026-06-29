@@ -50,6 +50,50 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{base}} = (\mathrm{structuralIntegrity},\ \mathrm{maintenanceState},\ \mathrm{laborCoordination},\ \mathrm{supplyAvailability},\ \mathrm{wardStability},\ \mathrm{hazardExposure},\ \mathrm{failureRisk},\ \mathrm{repairQueue})
+$$
+
+### Baseline Drift
+
+Without Luck, infrastructure follows construction quality, maintenance, load, and supply availability.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through hidden defects, deferred maintenance, hazard timing, and cascade alignment.
+
+### Favorability Function
+
+$$
+U_{\mathrm{base}}(z)
+$$
+
+Favorable outcomes mean detected flaws, delayed failure, lucky saves before crisis, or repairs finishing in time.
+
+### Luck Interaction
+
+Fortune may bias whether weak components fail now or later, whether maintenance catches a flaw, or whether small failures fail to cascade. Misfortune does the reverse. Volatility widens infrastructure tail risk.
+
+### Reachability Constraints
+
+Luck cannot make poor construction safe forever, replace material quality or maintenance, erase structural load, or prevent deterministic collapse under impossible stress.
+
+### Result Classifier
+
+Examples: stable operation, minor fault, detected flaw, hidden flaw, delayed failure, cascading failure, lucky save, infrastructure breakdown.
+
+### Notes
+
+Luck biases failure timing and cascade branches; it does not replace engineering.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

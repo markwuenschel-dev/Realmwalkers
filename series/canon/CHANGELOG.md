@@ -2,6 +2,18 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-29 — Luck/Fortune subsystem adapter pass
+
+- **New canonical owner:** `litrpg_system/luck_fortune.md` (probability-flow SSOT).
+- **Routing:** `core_rules.md`, `mechanics.md`, `system_taxonomy.md`, `canon_index.md` wired.
+- **Adapters:** Luck/Fortune Adapter sections added across all litrpg subsystem owner files.
+- **LCK reconciliation:** Interface-visible LCK = compressed passive Fortune projection; does not feed resource max formulas.
+
+## 2026-06-29 — Realmwalker + Worldbreaker Mythic pass
+
+- Marcus Realm class **Riftwalker → Realmwalker** (Legendary tier unchanged); strengthened class ≠ Realm Walkers faction LOCK lines.
+- Serra **Worldbreaker** promoted from Legendary-lane to **Mythic** (Book-2 direction); moved in `classes.md` from Legendary Options to Mythic Options.
+
 ## 2026-06-29 — Corrected Cohort pass (Book 2 architecture)
 
 - **New owner:** `continuity/corrected_cohort.md` + `continuity/_COHORT_TEMPLATE.md`

@@ -57,7 +57,7 @@ A character can have high current HP and still suffer an injury condition that r
 | INT | Intelligence |
 | WIS | Wisdom |
 | CHA | Charisma |
-| LUCK | Luck |
+| LUCK | Luck — Interface projection of passive Fortune coupling; **does not feed resource max formulas** (see `luck_fortune.md`, `interface_abstraction.md`) |
 | FAI | Faith |
 | OCC | Occult |
 
@@ -137,7 +137,7 @@ Baseline human with all visible and hidden attributes at 5, before class multipl
 | Stamina | 50 |
 | Reserve | 40 |
 
-Luck feeds no base pool. It tilts unresolved margins and never makes impossible outcomes happen.
+Luck feeds no base pool. It tilts unresolved margins and never makes impossible outcomes happen. Canonical model → `luck_fortune.md`.
 
 ---
 
@@ -760,3 +760,65 @@ Detailed profiles live in `classes.md`. This snapshot exists only for resource-f
 - Marcus is situational/middle in Book 1, not the strongest general fighter.
 - Mathias is not a brawler and remains weakest direct combatant.
 - Finale Xyloryn threat is a Myrmidon, not a drone.
+
+---
+
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+**General resource uncertainty:**
+
+$$
+z_{\mathrm{resource}} = (\mathrm{currentHP},\ \mathrm{currentMana},\ \mathrm{currentStamina},\ \mathrm{currentReserve},\ \mathrm{deficitLoad},\ \mathrm{regenStability},\ \mathrm{crashRisk},\ \mathrm{recoveryMargin})
+$$
+
+**Reserve backlash (primary Luck interaction):**
+
+$$
+z_{\mathrm{reserve}} = (\mathrm{strainLoad},\ \mathrm{organStress},\ \mathrm{manaDeficit},\ \mathrm{staminaDeficit},\ \mathrm{interfaceCoherence},\ \mathrm{soulShear},\ \mathrm{recoveryMargin})
+$$
+
+### Baseline Drift
+
+Without Luck, resource trajectories follow depletion, regen, overchannel strain, and crash physics defined elsewhere in this file.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through marginal crash timing, recovery complications, overchannel side effects, and failure-severity branches when strain approaches multiple basins.
+
+### Favorability Function
+
+$$
+U_{\mathrm{resource}}(z),\quad U_{\mathrm{reserve}}(z)
+$$
+
+Favorable outcomes mean less catastrophic plausible failure modes, cleaner collapse, or fewer recovery tail events — not higher maximum pools.
+
+### Luck Interaction
+
+Fortune may bias a Reserve crash toward less catastrophic reachable failure modes, reduce the chance an uncertain injury complication worsens, shift a marginal mana crash toward clean collapse instead of backlash, or help recovery avoid a bad tail event. Misfortune does the reverse. Volatility widens crash and recovery spread.
+
+$$
+u_{L,\mathrm{resource}} = \lambda_L R_{\mathrm{resource}}(z,t)\,\nabla U_{\mathrm{resource}}(z,t)
+$$
+
+### Reachability Constraints
+
+Luck can bias crash basin selection and recovery complication branches where uncertainty remains.
+
+Luck cannot create extra Reserve, erase resource debt, prevent deterministic collapse when no margin remains, turn reckless overuse into free power, or increase HP/Mana/Stamina/Reserve maximums.
+
+### Result Classifier
+
+$$
+\mathrm{Result}_{\mathrm{reserve}} = \mathrm{Classify}_{\mathrm{reserve}}(z_{\mathrm{final}})
+$$
+
+Examples: mild crash, blackout, organ strain, interface failure, temporary Reserve damage, permanent Reserve damage, soul strain.
+
+### Notes
+
+Luck does not enter resource max formulas. LCK is not a ResourceWeight. Reserve backlash is the most important resource-side Luck interaction.

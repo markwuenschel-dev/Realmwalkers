@@ -50,6 +50,68 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{interface}} = (\mathrm{displayResolution},\ \mathrm{diagnosticAccess},\ \mathrm{hiddenVariableExposure},\ \mathrm{probabilityReadClarity},\ \mathrm{corruption},\ \mathrm{userComprehension})
+$$
+
+The local possibility state tracks what the Interface shows, hides, rounds, misreads, or compresses about probability and Fortune effects.
+
+### LCK as Interface Projection
+
+**LCK** on the Interface is a scalar projection of ambient/passive Fortune coupling — for display and class-resonance tuning. It is **not** the canonical Luck model and does **not** feed HP/Mana/Stamina/Reserve maximums. Canonical definition → `luck_fortune.md`.
+
+Do not present LCK as `+2% crit chance` unless using an intentionally simplified Interface projection clearly labeled as such.
+
+### Baseline Drift
+
+Without Luck-specific Interface features, readouts compress continuous reality into categories, bars, and messages.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through diagnostic limits, corruption, user comprehension, and whether probability deviations are detectable at all.
+
+### Favorability Function
+
+$$
+U_{\mathrm{interface}}(z)
+$$
+
+Favorable Interface states mean clearer diagnostics, visible cost warnings, and accurate classification of Fortune/Misfortune pressure.
+
+### Luck Interaction
+
+Fortune/Misfortune/Volatility may affect whether probability deviations are detected, whether outcomes are described as direct results or vague anomalies, whether active Luck cost is visible, and whether distortion is misclassified as "chance."
+
+Possible Interface messages:
+
+```text
+Probability deviation detected.
+Outcome shifted within plausible range.
+Local Fortune pressure unstable.
+Entropy debt acquired.
+Reachability constraint prevented outcome selection.
+```
+
+### Reachability Constraints
+
+The Interface may hide Luck entirely, partially expose it, or describe it indirectly. It must not expose exact canonical formulas unless the Interface has a reason to reveal them.
+
+### Result Classifier
+
+Examples: hidden, vague anomaly, partial read, clean Fortune/Misfortune label, entropy-debt warning, reachability-block message, corrupted read.
+
+### Notes
+
+Interface display ≠ underlying reality. The UI compresses the probability-flow model; it does not replace it.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

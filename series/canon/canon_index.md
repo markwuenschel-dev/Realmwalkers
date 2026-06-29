@@ -40,6 +40,7 @@ Shared canon lives under `series/` (`canon/`, `style/`, `voice/`); each book's p
 | Class taxonomy, rarity tiers, specializations | `classes.md` |
 | Tier ladders: spell strength, item quality/rarity, gems, skill mastery, soul level | `mechanics.md` |
 | Resource/number system: resources (HP/Mana/Stamina/Reserve), resource & regen & depletion formulas, XP curve & pacing, threat readout, species/class stat templates, growth & point-allocation | `resource_system.md` |
+| Luck/Fortune: probability-flow bias, Fortune/Misfortune/Volatility, reachability, entropy cost, subsystem adapters | `luck_fortune.md` |
 | Cosmic powers (overview, cross-power dynamics, ley/scale) | `cosmology.md` |
 | Xyloryn | `factions/xyloryn.md` |
 | The Concord | `factions/the_concord.md` |
@@ -114,13 +115,14 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 | `marcus_serra_relationship.md` | ✅ current (new) | Relationship bible for the series-spine pairing (conflict engine / progression / motifs / guardrails). Governs with INV-1, INV-3, `forbidden_drift.md` #10; defers to `book1_chapter_timeline.md` on placement and `master_timeline.md` on days. |
 | `character_power_architecture.md` | ✅ current | — |
 | `resource_system.md` | ✅ current (new) | Owner for the resource/number system (formulas, regen, depletion, XP curve, threat, stat templates, growth). Uses tier names from `mechanics.md`/`classes.md`; does not redefine ladders. |
+| `luck_fortune.md` | ✅ current (new) | Canonical Luck/Fortune SSOT; subsystem files add local adapters only. |
 | `canon_index.md` | ✅ this file | — |
 | `book1_chapter_timeline.md` | 🔧 updated this batch | Act 5 finale choreography pending |
 | `unresolved_character_threads.md` | 🔧 regenerated this batch | — |
 | `dominion_realm_story_bible.md` | ✅ updated (Batch 2) | Reframed as overview; SWAT-Serra, Eyes naming, 4-layer, Angelic Fortitude all fixed |
 | `master_timeline.md` | ✅ updated (Batch 2) | Angelic Fortitude, Ashblade, Mathias-lives, finale Myrmidon fixed; redundant sections merged
 | `core_rules.md` | ✅ updated | Eyes split; namebinding; **Class System + 6-tier ladder added** (this pass) |
-| `classes.md` | ✅ current (new) | Full taxonomy; Fighter/Adventurer added; Planeswalker→Riftwalker; **+Exceptional tier** |
+| `classes.md` | ✅ current (new) | Full taxonomy; Fighter/Adventurer added; Planeswalker→Realmwalker; **+Exceptional tier** |
 | `mechanics.md` | ✅ current (new) | Spell/item/gem/skill/soul ladders + affinity tiers; Soul Level wired to names/vows |
 | `cosmology.md` | ✅ current | Hub — defers detail to `factions/` owner files |
 | `scene_queue.md` | ✅ updated (Batch 3) | Consolidated; retired dead entries; Ashblade→Warrior; satellites added |

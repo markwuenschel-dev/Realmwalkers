@@ -50,6 +50,54 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{injury}} = (\mathrm{woundPath},\ \mathrm{tissueDepth},\ \mathrm{vesselProximity},\ \mathrm{organProximity},\ \mathrm{infectionLoad},\ \mathrm{clotStability},\ \mathrm{shockRisk},\ \mathrm{painResponse},\ \mathrm{scarFormation})
+$$
+
+### Baseline Drift
+
+Without Luck, injury evolution follows wound mechanics, treatment, anatomy, and healing magic where applied.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through marginal vessel proximity, clot stability, infection chance, movement tearing, and recovery tail events.
+
+### Favorability Function
+
+$$
+U_{\mathrm{injury}}(z)
+$$
+
+Favorable outcomes mean missed critical structures, stable clots, clean recovery, or milder complications — relative to the wound already inflicted.
+
+### Luck Interaction
+
+Fortune may bias whether a blade misses an artery by a small margin, whether clotting holds, whether infection develops, or whether recovery follows a clean vs bad tail. Misfortune does the reverse. Volatility widens complication spread.
+
+$$
+u_{L,\mathrm{injury}} = \lambda_L R_{\mathrm{injury}}(z,t)\,\nabla U_{\mathrm{injury}}(z,t)
+$$
+
+### Reachability Constraints
+
+Luck cannot undo existing tissue destruction, heal by itself, replace medical treatment or healing magic, prevent inevitable death from a fully deterministic injury, or make anatomy irrelevant.
+
+### Result Classifier
+
+Examples: superficial injury, bleeding wound, deep tissue wound, organ risk, organ damage, infection complication, shock cascade, scar complication, stable recovery, unstable recovery.
+
+### Notes
+
+Luck biases injury complication branches; it does not replace treatment or healing.
+
+---
+
 ## Agent Boundaries
 
 Agents may:
