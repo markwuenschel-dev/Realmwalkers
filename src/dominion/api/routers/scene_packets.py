@@ -131,6 +131,7 @@ async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePac
     cp = await _latest_approved_chapter_packet(session, chapter_id)
     if refusal := packet_approval.can_derive_scene_packets(cp):
         raise HTTPException(status_code=409, detail=refusal.detail)
+    assert cp is not None  # narrowed by can_derive_scene_packets
     counts = await derive_mod.derive_scene_packets(session, packet=cp)
     await session.commit()
     rows = (await session.execute(
