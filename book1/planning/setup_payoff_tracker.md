@@ -22,9 +22,10 @@
 | SP-010 | The old guild is scattered | active | Reunions are complicated; no easy team reset. |
 | SP-011 | Marcus & Serra find each other before any faction forms | paid (planned) | The raw "both lost" beat precedes the Iron Vultures. |
 | SP-012 | The Eyes-of-Meszkhal item = confident, demon-biased interpretation | active | First real temptation should bite where certainty about allies is most seductive (Eriadne politics). |
-| SP-013 | The six are acquired by the Nightbound as **keys, not champions** | active | They aren't any faction's chosen team; the cohort fractures and scales unequally. Book 2's **second Earth cohort** + the **retired-pro mirror** break the "chosen six" assumption. (`dominion_realm_story_bible.md` → *The Six*; `cosmology.md`.) |
+| SP-013 | The six are acquired by the Nightbound as **keys, not champions** | active | They aren't any faction's chosen team; the cohort fractures and scales unequally. Book 2's **Corrected Cohort** breaks the "chosen six" assumption. Owner: `series/canon/continuity/corrected_cohort.md`. (`dominion_realm_story_bible.md` → *The Six*.) |
 | SP-014 | Myrmidon finale: the six fire as one machine, then the illusion breaks (locked, `finale_spine.md` b4/b12) | active | Pays as **"potential glimpsed before fracture,"** not "party formed." The fault lines the fight exposes become the long-arc role split (Book-2+). |
 | SP-015 | The **hold over the six** (Nightbound keys-grip + Broker leash on Seb) | needs_decision | **Seb's Book-2+ death-sacrifice breaks it** (FORK 1): severs his own Broker/Soulkeepers leash and the Nightbound's coercive leverage over the six as a group; the "made keys" fact persists. **Not** a new force — routes onto the existing Nightbound architecture. (`cosmology.md` cross-ref; `seb.md`.) |
+| SP-016 | "They made more of us" — the acquisition operation scaled | seeded | Book 2 Corrected Cohort arrival. Owner: `series/canon/continuity/corrected_cohort.md`. |
 
 ---
 

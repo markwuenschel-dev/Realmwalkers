@@ -2,6 +2,27 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-06-29 — Corrected Cohort pass (Book 2 architecture)
+
+- **New owner:** `continuity/corrected_cohort.md` + `continuity/_COHORT_TEMPLATE.md`
+- **Superseded:** retired-pro-gamer mirror (merged into Corrected Cohort leader + rival party)
+- **Cast scaffold:** `cast_index.md` CC-01…CC-06
+- **Threads:** `unresolved_character_threads.md` CC-01…CC-12
+- **Payoffs:** SP-013 updated; SP-016 seeded ("They made more of us")
+- **Drift:** `forbidden_drift.md` #17 + Quick Diagnostic rows (evil twins, chosen second six, interface inflation)
+- **Cross-refs:** `nightbound.md`, `soulkeepers_exchange.md`, `dominion_realm_story_bible.md` Book 2 seeds
+- **Agent entry point:** `canon_index.md` § Book 2 canon registry; `book2/planning/README.md`
+
+## 2026-06-29 — Faction file pass (cosmic powers owner split)
+
+- **New owner files:** `factions/xyloryn.md`, `the_concord.md`, `pale_imperium.md`, `endless_reach.md`, `aurelian_sovereignty.md`, `soulkeepers_exchange.md`, `realmwalkers.md`, `nhal.md`, `_FACTION_TEMPLATE.md`
+- **Restructured:** `factions/nightbound.md` — unified agent template (Canon Locks, Agent Boundaries, fixed section order)
+- **Hub refactor:** `world/cosmology.md` → summaries + agent routing table; deep content moved to faction files
+- **Renames:** desire-chaos empire = **The Endless Reach** (Courts of Want internal); legacy "Court of Want" = shorthand only
+- **Terminology:** `voice_guide.md` Zalgoran → N'hal presence; `mc.md` empire-level Court of Want → Endless Reach
+- **Agent entry point:** `canon_index.md` § Faction file registry + expanded source-of-truth ownership rows
+- **Canon locks preserved:** essence-wall, six-acquisition chain, Myrmidon finale rules, N'hal ontological threat, Court of Seals → Aurelian Sovereignty
+
 ## 2026-06-28 — Serra Book 1 canon reconciliation (aggregate sync)
 
 > Propagate execution locks from owner files to planning/continuity aggregates — no new moral scaffolding.

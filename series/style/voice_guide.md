@@ -87,7 +87,7 @@ These are lenses, not prescriptions. The actual voice comes from the writing abo
 | Ancient ruins / ley lines | Matter-of-fact wonder; describe it and move |
 | Serra's POV | Faster, tighter, less spiral — she's already decided |
 | Xyloryn encounters | Clinical horror; the body is data; dread accumulates |
-| Zalgoran presence | Reality slightly wrong; the language itself should feel unstable |
+| N'hal presence | Reality slightly wrong; the language itself should feel unstable |
 | Illyri's voice | Dry, old, complete thoughts, pauses with meaning |
 | Earth flashbacks | Specific and ordinary; the contrast with the Realm is the point |
 
