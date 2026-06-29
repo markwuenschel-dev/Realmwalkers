@@ -36,7 +36,7 @@ from dominion.shared.schemas import (
     ScenePacketQaOut,
     ScenePacketUpdateIn,
 )
-from dominion.workers import progress
+from dominion.workers import background_work, progress
 from dominion.workers.budget import TokenBudget
 from dominion.workers.scene_packet import beats as beats_mod
 from dominion.workers.scene_packet import derive as derive_mod
@@ -46,11 +46,6 @@ log = structlog.get_logger()
 router = APIRouter(tags=["scene-packets"])
 
 _BLOCKING_VERDICTS = {ScenePacketVerdict.BLOCK_DRAFTING, ScenePacketVerdict.REVISE_REQUIRED}
-
-# Chapters whose derive is running in the background (single-flight, mirrors packets._inflight), plus
-# the last finished counts per chapter so a poll after completion can report what happened.
-_inflight: set[str] = set()
-_last_result: dict[str, dict[str, int]] = {}
 
 
 def _derive_key(chapter_id: uuid.UUID) -> str:
@@ -87,20 +82,23 @@ async def _latest_approved_chapter_packet(
 async def _run_derive(chapter_id: uuid.UUID) -> None:
     """Background derive for one chapter, on its own session+commit (the request already returned).
     The ScenePacket Author + QA run once per scene, so a 12-scene chapter is ~25 LLM calls — far too
-    long to block the request. Always frees the in-flight slot + clears the progress phase when done."""
-    key = _derive_key(chapter_id)
+    long to block the request."""
     try:
         async with SessionFactory() as session:
             cp = await _latest_approved_chapter_packet(session, chapter_id)
             if cp is not None:
                 counts = await derive_mod.derive_scene_packets(session, packet=cp)
                 await session.commit()
-                _last_result[str(chapter_id)] = counts
+                background_work.set_derive_result(str(chapter_id), counts)
     except Exception as exc:  # noqa: BLE001 — never let a background crash strand the slot
         log.error("scene_packet.derive_bg_failed", chapter=str(chapter_id), error=str(exc))
+
+
+async def _derive_task(chapter_id: uuid.UUID) -> None:
+    try:
+        await _run_derive(chapter_id)
     finally:
-        progress.clear(key)
-        _inflight.discard(key)
+        background_work.finish(_derive_key(chapter_id))
 
 
 @router.post("/chapters/{chapter_id}/scene-packets/derive", response_model=ScenePacketDeriveStatusOut)
@@ -116,13 +114,13 @@ async def derive_scene_packets(
             status_code=409, detail="no approved chapter packet — approve the chapter packet first"
         )
     key = _derive_key(chapter_id)
-    if key not in _inflight:
-        _inflight.add(key)
-        _last_result.pop(str(chapter_id), None)
-        progress.set_phase(key, "deriving")  # optimistic so the first poll already has a phase
-        background.add_task(_run_derive, chapter_id)
+    if background_work.begin_with_phase(key, "deriving"):
+        background_work.pop_derive_result(str(chapter_id))
+        background.add_task(_derive_task, chapter_id)
     phase, elapsed_s = progress.get(key)
-    return ScenePacketDeriveStatusOut(running=True, phase=phase or "deriving", elapsed_s=elapsed_s)
+    return ScenePacketDeriveStatusOut(
+        running=background_work.is_running(key), phase=phase or "deriving", elapsed_s=elapsed_s,
+    )
 
 
 @router.get("/chapters/{chapter_id}/scene-packets/derive/status", response_model=ScenePacketDeriveStatusOut)
@@ -131,9 +129,9 @@ async def derive_status(chapter_id: uuid.UUID, session: SessionDep) -> ScenePack
     is False once it finishes; `result` then carries the counts."""
     key = _derive_key(chapter_id)
     phase, elapsed_s = progress.get(key)
-    running = key in _inflight
+    running = background_work.is_running(key)
     result: ScenePacketDeriveOut | None = None
-    if not running and (counts := _last_result.get(str(chapter_id))) is not None:
+    if not running and (counts := background_work.get_derive_result(str(chapter_id))) is not None:
         rows = (await session.execute(
             select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
         )).scalars().all()

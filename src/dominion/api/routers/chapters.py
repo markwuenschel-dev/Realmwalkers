@@ -15,8 +15,8 @@ from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import BeatStatus, ChapterStatus, JobStatus, SceneStatus
-from dominion.shared.models import Beat, Chapter, Job, Run, Scene
+from dominion.shared.enums import BeatStatus, ChapterStatus, SceneStatus
+from dominion.shared.models import Beat, Chapter, Scene
 from dominion.shared.schemas import (
     ApproveBeatsIn,
     BeatCreateIn,
@@ -27,7 +27,12 @@ from dominion.shared.schemas import (
     RedraftIn,
     SceneOut,
 )
-from dominion.workers.job_routing import draft_job_for_beat, draft_job_for_scene
+from dominion.workers.job_scheduler import (
+    _latest_run,
+    schedule_beats_on_gate1_approval,
+    schedule_scene_redrafts,
+    schedule_undrafted_beats,
+)
 from dominion.workers.memory import summaries
 
 log = structlog.get_logger()
@@ -124,28 +129,12 @@ async def approve_beats(
     if not to_approve:
         raise HTTPException(status_code=400, detail="none of the given beat_ids belong to this chapter")
 
-    run = (await session.execute(
-        select(Run).where(Run.book_id == chapter.book_id).order_by(Run.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
+    run = await _latest_run(session, chapter.book_id)
 
-    job_ids: list[str] = []
     for beat in to_approve:
         beat.status = BeatStatus.APPROVED
-        existing = (await session.execute(
-            select(Job.id).join(Run, Job.run_id == Run.id).where(
-                Run.book_id == chapter.book_id,
-                Job.chapter_no == chapter.chapter_no,
-                Job.scene_no == beat.scene_no,
-                Job.status == JobStatus.QUEUED,
-            )
-        )).scalars().first()
-        if existing is not None:
-            job_ids.append(str(existing))
-            continue
-        job = draft_job_for_beat(beat=beat, chapter=chapter, run=run)
-        session.add(job)
-        await session.flush()
-        job_ids.append(str(job.id))
+    job_uuids = await schedule_beats_on_gate1_approval(session, chapter, to_approve, run)
+    job_ids = [str(j) for j in job_uuids]
 
     chapter.status = ChapterStatus.DRAFTING
     await session.commit()
@@ -200,24 +189,9 @@ async def redraft_scenes(
     if not scenes:
         raise HTTPException(status_code=400, detail="none of the given scene_ids belong to this chapter")
 
-    run = (await session.execute(
-        select(Run).where(Run.book_id == chapter.book_id).order_by(Run.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
-    job_ids: list[str] = []
-    for scene in scenes:
-        existing = (await session.execute(
-            select(Job.id).join(Run, Job.run_id == Run.id).where(
-                Run.book_id == chapter.book_id, Job.chapter_no == chapter.chapter_no,
-                Job.scene_no == scene.scene_no, Job.status == JobStatus.QUEUED,
-            )
-        )).scalars().first()
-        if existing is not None:
-            job_ids.append(str(existing))
-            continue
-        job = await draft_job_for_scene(session, scene=scene, chapter=chapter, run=run)
-        session.add(job)
-        await session.flush()
-        job_ids.append(str(job.id))
+    run = await _latest_run(session, chapter.book_id)
+    job_uuids = await schedule_scene_redrafts(session, chapter, list(scenes), run)
+    job_ids = [str(j) for j in job_uuids]
     await session.commit()
     return {"chapter_id": str(chapter_id), "queued": len(job_ids), "jobs": job_ids}
 
@@ -238,36 +212,9 @@ async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> dict[str,
     if not beats:
         raise HTTPException(status_code=400, detail="no approved beats — approve a packet (or beats) first")
 
-    # scene_nos that already have prose (any version) — don't re-draft those.
-    drafted = {
-        n for (n,) in (await session.execute(
-            select(Scene.scene_no).where(Scene.chapter_id == chapter_id)
-        )).all()
-    }
-    run = (await session.execute(
-        select(Run).where(Run.book_id == chapter.book_id).order_by(Run.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
-    job_ids: list[str] = []
-    for beat in beats:
-        if beat.scene_no in drafted:
-            continue
-        # Dedup against an already-QUEUED draft for this scene. Scope by the chapter's run when there
-        # is one; don't INNER JOIN Run, or a job with a NULL run_id (a packet-only chapter that was
-        # never planned) is never found and we'd queue it twice.
-        dedup = select(Job.id).where(
-            Job.chapter_no == chapter.chapter_no, Job.scene_no == beat.scene_no,
-            Job.status == JobStatus.QUEUED,
-        )
-        if run is not None:
-            dedup = dedup.where(Job.run_id == run.id)
-        existing = (await session.execute(dedup)).scalars().first()
-        if existing is not None:
-            job_ids.append(str(existing))
-            continue
-        job = draft_job_for_beat(beat=beat, chapter=chapter, run=run)
-        session.add(job)
-        await session.flush()
-        job_ids.append(str(job.id))
+    run = await _latest_run(session, chapter.book_id)
+    job_uuids = await schedule_undrafted_beats(session, chapter, run)
+    job_ids = [str(j) for j in job_uuids]
     chapter.status = ChapterStatus.DRAFTING
     await session.commit()
     return {"chapter_id": str(chapter_id), "queued": len(job_ids), "jobs": job_ids}

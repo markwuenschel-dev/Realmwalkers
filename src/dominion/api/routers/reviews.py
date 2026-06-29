@@ -14,20 +14,17 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.enums import Decision, GateMode, JobStatus, SceneStatus
+from dominion.shared.enums import Decision, SceneStatus
 from dominion.shared.models import (
     Approval,
-    Beat,
     Chapter,
     CharacterState,
     Critique,
     EditPair,
-    Job,
-    Run,
     Scene,
 )
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
-from dominion.workers.job_routing import draft_job_for_beat, revision_job_for_scene
+from dominion.workers.job_scheduler import schedule_next_after_approval, schedule_revision
 from dominion.workers.memory import knowledge, ledger, summaries
 from dominion.workers.stat_render import render_stat_blocks
 
@@ -107,7 +104,7 @@ async def decide(
                 await knowledge.record_scene_reveals(session, scene_id=scene.id)
             except Exception as exc:  # noqa: BLE001
                 log.warning("knowledge.record_failed", scene=str(scene.id), error=str(exc))
-            next_job = await _auto_advance(session, scene)
+            next_job = await schedule_next_after_approval(session, scene)
         # Rolling-summary fold is two LLM calls — defer so the inbox responds instantly. A re-approval
         # re-folds the (edited) text, which is correct and idempotent.
         background.add_task(_refresh_summaries_bg, scene.id)
@@ -115,7 +112,7 @@ async def decide(
         scene.status = SceneStatus.SUPERSEDED
     elif body.decision == Decision.REVISE:
         scene.status = SceneStatus.REVISION_REQUESTED
-        next_job = await _enqueue_revision(session, scene, target_pass=body.target_pass)
+        next_job = await schedule_revision(session, scene, target_pass=body.target_pass)
 
     await session.commit()  # land the verdict before responding
     return {"scene": str(scene.id), "status": str(scene.status), "next_job": str(next_job) if next_job else None}
@@ -166,7 +163,7 @@ async def resolve_continuity(
             scene_id=scene.id, version=scene.version, decision=Decision.REVISE, feedback=feedback
         ))
         scene.status = SceneStatus.REVISION_REQUESTED
-        job = await _enqueue_revision(session, scene, target_pass=None)
+        job = await schedule_revision(session, scene, target_pass=None)
         await session.delete(critique)   # superseded by the queued revision — clear it
         await session.commit()
         return {"resolved": "revision_enqueued", "job": str(job) if job else None}
@@ -175,67 +172,6 @@ async def resolve_continuity(
         return {"resolved": "edit_in_inbox", "job": None}
 
     raise HTTPException(status_code=422, detail="choice must be use_prose | use_ledger | edit")
-
-
-# --- scheduling helpers ---------------------------------------------------------------------------
-
-async def _latest_run(session: SessionDep, book_id: uuid.UUID) -> Run | None:
-    return (await session.execute(
-        select(Run).where(Run.book_id == book_id).order_by(Run.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
-
-
-async def _queued_job_id(
-    session: SessionDep, *, book_id: uuid.UUID, chapter_no: int, scene_no: int
-) -> uuid.UUID | None:
-    return (await session.execute(
-        select(Job.id).join(Run, Job.run_id == Run.id).where(
-            Run.book_id == book_id,
-            Job.chapter_no == chapter_no,
-            Job.scene_no == scene_no,
-            Job.status == JobStatus.QUEUED,
-        )
-    )).scalars().first()
-
-
-async def _auto_advance(session: SessionDep, scene: Scene) -> uuid.UUID | None:
-    """In pause_each, queue the next scene's draft if its beat exists and nothing is queued yet."""
-    chapter = await session.get(Chapter, scene.chapter_id)
-    if chapter is None:
-        return None
-    run = await _latest_run(session, chapter.book_id)
-    if run is None or run.gate_mode != GateMode.PAUSE_EACH:
-        return None
-    next_no = scene.scene_no + 1
-    beat = (await session.execute(
-        select(Beat).where(Beat.chapter_id == scene.chapter_id, Beat.scene_no == next_no)
-    )).scalar_one_or_none()
-    if beat is None:
-        return None  # no more authored beats — stop and let the human plan the next scene/chapter
-    existing = await _queued_job_id(
-        session, book_id=chapter.book_id, chapter_no=chapter.chapter_no, scene_no=next_no
-    )
-    if existing is not None:
-        return existing
-    job = draft_job_for_beat(beat=beat, chapter=chapter, run=run)
-    session.add(job)
-    await session.flush()
-    return job.id
-
-
-async def _enqueue_revision(
-    session: SessionDep, scene: Scene, *, target_pass: str | None
-) -> uuid.UUID | None:
-    chapter = await session.get(Chapter, scene.chapter_id)
-    if chapter is None:
-        return None
-    run = await _latest_run(session, chapter.book_id)
-    job = await revision_job_for_scene(
-        session, scene=scene, chapter=chapter, run=run, target_pass=target_pass
-    )
-    session.add(job)
-    await session.flush()
-    return job.id
 
 
 def _coerce(value: object) -> object:

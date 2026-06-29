@@ -18,17 +18,12 @@ from dominion.shared.db import SessionFactory
 from dominion.shared.enums import PacketConfidence, PacketStatus
 from dominion.shared.models import Chapter, ChapterPacket
 from dominion.shared.schemas import PacketOut, PacketProposeOut, PacketUpdateIn
+from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
-from dominion.workers import progress
 from dominion.workers.scene_packet import staleness as packet_staleness
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["packets"])
-
-# Chapter ids whose author+QA is running in the background, so a re-trigger (or a second tab) doesn't
-# start a duplicate run. The API event loop is single-threaded and we never await between checking and
-# mutating this set, so a plain set is race-free (mirrors jobs._drain_lock's single-flight intent).
-_inflight: set[str] = set()
 
 
 async def _latest(session: SessionDep, chapter_id: uuid.UUID) -> ChapterPacket | None:
@@ -49,7 +44,7 @@ def _open_items(packet: ChapterPacket) -> list[object]:
 async def _run_propose(chapter_id: uuid.UUID) -> None:
     """Background author+QA for one chapter, on its own session+commit (the request that scheduled it
     has already returned). Fail-closed internally, so a malformed/timed-out agent still persists a
-    blocked packet. Always frees the in-flight slot + clears the progress phase when done."""
+    blocked packet."""
     key = str(chapter_id)
     try:
         async with SessionFactory() as session:
@@ -59,9 +54,6 @@ async def _run_propose(chapter_id: uuid.UUID) -> None:
                 await session.commit()
     except Exception as exc:  # noqa: BLE001 — never let a background crash strand the in-flight slot
         log.error("packet.propose_bg_failed", chapter=key, error=str(exc))
-    finally:
-        progress.clear(key)
-        _inflight.discard(key)
 
 
 @router.post("/{chapter_id}/packet", response_model=PacketProposeOut)
@@ -78,12 +70,11 @@ async def propose_packet(
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
     key = str(chapter_id)
-    if key not in _inflight:
-        _inflight.add(key)
-        progress.set_phase(key, "authoring")  # optimistic so the first poll already has a phase
-        background.add_task(_run_propose, chapter_id)
+    background_work.schedule(background, key, "authoring", lambda: _run_propose(chapter_id))
     phase, elapsed_s = progress.get(key)
-    return PacketProposeOut(running=True, phase=phase or "authoring", elapsed_s=elapsed_s)
+    return PacketProposeOut(
+        running=background_work.is_running(key), phase=phase or "authoring", elapsed_s=elapsed_s,
+    )
 
 
 @router.get("/{chapter_id}/packet/status", response_model=PacketProposeOut)
@@ -92,7 +83,7 @@ async def packet_status(chapter_id: uuid.UUID) -> PacketProposeOut:
     `running` is False once the packet is persisted — the cue to GET the packet."""
     key = str(chapter_id)
     phase, elapsed_s = progress.get(key)
-    return PacketProposeOut(running=key in _inflight, phase=phase, elapsed_s=elapsed_s)
+    return PacketProposeOut(running=background_work.is_running(key), phase=phase, elapsed_s=elapsed_s)
 
 
 @router.get("/{chapter_id}/packet", response_model=PacketOut)
