@@ -10,9 +10,8 @@ import uuid
 
 from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
 from dominion.workers import packet as pipeline
-from dominion.workers.packet import approval_policy
+from dominion.workers.packet import approval_policy, parse
 from dominion.workers.packet import author as author_mod
-from dominion.workers.packet import parse
 from dominion.workers.packet import qa as qa_mod
 
 # --- extract_object (tolerant single-object parse) ------------------------------------------------

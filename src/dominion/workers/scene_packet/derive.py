@@ -29,8 +29,8 @@ from dominion.workers import telemetry
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
 from dominion.workers.memory import owner_router, retrieval
-from dominion.workers.scene_packet import author as author_mod
 from dominion.workers.scene_packet import approval_policy
+from dominion.workers.scene_packet import author as author_mod
 from dominion.workers.scene_packet import author_sections as author_sections_mod
 from dominion.workers.scene_packet import hash as hash_mod
 from dominion.workers.scene_packet import inputs as sp_inputs
