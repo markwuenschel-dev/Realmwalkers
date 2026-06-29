@@ -50,6 +50,52 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{progression}} = (\mathrm{skillUseContext},\ \mathrm{thresholdProximity},\ \mathrm{trainingQuality},\ \mathrm{breakthroughRisk},\ \mathrm{identityCoherence},\ \mathrm{classResonance},\ \mathrm{soulPressure})
+$$
+
+### Baseline Drift
+
+Without Luck, progression follows training, use, class constraints, soul pressure, and system requirements.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through marginal breakthrough moments, threshold proximity, and unstable advancement branches.
+
+### Favorability Function
+
+$$
+U_{\mathrm{progression}}(z)
+$$
+
+Favorable outcomes mean clean breakthrough, rare opportunity noticed, or safer failure mode during advancement — not free mastery.
+
+### Luck Interaction
+
+Fortune may bias whether a marginal training opportunity appears, whether breakthrough happens cleanly vs painfully, or whether a threshold moment occurs under favorable circumstances. Misfortune does the reverse. Volatility widens advancement tail risk.
+
+### Reachability Constraints
+
+Luck cannot replace training, create mastery from nothing, grant incompatible classes, bypass class/soul/system requirements, or replace Conviction, Mystery, skill affinity, or actual use.
+
+**Luck is not a normal progression stat** unless explicitly locked later. LCK on the Interface is a passive coupling projection, not a substitute for progression rules.
+
+### Result Classifier
+
+Examples: clean progression, delayed progression, unstable breakthrough, missed opportunity, rare opportunity noticed, backlash during advancement, threshold resonance.
+
+### Notes
+
+Luck biases marginal progression branches; it does not replace earned advancement.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

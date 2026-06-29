@@ -50,6 +50,56 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{environment}} = (\mathrm{localHazards},\ \mathrm{terrainInstability},\ \mathrm{weatherState},\ \mathrm{boundaryCondition},\ \mathrm{spatialDistortion},\ \mathrm{fieldPressure},\ \mathrm{probabilityGradient},\ \mathrm{exposureTime})
+$$
+
+Local Fortune fields may appear as $\mathcal{L}(x,t)$ — spatial probability pressure distinct from a character's passive Luck.
+
+### Baseline Drift
+
+Without Luck, environment evolves according to geography, weather physics, ward stability, and hazard mechanics.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through marginal terrain stability, hazard timing, weather edge cases, and spatial distortion branches.
+
+### Favorability Function
+
+$$
+U_{\mathrm{environment}}(z)
+$$
+
+Favorable outcomes mean safe passage, delayed hazards, or paths through distortion that remain physically reachable.
+
+### Luck Interaction
+
+Fortune biases hazard timing, weather edge cases, whether rockfall begins now or later, and whether spatial distortion opens a safer reachable path. Misfortune does the reverse. Volatility marks Volatility zones with wider outcome spread.
+
+$$
+u_{L,\mathrm{environment}} = \lambda_L R_{\mathrm{environment}}(z,t)\,\nabla U_{\mathrm{environment}}(z,t)
+$$
+
+### Reachability Constraints
+
+Luck cannot ignore physical geography, bypass closed boundaries without a spatial/power mechanism, make unreachable areas reachable by chance alone, or override deterministic environmental forces.
+
+### Result Classifier
+
+Examples: safe passage, near miss, hazard trigger, delayed hazard, exposed path, blocked path, local Fortune field, local Misfortune field, Volatility zone.
+
+### Notes
+
+Blessed, cursed, and probability-distorted zones use $u_{\mathrm{field},X}$ per `luck_fortune.md`.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

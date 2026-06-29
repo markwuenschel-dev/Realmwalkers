@@ -50,6 +50,54 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{social}} = (\mathrm{trust},\ \mathrm{suspicion},\ \mathrm{rumorSpread},\ \mathrm{witnessPresence},\ \mathrm{timing},\ \mathrm{socialRisk},\ \mathrm{factionIncentive},\ \mathrm{evidenceAccess},\ \mathrm{emotionalVolatility})
+$$
+
+### Baseline Drift
+
+Without Luck, social outcomes follow charisma, reputation, leverage, trust, institutions, and incentives.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through witness timing, rumor propagation, emotional volatility, and whether evidence is found or missed.
+
+### Favorability Function
+
+$$
+U_{\mathrm{social}}(z)
+$$
+
+Favorable outcomes mean favorable timing, belief traction, negotiation openings, or rumor dying — relative to the actor measured.
+
+### Luck Interaction
+
+Fortune may bias whether the right person overhears, whether a witness appears, whether an accusation gains traction, or whether negotiation opens with favorable timing. Misfortune does the reverse. Volatility widens social tail events.
+
+$$
+u_{L,\mathrm{social}} = \lambda_L R_{\mathrm{social}}(z,t)\,\nabla U_{\mathrm{social}}(z,t)
+$$
+
+### Reachability Constraints
+
+Luck cannot mind-control people, replace charisma/reputation/leverage/trust, erase public evidence, or make institutions behave against core incentives without causal pressure.
+
+### Result Classifier
+
+Examples: ignored, suspected, challenged, believed, protected, exposed, rumor amplified, rumor dies, negotiation opening, faction backlash.
+
+### Notes
+
+Luck biases social timing and evidence emergence; it does not replace social intelligence.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

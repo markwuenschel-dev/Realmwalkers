@@ -50,6 +50,62 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{logistics}} = (\mathrm{stockpileLevel},\ \mathrm{routeRisk},\ \mathrm{transportDelay},\ \mathrm{spoilage},\ \mathrm{laborAvailability},\ \mathrm{marketPrice},\ \mathrm{demandShock},\ \mathrm{supplyFailure},\ \mathrm{sabotageRisk},\ \mathrm{weatherDisruption})
+$$
+
+The local possibility state tracks large-scale stochastic supply and delivery uncertainty.
+
+### Baseline Drift
+
+Without Luck, logistics follow planning, capacity, reserves, redundancy, routes, and institutional constraints.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through weather, equipment failure, labor variance, market shocks, and alignment of small failures.
+
+### Favorability Function
+
+$$
+U_{\mathrm{logistics}}(z)
+$$
+
+Favorable outcomes mean low delay, low spoilage, low cost, preserved secrecy, or surplus when uncertainty resolves well.
+
+### Luck Interaction
+
+Fortune biases caravan timing, spoilage rate, price movement under uncertainty, labor availability, and whether route disruption stays minor. Misfortune biases toward cascading failure. Volatility widens tail risk on deliveries and shortages.
+
+$$
+u_{L,\mathrm{logistics}} = \lambda_L R_{\mathrm{logistics}}(z,t)\,\nabla U_{\mathrm{logistics}}(z,t)
+$$
+
+### Reachability Constraints
+
+Luck can affect timing, spoilage, hidden bottleneck surfacing, and whether multiple small failures align.
+
+Luck cannot create goods from nothing, ignore scarcity, replace planning/reserves/redundancy/capacity, remove deterministic shortages, or make bad logistics sustainable forever.
+
+### Result Classifier
+
+$$
+\mathrm{Result}_{\mathrm{logistics}} = \mathrm{Classify}_{\mathrm{logistics}}(z_{\mathrm{final}})
+$$
+
+Examples: on-time delivery, minor delay, major delay, spoilage, shortage, price spike, equipment failure, route closure, lucky surplus, cascading failure.
+
+### Notes
+
+Operations-research note: Luck biases uncertain disruptions and tail risk. It does not replace supply-chain design.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

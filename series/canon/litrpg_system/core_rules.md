@@ -44,11 +44,13 @@ If a detail appears in the wrong file, move it to the owner file or leave a cros
 | **Creation & Infrastructure / Social & Strategic** | Economy & Logistics | `economy_logistics.md` *(scaffold)* | costs, trade, transport, scarcity, production chains |
 | **Social & Strategic Systems** | Social & Faction Systems | `social_faction_systems.md` *(scaffold)* | reputation, diplomacy, law, alliances, institutions |
 | **Interface & Abstraction** | Interface & Abstraction | `interface_abstraction.md` *(scaffold; foundational premise here)* | stat display, hidden values, diagnostics, system compression |
+| **Cross-Cutting** | Luck / Fortune | `luck_fortune.md` | probability-flow bias, Fortune/Misfortune/Volatility, subsystem adapters |
 
 ### Existing Owner Files
 
 | File | Owns | Does not own |
 |---|---|---|
+| `luck_fortune.md` | Canonical Luck/Fortune model, reachability, entropy cost, adapter pattern | Subsystem-specific $z_X$, classifiers, local combat/craft/etc. rules |
 | `resource_system.md` | Resource formulas, caps, regen, depletion states, Reserve buffer, resource crash states, XP curve/pacing until split | Class taxonomy, tier ladder prose, combat injury detail |
 | `classes.md` | Base classes, specializations, class rarity, class attribute profiles/multipliers, domain terminology firewall | Resource formulas, bonus attribute point cadence, full spell/item/soul ladders |
 | `mechanics.md` | Tier ladders: Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level | Resource formulas, class attribute growth, domain taxonomy ownership |
@@ -109,7 +111,7 @@ A primary measurable trait. The public nine are:
 | Intelligence | Processing, learning efficiency, working memory, structured analysis |
 | Wisdom | Judgment, regulation, magical sensitivity/control, disruption resistance |
 | Charisma | Force of presence, projection, social/magical imprint |
-| Luck | Probability nudges within plausible margins |
+| Luck | Interface-visible **LCK** — compressed projection of passive Fortune coupling; canonical probability-flow model in `luck_fortune.md` (not a resource weight) |
 
 Two hidden attributes exist for all creatures but normally remain unseen:
 
@@ -201,7 +203,17 @@ AttributeStamina = 5END + 2CON + STR + AGI + DEX
 AttributeReserve = 2CON + 2END + 2WIS + FAI + OCC
 ```
 
-Luck feeds no base pool. It tilts unresolved margins and should never make impossible outcomes happen.
+Luck feeds no base pool. It tilts unresolved margins and should never make impossible outcomes happen. Full model → `luck_fortune.md`.
+
+---
+
+## Luck / Fortune
+
+Luck/Fortune is a cross-cutting uncertainty system, not a standard resource or ordinary attribute. It modifies probability flow through reachable possibility space and is defined in `luck_fortune.md`.
+
+Core invariant: Luck cannot create impossible outcomes. It can only bias plausible outcomes where uncertainty remains.
+
+Subsystem files instantiate the model via local **Luck/Fortune Adapter** sections; they do not redefine Luck.
 
 ---
 

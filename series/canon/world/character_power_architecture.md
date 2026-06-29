@@ -55,7 +55,7 @@ The Realm class does not have to match the Aetherfall class. It reflects what th
 Realm classes develop through use, not through selection. The interface may label something early, but the character earns and shapes the class through what they do. Specializations unlock progressively as the class develops.
 
 Examples:
-- Marcus: Mage → Riftwalker (Legendary; planar-crossing) — *Veilwalker design retired*
+- Marcus: Mage → Realmwalker (Legendary; planar-crossing) — *Veilwalker design retired*
 - Serra: Warrior
 - Mara: Psion (rare; synergizes with Specular Salience)
 - Brent: Warden → Reckoner (Book-2 dir.)
@@ -123,9 +123,9 @@ The Realm class and the interface are in creative tension. The Psion requires he
 **Displacement example (Marcus):**
 - Earth: ML engineer at Astria, analytical, systems-oriented
 - Aetherfall: Aspect, four-form glue player, makes the team work
-- Realm class: Mage → Riftwalker (Legendary) — moves through planes/distance
+- Realm class: Mage → Realmwalker (Legendary) — moves through planes/distance
 - Interface: Neurochromatic Eyes (perception) + Eyes of Meszkhal (Unique item, interpretation)
-The eyes are his interface; the Riftwalker class is his planar-crossing path. The displacement is that his Earth identity (systems analyst) and Aetherfall role (glue/support) are not obviously present in his Realm path — until you realize his settlement/lore instinct is exactly that, expressed in the Realm's terms.
+The eyes are his interface; the Realmwalker class is his planar-crossing path. The displacement is that his Earth identity (systems analyst) and Aetherfall role (glue/support) are not obviously present in his Realm path — until you realize his settlement/lore instinct is exactly that, expressed in the Realm's terms.
 
 ---
 
@@ -133,7 +133,7 @@ The eyes are his interface; the Riftwalker class is his planar-crossing path. Th
 
 | Character | Earth Identity | Aetherfall Class | Realm Class | Interface |
 |---|---|---|---|---|
-| Marcus | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Riftwalker** (Legendary) | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
+| Marcus | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Realmwalker** (Legendary) | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
 | Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** | Severance Pulse |
 | Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Specular Salience Transduction |
 | Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Pyric Blood |

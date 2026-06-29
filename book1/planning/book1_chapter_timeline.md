@@ -7,7 +7,7 @@ status: working
 # Book 1 — Chapter-by-Chapter Timeline
 
 > **Purpose:** maps the confirmed event spine (`master_timeline.md`) into chapters. The master timeline owns *events & day numbers*; this file owns *chapter boundaries & POV*. Where they disagree, the master timeline wins on facts. Precedence: see `canon_index.md`.
-> **Status:** chapter **boundaries and counts are proposed**, not locked — reconcile against the live chapter file before relying on numbers. All *canon content* below is current as of the cosmology/class passes (Riftwalker, Neurochromatic Eyes + Meszkhal item, Warrior/Psion/Adventurer/Scout/Reaver, the named factions, Myrmidon finale, Mathias lives).
+> **Status:** chapter **boundaries and counts are proposed**, not locked — reconcile against the live chapter file before relying on numbers. All *canon content* below is current as of the cosmology/class passes (Realmwalker, Neurochromatic Eyes + Meszkhal item, Warrior/Psion/Adventurer/Scout/Reaver, the named factions, Myrmidon finale, Mathias lives).
 > **POV (series split):** Marcus ~60–70% (the spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV** (genuine second-POV with her own throughline — see `marcus_serra_relationship.md` §9); the other four keep **⟢ INTERLUDE (POV)**. *Structural note: the prior "Serra trapped in interludes" tension is resolved — she is the deuteragonist with a real arc, no longer a scattered-cast interlude.* Scope: Earth → ~Realm Day 110.
 
 ---
@@ -133,7 +133,7 @@ status: working
 
 **Ch 26–28 — The Myrmidon** · Days ~98–104 · ⚠ *finale choreography pending* · *Ensemble*
 - The **dormant portal at the eight-leyline convergence is forced open by a Nightbound agent** (a controlled breach-*test*; separate from the city, which stays largely unaware); the swarm visible beyond. **One Myrmidon comes through it** and nearly beats all six at once.
-- **Drawn by the breach**, a **Realm Walker** arrives and *witnesses* the fight — first contact with Marcus here or just after (the recruitment seed → `cosmology.md`, Riftwalker).
+- **Drawn by the breach**, a **Realm Walker** arrives and *witnesses* the fight — first contact with Marcus here or just after (the recruitment seed → `cosmology.md`, Realmwalker).
 - **Shared interface ignition:** Serra's pressure builds; Seb already cycling (Reaver/Pyric Blood); **Brent's Piezoelectric Bones exposes the Myrmidon's structural keystone** (the swarm adapts to *interfaces* but he reads it as a *structure*); **Marcus's eyes turn on.**
 - **The kill:** Marcus holds an opening at lethal risk; **Serra lands it but misses the depth and brushes off his danger** — he barely survives. His eyes read her **conflict**; the **Meszkhal item lies** ("doubling down"); he reads her right and doesn't blame her.
 - **Mathias is badly injured proving his warning — he lives.** The crisis briefly reunites the six as a team.

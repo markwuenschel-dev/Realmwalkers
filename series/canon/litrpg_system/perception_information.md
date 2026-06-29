@@ -50,6 +50,64 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{perception}} = (\mathrm{signalStrength},\ \mathrm{noise},\ \mathrm{attentionDirection},\ \mathrm{salience},\ \mathrm{evidenceVisibility},\ \mathrm{falsePositiveRisk},\ \mathrm{falseNegativeRisk},\ \mathrm{timing},\ \mathrm{occlusion})
+$$
+
+The local possibility state tracks whether evidence emerges, is missed, or is misread when the read is marginal.
+
+### Baseline Drift
+
+Without Luck, perception follows senses, training, Insight level, attention, and environmental signal quality.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through noise, occlusion, timing, salience competition, and marginal Insight resolution.
+
+### Favorability Function
+
+$$
+U_{\mathrm{perception}}(z)
+$$
+
+Favorable outcomes mean the right clue becomes visible, salient, or cleanly parsed — for the observer whose perspective is measured.
+
+### Luck Interaction
+
+Fortune biases which evidence $E$ appears or survives damage, whether a scout looks in a useful direction, and whether Insight receives a cleaner read when the result is marginal. Misfortune biases toward false leads and corrupted reads. Volatility increases spread between clean clue and misleading signal.
+
+Bayesian note: Luck can affect which evidence $E$ appears, not the truth of hypothesis $H$ itself.
+
+$$
+P(H \mid E) \text{ still requires valid inference; Luck does not grant } E \text{ without an evidence path.}
+$$
+
+### Reachability Constraints
+
+Luck can affect clue visibility, sound timing, hidden detail survival, and marginal Insight clarity.
+
+Luck cannot grant knowledge with no evidence path, replace Insight/senses/training/inference, reveal impossible information, or bypass active concealment unless uncertainty remains in the concealment system.
+
+### Result Classifier
+
+$$
+\mathrm{Result}_{\mathrm{perception}} = \mathrm{Classify}_{\mathrm{perception}}(z_{\mathrm{final}})
+$$
+
+Examples: unnoticed, vaguely noticed, suspected, confirmed, false lead, clean clue, corrupted read, partial Insight, misleading signal.
+
+### Notes
+
+Luck biases evidence emergence; it does not replace perception skill or Insight.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

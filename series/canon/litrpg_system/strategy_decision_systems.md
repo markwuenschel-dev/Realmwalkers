@@ -50,6 +50,52 @@ Use these until the subsystem is expanded:
 
 ---
 
+## Luck/Fortune Adapter
+
+This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+
+### Local Possibility State
+
+$$
+z_{\mathrm{strategy}} = (\mathrm{agentBeliefs},\ \mathrm{availableActions},\ \mathrm{perceivedPayoffs},\ \mathrm{hiddenInformation},\ \mathrm{riskTolerance},\ \mathrm{timing},\ \mathrm{coordination},\ \mathrm{predictionError})
+$$
+
+### Baseline Drift
+
+Without Luck, strategic outcomes follow beliefs, planning, scouting, adaptation, and opponent agency.
+
+### Uncertainty / Diffusion
+
+Uncertainty enters through hidden information, timing windows, coordination failure, and prediction error at branch points.
+
+### Favorability Function
+
+$$
+U_{\mathrm{strategy}}(z)
+$$
+
+Favorable outcomes mean favorable branch resolution, timing advantage, or hidden information emerging helpfully — for the side measured.
+
+### Luck Interaction
+
+Fortune biases uncertain timing windows, favorable plan branches, and alignment of independent uncertainties. Misfortune biases punishment of risky maneuvers and coordination failure. Volatility widens strategic tail outcomes.
+
+Game-theory note: Luck affects uncertainty and payoff distributions. It should not delete strategic interaction.
+
+### Reachability Constraints
+
+Luck cannot override intelligent agency, force irrational opponent choices without another mechanism, make bad strategy consistently good, or replace scouting/planning/adaptation.
+
+### Result Classifier
+
+Examples: favorable branch, unfavorable branch, opponent misread, player misread, timing advantage, coordination failure, exposed plan, hidden opening.
+
+### Notes
+
+Luck biases branches under uncertainty; it does not replace strategy.
+
+---
+
 ## Agent Boundaries
 
 Agents may:

@@ -79,7 +79,7 @@ Seven-member interventionist order — female founder, evidentiary N'hal knowled
 
 ### Realm Walkers → [`realmwalkers.md`](../factions/realmwalkers.md)
 
-Loose category (~few dozen) — cross-realm witnesses. Book 1: drawn by Eriadne portal breach; contact Marcus post-Myrmidon. Foils to Nightbound. Riftwalker class ≠ faction.
+Loose category (~few dozen) — cross-realm witnesses. Book 1: drawn by Eriadne portal breach; contact Marcus post-Myrmidon. Foils to Nightbound. **Realmwalker** (Marcus's Legendary class, one word) ≠ **the Realm Walkers** / **Realm Walkers** (faction, two words).
 
 ---
 

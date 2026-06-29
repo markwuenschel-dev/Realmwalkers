@@ -33,6 +33,16 @@ Domain taxonomy lives in `classes.md` for now and should move or expand into `po
 
 ---
 
+## Luck / Fortune — Adapter Pattern
+
+Subsystems do not redefine Luck. They instantiate the canonical Luck/Fortune model from `luck_fortune.md` by specifying local state variables ($z_X$), favorability ($U_X$), uncertainty ($D_X$ / $\sigma_X$), reachability constraints, and result classifiers.
+
+Continuous stochastic simulation is preferred over roll tables when computation is available. Discrete labels should usually be final classifications of continuous outcomes, not the underlying model.
+
+See `luck_fortune.md` → **Subsystem Adapter Pattern** for required adapter fields.
+
+---
+
 
 ---
 
@@ -347,7 +357,7 @@ At the highest levels, a soul becomes an anchor upon reality. Such beings are ex
 
 # Class Rarity
 
-Class rarity uses the same seven-tier ladder — **Common · Uncommon · Rare · Exceptional · Legendary · Mythic · Unique** — but its authoritative home is `core_rules.md` (Class Tiers); the class taxonomy is in `classes.md`. Rarer classes cost more XP **and** more energy per level — the rule that leaves Marcus's Legendary **Riftwalker** unaffordable at low level.
+Class rarity uses the same seven-tier ladder — **Common · Uncommon · Rare · Exceptional · Legendary · Mythic · Unique** — but its authoritative home is `core_rules.md` (Class Tiers); the class taxonomy is in `classes.md`. Rarer classes cost more XP **and** more energy per level — the rule that leaves Marcus's Legendary **Realmwalker** unaffordable at low level.
 
 
 ---

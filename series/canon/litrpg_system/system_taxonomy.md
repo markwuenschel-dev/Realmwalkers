@@ -34,6 +34,16 @@ status: scaffold
 
 ---
 
+## Cross-Cutting Systems
+
+### Luck / Fortune
+
+Luck/Fortune is a cross-cutting uncertainty system. It applies across Resources, Combat, Crafting, Perception, Power Expression, Social Systems, Logistics, and Environment through local subsystem adapters defined in each owner file.
+
+**Canonical owner:** `luck_fortune.md` — not buried under `resource_system.md`.
+
+---
+
 ## Agent Expansion Protocol
 
 When asked to expand rules:
@@ -87,6 +97,8 @@ Every scaffold should use this structure:
 - **Frost/Poison/Arcane ≠ domains.** They are disciplines/schools/recipes.
 - **Class rarity ≠ bonus attribute point cadence.** Rarity affects XP/energy burden; classes define Prime/Core multipliers.
 - **Interface display ≠ reality.** The UI compresses reality; it is useful and incomplete.
+- **Luck ≠ Resource max.** Luck does not increase HP, Mana, Stamina, or Reserve maximums.
+- **Luck ≠ skill replacement.** Luck biases uncertainty; it does not replace skill, preparation, or agency.
 
 ---
 
@@ -108,3 +120,4 @@ Every scaffold should use this structure:
 | Economy & Logistics | Scaffold | Needed for trade, scarcity, transport, production chains. |
 | Social & Faction Systems | Scaffold | Needed for law, reputation, institutions, diplomacy. |
 | Interface & Abstraction | Scaffold | Core premise exists; compression/error/diagnostic rules need expansion. |
+| Luck / Fortune | Canon | `luck_fortune.md` + subsystem adapters wired across litrpg_system. |

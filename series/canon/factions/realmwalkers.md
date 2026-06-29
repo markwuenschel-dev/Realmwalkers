@@ -16,7 +16,7 @@ scale: cross_realm_org
 > **Owns:**
 > - Realm Walker category definition, witness ethos, Book 1 Eriadne contact, foil to Nightbound
 > **Does not own:**
-> - Riftwalker class mechanics (`../litrpg_system/classes.md`); Marcus recruitment arc (`../characters/major/mc.md`)
+> - Realmwalker class mechanics (`../litrpg_system/classes.md`); Marcus recruitment arc (`../characters/major/mc.md`)
 > **The spine:** Realm Walkers are not a guild or police force — they are a **loose category** of reality-crossing individuals who travel between realms, discover anomalies, witness erased worlds, maintain route customs, and sometimes intervene alone. The core contrast: *The Realm Walkers are witnesses, and witnesses are not enough.*
 
 ## One-Sentence Identity
@@ -57,7 +57,7 @@ Witness is sacred — but at scale it becomes **insufficient** — discovery wit
 
 - Cross-realm transit and anomaly reading — not standardized combat doctrine.
 - Marcus may qualify: implant/interface reads translation layers others mistake for reality.
-- **Riftwalker** class (Legendary) is distinct from the faction — class ≠ organization.
+- **Realmwalker** (Marcus's Legendary class, one word) is distinct from **the Realm Walkers** / **Realm Walkers** (faction, two words) — class ≠ organization.
 
 ## Society / Internal Structure
 
@@ -68,7 +68,7 @@ Witness is sacred — but at scale it becomes **insufficient** — discovery wit
 ## Relationship to the Realm
 
 - Eriadne's eight-ley convergence holds dormant natural portal (`../locations/eriadne.md`).
-- **Book 1 contact (locked):** portal forced open at finale → Myrmidon through → **Realm Walker drawn by breach** → witnesses fight → first contact with Marcus post-Myrmidon — seeds Riftwalker path.
+- **Book 1 contact (locked):** portal forced open at finale → Myrmidon through → **Realm Walker drawn by breach** → witnesses fight → first contact with Marcus post-Myrmidon — seeds **Realmwalker** class path.
 
 ## Relationship to the Six
 
@@ -89,7 +89,7 @@ Witness is sacred — but at scale it becomes **insufficient** — discovery wit
 
 ## Story Function
 
-- Marcus late-B1 recruitment; Riftwalker class handoff.
+- Marcus late-B1 recruitment; **Realmwalker** class handoff.
 - Moral contrast to Nightbound — both critiques valid.
 - Mystery preservation until Book 2 deep dive.
 
@@ -104,7 +104,7 @@ Witness is sacred — but at scale it becomes **insufficient** — discovery wit
 - **LOCK:** Core contrast — witnesses are not enough.
 - **LOCK:** Nightbound think Walkers irresponsible; Walkers think Nightbound dangerous.
 - **LOCK:** Book 1 Eriadne breach contact shape — drawn by portal breach, witnesses Myrmidon fight, contacts Marcus after.
-- **LOCK:** Riftwalker class ≠ Realm Walkers faction.
+- **LOCK:** **Realmwalker** (Marcus's Legendary class, one word) ≠ **the Realm Walkers** / **Realm Walkers** (faction, two words).
 - **LOCK:** One Walker may be inside Nightbound as pathfinder.
 
 ## Open Questions
@@ -121,7 +121,7 @@ Agents **may:**
 
 Agents **must not:**
 - Turn Walkers into Nightbound, a guild HQ, or realm police.
-- Conflate Riftwalker class with faction membership automatically.
+- Conflate **Realmwalker** (class) with **the Realm Walkers** / **Realm Walkers** (faction) membership automatically.
 - Make Walkers sufficient to stop N'hal or Xyloryn without preparation.
 
 ---
