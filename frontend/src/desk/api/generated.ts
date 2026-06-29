@@ -4,5140 +4,5140 @@
  */
 
 export interface paths {
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/pending": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Pending */
-        get: operations["pending_scenes_pending_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Health */
+    get: operations["health_health_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/pending": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Scene Detail */
-        get: operations["scene_detail_scenes__scene_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Scene
-         * @description Hard-delete one scene version and everything that points at it. Scenes are referenced by
-         *     critiques / annotations / approvals / suggestions and edit-pairs (NOT NULL) and softly by the
-         *     ledger, summaries, jobs, child versions, draft-attempt provenance, and knowledge facts — so we
-         *     remove the hard dependents and null the soft refs first, then the row, or the FK constraints
-         *     (a nullable FK still blocks a delete; there is no ON DELETE SET NULL) would fail the delete.
-         *     Used by the inbox's bulk 'delete selected'.
-         */
-        delete: operations["delete_scene_scenes__scene_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Pending */
+    get: operations["pending_scenes_pending_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/exemplar": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Set Exemplar
-         * @description Mark/unmark this scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2).
-         *
-         *     Adds/removes the scene id on the POV's `PovProfile.exemplar_scene_ids` — the list the drafter
-         *     few-shots on. Idempotent; disabling on a scene with no profile is a no-op.
-         */
-        post: operations["set_exemplar_scenes__scene_id__exemplar_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Scene Detail */
+    get: operations["scene_detail_scenes__scene_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Scene
+     * @description Hard-delete one scene version and everything that points at it. Scenes are referenced by
+     *     critiques / annotations / approvals / suggestions and edit-pairs (NOT NULL) and softly by the
+     *     ledger, summaries, jobs, child versions, draft-attempt provenance, and knowledge facts — so we
+     *     remove the hard dependents and null the soft refs first, then the row, or the FK constraints
+     *     (a nullable FK still blocks a delete; there is no ON DELETE SET NULL) would fail the delete.
+     *     Used by the inbox's bulk 'delete selected'.
+     */
+    delete: operations["delete_scene_scenes__scene_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/exemplar": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/draft-attempts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Scene Draft Attempts
-         * @description Provenance: every preserved stage of this scene's prose pipeline (raw draft, each enrichment
-         *     pass, length compress/expand, final rendered), oldest first.
-         */
-        get: operations["scene_draft_attempts_scenes__scene_id__draft_attempts_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Set Exemplar
+     * @description Mark/unmark this scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2).
+     *
+     *     Adds/removes the scene id on the POV's `PovProfile.exemplar_scene_ids` — the list the drafter
+     *     few-shots on. Idempotent; disabling on a scene with no profile is a no-op.
+     */
+    post: operations["set_exemplar_scenes__scene_id__exemplar_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/draft-attempts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Scene Versions
-         * @description Full lineage of a scene: every version sharing its (chapter, scene_no), oldest first.
-         */
-        get: operations["scene_versions_scenes__scene_id__versions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Scene Draft Attempts
+     * @description Provenance: every preserved stage of this scene's prose pipeline (raw draft, each enrichment
+     *     pass, length compress/expand, final rendered), oldest first.
+     */
+    get: operations["scene_draft_attempts_scenes__scene_id__draft_attempts_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/versions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/revert": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Revert Scene
-         * @description Roll a scene back to an earlier version: clone that version's prose into a NEW top version
-         *     (versioning is rows, never destructive — DESIGN §3) and supersede the current one.
-         *
-         *     The new version lands APPROVED directly — reverting is itself the human's decision, so it skips the
-         *     inbox. It deliberately does NOT re-commit the beat's declared deltas (the ledger already reflects
-         *     the approved state; re-applying relative '+N' deltas would double-count). `scene_id` is the version
-         *     to revert TO.
-         */
-        post: operations["revert_scene_scenes__scene_id__revert_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Scene Versions
+     * @description Full lineage of a scene: every version sharing its (chapter, scene_no), oldest first.
+     */
+    get: operations["scene_versions_scenes__scene_id__versions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/revert": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/decision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Decide */
-        post: operations["decide_scenes__scene_id__decision_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Revert Scene
+     * @description Roll a scene back to an earlier version: clone that version's prose into a NEW top version
+     *     (versioning is rows, never destructive — DESIGN §3) and supersede the current one.
+     *
+     *     The new version lands APPROVED directly — reverting is itself the human's decision, so it skips the
+     *     inbox. It deliberately does NOT re-commit the beat's declared deltas (the ledger already reflects
+     *     the approved state; re-applying relative '+N' deltas would double-count). `scene_id` is the version
+     *     to revert TO.
+     */
+    post: operations["revert_scene_scenes__scene_id__revert_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/continuity/resolve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Resolve Continuity */
-        post: operations["resolve_continuity_scenes__scene_id__continuity_resolve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Decide */
+    post: operations["decide_scenes__scene_id__decision_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/continuity/resolve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Start Run */
-        post: operations["start_run_runs_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Resolve Continuity */
+    post: operations["resolve_continuity_scenes__scene_id__continuity_resolve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Books */
-        get: operations["list_books_books_get"];
-        put?: never;
-        /** Create Book */
-        post: operations["create_book_books_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Start Run */
+    post: operations["start_run_runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/manuscript": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Manuscript */
-        get: operations["manuscript_books__book_id__manuscript_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Books */
+    get: operations["list_books_books_get"];
+    put?: never;
+    /** Create Book */
+    post: operations["create_book_books_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/manuscript": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Chapters */
-        get: operations["list_chapters_chapters_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Manuscript */
+    get: operations["manuscript_books__book_id__manuscript_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Chapter
-         * @description Edit a chapter's authored fields (currently the title). Only provided fields are applied, so
-         *     the author can rename the plan-call's proposed title at any time without re-running the planner.
-         */
-        patch: operations["update_chapter_chapters__chapter_id__patch"];
-        trace?: never;
+    /** List Chapters */
+    get: operations["list_chapters_chapters_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/beats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Beats */
-        get: operations["list_beats_chapters__chapter_id__beats_get"];
-        put?: never;
-        /**
-         * Create Beat
-         * @description Add a beat by hand — a scene the planner didn't propose (gate 1).
-         */
-        post: operations["create_beat_chapters__chapter_id__beats_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update Chapter
+     * @description Edit a chapter's authored fields (currently the title). Only provided fields are applied, so
+     *     the author can rename the plan-call's proposed title at any time without re-running the planner.
+     */
+    patch: operations["update_chapter_chapters__chapter_id__patch"];
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/beats": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/scenes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Chapter Scenes
-         * @description Every scene of a chapter, all statuses + versions (History browsing).
-         */
-        get: operations["list_chapter_scenes_chapters__chapter_id__scenes_get"];
-        put?: never;
-        /**
-         * Create Human Scene
-         * @description Write a manuscript section by hand. It lands APPROVED (the human is the gate) as a `human`-sourced
-         *     scene, supersedes any existing version at this scene_no, and folds into the POV summary in the
-         *     background — so later drafts inherit it via the rolling summary + the in-chapter prior-scene tail.
-         */
-        post: operations["create_human_scene_chapters__chapter_id__scenes_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Beats */
+    get: operations["list_beats_chapters__chapter_id__beats_get"];
+    put?: never;
+    /**
+     * Create Beat
+     * @description Add a beat by hand — a scene the planner didn't propose (gate 1).
+     */
+    post: operations["create_beat_chapters__chapter_id__beats_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/scenes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/beats/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Approve Beats */
-        post: operations["approve_beats_chapters__chapter_id__beats_approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List Chapter Scenes
+     * @description Every scene of a chapter, all statuses + versions (History browsing).
+     */
+    get: operations["list_chapter_scenes_chapters__chapter_id__scenes_get"];
+    put?: never;
+    /**
+     * Create Human Scene
+     * @description Write a manuscript section by hand. It lands APPROVED (the human is the gate) as a `human`-sourced
+     *     scene, supersedes any existing version at this scene_no, and folds into the POV summary in the
+     *     background — so later drafts inherit it via the rolling summary + the in-chapter prior-scene tail.
+     */
+    post: operations["create_human_scene_chapters__chapter_id__scenes_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/beats/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/scenes/redraft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Redraft Scenes
-         * @description Re-draft existing scenes: queue a DRAFT job per selected scene that TARGETS that scene, so the
-         *     worker version-ups and supersedes it (a clean regenerate, never a duplicate). Caller kicks the drain.
-         */
-        post: operations["redraft_scenes_chapters__chapter_id__scenes_redraft_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Approve Beats */
+    post: operations["approve_beats_chapters__chapter_id__beats_approve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/scenes/redraft": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/draft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Draft Chapter
-         * @description Queue a draft for every APPROVED beat of this chapter that has no scene yet — the missing
-         *     'draft' step after a packet is approved (its beats are derived APPROVED, but nothing enqueues
-         *     them, and they don't show in the Planner). Idempotent: skips beats already drafted or queued. The
-         *     caller kicks the drain (POST /jobs/draft-next).
-         */
-        post: operations["draft_chapter_chapters__chapter_id__draft_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Redraft Scenes
+     * @description Re-draft existing scenes: queue a DRAFT job per selected scene that TARGETS that scene, so the
+     *     worker version-ups and supersedes it (a clean regenerate, never a duplicate). Caller kicks the drain.
+     */
+    post: operations["redraft_scenes_chapters__chapter_id__scenes_redraft_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/draft": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/beats/{beat_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Beat */
-        put: operations["update_beat_beats__beat_id__put"];
-        post?: never;
-        /** Delete Beat */
-        delete: operations["delete_beat_beats__beat_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Draft Chapter
+     * @description Queue a draft for every APPROVED beat of this chapter that has no scene yet — the missing
+     *     'draft' step after a packet is approved (its beats are derived APPROVED, but nothing enqueues
+     *     them, and they don't show in the Planner). Idempotent: skips beats already drafted or queued. The
+     *     caller kicks the drain (POST /jobs/draft-next).
+     */
+    post: operations["draft_chapter_chapters__chapter_id__draft_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/beats/{beat_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/packet": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Packet */
-        get: operations["get_packet_chapters__chapter_id__packet_get"];
-        /**
-         * Update Packet
-         * @description Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after
-         *     reviewing flags. A blocked packet can be edited but stays blocked until re-proposed.
-         */
-        put: operations["update_packet_chapters__chapter_id__packet_put"];
-        /**
-         * Propose Packet
-         * @description Kick off the Packet Author + Packet QA in the BACKGROUND and return immediately.
-         *
-         *     The author call alone runs ~1-2 min, so blocking the request left the browser spinning and lost
-         *     the work on a tab switch. Now the run lives in the API process; the Desk polls `.../packet/status`
-         *     for the live phase ('authoring' -> 'qa') and refetches the packet when it finishes. Single-flight:
-         *     a re-trigger while one is already running just reports the in-flight status.
-         */
-        post: operations["propose_packet_chapters__chapter_id__packet_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /** Update Beat */
+    put: operations["update_beat_beats__beat_id__put"];
+    post?: never;
+    /** Delete Beat */
+    delete: operations["delete_beat_beats__beat_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/packet": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/packet/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Packet Status
-         * @description Live status of a background proposal so the Desk (any tab) can rejoin a run in progress.
-         *     `running` is False once the packet is persisted — the cue to GET the packet.
-         */
-        get: operations["packet_status_chapters__chapter_id__packet_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Packet */
+    get: operations["get_packet_chapters__chapter_id__packet_get"];
+    /**
+     * Update Packet
+     * @description Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after
+     *     reviewing flags. A blocked packet can be edited but stays blocked until re-proposed.
+     */
+    put: operations["update_packet_chapters__chapter_id__packet_put"];
+    /**
+     * Propose Packet
+     * @description Kick off the Packet Author + Packet QA in the BACKGROUND and return immediately.
+     *
+     *     The author call alone runs ~1-2 min, so blocking the request left the browser spinning and lost
+     *     the work on a tab switch. Now the run lives in the API process; the Desk polls `.../packet/status`
+     *     for the live phase ('authoring' -> 'qa') and refetches the packet when it finishes. Single-flight:
+     *     a re-trigger while one is already running just reports the in-flight status.
+     */
+    post: operations["propose_packet_chapters__chapter_id__packet_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/packet/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/packet/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Approve Packet
-         * @description Approve the packet so drafting may proceed. Refused when blocked, red-confidence, or open
-         *     questions remain (no auto-approve during tuning — even a green packet needs this human action).
-         */
-        post: operations["approve_packet_chapters__chapter_id__packet_approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Packet Status
+     * @description Live status of a background proposal so the Desk (any tab) can rejoin a run in progress.
+     *     `running` is False once the packet is persisted — the cue to GET the packet.
+     */
+    get: operations["packet_status_chapters__chapter_id__packet_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/packet/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/scene-packets/derive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Derive Scene Packets
-         * @description Kick off scene-packet derivation in the BACKGROUND and return immediately. Requires an approved
-         *     ChapterPacket (a blocked/absent one is a 409). The Desk polls `.../derive/status` for the live
-         *     phase and refetches the list when it finishes. Single-flight: a re-trigger reports the running run.
-         */
-        post: operations["derive_scene_packets_chapters__chapter_id__scene_packets_derive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Approve Packet
+     * @description Approve the packet so drafting may proceed. Refused when blocked, red-confidence, or open
+     *     questions remain (no auto-approve during tuning — even a green packet needs this human action).
+     */
+    post: operations["approve_packet_chapters__chapter_id__packet_approve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/scene-packets/derive": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/scene-packets/derive/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Derive Status
-         * @description Live status of a background derive so the Desk (any tab) can rejoin a run in progress. `running`
-         *     is False once it finishes; `result` then carries the counts.
-         */
-        get: operations["derive_status_chapters__chapter_id__scene_packets_derive_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Derive Scene Packets
+     * @description Kick off scene-packet derivation in the BACKGROUND and return immediately. Requires an approved
+     *     ChapterPacket (a blocked/absent one is a 409). The Desk polls `.../derive/status` for the live
+     *     phase and refetches the list when it finishes. Single-flight: a re-trigger reports the running run.
+     */
+    post: operations["derive_scene_packets_chapters__chapter_id__scene_packets_derive_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/scene-packets/derive/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/scene-packets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Scene Packets */
-        get: operations["list_scene_packets_chapters__chapter_id__scene_packets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Derive Status
+     * @description Live status of a background derive so the Desk (any tab) can rejoin a run in progress. `running`
+     *     is False once it finishes; `result` then carries the counts.
+     */
+    get: operations["derive_status_chapters__chapter_id__scene_packets_derive_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/scene-packets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scene-packets/{scene_packet_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Scene Packet */
-        get: operations["get_scene_packet_scene_packets__scene_packet_id__get"];
-        /**
-         * Update Scene Packet
-         * @description Human edit/adjudication. Editing the body returns an approved packet to `proposed` (re-approval
-         *     required) unless the same call explicitly sets status back to approved.
-         */
-        put: operations["update_scene_packet_scene_packets__scene_packet_id__put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Scene Packets */
+    get: operations["list_scene_packets_chapters__chapter_id__scene_packets_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scene-packets/{scene_packet_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scene-packets/{scene_packet_id}/qa": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Qa Scene Packet
-         * @description Re-run QA against the current body. A BLOCK_DRAFTING verdict blocks the packet; a malformed
-         *     response fails closed (also blocks).
-         */
-        post: operations["qa_scene_packet_scene_packets__scene_packet_id__qa_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Scene Packet */
+    get: operations["get_scene_packet_scene_packets__scene_packet_id__get"];
+    /**
+     * Update Scene Packet
+     * @description Human edit/adjudication. Editing the body returns an approved packet to `proposed` (re-approval
+     *     required) unless the same call explicitly sets status back to approved.
+     */
+    put: operations["update_scene_packet_scene_packets__scene_packet_id__put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scene-packets/{scene_packet_id}/qa": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scene-packets/{scene_packet_id}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Approve Scene Packet
-         * @description Approve one ScenePacket, then derive the chapter's beats. Refused when blocked or when QA
-         *     blocks drafting.
-         */
-        post: operations["approve_scene_packet_scene_packets__scene_packet_id__approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Qa Scene Packet
+     * @description Re-run QA against the current body. A BLOCK_DRAFTING verdict blocks the packet; a malformed
+     *     response fails closed (also blocks).
+     */
+    post: operations["qa_scene_packet_scene_packets__scene_packet_id__qa_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scene-packets/{scene_packet_id}/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/scene-packets/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Approve Scene Packets
-         * @description Batch approve. Approves only packets that are not blocked and have no blocking QA issues, then
-         *     derives the chapter's beats from the approved set.
-         */
-        post: operations["approve_scene_packets_chapters__chapter_id__scene_packets_approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Approve Scene Packet
+     * @description Approve one ScenePacket, then derive the chapter's beats. Refused when blocked or when QA
+     *     blocks drafting.
+     */
+    post: operations["approve_scene_packet_scene_packets__scene_packet_id__approve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/scene-packets/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/scene-packets/mark-stale": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Mark Scene Packets Stale
-         * @description Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed.
-         */
-        post: operations["mark_scene_packets_stale_chapters__chapter_id__scene_packets_mark_stale_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Approve Scene Packets
+     * @description Batch approve. Approves only packets that are not blocked and have no blocking QA issues, then
+     *     derives the chapter's beats from the approved set.
+     */
+    post: operations["approve_scene_packets_chapters__chapter_id__scene_packets_approve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/scene-packets/mark-stale": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/chapters/{chapter_id}/telemetry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Chapter Telemetry
-         * @description Per-scene telemetry for one chapter's LATEST derive run, plus that run's totals. Scoped to the
-         *     latest run (not cumulative) so the panel reflects the run you just kicked off. Empty (zero totals)
-         *     when the chapter has never been derived.
-         */
-        get: operations["chapter_telemetry_chapters__chapter_id__telemetry_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Mark Scene Packets Stale
+     * @description Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed.
+     */
+    post: operations["mark_scene_packets_stale_chapters__chapter_id__scene_packets_mark_stale_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/telemetry": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/telemetry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Book Telemetry
-         * @description Global telemetry for a book: overall totals + rollups across chapters, stages, and models for
-         *     cross-chapter/scene comparison.
-         */
-        get: operations["book_telemetry_books__book_id__telemetry_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Chapter Telemetry
+     * @description Per-scene telemetry for one chapter's LATEST derive run, plus that run's totals. Scoped to the
+     *     latest run (not cumulative) so the panel reflects the run you just kicked off. Empty (zero totals)
+     *     when the chapter has never been derived.
+     */
+    get: operations["chapter_telemetry_chapters__chapter_id__telemetry_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/telemetry": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/jobs/draft-next": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Draft Next
-         * @description Kick off drafting of the queued scenes (background, single-flight). Returns immediately.
-         *
-         *     The drain itself is global (the worker claims the oldest queued job regardless of book); book_id
-         *     only scopes the counts we report back so the caller sees its own book's queue.
-         */
-        post: operations["draft_next_jobs_draft_next_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Book Telemetry
+     * @description Global telemetry for a book: overall totals + rollups across chapters, stages, and models for
+     *     cross-chapter/scene comparison.
+     */
+    get: operations["book_telemetry_books__book_id__telemetry_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/jobs/draft-next": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/jobs/retry-failed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Retry Failed
-         * @description Re-queue every FAILED job (scoped to a book when given), then kick off drafting.
-         *
-         *     A FAILED job is terminal — draft-next only drains QUEUED — so a scene that died on a transient
-         *     cause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those
-         *     rows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the
-         *     Desk can offer a 'retry failed' affordance without a terminal or a DB round-trip.
-         */
-        post: operations["retry_failed_jobs_retry_failed_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Draft Next
+     * @description Kick off drafting of the queued scenes (background, single-flight). Returns immediately.
+     *
+     *     The drain itself is global (the worker claims the oldest queued job regardless of book); book_id
+     *     only scopes the counts we report back so the caller sees its own book's queue.
+     */
+    post: operations["draft_next_jobs_draft_next_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/jobs/retry-failed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/jobs/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Status
-         * @description Queue depth + which scene is drafting now, so the Desk shows a live indicator.
-         *
-         *     Scoped to book_id when given: `running` then means *this* book has a job in flight, so drafting
-         *     another book never lights up this book's indicator. Unscoped, the global drain lock still counts
-         *     (the terminal-driven path has no book context).
-         */
-        get: operations["status_jobs_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Retry Failed
+     * @description Re-queue every FAILED job (scoped to a book when given), then kick off drafting.
+     *
+     *     A FAILED job is terminal — draft-next only drains QUEUED — so a scene that died on a transient
+     *     cause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those
+     *     rows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the
+     *     Desk can offer a 'retry failed' affordance without a terminal or a DB round-trip.
+     */
+    post: operations["retry_failed_jobs_retry_failed_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/jobs/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/jobs/failed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Failed
-         * @description Every FAILED job with the reason it died — so the Desk can show the actual error (a bad API
-         *     key, depleted credits, a 5xx) instead of a generic 'transient issue', and so a failure is
-         *     diagnosable without server-log access. Scoped to a book when given.
-         */
-        get: operations["failed_jobs_failed_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Status
+     * @description Queue depth + which scene is drafting now, so the Desk shows a live indicator.
+     *
+     *     Scoped to book_id when given: `running` then means *this* book has a job in flight, so drafting
+     *     another book never lights up this book's indicator. Unscoped, the global drain lock still counts
+     *     (the terminal-driven path has no book context).
+     */
+    get: operations["status_jobs_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/jobs/failed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/characters": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Characters
-         * @description Every character the Oracle is tracking, with stats + (if present) the canon body and POV flag.
-         */
-        get: operations["list_characters_books__book_id__characters_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Failed
+     * @description Every FAILED job with the reason it died — so the Desk can show the actual error (a bad API
+     *     key, depleted credits, a 5xx) instead of a generic 'transient issue', and so a failure is
+     *     diagnosable without server-log access. Scoped to a book when given.
+     */
+    get: operations["failed_jobs_failed_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/characters": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/characters/{character}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Upsert Character
-         * @description Seed or replace a character's Oracle stats (absolute values) + optional canon description.
-         *
-         *     This is how you establish a baseline BEFORE writing — the continuity reviewer checks prose against
-         *     these hard numbers, and the drafter/RAG see the description. Stats are set wholesale (not deltas);
-         *     beat-declared deltas still advance them on approval as usual (workers/memory/ledger.py).
-         */
-        put: operations["upsert_character_books__book_id__characters__character__put"];
-        post?: never;
-        /**
-         * Delete Character
-         * @description Drop a character's tracked stat row (the kind='character' canon description is left in place).
-         */
-        delete: operations["delete_character_books__book_id__characters__character__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List Characters
+     * @description Every character the Oracle is tracking, with stats + (if present) the canon body and POV flag.
+     */
+    get: operations["list_characters_books__book_id__characters_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/characters/{character}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/knowledge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Knowledge
-         * @description The knowledge ledger: discrete story facts + who knows them when (scene-packet knowledge layer).
-         *     Populated from approved scenes' ScenePacket reveals.
-         */
-        get: operations["list_knowledge_books__book_id__knowledge_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /**
+     * Upsert Character
+     * @description Seed or replace a character's Oracle stats (absolute values) + optional canon description.
+     *
+     *     This is how you establish a baseline BEFORE writing — the continuity reviewer checks prose against
+     *     these hard numbers, and the drafter/RAG see the description. Stats are set wholesale (not deltas);
+     *     beat-declared deltas still advance them on approval as usual (workers/memory/ledger.py).
+     */
+    put: operations["upsert_character_books__book_id__characters__character__put"];
+    post?: never;
+    /**
+     * Delete Character
+     * @description Drop a character's tracked stat row (the kind='character' canon description is left in place).
+     */
+    delete: operations["delete_character_books__book_id__characters__character__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/knowledge": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/canon": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Canon
-         * @description The story bible: characters, locations, factions, items, lore. Filter by `kind` if given.
-         */
-        get: operations["list_canon_books__book_id__canon_get"];
-        put?: never;
-        /**
-         * Create Canon
-         * @description Add a canon entity (location/faction/item/lore/character/…). Embedded on write so it's
-         *     immediately retrievable by the drafter/planner RAG (DESIGN §7).
-         */
-        post: operations["create_canon_books__book_id__canon_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List Knowledge
+     * @description The knowledge ledger: discrete story facts + who knows them when (scene-packet knowledge layer).
+     *     Populated from approved scenes' ScenePacket reveals.
+     */
+    get: operations["list_knowledge_books__book_id__knowledge_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/canon": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/canon/{canon_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update Canon
-         * @description Edit a canon entity. Only provided fields change; a body change re-embeds it for retrieval.
-         */
-        put: operations["update_canon_canon__canon_id__put"];
-        post?: never;
-        /** Delete Canon */
-        delete: operations["delete_canon_canon__canon_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List Canon
+     * @description The story bible: characters, locations, factions, items, lore. Filter by `kind` if given.
+     */
+    get: operations["list_canon_books__book_id__canon_get"];
+    put?: never;
+    /**
+     * Create Canon
+     * @description Add a canon entity (location/faction/item/lore/character/…). Embedded on write so it's
+     *     immediately retrievable by the drafter/planner RAG (DESIGN §7).
+     */
+    post: operations["create_canon_books__book_id__canon_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/canon/{canon_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/canon/ingest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Ingest Canon
-         * @description Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
-         *     read-only Canon tab into the RAG the drafter/planner actually query.
-         *
-         *     Uses the incremental ingest: chunks are tagged with owner metadata (owner_topic/source_priority)
-         *     so owner files win precedence in hybrid retrieval, content-hashed so unchanged chunks are skipped
-         *     on re-run (only changed files re-embed), and tagged by folder kind (cast/faction/location/system/
-         *     lore/continuity) so the ledger groups them. Only previously-ingested chunks (non-null doc_path) are
-         *     refreshed/retired; hand-authored entities are untouched. `indexed` reports the live corpus size.
-         */
-        post: operations["ingest_canon_books__book_id__canon_ingest_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /**
+     * Update Canon
+     * @description Edit a canon entity. Only provided fields change; a body change re-embeds it for retrieval.
+     */
+    put: operations["update_canon_canon__canon_id__put"];
+    post?: never;
+    /** Delete Canon */
+    delete: operations["delete_canon_canon__canon_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/canon/ingest": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/threads": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Threads */
-        get: operations["list_threads_books__book_id__threads_get"];
-        put?: never;
-        /** Create Thread */
-        post: operations["create_thread_books__book_id__threads_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Ingest Canon
+     * @description Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
+     *     read-only Canon tab into the RAG the drafter/planner actually query.
+     *
+     *     Uses the incremental ingest: chunks are tagged with owner metadata (owner_topic/source_priority)
+     *     so owner files win precedence in hybrid retrieval, content-hashed so unchanged chunks are skipped
+     *     on re-run (only changed files re-embed), and tagged by folder kind (cast/faction/location/system/
+     *     lore/continuity) so the ledger groups them. Only previously-ingested chunks (non-null doc_path) are
+     *     refreshed/retired; hand-authored entities are untouched. `indexed` reports the live corpus size.
+     */
+    post: operations["ingest_canon_books__book_id__canon_ingest_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/threads": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/threads/{thread_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Thread */
-        put: operations["update_thread_threads__thread_id__put"];
-        post?: never;
-        /** Delete Thread */
-        delete: operations["delete_thread_threads__thread_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Threads */
+    get: operations["list_threads_books__book_id__threads_get"];
+    put?: never;
+    /** Create Thread */
+    post: operations["create_thread_books__book_id__threads_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/threads/{thread_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/threads/{thread_id}/beats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add Thread Beat */
-        post: operations["add_thread_beat_threads__thread_id__beats_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /** Update Thread */
+    put: operations["update_thread_threads__thread_id__put"];
+    post?: never;
+    /** Delete Thread */
+    delete: operations["delete_thread_threads__thread_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/threads/{thread_id}/beats": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/annotations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Annotations */
-        get: operations["list_annotations_scenes__scene_id__annotations_get"];
-        put?: never;
-        /** Create Annotation */
-        post: operations["create_annotation_scenes__scene_id__annotations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Add Thread Beat */
+    post: operations["add_thread_beat_threads__thread_id__beats_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/annotations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/annotations/{annotation_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Annotation */
-        delete: operations["delete_annotation_annotations__annotation_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Annotations */
+    get: operations["list_annotations_scenes__scene_id__annotations_get"];
+    put?: never;
+    /** Create Annotation */
+    post: operations["create_annotation_scenes__scene_id__annotations_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/annotations/{annotation_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scenes/{scene_id}/suggestions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Suggestions */
-        get: operations["list_suggestions_scenes__scene_id__suggestions_get"];
-        put?: never;
-        /** Create Suggestion */
-        post: operations["create_suggestion_scenes__scene_id__suggestions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete Annotation */
+    delete: operations["delete_annotation_annotations__annotation_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scenes/{scene_id}/suggestions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/suggestions/{suggestion_id}/decision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Decide Suggestion */
-        post: operations["decide_suggestion_suggestions__suggestion_id__decision_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Suggestions */
+    get: operations["list_suggestions_scenes__scene_id__suggestions_get"];
+    put?: never;
+    /** Create Suggestion */
+    post: operations["create_suggestion_scenes__scene_id__suggestions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/suggestions/{suggestion_id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/suggestions/{suggestion_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Suggestion */
-        delete: operations["delete_suggestion_suggestions__suggestion_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Decide Suggestion */
+    post: operations["decide_suggestion_suggestions__suggestion_id__decision_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/suggestions/{suggestion_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/distill": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Distill Rules
-         * @description Distill recent edits into proposed rules for one POV (or every POV with edits) and persist the
-         *     new ones as `pending`. Deduped against existing non-rejected proposals so re-running doesn't pile
-         *     up the same rule. Returns the freshly created proposals.
-         */
-        post: operations["distill_rules_books__book_id__distill_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete Suggestion */
+    delete: operations["delete_suggestion_suggestions__suggestion_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/distill": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/books/{book_id}/rule-proposals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Rule Proposals */
-        get: operations["list_rule_proposals_books__book_id__rule_proposals_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Distill Rules
+     * @description Distill recent edits into proposed rules for one POV (or every POV with edits) and persist the
+     *     new ones as `pending`. Deduped against existing non-rejected proposals so re-running doesn't pile
+     *     up the same rule. Returns the freshly created proposals.
+     */
+    post: operations["distill_rules_books__book_id__distill_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/rule-proposals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/rule-proposals/{proposal_id}/decision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Decide Rule Proposal */
-        post: operations["decide_rule_proposal_rule_proposals__proposal_id__decision_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Rule Proposals */
+    get: operations["list_rule_proposals_books__book_id__rule_proposals_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/rule-proposals/{proposal_id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/settings/models": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Models
-         * @description Every customizable agent's current model + which tier it is, plus the tier -> id map.
-         */
-        get: operations["get_models_settings_models_get"];
-        /**
-         * Set Model
-         * @description Point one agent role at Haiku / Sonnet / Opus. Applies live + persists.
-         */
-        put: operations["set_model_settings_models_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Decide Rule Proposal */
+    post: operations["decide_rule_proposal_rule_proposals__proposal_id__decision_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/models": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/library": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Docs
-         * @description Every Domain-B markdown doc, grouped category-first then by path. Read-only; no DB.
-         */
-        get: operations["list_docs_library_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Get Models
+     * @description Every customizable agent's current model + which tier it is, plus the tier -> id map.
+     */
+    get: operations["get_models_settings_models_get"];
+    /**
+     * Set Model
+     * @description Point one agent role at Haiku / Sonnet / Opus. Applies live + persists.
+     */
+    put: operations["set_model_settings_models_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/library": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/library/{doc_path}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Doc
-         * @description One doc's raw markdown + metadata. Sandboxed to the allowed category roots.
-         */
-        get: operations["read_doc_library__doc_path__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List Docs
+     * @description Every Domain-B markdown doc, grouped category-first then by path. Read-only; no DB.
+     */
+    get: operations["list_docs_library_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/library/{doc_path}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /**
+     * Read Doc
+     * @description One doc's raw markdown + metadata. Sandboxed to the allowed category roots.
+     */
+    get: operations["read_doc_library__doc_path__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** ActiveScene */
-        ActiveScene: {
-            /** Chapter No */
-            chapter_no?: number | null;
-            /** Scene No */
-            scene_no?: number | null;
-            /** Phase */
-            phase?: string | null;
-            /** Elapsed S */
-            elapsed_s?: number | null;
-            /** Cache Hit Ratio */
-            cache_hit_ratio?: number | null;
-            /** Total Cache Read Tokens */
-            total_cache_read_tokens?: number | null;
-            /** Total Cache Creation Tokens */
-            total_cache_creation_tokens?: number | null;
-        };
-        /** AnnotationIn */
-        AnnotationIn: {
-            /** Note */
-            note: string;
-            /** Quote */
-            quote?: string | null;
-            /** Author */
-            author?: string | null;
-        };
-        /** AnnotationOut */
-        AnnotationOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Scene Id
-             * Format: uuid
-             */
-            scene_id: string;
-            /** Version */
-            version?: number | null;
-            /** Quote */
-            quote?: string | null;
-            /** Author */
-            author?: string | null;
-            /** Note */
-            note?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /**
-         * ApproveBeatsIn
-         * @description Optional POST body for approve: restrict to a subset of beats (those to draft now).
-         */
-        ApproveBeatsIn: {
-            /** Beat Ids */
-            beat_ids?: string[] | null;
-        };
-        /**
-         * BeatCreateIn
-         * @description POST body to add a beat by hand (a scene the planner didn't propose).
-         */
-        BeatCreateIn: {
-            /** Scene No */
-            scene_no: number;
-            /** Beat Text */
-            beat_text?: string | null;
-            /** Characters Present */
-            characters_present?: string[] | null;
-            /** Tags */
-            tags?: string[] | null;
-            /** Expected State Changes */
-            expected_state_changes?: {
-                [key: string]: unknown;
-            } | null;
-            /** Knowledge Injections */
-            knowledge_injections?: string[] | null;
-            /** Target Words */
-            target_words?: number | null;
-        };
-        /** BeatOut */
-        BeatOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /** Scene Seed Id */
-            scene_seed_id?: string | null;
-            /** Scene Packet Id */
-            scene_packet_id?: string | null;
-            /** Scene No */
-            scene_no: number;
-            /** Beat Text */
-            beat_text?: string | null;
-            /** Characters Present */
-            characters_present?: string[] | null;
-            /** Tags */
-            tags?: string[] | null;
-            /** Expected State Changes */
-            expected_state_changes?: {
-                [key: string]: unknown;
-            } | null;
-            /** Knowledge Injections */
-            knowledge_injections?: string[] | null;
-            /** Target Words */
-            target_words?: number | null;
-            /** Status */
-            status: string;
-        };
-        /**
-         * BeatUpdateIn
-         * @description PUT body to edit a proposed beat (gate 1). Only provided fields are applied.
-         */
-        BeatUpdateIn: {
-            /** Beat Text */
-            beat_text?: string | null;
-            /** Characters Present */
-            characters_present?: string[] | null;
-            /** Tags */
-            tags?: string[] | null;
-            /** Expected State Changes */
-            expected_state_changes?: {
-                [key: string]: unknown;
-            } | null;
-            /** Knowledge Injections */
-            knowledge_injections?: string[] | null;
-            /** Target Words */
-            target_words?: number | null;
-        };
-        /**
-         * BookIn
-         * @description POST body to create a book.
-         */
-        BookIn: {
-            /** Title */
-            title: string;
-            /** Premise */
-            premise?: string | null;
-        };
-        /** BookOut */
-        BookOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Title */
-            title: string;
-            /** Premise */
-            premise?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /**
-         * BookTelemetryOut
-         * @description Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,
-         *     and models — the cross-chapter/scene view the global Telemetry tab renders.
-         */
-        BookTelemetryOut: {
-            /**
-             * @default {
-             *       "calls": 0,
-             *       "input_tokens": 0,
-             *       "output_tokens": 0,
-             *       "cache_creation_tokens": 0,
-             *       "cache_read_tokens": 0,
-             *       "cache_hit_ratio": 0,
-             *       "cache_tokens_saved": 0,
-             *       "truncations": 0,
-             *       "errors": 0
-             *     }
-             */
-            totals: components["schemas"]["TelemetryTotals"];
-            /**
-             * By Chapter
-             * @default []
-             */
-            by_chapter: components["schemas"]["ChapterRollupOut"][];
-            /**
-             * By Run
-             * @default []
-             */
-            by_run: components["schemas"]["RunRollupOut"][];
-            /**
-             * By Stage
-             * @default []
-             */
-            by_stage: components["schemas"]["TelemetryGroupOut"][];
-            /**
-             * By Model
-             * @default []
-             */
-            by_model: components["schemas"]["TelemetryGroupOut"][];
-        };
-        /**
-         * CanonEntityIn
-         * @description Create a canon entity (location/faction/item/lore/…). Re-embedded on write for retrieval.
-         */
-        CanonEntityIn: {
-            /** Kind */
-            kind?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Body */
-            body?: string | null;
-        };
-        /** CanonEntityOut */
-        CanonEntityOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Kind */
-            kind?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Body */
-            body?: string | null;
-        };
-        /**
-         * CanonEntityUpdateIn
-         * @description Edit a canon entity. Only provided fields are applied; body changes trigger a re-embed.
-         */
-        CanonEntityUpdateIn: {
-            /** Kind */
-            kind?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Body */
-            body?: string | null;
-        };
-        /**
-         * CanonIngestOut
-         * @description Result of rebuilding the retrieval index from the on-disk canon docs.
-         */
-        CanonIngestOut: {
-            /** Indexed */
-            indexed: number;
-        };
-        /** ChapterOut */
-        ChapterOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Book Id
-             * Format: uuid
-             */
-            book_id: string;
-            /** Chapter No */
-            chapter_no: number;
-            /** Title */
-            title?: string | null;
-            /** Pov */
-            pov: string;
-            /** Outline */
-            outline?: string | null;
-            /** Status */
-            status: string;
-        };
-        /**
-         * ChapterRollupOut
-         * @description One chapter's totals for the global cross-chapter comparison.
-         */
-        ChapterRollupOut: {
-            /**
-             * Calls
-             * @default 0
-             */
-            calls: number;
-            /**
-             * Input Tokens
-             * @default 0
-             */
-            input_tokens: number;
-            /**
-             * Output Tokens
-             * @default 0
-             */
-            output_tokens: number;
-            /**
-             * Cache Creation Tokens
-             * @default 0
-             */
-            cache_creation_tokens: number;
-            /**
-             * Cache Read Tokens
-             * @default 0
-             */
-            cache_read_tokens: number;
-            /**
-             * Cache Hit Ratio
-             * @default 0
-             */
-            cache_hit_ratio: number;
-            /**
-             * Cache Tokens Saved
-             * @default 0
-             */
-            cache_tokens_saved: number;
-            /**
-             * Truncations
-             * @default 0
-             */
-            truncations: number;
-            /**
-             * Errors
-             * @default 0
-             */
-            errors: number;
-            /** Avg Latency Ms */
-            avg_latency_ms?: number | null;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /** Chapter No */
-            chapter_no?: number | null;
-            /** Title */
-            title?: string | null;
-        };
-        /**
-         * ChapterTelemetryOut
-         * @description Per-chapter derive telemetry: chapter totals + a per-scene breakdown.
-         */
-        ChapterTelemetryOut: {
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /**
-             * @default {
-             *       "calls": 0,
-             *       "input_tokens": 0,
-             *       "output_tokens": 0,
-             *       "cache_creation_tokens": 0,
-             *       "cache_read_tokens": 0,
-             *       "cache_hit_ratio": 0,
-             *       "cache_tokens_saved": 0,
-             *       "truncations": 0,
-             *       "errors": 0
-             *     }
-             */
-            totals: components["schemas"]["TelemetryTotals"];
-            /**
-             * Scenes
-             * @default []
-             */
-            scenes: components["schemas"]["SceneTelemetryOut"][];
-        };
-        /**
-         * ChapterUpdateIn
-         * @description PATCH body to edit a chapter's authored fields (currently just the title). Only provided
-         *     fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn).
-         */
-        ChapterUpdateIn: {
-            /** Title */
-            title?: string | null;
-        };
-        /**
-         * CharacterStateIn
-         * @description Seed/replace a character's Oracle stats (absolute values, not deltas), with an optional canon
-         *     description. `stats` overwrites the stored stat block; `body` upserts a kind='character' canon
-         *     entity so the hover-card / Ledger body and RAG see it too.
-         */
-        CharacterStateIn: {
-            /**
-             * Stats
-             * @default {}
-             */
-            stats: {
-                [key: string]: unknown;
-            };
-            /** Body */
-            body?: string | null;
-        };
-        /**
-         * CharacterStateOut
-         * @description Hard numbers from the Oracle (CharacterState), with the canon body if the character has one.
-         */
-        CharacterStateOut: {
-            /** Character */
-            character: string;
-            /**
-             * Stats
-             * @default {}
-             */
-            stats: {
-                [key: string]: unknown;
-            };
-            /**
-             * Provisional
-             * @default false
-             */
-            provisional: boolean;
-            /**
-             * Is Pov
-             * @default false
-             */
-            is_pov: boolean;
-            /** Body */
-            body?: string | null;
-        };
-        /**
-         * ContinuityResolveIn
-         * @description Resolve one continuity mismatch from the panel: pick prose or ledger (DESIGN §9).
-         */
-        ContinuityResolveIn: {
-            /**
-             * Critique Id
-             * Format: uuid
-             */
-            critique_id: string;
-            /** Choice */
-            choice: string;
-        };
-        /** CritiqueOut */
-        CritiqueOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Reviewer */
-            reviewer: string;
-            /** Severity */
-            severity: string;
-            /** Note */
-            note?: string | null;
-            /** Payload */
-            payload?: {
-                [key: string]: unknown;
-            } | null;
-            /** Scene Packet Id */
-            scene_packet_id?: string | null;
-        };
-        /**
-         * Decision
-         * @enum {string}
-         */
-        Decision: "approve" | "deny" | "revise";
-        /**
-         * DecisionIn
-         * @description POST body for approve / deny / revise (DESIGN §9).
-         */
-        DecisionIn: {
-            decision: components["schemas"]["Decision"];
-            /** Target Pass */
-            target_pass?: string | null;
-            /** Feedback */
-            feedback?: string | null;
-            /** Edited Prose */
-            edited_prose?: string | null;
-        };
-        /** DocMeta */
-        DocMeta: {
-            /** Path */
-            path: string;
-            /** Title */
-            title: string;
-            /** Category */
-            category: string;
-        };
-        /** DocOut */
-        DocOut: {
-            /** Path */
-            path: string;
-            /** Title */
-            title: string;
-            /** Category */
-            category: string;
-            /** Content */
-            content: string;
-        };
-        /**
-         * DraftAttemptOut
-         * @description One preserved stage of a scene's prose pipeline (provenance: raw → enrichment → length → final).
-         */
-        DraftAttemptOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Stage */
-            stage: string;
-            /** Word Count */
-            word_count?: number | null;
-            /** Model */
-            model?: string | null;
-            /** Prose */
-            prose?: string | null;
-            /** Metadata Json */
-            metadata_json?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /** DraftNextOut */
-        DraftNextOut: {
-            /**
-             * Scheduled
-             * @default false
-             */
-            scheduled: boolean;
-            /**
-             * Queued
-             * @default 0
-             */
-            queued: number;
-            /**
-             * Running
-             * @default false
-             */
-            running: boolean;
-        };
-        /**
-         * ExemplarIn
-         * @description Toggle a scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2).
-         */
-        ExemplarIn: {
-            /** Enabled */
-            enabled: boolean;
-        };
-        /**
-         * FailedJobOut
-         * @description A FAILED job + why it died, so the Desk can show the actual error instead of a generic note.
-         */
-        FailedJobOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Chapter No */
-            chapter_no?: number | null;
-            /** Scene No */
-            scene_no?: number | null;
-            /** Last Error */
-            last_error?: string | null;
-        };
-        /**
-         * GateMode
-         * @enum {string}
-         */
-        GateMode: "pause_each" | "draft_ahead";
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /**
-         * HumanSceneIn
-         * @description POST body to write a manuscript section by hand — lands APPROVED so it flows into context.
-         */
-        HumanSceneIn: {
-            /** Scene No */
-            scene_no: number;
-            /** Prose */
-            prose: string;
-        };
-        /**
-         * JobsStatusOut
-         * @description Live queue state, so the Desk can show a 'drafting…' indicator without a terminal.
-         */
-        JobsStatusOut: {
-            /**
-             * Running
-             * @default false
-             */
-            running: boolean;
-            /**
-             * Queued
-             * @default 0
-             */
-            queued: number;
-            /**
-             * Failed
-             * @default 0
-             */
-            failed: number;
-            active_scene?: components["schemas"]["ActiveScene"] | null;
-            /** Last Cache Hit Ratio */
-            last_cache_hit_ratio?: number | null;
-            /** Last Cache Read Tokens */
-            last_cache_read_tokens?: number | null;
-            /** Last Cache Creation Tokens */
-            last_cache_creation_tokens?: number | null;
-            /** Last Cache Tokens Saved */
-            last_cache_tokens_saved?: number | null;
-        };
-        /**
-         * KnowledgeFactOut
-         * @description A discrete story fact + who knows it when (scene-packet knowledge ledger).
-         */
-        KnowledgeFactOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Book Id
-             * Format: uuid
-             */
-            book_id: string;
-            /** Fact */
-            fact: string;
-            /** Status */
-            status: string;
-            /** Known By Character */
-            known_by_character?: string | null;
-            /** Source Scene Id */
-            source_scene_id?: string | null;
-            /** Known By Reader After Scene Id */
-            known_by_reader_after_scene_id?: string | null;
-            /** Known By Character After Scene Id */
-            known_by_character_after_scene_id?: string | null;
-            /** Metadata Json */
-            metadata_json?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /** ManuscriptChapter */
-        ManuscriptChapter: {
-            /** Chapter No */
-            chapter_no: number;
-            /** Title */
-            title?: string | null;
-            /** Pov */
-            pov: string;
-            /**
-             * Scenes
-             * @default []
-             */
-            scenes: components["schemas"]["ManuscriptScene"][];
-        };
-        /**
-         * ManuscriptOut
-         * @description The approved manuscript, assembled in reading order (latest approved version per scene).
-         */
-        ManuscriptOut: {
-            /**
-             * Book Id
-             * Format: uuid
-             */
-            book_id: string;
-            /** Title */
-            title: string;
-            /**
-             * Chapters
-             * @default []
-             */
-            chapters: components["schemas"]["ManuscriptChapter"][];
-        };
-        /** ManuscriptScene */
-        ManuscriptScene: {
-            /** Scene No */
-            scene_no: number;
-            /** Prose */
-            prose?: string | null;
-        };
-        /**
-         * ModelSettingOut
-         * @description One customizable agent: its current model id + which tier (haiku/sonnet/opus) that is.
-         */
-        ModelSettingOut: {
-            /** Setting */
-            setting: string;
-            /** Label */
-            label: string;
-            /** Description */
-            description: string;
-            /** Model */
-            model: string;
-            /** Tier */
-            tier?: string | null;
-        };
-        /**
-         * ModelSettingUpdateIn
-         * @description PUT body to point one agent role at a tier.
-         */
-        ModelSettingUpdateIn: {
-            /** Setting */
-            setting: string;
-            /** Tier */
-            tier: string;
-        };
-        /** ModelSettingsOut */
-        ModelSettingsOut: {
-            /** Agents */
-            agents: components["schemas"]["ModelSettingOut"][];
-            /** Tiers */
-            tiers: {
-                [key: string]: string;
-            };
-        };
-        /**
-         * PacketOut
-         * @description A chapter knowledge packet for the Desk review panel. `body` is the full structured packet
-         *     (claims with provenance, scene seeds with stable ids, locks, risks); `qa_warnings` carries the
-         *     Packet QA verdict's residual risks + issues; `open_questions` are items the human must adjudicate.
-         */
-        PacketOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Book Id
-             * Format: uuid
-             */
-            book_id: string;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /** Status */
-            status: string;
-            /** Confidence */
-            confidence?: string | null;
-            /** Qa Verdict */
-            qa_verdict?: string | null;
-            /** Qa Warnings */
-            qa_warnings?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Body
-             * @default {}
-             */
-            body: {
-                [key: string]: unknown;
-            };
-            /** Open Questions */
-            open_questions?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Can Approve
-             * @default false
-             */
-            can_approve: boolean;
-            /**
-             * Approval Blockers
-             * @default []
-             */
-            approval_blockers: string[];
-        };
-        /**
-         * PacketProposeOut
-         * @description Status of an in-flight packet proposal. The author+QA run in the background (so the browser
-         *     never hangs); the Desk polls and shows the live phase ('authoring' -> 'qa'). `running` flips to
-         *     False when the packet is persisted — that's the cue to refetch it via GET.
-         */
-        PacketProposeOut: {
-            /** Running */
-            running: boolean;
-            /** Phase */
-            phase?: string | null;
-            /** Elapsed S */
-            elapsed_s?: number | null;
-        };
-        /**
-         * PacketUpdateIn
-         * @description PUT body to adjudicate/edit a proposed packet. Only provided fields are applied. The human
-         *     edits the body, clears open questions, and may raise the confidence after reviewing flags.
-         */
-        PacketUpdateIn: {
-            /** Body */
-            body?: {
-                [key: string]: unknown;
-            } | null;
-            /** Open Questions */
-            open_questions?: {
-                [key: string]: unknown;
-            } | null;
-            /** Confidence */
-            confidence?: string | null;
-        };
-        /**
-         * RedraftIn
-         * @description POST body to re-draft existing scenes: re-queue a draft for each (supersedes the current version).
-         */
-        RedraftIn: {
-            /** Scene Ids */
-            scene_ids: string[];
-        };
-        /**
-         * RetryFailedOut
-         * @description Result of re-queuing FAILED jobs (e.g. after a transient outage or topping up API credits).
-         */
-        RetryFailedOut: {
-            /**
-             * Requeued
-             * @default 0
-             */
-            requeued: number;
-            /**
-             * Scheduled
-             * @default false
-             */
-            scheduled: boolean;
-            /**
-             * Queued
-             * @default 0
-             */
-            queued: number;
-            /**
-             * Running
-             * @default false
-             */
-            running: boolean;
-        };
-        /**
-         * RuleProposalDecisionIn
-         * @description Accept or reject a proposed rule. On accept, `rule_text` (if set) replaces the proposed text,
-         *     so the author can edit a rule before it lands in the POV's voice spec.
-         */
-        RuleProposalDecisionIn: {
-            status: components["schemas"]["RuleProposalStatus"];
-            /** Rule Text */
-            rule_text?: string | null;
-        };
-        /** RuleProposalOut */
-        RuleProposalOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Book Id
-             * Format: uuid
-             */
-            book_id: string;
-            /** Pov */
-            pov: string;
-            /** Kind */
-            kind: string;
-            /** Rule Text */
-            rule_text: string;
-            /** Rationale */
-            rationale?: string | null;
-            /** Source Pair Ids */
-            source_pair_ids?: string[] | null;
-            /** Status */
-            status: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /**
-         * RuleProposalStatus
-         * @description A distilled rule's lifecycle: proposed, then accepted (applied to voice_spec) or rejected.
-         * @enum {string}
-         */
-        RuleProposalStatus: "pending" | "accepted" | "rejected";
-        /**
-         * RunRollupOut
-         * @description One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`
-         *     is the run's earliest call; `chapter_no`/`title` label which chapter the run derived.
-         */
-        RunRollupOut: {
-            /**
-             * Calls
-             * @default 0
-             */
-            calls: number;
-            /**
-             * Input Tokens
-             * @default 0
-             */
-            input_tokens: number;
-            /**
-             * Output Tokens
-             * @default 0
-             */
-            output_tokens: number;
-            /**
-             * Cache Creation Tokens
-             * @default 0
-             */
-            cache_creation_tokens: number;
-            /**
-             * Cache Read Tokens
-             * @default 0
-             */
-            cache_read_tokens: number;
-            /**
-             * Cache Hit Ratio
-             * @default 0
-             */
-            cache_hit_ratio: number;
-            /**
-             * Cache Tokens Saved
-             * @default 0
-             */
-            cache_tokens_saved: number;
-            /**
-             * Truncations
-             * @default 0
-             */
-            truncations: number;
-            /**
-             * Errors
-             * @default 0
-             */
-            errors: number;
-            /** Avg Latency Ms */
-            avg_latency_ms?: number | null;
-            /** Run Id */
-            run_id?: string | null;
-            /** Started At */
-            started_at?: string | null;
-            /** Chapter Id */
-            chapter_id?: string | null;
-            /** Chapter No */
-            chapter_no?: number | null;
-            /** Title */
-            title?: string | null;
-        };
-        /**
-         * RunStartIn
-         * @description POST body to start a run: outline a chapter; the planner proposes its beats (gate 1).
-         *
-         *     Re-running for the same chapter re-proposes (replaces the chapter's still-proposed beats).
-         */
-        RunStartIn: {
-            /**
-             * Book Id
-             * Format: uuid
-             */
-            book_id: string;
-            /** Chapter No */
-            chapter_no: number;
-            /** Pov */
-            pov: string;
-            /** Outline */
-            outline: string;
-            /** @default pause_each */
-            gate_mode: components["schemas"]["GateMode"];
-            /** Token Budget */
-            token_budget?: number | null;
-            /** Max Beats */
-            max_beats?: number | null;
-            /** Target Words */
-            target_words?: number | null;
-        };
-        /**
-         * RunStartOut
-         * @description Result of starting a run: the chapter and its proposed (unapproved) beats.
-         */
-        RunStartOut: {
-            /**
-             * Run Id
-             * Format: uuid
-             */
-            run_id: string;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /** Chapter No */
-            chapter_no: number;
-            /** Pov */
-            pov: string;
-            /**
-             * Beats
-             * @default []
-             */
-            beats: components["schemas"]["BeatOut"][];
-        };
-        /** SceneDetail */
-        SceneDetail: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /** Scene No */
-            scene_no: number;
-            /** Version */
-            version: number;
-            /** Status */
-            status: string;
-            /** Scene Packet Id */
-            scene_packet_id?: string | null;
-            /** Word Count */
-            word_count?: number | null;
-            /** Length Status */
-            length_status?: string | null;
-            /** Prose */
-            prose?: string | null;
-            /** Prose Source */
-            prose_source: string;
-            /** Passes Run */
-            passes_run?: string[] | null;
-            /** Token Count */
-            token_count?: number | null;
-            /** Model */
-            model?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Critiques
-             * @default []
-             */
-            critiques: components["schemas"]["CritiqueOut"][];
-            /**
-             * Is Exemplar
-             * @default false
-             */
-            is_exemplar: boolean;
-        };
-        /** SceneOut */
-        SceneOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /** Scene No */
-            scene_no: number;
-            /** Version */
-            version: number;
-            /** Status */
-            status: string;
-            /** Scene Packet Id */
-            scene_packet_id?: string | null;
-            /** Word Count */
-            word_count?: number | null;
-            /** Length Status */
-            length_status?: string | null;
-            /** Prose */
-            prose?: string | null;
-            /** Prose Source */
-            prose_source: string;
-            /** Passes Run */
-            passes_run?: string[] | null;
-            /** Token Count */
-            token_count?: number | null;
-            /** Model */
-            model?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /**
-         * ScenePacketApproveIn
-         * @description Optional POST body for batch approve: restrict to a subset of packets.
-         */
-        ScenePacketApproveIn: {
-            /** Packet Ids */
-            packet_ids?: string[] | null;
-        };
-        /**
-         * ScenePacketDeriveOut
-         * @description Result of deriving scene packets for a chapter from its approved ChapterPacket.
-         */
-        ScenePacketDeriveOut: {
-            /**
-             * Created
-             * @default 0
-             */
-            created: number;
-            /**
-             * Updated
-             * @default 0
-             */
-            updated: number;
-            /**
-             * Blocked
-             * @default 0
-             */
-            blocked: number;
-            /**
-             * Stale
-             * @default 0
-             */
-            stale: number;
-            /**
-             * Packets
-             * @default []
-             */
-            packets: components["schemas"]["ScenePacketOut"][];
-        };
-        /**
-         * ScenePacketDeriveStatusOut
-         * @description Status of an in-flight scene-packet derivation (the ScenePacket Author + QA run per scene in the
-         *     background, so a large chapter never hangs the request). The Desk polls and refetches the list when
-         *     `running` flips False. `result` carries the counts once the run finishes.
-         */
-        ScenePacketDeriveStatusOut: {
-            /** Running */
-            running: boolean;
-            /** Phase */
-            phase?: string | null;
-            /** Elapsed S */
-            elapsed_s?: number | null;
-            result?: components["schemas"]["ScenePacketDeriveOut"] | null;
-        };
-        /**
-         * ScenePacketOut
-         * @description A derived scene-local contract for the Desk. `body` follows the ScenePacket body contract
-         *     (reader/POV knowledge state, allowed/forbidden reveals, intentional mysteries, false-positive
-         *     traps, word budget); `qa_warnings` carries the ScenePacket QA verdict's residual risks + issues.
-         */
-        ScenePacketOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Book Id
-             * Format: uuid
-             */
-            book_id: string;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /**
-             * Chapter Packet Id
-             * Format: uuid
-             */
-            chapter_packet_id: string;
-            /** Scene Seed Id */
-            scene_seed_id?: string | null;
-            /** Scene No */
-            scene_no: number;
-            /** Status */
-            status: string;
-            /** Qa Verdict */
-            qa_verdict?: string | null;
-            /** Qa Warnings */
-            qa_warnings?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Body
-             * @default {}
-             */
-            body: {
-                [key: string]: unknown;
-            };
-            /** Source Hash */
-            source_hash?: string | null;
-            /** Stale Reason */
-            stale_reason?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Updated At */
-            updated_at?: string | null;
-            /**
-             * Can Approve
-             * @default false
-             */
-            can_approve: boolean;
-            /**
-             * Approval Blockers
-             * @default []
-             */
-            approval_blockers: string[];
-        };
-        /**
-         * ScenePacketQaOut
-         * @description Result of running QA against one scene packet.
-         */
-        ScenePacketQaOut: {
-            /**
-             * Packet Id
-             * Format: uuid
-             */
-            packet_id: string;
-            /** Verdict */
-            verdict: string;
-            /** Warnings */
-            warnings?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * ScenePacketUpdateIn
-         * @description PUT body to edit/adjudicate a scene packet. Editing the body after approval returns it to
-         *     proposed unless status is explicitly set back to approved in the same call.
-         */
-        ScenePacketUpdateIn: {
-            /** Body */
-            body?: {
-                [key: string]: unknown;
-            } | null;
-            /** Status */
-            status?: string | null;
-        };
-        /**
-         * SceneTelemetryOut
-         * @description One scene's derive telemetry (Author + QA calls), for the per-chapter panel.
-         */
-        SceneTelemetryOut: {
-            /**
-             * Calls
-             * @default 0
-             */
-            calls: number;
-            /**
-             * Input Tokens
-             * @default 0
-             */
-            input_tokens: number;
-            /**
-             * Output Tokens
-             * @default 0
-             */
-            output_tokens: number;
-            /**
-             * Cache Creation Tokens
-             * @default 0
-             */
-            cache_creation_tokens: number;
-            /**
-             * Cache Read Tokens
-             * @default 0
-             */
-            cache_read_tokens: number;
-            /**
-             * Cache Hit Ratio
-             * @default 0
-             */
-            cache_hit_ratio: number;
-            /**
-             * Cache Tokens Saved
-             * @default 0
-             */
-            cache_tokens_saved: number;
-            /**
-             * Truncations
-             * @default 0
-             */
-            truncations: number;
-            /**
-             * Errors
-             * @default 0
-             */
-            errors: number;
-            /** Avg Latency Ms */
-            avg_latency_ms?: number | null;
-            /** Scene No */
-            scene_no?: number | null;
-            /**
-             * Models
-             * @default []
-             */
-            models: string[];
-        };
-        /**
-         * SceneVersionOut
-         * @description A scene row plus its preserved pre-edit text, for version diffing in History.
-         */
-        SceneVersionOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Chapter Id
-             * Format: uuid
-             */
-            chapter_id: string;
-            /** Scene No */
-            scene_no: number;
-            /** Version */
-            version: number;
-            /** Status */
-            status: string;
-            /** Scene Packet Id */
-            scene_packet_id?: string | null;
-            /** Word Count */
-            word_count?: number | null;
-            /** Length Status */
-            length_status?: string | null;
-            /** Prose */
-            prose?: string | null;
-            /** Prose Source */
-            prose_source: string;
-            /** Passes Run */
-            passes_run?: string[] | null;
-            /** Token Count */
-            token_count?: number | null;
-            /** Model */
-            model?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Agent Original */
-            agent_original?: string | null;
-        };
-        /** SuggestionDecisionIn */
-        SuggestionDecisionIn: {
-            status: components["schemas"]["SuggestionStatus"];
-        };
-        /** SuggestionIn */
-        SuggestionIn: {
-            /** Quote */
-            quote: string;
-            /** New Text */
-            new_text?: string | null;
-            /** Author */
-            author?: string | null;
-            /** Why */
-            why?: string | null;
-        };
-        /** SuggestionOut */
-        SuggestionOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Scene Id
-             * Format: uuid
-             */
-            scene_id: string;
-            /** Version */
-            version?: number | null;
-            /** Quote */
-            quote: string;
-            /** New Text */
-            new_text?: string | null;
-            /** Author */
-            author?: string | null;
-            /** Why */
-            why?: string | null;
-            /** Status */
-            status: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /**
-         * SuggestionStatus
-         * @enum {string}
-         */
-        SuggestionStatus: "pending" | "accepted" | "rejected";
-        /**
-         * TelemetryGroupOut
-         * @description A named aggregation bucket for the global tab (by stage or by model).
-         */
-        TelemetryGroupOut: {
-            /**
-             * Calls
-             * @default 0
-             */
-            calls: number;
-            /**
-             * Input Tokens
-             * @default 0
-             */
-            input_tokens: number;
-            /**
-             * Output Tokens
-             * @default 0
-             */
-            output_tokens: number;
-            /**
-             * Cache Creation Tokens
-             * @default 0
-             */
-            cache_creation_tokens: number;
-            /**
-             * Cache Read Tokens
-             * @default 0
-             */
-            cache_read_tokens: number;
-            /**
-             * Cache Hit Ratio
-             * @default 0
-             */
-            cache_hit_ratio: number;
-            /**
-             * Cache Tokens Saved
-             * @default 0
-             */
-            cache_tokens_saved: number;
-            /**
-             * Truncations
-             * @default 0
-             */
-            truncations: number;
-            /**
-             * Errors
-             * @default 0
-             */
-            errors: number;
-            /** Avg Latency Ms */
-            avg_latency_ms?: number | null;
-            /**
-             * Key
-             * @default
-             */
-            key: string;
-        };
-        /**
-         * TelemetryTotals
-         * @description Aggregated cost/cache/health over a set of LLM calls (one scene, chapter, stage, model, or all).
-         */
-        TelemetryTotals: {
-            /**
-             * Calls
-             * @default 0
-             */
-            calls: number;
-            /**
-             * Input Tokens
-             * @default 0
-             */
-            input_tokens: number;
-            /**
-             * Output Tokens
-             * @default 0
-             */
-            output_tokens: number;
-            /**
-             * Cache Creation Tokens
-             * @default 0
-             */
-            cache_creation_tokens: number;
-            /**
-             * Cache Read Tokens
-             * @default 0
-             */
-            cache_read_tokens: number;
-            /**
-             * Cache Hit Ratio
-             * @default 0
-             */
-            cache_hit_ratio: number;
-            /**
-             * Cache Tokens Saved
-             * @default 0
-             */
-            cache_tokens_saved: number;
-            /**
-             * Truncations
-             * @default 0
-             */
-            truncations: number;
-            /**
-             * Errors
-             * @default 0
-             */
-            errors: number;
-            /** Avg Latency Ms */
-            avg_latency_ms?: number | null;
-        };
-        /** ThreadBeatIn */
-        ThreadBeatIn: {
-            /** Scene No */
-            scene_no: number;
-            /** Label */
-            label?: string | null;
-            /**
-             * Flag
-             * @default false
-             */
-            flag: boolean;
-        };
-        /** ThreadBeatOut */
-        ThreadBeatOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Scene No */
-            scene_no: number;
-            /** Label */
-            label?: string | null;
-            /**
-             * Flag
-             * @default false
-             */
-            flag: boolean;
-        };
-        /** ThreadIn */
-        ThreadIn: {
-            /** Name */
-            name: string;
-            /** Kind */
-            kind?: string | null;
-            /** State */
-            state?: string | null;
-            /** Note */
-            note?: string | null;
-        };
-        /** ThreadOut */
-        ThreadOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string;
-            /** Kind */
-            kind?: string | null;
-            /** State */
-            state?: string | null;
-            /** Note */
-            note?: string | null;
-            /**
-             * Beats
-             * @default []
-             */
-            beats: components["schemas"]["ThreadBeatOut"][];
-        };
-        /**
-         * ThreadUpdateIn
-         * @description Only provided fields are applied (mirrors BeatUpdateIn).
-         */
-        ThreadUpdateIn: {
-            /** Name */
-            name?: string | null;
-            /** Kind */
-            kind?: string | null;
-            /** State */
-            state?: string | null;
-            /** Note */
-            note?: string | null;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
+  schemas: {
+    /** ActiveScene */
+    ActiveScene: {
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Phase */
+      phase?: string | null;
+      /** Elapsed S */
+      elapsed_s?: number | null;
+      /** Cache Hit Ratio */
+      cache_hit_ratio?: number | null;
+      /** Total Cache Read Tokens */
+      total_cache_read_tokens?: number | null;
+      /** Total Cache Creation Tokens */
+      total_cache_creation_tokens?: number | null;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AnnotationIn */
+    AnnotationIn: {
+      /** Note */
+      note: string;
+      /** Quote */
+      quote?: string | null;
+      /** Author */
+      author?: string | null;
+    };
+    /** AnnotationOut */
+    AnnotationOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Scene Id
+       * Format: uuid
+       */
+      scene_id: string;
+      /** Version */
+      version?: number | null;
+      /** Quote */
+      quote?: string | null;
+      /** Author */
+      author?: string | null;
+      /** Note */
+      note?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * ApproveBeatsIn
+     * @description Optional POST body for approve: restrict to a subset of beats (those to draft now).
+     */
+    ApproveBeatsIn: {
+      /** Beat Ids */
+      beat_ids?: string[] | null;
+    };
+    /**
+     * BeatCreateIn
+     * @description POST body to add a beat by hand (a scene the planner didn't propose).
+     */
+    BeatCreateIn: {
+      /** Scene No */
+      scene_no: number;
+      /** Beat Text */
+      beat_text?: string | null;
+      /** Characters Present */
+      characters_present?: string[] | null;
+      /** Tags */
+      tags?: string[] | null;
+      /** Expected State Changes */
+      expected_state_changes?: {
+        [key: string]: unknown;
+      } | null;
+      /** Knowledge Injections */
+      knowledge_injections?: string[] | null;
+      /** Target Words */
+      target_words?: number | null;
+    };
+    /** BeatOut */
+    BeatOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Scene Seed Id */
+      scene_seed_id?: string | null;
+      /** Scene Packet Id */
+      scene_packet_id?: string | null;
+      /** Scene No */
+      scene_no: number;
+      /** Beat Text */
+      beat_text?: string | null;
+      /** Characters Present */
+      characters_present?: string[] | null;
+      /** Tags */
+      tags?: string[] | null;
+      /** Expected State Changes */
+      expected_state_changes?: {
+        [key: string]: unknown;
+      } | null;
+      /** Knowledge Injections */
+      knowledge_injections?: string[] | null;
+      /** Target Words */
+      target_words?: number | null;
+      /** Status */
+      status: string;
+    };
+    /**
+     * BeatUpdateIn
+     * @description PUT body to edit a proposed beat (gate 1). Only provided fields are applied.
+     */
+    BeatUpdateIn: {
+      /** Beat Text */
+      beat_text?: string | null;
+      /** Characters Present */
+      characters_present?: string[] | null;
+      /** Tags */
+      tags?: string[] | null;
+      /** Expected State Changes */
+      expected_state_changes?: {
+        [key: string]: unknown;
+      } | null;
+      /** Knowledge Injections */
+      knowledge_injections?: string[] | null;
+      /** Target Words */
+      target_words?: number | null;
+    };
+    /**
+     * BookIn
+     * @description POST body to create a book.
+     */
+    BookIn: {
+      /** Title */
+      title: string;
+      /** Premise */
+      premise?: string | null;
+    };
+    /** BookOut */
+    BookOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Title */
+      title: string;
+      /** Premise */
+      premise?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * BookTelemetryOut
+     * @description Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,
+     *     and models — the cross-chapter/scene view the global Telemetry tab renders.
+     */
+    BookTelemetryOut: {
+      /**
+       * @default {
+       *       "calls": 0,
+       *       "input_tokens": 0,
+       *       "output_tokens": 0,
+       *       "cache_creation_tokens": 0,
+       *       "cache_read_tokens": 0,
+       *       "cache_hit_ratio": 0,
+       *       "cache_tokens_saved": 0,
+       *       "truncations": 0,
+       *       "errors": 0
+       *     }
+       */
+      totals: components["schemas"]["TelemetryTotals"];
+      /**
+       * By Chapter
+       * @default []
+       */
+      by_chapter: components["schemas"]["ChapterRollupOut"][];
+      /**
+       * By Run
+       * @default []
+       */
+      by_run: components["schemas"]["RunRollupOut"][];
+      /**
+       * By Stage
+       * @default []
+       */
+      by_stage: components["schemas"]["TelemetryGroupOut"][];
+      /**
+       * By Model
+       * @default []
+       */
+      by_model: components["schemas"]["TelemetryGroupOut"][];
+    };
+    /**
+     * CanonEntityIn
+     * @description Create a canon entity (location/faction/item/lore/…). Re-embedded on write for retrieval.
+     */
+    CanonEntityIn: {
+      /** Kind */
+      kind?: string | null;
+      /** Name */
+      name?: string | null;
+      /** Body */
+      body?: string | null;
+    };
+    /** CanonEntityOut */
+    CanonEntityOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Kind */
+      kind?: string | null;
+      /** Name */
+      name?: string | null;
+      /** Body */
+      body?: string | null;
+    };
+    /**
+     * CanonEntityUpdateIn
+     * @description Edit a canon entity. Only provided fields are applied; body changes trigger a re-embed.
+     */
+    CanonEntityUpdateIn: {
+      /** Kind */
+      kind?: string | null;
+      /** Name */
+      name?: string | null;
+      /** Body */
+      body?: string | null;
+    };
+    /**
+     * CanonIngestOut
+     * @description Result of rebuilding the retrieval index from the on-disk canon docs.
+     */
+    CanonIngestOut: {
+      /** Indexed */
+      indexed: number;
+    };
+    /** ChapterOut */
+    ChapterOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Chapter No */
+      chapter_no: number;
+      /** Title */
+      title?: string | null;
+      /** Pov */
+      pov: string;
+      /** Outline */
+      outline?: string | null;
+      /** Status */
+      status: string;
+    };
+    /**
+     * ChapterRollupOut
+     * @description One chapter's totals for the global cross-chapter comparison.
+     */
+    ChapterRollupOut: {
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Cache Hit Ratio
+       * @default 0
+       */
+      cache_hit_ratio: number;
+      /**
+       * Cache Tokens Saved
+       * @default 0
+       */
+      cache_tokens_saved: number;
+      /**
+       * Truncations
+       * @default 0
+       */
+      truncations: number;
+      /**
+       * Errors
+       * @default 0
+       */
+      errors: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Title */
+      title?: string | null;
+    };
+    /**
+     * ChapterTelemetryOut
+     * @description Per-chapter derive telemetry: chapter totals + a per-scene breakdown.
+     */
+    ChapterTelemetryOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /**
+       * @default {
+       *       "calls": 0,
+       *       "input_tokens": 0,
+       *       "output_tokens": 0,
+       *       "cache_creation_tokens": 0,
+       *       "cache_read_tokens": 0,
+       *       "cache_hit_ratio": 0,
+       *       "cache_tokens_saved": 0,
+       *       "truncations": 0,
+       *       "errors": 0
+       *     }
+       */
+      totals: components["schemas"]["TelemetryTotals"];
+      /**
+       * Scenes
+       * @default []
+       */
+      scenes: components["schemas"]["SceneTelemetryOut"][];
+    };
+    /**
+     * ChapterUpdateIn
+     * @description PATCH body to edit a chapter's authored fields (currently just the title). Only provided
+     *     fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn).
+     */
+    ChapterUpdateIn: {
+      /** Title */
+      title?: string | null;
+    };
+    /**
+     * CharacterStateIn
+     * @description Seed/replace a character's Oracle stats (absolute values, not deltas), with an optional canon
+     *     description. `stats` overwrites the stored stat block; `body` upserts a kind='character' canon
+     *     entity so the hover-card / Ledger body and RAG see it too.
+     */
+    CharacterStateIn: {
+      /**
+       * Stats
+       * @default {}
+       */
+      stats: {
+        [key: string]: unknown;
+      };
+      /** Body */
+      body?: string | null;
+    };
+    /**
+     * CharacterStateOut
+     * @description Hard numbers from the Oracle (CharacterState), with the canon body if the character has one.
+     */
+    CharacterStateOut: {
+      /** Character */
+      character: string;
+      /**
+       * Stats
+       * @default {}
+       */
+      stats: {
+        [key: string]: unknown;
+      };
+      /**
+       * Provisional
+       * @default false
+       */
+      provisional: boolean;
+      /**
+       * Is Pov
+       * @default false
+       */
+      is_pov: boolean;
+      /** Body */
+      body?: string | null;
+    };
+    /**
+     * ContinuityResolveIn
+     * @description Resolve one continuity mismatch from the panel: pick prose or ledger (DESIGN §9).
+     */
+    ContinuityResolveIn: {
+      /**
+       * Critique Id
+       * Format: uuid
+       */
+      critique_id: string;
+      /** Choice */
+      choice: string;
+    };
+    /** CritiqueOut */
+    CritiqueOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Reviewer */
+      reviewer: string;
+      /** Severity */
+      severity: string;
+      /** Note */
+      note?: string | null;
+      /** Payload */
+      payload?: {
+        [key: string]: unknown;
+      } | null;
+      /** Scene Packet Id */
+      scene_packet_id?: string | null;
+    };
+    /**
+     * Decision
+     * @enum {string}
+     */
+    Decision: "approve" | "deny" | "revise";
+    /**
+     * DecisionIn
+     * @description POST body for approve / deny / revise (DESIGN §9).
+     */
+    DecisionIn: {
+      decision: components["schemas"]["Decision"];
+      /** Target Pass */
+      target_pass?: string | null;
+      /** Feedback */
+      feedback?: string | null;
+      /** Edited Prose */
+      edited_prose?: string | null;
+    };
+    /** DocMeta */
+    DocMeta: {
+      /** Path */
+      path: string;
+      /** Title */
+      title: string;
+      /** Category */
+      category: string;
+    };
+    /** DocOut */
+    DocOut: {
+      /** Path */
+      path: string;
+      /** Title */
+      title: string;
+      /** Category */
+      category: string;
+      /** Content */
+      content: string;
+    };
+    /**
+     * DraftAttemptOut
+     * @description One preserved stage of a scene's prose pipeline (provenance: raw → enrichment → length → final).
+     */
+    DraftAttemptOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Stage */
+      stage: string;
+      /** Word Count */
+      word_count?: number | null;
+      /** Model */
+      model?: string | null;
+      /** Prose */
+      prose?: string | null;
+      /** Metadata Json */
+      metadata_json?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** DraftNextOut */
+    DraftNextOut: {
+      /**
+       * Scheduled
+       * @default false
+       */
+      scheduled: boolean;
+      /**
+       * Queued
+       * @default 0
+       */
+      queued: number;
+      /**
+       * Running
+       * @default false
+       */
+      running: boolean;
+    };
+    /**
+     * ExemplarIn
+     * @description Toggle a scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2).
+     */
+    ExemplarIn: {
+      /** Enabled */
+      enabled: boolean;
+    };
+    /**
+     * FailedJobOut
+     * @description A FAILED job + why it died, so the Desk can show the actual error instead of a generic note.
+     */
+    FailedJobOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Last Error */
+      last_error?: string | null;
+    };
+    /**
+     * GateMode
+     * @enum {string}
+     */
+    GateMode: "pause_each" | "draft_ahead";
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components["schemas"]["ValidationError"][];
+    };
+    /**
+     * HumanSceneIn
+     * @description POST body to write a manuscript section by hand — lands APPROVED so it flows into context.
+     */
+    HumanSceneIn: {
+      /** Scene No */
+      scene_no: number;
+      /** Prose */
+      prose: string;
+    };
+    /**
+     * JobsStatusOut
+     * @description Live queue state, so the Desk can show a 'drafting…' indicator without a terminal.
+     */
+    JobsStatusOut: {
+      /**
+       * Running
+       * @default false
+       */
+      running: boolean;
+      /**
+       * Queued
+       * @default 0
+       */
+      queued: number;
+      /**
+       * Failed
+       * @default 0
+       */
+      failed: number;
+      active_scene?: components["schemas"]["ActiveScene"] | null;
+      /** Last Cache Hit Ratio */
+      last_cache_hit_ratio?: number | null;
+      /** Last Cache Read Tokens */
+      last_cache_read_tokens?: number | null;
+      /** Last Cache Creation Tokens */
+      last_cache_creation_tokens?: number | null;
+      /** Last Cache Tokens Saved */
+      last_cache_tokens_saved?: number | null;
+    };
+    /**
+     * KnowledgeFactOut
+     * @description A discrete story fact + who knows it when (scene-packet knowledge ledger).
+     */
+    KnowledgeFactOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Fact */
+      fact: string;
+      /** Status */
+      status: string;
+      /** Known By Character */
+      known_by_character?: string | null;
+      /** Source Scene Id */
+      source_scene_id?: string | null;
+      /** Known By Reader After Scene Id */
+      known_by_reader_after_scene_id?: string | null;
+      /** Known By Character After Scene Id */
+      known_by_character_after_scene_id?: string | null;
+      /** Metadata Json */
+      metadata_json?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** ManuscriptChapter */
+    ManuscriptChapter: {
+      /** Chapter No */
+      chapter_no: number;
+      /** Title */
+      title?: string | null;
+      /** Pov */
+      pov: string;
+      /**
+       * Scenes
+       * @default []
+       */
+      scenes: components["schemas"]["ManuscriptScene"][];
+    };
+    /**
+     * ManuscriptOut
+     * @description The approved manuscript, assembled in reading order (latest approved version per scene).
+     */
+    ManuscriptOut: {
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Title */
+      title: string;
+      /**
+       * Chapters
+       * @default []
+       */
+      chapters: components["schemas"]["ManuscriptChapter"][];
+    };
+    /** ManuscriptScene */
+    ManuscriptScene: {
+      /** Scene No */
+      scene_no: number;
+      /** Prose */
+      prose?: string | null;
+    };
+    /**
+     * ModelSettingOut
+     * @description One customizable agent: its current model id + which tier (haiku/sonnet/opus) that is.
+     */
+    ModelSettingOut: {
+      /** Setting */
+      setting: string;
+      /** Label */
+      label: string;
+      /** Description */
+      description: string;
+      /** Model */
+      model: string;
+      /** Tier */
+      tier?: string | null;
+    };
+    /**
+     * ModelSettingUpdateIn
+     * @description PUT body to point one agent role at a tier.
+     */
+    ModelSettingUpdateIn: {
+      /** Setting */
+      setting: string;
+      /** Tier */
+      tier: string;
+    };
+    /** ModelSettingsOut */
+    ModelSettingsOut: {
+      /** Agents */
+      agents: components["schemas"]["ModelSettingOut"][];
+      /** Tiers */
+      tiers: {
+        [key: string]: string;
+      };
+    };
+    /**
+     * PacketOut
+     * @description A chapter knowledge packet for the Desk review panel. `body` is the full structured packet
+     *     (claims with provenance, scene seeds with stable ids, locks, risks); `qa_warnings` carries the
+     *     Packet QA verdict's residual risks + issues; `open_questions` are items the human must adjudicate.
+     */
+    PacketOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Status */
+      status: string;
+      /** Confidence */
+      confidence?: string | null;
+      /** Qa Verdict */
+      qa_verdict?: string | null;
+      /** Qa Warnings */
+      qa_warnings?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Body
+       * @default {}
+       */
+      body: {
+        [key: string]: unknown;
+      };
+      /** Open Questions */
+      open_questions?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Can Approve
+       * @default false
+       */
+      can_approve: boolean;
+      /**
+       * Approval Blockers
+       * @default []
+       */
+      approval_blockers: string[];
+    };
+    /**
+     * PacketProposeOut
+     * @description Status of an in-flight packet proposal. The author+QA run in the background (so the browser
+     *     never hangs); the Desk polls and shows the live phase ('authoring' -> 'qa'). `running` flips to
+     *     False when the packet is persisted — that's the cue to refetch it via GET.
+     */
+    PacketProposeOut: {
+      /** Running */
+      running: boolean;
+      /** Phase */
+      phase?: string | null;
+      /** Elapsed S */
+      elapsed_s?: number | null;
+    };
+    /**
+     * PacketUpdateIn
+     * @description PUT body to adjudicate/edit a proposed packet. Only provided fields are applied. The human
+     *     edits the body, clears open questions, and may raise the confidence after reviewing flags.
+     */
+    PacketUpdateIn: {
+      /** Body */
+      body?: {
+        [key: string]: unknown;
+      } | null;
+      /** Open Questions */
+      open_questions?: {
+        [key: string]: unknown;
+      } | null;
+      /** Confidence */
+      confidence?: string | null;
+    };
+    /**
+     * RedraftIn
+     * @description POST body to re-draft existing scenes: re-queue a draft for each (supersedes the current version).
+     */
+    RedraftIn: {
+      /** Scene Ids */
+      scene_ids: string[];
+    };
+    /**
+     * RetryFailedOut
+     * @description Result of re-queuing FAILED jobs (e.g. after a transient outage or topping up API credits).
+     */
+    RetryFailedOut: {
+      /**
+       * Requeued
+       * @default 0
+       */
+      requeued: number;
+      /**
+       * Scheduled
+       * @default false
+       */
+      scheduled: boolean;
+      /**
+       * Queued
+       * @default 0
+       */
+      queued: number;
+      /**
+       * Running
+       * @default false
+       */
+      running: boolean;
+    };
+    /**
+     * RuleProposalDecisionIn
+     * @description Accept or reject a proposed rule. On accept, `rule_text` (if set) replaces the proposed text,
+     *     so the author can edit a rule before it lands in the POV's voice spec.
+     */
+    RuleProposalDecisionIn: {
+      status: components["schemas"]["RuleProposalStatus"];
+      /** Rule Text */
+      rule_text?: string | null;
+    };
+    /** RuleProposalOut */
+    RuleProposalOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Pov */
+      pov: string;
+      /** Kind */
+      kind: string;
+      /** Rule Text */
+      rule_text: string;
+      /** Rationale */
+      rationale?: string | null;
+      /** Source Pair Ids */
+      source_pair_ids?: string[] | null;
+      /** Status */
+      status: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * RuleProposalStatus
+     * @description A distilled rule's lifecycle: proposed, then accepted (applied to voice_spec) or rejected.
+     * @enum {string}
+     */
+    RuleProposalStatus: "pending" | "accepted" | "rejected";
+    /**
+     * RunRollupOut
+     * @description One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`
+     *     is the run's earliest call; `chapter_no`/`title` label which chapter the run derived.
+     */
+    RunRollupOut: {
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Cache Hit Ratio
+       * @default 0
+       */
+      cache_hit_ratio: number;
+      /**
+       * Cache Tokens Saved
+       * @default 0
+       */
+      cache_tokens_saved: number;
+      /**
+       * Truncations
+       * @default 0
+       */
+      truncations: number;
+      /**
+       * Errors
+       * @default 0
+       */
+      errors: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+      /** Run Id */
+      run_id?: string | null;
+      /** Started At */
+      started_at?: string | null;
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Title */
+      title?: string | null;
+    };
+    /**
+     * RunStartIn
+     * @description POST body to start a run: outline a chapter; the planner proposes its beats (gate 1).
+     *
+     *     Re-running for the same chapter re-proposes (replaces the chapter's still-proposed beats).
+     */
+    RunStartIn: {
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Chapter No */
+      chapter_no: number;
+      /** Pov */
+      pov: string;
+      /** Outline */
+      outline: string;
+      /** @default pause_each */
+      gate_mode: components["schemas"]["GateMode"];
+      /** Token Budget */
+      token_budget?: number | null;
+      /** Max Beats */
+      max_beats?: number | null;
+      /** Target Words */
+      target_words?: number | null;
+    };
+    /**
+     * RunStartOut
+     * @description Result of starting a run: the chapter and its proposed (unapproved) beats.
+     */
+    RunStartOut: {
+      /**
+       * Run Id
+       * Format: uuid
+       */
+      run_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no: number;
+      /** Pov */
+      pov: string;
+      /**
+       * Beats
+       * @default []
+       */
+      beats: components["schemas"]["BeatOut"][];
+    };
+    /** SceneDetail */
+    SceneDetail: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Scene No */
+      scene_no: number;
+      /** Version */
+      version: number;
+      /** Status */
+      status: string;
+      /** Scene Packet Id */
+      scene_packet_id?: string | null;
+      /** Word Count */
+      word_count?: number | null;
+      /** Length Status */
+      length_status?: string | null;
+      /** Prose */
+      prose?: string | null;
+      /** Prose Source */
+      prose_source: string;
+      /** Passes Run */
+      passes_run?: string[] | null;
+      /** Token Count */
+      token_count?: number | null;
+      /** Model */
+      model?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Critiques
+       * @default []
+       */
+      critiques: components["schemas"]["CritiqueOut"][];
+      /**
+       * Is Exemplar
+       * @default false
+       */
+      is_exemplar: boolean;
+    };
+    /** SceneOut */
+    SceneOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Scene No */
+      scene_no: number;
+      /** Version */
+      version: number;
+      /** Status */
+      status: string;
+      /** Scene Packet Id */
+      scene_packet_id?: string | null;
+      /** Word Count */
+      word_count?: number | null;
+      /** Length Status */
+      length_status?: string | null;
+      /** Prose */
+      prose?: string | null;
+      /** Prose Source */
+      prose_source: string;
+      /** Passes Run */
+      passes_run?: string[] | null;
+      /** Token Count */
+      token_count?: number | null;
+      /** Model */
+      model?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * ScenePacketApproveIn
+     * @description Optional POST body for batch approve: restrict to a subset of packets.
+     */
+    ScenePacketApproveIn: {
+      /** Packet Ids */
+      packet_ids?: string[] | null;
+    };
+    /**
+     * ScenePacketDeriveOut
+     * @description Result of deriving scene packets for a chapter from its approved ChapterPacket.
+     */
+    ScenePacketDeriveOut: {
+      /**
+       * Created
+       * @default 0
+       */
+      created: number;
+      /**
+       * Updated
+       * @default 0
+       */
+      updated: number;
+      /**
+       * Blocked
+       * @default 0
+       */
+      blocked: number;
+      /**
+       * Stale
+       * @default 0
+       */
+      stale: number;
+      /**
+       * Packets
+       * @default []
+       */
+      packets: components["schemas"]["ScenePacketOut"][];
+    };
+    /**
+     * ScenePacketDeriveStatusOut
+     * @description Status of an in-flight scene-packet derivation (the ScenePacket Author + QA run per scene in the
+     *     background, so a large chapter never hangs the request). The Desk polls and refetches the list when
+     *     `running` flips False. `result` carries the counts once the run finishes.
+     */
+    ScenePacketDeriveStatusOut: {
+      /** Running */
+      running: boolean;
+      /** Phase */
+      phase?: string | null;
+      /** Elapsed S */
+      elapsed_s?: number | null;
+      result?: components["schemas"]["ScenePacketDeriveOut"] | null;
+    };
+    /**
+     * ScenePacketOut
+     * @description A derived scene-local contract for the Desk. `body` follows the ScenePacket body contract
+     *     (reader/POV knowledge state, allowed/forbidden reveals, intentional mysteries, false-positive
+     *     traps, word budget); `qa_warnings` carries the ScenePacket QA verdict's residual risks + issues.
+     */
+    ScenePacketOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /**
+       * Chapter Packet Id
+       * Format: uuid
+       */
+      chapter_packet_id: string;
+      /** Scene Seed Id */
+      scene_seed_id?: string | null;
+      /** Scene No */
+      scene_no: number;
+      /** Status */
+      status: string;
+      /** Qa Verdict */
+      qa_verdict?: string | null;
+      /** Qa Warnings */
+      qa_warnings?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Body
+       * @default {}
+       */
+      body: {
+        [key: string]: unknown;
+      };
+      /** Source Hash */
+      source_hash?: string | null;
+      /** Stale Reason */
+      stale_reason?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Updated At */
+      updated_at?: string | null;
+      /**
+       * Can Approve
+       * @default false
+       */
+      can_approve: boolean;
+      /**
+       * Approval Blockers
+       * @default []
+       */
+      approval_blockers: string[];
+    };
+    /**
+     * ScenePacketQaOut
+     * @description Result of running QA against one scene packet.
+     */
+    ScenePacketQaOut: {
+      /**
+       * Packet Id
+       * Format: uuid
+       */
+      packet_id: string;
+      /** Verdict */
+      verdict: string;
+      /** Warnings */
+      warnings?: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /**
+     * ScenePacketUpdateIn
+     * @description PUT body to edit/adjudicate a scene packet. Editing the body after approval returns it to
+     *     proposed unless status is explicitly set back to approved in the same call.
+     */
+    ScenePacketUpdateIn: {
+      /** Body */
+      body?: {
+        [key: string]: unknown;
+      } | null;
+      /** Status */
+      status?: string | null;
+    };
+    /**
+     * SceneTelemetryOut
+     * @description One scene's derive telemetry (Author + QA calls), for the per-chapter panel.
+     */
+    SceneTelemetryOut: {
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Cache Hit Ratio
+       * @default 0
+       */
+      cache_hit_ratio: number;
+      /**
+       * Cache Tokens Saved
+       * @default 0
+       */
+      cache_tokens_saved: number;
+      /**
+       * Truncations
+       * @default 0
+       */
+      truncations: number;
+      /**
+       * Errors
+       * @default 0
+       */
+      errors: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /**
+       * Models
+       * @default []
+       */
+      models: string[];
+    };
+    /**
+     * SceneVersionOut
+     * @description A scene row plus its preserved pre-edit text, for version diffing in History.
+     */
+    SceneVersionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Scene No */
+      scene_no: number;
+      /** Version */
+      version: number;
+      /** Status */
+      status: string;
+      /** Scene Packet Id */
+      scene_packet_id?: string | null;
+      /** Word Count */
+      word_count?: number | null;
+      /** Length Status */
+      length_status?: string | null;
+      /** Prose */
+      prose?: string | null;
+      /** Prose Source */
+      prose_source: string;
+      /** Passes Run */
+      passes_run?: string[] | null;
+      /** Token Count */
+      token_count?: number | null;
+      /** Model */
+      model?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Agent Original */
+      agent_original?: string | null;
+    };
+    /** SuggestionDecisionIn */
+    SuggestionDecisionIn: {
+      status: components["schemas"]["SuggestionStatus"];
+    };
+    /** SuggestionIn */
+    SuggestionIn: {
+      /** Quote */
+      quote: string;
+      /** New Text */
+      new_text?: string | null;
+      /** Author */
+      author?: string | null;
+      /** Why */
+      why?: string | null;
+    };
+    /** SuggestionOut */
+    SuggestionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Scene Id
+       * Format: uuid
+       */
+      scene_id: string;
+      /** Version */
+      version?: number | null;
+      /** Quote */
+      quote: string;
+      /** New Text */
+      new_text?: string | null;
+      /** Author */
+      author?: string | null;
+      /** Why */
+      why?: string | null;
+      /** Status */
+      status: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * SuggestionStatus
+     * @enum {string}
+     */
+    SuggestionStatus: "pending" | "accepted" | "rejected";
+    /**
+     * TelemetryGroupOut
+     * @description A named aggregation bucket for the global tab (by stage or by model).
+     */
+    TelemetryGroupOut: {
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Cache Hit Ratio
+       * @default 0
+       */
+      cache_hit_ratio: number;
+      /**
+       * Cache Tokens Saved
+       * @default 0
+       */
+      cache_tokens_saved: number;
+      /**
+       * Truncations
+       * @default 0
+       */
+      truncations: number;
+      /**
+       * Errors
+       * @default 0
+       */
+      errors: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+      /**
+       * Key
+       * @default
+       */
+      key: string;
+    };
+    /**
+     * TelemetryTotals
+     * @description Aggregated cost/cache/health over a set of LLM calls (one scene, chapter, stage, model, or all).
+     */
+    TelemetryTotals: {
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Cache Hit Ratio
+       * @default 0
+       */
+      cache_hit_ratio: number;
+      /**
+       * Cache Tokens Saved
+       * @default 0
+       */
+      cache_tokens_saved: number;
+      /**
+       * Truncations
+       * @default 0
+       */
+      truncations: number;
+      /**
+       * Errors
+       * @default 0
+       */
+      errors: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+    };
+    /** ThreadBeatIn */
+    ThreadBeatIn: {
+      /** Scene No */
+      scene_no: number;
+      /** Label */
+      label?: string | null;
+      /**
+       * Flag
+       * @default false
+       */
+      flag: boolean;
+    };
+    /** ThreadBeatOut */
+    ThreadBeatOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Scene No */
+      scene_no: number;
+      /** Label */
+      label?: string | null;
+      /**
+       * Flag
+       * @default false
+       */
+      flag: boolean;
+    };
+    /** ThreadIn */
+    ThreadIn: {
+      /** Name */
+      name: string;
+      /** Kind */
+      kind?: string | null;
+      /** State */
+      state?: string | null;
+      /** Note */
+      note?: string | null;
+    };
+    /** ThreadOut */
+    ThreadOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Kind */
+      kind?: string | null;
+      /** State */
+      state?: string | null;
+      /** Note */
+      note?: string | null;
+      /**
+       * Beats
+       * @default []
+       */
+      beats: components["schemas"]["ThreadBeatOut"][];
+    };
+    /**
+     * ThreadUpdateIn
+     * @description Only provided fields are applied (mirrors BeatUpdateIn).
+     */
+    ThreadUpdateIn: {
+      /** Name */
+      name?: string | null;
+      /** Kind */
+      kind?: string | null;
+      /** State */
+      state?: string | null;
+      /** Note */
+      note?: string | null;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+      /** Input */
+      input?: unknown;
+      /** Context */
+      ctx?: Record<string, never>;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    health_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-    };
-    pending_scenes_pending_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SceneOut"][];
-                };
-            };
-        };
-    };
-    scene_detail_scenes__scene_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SceneDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_scene_scenes__scene_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    set_exemplar_scenes__scene_id__exemplar_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExemplarIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string | boolean;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    scene_draft_attempts_scenes__scene_id__draft_attempts_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DraftAttemptOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    scene_versions_scenes__scene_id__versions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SceneVersionOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    revert_scene_scenes__scene_id__revert_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SceneOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    decide_scenes__scene_id__decision_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string | null;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resolve_continuity_scenes__scene_id__continuity_resolve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ContinuityResolveIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string | null;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    start_run_runs_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RunStartIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunStartOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_books_books_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BookOut"][];
-                };
-            };
-        };
-    };
-    create_book_books_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BookIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BookOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    manuscript_books__book_id__manuscript_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ManuscriptOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_chapters_chapters_get: {
-        parameters: {
-            query: {
-                book_id: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChapterOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_chapter_chapters__chapter_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChapterUpdateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChapterOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_beats_chapters__chapter_id__beats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BeatOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_beat_chapters__chapter_id__beats_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BeatCreateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BeatOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_chapter_scenes_chapters__chapter_id__scenes_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SceneOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_human_scene_chapters__chapter_id__scenes_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HumanSceneIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SceneOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    approve_beats_chapters__chapter_id__beats_approve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["ApproveBeatsIn"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    redraft_scenes_chapters__chapter_id__scenes_redraft_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RedraftIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    draft_chapter_chapters__chapter_id__draft_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_beat_beats__beat_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                beat_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BeatUpdateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BeatOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_beat_beats__beat_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                beat_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_packet_chapters__chapter_id__packet_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PacketOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_packet_chapters__chapter_id__packet_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PacketUpdateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PacketOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    propose_packet_chapters__chapter_id__packet_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PacketProposeOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    packet_status_chapters__chapter_id__packet_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PacketProposeOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    approve_packet_chapters__chapter_id__packet_approve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PacketOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    derive_scene_packets_chapters__chapter_id__scene_packets_derive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketDeriveStatusOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    derive_status_chapters__chapter_id__scene_packets_derive_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketDeriveStatusOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_scene_packets_chapters__chapter_id__scene_packets_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_scene_packet_scene_packets__scene_packet_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_packet_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_scene_packet_scene_packets__scene_packet_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_packet_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScenePacketUpdateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    qa_scene_packet_scene_packets__scene_packet_id__qa_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_packet_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketQaOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    approve_scene_packet_scene_packets__scene_packet_id__approve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_packet_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    approve_scene_packets_chapters__chapter_id__scene_packets_approve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["ScenePacketApproveIn"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    mark_scene_packets_stale_chapters__chapter_id__scene_packets_mark_stale_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["ScenePacketApproveIn"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScenePacketOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chapter_telemetry_chapters__chapter_id__telemetry_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChapterTelemetryOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    book_telemetry_books__book_id__telemetry_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BookTelemetryOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    draft_next_jobs_draft_next_post: {
-        parameters: {
-            query?: {
-                book_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DraftNextOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    retry_failed_jobs_retry_failed_post: {
-        parameters: {
-            query?: {
-                book_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RetryFailedOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    status_jobs_status_get: {
-        parameters: {
-            query?: {
-                book_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobsStatusOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    failed_jobs_failed_get: {
-        parameters: {
-            query?: {
-                book_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FailedJobOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_characters_books__book_id__characters_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CharacterStateOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upsert_character_books__book_id__characters__character__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-                character: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CharacterStateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CharacterStateOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_character_books__book_id__characters__character__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-                character: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_knowledge_books__book_id__knowledge_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KnowledgeFactOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_canon_books__book_id__canon_get: {
-        parameters: {
-            query?: {
-                kind?: string | null;
-            };
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CanonEntityOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_canon_books__book_id__canon_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CanonEntityIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CanonEntityOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_canon_canon__canon_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                canon_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CanonEntityUpdateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CanonEntityOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_canon_canon__canon_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                canon_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    ingest_canon_books__book_id__canon_ingest_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CanonIngestOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_threads_books__book_id__threads_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ThreadOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_thread_books__book_id__threads_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ThreadIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ThreadOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_thread_threads__thread_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                thread_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ThreadUpdateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ThreadOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_thread_threads__thread_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                thread_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_thread_beat_threads__thread_id__beats_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                thread_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ThreadBeatIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ThreadOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_annotations_scenes__scene_id__annotations_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotationOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_annotation_scenes__scene_id__annotations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnnotationIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotationOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_annotation_annotations__annotation_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                annotation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_suggestions_scenes__scene_id__suggestions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuggestionOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_suggestion_scenes__scene_id__suggestions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scene_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SuggestionIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuggestionOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    decide_suggestion_suggestions__suggestion_id__decision_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                suggestion_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SuggestionDecisionIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuggestionOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_suggestion_suggestions__suggestion_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                suggestion_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    distill_rules_books__book_id__distill_post: {
-        parameters: {
-            query?: {
-                pov?: string | null;
-            };
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RuleProposalOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_rule_proposals_books__book_id__rule_proposals_get: {
-        parameters: {
-            query?: {
-                status?: string | null;
-            };
-            header?: never;
-            path: {
-                book_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RuleProposalOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    decide_rule_proposal_rule_proposals__proposal_id__decision_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                proposal_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RuleProposalDecisionIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RuleProposalOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_models_settings_models_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelSettingsOut"];
-                };
-            };
-        };
-    };
-    set_model_settings_models_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ModelSettingUpdateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelSettingOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_docs_library_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocMeta"][];
-                };
-            };
-        };
-    };
-    read_doc_library__doc_path__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                doc_path: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
+  health_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+    };
+  };
+  pending_scenes_pending_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneOut"][];
+        };
+      };
+    };
+  };
+  scene_detail_scenes__scene_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_scene_scenes__scene_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  set_exemplar_scenes__scene_id__exemplar_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ExemplarIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string | boolean;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  scene_draft_attempts_scenes__scene_id__draft_attempts_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DraftAttemptOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  scene_versions_scenes__scene_id__versions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneVersionOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revert_scene_scenes__scene_id__revert_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  decide_scenes__scene_id__decision_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecisionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string | null;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  resolve_continuity_scenes__scene_id__continuity_resolve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ContinuityResolveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string | null;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_run_runs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RunStartIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunStartOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_books_books_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BookOut"][];
+        };
+      };
+    };
+  };
+  create_book_books_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BookIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BookOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  manuscript_books__book_id__manuscript_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManuscriptOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_chapters_chapters_get: {
+    parameters: {
+      query: {
+        book_id: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_chapter_chapters__chapter_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_beats_chapters__chapter_id__beats_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BeatOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_beat_chapters__chapter_id__beats_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BeatCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BeatOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_chapter_scenes_chapters__chapter_id__scenes_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_human_scene_chapters__chapter_id__scenes_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["HumanSceneIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_beats_chapters__chapter_id__beats_approve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["ApproveBeatsIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  redraft_scenes_chapters__chapter_id__scenes_redraft_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RedraftIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  draft_chapter_chapters__chapter_id__draft_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_beat_beats__beat_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        beat_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BeatUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BeatOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_beat_beats__beat_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        beat_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_packet_chapters__chapter_id__packet_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_packet_chapters__chapter_id__packet_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PacketUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  propose_packet_chapters__chapter_id__packet_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PacketProposeOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  packet_status_chapters__chapter_id__packet_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PacketProposeOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_packet_chapters__chapter_id__packet_approve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  derive_scene_packets_chapters__chapter_id__scene_packets_derive_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketDeriveStatusOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  derive_status_chapters__chapter_id__scene_packets_derive_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketDeriveStatusOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_scene_packets_chapters__chapter_id__scene_packets_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_scene_packet_scene_packets__scene_packet_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_scene_packet_scene_packets__scene_packet_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ScenePacketUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  qa_scene_packet_scene_packets__scene_packet_id__qa_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketQaOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_scene_packet_scene_packets__scene_packet_id__approve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_scene_packets_chapters__chapter_id__scene_packets_approve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["ScenePacketApproveIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  mark_scene_packets_stale_chapters__chapter_id__scene_packets_mark_stale_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["ScenePacketApproveIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  chapter_telemetry_chapters__chapter_id__telemetry_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterTelemetryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  book_telemetry_books__book_id__telemetry_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BookTelemetryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  draft_next_jobs_draft_next_post: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DraftNextOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  retry_failed_jobs_retry_failed_post: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RetryFailedOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  status_jobs_status_get: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JobsStatusOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  failed_jobs_failed_get: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FailedJobOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_characters_books__book_id__characters_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CharacterStateOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  upsert_character_books__book_id__characters__character__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+        character: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CharacterStateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CharacterStateOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_character_books__book_id__characters__character__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+        character: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_knowledge_books__book_id__knowledge_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["KnowledgeFactOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_canon_books__book_id__canon_get: {
+    parameters: {
+      query?: {
+        kind?: string | null;
+      };
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonEntityOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_canon_books__book_id__canon_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanonEntityIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonEntityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_canon_canon__canon_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        canon_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanonEntityUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonEntityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_canon_canon__canon_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        canon_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  ingest_canon_books__book_id__canon_ingest_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonIngestOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_threads_books__book_id__threads_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ThreadOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_thread_books__book_id__threads_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ThreadIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ThreadOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_thread_threads__thread_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        thread_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ThreadUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ThreadOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_thread_threads__thread_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        thread_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  add_thread_beat_threads__thread_id__beats_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        thread_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ThreadBeatIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ThreadOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_annotations_scenes__scene_id__annotations_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AnnotationOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_annotation_scenes__scene_id__annotations_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AnnotationIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AnnotationOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_annotation_annotations__annotation_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        annotation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_suggestions_scenes__scene_id__suggestions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_suggestion_scenes__scene_id__suggestions_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SuggestionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  decide_suggestion_suggestions__suggestion_id__decision_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        suggestion_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SuggestionDecisionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_suggestion_suggestions__suggestion_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        suggestion_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  distill_rules_books__book_id__distill_post: {
+    parameters: {
+      query?: {
+        pov?: string | null;
+      };
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RuleProposalOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_rule_proposals_books__book_id__rule_proposals_get: {
+    parameters: {
+      query?: {
+        status?: string | null;
+      };
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RuleProposalOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  decide_rule_proposal_rule_proposals__proposal_id__decision_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        proposal_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RuleProposalDecisionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RuleProposalOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_models_settings_models_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ModelSettingsOut"];
+        };
+      };
+    };
+  };
+  set_model_settings_models_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ModelSettingUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ModelSettingOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_docs_library_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DocMeta"][];
+        };
+      };
+    };
+  };
+  read_doc_library__doc_path__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        doc_path: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DocOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
 }
