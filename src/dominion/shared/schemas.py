@@ -1,4 +1,4 @@
-"""Pydantic DTOs — the wire contract for the API (mirrors the TS types in frontend/src/types.ts)."""
+"""Pydantic DTOs — the wire contract for the API (exported via OpenAPI; see openapi.json)."""
 from __future__ import annotations
 
 import uuid

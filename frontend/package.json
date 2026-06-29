@@ -14,7 +14,9 @@
     "e2e:ui": "playwright test --ui",
     "lint": "oxlint .",
     "format": "oxfmt --write .",
-    "format:check": "oxfmt --check ."
+    "format:check": "oxfmt --check .",
+    "codegen": "openapi-typescript ../openapi.json -o src/desk/api/generated.ts && oxfmt --write src/desk/api/generated.ts",
+    "codegen:check": "pnpm codegen && git -C .. diff --exit-code openapi.json frontend/src/desk/api/generated.ts"
   },
   "dependencies": {
     "docx": "^9.7.1",
@@ -33,6 +35,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^26.0.0",
+    "openapi-typescript": "^7.13.0",
     "oxfmt": "latest",
     "oxlint": "^0.16.0",
     "typescript": "^6.0.3",
