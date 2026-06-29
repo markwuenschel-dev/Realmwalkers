@@ -446,7 +446,10 @@ export default function SceneScreen() {
   const deltas =
     cur && data.activeBeat?.expected_state_changes
       ? Object.entries(data.activeBeat.expected_state_changes).flatMap(([who, attrs]) =>
-          Object.entries(attrs).map(([k, v]) => ({ label: `${who} · ${k}`, detail: statValue(v) })),
+          Object.entries(attrs as Record<string, unknown>).map(([k, v]) => ({
+            label: `${who} · ${k}`,
+            detail: statValue(v),
+          })),
         )
       : [];
 

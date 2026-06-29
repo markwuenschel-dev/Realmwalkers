@@ -31,10 +31,12 @@ import type {
   ManuscriptOut,
   ModelSettingOut,
   ModelSettingsOut,
+  HumanSceneIn,
   PacketOut,
   PacketProposeOut,
   PacketUpdateIn,
   PacketWarnings,
+  RedraftIn,
   RetryFailedOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
@@ -135,12 +137,12 @@ export const api = {
     http<ChapterOut>(`/chapters/${chapterId}`, { method: "PATCH", body: JSON.stringify(body) }),
   chapterBeats: (chapterId: string) => http<BeatOut[]>(`/chapters/${chapterId}/beats`),
   chapterScenes: (chapterId: string) => http<SceneOut[]>(`/chapters/${chapterId}/scenes`),
-  createHumanScene: (chapterId: string, body: { scene_no: number; prose: string }) =>
+  createHumanScene: (chapterId: string, body: HumanSceneIn) =>
     http<SceneOut>(`/chapters/${chapterId}/scenes`, { method: "POST", body: JSON.stringify(body) }),
   redraftScenes: (chapterId: string, sceneIds: string[]) =>
     http<{ chapter_id: string; queued: number; jobs: string[] }>(
       `/chapters/${chapterId}/scenes/redraft`,
-      { method: "POST", body: JSON.stringify({ scene_ids: sceneIds }) },
+      { method: "POST", body: JSON.stringify({ scene_ids: sceneIds } satisfies RedraftIn) },
     ),
   draftChapter: (chapterId: string) =>
     http<{ chapter_id: string; queued: number; jobs: string[] }>(`/chapters/${chapterId}/draft`, {

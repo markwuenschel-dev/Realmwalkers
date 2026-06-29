@@ -101,6 +101,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - name: OpenAPI export + codegen drift
+        run: |
+          cd ..
+          python scripts/export_openapi.py
+          pnpm --dir frontend codegen:check
       - name: typecheck
         run: pnpm typecheck
       - name: lint

@@ -126,7 +126,7 @@ export default function CommandPalette() {
           key: `cn:${e.id}`,
           icon: "◍",
           label: e.name ?? "(unnamed)",
-          sub: `${kind} · ${snippet(e.body) || "—"}`,
+          sub: `${kind} · ${snippet(e.body ?? null) || "—"}`,
           cat: "Canon",
           run: () => {
             setLedgerCat(kind === "character" ? "characters" : `canon:${kind}`);

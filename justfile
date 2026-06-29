@@ -28,6 +28,9 @@ lint:
 typecheck:
     mypy src
 
+openapi:
+    uv run python scripts/export_openapi.py
+
 fe-install:
     cd frontend; npm install
 
