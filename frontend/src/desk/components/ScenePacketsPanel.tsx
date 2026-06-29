@@ -22,32 +22,6 @@ const STATUS_VAR: Record<string, string> = {
   proposed: "--info",
 };
 
-// Mirror of the backend approval gate (api/routers/scene_packets.py:_has_blocking_qa). Approval is
-// refused when the QA verdict is revise_required/block_drafting OR any issue is severity:"block" — so
-// the Approve button must read the SAME rule, or it offers an action the server will reject with a 409.
-function blockingQa(packet: ScenePacketOut): boolean {
-  const v = packet.qa_verdict;
-  if (v === "block_drafting" || v === "revise_required") return true;
-  const issues = packet.qa_warnings?.issues;
-  return Array.isArray(issues) && issues.some((i) => i?.severity === "block");
-}
-
-// Human-readable reasons a packet can't be approved yet — shown on the card so a refused approval is
-// never silent (and so the old "click Approve → unexplained 409" can't recur).
-function blockingReasons(packet: ScenePacketOut): string[] {
-  const reasons: string[] = [];
-  const v = packet.qa_verdict;
-  if (v === "block_drafting")
-    reasons.push("QA verdict: block drafting — no prose may be written from this packet.");
-  else if (v === "revise_required")
-    reasons.push("QA verdict: revise required — the contract must be fixed first.");
-  for (const i of packet.qa_warnings?.issues ?? []) {
-    if (i?.severity === "block")
-      reasons.push(`Blocking issue${i.kind ? ` (${i.kind})` : ""}: ${i.detail ?? "unspecified"}`);
-  }
-  return reasons;
-}
-
 export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const { t } = useDesk();
   const [packets, setPackets] = useState<ScenePacketOut[]>([]);
@@ -273,9 +247,8 @@ function ScenePacketCard({
   const blocked = packet.qa_warnings?.blocked_reason ?? b.blocked_reason;
   const residual = packet.qa_warnings?.residual_risks ?? [];
   const issues = packet.qa_warnings?.issues ?? [];
-  const reasons = blockingReasons(packet);
-  // Same gate the server enforces — no more enabled-Approve-that-409s.
-  const canApprove = packet.status === "proposed" && !blockingQa(packet);
+  const reasons = packet.approval_blockers;
+  const canApprove = packet.can_approve;
 
   // Per-action busy flags (the panel keys busy as "<action>:<id>"). cardBusy disables every action on
   // this card while any one of them is in flight.
@@ -305,7 +278,7 @@ function ScenePacketCard({
         {packet.qa_verdict && (
           <Chip
             label={`QA: ${packet.qa_verdict.replace(/_/g, " ")}`}
-            colorVar={blockingQa(packet) ? "--bad" : "--info"}
+            colorVar={packet.approval_blockers.length > 0 ? "--bad" : "--info"}
           />
         )}
         {wb.target ? (

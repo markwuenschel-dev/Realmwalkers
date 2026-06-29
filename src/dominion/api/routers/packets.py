@@ -20,6 +20,7 @@ from dominion.shared.models import Chapter, ChapterPacket
 from dominion.shared.schemas import PacketOut, PacketProposeOut, PacketUpdateIn
 from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
+from dominion.workers.packet import approval_policy as packet_approval
 from dominion.workers.scene_packet import staleness as packet_staleness
 
 log = structlog.get_logger()
@@ -33,12 +34,6 @@ async def _latest(session: SessionDep, chapter_id: uuid.UUID) -> ChapterPacket |
         .order_by(ChapterPacket.created_at.desc())
         .limit(1)
     )).scalar_one_or_none()
-
-
-def _open_items(packet: ChapterPacket) -> list[object]:
-    oq = packet.open_questions or {}
-    items = oq.get("items") if isinstance(oq, dict) else None
-    return items if isinstance(items, list) else []
 
 
 async def _run_propose(chapter_id: uuid.UUID) -> None:
@@ -87,17 +82,17 @@ async def packet_status(chapter_id: uuid.UUID) -> PacketProposeOut:
 
 
 @router.get("/{chapter_id}/packet", response_model=PacketOut)
-async def get_packet(chapter_id: uuid.UUID, session: SessionDep) -> ChapterPacket:
+async def get_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOut:
     row = await _latest(session, chapter_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no packet for this chapter yet")
-    return row
+    return packet_approval.enrich_packet_out(row)
 
 
 @router.put("/{chapter_id}/packet", response_model=PacketOut)
 async def update_packet(
     chapter_id: uuid.UUID, body: PacketUpdateIn, session: SessionDep
-) -> ChapterPacket:
+) -> PacketOut:
     """Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after
     reviewing flags. A blocked packet can be edited but stays blocked until re-proposed."""
     row = await _latest(session, chapter_id)
@@ -124,22 +119,18 @@ async def update_packet(
         await packet_staleness.recompute_and_mark(session, chapter_id=row.chapter_id)
     await session.commit()
     await session.refresh(row)
-    return row
+    return packet_approval.enrich_packet_out(row)
 
 
 @router.post("/{chapter_id}/packet/approve", response_model=PacketOut)
-async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> ChapterPacket:
+async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOut:
     """Approve the packet so drafting may proceed. Refused when blocked, red-confidence, or open
     questions remain (no auto-approve during tuning — even a green packet needs this human action)."""
     row = await _latest(session, chapter_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no packet for this chapter yet")
-    if row.status == PacketStatus.BLOCKED:
-        raise HTTPException(status_code=409, detail="packet is blocked — re-propose or edit it first")
-    if row.confidence == PacketConfidence.RED:
-        raise HTTPException(status_code=409, detail="red-confidence packet — resolve before approving")
-    if _open_items(row):
-        raise HTTPException(status_code=409, detail="resolve the packet's open questions first")
+    if refusal := packet_approval.can_approve(row):
+        raise HTTPException(status_code=409, detail=refusal.detail)
     row.status = PacketStatus.APPROVED
     await session.commit()
     await session.refresh(row)
@@ -147,4 +138,4 @@ async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> ChapterP
     # human next derives ScenePackets (POST .../scene-packets/derive), approves them, and beats are
     # derived from the approved ScenePackets — the writer drafts against the scene-local contract.
     log.info("packet.approved", chapter=str(chapter_id), packet=str(row.id))
-    return row
+    return packet_approval.enrich_packet_out(row)

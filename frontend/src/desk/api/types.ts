@@ -418,7 +418,7 @@ export interface ResolvedQuestion {
 export interface PacketWarnings {
   residual_risks?: string[];
   // severity drives the approval gate: an issue at "block" blocks approval even when the verdict is
-  // approve/approve_warn (mirrors the backend's _has_blocking_qa in api/routers/scene_packets.py).
+  // approve/approve_warn (server policy in workers/scene_packet/approval_policy.py).
   issues?: { kind?: string; detail?: string; severity?: "info" | "warn" | "block" | string }[];
   blocked_reason?: string;
 }
@@ -434,6 +434,8 @@ export interface PacketOut {
   body: PacketBody;
   open_questions: { items?: string[]; resolved?: ResolvedQuestion[] } | null;
   created_at: string;
+  can_approve: boolean;
+  approval_blockers: string[];
 }
 
 export interface PacketUpdateIn {
@@ -511,6 +513,8 @@ export interface ScenePacketOut {
   stale_reason: string | null;
   created_at: string;
   updated_at: string | null;
+  can_approve: boolean;
+  approval_blockers: string[];
 }
 
 export interface ScenePacketDeriveOut {

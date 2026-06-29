@@ -6,9 +6,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import ChapterPacket, ScenePacket
 from dominion.workers.context.types import ScenePacketFields, ScenePacketRequiredError
+from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet.projections import project
 
 
@@ -19,15 +19,7 @@ async def load_scene_packet_fields(
     sp = await session.get(ScenePacket, scene_packet_id)
     if sp is None:
         raise ScenePacketRequiredError(f"no scene packet {scene_packet_id} for this draft job")
-    if sp.status == ScenePacketStatus.STALE:
-        raise ScenePacketRequiredError(
-            f"scene packet {scene_packet_id} is stale ({sp.stale_reason or 'inputs changed'}) — "
-            "re-derive or re-approve it before drafting"
-        )
-    if sp.status != ScenePacketStatus.APPROVED:
-        raise ScenePacketRequiredError(
-            f"scene packet {scene_packet_id} is {sp.status}, not approved — approve it before drafting"
-        )
+    approval_policy.assert_draft_ready(sp)
 
     body = sp.body or {}
     chapter_body = (await session.execute(
