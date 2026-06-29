@@ -32,6 +32,21 @@ known_entities: [illyristranthe, illyri, ily, ayla]
 
 ---
 
+## Corrected Cohort (Book 2 — scaffold)
+
+> **Owner:** [`../continuity/corrected_cohort.md`](../continuity/corrected_cohort.md). **Do not** create `major/` dossiers for CC slots without updating both this table and the owner file's Mirror Structure table.
+
+| Slot ID | Role label | Power type | Status | Owner file | Dossier file |
+|---|---|---|---|---|---|
+| CC-01 | Leader / Apex | True interface (TBD) | Scaffold | `continuity/corrected_cohort.md` | — |
+| CC-02 | Artificial Substitute 1 | Interface-adjacent (TBD) | Scaffold | `continuity/corrected_cohort.md` | — |
+| CC-03 | Artificial Substitute 2 | Interface-adjacent (TBD) | Scaffold | `continuity/corrected_cohort.md` | — |
+| CC-04 | Class/Item Power 1 | Designed build (TBD) | Scaffold | `continuity/corrected_cohort.md` | — |
+| CC-05 | Class/Item Power 2 | Designed build (TBD) | Scaffold | `continuity/corrected_cohort.md` | — |
+| CC-06 | Redeemable Early Member | TBD | Scaffold | `continuity/corrected_cohort.md` | — |
+
+---
+
 ## Supporting Characters
 
 | Name | Earth Name | Location | Role | Status | File |

@@ -51,6 +51,8 @@ Shared canon lives under `series/` (`canon/`, `style/`, `voice/`); each book's p
 | Nightbound | `factions/nightbound.md` |
 | N'hal | `factions/nhal.md` |
 | Faction file template | `factions/_FACTION_TEMPLATE.md` |
+| Corrected Cohort / Second Six (Book 2) | `continuity/corrected_cohort.md` |
+| Cohort file template | `continuity/_COHORT_TEMPLATE.md` |
 | The six interfaces (biology, 5 stages, Happy/Forbidden) | character dossiers + `character_power_architecture.md` |
 | LitRPG mechanics, UI, the Eyes split, namebinding | `core_rules.md` |
 | Chapter-by-chapter structure | `book1_chapter_timeline.md` |
@@ -67,6 +69,8 @@ Shared canon lives under `series/` (`canon/`, `style/`, `voice/`); each book's p
 If two files disagree, the **owner** above wins for its topic. **Aggregates lag dossiers:** summary files (timeline, roadmap, bible, state-log) trail the owner files, so a draft that leans on a summary can inherit stale canon. Rule: cite the *owner* file for any fact; never inherit a prior cycle's notes. *(Durable lesson from the now-archived `continuity_reconciliation.md`.)* For relational facts (standing/recognition/dynamic), `relationship_invariants.md` wins over `relationship_map.md` and is **not** overridden by a newer artifact. For relations *not* covered by an invariant, `relationship_map.md` and newest author decisions remain the tiebreak.
 
 **Cosmic power read order:** `cosmology.md` (hub) → owner file in `factions/` (see registry below).
+
+**Book 2 cohort read order:** `continuity/corrected_cohort.md` first → member dossier second (when it exists). Never invent Corrected Cohort facts in `book1/` files or original-six dossiers.
 
 ---
 
@@ -86,6 +90,17 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 | `factions/nightbound.md` | Seven interventionists; six as keys | interventionist order |
 | `factions/nhal.md` | Ontological denaturation; hidden threat | ontological threat |
 | `factions/iron_vultures.md` | Local mercenary company near Eriadne | local faction |
+
+---
+
+## Book 2 Canon Registry
+
+> Agent entry point for Book 2 architecture. Template: `continuity/_COHORT_TEMPLATE.md`.
+
+| File | One-line summary | When to read |
+|---|---|---|
+| `continuity/corrected_cohort.md` | Second Six / weaponized replication; dark mirror rival party | Any Book 2 cohort question |
+| `continuity/_COHORT_TEMPLATE.md` | Cohort file skeleton | Creating new cohort owner files |
 
 ---
 

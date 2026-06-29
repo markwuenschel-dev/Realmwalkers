@@ -126,6 +126,27 @@
 
 ---
 
+## Corrected Cohort (Book 2)
+
+> **Owner:** [`corrected_cohort.md`](corrected_cohort.md). Member slots CC-01…CC-06; operation threads CC-07…CC-12.
+
+| # | Priority | Thread | Notes |
+|---|---|---|---|
+| CC-01 | 🔴 | Leader true interface (CC-01 slot) | Do not assign without author lock. See `corrected_cohort.md` § The Leader. |
+| CC-02 | 🟡 | Leader name, background, emotional engine | CC-01 slot. |
+| CC-03 | 🟡 | Artificial substitute 1 — nature and failure mode | CC-02 slot. |
+| CC-04 | 🟡 | Artificial substitute 2 — nature and failure mode | CC-03 slot. |
+| CC-05 | 🟢 | Class/item build identities | CC-04, CC-05 slots. |
+| CC-06 | 🟡 | Redeemable early member identity | CC-06 slot. |
+| CC-07 | 🟡 | Arrive together or scatter first? | `corrected_cohort.md` § Open Questions. |
+| CC-08 | 🟡 | First original encountered | — |
+| CC-09 | 🟢 | Do they know an original is dead, if applicable? | Depends on Book 2 start state. |
+| CC-10 | 🟡 | Astria extraction intent — physical, digital, spiritual, implant? | — |
+| CC-11 | 🟢 | Broker expectation — success, failure, or data? | — |
+| CC-12 | 🟢 | Does Nightbound founder know Astria's exact framing? | No founder-disciple relationship. |
+
+---
+
 ## Resolved Threads
 
 *Move items here once decided. Include the resolution.*

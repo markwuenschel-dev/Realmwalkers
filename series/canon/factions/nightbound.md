@@ -116,6 +116,7 @@ Selected as **keys, not chosen ones** — compatible with six necessary interfac
 - **Realm Walkers:** foils — witnesses vs. interventionists; both critiques true; one Walker may serve inside Nightbound as pathfinder.
 - **Soulkeepers' Exchange:** hired contractor — deniability, routes, soul expertise.
 - **Empires:** may know fragments; Nightbound does not seek to rule them.
+- **Corrected Cohort (Book 2):** a second operation may be authorized; the **Corrected Cohort** is not founder-selected disciples — see [`../continuity/corrected_cohort.md`](../continuity/corrected_cohort.md).
 
 ## Story Function
 
@@ -164,4 +165,4 @@ Agents **must not:**
 - Make Exchange the client or Nightbound the six's only manipulator without chain.
 
 ---
-*Cross-refs: [`nhal.md`](nhal.md), [`soulkeepers_exchange.md`](soulkeepers_exchange.md), [`realmwalkers.md`](realmwalkers.md), [`../world/cosmology.md`](../world/cosmology.md), [`../characters/major/seb.md`](../characters/major/seb.md), [`../world/character_power_architecture.md`](../world/character_power_architecture.md). Change history: [`../CHANGELOG.md`](../CHANGELOG.md).*
+*Cross-refs: [`nhal.md`](nhal.md), [`soulkeepers_exchange.md`](soulkeepers_exchange.md), [`realmwalkers.md`](realmwalkers.md), [`../continuity/corrected_cohort.md`](../continuity/corrected_cohort.md), [`../world/cosmology.md`](../world/cosmology.md), [`../characters/major/seb.md`](../characters/major/seb.md), [`../world/character_power_architecture.md`](../world/character_power_architecture.md). Change history: [`../CHANGELOG.md`](../CHANGELOG.md).*
