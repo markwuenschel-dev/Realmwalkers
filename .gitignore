@@ -18,8 +18,8 @@ frontend/dist/
 logs/
 *.log
 # local agent tooling — .claude/skills are machine-specific symlinks into .agents/skills/ (the tracked home)
-# .cursor/skills/ is NOT gitignored: Cursor skips gitignored paths when loading the / slash menu.
-# Populate locally after pull: pwsh scripts/sync-cursor-skills.ps1  (or bash scripts/sync-cursor-skills.sh)
+# .cursor/skills/ is tracked (Cursor slash menu reads it; gitignored paths are invisible to Cursor).
+# After updating .agents/skills/: pwsh scripts/sync-cursor-skills.ps1 then commit .cursor/skills/
 .claude/skills/
 # author's local working notes — scratch, never tracked
 author notes/
