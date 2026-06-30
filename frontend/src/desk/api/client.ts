@@ -21,7 +21,9 @@ import type {
   ChapterUpdateIn,
   CharacterStateIn,
   CharacterStateOut,
+  ClearDraftScenesOut,
   ClearFailedOut,
+  DeleteSceneOut,
   ContinuityResolveIn,
   DecisionIn,
   DocDetail,
@@ -31,9 +33,14 @@ import type {
   FailedJobOut,
   JobsStatusOut,
   KnowledgeFactOut,
+  LlmCallListOut,
+  LlmCallOut,
   ManuscriptOut,
   ModelSettingOut,
   ModelSettingsOut,
+  AgentOpsOut,
+  AgentStatsListOut,
+  SmokeTestOut,
   HumanSceneIn,
   PacketOut,
   PacketProposeOut,
@@ -45,6 +52,8 @@ import type {
   RuleProposalOut,
   RunStartIn,
   RunStartOut,
+  RunCompareOut,
+  RunTelemetryOut,
   SceneDetail,
   SceneOut,
   ScenePacketDeriveStatusOut,
@@ -54,6 +63,7 @@ import type {
   SuggestionIn,
   SuggestionOut,
   SuggestionStatus,
+  TelemetryProblemsOut,
   ThreadBeatIn,
   ThreadIn,
   ThreadOut,
@@ -89,7 +99,7 @@ export const api = {
   scene: (id: string) => http<SceneDetail>(`/scenes/${id}`),
   sceneVersions: (id: string) => http<SceneVersionOut[]>(`/scenes/${id}/versions`),
   revertScene: (id: string) => http<SceneOut>(`/scenes/${id}/revert`, { method: "POST" }),
-  deleteScene: (id: string) => http<{ deleted: string }>(`/scenes/${id}`, { method: "DELETE" }),
+  deleteScene: (id: string) => http<DeleteSceneOut>(`/scenes/${id}`, { method: "DELETE" }),
   decide: (id: string, body: DecisionIn) =>
     http<{ scene: string; status: string; next_job: string | null }>(`/scenes/${id}/decision`, {
       method: "POST",
@@ -115,8 +125,11 @@ export const api = {
     http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),
   retryFailed: (bookId?: string) =>
     http<RetryFailedOut>(`/jobs/retry-failed${qs({ book_id: bookId })}`, { method: "POST" }),
-  clearFailed: (bookId?: string) =>
-    http<ClearFailedOut>(`/jobs/clear-failed${qs({ book_id: bookId })}`, { method: "POST" }),
+  clearFailed: (bookId?: string, chapterId?: string) =>
+    http<ClearFailedOut>(
+      `/jobs/clear-failed${qs({ book_id: bookId, chapter_id: chapterId })}`,
+      { method: "POST" },
+    ),
 
   // --- gate 1: books, runs, chapters, beats -------------------------------------------------------
   books: () => http<BookOut[]>("/books"),
@@ -161,6 +174,11 @@ export const api = {
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
+  clearDraftScenes: (bookId: string, chapterId?: string) =>
+    http<ClearDraftScenesOut>(
+      `/books/${bookId}/scenes/clear-draft${qs({ chapter_id: chapterId })}`,
+      { method: "POST" },
+    ),
 
   // --- contract-first drafting: chapter knowledge packets (Phase 1) -------------------------------
   // GET may 404 (no packet yet); callers treat that as "none".
@@ -217,6 +235,48 @@ export const api = {
         offset: opts?.offset != null ? String(opts.offset) : undefined,
       })}`,
     ),
+  runTelemetry: (runId: string) => http<RunTelemetryOut>(`/runs/${runId}/telemetry`),
+  llmCalls: (opts?: {
+    book_id?: string;
+    chapter_id?: string;
+    run_id?: string;
+    scene_no?: number;
+    stage?: string;
+    model?: string;
+    truncated?: boolean;
+    errors_only?: boolean;
+    fallbacks_only?: boolean;
+    min_latency_ms?: number;
+    min_input_tokens?: number;
+    cache_miss_only?: boolean;
+    limit?: number;
+    offset?: number;
+  }) =>
+    http<LlmCallListOut>(
+      `/llm-calls${qs({
+        book_id: opts?.book_id,
+        chapter_id: opts?.chapter_id,
+        run_id: opts?.run_id,
+        scene_no: opts?.scene_no != null ? String(opts.scene_no) : undefined,
+        stage: opts?.stage,
+        model: opts?.model,
+        truncated: opts?.truncated != null ? String(opts.truncated) : undefined,
+        errors_only: opts?.errors_only != null ? String(opts.errors_only) : undefined,
+        fallbacks_only: opts?.fallbacks_only != null ? String(opts.fallbacks_only) : undefined,
+        min_latency_ms: opts?.min_latency_ms != null ? String(opts.min_latency_ms) : undefined,
+        min_input_tokens: opts?.min_input_tokens != null ? String(opts.min_input_tokens) : undefined,
+        cache_miss_only: opts?.cache_miss_only != null ? String(opts.cache_miss_only) : undefined,
+        limit: opts?.limit != null ? String(opts.limit) : undefined,
+        offset: opts?.offset != null ? String(opts.offset) : undefined,
+      })}`,
+    ),
+  llmCall: (callId: string) => http<LlmCallOut>(`/llm-calls/${callId}`),
+  telemetryProblems: (bookId: string) =>
+    http<TelemetryProblemsOut>(`/books/${bookId}/telemetry/problems`),
+  compareRuns: (bookId: string, runA: string, runB: string) =>
+    http<RunCompareOut>(
+      `/books/${bookId}/telemetry/compare${qs({ run_a: runA, run_b: runB })}`,
+    ),
 
   // --- draft-attempt provenance (preserved prose stages for a scene) ------------------------------
   draftAttempts: (sceneId: string) => http<DraftAttemptOut[]>(`/scenes/${sceneId}/draft-attempts`),
@@ -237,6 +297,25 @@ export const api = {
     http<ModelSettingOut>("/settings/models", {
       method: "PUT",
       body: JSON.stringify({ setting, tier }),
+    }),
+
+  // --- agent operations panel ---------------------------------------------------------------------
+  agentOps: () => http<AgentOpsOut>("/settings/agents"),
+  applyPreset: (presetId: string) =>
+    http<AgentOpsOut>(`/settings/presets/${encodeURIComponent(presetId)}`, { method: "PUT" }),
+  setAgentPolicy: (
+    setting: string,
+    body: { fallback_tier?: string | null; never_fallback?: string[] | null },
+  ) =>
+    http<AgentOpsOut>(`/settings/agents/${encodeURIComponent(setting)}/policy`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  agentStats: () => http<AgentStatsListOut>("/settings/agents/stats"),
+  smokeTest: (agents?: string[]) =>
+    http<SmokeTestOut>("/settings/agents/smoke-test", {
+      method: "POST",
+      body: JSON.stringify(agents ? { agents } : {}),
     }),
 
   // --- world ledger -------------------------------------------------------------------------------

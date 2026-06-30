@@ -1,106 +1,99 @@
-"""Runtime model selection per agent role (Haiku / Sonnet / Opus).
-
-Every agent already reads its model from `settings.<role>_model`. This router persists a per-role
-override (model_overrides table) and mutates the live `settings` singleton so the change takes effect
-on the very next agent call — the worker drain runs in this same process — with no redeploy.
-"""
+"""Runtime model selection and agent operations (presets, policies, stats, smoke tests)."""
 
 from __future__ import annotations
 
 import structlog
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.api.agent_smoke import run_smoke_test
 from dominion.api.deps import SessionDep
-from dominion.shared.config import settings
-from dominion.shared.models import ModelOverride
-from dominion.shared.schemas import ModelSettingOut, ModelSettingsOut, ModelSettingUpdateIn
+from dominion.shared import agent_ops
+from dominion.shared.agent_registry import ROLE_KEYS, TIERS
+from dominion.shared.schemas import (
+    AgentOpsOut,
+    AgentPolicyUpdateIn,
+    AgentStatsListOut,
+    ModelSettingOut,
+    ModelSettingsOut,
+    ModelSettingUpdateIn,
+    SmokeTestIn,
+    SmokeTestOut,
+)
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-# Each customizable agent role -> the `settings` attribute it reads + a label/description for the UI.
-# (The Oracle is deterministic — it has no model and is intentionally absent.)
-ROLES: list[tuple[str, str, str]] = [
-    ("draft_model", "Drafter & planner", "Writes scene prose and proposes the gate-1 beats"),
-    ("review_model", "Reviewers & summaries", "Continuity / combat / pacing / voice reviewers + rolling summaries"),
-    ("enrich_model", "Enrichment specialists", "Combat / sensory / dialogue enrichment passes"),
-    ("packet_author_model", "Packet author", "Authors the chapter knowledge packet from canon + outline"),
-    ("packet_qa_model", "Packet QA", "Validates the proposed packet before approval"),
-    (
-        "scene_packet_author_model",
-        "ScenePacket author",
-        "Localizes the chapter packet into each scene's reader/POV/reveal contract (once per scene)",
-    ),
-    ("scene_packet_qa_model", "ScenePacket QA", "Attacks each scene packet before approval (once per scene)"),
-]
-_ROLE_KEYS = {r[0] for r in ROLES}
 
-# The three tiers offered in the UI -> the model id stored + used.
-TIERS: dict[str, str] = {
-    "haiku": "claude-haiku-4-5",
-    "sonnet": "claude-sonnet-4-6",
-    "opus": "claude-opus-4-8",
-}
-
-
-def tier_of(model_id: str | None) -> str | None:
-    """Which tier a configured model id belongs to (by family), so the UI can preselect it even when
-    the stored id is a dated alias (e.g. claude-haiku-4-5-20251001 -> haiku)."""
-    for tier in ("opus", "sonnet", "haiku"):
-        if tier in (model_id or ""):
-            return tier
-    return None
-
-
-async def apply_model_overrides(session: AsyncSession) -> int:
-    """Load persisted overrides into the live settings singleton. Called once on app startup so a model
-    choice survives a redeploy. Unknown/removed roles are ignored."""
-    rows = (await session.execute(select(ModelOverride))).scalars().all()
-    applied = 0
-    for row in rows:
-        if row.setting_name in _ROLE_KEYS:
-            setattr(settings, row.setting_name, row.model)
-            applied += 1
-    return applied
-
-
-def _meta(setting: str) -> tuple[str, str]:
-    return next((label, desc) for key, label, desc in ROLES if key == setting)
+async def apply_model_overrides(session) -> int:
+    """Load persisted overrides into live settings. Called on app startup."""
+    return await agent_ops.apply_model_overrides(session)
 
 
 @router.get("/models", response_model=ModelSettingsOut)
 async def get_models(session: SessionDep) -> ModelSettingsOut:
-    """Every customizable agent's current model + which tier it is, plus the tier -> id map."""
-    agents = [
-        ModelSettingOut(
-            setting=key,
-            label=label,
-            description=desc,
-            model=getattr(settings, key),
-            tier=tier_of(getattr(settings, key)),
-        )
-        for key, label, desc in ROLES
-    ]
+    """Every customizable agent's current model + tier (legacy endpoint)."""
+    from dominion.shared.agent_registry import AGENTS
+
+    agents = [agent_ops.model_setting_out(a) for a in AGENTS]
     return ModelSettingsOut(agents=agents, tiers=TIERS)
 
 
 @router.put("/models", response_model=ModelSettingOut)
 async def set_model(body: ModelSettingUpdateIn, session: SessionDep) -> ModelSettingOut:
     """Point one agent role at Haiku / Sonnet / Opus. Applies live + persists."""
-    if body.setting not in _ROLE_KEYS:
+    if body.setting not in ROLE_KEYS:
         raise HTTPException(status_code=422, detail=f"unknown agent setting '{body.setting}'")
-    model = TIERS.get(body.tier)
-    if model is None:
+    if body.tier not in TIERS:
         raise HTTPException(status_code=422, detail="tier must be haiku, sonnet, or opus")
-    setattr(settings, body.setting, model)  # live: the next agent call reads this
-    existing = await session.get(ModelOverride, body.setting)
-    if existing is None:
-        session.add(ModelOverride(setting_name=body.setting, model=model))
-    else:
-        existing.model = model
+    try:
+        out = await agent_ops.apply_tier_to_agent(session, body.setting, body.tier)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    await agent_ops.set_active_preset(session, "custom")
     await session.commit()
-    label, desc = _meta(body.setting)
-    log.info("settings.model_changed", setting=body.setting, model=model)
-    return ModelSettingOut(setting=body.setting, label=label, description=desc, model=model, tier=body.tier)
+    log.info("settings.model_changed", setting=body.setting, tier=body.tier)
+    return out
+
+
+@router.get("/agents", response_model=AgentOpsOut)
+async def get_agents(session: SessionDep) -> AgentOpsOut:
+    """Full agent operations panel state."""
+    return await agent_ops.build_agent_ops(session)
+
+
+@router.put("/presets/{preset_id}", response_model=AgentOpsOut)
+async def apply_preset(preset_id: str, session: SessionDep) -> AgentOpsOut:
+    """Apply a built-in preset to all agent roles."""
+    try:
+        return await agent_ops.apply_preset(session, preset_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.put("/agents/{setting}/policy", response_model=AgentOpsOut)
+async def set_agent_policy(setting: str, body: AgentPolicyUpdateIn, session: SessionDep) -> AgentOpsOut:
+    """Update fallback chain / never-fallback tiers for one agent."""
+    if setting not in ROLE_KEYS:
+        raise HTTPException(status_code=422, detail=f"unknown agent setting '{setting}'")
+    try:
+        return await agent_ops.apply_agent_policy(
+            session,
+            setting,
+            fallback_tier=body.fallback_tier,
+            never_fallback=body.never_fallback,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/agents/stats", response_model=AgentStatsListOut)
+async def get_agent_stats(session: SessionDep) -> AgentStatsListOut:
+    """Per-agent health stats from recent llm_calls."""
+    return await agent_ops.build_agent_stats(session)
+
+
+@router.post("/agents/smoke-test", response_model=SmokeTestOut)
+async def smoke_test(body: SmokeTestIn | None = None) -> SmokeTestOut:
+    """Offline fixture smoke test — no API spend."""
+    agents = body.agents if body else None
+    return await run_smoke_test(agents=agents)

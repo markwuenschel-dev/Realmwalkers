@@ -254,3 +254,132 @@ async def test_book_telemetry_rolls_up_chapters_stages_models(db_factory):
         assert {g.key for g in out.by_model} == {"haiku", "sonnet"}
         haiku = next(g for g in out.by_model if g.key == "haiku")
         assert haiku.calls == 2
+
+
+async def test_run_telemetry_detail(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        run_id = uuid.uuid4()
+        s.add_all(
+            [
+                LlmCall(
+                    run_id=run_id,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=100,
+                    output_tokens=20,
+                    metadata_={"call_index": 0, "max_tokens": 3000},
+                ),
+                LlmCall(
+                    run_id=run_id,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=50,
+                    output_tokens=10,
+                    truncated=True,
+                    metadata_={"call_index": 1},
+                ),
+            ]
+        )
+        await s.flush()
+
+        out = await tel_router.run_telemetry(run_id, s)
+        assert out.totals.calls == 2
+        assert out.totals.truncations == 1
+        assert len(out.scenes) == 1
+        assert out.scenes[0].status == "warn"
+        assert len(out.calls) == 2
+
+
+async def test_list_llm_calls_filters(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        run_id = uuid.uuid4()
+        s.add_all(
+            [
+                LlmCall(
+                    run_id=run_id,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=100,
+                    truncated=True,
+                ),
+                LlmCall(
+                    run_id=run_id,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=50,
+                ),
+            ]
+        )
+        await s.flush()
+
+        all_calls = await tel_router.list_llm_calls(s, book_id=book.id)
+        assert all_calls.total == 2
+
+        trunc_only = await tel_router.list_llm_calls(s, book_id=book.id, truncated=True)
+        assert trunc_only.total == 1
+        assert trunc_only.calls[0].truncated is True
+
+
+async def test_telemetry_problems_truncation(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        s.add(
+            LlmCall(
+                book_id=book.id,
+                chapter_id=ch.id,
+                stage="scene_packet_qa",
+                model="haiku",
+                input_tokens=50,
+                truncated=True,
+            )
+        )
+        await s.flush()
+
+        out = await tel_router.book_telemetry_problems(book.id, s)
+        assert out.healthy is False
+        assert any(p.kind == "truncation" for p in out.problems)
+
+
+async def test_compare_runs(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        run_a, run_b = uuid.uuid4(), uuid.uuid4()
+        s.add_all(
+            [
+                LlmCall(
+                    run_id=run_a,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=100,
+                ),
+                LlmCall(
+                    run_id=run_b,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=200,
+                    truncated=True,
+                ),
+            ]
+        )
+        await s.flush()
+
+        out = await tel_router.compare_runs(book.id, s, run_a=run_a, run_b=run_b)
+        assert out.run_a.input_tokens == 100
+        assert out.run_b.truncations == 1
+        assert len(out.stage_deltas) >= 1

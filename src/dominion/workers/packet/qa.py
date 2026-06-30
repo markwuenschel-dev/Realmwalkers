@@ -14,6 +14,7 @@ from dominion.shared.config import settings
 from dominion.shared.enums import PacketVerdict
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
+from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
 from dominion.workers.packet.parse import extract_object, str_list
 
 _QA_MAX_TOKENS = 3000
@@ -61,12 +62,24 @@ def parse_qa(raw: str) -> dict[str, Any] | None:
 
 async def qa_packet(packet: dict[str, Any], *, budget: TokenBudget) -> dict[str, Any] | None:
     """One bounded call -> {verdict, residual_risks, issues}, or None on a malformed response."""
-    raw, _usage = await llm.complete(
-        model=settings.packet_qa_model,
-        system=_SYSTEM,
-        user=build_prompt(packet),
-        max_tokens=_QA_MAX_TOKENS,
-        budget=budget,
-        expect_cache=False,
+
+    async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, Any]:
+        raw, usage = await llm.complete(
+            model=model,
+            system=_SYSTEM,
+            user=build_prompt(packet),
+            max_tokens=max_tokens,
+            budget=budget,
+            expect_cache=False,
+        )
+        return parse_qa(raw), usage
+
+    result, _model, _esc = await attempt_with_escalation(
+        setting_key="packet_qa_model",
+        primary_model=settings.packet_qa_model,
+        primary_max_tokens=_QA_MAX_TOKENS,
+        attempt_fn=_attempt,
+        is_success=lambda v: v is not None,
+        policy=policy_for_setting("packet_qa_model"),
     )
-    return parse_qa(raw)
+    return result if isinstance(result, dict) else None

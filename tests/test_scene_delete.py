@@ -5,10 +5,11 @@ delete — a nullable FK still blocks it. Backs the inbox's bulk 'delete selecte
 
 from __future__ import annotations
 
+from conftest import seed_scene_packet
 from sqlalchemy import select
 
 from dominion.api.routers import scenes as scenes_router
-from dominion.shared.enums import Decision, Severity
+from dominion.shared.enums import Decision, JobKind, JobStatus, Severity
 from dominion.shared.models import (
     Approval,
     Book,
@@ -16,6 +17,7 @@ from dominion.shared.models import (
     Critique,
     DraftAttempt,
     EditPair,
+    Job,
     KnowledgeFact,
     Scene,
     Summary,
@@ -46,7 +48,8 @@ async def test_delete_scene_removes_scene_and_all_references(db_factory):
         await s.commit()
 
         out = await scenes_router.delete_scene(scene.id, s)
-        assert out["deleted"] == str(scene.id)
+        assert str(out.deleted) == str(scene.id)
+        assert out.jobs_purged == 0
 
         async def gone(model, **where):
             stmt = select(model)
@@ -68,3 +71,57 @@ async def test_delete_scene_removes_scene_and_all_references(db_factory):
         kf = (await s.execute(select(KnowledgeFact).where(KnowledgeFact.book_id == book.id))).scalar_one()
         assert kf.source_scene_id is None
         assert kf.known_by_reader_after_scene_id is None
+
+
+async def test_delete_scene_purges_draft_jobs_for_slot(db_factory):
+    async with db_factory() as s:
+        book = Book(title="Jobs")
+        s.add(book)
+        await s.flush()
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
+        s.add(ch)
+        await s.flush()
+        scene = Scene(chapter_id=ch.id, scene_no=1, prose="p", version=1)
+        s.add(scene)
+        await s.flush()
+        from dominion.shared.enums import BeatStatus, RunStatus
+        from dominion.shared.models import Beat, Run
+
+        run = Run(
+            book_id=book.id,
+            scope_json={},
+            gate_mode="pause_each",
+            token_budget=40_000,
+            status=RunStatus.ACTIVE,
+        )
+        s.add(run)
+        await s.flush()
+        beat = Beat(chapter_id=ch.id, scene_no=1, status=BeatStatus.APPROVED, beat_text="b")
+        s.add(beat)
+        await s.flush()
+        sp = await seed_scene_packet(s, chapter=ch, beat=beat)
+        for status in (JobStatus.QUEUED, JobStatus.FAILED):
+            s.add(
+                Job(
+                    run_id=run.id,
+                    kind=JobKind.DRAFT,
+                    chapter_id=ch.id,
+                    beat_id=beat.id,
+                    scene_packet_id=sp.id,
+                    chapter_no=1,
+                    scene_no=1,
+                    status=status,
+                    token_budget=40_000,
+                    last_error="x" if status == JobStatus.FAILED else None,
+                )
+            )
+        await s.commit()
+
+        out = await scenes_router.delete_scene(scene.id, s)
+        assert out.jobs_purged == 2
+        remaining = (
+            (await s.execute(select(Job).where(Job.chapter_id == ch.id, Job.scene_no == 1, Job.kind == JobKind.DRAFT)))
+            .scalars()
+            .all()
+        )
+        assert remaining == []

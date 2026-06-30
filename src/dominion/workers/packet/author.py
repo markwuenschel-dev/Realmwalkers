@@ -17,6 +17,7 @@ from typing import Any
 from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
+from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
 from dominion.workers.packet.parse import extract_object
 
 # The packet schema is large (20+ array fields, nested scene_seeds + per-claim provenance), so a
@@ -108,22 +109,35 @@ async def author_packet(
     canon_handles: dict[str, dict[str, Any]],
     budget: TokenBudget,
 ) -> dict[str, Any] | None:
-    """One bounded call -> the parsed packet dict, or None when nothing usable came back (the
-    orchestration then fails closed to a blocked packet). Never raises on a malformed response."""
-    raw, _usage = await llm.complete(
-        model=settings.packet_author_model,
-        system=_SYSTEM,
-        user=build_prompt(
-            chapter_no=chapter_no,
-            pov=pov,
-            outline=outline,
-            omniscient_summary=omniscient_summary,
-            prior_exit_state=prior_exit_state,
-            next_entry_intent=next_entry_intent,
-            canon_handles=canon_handles,
-        ),
-        max_tokens=_AUTHOR_MAX_TOKENS,
-        budget=budget,
-        expect_cache=False,
+    """One bounded call -> the parsed packet dict, or None when nothing usable came back."""
+    user = build_prompt(
+        chapter_no=chapter_no,
+        pov=pov,
+        outline=outline,
+        omniscient_summary=omniscient_summary,
+        prior_exit_state=prior_exit_state,
+        next_entry_intent=next_entry_intent,
+        canon_handles=canon_handles,
     )
-    return extract_object(raw)
+
+    async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, Any]:
+        raw, usage = await llm.complete(
+            model=model,
+            system=_SYSTEM,
+            user=user,
+            max_tokens=max_tokens,
+            budget=budget,
+            expect_cache=False,
+        )
+        obj = extract_object(raw)
+        return obj if isinstance(obj, dict) else None, usage
+
+    result, _model, _esc = await attempt_with_escalation(
+        setting_key="packet_author_model",
+        primary_model=settings.packet_author_model,
+        primary_max_tokens=_AUTHOR_MAX_TOKENS,
+        attempt_fn=_attempt,
+        is_success=lambda v: isinstance(v, dict) and bool(v.get("chapter_job")),
+        policy=policy_for_setting("packet_author_model"),
+    )
+    return result if isinstance(result, dict) else None

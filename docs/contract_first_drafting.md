@@ -77,4 +77,4 @@ uv run python -m dominion.tools.audit_draft_jobs --chapter-id <id> --dry-run
 uv run python -m dominion.tools.repair_draft_queue --chapter-id <id> --apply
 ```
 
-Then use `POST /chapters/{id}/draft` — not blind `retry-failed`. To dismiss failed jobs without re-queueing, use `POST /jobs/clear-failed`.
+Then use `POST /chapters/{id}/draft` — not blind `retry-failed`. To dismiss failed jobs without re-queueing, use **Clear failed jobs** from any Desk tab (Inbox, Chapter Packet, Scene Packets, or Manuscript → Draft), optionally scoped to one chapter via `POST /jobs/clear-failed?chapter_id=`. After deleting scenes from the Inbox, draft jobs for that `(chapter, scene_no)` slot are purged automatically; use **Clear draft scenes** on Manuscript → Draft to remove all non-approved scenes and reset the working compile. Prefer single-scene delete from the Inbox (cascades jobs) over leaving orphaned queue rows.

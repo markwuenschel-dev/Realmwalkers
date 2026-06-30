@@ -13,6 +13,7 @@ per-call dimensions (stage, scene_no, seed_id, model, tokens) ride on each CallR
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,17 +28,22 @@ def persist_sink(
     run_id: uuid.UUID | None,
     book_id: uuid.UUID,
     chapter_id: uuid.UUID | None = None,
+    settings_snapshot: dict[str, Any] | None = None,
 ) -> None:
     """Flush a run's collected per-call telemetry to `llm_calls` (the caller commits). Pure exhaust:
     a bad row is dropped rather than failing the work that produced real output. Rows roll up under
     `run_id` in the Desk's per-run history; pass a fresh uuid4 for work that has no standing run id
     (e.g. summary regeneration) so each invocation is its own run row, or None to land in the legacy
     bucket."""
-    for rec in sink.records:
+    for call_index, rec in enumerate(sink.records):
         try:
             seed_id = uuid.UUID(rec.seed_id) if rec.seed_id else None
         except (ValueError, TypeError):
             seed_id = None
+        meta: dict[str, Any] = dict(rec.metadata or {})
+        meta["call_index"] = call_index
+        if call_index == 0 and settings_snapshot:
+            meta["settings_snapshot"] = settings_snapshot
         session.add(
             LlmCall(
                 run_id=run_id,
@@ -54,5 +60,6 @@ def persist_sink(
                 truncated=rec.truncated,
                 latency_ms=rec.latency_ms,
                 error=rec.error,
+                metadata_=meta or None,
             )
         )

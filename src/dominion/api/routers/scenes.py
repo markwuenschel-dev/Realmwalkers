@@ -5,27 +5,15 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import delete, select, update
+from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
+from dominion.api.scene_delete import hard_delete_scene
 from dominion.shared.enums import Decision, SceneStatus
-from dominion.shared.models import (
-    Annotation,
-    Approval,
-    Chapter,
-    CharacterState,
-    Critique,
-    DraftAttempt,
-    EditPair,
-    Job,
-    KnowledgeFact,
-    PovProfile,
-    Scene,
-    Suggestion,
-    Summary,
-)
+from dominion.shared.models import Approval, Chapter, Critique, DraftAttempt, PovProfile, Scene
 from dominion.shared.schemas import (
     CritiqueOut,
+    DeleteSceneOut,
     DraftAttemptOut,
     ExemplarIn,
     SceneDetail,
@@ -202,38 +190,10 @@ async def revert_scene(scene_id: uuid.UUID, session: SessionDep) -> Scene:
     return reverted
 
 
-@router.delete("/{scene_id}")
-async def delete_scene(scene_id: uuid.UUID, session: SessionDep) -> dict[str, str]:
-    """Hard-delete one scene version and everything that points at it. Scenes are referenced by
-    critiques / annotations / approvals / suggestions and edit-pairs (NOT NULL) and softly by the
-    ledger, summaries, jobs, child versions, draft-attempt provenance, and knowledge facts — so we
-    remove the hard dependents and null the soft refs first, then the row, or the FK constraints
-    (a nullable FK still blocks a delete; there is no ON DELETE SET NULL) would fail the delete.
-    Used by the inbox's bulk 'delete selected'."""
-    scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
-    if scene is None:
-        raise HTTPException(status_code=404, detail="scene not found")
-
-    # Hard dependents: NOT NULL scene_id, meaningless without this scene version. EditPair is training
-    # data keyed to (scene_id, version) — once the version is gone the before/after pair is dangling.
-    for model in (Critique, Annotation, Suggestion, Approval, EditPair):
-        await session.execute(delete(model).where(model.scene_id == scene_id))
-    # Soft references: keep the rows, just detach them from the scene being removed.
-    await session.execute(
-        update(CharacterState).where(CharacterState.as_of_scene_id == scene_id).values(as_of_scene_id=None)
-    )
-    await session.execute(update(Summary).where(Summary.up_to_scene_id == scene_id).values(up_to_scene_id=None))
-    await session.execute(update(Job).where(Job.target_scene_id == scene_id).values(target_scene_id=None))
-    await session.execute(update(Scene).where(Scene.parent_scene_id == scene_id).values(parent_scene_id=None))
-    # DraftAttempt is append-only provenance ("never destroyed") — detach, don't delete.
-    await session.execute(update(DraftAttempt).where(DraftAttempt.scene_id == scene_id).values(scene_id=None))
-    # KnowledgeFact is a book-level ledger; it can reference the deleted scene from three columns.
-    for col in (
-        KnowledgeFact.source_scene_id,
-        KnowledgeFact.known_by_reader_after_scene_id,
-        KnowledgeFact.known_by_character_after_scene_id,
-    ):
-        await session.execute(update(KnowledgeFact).where(col == scene_id).values({col: None}))
-    await session.execute(delete(Scene).where(Scene.id == scene_id))
+@router.delete("/{scene_id}", response_model=DeleteSceneOut)
+async def delete_scene(scene_id: uuid.UUID, session: SessionDep) -> DeleteSceneOut:
+    """Hard-delete one scene version and everything that points at it. Also purges draft jobs for
+    the same chapter/scene slot. Used by the inbox's bulk 'delete selected'."""
+    deleted_id, jobs_purged = await hard_delete_scene(session, scene_id)
     await session.commit()
-    return {"deleted": str(scene_id)}
+    return DeleteSceneOut(deleted=deleted_id, jobs_purged=jobs_purged)

@@ -257,6 +257,8 @@ class LlmCall(Base):
     truncated: Mapped[bool] = mapped_column(Boolean, default=False)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Per-call diagnostics (max_tokens, context_sections, section_name, fallback_attempt, call_index, …).
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -473,3 +475,19 @@ class ModelOverride(Base):
     __tablename__ = "model_overrides"
     setting_name: Mapped[str] = mapped_column(Text, primary_key=True)
     model: Mapped[str] = mapped_column(Text)
+
+
+class AgentPolicyOverride(Base):
+    """Per-agent fallback/escalation policy persisted from the Agent Operations panel."""
+
+    __tablename__ = "agent_policy_overrides"
+    setting_name: Mapped[str] = mapped_column(Text, primary_key=True)
+    policy_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+class AgentOpsState(Base):
+    """Singleton row tracking the active ops preset (custom when user edits individual agents)."""
+
+    __tablename__ = "agent_ops_state"
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default="default")
+    active_preset: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -25,9 +25,12 @@ const WIDTH: Record<Layout, string> = { page: "40rem", wide: "54rem", columns: "
 type Source = "approved" | "draft";
 
 export default function ManuscriptScreen() {
-  const { manuscript, chapters: allChapters, latestScenes } = useDeskData();
+  const { manuscript, chapters: allChapters, latestScenes, jobs, clearFailed, clearDraftScenes } =
+    useDeskData();
   const [layout, setLayout] = useState<Layout>("wide");
   const [source, setSource] = useState<Source>("approved");
+  const [clearFailedBusy, setClearFailedBusy] = useState(false);
+  const [clearDraftBusy, setClearDraftBusy] = useState(false);
   // Author name for the Shunn submission header/byline — persisted so it isn't re-typed each export.
   // Read after mount (not in the initializer) so server prerender never touches localStorage.
   const [author, setAuthor] = useState<string>("");
@@ -83,7 +86,7 @@ export default function ManuscriptScreen() {
   const totalWords = chapters
     .flatMap((c) => c.scenes)
     .reduce((acc, s) => acc + wordCount(s.prose), 0);
-  const pages = Math.max(1, Math.ceil(totalWords / WORDS_PER_PAGE));
+  const pages = totalWords > 0 ? Math.max(1, Math.ceil(totalWords / WORDS_PER_PAGE)) : 0;
 
   const titleStem =
     (active?.title || "manuscript").replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript";
@@ -166,12 +169,59 @@ export default function ManuscriptScreen() {
               );
             })}
           </div>
-          {hasProse && (
+          {totalWords > 0 && (
             <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
               ≈ {pages.toLocaleString()} manuscript page{pages === 1 ? "" : "s"} ·{" "}
               {totalWords.toLocaleString()} words
               <span style={css("opacity:.6")}> · Shunn 250 wpp</span>
             </span>
+          )}
+          {isDraft && (
+            <>
+              <button
+                disabled={clearFailedBusy || clearDraftBusy || jobs.failed <= 0}
+                onClick={async () => {
+                  setClearFailedBusy(true);
+                  try {
+                    await clearFailed();
+                  } finally {
+                    setClearFailedBusy(false);
+                  }
+                }}
+                title="Remove failed draft jobs for this book"
+                style={css(
+                  `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${jobs.failed > 0 ? "var(--dim)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${jobs.failed > 0 && !clearFailedBusy ? "pointer" : "default"};opacity:${jobs.failed > 0 ? 1 : 0.45}`,
+                )}
+              >
+                {clearFailedBusy ? "Clearing…" : "Clear failed jobs"}
+              </button>
+              <button
+                disabled={clearFailedBusy || clearDraftBusy}
+                onClick={async () => {
+                  const n = draftExtra;
+                  if (
+                    !confirm(
+                      n > 0
+                        ? `Clear ${n} unapproved draft scene${n === 1 ? "" : "s"}? Approved prose is kept.`
+                        : "Clear all non-approved draft scenes? Approved prose is kept.",
+                    )
+                  )
+                    return;
+                  setClearDraftBusy(true);
+                  try {
+                    await clearDraftScenes();
+                  } finally {
+                    setClearDraftBusy(false);
+                  }
+                }}
+                title="Delete all non-approved scenes so the draft compile resets"
+                style={css(
+                  `padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg2));color:var(--warn);font-family:var(--ui);font-size:12px;cursor:${clearDraftBusy ? "default" : "pointer"}`,
+                )}
+              >
+                {clearDraftBusy ? "Clearing…" : "Clear draft scenes"}
+              </button>
+            </>
           )}
           {isDraft && draftExtra > 0 && (
             <span

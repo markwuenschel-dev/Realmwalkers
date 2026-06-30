@@ -1,8 +1,10 @@
 import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "../client";
 import type {
   ChapterOut,
   ChapterUpdateIn,
+  ClearDraftScenesOut,
   ClearFailedOut,
   ContinuityResolveIn,
   DecisionIn,
@@ -10,6 +12,7 @@ import type {
   RetryFailedOut,
   SceneDetail,
 } from "../types";
+import { purgeDraftLocalStorage, isHttpNotFound } from "../../lib/draftStorage";
 import type { DeskFail } from "./shared";
 
 export interface DeskSceneActionsDeps {
@@ -26,7 +29,9 @@ export interface DeskSceneActionsState {
   updateChapter: (chapterId: string, body: ChapterUpdateIn) => Promise<void>;
   draftNext: () => Promise<void>;
   retryFailed: () => Promise<RetryFailedOut | null>;
-  clearFailed: () => Promise<ClearFailedOut | null>;
+  clearFailed: (chapterId?: string | null) => Promise<ClearFailedOut | null>;
+  clearDraftScenes: (chapterId?: string | null) => Promise<ClearDraftScenesOut | null>;
+  deleteScenes: (ids: string[]) => Promise<void>;
   runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
@@ -39,6 +44,7 @@ export function useDeskSceneActions(
   setError: (msg: string | null) => void,
   deps: DeskSceneActionsDeps,
 ): DeskSceneActionsState {
+  const router = useRouter();
   const { bookId, activeSceneId, setJobs, setChapters, setDetail, openSceneById, refreshAll } =
     deps;
 
@@ -69,18 +75,74 @@ export function useDeskSceneActions(
     }
   }, [bookId, fail, refreshAll, setJobs]);
 
-  const clearFailed = useCallback(async (): Promise<ClearFailedOut | null> => {
-    if (!bookId) return null;
-    try {
-      const out = await api.clearFailed(bookId);
-      setJobs((j) => ({ ...j, failed: out.failed }));
-      await refreshAll();
-      return out;
-    } catch (e) {
-      fail(e);
-      return null;
-    }
-  }, [bookId, fail, refreshAll, setJobs]);
+  const clearFailed = useCallback(
+    async (chapterId?: string | null): Promise<ClearFailedOut | null> => {
+      if (!bookId) return null;
+      try {
+        const out = await api.clearFailed(bookId, chapterId ?? undefined);
+        setJobs((j) => ({ ...j, failed: out.failed }));
+        await refreshAll();
+        return out;
+      } catch (e) {
+        fail(e);
+        return null;
+      }
+    },
+    [bookId, fail, refreshAll, setJobs],
+  );
+
+  const clearDraftScenes = useCallback(
+    async (chapterId?: string | null): Promise<ClearDraftScenesOut | null> => {
+      if (!bookId) return null;
+      try {
+        const out = await api.clearDraftScenes(bookId, chapterId ?? undefined);
+        try {
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key?.startsWith("dominion:draft:")) localStorage.removeItem(key);
+          }
+        } catch {
+          /* ignore */
+        }
+        if (activeSceneId) {
+          try {
+            await api.scene(activeSceneId);
+          } catch (e) {
+            if (isHttpNotFound(e)) {
+              openSceneById(null);
+              router.push("/");
+            }
+          }
+        }
+        await refreshAll();
+        return out;
+      } catch (e) {
+        fail(e);
+        return null;
+      }
+    },
+    [activeSceneId, bookId, fail, openSceneById, refreshAll, router],
+  );
+
+  const deleteScenes = useCallback(
+    async (ids: string[]): Promise<void> => {
+      if (ids.length === 0) return;
+      try {
+        const results = await Promise.allSettled(ids.map((id) => api.deleteScene(id)));
+        purgeDraftLocalStorage(ids);
+        if (activeSceneId && ids.includes(activeSceneId)) {
+          openSceneById(null);
+          router.push("/");
+        }
+        await refreshAll();
+        const failures = results.filter((r) => r.status === "rejected").length;
+        if (failures > 0) setError(`${failures} of ${ids.length} failed — others applied.`);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [activeSceneId, fail, openSceneById, refreshAll, router, setError],
+  );
 
   const runBulk = useCallback(
     async (ids: string[], fn: (id: string) => Promise<unknown>): Promise<void> => {
@@ -167,6 +229,8 @@ export function useDeskSceneActions(
     draftNext,
     retryFailed,
     clearFailed,
+    clearDraftScenes,
+    deleteScenes,
     runBulk,
     decide,
     revertScene,

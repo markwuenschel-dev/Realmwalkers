@@ -6,14 +6,18 @@ import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { Spinner } from "../components/DraftActivity";
 import { TotalsStrip, TotalsTable, fmtTokens } from "../components/Telemetry";
+import { ProblemsPanel } from "../components/telemetry/ProblemsPanel";
+import { TelemetryDrawer, useTelemetryDrawer } from "../components/telemetry/TelemetryDrawer";
 import type {
   BookTelemetryOut,
   ChapterRollupOut,
   RunRollupOut,
+  RunTelemetryOut,
+  SceneTelemetryOut,
   TelemetryGroupOut,
 } from "../api/types";
+import type { TelemetryDrawerView } from "../components/telemetry/types";
 
-// "2026-06-28 14:07" in local time — compact enough for a table cell; falls back to the run id.
 function fmtRun(r: RunRollupOut): string {
   const label =
     r.chapter_no != null ? `Ch ${r.chapter_no}` : (r.title ?? r.run_id?.slice(0, 8) ?? "—");
@@ -23,22 +27,19 @@ function fmtRun(r: RunRollupOut): string {
   return `${stamp} · ${label}`;
 }
 
-// The global Telemetry tab: persisted LLM-call cost/cache/health for the active book, rolled up so a
-// human can compare across chapters, models, and stages (the scene-packet Author/QA, and any later
-// instrumented call site). This is the "own tab" cross-chapter view — the per-chapter slice lives
-// under the scene packets. Read-only: telemetry is produced by the workers, never edited here.
-
-// Runs come back newest-first one page at a time; "Load older runs" appends the next page.
 const RUN_PAGE = 5;
 
 export default function TelemetryScreen() {
   const { bookId } = useDeskData();
+  const drawer = useTelemetryDrawer();
   const [data, setData] = useState<BookTelemetryOut | null>(null);
-  // Accumulated run rows across paged fetches (data.by_run is only ever the latest page).
   const [runs, setRuns] = useState<RunRollupOut[]>([]);
+  const [latestRun, setLatestRun] = useState<RunTelemetryOut | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareA, setCompareA] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!bookId) return;
@@ -48,6 +49,12 @@ export default function TelemetryScreen() {
       setData(d);
       setRuns(d.by_run);
       setError(null);
+      const firstRun = d.by_run[0]?.run_id;
+      if (firstRun) {
+        api.runTelemetry(firstRun).then(setLatestRun).catch(() => setLatestRun(null));
+      } else {
+        setLatestRun(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -55,8 +62,6 @@ export default function TelemetryScreen() {
     }
   }, [bookId]);
 
-  // Fetch the next page of runs (offset = rows already shown) and append them. Totals and the other
-  // rollups are full-book already, so we only consume by_run / run_total from the follow-up fetch.
   const loadMore = useCallback(async () => {
     if (!bookId) return;
     setLoadingMore(true);
@@ -76,6 +81,35 @@ export default function TelemetryScreen() {
     void load();
   }, [load]);
 
+  const openView = useCallback(
+    (view: TelemetryDrawerView) => {
+      drawer.open(view);
+    },
+    [drawer],
+  );
+
+  const onRunClick = useCallback(
+    (r: RunRollupOut) => {
+      if (!r.run_id || !bookId) return;
+      if (compareMode) {
+        if (compareA === null) {
+          setCompareA(r.run_id);
+          return;
+        }
+        if (compareA === r.run_id) {
+          setCompareA(null);
+          return;
+        }
+        openView({ kind: "compare", runA: compareA, runB: r.run_id, bookId });
+        setCompareA(null);
+        setCompareMode(false);
+        return;
+      }
+      openView({ kind: "run", runId: r.run_id });
+    },
+    [bookId, compareA, compareMode, openView],
+  );
+
   const empty = data && data.totals.calls === 0;
 
   return (
@@ -94,9 +128,11 @@ export default function TelemetryScreen() {
             Telemetry
           </h1>
           <p style={css("margin:0;color:var(--dim);font-size:13.5px;max-width:640px")}>
-            Persisted per-call LLM cost and cache efficiency for this book — compare across
-            chapters, models, and pipeline stages. Truncations and errors flag where a derive failed
-            and why.
+            Operations console for LLM calls — drill into runs, scenes, and individual calls. Click
+            any row to inspect; click two runs to compare.
+            {compareMode && (
+              <span style={css("color:var(--warn, #e8a020)")}> Select two runs to compare…</span>
+            )}
           </p>
         </div>
         <button
@@ -136,9 +172,36 @@ export default function TelemetryScreen() {
         >
           No model calls recorded yet. Derive scene packets for a chapter and they'll show up here.
         </div>
-      ) : data ? (
+      ) : data && bookId ? (
         <div style={css("display:flex;flex-direction:column;gap:8px")}>
+          <ProblemsPanel bookId={bookId} onOpen={openView} />
           <TotalsStrip t={data.totals} />
+
+          {latestRun && latestRun.scenes.length > 0 && (
+            <Section label={`By scene · latest run`}>
+              <TotalsTable<SceneTelemetryOut>
+                label="Scene"
+                rows={latestRun.scenes}
+                rowKey={(r) => String(r.scene_no)}
+                nameOf={(r) => (
+                  <span>
+                    Sc{r.scene_no ?? "—"}{" "}
+                    <span
+                      style={css(
+                        `color:${r.status === "error" ? "var(--bad)" : r.status === "warn" ? "var(--warn, #e8a020)" : "var(--ok)"}`,
+                      )}
+                    >
+                      ({r.status})
+                    </span>
+                  </span>
+                )}
+                onRowClick={(r) => {
+                  if (r.scene_no != null && latestRun.run_id)
+                    openView({ kind: "scene", runId: latestRun.run_id, sceneNo: r.scene_no });
+                }}
+              />
+            </Section>
+          )}
 
           <Section label="By chapter">
             <TotalsTable<ChapterRollupOut>
@@ -156,24 +219,38 @@ export default function TelemetryScreen() {
             <TotalsTable<RunRollupOut>
               label="Run"
               rows={runs}
+              rowKey={(r) => r.run_id ?? "legacy"}
               nameOf={fmtRun}
               emptyText="No derive runs recorded yet."
+              onRowClick={(r) => r.run_id && onRunClick(r)}
             />
-            {runs.length < data.run_total && (
-              <div style={css("display:flex;justify-content:center;margin-top:8px")}>
+            <div style={css("display:flex;gap:8px;margin-top:8px;flex-wrap:wrap")}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCompareMode((m) => !m);
+                  setCompareA(null);
+                }}
+                style={css(
+                  "height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:12px;cursor:pointer",
+                )}
+              >
+                {compareMode ? "Cancel compare" : "Compare runs"}
+              </button>
+              {runs.length < data.run_total && (
                 <button
                   disabled={loadingMore}
                   onClick={() => void loadMore()}
                   style={css(
-                    `height:30px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px;cursor:${loadingMore ? "default" : "pointer"}`,
+                    `height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:12px;cursor:${loadingMore ? "default" : "pointer"}`,
                   )}
                 >
                   {loadingMore
                     ? "Loading…"
                     : `Load older runs (${data.run_total - runs.length} more)`}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </Section>
 
           <div
@@ -186,6 +263,7 @@ export default function TelemetryScreen() {
                 label="Model"
                 rows={data.by_model}
                 nameOf={(r) => r.key}
+                onRowClick={(r) => openView({ kind: "model", model: r.key, bookId })}
               />
             </Section>
             <Section label="By stage">
@@ -193,6 +271,7 @@ export default function TelemetryScreen() {
                 label="Stage"
                 rows={data.by_stage}
                 nameOf={(r) => r.key.replace(/_/g, " ")}
+                onRowClick={(r) => openView({ kind: "stage", stage: r.key, bookId })}
               />
             </Section>
           </div>
@@ -202,11 +281,15 @@ export default function TelemetryScreen() {
               "margin:6px 2px 0;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
             )}
           >
-            {fmtTokens(data.totals.cache_tokens_saved)} tokens recovered from cache across{" "}
-            {data.totals.calls} calls.
+            {fmtTokens(data.totals.cache_tokens_saved)} tokens recovered from cache · est. $
+            {data.totals.estimated_cost_usd?.toFixed(2) ?? "0.00"} across {data.totals.calls} calls.
           </p>
         </div>
       ) : null}
+
+      {drawer.isOpen && bookId && drawer.view && (
+        <TelemetryDrawer nav={drawer.nav} bookId={bookId} />
+      )}
     </div>
   );
 }

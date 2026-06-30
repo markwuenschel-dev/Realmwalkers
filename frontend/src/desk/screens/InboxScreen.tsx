@@ -11,6 +11,7 @@ import { useSelection } from "../lib/useSelection";
 import Planner from "../components/Planner";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import { ActivityFeed, DraftPanel, formatElapsed } from "../components/DraftActivity";
+import ClearFailedPanel from "../components/ClearFailedPanel";
 import type { SceneOut } from "../api/types";
 
 export default function InboxScreen() {
@@ -213,7 +214,7 @@ export default function InboxScreen() {
           <Column title="Drafting" color={t.info} count={data.jobs.running ? 1 : 0} />
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             <DraftPanel />
-            <RetryFailed />
+            <RetryFailedBanner />
             <ActivityFeed />
           </div>
         </div>
@@ -297,7 +298,7 @@ export default function InboxScreen() {
                     `Delete ${sel.count} scene${sel.count === 1 ? "" : "s"}? This removes the draft and its review history.`,
                   )
                 ) {
-                  void data.runBulk(sel.ids, (id) => api.deleteScene(id));
+                  void data.deleteScenes(sel.ids);
                   clearSel();
                 }
               }}
@@ -357,114 +358,15 @@ function Column({ title, color, count }: { title: string; color: string; count: 
 // Shown in the Drafting column whenever jobs have FAILED — re-queues them to draft again. A scene
 // usually fails on a transient cause (API outage, depleted credits, a one-off 5xx); a FAILED job is
 // terminal, so without this it would never redraft on its own.
-function RetryFailed() {
+function RetryFailedBanner() {
   const data = useDeskData();
-  const [busy, setBusy] = useState(false);
-  const [clearBusy, setClearBusy] = useState(false);
-  const [lastResult, setLastResult] = useState<import("../api/types").RetryFailedOut | null>(null);
-  const n = data.jobs.failed;
-  if (n <= 0) return null;
-  const errs = data.failedJobs;
   return (
-    <div
-      style={css(
-        "border:1px solid color-mix(in srgb,var(--bad) 32%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--bg2));border-radius:10px;padding:12px 13px",
-      )}
-    >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--bad);margin-bottom:5px",
-        )}
-      >
-        {n} failed
-      </div>
-      <div style={css("font-size:12px;color:var(--dim);line-height:1.45;margin-bottom:10px")}>
-        Errored mid-draft. Re-queue to draft them again once the cause below is cleared.
-      </div>
-      {errs.length > 0 && (
-        <div
-          style={css(
-            "display:flex;flex-direction:column;gap:5px;margin-bottom:10px;max-height:150px;overflow:auto",
-          )}
-        >
-          {errs.slice(0, 6).map((f) => (
-            <div
-              key={f.id}
-              style={css(
-                "font-family:var(--mono);font-size:10.5px;line-height:1.4;color:var(--dim);overflow-wrap:anywhere",
-              )}
-            >
-              <span style={css("color:var(--bad)")}>
-                Ch{f.chapter_no ?? "?"}·Sc{f.scene_no ?? "?"}
-              </span>{" "}
-              {f.last_error ?? "unknown error"}
-            </div>
-          ))}
-          {errs.length > 6 && (
-            <div style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
-              …and {errs.length - 6} more
-            </div>
-          )}
-        </div>
-      )}
-      <div style={css("display:flex;flex-direction:column;gap:8px")}>
-        <button
-          disabled={busy || clearBusy}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              const out = await data.retryFailed();
-              setLastResult(out);
-            } finally {
-              setBusy(false);
-            }
-          }}
-          style={css(
-            `width:100%;padding:8px;border-radius:7px;border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 12%,var(--bg3));color:var(--bad);font-size:12.5px;cursor:${busy || clearBusy ? "default" : "pointer"};font-family:var(--ui)`,
-          )}
-        >
-          {busy ? "Re-queuing…" : `Retry ${n} failed`}
-        </button>
-        <button
-          disabled={busy || clearBusy}
-          onClick={async () => {
-            if (
-              !confirm(
-                `Clear ${n} failed draft job${n === 1 ? "" : "s"}? They will not be re-queued.`,
-              )
-            )
-              return;
-            setClearBusy(true);
-            try {
-              await data.clearFailed();
-              setLastResult(null);
-            } finally {
-              setClearBusy(false);
-            }
-          }}
-          style={css(
-            `width:100%;padding:8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:12.5px;cursor:${busy || clearBusy ? "default" : "pointer"};font-family:var(--ui)`,
-          )}
-        >
-          {clearBusy ? "Clearing…" : "Clear failed"}
-        </button>
-      </div>
-      {lastResult && (
-        <div
-          style={css("margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}
-        >
-          {lastResult.requested ?? n} requested · {lastResult.requeued} queued
-          {(lastResult.skipped?.length ?? 0) > 0 && (
-            <span style={css("color:var(--warn)")}> · {lastResult.skipped!.length} blocked</span>
-          )}
-          {(lastResult.skipped ?? []).slice(0, 4).map((b, i) => (
-            <div key={i} style={css("margin-top:4px;line-height:1.4")}>
-              Sc{b.scene_no ?? "?"}: {b.message} — {b.required_action}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <ClearFailedPanel
+      failedCount={data.jobs.failed}
+      failedJobs={data.failedJobs}
+      onRetry={() => data.retryFailed()}
+      onClear={() => data.clearFailed()}
+    />
   );
 }
 

@@ -9,6 +9,14 @@ type S = components["schemas"];
 
 export type ModelSettingOut = S["ModelSettingOut"];
 export type ModelSettingsOut = S["ModelSettingsOut"];
+export type AgentOpsOut = S["AgentOpsOut"];
+export type AgentOpsAgentOut = S["AgentOpsAgentOut"];
+export type AgentPresetOut = S["AgentPresetOut"];
+export type AgentPolicyOut = S["AgentPolicyOut"];
+export type AgentStatsListOut = S["AgentStatsListOut"];
+export type AgentStatsOut = S["AgentStatsOut"];
+export type SmokeTestOut = S["SmokeTestOut"];
+export type PipelineEstimateOut = S["PipelineEstimateOut"];
 export type CritiqueOut = S["CritiqueOut"];
 export type SceneOut = Omit<S["SceneOut"], "prose"> & { prose: string | null };
 export type SceneDetail = Omit<S["SceneDetail"], "prose"> & { prose: string | null };
@@ -42,6 +50,8 @@ export type RetryFailedOut = S["RetryFailedOut"] & {
   skipped?: DraftQueueBlockerOut[];
 };
 export type ClearFailedOut = S["ClearFailedOut"];
+export type DeleteSceneOut = S["DeleteSceneOut"];
+export type ClearDraftScenesOut = S["ClearDraftScenesOut"];
 
 export type DraftQueueBlockerOut = {
   chapter_id: string;
@@ -101,6 +111,14 @@ export type RunRollupOut = S["RunRollupOut"];
 // `run_total` is the count of all run rows before the limit/offset page slice (the wire schema
 // returns it now, but the generated DTO predates it).
 export type BookTelemetryOut = S["BookTelemetryOut"] & { run_total: number };
+export type LlmCallOut = S["LlmCallOut"];
+export type LlmCallListOut = S["LlmCallListOut"];
+export type RunTelemetryOut = S["RunTelemetryOut"];
+export type TelemetryProblemOut = S["TelemetryProblemOut"];
+export type TelemetryProblemsOut = S["TelemetryProblemsOut"];
+export type RunCompareOut = S["RunCompareOut"];
+export type PipelineStepOut = S["PipelineStepOut"];
+export type LlmCallLinksOut = S["LlmCallLinksOut"];
 export type DraftAttemptOut = S["DraftAttemptOut"];
 export type KnowledgeFactOut = S["KnowledgeFactOut"];
 export type HumanSceneIn = S["HumanSceneIn"];

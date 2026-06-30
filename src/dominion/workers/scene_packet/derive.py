@@ -382,6 +382,7 @@ async def derive_scene_packets(
     # inside _author_then_qa); it is flushed to the DB in Phase 3.
     sem = asyncio.Semaphore(max(1, settings.scene_packet_concurrency))
     sink = telemetry.TelemetrySink()
+    derive_run_id = uuid.uuid4()
     book_id_str, chapter_id_str = str(packet.book_id), str(packet.chapter_id)
     counts["context_budget_report"] = _derive_context_budget_report(
         chapter_packet_body=body,
@@ -454,5 +455,14 @@ async def derive_scene_packets(
 
     # One run_id for every call this derive made, so the Desk can isolate this run (Packets panel) and
     # build a per-run history (Telemetry tab) instead of reading one ever-growing cumulative total.
-    telemetry_db.persist_sink(session, sink, run_id=uuid.uuid4(), book_id=packet.book_id, chapter_id=packet.chapter_id)
+    from dominion.workers.telemetry_settings import telemetry_settings_snapshot
+
+    telemetry_db.persist_sink(
+        session,
+        sink,
+        run_id=derive_run_id,
+        book_id=packet.book_id,
+        chapter_id=packet.chapter_id,
+        settings_snapshot=telemetry_settings_snapshot(),
+    )
     return counts

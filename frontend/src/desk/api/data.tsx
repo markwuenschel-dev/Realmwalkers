@@ -73,6 +73,8 @@ export interface DeskData {
   versions: SceneVersionOut[];
   activeBeat: BeatOut | null;
   activeSceneId: string | null;
+  loadingScene: boolean;
+  missingSceneId: string | null;
   annotations: AnnotationOut[];
   suggestions: SuggestionOut[];
   openSceneById: (id: string | null) => void;
@@ -90,7 +92,11 @@ export interface DeskData {
   planningChapters: Set<number>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   retryFailed: () => Promise<import("./types").RetryFailedOut | null>;
-  clearFailed: () => Promise<import("./types").ClearFailedOut | null>;
+  clearFailed: (chapterId?: string | null) => Promise<import("./types").ClearFailedOut | null>;
+  clearDraftScenes: (
+    chapterId?: string | null,
+  ) => Promise<import("./types").ClearDraftScenesOut | null>;
+  deleteScenes: (ids: string[]) => Promise<void>;
   runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
@@ -250,6 +256,8 @@ export function useDeskDataState(): DeskData {
       versions: scene.versions,
       activeBeat: scene.activeBeat,
       activeSceneId: scene.activeSceneId,
+      loadingScene: scene.loadingScene,
+      missingSceneId: scene.missingSceneId,
       annotations: scene.annotations,
       suggestions: scene.suggestions,
       openSceneById: scene.openSceneById,
@@ -261,6 +269,8 @@ export function useDeskDataState(): DeskData {
       approveAndDraft,
       retryFailed: sceneActions.retryFailed,
       clearFailed: sceneActions.clearFailed,
+      clearDraftScenes: sceneActions.clearDraftScenes,
+      deleteScenes: sceneActions.deleteScenes,
       runBulk: sceneActions.runBulk,
       decide: sceneActions.decide,
       revertScene: sceneActions.revertScene,

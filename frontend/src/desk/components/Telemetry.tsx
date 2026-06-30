@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { css } from "../css";
 import { api } from "../api/client";
 import { Spinner } from "./DraftActivity";
@@ -84,11 +84,15 @@ export function TotalsTable<T extends TelemetryTotals>({
   rows,
   nameOf,
   emptyText = "No calls recorded yet.",
+  onRowClick,
+  rowKey,
 }: {
   label: string;
   rows: T[];
-  nameOf: (row: T) => string;
+  nameOf: (row: T) => ReactNode;
   emptyText?: string;
+  onRowClick?: (row: T) => void;
+  rowKey?: (row: T, index: number) => string;
 }) {
   if (rows.length === 0) {
     return (
@@ -119,7 +123,13 @@ export function TotalsTable<T extends TelemetryTotals>({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} style={css("border-top:1px solid var(--line)")}>
+            <tr
+              key={rowKey ? rowKey(r, i) : i}
+              onClick={onRowClick ? () => onRowClick(r) : undefined}
+              style={css(
+                `border-top:1px solid var(--line)${onRowClick ? ";cursor:pointer" : ""}${onRowClick ? ":hover{background:color-mix(in srgb,var(--accentLine) 8%,var(--bg2))}" : ""}`,
+              )}
+            >
               <td style={css(`${cell};text-align:left;color:var(--ink)`)}>{nameOf(r)}</td>
               <td style={css(`${cell};color:var(--dim)`)}>{r.calls}</td>
               <td style={css(`${cell};color:${cacheColor(r.cache_hit_ratio)}`)}>

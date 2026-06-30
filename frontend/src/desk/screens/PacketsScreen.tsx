@@ -8,6 +8,7 @@ import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { Spinner, formatElapsed } from "../components/DraftActivity";
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
+import ClearFailedPanel from "../components/ClearFailedPanel";
 import type {
   PacketBody,
   PacketClaim,
@@ -344,8 +345,28 @@ export default function PacketsScreen() {
       )}
 
       {/* Scene packets: the scene-local contract, available once the chapter packet is approved. */}
-      {!loading && packet && !editing && packet.status === "approved" && chapterId && (
-        <ScenePacketsPanel chapterId={chapterId} />
+      {!loading && packet && !editing && packet.status === "approved" && chapterId && chapter && (
+        <>
+          {(data.failedJobs.some((f) => f.chapter_no === chapter.chapter_no) ||
+            data.jobs.failed > 0) && (
+            <div style={css("margin-top:18px")}>
+              <ClearFailedPanel
+                failedCount={
+                  data.failedJobs.filter((f) => f.chapter_no === chapter.chapter_no).length ||
+                  data.jobs.failed
+                }
+                failedJobs={
+                  data.failedJobs.filter((f) => f.chapter_no === chapter.chapter_no).length > 0
+                    ? data.failedJobs.filter((f) => f.chapter_no === chapter.chapter_no)
+                    : data.failedJobs
+                }
+                onClear={() => data.clearFailed(chapterId)}
+                scopeLabel="this chapter"
+              />
+            </div>
+          )}
+          <ScenePacketsPanel chapterId={chapterId} />
+        </>
       )}
     </div>
   );
