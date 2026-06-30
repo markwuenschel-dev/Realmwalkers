@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { api } from "../api/client";
@@ -11,7 +11,13 @@ import { ChapterTelemetryPanel } from "./Telemetry";
 import { TelemetryDrawer, useTelemetryDrawer } from "./telemetry/TelemetryDrawer";
 import type { TelemetryDrawerView } from "./telemetry/types";
 import { useDeskData } from "../api/data";
-import type { ScenePacketBody, ScenePacketOut, DraftReadinessOut } from "../api/types";
+import type {
+  ScenePacketBody,
+  ScenePacketOut,
+  DraftReadinessOut,
+  QaIssue,
+  SceneSource,
+} from "../api/types";
 
 // Scene packets are the scene-local contract derived from an APPROVED chapter packet: per scene, what
 // the reader/POV know before it, what may be revealed, what stays hidden, the intentional mysteries,
@@ -32,6 +38,49 @@ const BLOCKER_SOURCE_LABEL: Record<string, string> = {
   qa: "QA",
   unknown: "gate",
 };
+
+const SEVERITY_VAR: Record<string, string> = { block: "--bad", warn: "--warn", info: "--dim" };
+
+// Every editable field path the editor anchors an issue to. A QA issue whose `field` matches one of
+// these renders inline under that control; anything else (null, parent-level, or an unknown key) falls
+// through to the editor's "general" callout so no issue is ever silently dropped.
+const ANCHORED_FIELDS: ReadonlySet<string> = new Set([
+  "scene_job",
+  "scene_type",
+  "chapter_position",
+  "required_beats",
+  "forbidden_beats",
+  "exit_state",
+  "tone_pressure",
+  "reviewer_false_positive_traps",
+  "phrases_to_avoid_echoing",
+  "known_before_scene.reader",
+  "known_before_scene.pov",
+  "known_before_scene.omniscient_author",
+  "learned_during_scene.reader_must_learn",
+  "learned_during_scene.reader_may_learn",
+  "learned_during_scene.reader_may_infer_only",
+  "must_remain_hidden.reader",
+  "must_remain_hidden.pov",
+  "must_remain_hidden.all_surface_prose",
+  "pov_permissions.may_notice",
+  "pov_permissions.may_infer",
+  "pov_permissions.must_not_know",
+  "pov_permissions.may_be_wrong_about",
+  "intentional_mysteries",
+  "reviewer_instructions.continuity",
+  "reviewer_instructions.pacing",
+  "reviewer_instructions.dialogue",
+  "reviewer_instructions.combat",
+  "reviewer_instructions.sensory",
+  "reviewer_instructions.voice",
+]);
+
+const REVIEWER_LANES = ["continuity", "pacing", "dialogue", "combat", "sensory", "voice"] as const;
+
+function issuesFor(issues: QaIssue[], path: string): QaIssue[] {
+  return issues.filter((it) => (it.field ?? "") === path);
+}
 
 function validScenePacketBody(body: ScenePacketBody | undefined | null): boolean {
   if (!body) return false;
@@ -556,6 +605,8 @@ function ScenePacketCard({
       {editing ? (
         <ScenePacketEditor
           body={b}
+          issues={issues}
+          sources={packet.sources}
           busy={mine("save")}
           onSave={(body) => {
             onSave(body);
@@ -617,10 +668,15 @@ function ScenePacketCard({
                 <Label text="QA report" />
                 {issues.map((it, i) => {
                   const sev = it.severity ?? "info";
-                  const sevVar = sev === "block" ? "--bad" : sev === "warn" ? "--warn" : "--dim";
+                  const sevVar = SEVERITY_VAR[sev] ?? "--dim";
                   return (
                     <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
                       <Chip label={sev} colorVar={sevVar} />{" "}
+                      {it.field ? (
+                        <>
+                          <Chip label={it.field} colorVar="--info" />{" "}
+                        </>
+                      ) : null}
                       {it.kind ? <strong>{it.kind}: </strong> : null}
                       {it.detail}
                     </div>
@@ -629,6 +685,8 @@ function ScenePacketCard({
                 <Pills label="Residual risks (non-blocking)" items={residual} tone="warn" />
               </div>
             )}
+
+            <SourcesPanel sources={packet.sources} />
           </div>
         )
       )}
@@ -636,16 +694,23 @@ function ScenePacketCard({
   );
 }
 
-// Edit the high-leverage scene-contract fields and PUT the whole body. Works on a local draft (Save
-// persists, Cancel discards). Editing the body returns an approved packet to `proposed` server-side;
-// after a save the human re-runs QA, then approves. Mirrors PacketEditor on the chapter-packet screen.
+// Edit the full scene contract, grouped into the same five sections the author emits (knowledge,
+// mysteries, shape, reviewer instructions, phrases), and PUT the whole body. QA issues render inline
+// under the field they name (issue.field) so "fix this" points at a control, not a wall of text. Works
+// on a local draft (Save persists, Cancel discards); saving returns an approved packet to `proposed`
+// server-side, after which the human re-runs QA then approves. Fields the editor doesn't surface still
+// round-trip untouched — the draft is a clone of the whole body.
 function ScenePacketEditor({
   body,
+  issues,
+  sources,
   busy,
   onSave,
   onCancel,
 }: {
   body: ScenePacketBody;
+  issues: QaIssue[];
+  sources?: SceneSource[] | null;
   busy: boolean;
   onSave: (body: ScenePacketBody) => void;
   onCancel: () => void;
@@ -657,6 +722,16 @@ function ScenePacketEditor({
   const setNested = (group: keyof ScenePacketBody, key: string, v: string[]) =>
     setDraft((d) => ({ ...d, [group]: { ...(d[group] as Record<string, unknown>), [key]: v } }));
 
+  const fi = (path: string) => issuesFor(issues, path);
+  const known = draft.known_before_scene ?? {};
+  const learned = draft.learned_during_scene ?? {};
+  const hidden = draft.must_remain_hidden ?? {};
+  const perms = draft.pov_permissions ?? {};
+  const wb = draft.word_budget ?? {};
+  // Issues the editor can't anchor to a specific control (null field, a parent-level path, or an
+  // unrecognized key) — surfaced up top so none is lost in the gaps between fields.
+  const general = issues.filter((it) => !it.field || !ANCHORED_FIELDS.has(it.field));
+
   return (
     <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px")}>
       <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
@@ -666,58 +741,200 @@ function ScenePacketEditor({
         </span>
       </div>
 
-      <EditText
-        label="Scene job"
-        value={draft.scene_job}
-        onChange={(v) => setField("scene_job", v)}
-        multiline
-      />
-      <EditList
-        label="Reader knows before"
-        value={known(draft).reader}
-        onChange={(v) => setNested("known_before_scene", "reader", v)}
-      />
-      <EditList
-        label="POV knows before"
-        value={known(draft).pov}
-        onChange={(v) => setNested("known_before_scene", "pov", v)}
-      />
-      <EditList
-        label="Reader must learn"
-        value={draft.learned_during_scene?.reader_must_learn}
-        onChange={(v) => setNested("learned_during_scene", "reader_must_learn", v)}
-      />
-      <EditList
-        label="Reader may infer only"
-        value={draft.learned_during_scene?.reader_may_infer_only}
-        onChange={(v) => setNested("learned_during_scene", "reader_may_infer_only", v)}
-      />
-      <EditList
-        label="Must stay hidden (reader)"
-        value={draft.must_remain_hidden?.reader}
-        onChange={(v) => setNested("must_remain_hidden", "reader", v)}
-      />
-      <EditList
-        label="Required beats"
-        value={draft.required_beats}
-        onChange={(v) => setField("required_beats", v)}
-      />
-      <EditList
-        label="Forbidden beats"
-        value={draft.forbidden_beats}
-        onChange={(v) => setField("forbidden_beats", v)}
-      />
-      <EditList
-        label="Reviewer false-positive traps"
-        value={draft.reviewer_false_positive_traps}
-        onChange={(v) => setField("reviewer_false_positive_traps", v)}
-      />
-      <EditText
-        label="Exit state"
-        value={draft.exit_state}
-        onChange={(v) => setField("exit_state", v)}
-        multiline
-      />
+      {general.length > 0 && (
+        <div
+          style={css(
+            "border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 7%,var(--bg2));border-radius:9px;padding:9px 11px",
+          )}
+        >
+          <Label text="QA issues — whole packet" />
+          <FieldIssues issues={general} />
+        </div>
+      )}
+
+      {(wb.target || wb.min || wb.max) && (
+        <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+          Word budget (planner-set, read-only): ~{wb.target ?? "?"}w · {wb.min ?? "?"}–
+          {wb.max ?? "?"}
+          {wb.hard_max ? ` · hard ≤${wb.hard_max}` : ""}
+        </div>
+      )}
+
+      <Section
+        title="Knowledge"
+        hint="who knows what before the scene · what's learned · what stays hidden"
+      >
+        <EditList
+          label="Reader knows before"
+          value={known.reader}
+          issues={fi("known_before_scene.reader")}
+          onChange={(v) => setNested("known_before_scene", "reader", v)}
+        />
+        <EditList
+          label="POV knows before"
+          value={known.pov}
+          issues={fi("known_before_scene.pov")}
+          onChange={(v) => setNested("known_before_scene", "pov", v)}
+        />
+        <EditList
+          label="Author-only (omniscient)"
+          value={known.omniscient_author}
+          issues={fi("known_before_scene.omniscient_author")}
+          onChange={(v) => setNested("known_before_scene", "omniscient_author", v)}
+        />
+        <EditList
+          label="Reader must learn"
+          value={learned.reader_must_learn}
+          issues={fi("learned_during_scene.reader_must_learn")}
+          onChange={(v) => setNested("learned_during_scene", "reader_must_learn", v)}
+        />
+        <EditList
+          label="Reader may learn"
+          value={learned.reader_may_learn}
+          issues={fi("learned_during_scene.reader_may_learn")}
+          onChange={(v) => setNested("learned_during_scene", "reader_may_learn", v)}
+        />
+        <EditList
+          label="Reader may infer only"
+          value={learned.reader_may_infer_only}
+          issues={fi("learned_during_scene.reader_may_infer_only")}
+          onChange={(v) => setNested("learned_during_scene", "reader_may_infer_only", v)}
+        />
+        <EditList
+          label="Hidden from reader"
+          value={hidden.reader}
+          issues={fi("must_remain_hidden.reader")}
+          onChange={(v) => setNested("must_remain_hidden", "reader", v)}
+        />
+        <EditList
+          label="Hidden from POV"
+          value={hidden.pov}
+          issues={fi("must_remain_hidden.pov")}
+          onChange={(v) => setNested("must_remain_hidden", "pov", v)}
+        />
+        <EditList
+          label="Hidden from all surface prose"
+          value={hidden.all_surface_prose}
+          issues={fi("must_remain_hidden.all_surface_prose")}
+          onChange={(v) => setNested("must_remain_hidden", "all_surface_prose", v)}
+        />
+        <EditList
+          label="POV may notice"
+          value={perms.may_notice}
+          issues={fi("pov_permissions.may_notice")}
+          onChange={(v) => setNested("pov_permissions", "may_notice", v)}
+        />
+        <EditList
+          label="POV may infer"
+          value={perms.may_infer}
+          issues={fi("pov_permissions.may_infer")}
+          onChange={(v) => setNested("pov_permissions", "may_infer", v)}
+        />
+        <EditList
+          label="POV must not know"
+          value={perms.must_not_know}
+          issues={fi("pov_permissions.must_not_know")}
+          onChange={(v) => setNested("pov_permissions", "must_not_know", v)}
+        />
+        <EditList
+          label="POV may be wrong about"
+          value={perms.may_be_wrong_about}
+          issues={fi("pov_permissions.may_be_wrong_about")}
+          onChange={(v) => setNested("pov_permissions", "may_be_wrong_about", v)}
+        />
+        <ClaimSources claims={draft.claim_sources} sources={sources} />
+      </Section>
+
+      <Section
+        title="Mysteries & reviewer traps"
+        hint="what to leave unexplained · what reviewers may wrongly flag"
+      >
+        <MysteryEditor
+          value={draft.intentional_mysteries}
+          issues={fi("intentional_mysteries")}
+          onChange={(v) => setField("intentional_mysteries", v)}
+        />
+        <EditList
+          label="Reviewer false-positive traps"
+          value={draft.reviewer_false_positive_traps}
+          issues={fi("reviewer_false_positive_traps")}
+          onChange={(v) => setField("reviewer_false_positive_traps", v)}
+        />
+      </Section>
+
+      <Section title="Shape" hint="what the scene is and where it lands">
+        <EditText
+          label="Scene job"
+          value={draft.scene_job}
+          multiline
+          issues={fi("scene_job")}
+          onChange={(v) => setField("scene_job", v)}
+        />
+        <EditText
+          label="Scene type"
+          value={draft.scene_type}
+          issues={fi("scene_type")}
+          onChange={(v) => setField("scene_type", v)}
+        />
+        <EditText
+          label="Chapter position"
+          value={draft.chapter_position}
+          issues={fi("chapter_position")}
+          onChange={(v) => setField("chapter_position", v)}
+        />
+        <EditList
+          label="Required beats"
+          value={draft.required_beats}
+          issues={fi("required_beats")}
+          onChange={(v) => setField("required_beats", v)}
+        />
+        <EditList
+          label="Forbidden beats"
+          value={draft.forbidden_beats}
+          issues={fi("forbidden_beats")}
+          onChange={(v) => setField("forbidden_beats", v)}
+        />
+        <EditText
+          label="Exit state"
+          value={draft.exit_state}
+          multiline
+          issues={fi("exit_state")}
+          onChange={(v) => setField("exit_state", v)}
+        />
+        <EditText
+          label="Tone pressure"
+          value={draft.tone_pressure}
+          multiline
+          issues={fi("tone_pressure")}
+          onChange={(v) => setField("tone_pressure", v)}
+        />
+      </Section>
+
+      <Section title="Reviewer instructions" hint="per-lane guidance for the draft reviewers">
+        {REVIEWER_LANES.map((lane) => (
+          <EditList
+            key={lane}
+            label={lane[0].toUpperCase() + lane.slice(1)}
+            value={draft.reviewer_instructions?.[lane]}
+            issues={fi(`reviewer_instructions.${lane}`)}
+            onChange={(v) => setNested("reviewer_instructions", lane, v)}
+          />
+        ))}
+      </Section>
+
+      <Section
+        title="Phrases to avoid echoing"
+        hint="contract language the drafter shouldn't parrot"
+      >
+        <EditList
+          label="Phrases to avoid echoing"
+          value={draft.phrases_to_avoid_echoing}
+          issues={fi("phrases_to_avoid_echoing")}
+          onChange={(v) => setField("phrases_to_avoid_echoing", v)}
+        />
+      </Section>
+
+      <SourcesPanel sources={sources} />
 
       <div style={css("display:flex;gap:9px")}>
         <button
@@ -735,9 +952,212 @@ function ScenePacketEditor({
   );
 }
 
-// Narrow accessor so the nested-list editors don't repeat the `?? {}` dance.
-function known(b: ScenePacketBody): { reader?: string[]; pov?: string[] } {
-  return b.known_before_scene ?? {};
+// A titled group of related fields, so the contract reads as five sections (matching the author's own
+// section split) instead of one flat stack of ~25 controls.
+function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <div
+      style={css(
+        "border:1px solid var(--line);border-radius:10px;background:var(--bg2b);padding:11px 12px;display:flex;flex-direction:column;gap:11px",
+      )}
+    >
+      <div style={css("display:flex;align-items:baseline;gap:9px;flex-wrap:wrap")}>
+        <span
+          style={css(
+            "font-family:var(--display);font-size:13.5px;font-weight:600;color:var(--ink)",
+          )}
+        >
+          {title}
+        </span>
+        {hint ? (
+          <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+            {hint}
+          </span>
+        ) : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// QA issues anchored to one field, rendered immediately under that control so the human sees exactly
+// what's wrong and where, instead of cross-referencing a separate QA-report panel.
+function FieldIssues({ issues }: { issues?: QaIssue[] }) {
+  if (!issues || issues.length === 0) return null;
+  return (
+    <div style={css("margin-top:5px;display:flex;flex-direction:column;gap:4px")}>
+      {issues.map((it, i) => {
+        const sev = it.severity ?? "info";
+        const v = SEVERITY_VAR[sev] ?? "--dim";
+        return (
+          <div
+            key={i}
+            style={css(
+              `font-size:11.5px;color:var(--ink);line-height:1.4;border-left:2px solid var(${v});background:color-mix(in srgb,var(${v}) 8%,var(--bg2));padding:4px 8px;border-radius:0 6px 6px 0`,
+            )}
+          >
+            <Chip label={sev} colorVar={v} /> {it.kind ? <strong>{it.kind}: </strong> : null}
+            {it.detail}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// "Built from these sources" — the canon/owner chunks this packet was derived from. The handles ([C1])
+// match the author's claim_sources, so a wrong fact in the contract is traceable to a real file.
+function SourcesPanel({ sources }: { sources?: SceneSource[] | null }) {
+  const [open, setOpen] = useState(false);
+  if (!sources || sources.length === 0) return null;
+  return (
+    <div
+      style={css(
+        "border:1px solid var(--line);border-radius:10px;background:var(--bg2b);padding:11px 12px",
+      )}
+    >
+      <div
+        style={css("display:flex;align-items:center;gap:8px;cursor:pointer")}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span
+          style={css(
+            "font-family:var(--display);font-size:13.5px;font-weight:600;color:var(--ink)",
+          )}
+        >
+          Built from these sources
+        </span>
+        <Chip label={String(sources.length)} colorVar="--dim" />
+        <span
+          style={css("margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--dim)")}
+        >
+          {open ? "▾" : "▸"}
+        </span>
+      </div>
+      {open && (
+        <div style={css("margin-top:9px;display:flex;flex-direction:column;gap:6px")}>
+          <div style={css("font-size:11px;color:var(--dim);line-height:1.4")}>
+            A wrong claim usually traces to one of these — fix the canon file and re-derive.
+          </div>
+          {sources.map((s, i) => {
+            const owner = s.retrieval_reason === "owner_forced";
+            return (
+              <div
+                key={i}
+                style={css(
+                  "font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.45",
+                )}
+              >
+                <span style={css("color:var(--ink)")}>[{s.handle ?? "?"}]</span> {s.doc_path || "?"}
+                {s.heading_path ? ` › ${s.heading_path}` : ""}{" "}
+                <span style={css(`color:var(${owner ? "--good" : "--dim"})`)}>
+                  {owner ? "owner" : (s.retrieval_reason ?? "")}
+                </span>
+                {typeof s.score === "number" ? ` · ${s.score.toFixed(2)}` : ""}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Read-only provenance the author emitted: each knowledge claim mapped to the canon handle it came from
+// (resolved to a file via `sources`). This is what answers "where is this pulling its info from".
+function ClaimSources({
+  claims,
+  sources,
+}: {
+  claims?: { claim?: string; source_id?: string | null }[];
+  sources?: SceneSource[] | null;
+}) {
+  if (!claims || claims.length === 0) return null;
+  const byHandle = new Map((sources ?? []).map((s) => [s.handle, s] as const));
+  return (
+    <div>
+      <Label text="Claim provenance · read-only, from derive" />
+      <div style={css("display:flex;flex-direction:column;gap:5px")}>
+        {claims.map((c, i) => {
+          const src = c.source_id ? byHandle.get(c.source_id) : undefined;
+          return (
+            <div key={i} style={css("font-size:11.5px;color:var(--ink);line-height:1.4")}>
+              {c.claim}
+              {c.source_id ? (
+                <span style={css("font-family:var(--mono);color:var(--dim)")}>
+                  {"  ← "}
+                  {c.source_id}
+                  {src
+                    ? ` (${src.doc_path}${src.heading_path ? " › " + src.heading_path : ""})`
+                    : ""}
+                </span>
+              ) : (
+                <span style={css("font-family:var(--mono);color:var(--dim)")}> ← inference</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Intentional mysteries are objects, not strings — edit each as (mystery, desired effect); do_not_explain
+// stays true. Add/remove rows. Any QA issue anchored to the group renders below the rows.
+function MysteryEditor({
+  value,
+  issues,
+  onChange,
+}: {
+  value?: ScenePacketBody["intentional_mysteries"];
+  issues?: QaIssue[];
+  onChange: (v: NonNullable<ScenePacketBody["intentional_mysteries"]>) => void;
+}) {
+  const items = value ?? [];
+  const update = (i: number, patch: { mystery?: string; desired_reader_effect?: string }) =>
+    onChange(items.map((m, j) => (j === i ? { do_not_explain: true, ...m, ...patch } : m)));
+  const remove = (i: number) => onChange(items.filter((_, j) => j !== i));
+  const add = () =>
+    onChange([...items, { mystery: "", desired_reader_effect: "", do_not_explain: true }]);
+  return (
+    <div>
+      <Label text="Intentional mysteries · don't explain" />
+      <div style={css("display:flex;flex-direction:column;gap:8px")}>
+        {items.map((m, i) => (
+          <div
+            key={i}
+            style={css(
+              "display:flex;flex-direction:column;gap:5px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg)",
+            )}
+          >
+            <input
+              value={m.mystery ?? ""}
+              placeholder="mystery"
+              onChange={(e) => update(i, { mystery: e.target.value })}
+              style={inputStyle()}
+            />
+            <input
+              value={m.desired_reader_effect ?? ""}
+              placeholder="desired reader effect"
+              onChange={(e) => update(i, { desired_reader_effect: e.target.value })}
+              style={inputStyle()}
+            />
+            <div>
+              <button onClick={() => remove(i)} style={btn(true, "var(--bg3)", "var(--warn)")}>
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+        <div>
+          <button onClick={add} style={btn(true, "var(--bg3)", "var(--ink)")}>
+            + Add mystery
+          </button>
+        </div>
+      </div>
+      <FieldIssues issues={issues} />
+    </div>
+  );
 }
 
 // --- small local helpers (kept self-contained; PacketsScreen's are not exported) ---
@@ -822,12 +1242,14 @@ function EditText({
   onChange,
   multiline,
   rows,
+  issues,
 }: {
   label: string;
   value?: string;
   onChange: (v: string) => void;
   multiline?: boolean;
   rows?: number;
+  issues?: QaIssue[];
 }) {
   return (
     <div>
@@ -846,6 +1268,7 @@ function EditText({
           style={inputStyle()}
         />
       )}
+      <FieldIssues issues={issues} />
     </div>
   );
 }
@@ -857,10 +1280,12 @@ function EditList({
   label,
   value,
   onChange,
+  issues,
 }: {
   label: string;
   value?: string[];
   onChange: (v: string[]) => void;
+  issues?: QaIssue[];
 }) {
   const [text, setText] = useState(() => (value ?? []).join("\n"));
   return (
@@ -880,6 +1305,7 @@ function EditList({
         rows={Math.max(2, value?.length ?? 0)}
         style={inputStyle()}
       />
+      <FieldIssues issues={issues} />
     </div>
   );
 }

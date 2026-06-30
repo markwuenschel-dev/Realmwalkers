@@ -50,6 +50,10 @@ _SYSTEM = (
     "The chapter packet is your authority. Owner files win over retrieved snippets. Use the supplied "
     "word_budget EXACTLY — do not change its numbers. Also list phrases the drafter should avoid "
     "echoing (contract/packet language that would read as machine prose).\n\n"
+    "Each OWNER FILE / RETRIEVED CANON snippet is prefixed with a bracket handle like [C1]. When a "
+    "reader/POV knowledge item is grounded in a specific snippet, record it in claim_sources: the claim "
+    "text plus that snippet's handle as source_id (use null when it is your inference, not drawn from a "
+    "snippet). This makes a wrong claim in the packet traceable back to the canon it came from.\n\n"
     "Reply with ONE JSON object only — no prose, no code fences."
 )
 
@@ -69,7 +73,9 @@ _SCHEMA_HINT = (
     '  "required_beats": [str], "forbidden_beats": [str], "exit_state": str, "tone_pressure": str,\n'
     '  "phrases_to_avoid_echoing": [str],\n'
     '  "reviewer_instructions": {"continuity": [str], "pacing": [str], "dialogue": [str], '
-    '"combat": [str], "sensory": [str], "voice": [str]}\n'
+    '"combat": [str], "sensory": [str], "voice": [str]},\n'
+    '  "claim_sources": [{"claim": str, "source_id": str|null (a canon snippet handle like "C1", '
+    "or null for inference)}]\n"
     "}"
 )
 

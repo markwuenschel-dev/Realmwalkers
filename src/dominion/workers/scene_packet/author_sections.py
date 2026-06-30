@@ -49,12 +49,17 @@ log = structlog.get_logger()
 class _Section:
     """One slice of the contract: the top-level keys it owns, the schema subset shown to the model, and
     its token cap. `name` is stamped into the system prompt so the call site (and tests) can tell the
-    section calls apart."""
+    section calls apart.
+
+    `optional_keys` are kept in the merge if the model emits them but are NOT required for the section to
+    pass — used for additive, nice-to-have output (e.g. claim_sources provenance) that must never
+    fail-close a whole packet just because the model omitted it."""
 
     name: str
     keys: tuple[str, ...]
     schema_hint: str
     max_tokens: int
+    optional_keys: tuple[str, ...] = ()
 
 
 # The knowledge cluster is one section ON PURPOSE — its four fields partition a single fact-space and
@@ -71,10 +76,15 @@ _SECTIONS: tuple[_Section, ...] = (
             '"reader_may_infer_only": [str]},\n'
             '  "must_remain_hidden": {"reader": [str], "pov": [str], "all_surface_prose": [str]},\n'
             '  "pov_permissions": {"may_notice": [str], "may_infer": [str], "must_not_know": [str], '
-            '"may_be_wrong_about": [str]}\n'
+            '"may_be_wrong_about": [str]},\n'
+            '  "claim_sources": [{"claim": str, "source_id": str|null (a canon snippet handle like '
+            '"C1", or null for inference)}]\n'
             "}"
         ),
-        max_tokens=3500,
+        # claim_sources cites the [C1] handles on the supplied canon snippets so a knowledge item traces
+        # back to its source. Optional: a missing citation must not block the packet, so it is NOT in keys.
+        optional_keys=("claim_sources",),
+        max_tokens=4500,
     ),
     _Section(
         name="mysteries",
@@ -167,9 +177,9 @@ def _section_ok(obj: Any, section: _Section) -> bool:
 
 
 def _slice(obj: dict[str, Any], section: _Section) -> dict[str, Any]:
-    """Keep only the keys this section owns, so a chatty model can't leak another section's fields into
-    the merge (the next section is authoritative for its own keys)."""
-    return {k: obj[k] for k in section.keys if k in obj}
+    """Keep only the keys this section owns (required + optional), so a chatty model can't leak another
+    section's fields into the merge (the next section is authoritative for its own keys)."""
+    return {k: obj[k] for k in (*section.keys, *section.optional_keys) if k in obj}
 
 
 def _why(obj: Any, usage: Usage, *, section: _Section, model: str, max_tokens: int) -> str:

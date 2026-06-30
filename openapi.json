@@ -9453,6 +9453,21 @@
             "title": "Body",
             "default": {}
           },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sources"
+          },
           "source_hash": {
             "anyOf": [
               {

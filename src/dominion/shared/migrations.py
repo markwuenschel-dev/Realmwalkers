@@ -33,6 +33,8 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE scenes ADD COLUMN IF NOT EXISTS word_count INTEGER",
     "ALTER TABLE scenes ADD COLUMN IF NOT EXISTS length_status TEXT",
     "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS scene_packet_id UUID",
+    # Retrieval provenance kept on the packet so the Desk can show what canon it was built from.
+    "ALTER TABLE scene_packets ADD COLUMN IF NOT EXISTS sources JSONB",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS doc_path TEXT",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS heading_path TEXT",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS owner_topic TEXT",
