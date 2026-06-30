@@ -456,11 +456,41 @@ class DraftNextOut(BaseModel):
 
 
 class RetryFailedOut(BaseModel):
-    """Result of re-queuing FAILED jobs (e.g. after a transient outage or topping up API credits)."""
+    """Result of re-queuing FAILED jobs (contract-first: reconciles fresh ScenePackets)."""
+    requested: int = 0
     requeued: int = 0
     scheduled: bool = False
     queued: int = 0
     running: bool = False
+    skipped: list["DraftQueueBlockerOut"] = []
+
+
+class DraftQueueBlockerOut(BaseModel):
+    chapter_id: uuid.UUID
+    scene_no: int | None = None
+    beat_id: uuid.UUID | None = None
+    scene_packet_id: uuid.UUID | None = None
+    reason: str
+    message: str
+    required_action: str
+
+
+class DraftScheduleOut(BaseModel):
+    chapter_id: uuid.UUID
+    queued_job_ids: list[uuid.UUID]
+    queued: int = 0
+    skipped: list[DraftQueueBlockerOut] = []
+    repaired_beats: int = 0
+
+
+class DraftReadinessOut(BaseModel):
+    chapter_id: uuid.UUID
+    chapter_packet_approved: bool = False
+    scene_packets: dict[str, object] = {}
+    beats: dict[str, object] = {}
+    jobs: dict[str, object] = {}
+    draftable: bool = False
+    blockers: list[DraftQueueBlockerOut] = []
 
 
 class FailedJobOut(BaseModel):

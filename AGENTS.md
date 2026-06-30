@@ -1,5 +1,9 @@
 # Agent instructions — Realmwalkers
 
+## Contract-first drafting
+
+Draft job queueing is contract-first: see [docs/contract_first_drafting.md](docs/contract_first_drafting.md). All draft paths must go through `dominion.workers.draft_queue`.
+
 ## Git workflow (mandatory)
 
 Two modes. Do not mix them up.

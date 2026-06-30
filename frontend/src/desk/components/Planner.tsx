@@ -39,7 +39,6 @@ export default function Planner() {
   const [batchRows, setBatchRows] = useState<BatchRow[]>([
     { chapter_no: "1", pov: "", outline: "", max_beats: "", target_words: "" },
   ]);
-  const [batchAuto, setBatchAuto] = useState(false);
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchResults, setBatchResults] = useState<BatchChapterResult[] | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
@@ -230,8 +229,8 @@ export default function Planner() {
       const out = await api.batchRun({
         book_id: data.bookId,
         chapters,
-        gate_mode: batchAuto ? "draft_ahead" : "pause_each",
-        auto_draft: batchAuto,
+        gate_mode: "pause_each",
+        auto_draft: false,
       });
       setBatchResults(out.results);
       // Surface the freshly created chapters/beats elsewhere (dropdown, hydrate path) without a reload.
@@ -524,9 +523,13 @@ export default function Planner() {
                   + Add scene
                 </button>
                 <button style={btnGo} disabled={busy || selected.size === 0} onClick={approve}>
-                  {busy ? "Drafting…" : `Approve ${selected.size} selected & draft`}
+                  {busy ? "Approving…" : `Approve ${selected.size} selected`}
                 </button>
               </div>
+              <p style={css("margin:8px 0 0;font-size:12px;color:var(--dim);max-width:620px")}>
+                Drafting requires approved ScenePackets. Use Packets → Draft Chapter after scene
+                packets are approved.
+              </p>
             </div>
           )}
 
@@ -543,8 +546,8 @@ export default function Planner() {
                   )}
                 >
                   Stage several chapters and plan them all at once — each row outlines one chapter.
-                  With Auto-approve and draft on, the planner approves and queues its beats for
-                  drafting, skipping the manual gate-1 review.
+                  Auto-approve and draft is disabled under contract-first drafting; derive and
+                  approve ScenePackets on the Packets screen, then use Draft Chapter.
                 </p>
 
                 {batchRows.map((r, i) => (
@@ -627,16 +630,12 @@ export default function Planner() {
                   </button>
                   <label
                     style={css(
-                      "display:flex;gap:7px;align-items:center;cursor:pointer;font-size:13px;color:var(--ink);font-family:var(--ui)",
+                      "display:flex;gap:7px;align-items:center;font-size:13px;color:var(--dim);font-family:var(--ui)",
                     )}
+                    title="Disabled under contract-first drafting"
                   >
-                    <input
-                      type="checkbox"
-                      checked={batchAuto}
-                      onChange={(e) => setBatchAuto(e.target.checked)}
-                      style={css("cursor:pointer")}
-                    />
-                    Auto-approve and draft
+                    <input type="checkbox" checked={false} disabled style={css("cursor:not-allowed")} />
+                    Auto-approve and draft (disabled)
                   </label>
                   <button style={btnGo} disabled={batchBusy || !data.bookId} onClick={proposeAll}>
                     {batchBusy ? "Proposing…" : "Propose all"}

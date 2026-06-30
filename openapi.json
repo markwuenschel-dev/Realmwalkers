@@ -524,7 +524,7 @@
           "runs"
         ],
         "summary": "Start Batch Run",
-        "description": "Propose beats for SEVERAL chapters in one request, sharing a single Run. With `auto_draft`, each\nchapter's freshly-proposed beats are approved and draft jobs are queued immediately (skips gate-1\nreview). A planner timeout on any one chapter surfaces as 504 and nothing is committed.",
+        "description": "Propose beats for SEVERAL chapters in one request, sharing a single Run. `auto_draft` is disabled\nunder contract-first drafting \u2014 derive and approve ScenePackets first.",
         "operationId": "start_batch_run_runs_batch_post",
         "requestBody": {
           "content": {
@@ -967,12 +967,57 @@
         }
       }
     },
+    "/chapters/{chapter_id}/draft/readiness": {
+      "get": {
+        "tags": [
+          "chapters"
+        ],
+        "summary": "Draft Readiness",
+        "description": "Read-only contract-first draft prerequisites for this chapter.",
+        "operationId": "draft_readiness_chapters__chapter_id__draft_readiness_get",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftReadinessOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapters/{chapter_id}/beats/approve": {
       "post": {
         "tags": [
           "chapters"
         ],
         "summary": "Approve Beats",
+        "description": "Approve beats only \u2014 does not queue draft jobs under contract-first drafting.",
         "operationId": "approve_beats_chapters__chapter_id__beats_approve_post",
         "parameters": [
           {
@@ -1035,7 +1080,7 @@
           "chapters"
         ],
         "summary": "Redraft Scenes",
-        "description": "Re-draft existing scenes: queue a DRAFT job per selected scene that TARGETS that scene, so the\nworker version-ups and supersedes it (a clean regenerate, never a duplicate). Caller kicks the drain.",
+        "description": "Re-draft existing scenes via contract-first scheduling.",
         "operationId": "redraft_scenes_chapters__chapter_id__scenes_redraft_post",
         "parameters": [
           {
@@ -1065,9 +1110,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Redraft Scenes Chapters  Chapter Id  Scenes Redraft Post"
+                  "$ref": "#/components/schemas/DraftScheduleOut"
                 }
               }
             }
@@ -1091,7 +1134,7 @@
           "chapters"
         ],
         "summary": "Draft Chapter",
-        "description": "Queue a draft for every APPROVED beat of this chapter that has no scene yet \u2014 the missing\n'draft' step after a packet is approved (its beats are derived APPROVED, but nothing enqueues\nthem, and they don't show in the Planner). Idempotent: skips beats already drafted or queued. The\ncaller kicks the drain (POST /jobs/draft-next).",
+        "description": "Queue draft jobs for approved beats with validated ScenePackets \u2014 canonical contract-first entry.",
         "operationId": "draft_chapter_chapters__chapter_id__draft_post",
         "parameters": [
           {
@@ -1111,9 +1154,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Draft Chapter Chapters  Chapter Id  Draft Post"
+                  "$ref": "#/components/schemas/DraftScheduleOut"
                 }
               }
             }
@@ -2070,7 +2111,7 @@
           "jobs"
         ],
         "summary": "Retry Failed",
-        "description": "Re-queue every FAILED job (scoped to a book when given), then kick off drafting.\n\nA FAILED job is terminal \u2014 draft-next only drains QUEUED \u2014 so a scene that died on a transient\ncause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those\nrows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the\nDesk can offer a 'retry failed' affordance without a terminal or a DB round-trip.",
+        "description": "Re-queue FAILED draft jobs with fresh ScenePacket resolution \u2014 never clone null scene_packet_id.",
         "operationId": "retry_failed_jobs_retry_failed_post",
         "parameters": [
           {
@@ -5100,6 +5141,161 @@
         "type": "object",
         "title": "DraftNextOut"
       },
+      "DraftQueueBlockerOut": {
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "scene_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene No"
+          },
+          "beat_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beat Id"
+          },
+          "scene_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Packet Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "required_action": {
+            "type": "string",
+            "title": "Required Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_id",
+          "reason",
+          "message",
+          "required_action"
+        ],
+        "title": "DraftQueueBlockerOut"
+      },
+      "DraftReadinessOut": {
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "chapter_packet_approved": {
+            "type": "boolean",
+            "title": "Chapter Packet Approved",
+            "default": false
+          },
+          "scene_packets": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scene Packets",
+            "default": {}
+          },
+          "beats": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Beats",
+            "default": {}
+          },
+          "jobs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Jobs",
+            "default": {}
+          },
+          "draftable": {
+            "type": "boolean",
+            "title": "Draftable",
+            "default": false
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/DraftQueueBlockerOut"
+            },
+            "type": "array",
+            "title": "Blockers",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_id"
+        ],
+        "title": "DraftReadinessOut"
+      },
+      "DraftScheduleOut": {
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "queued_job_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Queued Job Ids"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "default": 0
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/DraftQueueBlockerOut"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
+          },
+          "repaired_beats": {
+            "type": "integer",
+            "title": "Repaired Beats",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_id",
+          "queued_job_ids"
+        ],
+        "title": "DraftScheduleOut"
+      },
       "ExemplarIn": {
         "properties": {
           "enabled": {
@@ -5747,6 +5943,11 @@
       },
       "RetryFailedOut": {
         "properties": {
+          "requested": {
+            "type": "integer",
+            "title": "Requested",
+            "default": 0
+          },
           "requeued": {
             "type": "integer",
             "title": "Requeued",
@@ -5766,11 +5967,19 @@
             "type": "boolean",
             "title": "Running",
             "default": false
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/DraftQueueBlockerOut"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
           }
         },
         "type": "object",
         "title": "RetryFailedOut",
-        "description": "Result of re-queuing FAILED jobs (e.g. after a transient outage or topping up API credits)."
+        "description": "Result of re-queuing FAILED jobs (contract-first: reconciles fresh ScenePackets)."
       },
       "RuleProposalDecisionIn": {
         "properties": {

@@ -27,7 +27,6 @@ from dominion.shared.schemas import (
     RunStartOut,
 )
 from dominion.workers import planner, telemetry, telemetry_db
-from dominion.workers.job_scheduler import schedule_beats_on_gate1_approval
 from dominion.workers.memory import canon_rag
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -176,9 +175,13 @@ async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
 
 @router.post("/batch", response_model=BatchRunOut)
 async def start_batch_run(body: BatchRunStartIn, session: SessionDep) -> BatchRunOut:
-    """Propose beats for SEVERAL chapters in one request, sharing a single Run. With `auto_draft`, each
-    chapter's freshly-proposed beats are approved and draft jobs are queued immediately (skips gate-1
-    review). A planner timeout on any one chapter surfaces as 504 and nothing is committed."""
+    """Propose beats for SEVERAL chapters in one request, sharing a single Run. `auto_draft` is disabled
+    under contract-first drafting — derive and approve ScenePackets first."""
+    if body.auto_draft:
+        raise HTTPException(
+            status_code=409,
+            detail="auto_draft is disabled under contract-first drafting. Derive and approve ScenePackets first.",
+        )
     token_budget = body.token_budget or settings.scene_token_budget
     run = Run(
         book_id=body.book_id,
@@ -204,15 +207,6 @@ async def start_batch_run(body: BatchRunStartIn, session: SessionDep) -> BatchRu
             target_words=spec.target_words,
         )
         queued_jobs = 0
-        if body.auto_draft and beats:
-            # Mirror the gate-1 beats-approve path (POST /chapters/{id}/beats/approve): flip the
-            # proposed beats to APPROVED, then queue one draft job per beat via the shared scheduler
-            # (idempotent on already-queued scene jobs), and mark the chapter as DRAFTING.
-            for beat in beats:
-                beat.status = BeatStatus.APPROVED
-            job_ids = await schedule_beats_on_gate1_approval(session, chapter, beats, run)
-            chapter.status = ChapterStatus.DRAFTING
-            queued_jobs = len(job_ids)
         results.append(BatchChapterResultOut(
             chapter_id=chapter.id,
             chapter_no=chapter.chapter_no,

@@ -13,8 +13,8 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks
-from sqlalchemy import func, select, update
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
@@ -63,25 +63,11 @@ async def draft_next(
 async def retry_failed(
     background: BackgroundTasks, session: SessionDep, book_id: uuid.UUID | None = None,
 ) -> RetryFailedOut:
-    """Re-queue every FAILED job (scoped to a book when given), then kick off drafting.
+    """Re-queue FAILED draft jobs with fresh ScenePacket resolution — never clone null scene_packet_id."""
+    from dominion.workers.draft_queue import reconcile_and_requeue_failed_draft_jobs
+    from dominion.workers.draft_readiness import blocker_out
 
-    A FAILED job is terminal — draft-next only drains QUEUED — so a scene that died on a transient
-    cause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those
-    rows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the
-    Desk can offer a 'retry failed' affordance without a terminal or a DB round-trip."""
-    # Collect the FAILED job ids first (scoped to the book when given) so we can report an exact
-    # count without leaning on CursorResult.rowcount, which isn't on the async Result type.
-    failed_q = select(Job.id).where(Job.status == JobStatus.FAILED)
-    if book_id is not None:
-        failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
-    failed_ids = (await session.execute(failed_q)).scalars().all()
-    requeued = len(failed_ids)
-    if failed_ids:
-        await session.execute(
-            update(Job)
-            .where(Job.id.in_(failed_ids))
-            .values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None, last_error=None)
-        )
+    requeue = await reconcile_and_requeue_failed_draft_jobs(session, book_id=book_id)
     await session.commit()
 
     counts = await _queue_counts(session, book_id)
@@ -90,9 +76,20 @@ async def retry_failed(
     if queued and not running:
         background.add_task(background_work.drain_queued_jobs)
         running = True
-    log.info("jobs.retry_failed", book=str(book_id) if book_id else None, requeued=requeued)
+    log.info(
+        "jobs.retry_failed",
+        book=str(book_id) if book_id else None,
+        requested=requeue.requested,
+        requeued=requeue.queued,
+        skipped=len(requeue.skipped),
+    )
     return RetryFailedOut(
-        requeued=requeued, scheduled=bool(queued) and running, queued=queued, running=running,
+        requested=requeue.requested,
+        requeued=requeue.queued,
+        scheduled=bool(queued) and running,
+        queued=queued,
+        running=running,
+        skipped=[blocker_out(b) for b in requeue.skipped],
     )
 
 

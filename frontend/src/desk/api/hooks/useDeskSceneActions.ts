@@ -6,6 +6,7 @@ import type {
   ContinuityResolveIn,
   DecisionIn,
   JobsStatusOut,
+  RetryFailedOut,
   SceneDetail,
 } from "../types";
 import type { DeskFail } from "./shared";
@@ -23,7 +24,7 @@ export interface DeskSceneActionsDeps {
 export interface DeskSceneActionsState {
   updateChapter: (chapterId: string, body: ChapterUpdateIn) => Promise<void>;
   draftNext: () => Promise<void>;
-  retryFailed: () => Promise<number>;
+  retryFailed: () => Promise<RetryFailedOut | null>;
   runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
@@ -48,16 +49,21 @@ export function useDeskSceneActions(
     }
   }, [bookId, fail, setJobs]);
 
-  const retryFailed = useCallback(async (): Promise<number> => {
-    if (!bookId) return 0;
+  const retryFailed = useCallback(async (): Promise<RetryFailedOut | null> => {
+    if (!bookId) return null;
     try {
       const out = await api.retryFailed(bookId);
-      setJobs((j) => ({ ...j, queued: out.queued, running: out.running || j.running, failed: 0 }));
+      setJobs((j) => ({
+        ...j,
+        queued: out.queued,
+        running: out.running || j.running,
+        failed: out.skipped?.length ? j.failed : 0,
+      }));
       await refreshAll();
-      return out.requeued;
+      return out;
     } catch (e) {
       fail(e);
-      return 0;
+      return null;
     }
   }, [bookId, fail, refreshAll, setJobs]);
 

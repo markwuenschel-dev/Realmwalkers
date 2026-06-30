@@ -37,7 +37,38 @@ export type JobsStatusOut = Omit<S["JobsStatusOut"], "active_scene"> & {
 };
 export type FailedJobOut = S["FailedJobOut"];
 export type DraftNextOut = S["DraftNextOut"];
-export type RetryFailedOut = S["RetryFailedOut"];
+export type RetryFailedOut = S["RetryFailedOut"] & {
+  requested?: number;
+  skipped?: DraftQueueBlockerOut[];
+};
+
+export type DraftQueueBlockerOut = {
+  chapter_id: string;
+  scene_no?: number | null;
+  beat_id?: string | null;
+  scene_packet_id?: string | null;
+  reason: string;
+  message: string;
+  required_action: string;
+};
+
+export type DraftScheduleOut = {
+  chapter_id: string;
+  queued_job_ids: string[];
+  queued: number;
+  skipped: DraftQueueBlockerOut[];
+  repaired_beats: number;
+};
+
+export type DraftReadinessOut = {
+  chapter_id: string;
+  chapter_packet_approved: boolean;
+  scene_packets: Record<string, unknown>;
+  beats: Record<string, unknown>;
+  jobs: Record<string, unknown>;
+  draftable: boolean;
+  blockers: DraftQueueBlockerOut[];
+};
 export type CharacterStateOut = S["CharacterStateOut"];
 export type CanonEntityOut = S["CanonEntityOut"];
 export type CanonEntityIn = S["CanonEntityIn"];

@@ -1,9 +1,7 @@
-"""Chapter read surfaces + gate-1 beat approval (DESIGN §4, §8, §9).
+"""Chapter read surfaces + contract-first draft queueing.
 
-Listing chapters and their beats/scenes powers the planning and History views. Approving a chapter's
-beats is the gate-1 commit: it flips every beat to `approved`, marks the chapter `drafting`, and
-enqueues one DRAFT job per scene under the chapter's latest run. Nothing here drafts prose — the
-worker does that, one scene at a time.
+Listing chapters and their beats/scenes powers the planning and History views. Draft jobs are
+queued only via contract-first scheduling after approved ScenePackets exist.
 """
 from __future__ import annotations
 
@@ -23,13 +21,16 @@ from dominion.shared.schemas import (
     BeatOut,
     ChapterOut,
     ChapterUpdateIn,
+    DraftScheduleOut,
+    DraftReadinessOut,
     HumanSceneIn,
     RedraftIn,
     SceneOut,
 )
+from dominion.workers.draft_readiness import blocker_out
+from dominion.workers.draft_readiness import compute_draft_readiness
 from dominion.workers.job_scheduler import (
     _latest_run,
-    schedule_beats_on_gate1_approval,
     schedule_scene_redrafts,
     schedule_undrafted_beats,
 )
@@ -37,6 +38,16 @@ from dominion.workers.memory import summaries
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["chapters"])
+
+
+def _schedule_out(chapter_id: uuid.UUID, result) -> DraftScheduleOut:
+    return DraftScheduleOut(
+        chapter_id=chapter_id,
+        queued_job_ids=result.queued_job_ids,
+        queued=len(result.queued_job_ids),
+        skipped=[blocker_out(b) for b in result.skipped],
+        repaired_beats=result.repaired_beats,
+    )
 
 
 async def _fold_summary(scene_id: uuid.UUID) -> None:
@@ -91,6 +102,15 @@ async def list_chapter_scenes(chapter_id: uuid.UUID, session: SessionDep) -> lis
     return list(rows)
 
 
+@router.get("/{chapter_id}/draft/readiness", response_model=DraftReadinessOut)
+async def draft_readiness(chapter_id: uuid.UUID, session: SessionDep) -> DraftReadinessOut:
+    """Read-only contract-first draft prerequisites for this chapter."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    return await compute_draft_readiness(session, chapter_id)
+
+
 @router.post("/{chapter_id}/beats", response_model=BeatOut)
 async def create_beat(chapter_id: uuid.UUID, body: BeatCreateIn, session: SessionDep) -> Beat:
     """Add a beat by hand — a scene the planner didn't propose (gate 1)."""
@@ -102,7 +122,7 @@ async def create_beat(chapter_id: uuid.UUID, body: BeatCreateIn, session: Sessio
         characters_present=body.characters_present, tags=body.tags,
         expected_state_changes=body.expected_state_changes,
         knowledge_injections=body.knowledge_injections, target_words=body.target_words,
-        pov=body.pov,  # optional per-scene POV override; null/blank inherits the chapter POV
+        pov=body.pov,
         status=BeatStatus.PROPOSED,
     )
     session.add(beat)
@@ -114,6 +134,7 @@ async def create_beat(chapter_id: uuid.UUID, body: BeatCreateIn, session: Sessio
 async def approve_beats(
     chapter_id: uuid.UUID, session: SessionDep, body: ApproveBeatsIn | None = None
 ) -> dict[str, object]:
+    """Approve beats only — does not queue draft jobs under contract-first drafting."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
@@ -124,22 +145,19 @@ async def approve_beats(
     if not beats:
         raise HTTPException(status_code=400, detail="no beats to approve for this chapter")
 
-    # Optionally restrict to a chosen subset (the beats the author ticked to draft now).
     selected = set(body.beat_ids) if body and body.beat_ids else None
     to_approve = [b for b in beats if selected is None or b.id in selected]
     if not to_approve:
         raise HTTPException(status_code=400, detail="none of the given beat_ids belong to this chapter")
 
-    run = await _latest_run(session, chapter.book_id)
-
     for beat in to_approve:
         beat.status = BeatStatus.APPROVED
-    job_uuids = await schedule_beats_on_gate1_approval(session, chapter, to_approve, run)
-    job_ids = [str(j) for j in job_uuids]
-
-    chapter.status = ChapterStatus.DRAFTING
     await session.commit()
-    return {"chapter_id": str(chapter_id), "approved": len(to_approve), "jobs": job_ids}
+    return {
+        "chapter_id": str(chapter_id),
+        "approved": len(to_approve),
+        "message": "ScenePackets must be approved before drafting. Use Draft Chapter.",
+    }
 
 
 @router.post("/{chapter_id}/scenes", response_model=SceneOut)
@@ -175,12 +193,11 @@ async def create_human_scene(
     return scene
 
 
-@router.post("/{chapter_id}/scenes/redraft")
+@router.post("/{chapter_id}/scenes/redraft", response_model=DraftScheduleOut)
 async def redraft_scenes(
     chapter_id: uuid.UUID, body: RedraftIn, session: SessionDep,
-) -> dict[str, object]:
-    """Re-draft existing scenes: queue a DRAFT job per selected scene that TARGETS that scene, so the
-    worker version-ups and supersedes it (a clean regenerate, never a duplicate). Caller kicks the drain."""
+) -> DraftScheduleOut:
+    """Re-draft existing scenes via contract-first scheduling."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
@@ -191,18 +208,17 @@ async def redraft_scenes(
         raise HTTPException(status_code=400, detail="none of the given scene_ids belong to this chapter")
 
     run = await _latest_run(session, chapter.book_id)
-    job_uuids = await schedule_scene_redrafts(session, chapter, list(scenes), run)
-    job_ids = [str(j) for j in job_uuids]
+    result = await schedule_scene_redrafts(session, chapter, list(scenes), run)
+    out = _schedule_out(chapter_id, result)
+    if not out.queued_job_ids and out.skipped:
+        raise HTTPException(status_code=409, detail={"blockers": [s.model_dump() for s in out.skipped]})
     await session.commit()
-    return {"chapter_id": str(chapter_id), "queued": len(job_ids), "jobs": job_ids}
+    return out
 
 
-@router.post("/{chapter_id}/draft")
-async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> dict[str, object]:
-    """Queue a draft for every APPROVED beat of this chapter that has no scene yet — the missing
-    'draft' step after a packet is approved (its beats are derived APPROVED, but nothing enqueues
-    them, and they don't show in the Planner). Idempotent: skips beats already drafted or queued. The
-    caller kicks the drain (POST /jobs/draft-next)."""
+@router.post("/{chapter_id}/draft", response_model=DraftScheduleOut)
+async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> DraftScheduleOut:
+    """Queue draft jobs for approved beats with validated ScenePackets — canonical contract-first entry."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
@@ -211,11 +227,14 @@ async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> dict[str,
         .order_by(Beat.scene_no)
     )).scalars().all()
     if not beats:
-        raise HTTPException(status_code=400, detail="no approved beats — approve a packet (or beats) first")
+        raise HTTPException(status_code=400, detail="no approved beats — approve ScenePackets first")
 
     run = await _latest_run(session, chapter.book_id)
-    job_uuids = await schedule_undrafted_beats(session, chapter, run)
-    job_ids = [str(j) for j in job_uuids]
-    chapter.status = ChapterStatus.DRAFTING
+    result = await schedule_undrafted_beats(session, chapter, run)
+    out = _schedule_out(chapter_id, result)
+    if not out.queued_job_ids and out.skipped:
+        raise HTTPException(status_code=409, detail={"blockers": [s.model_dump() for s in out.skipped]})
+    if out.queued_job_ids:
+        chapter.status = ChapterStatus.DRAFTING
     await session.commit()
-    return {"chapter_id": str(chapter_id), "queued": len(job_ids), "jobs": job_ids}
+    return out

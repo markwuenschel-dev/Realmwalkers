@@ -45,8 +45,25 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
 )
 
+# Idempotent constraints/indexes for contract-first draft jobs (safe to skip if already present).
+_EXTRA_DDL: tuple[str, ...] = (
+    """DO $$ BEGIN
+        ALTER TABLE jobs ADD CONSTRAINT draft_jobs_require_scene_packet
+        CHECK (kind != 'draft' OR scene_packet_id IS NOT NULL);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_active_draft_per_scene_packet
+       ON jobs (scene_packet_id)
+       WHERE kind = 'draft' AND status IN ('queued', 'running') AND target_scene_id IS NULL""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_active_redraft_per_scene
+       ON jobs (target_scene_id, scene_packet_id)
+       WHERE kind = 'draft' AND status IN ('queued', 'running') AND target_scene_id IS NOT NULL""",
+)
+
 
 async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     """Run the idempotent column adds. Call inside an open (begin) connection."""
     for ddl in _COLUMN_ADDS:
+        await conn.execute(text(ddl))
+    for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))

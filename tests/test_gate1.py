@@ -138,7 +138,7 @@ async def test_approve_subset_enqueues_only_selected(db_factory):
         jobs = (await s.execute(
             select(Job).where(Job.status == JobStatus.QUEUED)
         )).scalars().all()
-        assert [j.scene_no for j in jobs] == [1]
+        assert jobs == []
         assert (await s.get(Beat, b1.id)).status == BeatStatus.APPROVED
         assert (await s.get(Beat, b2.id)).status == BeatStatus.PROPOSED   # unselected stays proposed
 
@@ -180,7 +180,7 @@ async def test_repropose_replaces_proposed_beats(db_factory, monkeypatch):
         assert rows[0].target_words == 300           # the new per-scene length was stamped
 
 
-async def test_approve_beats_enqueues_one_job_per_beat_idempotently(db_factory):
+async def test_approve_beats_does_not_queue_jobs(db_factory):
     async with db_factory() as s:
         book = await _book(s)
         run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode="pause_each", token_budget=40_000)
@@ -196,26 +196,12 @@ async def test_approve_beats_enqueues_one_job_per_beat_idempotently(db_factory):
 
         out = await chapters_router.approve_beats(ch.id, s)
         await s.commit()
-        assert out["approved"] == 2 and len(out["jobs"]) == 2
-
-        ch_after = await s.get(Chapter, ch.id)
-        assert ch_after.status == ChapterStatus.DRAFTING
-        assert all(b.status == BeatStatus.APPROVED for b in (
-            await s.execute(select(Beat).where(Beat.chapter_id == ch.id))
-        ).scalars().all())
+        assert out["approved"] == 2
+        assert "message" in out
         jobs = (await s.execute(
             select(Job).where(Job.kind == JobKind.DRAFT, Job.status == JobStatus.QUEUED)
         )).scalars().all()
-        assert sorted(j.scene_no for j in jobs) == [1, 2]
-
-    async with db_factory() as s:  # approving again must not double-queue
-        ch = (await s.execute(select(Chapter))).scalars().first()
-        out = await chapters_router.approve_beats(ch.id, s)
-        await s.commit()
-        jobs = (await s.execute(
-            select(Job).where(Job.status == JobStatus.QUEUED)
-        )).scalars().all()
-        assert len(jobs) == 2
+        assert jobs == []
 
 
 async def test_scene_versions_returns_lineage(db_factory):
