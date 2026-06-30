@@ -203,7 +203,8 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         async def _review_one(reviewer: Any) -> list[Any]:
             from dominion.shared.reviewer_telemetry import reviewer_telemetry_stage
 
-            with telemetry.call_context(_tctx(reviewer_telemetry_stage(_reviewer_label(reviewer)))):
+            stage = reviewer_telemetry_stage(_reviewer_label(reviewer))
+            with telemetry.call_context(_tctx(stage)):
                 return await reviewer.review(prose, ctx)
 
         results = await asyncio.gather(*(_review_one(reviewer) for reviewer in reviewers), return_exceptions=True)
