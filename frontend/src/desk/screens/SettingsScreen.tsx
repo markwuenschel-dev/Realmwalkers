@@ -101,8 +101,9 @@ export default function SettingsScreen() {
           Agent operations
         </h1>
         <p style={css("margin:0;color:var(--dim);font-size:14.5px;max-width:720px")}>
-          Define quality, cost, and escalation behavior per agent — not just which model runs. Changes
-          apply on the next call and persist across restarts. Oracle is deterministic (no model).
+          Define quality, cost, and escalation behavior per agent — not just which model runs.
+          Changes apply on the next call and persist across restarts. Oracle is deterministic (no
+          model).
         </p>
       </div>
 

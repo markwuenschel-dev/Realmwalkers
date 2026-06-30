@@ -8,7 +8,10 @@ import { api } from "../api/client";
 import { Spinner } from "../components/DraftActivity";
 import { TotalsStrip, TotalsTable, fmtTokens } from "../components/Telemetry";
 import { ProblemsPanel } from "../components/telemetry/ProblemsPanel";
-import { TelemetryFiltersBar, stageOptionsFromBook } from "../components/telemetry/TelemetryFiltersBar";
+import {
+  TelemetryFiltersBar,
+  stageOptionsFromBook,
+} from "../components/telemetry/TelemetryFiltersBar";
 import { TelemetryDrawer, useTelemetryDrawer } from "../components/telemetry/TelemetryDrawer";
 import type {
   BookTelemetryOut,
@@ -110,7 +113,10 @@ export default function TelemetryScreen() {
       setError(null);
       const firstRun = d.by_run[0]?.run_id;
       if (firstRun) {
-        api.runTelemetry(firstRun).then(setLatestRun).catch(() => setLatestRun(null));
+        api
+          .runTelemetry(firstRun)
+          .then(setLatestRun)
+          .catch(() => setLatestRun(null));
       } else {
         setLatestRun(null);
       }

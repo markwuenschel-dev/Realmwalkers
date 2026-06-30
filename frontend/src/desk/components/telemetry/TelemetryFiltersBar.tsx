@@ -160,17 +160,19 @@ export function TelemetryFiltersBar({
           onChange={setRunId}
           options={[
             { value: "", label: "All runs" },
-            ...runs.filter((r) => r.run_id).map((r) => ({
-              value: r.run_id!,
-              label: r.started_at
-                ? new Date(r.started_at).toLocaleString([], {
-                    month: "numeric",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : r.run_id!.slice(0, 8),
-            })),
+            ...runs
+              .filter((r) => r.run_id)
+              .map((r) => ({
+                value: r.run_id!,
+                label: r.started_at
+                  ? new Date(r.started_at).toLocaleString([], {
+                      month: "numeric",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : r.run_id!.slice(0, 8),
+              })),
           ]}
         />
         <label style={css("display:flex;flex-direction:column;gap:3px")}>
@@ -285,15 +287,7 @@ function FilterSelect({
   );
 }
 
-function Toggle({
-  label,
-  on,
-  set,
-}: {
-  label: string;
-  on: boolean;
-  set: (v: boolean) => void;
-}) {
+function Toggle({ label, on, set }: { label: string; on: boolean; set: (v: boolean) => void }) {
   return (
     <button
       type="button"

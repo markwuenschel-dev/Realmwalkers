@@ -1,6 +1,11 @@
 "use client";
 
-import type { LlmCallOut, RunTelemetryOut, TelemetryGroupOut, TelemetryTotals } from "../../api/types";
+import type {
+  LlmCallOut,
+  RunTelemetryOut,
+  TelemetryGroupOut,
+  TelemetryTotals,
+} from "../../api/types";
 
 import type { LlmCallFilters } from "./telemetryFilters";
 

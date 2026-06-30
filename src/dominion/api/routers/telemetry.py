@@ -387,16 +387,15 @@ async def llm_call_detail(call_id: uuid.UUID, session: SessionDep) -> LlmCallOut
 @router.get("/books/{book_id}/telemetry/problems", response_model=TelemetryProblemsOut)
 async def book_telemetry_problems(book_id: uuid.UUID, session: SessionDep) -> TelemetryProblemsOut:
     rows = list((await session.execute(select(LlmCall).where(LlmCall.book_id == book_id))).scalars())
-    failed = list(
-        (
-            await session.execute(
-                select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(
-                    Job.book_id == book_id,
-                    Job.status == JobStatus.FAILED,
-                )
+    failed_rows = (
+        await session.execute(
+            select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(
+                Job.book_id == book_id,
+                Job.status == JobStatus.FAILED,
             )
-        ).all()
-    )
+        )
+    ).all()
+    failed = [(r.id, r.chapter_no, r.scene_no, r.last_error) for r in failed_rows]
     raw = build_problems(rows, failed)
     problems = [TelemetryProblemOut(**p) for p in raw]
     return TelemetryProblemsOut(problems=problems, healthy=len(problems) == 0)

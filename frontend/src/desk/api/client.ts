@@ -126,10 +126,9 @@ export const api = {
   retryFailed: (bookId?: string) =>
     http<RetryFailedOut>(`/jobs/retry-failed${qs({ book_id: bookId })}`, { method: "POST" }),
   clearFailed: (bookId?: string, chapterId?: string) =>
-    http<ClearFailedOut>(
-      `/jobs/clear-failed${qs({ book_id: bookId, chapter_id: chapterId })}`,
-      { method: "POST" },
-    ),
+    http<ClearFailedOut>(`/jobs/clear-failed${qs({ book_id: bookId, chapter_id: chapterId })}`, {
+      method: "POST",
+    }),
 
   // --- gate 1: books, runs, chapters, beats -------------------------------------------------------
   books: () => http<BookOut[]>("/books"),
@@ -270,7 +269,8 @@ export const api = {
         problems_only: opts?.problems_only != null ? String(opts.problems_only) : undefined,
         fallbacks_only: opts?.fallbacks_only != null ? String(opts.fallbacks_only) : undefined,
         min_latency_ms: opts?.min_latency_ms != null ? String(opts.min_latency_ms) : undefined,
-        min_input_tokens: opts?.min_input_tokens != null ? String(opts.min_input_tokens) : undefined,
+        min_input_tokens:
+          opts?.min_input_tokens != null ? String(opts.min_input_tokens) : undefined,
         cache_miss_only: opts?.cache_miss_only != null ? String(opts.cache_miss_only) : undefined,
         limit: opts?.limit != null ? String(opts.limit) : undefined,
         offset: opts?.offset != null ? String(opts.offset) : undefined,
@@ -280,9 +280,7 @@ export const api = {
   telemetryProblems: (bookId: string) =>
     http<TelemetryProblemsOut>(`/books/${bookId}/telemetry/problems`),
   compareRuns: (bookId: string, runA: string, runB: string) =>
-    http<RunCompareOut>(
-      `/books/${bookId}/telemetry/compare${qs({ run_a: runA, run_b: runB })}`,
-    ),
+    http<RunCompareOut>(`/books/${bookId}/telemetry/compare${qs({ run_a: runA, run_b: runB })}`),
 
   // --- draft-attempt provenance (preserved prose stages for a scene) ------------------------------
   draftAttempts: (sceneId: string) => http<DraftAttemptOut[]>(`/scenes/${sceneId}/draft-attempts`),

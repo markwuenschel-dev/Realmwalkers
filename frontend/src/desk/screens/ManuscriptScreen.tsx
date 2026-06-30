@@ -25,8 +25,14 @@ const WIDTH: Record<Layout, string> = { page: "40rem", wide: "54rem", columns: "
 type Source = "approved" | "draft";
 
 export default function ManuscriptScreen() {
-  const { manuscript, chapters: allChapters, latestScenes, jobs, clearFailed, clearDraftScenes } =
-    useDeskData();
+  const {
+    manuscript,
+    chapters: allChapters,
+    latestScenes,
+    jobs,
+    clearFailed,
+    clearDraftScenes,
+  } = useDeskData();
   const [layout, setLayout] = useState<Layout>("wide");
   const [source, setSource] = useState<Source>("approved");
   const [clearFailedBusy, setClearFailedBusy] = useState(false);

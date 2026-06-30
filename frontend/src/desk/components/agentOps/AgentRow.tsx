@@ -41,10 +41,18 @@ export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: Agen
         )}
       >
         <div style={css("flex:1 1 auto;min-width:0")}>
-          <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>{a.label}</div>
-          <div style={css("font-size:13px;color:var(--dim);margin-top:3px;line-height:1.45")}>{a.description}</div>
-          <div style={css("margin-top:6px;display:flex;flex-wrap:wrap;gap:10px;align-items:center")}>
-            <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>{a.model}</span>
+          <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>
+            {a.label}
+          </div>
+          <div style={css("font-size:13px;color:var(--dim);margin-top:3px;line-height:1.45")}>
+            {a.description}
+          </div>
+          <div
+            style={css("margin-top:6px;display:flex;flex-wrap:wrap;gap:10px;align-items:center")}
+          >
+            <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+              {a.model}
+            </span>
             {a.policy.fallback_tier && (
               <span
                 style={css(
@@ -77,7 +85,9 @@ export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: Agen
         <div style={css("margin-top:16px;border-top:1px solid var(--line);padding-top:16px")}>
           <div style={css("display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px")}>
             <div>
-              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>Primary model</div>
+              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>
+                Primary model
+              </div>
               <TierButtons
                 active={a.tier}
                 disabled={busy}
@@ -97,14 +107,16 @@ export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: Agen
 
           <div style={css("font-size:13px;color:var(--dim);line-height:1.5")}>
             <div>
-              <strong style={{ color: "var(--ink)" }}>Inputs:</strong> {a.contract.inputs.join(", ")}
+              <strong style={{ color: "var(--ink)" }}>Inputs:</strong>{" "}
+              {a.contract.inputs.join(", ")}
             </div>
             <div>
-              <strong style={{ color: "var(--ink)" }}>Outputs:</strong> {a.contract.outputs.join(", ")}
+              <strong style={{ color: "var(--ink)" }}>Outputs:</strong>{" "}
+              {a.contract.outputs.join(", ")}
             </div>
             <div>
-              <strong style={{ color: "var(--ink)" }}>Max retries:</strong> {a.contract.max_retries} ·{" "}
-              <strong style={{ color: "var(--ink)" }}>Approval:</strong>{" "}
+              <strong style={{ color: "var(--ink)" }}>Max retries:</strong> {a.contract.max_retries}{" "}
+              · <strong style={{ color: "var(--ink)" }}>Approval:</strong>{" "}
               {a.contract.requires_approval ? "required" : "no"}
             </div>
             <div style={css("margin-top:8px")}>
@@ -130,12 +142,16 @@ export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: Agen
                 "margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--dim)",
               )}
             >
-              Last window: {stats.calls} calls · err {((stats.error_rate ?? 0) * 100).toFixed(0)}% · trunc{" "}
-              {((stats.truncation_rate ?? 0) * 100).toFixed(0)}% · QA pass {stats.qa_pass_rate ?? "—"}
+              Last window: {stats.calls} calls · err {((stats.error_rate ?? 0) * 100).toFixed(0)}% ·
+              trunc {((stats.truncation_rate ?? 0) * 100).toFixed(0)}% · QA pass{" "}
+              {stats.qa_pass_rate ?? "—"}
             </div>
           )}
 
-          <a href="/telemetry" style={css("display:inline-block;margin-top:10px;font-size:12px;color:var(--accent)")}>
+          <a
+            href="/telemetry"
+            style={css("display:inline-block;margin-top:10px;font-size:12px;color:var(--accent)")}
+          >
             Full telemetry →
           </a>
         </div>

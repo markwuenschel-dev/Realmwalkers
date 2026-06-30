@@ -99,7 +99,12 @@ function ProblemRow({
   bookId: string;
   onOpen: (view: TelemetryDrawerView) => void;
 }) {
-  const color = p.severity === "error" ? "var(--bad)" : p.severity === "warn" ? "var(--warn, #e8a020)" : "var(--dim)";
+  const color =
+    p.severity === "error"
+      ? "var(--bad)"
+      : p.severity === "warn"
+        ? "var(--warn, #e8a020)"
+        : "var(--dim)";
   return (
     <div>
       <button
@@ -111,10 +116,16 @@ function ProblemRow({
           "display:block;width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;color:inherit;font:inherit",
         )}
       >
-        <div style={css(`font-family:var(--mono);font-size:12.5px;color:${color}`)}>{p.summary}</div>
+        <div style={css(`font-family:var(--mono);font-size:12.5px;color:${color}`)}>
+          {p.summary}
+        </div>
       </button>
       {p.breakdown.length > 0 && (
-        <ul style={css("margin:4px 0 0 16px;padding:0;font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+        <ul
+          style={css(
+            "margin:4px 0 0 16px;padding:0;font-family:var(--mono);font-size:11px;color:var(--dim)",
+          )}
+        >
           {p.breakdown.slice(0, 5).map((b, j) => (
             <li key={j}>
               {typeof b.stage === "string" ? b.stage : ""}
@@ -124,7 +135,9 @@ function ProblemRow({
         </ul>
       )}
       {p.recommended_action && (
-        <div style={css("margin-top:4px;font-size:11.5px;color:var(--dim)")}>{p.recommended_action}</div>
+        <div style={css("margin-top:4px;font-size:11.5px;color:var(--dim)")}>
+          {p.recommended_action}
+        </div>
       )}
     </div>
   );

@@ -13,7 +13,14 @@ import type {
   TelemetryGroupOut,
   TelemetryTotals,
 } from "../../api/types";
-import { groupLabel, statusColor, stageFlags, worstCall, type DrawerNav, type TelemetryDrawerView } from "./types";
+import {
+  groupLabel,
+  statusColor,
+  stageFlags,
+  worstCall,
+  type DrawerNav,
+  type TelemetryDrawerView,
+} from "./types";
 import { filtersLabel, filtersToApiOpts, type LlmCallFilters } from "./telemetryFilters";
 
 export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: string }) {
@@ -22,7 +29,10 @@ export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: strin
 
   return (
     <>
-      <div onClick={nav.close} style={css("position:fixed;inset:0;z-index:85;background:rgba(0,0,0,.45)")} />
+      <div
+        onClick={nav.close}
+        style={css("position:fixed;inset:0;z-index:85;background:rgba(0,0,0,.45)")}
+      />
       <div
         style={css(
           "position:fixed;top:0;right:0;bottom:0;z-index:86;width:min(520px,96vw);overflow-y:auto;background:var(--bg2);border-left:1px solid var(--line);box-shadow:-12px 0 40px rgba(0,0,0,.35);padding:16px 18px",
@@ -94,18 +104,13 @@ function RunDetail({ runId, bookId, nav }: { runId: string; bookId: string; nav:
   }, [runId]);
 
   if (err) return <Err msg={err} />;
-  if (!data)
-    return (
-      <SpinnerRow />
-    );
+  if (!data) return <SpinnerRow />;
 
   const stamp = data.started_at
     ? `${new Date(data.started_at).toLocaleDateString()} ${new Date(data.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
     : runId.slice(0, 8);
   const chLabel =
-    data.chapter_no != null
-      ? `Ch ${data.chapter_no}${data.title ? ` · ${data.title}` : ""}`
-      : "";
+    data.chapter_no != null ? `Ch ${data.chapter_no}${data.title ? ` · ${data.title}` : ""}` : "";
 
   return (
     <div style={css("display:flex;flex-direction:column;gap:12px")}>
@@ -140,7 +145,9 @@ function RunDetail({ runId, bookId, nav }: { runId: string; bookId: string; nav:
           s.stage_summary ? (
             <div
               key={String(s.scene_no)}
-              style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim);padding:2px 4px")}
+              style={css(
+                "font-family:var(--mono);font-size:10.5px;color:var(--dim);padding:2px 4px",
+              )}
             >
               Sc{s.scene_no}: {s.stage_summary}
             </div>
@@ -240,9 +247,13 @@ function ModelDetail({
     <div style={css("display:flex;flex-direction:column;gap:12px")}>
       <TotalsStrip t={totals} />
       {flags.length > 0 ? (
-        <div style={css("font-size:12px;color:var(--warn, #e8a020)")}>This model shows: {flags.join(", ")}</div>
+        <div style={css("font-size:12px;color:var(--warn, #e8a020)")}>
+          This model shows: {flags.join(", ")}
+        </div>
       ) : (
-        <div style={css("font-size:12px;color:var(--ok)")}>No obvious issues for this model in scope.</div>
+        <div style={css("font-size:12px;color:var(--ok)")}>
+          No obvious issues for this model in scope.
+        </div>
       )}
       <CallList calls={calls} nav={nav} />
     </div>
@@ -263,7 +274,10 @@ function SceneDetail({
   const [data, setData] = useState<RunTelemetryOut | null>(null);
 
   useEffect(() => {
-    api.runTelemetry(runId).then(setData).catch(() => setData(null));
+    api
+      .runTelemetry(runId)
+      .then(setData)
+      .catch(() => setData(null));
   }, [runId]);
 
   if (!data) return <SpinnerRow />;
@@ -298,10 +312,7 @@ function SceneDetail({
           ))}
         </div>
       </Section>
-      <CallList
-        calls={data.calls.filter((c) => c.scene_no === sceneNo)}
-        nav={nav}
-      />
+      <CallList calls={data.calls.filter((c) => c.scene_no === sceneNo)} nav={nav} />
     </div>
   );
 }
@@ -311,7 +322,10 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
   const [call, setCall] = useState<LlmCallOut | null>(null);
 
   useEffect(() => {
-    api.llmCall(callId).then(setCall).catch(() => setCall(null));
+    api
+      .llmCall(callId)
+      .then(setCall)
+      .catch(() => setCall(null));
   }, [callId]);
 
   if (!call) return <SpinnerRow />;
@@ -319,7 +333,11 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
   const sections = meta.context_sections as Record<string, number> | undefined;
 
   return (
-    <div style={css("display:flex;flex-direction:column;gap:10px;font-family:var(--mono);font-size:11.5px")}>
+    <div
+      style={css(
+        "display:flex;flex-direction:column;gap:10px;font-family:var(--mono);font-size:11.5px",
+      )}
+    >
       <Row label="Stage" value={call.stage} />
       <Row label="Model" value={call.model} />
       <Row label="Scene" value={call.scene_no != null ? String(call.scene_no) : "—"} />
@@ -330,7 +348,9 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
       <Row label="Cache read" value={fmtTokens(call.cache_read_tokens)} />
       <Row label="Truncated" value={call.truncated ? "yes" : "no"} />
       <Row label="Error" value={call.error ?? "—"} color={call.error ? "var(--bad)" : undefined} />
-      {typeof meta.max_tokens === "number" && <Row label="Max tokens" value={String(meta.max_tokens)} />}
+      {typeof meta.max_tokens === "number" && (
+        <Row label="Max tokens" value={String(meta.max_tokens)} />
+      )}
       {typeof meta.stop_reason === "string" && <Row label="Stop reason" value={meta.stop_reason} />}
       {typeof meta.raw_context_total === "number" && (
         <Row
@@ -338,11 +358,15 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
           value={`${fmtTokens(meta.raw_context_total)} / ${meta.context_window_budget ?? "—"}`}
         />
       )}
-      {meta.fallback_attempt === true && <Row label="Fallback" value="yes" color="var(--warn, #e8a020)" />}
+      {meta.fallback_attempt === true && (
+        <Row label="Fallback" value="yes" color="var(--warn, #e8a020)" />
+      )}
       {typeof meta.section_name === "string" && <Row label="Section" value={meta.section_name} />}
       {sections && (
         <div>
-          <div style={css("color:var(--dim);font-size:10px;margin-bottom:4px")}>Context sections</div>
+          <div style={css("color:var(--dim);font-size:10px;margin-bottom:4px")}>
+            Context sections
+          </div>
           {Object.entries(sections).map(([k, v]) => (
             <Row key={k} label={k} value={fmtTokens(v)} />
           ))}
@@ -350,7 +374,10 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
       )}
       <div style={css("display:flex;flex-wrap:gap:8px;margin-top:8px")}>
         {call.links.scene_id && (
-          <LinkBtn label="Open scene" onClick={() => router.push(`/scene/${call.links.scene_id}`)} />
+          <LinkBtn
+            label="Open scene"
+            onClick={() => router.push(`/scene/${call.links.scene_id}`)}
+          />
         )}
         {call.links.chapter_id && (
           <LinkBtn label="Open packets" onClick={() => router.push("/packets")} />
@@ -366,27 +393,27 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
   );
 }
 
-function CompareDetail({
-  bookId,
-  runA,
-  runB,
-}: {
-  bookId: string;
-  runA: string;
-  runB: string;
-}) {
+function CompareDetail({ bookId, runA, runB }: { bookId: string; runA: string; runB: string }) {
   const [data, setData] = useState<RunCompareOut | null>(null);
 
   useEffect(() => {
-    api.compareRuns(bookId, runA, runB).then(setData).catch(() => setData(null));
+    api
+      .compareRuns(bookId, runA, runB)
+      .then(setData)
+      .catch(() => setData(null));
   }, [bookId, runA, runB]);
 
   if (!data) return <SpinnerRow />;
 
   const fmtRun = (r: RunCompareOut["run_a"]) =>
     r.started_at
-      ? new Date(r.started_at).toLocaleString([], { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
-      : r.run_id?.slice(0, 8) ?? "—";
+      ? new Date(r.started_at).toLocaleString([], {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : (r.run_id?.slice(0, 8) ?? "—");
 
   return (
     <div style={css("display:flex;flex-direction:column;gap:12px")}>
@@ -411,8 +438,7 @@ function CompareDetail({
               "font-family:var(--mono);font-size:11px;color:var(--dim);padding:4px 0;border-top:1px solid var(--line)",
             )}
           >
-            {d.stage.replace(/_/g, " ")}:{" "}
-            {d.input_tokens_delta >= 0 ? "+" : ""}
+            {d.stage.replace(/_/g, " ")}: {d.input_tokens_delta >= 0 ? "+" : ""}
             {fmtTokens(d.input_tokens_delta)} input · {d.truncations_delta >= 0 ? "+" : ""}
             {d.truncations_delta} trunc
           </div>
@@ -507,8 +533,11 @@ function aggregateCalls(calls: LlmCallOut[]): TelemetryTotals {
     cache_tokens_saved: Math.floor(cr * 0.9),
     truncations: calls.filter((c) => c.truncated).length,
     errors: calls.filter((c) => c.error).length,
-    fallbacks: calls.filter((c) => (c.metadata as Record<string, unknown> | null)?.fallback_attempt).length,
-    avg_latency_ms: latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : null,
+    fallbacks: calls.filter((c) => (c.metadata as Record<string, unknown> | null)?.fallback_attempt)
+      .length,
+    avg_latency_ms: latencies.length
+      ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+      : null,
     estimated_cost_usd: calls.reduce((s, c) => s + (c.estimated_cost_usd ?? 0), 0),
     cache_savings_usd: 0,
   };
@@ -554,7 +583,11 @@ function CompareRow({
   const fa = fmt ? fmtTokens(a) : String(a);
   const fb = fmt ? fmtTokens(b) : String(b);
   return (
-    <div style={css("display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px")}>
+    <div
+      style={css(
+        "display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px",
+      )}
+    >
       <span style={css("color:var(--dim)")}>{label}</span>
       <span style={css("color:var(--ink)")}>
         {fa}

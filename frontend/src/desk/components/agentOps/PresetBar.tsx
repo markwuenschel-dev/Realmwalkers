@@ -36,12 +36,24 @@ export function PresetBar({
         "background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:18px",
       )}
     >
-      <div style={css("display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between")}>
+      <div
+        style={css(
+          "display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between",
+        )}
+      >
         <div>
-          <div style={css("font-family:var(--display);font-size:13px;color:var(--dim);margin-bottom:4px")}>
+          <div
+            style={css(
+              "font-family:var(--display);font-size:13px;color:var(--dim);margin-bottom:4px",
+            )}
+          >
             Active preset
           </div>
-          <div style={css("font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink)")}>
+          <div
+            style={css(
+              "font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink)",
+            )}
+          >
             {active?.label ?? (activePreset === "custom" ? "Custom" : "Default")}
           </div>
         </div>
@@ -74,10 +86,16 @@ export function PresetBar({
           {smokeBusy ? "Running smoke test…" : "Run smoke test"}
         </button>
       </div>
-      <div style={css("margin-top:14px;display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--dim)")}>
+      <div
+        style={css(
+          "margin-top:14px;display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--dim)",
+        )}
+      >
         <span>
           Est. cost:{" "}
-          <strong style={{ color: BAND_COLOR[pipeline.cost_band] ?? "var(--ink)" }}>{pipeline.cost_band}</strong>
+          <strong style={{ color: BAND_COLOR[pipeline.cost_band] ?? "var(--ink)" }}>
+            {pipeline.cost_band}
+          </strong>
         </span>
         <span>
           Est. latency: <strong style={{ color: "var(--ink)" }}>{pipeline.latency_band}</strong>
