@@ -770,6 +770,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/jobs/clear-failed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clear Failed
+     * @description Delete FAILED draft jobs without re-queueing — dismisses the Desk failed banner.
+     */
+    post: operations["clear_failed_jobs_clear_failed_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/jobs/status": {
     parameters: {
       query?: never;
@@ -1731,6 +1751,22 @@ export interface components {
       is_pov: boolean;
       /** Body */
       body?: string | null;
+    };
+    /**
+     * ClearFailedOut
+     * @description Result of purging FAILED draft jobs without re-queueing.
+     */
+    ClearFailedOut: {
+      /**
+       * Purged
+       * @default 0
+       */
+      purged: number;
+      /**
+       * Failed
+       * @default 0
+       */
+      failed: number;
     };
     /**
      * ContinuityResolveIn
@@ -4457,6 +4493,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["RetryFailedOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clear_failed_jobs_clear_failed_post: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClearFailedOut"];
         };
       };
       /** @description Validation Error */

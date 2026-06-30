@@ -2156,6 +2156,57 @@
         }
       }
     },
+    "/jobs/clear-failed": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Clear Failed",
+        "description": "Delete FAILED draft jobs without re-queueing \u2014 dismisses the Desk failed banner.",
+        "operationId": "clear_failed_jobs_clear_failed_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearFailedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/status": {
       "get": {
         "tags": [
@@ -4863,6 +4914,23 @@
         ],
         "title": "CharacterStateOut",
         "description": "Hard numbers from the Oracle (CharacterState), with the canon body if the character has one."
+      },
+      "ClearFailedOut": {
+        "properties": {
+          "purged": {
+            "type": "integer",
+            "title": "Purged",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ClearFailedOut",
+        "description": "Result of purging FAILED draft jobs without re-queueing."
       },
       "ContinuityResolveIn": {
         "properties": {

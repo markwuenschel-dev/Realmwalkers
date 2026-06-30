@@ -10,11 +10,11 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, ScenePacketStatus
-from dominion.shared.models import Beat, Chapter, Job, Run, Scene, ScenePacket
+from dominion.shared.models import Beat, Chapter, DraftAttempt, Job, Run, Scene, ScenePacket
 from dominion.workers.context.types import ScenePacketRequiredError
 from dominion.workers.job_routing import draft_job_for_beat, draft_job_for_scene
 from dominion.workers.scene_packet import approval_policy as sp_approval
@@ -58,6 +58,11 @@ class RequeueResult:
     requested: int = 0
     queued: int = 0
     skipped: list[DraftQueueBlocker] = field(default_factory=list)
+
+
+@dataclass
+class PurgeResult:
+    purged: int = 0
 
 
 def _blocker(
@@ -484,4 +489,25 @@ async def reconcile_and_requeue_failed_draft_jobs(
             scene_packet_id=str(packet.id),
         )
 
+    return result
+
+
+async def purge_failed_draft_jobs(
+    session: AsyncSession,
+    *,
+    book_id: uuid.UUID | None = None,
+) -> PurgeResult:
+    """Delete FAILED draft jobs without re-queueing (dismiss from Desk)."""
+    failed_q = select(Job.id).where(Job.status == JobStatus.FAILED, Job.kind == JobKind.DRAFT)
+    if book_id is not None:
+        failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    job_ids = list((await session.execute(failed_q)).scalars().all())
+    if not job_ids:
+        log.info("draft_purge.cleared", purged=0, book_id=str(book_id) if book_id else None)
+        return PurgeResult(purged=0)
+
+    await session.execute(update(DraftAttempt).where(DraftAttempt.job_id.in_(job_ids)).values(job_id=None))
+    await session.execute(delete(Job).where(Job.id.in_(job_ids)))
+    result = PurgeResult(purged=len(job_ids))
+    log.info("draft_purge.cleared", purged=result.purged, book_id=str(book_id) if book_id else None)
     return result

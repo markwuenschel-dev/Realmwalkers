@@ -3,6 +3,7 @@ import { api } from "../client";
 import type {
   ChapterOut,
   ChapterUpdateIn,
+  ClearFailedOut,
   ContinuityResolveIn,
   DecisionIn,
   JobsStatusOut,
@@ -25,6 +26,7 @@ export interface DeskSceneActionsState {
   updateChapter: (chapterId: string, body: ChapterUpdateIn) => Promise<void>;
   draftNext: () => Promise<void>;
   retryFailed: () => Promise<RetryFailedOut | null>;
+  clearFailed: () => Promise<ClearFailedOut | null>;
   runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
@@ -59,6 +61,19 @@ export function useDeskSceneActions(
         running: out.running || j.running,
         failed: out.skipped?.length ? j.failed : 0,
       }));
+      await refreshAll();
+      return out;
+    } catch (e) {
+      fail(e);
+      return null;
+    }
+  }, [bookId, fail, refreshAll, setJobs]);
+
+  const clearFailed = useCallback(async (): Promise<ClearFailedOut | null> => {
+    if (!bookId) return null;
+    try {
+      const out = await api.clearFailed(bookId);
+      setJobs((j) => ({ ...j, failed: out.failed }));
       await refreshAll();
       return out;
     } catch (e) {
@@ -151,6 +166,7 @@ export function useDeskSceneActions(
     updateChapter,
     draftNext,
     retryFailed,
+    clearFailed,
     runBulk,
     decide,
     revertScene,

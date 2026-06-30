@@ -7,6 +7,8 @@ and skip automatically when Postgres isn't reachable (see tests/conftest.py).
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 
@@ -338,3 +340,52 @@ async def test_revert_clones_version_and_supersedes_current(db_factory):
         # reverting to the version that is already current is a 409
         with pytest.raises(HTTPException):
             await scenes_router.revert_scene(out.id, s)
+
+
+async def test_pending_scenes_ordered_by_chapter_then_scene_no(db_factory):
+    """Pending inbox order is narrative (chapter, scene), not completion time."""
+    async with db_factory() as s:
+        book = Book(title="X")
+        s.add(book)
+        await s.flush()
+        ch1 = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
+        ch2 = Chapter(book_id=book.id, chapter_no=2, pov="Soren")
+        s.add_all([ch1, ch2])
+        await s.flush()
+
+        t0 = datetime.now(UTC)
+        # Scene 2 finished first (earlier created_at) but should still list after scene 1.
+        scene2 = Scene(
+            chapter_id=ch1.id,
+            scene_no=2,
+            status="pending_review",
+            prose="second",
+            prose_source="agent",
+            created_at=t0,
+        )
+        scene1 = Scene(
+            chapter_id=ch1.id,
+            scene_no=1,
+            status="pending_review",
+            prose="first",
+            prose_source="agent",
+            created_at=t0 + timedelta(minutes=5),
+        )
+        # Later chapter finishes before earlier chapter's remaining scene.
+        ch2_scene = Scene(
+            chapter_id=ch2.id,
+            scene_no=1,
+            status="pending_review",
+            prose="ch2",
+            prose_source="agent",
+            created_at=t0 + timedelta(minutes=1),
+        )
+        s.add_all([scene2, scene1, ch2_scene])
+        await s.flush()
+
+        out = await scenes_router.pending(s)
+        assert [(sc.chapter_id, sc.scene_no) for sc in out] == [
+            (ch1.id, 1),
+            (ch1.id, 2),
+            (ch2.id, 1),
+        ]

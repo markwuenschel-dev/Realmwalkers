@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBlocks, parseInterfaceSpec } from "./prose";
+import { parseBlocks, parseInline, parseInterfaceSpec } from "./prose";
 
 describe("parseInterfaceSpec", () => {
   it("parses typed key=value pairs", () => {
@@ -68,5 +68,24 @@ Threat model: Failed.
       head: ["A", "B"],
       rows: [["1", "2"]],
     });
+  });
+});
+
+describe("parseInline", () => {
+  it("renders asterisk dialogue as emphasis", () => {
+    expect(parseInline("*where are you*")).toEqual([{ t: "em", s: "where are you" }]);
+    expect(parseInline("She said *we're loading in* quietly.")).toEqual([
+      { t: "text", s: "She said " },
+      { t: "em", s: "we're loading in" },
+      { t: "text", s: " quietly." },
+    ]);
+  });
+
+  it("renders bold and code", () => {
+    expect(parseInline("**bold** and `code`")).toEqual([
+      { t: "strong", s: "bold" },
+      { t: "text", s: " and " },
+      { t: "code", s: "code" },
+    ]);
   });
 });

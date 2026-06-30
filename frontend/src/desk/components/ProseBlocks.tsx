@@ -20,7 +20,8 @@ const TONE_COLOR: Record<Tone, string> = {
 
 const HSIZE = ["1.7em", "1.4em", "1.2em", "1.05em", "0.95em", "0.9em"];
 
-function Inline({ text }: { text: string }) {
+/** Compact inline Markdown (`*em*`, `**strong**`, `` `code` ``, links) for prose reading views. */
+export function ProseInline({ text }: { text: string }) {
   return (
     <>
       {parseInline(text).map((tok, i) => {
@@ -44,7 +45,11 @@ function Inline({ text }: { text: string }) {
               </strong>
             );
           case "em":
-            return <em key={i}>{tok.s}</em>;
+            return (
+              <em key={i} style={css("font-style:italic")}>
+                {tok.s}
+              </em>
+            );
           case "link":
             return (
               <a
@@ -153,7 +158,7 @@ function Callout({ block }: { block: Extract<ProseBlock, { kind: "callout" }> })
             key={j}
             style={css("margin:0 0 .45em;font-size:.95em;line-height:1.6;color:var(--ink)")}
           >
-            <Inline text={ln} />
+            <ProseInline text={ln} />
           </p>
         ))}
     </div>
@@ -180,7 +185,7 @@ function Table({ block }: { block: Extract<ProseBlock, { kind: "table" }> }) {
                     "font-weight:600;border:1px solid var(--line)",
                 )}
               >
-                <Inline text={h} />
+                <ProseInline text={h} />
               </th>
             ))}
           </tr>
@@ -195,7 +200,7 @@ function Table({ block }: { block: Extract<ProseBlock, { kind: "table" }> }) {
                     `text-align:${al(ci)};padding:7px 12px;border:1px solid var(--line);color:var(--ink)`,
                   )}
                 >
-                  <Inline text={cell} />
+                  <ProseInline text={cell} />
                 </td>
               ))}
             </tr>
@@ -236,14 +241,14 @@ export default function ProseBlocks({
                     `margin:1.5em 0 .55em;font-size:${HSIZE[b.level - 1]}`,
                 ),
               },
-              <Inline text={b.text} />,
+              <ProseInline text={b.text} />,
             );
           case "ul":
             return (
               <ul key={i} style={listStyle}>
                 {b.items.map((it, j) => (
                   <li key={j} style={liStyle}>
-                    <Inline text={it} />
+                    <ProseInline text={it} />
                   </li>
                 ))}
               </ul>
@@ -253,7 +258,7 @@ export default function ProseBlocks({
               <ol key={i} style={listStyle}>
                 {b.items.map((it, j) => (
                   <li key={j} style={liStyle}>
-                    <Inline text={it} />
+                    <ProseInline text={it} />
                   </li>
                 ))}
               </ol>
@@ -278,7 +283,7 @@ export default function ProseBlocks({
           default:
             return (
               <p key={i} style={pStyle}>
-                <Inline text={b.text} />
+                <ProseInline text={b.text} />
               </p>
             );
         }

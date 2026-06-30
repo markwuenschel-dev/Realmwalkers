@@ -107,3 +107,29 @@ async def test_retry_failed_api_returns_structured_result(db_factory):
         )
         assert out.requested == 1
         assert out.requeued == 1
+
+
+async def test_clear_failed_api_purges_failed_jobs(db_factory):
+    async with db_factory() as s:
+        book, ch, beat, run, sp = await _setup(s)
+        for scene_no in (1, 2):
+            s.add(
+                Job(
+                    run_id=run.id,
+                    kind=JobKind.DRAFT,
+                    chapter_id=ch.id,
+                    beat_id=beat.id,
+                    scene_packet_id=sp.id,
+                    chapter_no=1,
+                    scene_no=scene_no,
+                    status=JobStatus.FAILED,
+                    token_budget=40_000,
+                    last_error="err",
+                )
+            )
+        await s.flush()
+        out = await jobs_router.clear_failed(session=s, book_id=book.id)
+        assert out.purged == 2
+        assert out.failed == 0
+        failed_list = await jobs_router.failed(session=s, book_id=book.id)
+        assert failed_list == []

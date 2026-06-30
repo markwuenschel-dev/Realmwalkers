@@ -90,6 +90,7 @@ export interface DeskData {
   planningChapters: Set<number>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
   retryFailed: () => Promise<import("./types").RetryFailedOut | null>;
+  clearFailed: () => Promise<import("./types").ClearFailedOut | null>;
   runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
@@ -259,6 +260,7 @@ export function useDeskDataState(): DeskData {
       planningChapters: planning.planningChapters,
       approveAndDraft,
       retryFailed: sceneActions.retryFailed,
+      clearFailed: sceneActions.clearFailed,
       runBulk: sceneActions.runBulk,
       decide: sceneActions.decide,
       revertScene: sceneActions.revertScene,
