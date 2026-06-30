@@ -197,10 +197,13 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         reviewers = reviewers_for(ctx.tags)
         progress.set_phase(jid, "reviewing")
 
+        def _reviewer_label(reviewer: Any) -> str:
+            return getattr(reviewer, "name", type(reviewer).__name__)
+
         async def _review_one(reviewer: Any) -> list[Any]:
             from dominion.shared.reviewer_telemetry import reviewer_telemetry_stage
 
-            with telemetry.call_context(_tctx(reviewer_telemetry_stage(reviewer.name))):
+            with telemetry.call_context(_tctx(reviewer_telemetry_stage(_reviewer_label(reviewer)))):
                 return await reviewer.review(prose, ctx)
 
         results = await asyncio.gather(
@@ -219,7 +222,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                         scene_id=scene.id,
                         scene_packet_id=ctx.scene_packet_id,
                         version=scene.version,
-                        reviewer=reviewer.name,
+                        reviewer=_reviewer_label(reviewer),
                         severity=Severity.WARN,
                         note=f"reviewer failed: {result}",
                     )

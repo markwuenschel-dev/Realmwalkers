@@ -218,7 +218,14 @@ async def _run_agent_checks(
         checks.append(SmokeTestCheckOut(name="runtime", ok=False, detail=str(exc)))
 
     if live and setting not in ("draft_model", "review_model", "enrich_model", "scene_packet_author_model"):
-        checks.insert(0, SmokeTestCheckOut(name="live_api", ok=any(c.ok for c in checks), detail="fixture path with real LLM"))
+        checks.insert(
+            0,
+            SmokeTestCheckOut(
+                name="live_api",
+                ok=any(c.ok for c in checks),
+                detail="fixture path with real LLM",
+            ),
+        )
     else:
         checks.insert(0, SmokeTestCheckOut(name="completes", ok=any(c.ok for c in checks), detail=None))
     return checks
