@@ -28,6 +28,7 @@ from dominion.shared.models import Beat, Chapter, ChapterPacket, ScenePacket, Su
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
+from dominion.workers.llm import estimate_tokens
 from dominion.workers.memory import owner_router, retrieval
 from dominion.workers.pov import effective_pov
 from dominion.workers.scene_packet import approval_policy
@@ -147,9 +148,81 @@ async def _pov_summary(session: AsyncSession, *, book_id: uuid.UUID, pov: str) -
     )).scalar_one_or_none()
 
 
+
+def _derive_context_budget_report(
+    *,
+    chapter_packet_body: dict[str, Any],
+    work: list[_SceneWork],
+    omniscient_summary: str | None,
+) -> dict[str, Any]:
+    author_sections = [author_sections_mod._section_directive(sec) for sec in author_sections_mod._SECTIONS]
+    report: dict[str, Any] = {
+        "context_window_budget": settings.scene_packet_context_window_budget,
+        "chapter_packet": estimate_tokens(author_mod._compact(chapter_packet_body)),
+        "omniscient_summary": estimate_tokens(omniscient_summary or ""),
+        "max_section_directive": max((estimate_tokens(s) for s in author_sections), default=0),
+        "author_output_allowance": max((sec.max_tokens for sec in author_sections_mod._SECTIONS), default=0),
+        "qa_output_allowance": settings.scene_packet_qa_max_tokens,
+        "scenes": [],
+    }
+    for item in work:
+        scene_seed = estimate_tokens(author_mod._compact(item.seed))
+        word_budget = estimate_tokens(author_mod._compact(item.word_budget))
+        owner = sum(estimate_tokens(s) for s in item.owner_snippets)
+        canon = sum(estimate_tokens(s) for s in item.canon_snippets)
+        pov_summary = estimate_tokens(item.pov_summary or "")
+        scene_total = scene_seed + word_budget + owner + canon + pov_summary
+        report["scenes"].append({
+            "scene_no": item.scene_no,
+            "pov": item.pov,
+            "pov_summary": pov_summary,
+            "scene_seed": scene_seed,
+            "word_budget": word_budget,
+            "owner_snippets": owner,
+            "canon_snippets": canon,
+            "scene_context_total": scene_total,
+        })
+    return report
+
+
+async def _prime_shared_prefixes(
+    *,
+    work: list[_SceneWork],
+    chapter_packet_body: dict[str, Any],
+    omniscient_summary: str | None,
+    sink: telemetry.TelemetrySink,
+    book_id: str,
+    chapter_id: str,
+) -> None:
+    seen_author_prefixes: set[tuple[str | None, str | None]] = set()
+    for item in work:
+        key = (item.pov_summary, omniscient_summary)
+        if key in seen_author_prefixes:
+            continue
+        seen_author_prefixes.add(key)
+        with telemetry.call_context(telemetry.CallContext(
+            sink=sink, stage="scene_packet_author_prefix_prime", book_id=book_id, chapter_id=chapter_id,
+            scene_no=None, seed_id=None,
+        )):
+            await author_sections_mod.prime_author_shared_prefix(
+                chapter_packet_body=chapter_packet_body, pov_summary=item.pov_summary,
+                omniscient_summary=omniscient_summary,
+                budget=TokenBudget(max_tokens=settings.scene_packet_prefix_prime_token_budget),
+            )
+
+    with telemetry.call_context(telemetry.CallContext(
+        sink=sink, stage="scene_packet_qa_prefix_prime", book_id=book_id, chapter_id=chapter_id,
+        scene_no=None, seed_id=None,
+    )):
+        await qa_mod.prime_qa_shared_prefix(
+            chapter_packet_body,
+            budget=TokenBudget(max_tokens=settings.scene_packet_prefix_prime_token_budget),
+        )
+
+
 async def derive_scene_packets(
     session: AsyncSession, *, packet: ChapterPacket, budget: TokenBudget | None = None
-) -> dict[str, int]:
+) -> dict[str, Any]:
     """Build/refresh a ScenePacket per scene seed of the approved chapter `packet`. Returns counts
     {created, updated, blocked, stale}. The caller commits.
 
@@ -159,16 +232,15 @@ async def derive_scene_packets(
     """
     body: dict[str, Any] = packet.body or {}
     seeds = [s for s in (body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
-    counts = {"created": 0, "updated": 0, "blocked": 0, "stale": 0}
+    counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0}
     if not seeds:
         return counts
 
-    # Each scene's Author+QA pair gets its own token budget so deriving a whole chapter doesn't share
-    # one per-scene ceiling across N scenes (which exhausted after the first scene or two: the QA call
-    # tipped it over, then every later author call started already-over-budget and failed closed —
-    # surfacing as "QA returned no usable verdict" on scene 1 and "incomplete body" on the rest). A
-    # caller that passes an explicit budget keeps the shared semantics (it's bounding the whole run).
-    external_budget = budget
+    # Each scene's Author+QA pair normally gets its own scene-local work budget. A caller-provided
+    # budget intentionally preserves the older shared scene-work override for tests/special callers, but
+    # it does NOT include chapter-prefix prime calls; those always use scene_packet_prefix_prime_token_budget
+    # so cache initialization never consumes Scene 1's scene-local budget.
+    external_scene_budget = budget
     chapter_target, chapter_max = sp_inputs.chapter_targets(body, seeds)
     budgets = length_planner.plan_word_budgets(
         chapter_target_words=chapter_target, chapter_max_words=chapter_max,
@@ -254,8 +326,9 @@ async def derive_scene_packets(
             src_hash=src_hash, row=row,
             owner_snippets=[s["body"] for s in snippets if s["retrieval_reason"] == "owner_forced"],
             canon_snippets=[s["body"] for s in snippets if s["retrieval_reason"] != "owner_forced"],
-            # Fresh per-scene budget unless the caller bounded the whole run with one explicit budget.
-            budget=external_budget or TokenBudget(max_tokens=settings.scene_token_budget),
+            # Fresh per-scene budget unless the caller explicitly supplied a shared scene-work budget.
+            # Prefix-prime calls are always charged to the separate prefix-prime budget.
+            budget=external_scene_budget or TokenBudget(max_tokens=settings.scene_token_budget),
             pov=scene_pov, pov_summary=pov_summary_cache[scene_pov],
         ))
 
@@ -266,6 +339,14 @@ async def derive_scene_packets(
     sem = asyncio.Semaphore(max(1, settings.scene_packet_concurrency))
     sink = telemetry.TelemetrySink()
     book_id_str, chapter_id_str = str(packet.book_id), str(packet.chapter_id)
+    counts["context_budget_report"] = _derive_context_budget_report(
+        chapter_packet_body=body, work=work, omniscient_summary=omniscient,
+    )
+
+    await _prime_shared_prefixes(
+        work=work, chapter_packet_body=body, omniscient_summary=omniscient, sink=sink,
+        book_id=book_id_str, chapter_id=chapter_id_str,
+    )
 
     async def _run(item: _SceneWork) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
         async with sem:
@@ -275,19 +356,9 @@ async def derive_scene_packets(
                 sink=sink, book_id=book_id_str, chapter_id=chapter_id_str,
             )
 
-    # Prime the prefix cache before fanning out. The author and QA prefixes (chapter packet + chapter-
-    # wide summaries) are IDENTICAL across every scene of this chapter that shares a POV (the common case:
-    # one POV per chapter; a per-scene POV override only varies the pov_summary slot), so deriving scene 1
-    # WRITES that prefix to Anthropic's ephemeral cache; scenes 2..N then READ it instead of each re-
-    # writing the full prefix. Without priming, all N scenes start concurrently, every one misses the
-    # cold cache and writes its own copy (the 0% hit ratio we saw) — paying the full prefix cost N times.
-    # With it, only scene 1 pays the write and the rest run concurrently off the warm cache.
-    if len(work) > 1:
-        first = await _run(work[0])
-        rest = await asyncio.gather(*(_run(item) for item in work[1:]))
-        results = [first, *rest]
-    else:
-        results = await asyncio.gather(*(_run(item) for item in work))
+    # Shared chapter prefixes are already primed under a prefix budget, so Scene 1 no longer needs to
+    # run first or pay chapter-level cache creation under its scene-local work budget.
+    results = await asyncio.gather(*(_run(item) for item in work))
 
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.

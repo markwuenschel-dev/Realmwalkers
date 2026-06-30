@@ -120,6 +120,7 @@ async def derive_status(chapter_id: uuid.UUID, session: SessionDep) -> ScenePack
             created=counts["created"], updated=counts["updated"],
             blocked=counts["blocked"], stale=counts["stale"],
             packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
+            context_budget_report=counts.get("context_budget_report"),
         )
     return ScenePacketDeriveStatusOut(
         running=running, phase=phase, elapsed_s=elapsed_s, result=result
@@ -141,6 +142,7 @@ async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePac
         created=counts["created"], updated=counts["updated"],
         blocked=counts["blocked"], stale=counts["stale"],
         packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
+        context_budget_report=counts.get("context_budget_report"),
     )
 
 

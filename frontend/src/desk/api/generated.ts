@@ -2436,6 +2436,10 @@ export interface components {
        * @default []
        */
       packets: components["schemas"]["ScenePacketOut"][];
+      /** Context Budget Report */
+      context_budget_report?: {
+        [key: string]: unknown;
+      } | null;
     };
     /**
      * ScenePacketDeriveStatusOut

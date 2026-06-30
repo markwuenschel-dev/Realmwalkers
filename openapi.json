@@ -6422,6 +6422,18 @@
             "type": "array",
             "title": "Packets",
             "default": []
+          },
+          "context_budget_report": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Budget Report"
           }
         },
         "type": "object",

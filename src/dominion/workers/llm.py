@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from functools import lru_cache
+from math import ceil
 
 import anthropic
 import structlog
@@ -21,6 +24,69 @@ from dominion.workers import telemetry
 from dominion.workers.budget import TokenBudget, Usage
 
 log = structlog.get_logger()
+
+
+@dataclass(frozen=True)
+class CachedPrefixBlock:
+    """A named cached user-content block. Order matters: Anthropic cache breakpoints match the
+    request prefix through each cache_control block, so callers put the most stable blocks first."""
+    name: str
+    text: str
+
+
+class ContextWindowExceeded(Exception):
+    """Raised before an LLM call when raw prompt + output allowance exceeds the configured window."""
+
+
+def estimate_tokens(text: str) -> int:
+    """Conservative local estimate for context preflight when a provider tokenizer is unavailable."""
+    return ceil(len(text) / 4) if text else 0
+
+
+def estimate_context_tokens(
+    *,
+    system: str,
+    user: str,
+    max_tokens: int,
+    user_prefix_blocks: Sequence[CachedPrefixBlock] = (),
+    context_sections: Mapping[str, int] | None = None,
+) -> dict[str, int]:
+    """Raw, unweighted context estimate by named prompt section. Cache discounts are intentionally
+    ignored: cached tokens still occupy the model context window."""
+    if context_sections is None:
+        sections = {"system": estimate_tokens(system)}
+        sections.update({block.name: estimate_tokens(block.text) for block in user_prefix_blocks})
+        sections["user"] = estimate_tokens(user)
+    else:
+        sections = {str(k): int(v) for k, v in context_sections.items()}
+    sections["output_allowance"] = max_tokens
+    return sections
+
+
+def check_context_window(
+    *,
+    system: str,
+    user: str,
+    max_tokens: int,
+    context_window_budget: int | None,
+    user_prefix_blocks: Sequence[CachedPrefixBlock] = (),
+    context_sections: Mapping[str, int] | None = None,
+) -> dict[str, int]:
+    sections = estimate_context_tokens(
+        system=system, user=user, max_tokens=max_tokens,
+        user_prefix_blocks=user_prefix_blocks, context_sections=context_sections,
+    )
+    raw_context_tokens = sum(sections.values())
+    if context_window_budget is not None and raw_context_tokens > context_window_budget:
+        largest = sorted(sections.items(), key=lambda kv: kv[1], reverse=True)[:6]
+        detail = ", ".join(f"{name}={tokens}" for name, tokens in largest)
+        raise ContextWindowExceeded(
+            "ScenePacket context window exceeded: "
+            f"raw_context_tokens={raw_context_tokens} "
+            f"context_window_budget={context_window_budget} largest_sections: {detail}"
+        )
+    return sections
+
 
 # Anthropic's ephemeral cache TTL is 5 minutes. Warn when subsequent calls within a job are close
 # enough to the TTL that the cache may have expired, explaining an unexpected cache miss.
@@ -58,7 +124,10 @@ def _is_transient(exc: BaseException) -> bool:
 async def complete(
     *, model: str, system: str, user: str, max_tokens: int, budget: TokenBudget,
     user_prefix: str | None = None,
+    user_prefix_blocks: Sequence[CachedPrefixBlock] | None = None,
     expect_cache: bool = True,
+    context_window_budget: int | None = None,
+    context_sections: Mapping[str, int] | None = None,
 ) -> tuple[str, Usage]:
     """One LLM call. Retries transient errors with exponential backoff; charges the budget from the
     response usage on success (raises BudgetExceeded if over). Non-transient errors raise at once.
@@ -66,6 +135,9 @@ async def complete(
     user_prefix: when given, sent as a cached content block before `user`. Use for stable context
     (canon, summaries, prior-scene tail) that doesn't change across calls within a job, so subsequent
     calls read it from cache rather than re-sending it as uncached input.
+
+    user_prefix_blocks: ordered cached blocks for explicit cache breakpoints. The old `user_prefix`
+    parameter maps to one block named "user_prefix" so existing callers keep their behavior.
     """
     # Warn when the cache may have expired: if a prior call in this job wrote to cache more than
     # ~4.5 minutes ago, the next call is likely cold — surfacing this explains a cache_ratio drop.
@@ -77,11 +149,21 @@ async def complete(
             threshold_s=_CACHE_TTL_WARN_S,
         )
 
-    # Build the user content: plain string or a two-block list with a cached stable prefix.
-    user_content: str | list[TextBlockParam]
+    blocks: tuple[CachedPrefixBlock, ...] = tuple(user_prefix_blocks or ())
     if user_prefix:
+        blocks = (CachedPrefixBlock(name="user_prefix", text=user_prefix), *blocks)
+
+    check_context_window(
+        system=system, user=user, max_tokens=max_tokens, context_window_budget=context_window_budget,
+        user_prefix_blocks=blocks, context_sections=context_sections,
+    )
+
+    # Build the user content: plain string or a block list with one or more cached stable prefixes.
+    user_content: str | list[TextBlockParam]
+    if blocks:
         user_content = [
-            TextBlockParam(type="text", text=user_prefix, cache_control={"type": "ephemeral"}),
+            *(TextBlockParam(type="text", text=block.text, cache_control={"type": "ephemeral"})
+              for block in blocks),
             TextBlockParam(type="text", text=user),
         ]
     else:

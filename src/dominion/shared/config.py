@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     scene_packet_qa_max_tokens: int = 3000
     scene_packet_author_fallback_model: str = "claude-sonnet-4-6"
     scene_packet_qa_fallback_model: str = "claude-sonnet-4-6"
+    # Explicit shared-prefix priming runs before scene fan-out, so Scene 1 no longer pays the chapter-
+    # level cache write under its per-scene work budget. This separate ceiling bounds those prime calls.
+    scene_packet_prefix_prime_token_budget: int = 100_000
+    # Raw, unweighted context-window guard for ScenePacket calls. Cache discounts are work/cost
+    # accounting only; cached tokens still occupy the model context window.
+    scene_packet_context_window_budget: int = 180_000
     # Scene packets are independent per scene, so their Author+QA pairs run concurrently (DB reads and
     # writes stay serial; only the LLM calls fan out). Bounds in-flight scenes so a wide chapter can't
     # spike rate limits. Author->QA within a scene stays sequential (QA reads the author's output).
