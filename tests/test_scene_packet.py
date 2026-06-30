@@ -1418,3 +1418,215 @@ async def test_knowledge_facts_recorded_from_scene_reveals(db_factory):
         await s.commit()
         again = (await s.execute(select(KnowledgeFact).where(KnowledgeFact.book_id == book.id))).scalars().all()
         assert len(again) == 2
+
+
+# --- provenance: kept sources, claim_sources, canon-aware staleness, field-anchored QA ------------
+
+
+def test_label_canon_sources_handles_split_and_hashes():
+    snippets = [
+        {
+            "id": "a",
+            "doc_path": "characters/major/mc.md",
+            "heading_path": "Marcus > Combat",
+            "owner_topic": "cast_index",
+            "score": 2.1,
+            "retrieval_reason": "owner_forced",
+            "body": "Marcus fights with a spear.",
+        },
+        {
+            "id": "b",
+            "doc_path": "world/mechanics.md",
+            "heading_path": "",
+            "owner_topic": None,
+            "score": 0.9,
+            "retrieval_reason": "semantic",
+            "body": "Aspects cost reserve.",
+        },
+    ]
+    owner, canon, sources, hashes = sp_derive._label_canon_sources(snippets)
+    # owner-forced vs supporting are split, each labeled with a stable handle + file/heading the author cites
+    assert len(owner) == 1 and len(canon) == 1
+    assert owner[0].startswith("[C1] (characters/major/mc.md › Marcus > Combat)")
+    assert canon[0].startswith("[C2] (world/mechanics.md)")
+    # the resolved legend keeps the provenance the derive used to throw away
+    assert [s["handle"] for s in sources] == ["C1", "C2"]
+    assert sources[0]["doc_path"] == "characters/major/mc.md" and sources[0]["retrieval_reason"] == "owner_forced"
+    assert sources[1]["retrieval_reason"] == "semantic"
+    # per-snippet content hashes are distinct, and editing one snippet's body changes only its hash
+    assert len(set(hashes)) == 2
+    _o, _c, _s, hashes2 = sp_derive._label_canon_sources(
+        [{**snippets[0], "body": "Marcus fights with a sword."}, snippets[1]]
+    )
+    assert hashes2[0] != hashes[0] and hashes2[1] == hashes[1]
+
+
+def test_label_canon_sources_empty():
+    assert sp_derive._label_canon_sources([]) == ([], [], [], [])
+
+
+def test_knowledge_section_keeps_claim_sources_but_does_not_require_it():
+    knowledge = next(s for s in sp_sections._SECTIONS if s.name == "knowledge")
+    # claim_sources is optional: kept on merge, but its absence must NOT fail the section closed
+    assert "claim_sources" in knowledge.optional_keys
+    assert "claim_sources" not in knowledge.keys
+    assert sp_sections._section_ok({k: [] for k in knowledge.keys}, knowledge)  # no claim_sources → still ok
+
+    obj = {k: [] for k in knowledge.keys}
+    obj["claim_sources"] = [{"claim": "x", "source_id": "C1"}]
+    obj["leaked_other_section_key"] = 1
+    sliced = sp_sections._slice(obj, knowledge)
+    assert sliced["claim_sources"] == [{"claim": "x", "source_id": "C1"}]  # optional key kept
+    assert "leaked_other_section_key" not in sliced  # unowned keys still dropped
+
+
+def test_parse_scene_qa_keeps_issue_field():
+    import json
+
+    from dominion.workers.scene_packet.parse import parse_scene_qa
+
+    raw = json.dumps(
+        {
+            "verdict": "revise_required",
+            "residual_risks": [],
+            "issues": [
+                {
+                    "kind": "future_knowledge_leak",
+                    "field": "known_before_scene.reader",
+                    "detail": "the reader can't know this yet",
+                    "severity": "block",
+                }
+            ],
+        }
+    )
+    out = parse_scene_qa(raw)
+    assert out is not None
+    assert out["issues"][0]["field"] == "known_before_scene.reader"
+
+
+async def test_derive_persists_retrieved_sources_on_packet(db_factory, monkeypatch):
+    """The derive keeps the canon provenance it retrieves (handle + file + heading + reason) on the
+    packet, instead of discarding everything but the snippet text."""
+    from dominion.workers.memory import retrieval
+
+    snippets = [
+        {
+            "id": "a",
+            "doc_path": "characters/major/mc.md",
+            "heading_path": "Marcus",
+            "owner_topic": "cast_index",
+            "source_priority": 5,
+            "score": 2.0,
+            "retrieval_reason": "owner_forced",
+            "body": "Marcus body",
+        },
+        {
+            "id": "b",
+            "doc_path": "world/mechanics.md",
+            "heading_path": "",
+            "owner_topic": None,
+            "source_priority": 0,
+            "score": 0.7,
+            "retrieval_reason": "semantic",
+            "body": "mechanics body",
+        },
+    ]
+
+    async def fake_retrieve(*_a, **_k):
+        return [dict(s) for s in snippets]
+
+    monkeypatch.setattr(retrieval, "retrieve_hybrid", fake_retrieve)
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.flush()
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert [src["handle"] for src in row.sources] == ["C1", "C2"]
+        assert row.sources[0]["doc_path"] == "characters/major/mc.md"
+        assert row.sources[0]["retrieval_reason"] == "owner_forced"
+        assert row.sources[1]["doc_path"] == "world/mechanics.md"
+
+
+async def test_canon_change_restales_approved_packet_on_rederive(db_factory, monkeypatch):
+    """Editing the canon a packet was built from must mark it stale: the chunk hashes now fold into the
+    source_hash, so an approved packet rebuilds (→ proposed) on re-derive — the bug was that a fixed
+    canon fact left the wrong value sitting in an 'approved' packet forever."""
+    from dominion.workers.memory import retrieval
+
+    canon = {"body": "Marcus wields a spear."}
+
+    async def fake_retrieve(*_a, **_k):
+        return [
+            {
+                "id": "a",
+                "doc_path": "characters/major/mc.md",
+                "heading_path": "Marcus",
+                "owner_topic": None,
+                "source_priority": 0,
+                "score": 1.0,
+                "retrieval_reason": "semantic",
+                "body": canon["body"],
+            }
+        ]
+
+    monkeypatch.setattr(retrieval, "retrieve_hybrid", fake_retrieve)
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.flush()
+        sp = (await s.execute(select(ScenePacket))).scalars().one()
+        sp.status = ScenePacketStatus.APPROVED  # human-approved
+        await s.flush()
+        approved_hash = sp.source_hash
+
+        # re-derive with UNCHANGED canon: approved + same inputs → skipped, left untouched
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.flush()
+        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.APPROVED
+
+        # the canon body changes → the hash differs → the packet rebuilds instead of being skipped
+        canon["body"] = "Marcus wields a sword."
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.flush()
+        sp2 = await s.get(ScenePacket, sp.id)
+        assert counts["updated"] == 1
+        assert sp2.status == ScenePacketStatus.PROPOSED  # no longer silently 'approved' with stale canon
+        assert sp2.source_hash != approved_hash
+
+
+async def test_sectioned_author_keeps_claim_sources_when_emitted(monkeypatch):
+    """When the knowledge section cites its canon handles, the merged body carries claim_sources through
+    to the persisted packet (the read-only provenance the editor shows)."""
+    import json
+
+    from dominion.workers import llm
+
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", True)
+    monkeypatch.setattr(settings, "scene_packet_context_window_budget", 500_000)
+    complete = _complete_scene_body()
+
+    def responder(*, model, system_text, user_text, max_tokens):
+        if "Acknowledge cache prime" in user_text:
+            return _FakeResp("{}")
+        for sec in sp_sections._SECTIONS:
+            if f"[section:{sec.name}]" in user_text:
+                slice_ = {k: complete[k] for k in sec.keys}
+                if sec.name == "knowledge":
+                    slice_["claim_sources"] = [{"claim": "Marcus wields a spear", "source_id": "C1"}]
+                return _FakeResp(json.dumps(slice_))
+        raise AssertionError(f"unrecognized section: {user_text[:80]}")
+
+    monkeypatch.setattr(llm, "_client", lambda: _FakeClient(responder))
+    body = await sp_sections.author_scene_packet_sectioned(
+        pov="Marcus",
+        chapter_packet_body={"chapter_job": "x"},
+        scene_seed=_seed(str(uuid.uuid4()), scene_no=1),
+        word_budget={"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400},
+        budget=TokenBudget(max_tokens=60_000),
+    )
+    assert body["claim_sources"] == [{"claim": "Marcus wields a spear", "source_id": "C1"}]
+    assert "known_before_scene" in body and body["word_budget"]["target"] == 1500

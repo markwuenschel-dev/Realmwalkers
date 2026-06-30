@@ -264,6 +264,9 @@ export interface ResolvedQuestion {
 
 export interface QaIssue {
   kind?: string;
+  // Dotted path of the offending scene-packet field (e.g. "known_before_scene.reader"), or null/absent
+  // for a whole-packet problem. The editor uses this to render the issue inline next to its control.
+  field?: string | null;
   detail?: string;
   severity?: "info" | "warn" | "block" | string;
 }
@@ -326,13 +329,33 @@ export interface ScenePacketBody {
   tone_pressure?: string;
   phrases_to_avoid_echoing?: string[];
   reviewer_instructions?: Record<string, string[]>;
+  // Author-emitted provenance: each knowledge claim it drew from a canon snippet, tagged with that
+  // snippet's handle (resolve against ScenePacketOut.sources to get the file + heading).
+  claim_sources?: { claim?: string; source_id?: string | null }[];
   blocked_reason?: string;
 }
 
-export type ScenePacketOut = Omit<S["ScenePacketOut"], "body" | "qa_warnings" | "status"> & {
+// One retrieved canon/owner chunk this packet was derived from. `handle` (e.g. "C1") is what the
+// author cites in claim_sources; the rest resolves it to a real location in the canon.
+export interface SceneSource {
+  handle?: string;
+  id?: string;
+  doc_path?: string;
+  heading_path?: string;
+  owner_topic?: string | null;
+  retrieval_reason?: string;
+  score?: number;
+}
+
+export type ScenePacketOut = Omit<
+  S["ScenePacketOut"],
+  "body" | "qa_warnings" | "status" | "sources"
+> & {
   body: ScenePacketBody;
   qa_warnings: PacketWarnings | null;
   status: ScenePacketStatus | string;
+  // Re-typed from the generated JSONB `unknown[]` to the concrete provenance-legend shape the UI reads.
+  sources?: SceneSource[] | null;
   blocked_reason?: string | null;
   blocker_source?: string | null;
 };

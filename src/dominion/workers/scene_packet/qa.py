@@ -35,10 +35,14 @@ _SYSTEM = (
     "packet language.\n\n"
     "Return exactly one verdict: APPROVE, APPROVE_WARN, REVISE_REQUIRED, BLOCK_DRAFTING. "
     "BLOCK_DRAFTING means no prose may be written from this scene packet.\n\n"
+    "For each issue, set `field` to the dotted path of the offending scene-packet field when one applies "
+    '(e.g. "known_before_scene.reader", "learned_during_scene.reader_must_learn", "must_remain_hidden.pov", '
+    '"required_beats", "exit_state"), or null for a whole-packet problem. The exact key names matter — '
+    "they let the editor point the human straight at the field to fix instead of making them hunt.\n\n"
     "Reply with ONE JSON object only — no prose, no code fences — of shape:\n"
     '{"verdict": "APPROVE|APPROVE_WARN|REVISE_REQUIRED|BLOCK_DRAFTING", '
     '"residual_risks": [str], '
-    '"issues": [{"kind": str, "detail": str, "severity": "info|warn|block"}]}'
+    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|block"}]}'
 )
 
 

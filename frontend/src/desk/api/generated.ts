@@ -3617,6 +3617,12 @@ export interface components {
       body: {
         [key: string]: unknown;
       };
+      /** Sources */
+      sources?:
+        | {
+            [key: string]: unknown;
+          }[]
+        | null;
       /** Source Hash */
       source_hash?: string | null;
       /** Stale Reason */

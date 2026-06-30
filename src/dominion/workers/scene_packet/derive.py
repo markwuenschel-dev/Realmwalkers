@@ -15,6 +15,7 @@ contract. The word budget comes from the deterministic Length Planner, never the
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -58,6 +59,9 @@ class _SceneWork:
     row: ScenePacket | None
     owner_snippets: list[str]
     canon_snippets: list[str]
+    # Resolved provenance legend persisted on the packet: one entry per retrieved snippet,
+    # {handle, id, doc_path, heading_path, owner_topic, retrieval_reason, score}.
+    sources: list[dict[str, Any]]
     budget: TokenBudget
     # This scene's EFFECTIVE POV (beat override, else chapter POV) and that POV's rolling summary —
     # resolved per scene in Phase 1 (DB-bound) so the LLM fan-out in Phase 2 needs no further reads.
@@ -139,6 +143,45 @@ async def _author_then_qa(
 
 def _as_str_list(value: Any) -> list[str]:
     return [str(v).strip() for v in value if str(v).strip()] if isinstance(value, list) else []
+
+
+def _label_canon_sources(
+    snippets: list[dict[str, Any]],
+) -> tuple[list[str], list[str], list[dict[str, Any]], list[str]]:
+    """Turn retrieved canon snippets into (owner_labeled, canon_labeled, sources, chunk_hashes).
+
+    Each snippet gets a stable bracket handle (C1, C2, …) in rerank order, so the author can cite it in
+    `claim_sources` and the resolved `sources` legend maps that handle back to a real file + heading. The
+    derive previously kept only `s["body"]`, discarding doc_path/heading/score — which is exactly why a
+    wrong claim in a packet was untraceable. `chunk_hashes` folds each snippet's identity+content into the
+    packet's source_hash, so editing the canon a packet was built from marks it stale.
+    """
+    owner_labeled: list[str] = []
+    canon_labeled: list[str] = []
+    sources: list[dict[str, Any]] = []
+    chunk_hashes: list[str] = []
+    for i, s in enumerate(snippets, start=1):
+        handle = f"C{i}"
+        body = str(s.get("body") or "")
+        doc_path = s.get("doc_path") or ""
+        heading = s.get("heading_path") or ""
+        reason = s.get("retrieval_reason") or "semantic"
+        loc = f"{doc_path} › {heading}" if heading else doc_path
+        labeled = f"[{handle}] ({loc})\n{body}" if loc else f"[{handle}]\n{body}"
+        (owner_labeled if reason == "owner_forced" else canon_labeled).append(labeled)
+        sources.append(
+            {
+                "handle": handle,
+                "id": s.get("id"),
+                "doc_path": doc_path,
+                "heading_path": heading,
+                "owner_topic": s.get("owner_topic"),
+                "retrieval_reason": reason,
+                "score": s.get("score"),
+            }
+        )
+        chunk_hashes.append(hashlib.sha256(f"{s.get('id')}:{body}".encode()).hexdigest())
+    return owner_labeled, canon_labeled, sources, chunk_hashes
 
 
 async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str | None:
@@ -323,23 +366,12 @@ async def derive_scene_packets(
         scene_pov = effective_pov(beat, chapter) if chapter is not None else ""
         pov_override = (beat.pov or "").strip() if beat is not None else ""
 
-        prior_keys = await sp_inputs.prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
-        src_hash = hash_mod.source_hash(
-            chapter_packet_id=packet.id,
-            chapter_packet_body=body,
-            scene_seed=seed,
-            chapter_word_budget=word_budget,
-            prior_scene_keys=prior_keys,
-            scene_pov=pov_override or None,
-        )
-
-        row = existing.get(seed_id)
-        # An approved packet whose inputs are unchanged needs no rebuild.
-        if row is not None and row.status == ScenePacketStatus.APPROVED and row.source_hash == src_hash:
-            continue
-
         # Owner files win over semantic hits: force-inject the relevant dossiers/invariants, then add
-        # supporting hybrid retrieval (keyword + semantic), deterministically split for the author.
+        # supporting hybrid retrieval (keyword + semantic). Retrieve BEFORE the hash so the canon a packet
+        # was built from is folded into its source_hash — editing that canon now correctly marks the packet
+        # stale (previously it didn't, so a fixed canon fact left the wrong value sitting in the packet).
+        # Cost: an unchanged approved scene now pays retrieval before the skip below, but still skips the
+        # expensive Author+QA LLM fan-out; retrieval is DB-only.
         query = " ".join([str(seed.get("scene_job") or ""), *_as_str_list(seed.get("required_beats"))])
         routing = owner_router.route(query, characters=_as_str_list(body.get("characters_present")))
         snippets = await retrieval.retrieve_hybrid(
@@ -350,6 +382,25 @@ async def derive_scene_packets(
             required_doc_paths=routing.doc_paths,
             k=_CANON_K,
         )
+        # Keep full provenance (handle + file + heading + score), not just the snippet text: the author
+        # cites handles in claim_sources, the Desk shows the source list, and the chunk hashes feed staleness.
+        owner_labeled, canon_labeled, sources, canon_chunk_hashes = _label_canon_sources(snippets)
+
+        prior_keys = await sp_inputs.prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
+        src_hash = hash_mod.source_hash(
+            chapter_packet_id=packet.id,
+            chapter_packet_body=body,
+            scene_seed=seed,
+            chapter_word_budget=word_budget,
+            prior_scene_keys=prior_keys,
+            canon_chunk_hashes=canon_chunk_hashes,
+            scene_pov=pov_override or None,
+        )
+
+        row = existing.get(seed_id)
+        # An approved packet whose inputs are unchanged needs no rebuild.
+        if row is not None and row.status == ScenePacketStatus.APPROVED and row.source_hash == src_hash:
+            continue
 
         # That POV's rolling summary, fetched once per DISTINCT effective POV (cache by pov string); most
         # chapters have a single POV, so this is one fetch. (scene_pov is resolved above, before the hash.)
@@ -366,8 +417,9 @@ async def derive_scene_packets(
                 word_budget=word_budget,
                 src_hash=src_hash,
                 row=row,
-                owner_snippets=[s["body"] for s in snippets if s["retrieval_reason"] == "owner_forced"],
-                canon_snippets=[s["body"] for s in snippets if s["retrieval_reason"] != "owner_forced"],
+                owner_snippets=owner_labeled,
+                canon_snippets=canon_labeled,
+                sources=sources,
                 # Fresh per-scene budget unless the caller explicitly supplied a shared scene-work budget.
                 # Prefix-prime calls are always charged to the separate prefix-prime budget.
                 budget=external_scene_budget or TokenBudget(max_tokens=settings.scene_token_budget),
@@ -448,6 +500,9 @@ async def derive_scene_packets(
         row.qa_verdict = qa["verdict"] if qa else ScenePacketVerdict.BLOCK_DRAFTING
         row.qa_warnings = qa_warnings
         row.body = persisted_body
+        # Persist the provenance legend even on a blocked packet — retrieval succeeded, so the human can
+        # still see what canon the (failed) author was working from while diagnosing the block.
+        row.sources = item.sources
         row.source_hash = item.src_hash
         row.stale_reason = None
         if status == ScenePacketStatus.BLOCKED:

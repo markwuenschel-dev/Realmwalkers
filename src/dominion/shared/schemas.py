@@ -297,6 +297,9 @@ class ScenePacketOut(_ORM):
     qa_verdict: str | None = None
     qa_warnings: dict[str, Any] | None = None
     body: dict[str, Any] = {}
+    # Canon/owner snippets this packet was derived from (handle -> doc_path/heading/score/reason), so the
+    # editor can show "built from these sources" and resolve the author's claim_sources handles.
+    sources: list[dict[str, Any]] | None = None
     source_hash: str | None = None
     stale_reason: str | None = None
     created_at: datetime

@@ -199,6 +199,11 @@ class ScenePacket(Base):
     qa_verdict: Mapped[str | None] = mapped_column(Text, nullable=True)
     qa_warnings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     body: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    # The canon/owner snippets this packet was derived from: a list of
+    # {handle, doc_path, heading_path, owner_topic, retrieval_reason, score}. Kept (the derive used to
+    # discard everything but the snippet text) so the Desk can show "built from these sources" and the
+    # author's claim_sources handles resolve back to a real file + heading — i.e. a wrong claim is traceable.
+    sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
