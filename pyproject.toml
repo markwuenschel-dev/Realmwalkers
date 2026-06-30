@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13"]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13", "pyright>=1.1"]
 
 [project.scripts]
 dominion-worker = "dominion.workers.worker:main"
@@ -45,6 +45,17 @@ python_version = "3.14"
 strict = true
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.14"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportMissingParameterType = "none"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

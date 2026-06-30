@@ -1,5 +1,20 @@
 # Agent instructions — Realmwalkers
 
+## Verify before ship
+
+Run the backend CI gates locally before claiming green or shipping:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+```bash
+just verify
+# or: bash scripts/verify.sh
+```
+
+This runs **ruff check**, **ruff format --check**, **pyright on changed `src/` Python files** (vs `origin/main`), and **pytest -q -rs** with the same env as CI (`DOMINION_REQUIRE_DB=1`, Postgres on `127.0.0.1:5432`). Start Postgres with `just db-up` if tests skip or fail on DB connection.
+
 ## Contract-first drafting
 
 Draft job queueing is contract-first: see [docs/contract_first_drafting.md](docs/contract_first_drafting.md). All draft paths must go through `dominion.workers.draft_queue`.
