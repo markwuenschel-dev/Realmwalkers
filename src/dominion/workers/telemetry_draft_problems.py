@@ -23,6 +23,26 @@ def _list_field(d: dict[str, object], key: str) -> list[Any]:
     return list(v) if isinstance(v, list) else []
 
 
+def _aggregate_breakdown(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Group blocker rows by (chapter_no, scene_no, required_action) with a count field."""
+    grouped: dict[tuple[int | None, int | None, str], dict[str, Any]] = {}
+    for row in rows:
+        key = (row.get("chapter_no"), row.get("scene_no"), row.get("required_action", ""))
+        if key not in grouped:
+            grouped[key] = {**row, "count": 0}
+        grouped[key]["count"] += 1
+    return sorted(
+        grouped.values(),
+        key=lambda r: (
+            r.get("chapter_no") is None,
+            r.get("chapter_no"),
+            r.get("scene_no") is None,
+            r.get("scene_no"),
+            r.get("required_action", ""),
+        ),
+    )
+
+
 async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> dict[str, Any] | None:
     chapters = list(
         (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
@@ -32,7 +52,7 @@ async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> d
     if not chapters:
         return None
 
-    breakdown: list[dict[str, Any]] = []
+    raw_breakdown: list[dict[str, Any]] = []
     blocker_count = 0
     for ch in chapters:
         try:
@@ -61,7 +81,7 @@ async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> d
             issues.append(f"{_int_field(jobs, 'malformed')} malformed draft job(s)")
         for b in readiness.blockers:
             blocker_count += 1
-            breakdown.append(
+            raw_breakdown.append(
                 {
                     "chapter_id": str(ch.id),
                     "chapter_no": ch.chapter_no,
@@ -73,7 +93,7 @@ async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> d
             )
         if not readiness.blockers and issues:
             blocker_count += 1
-            breakdown.append(
+            raw_breakdown.append(
                 {
                     "chapter_id": str(ch.id),
                     "chapter_no": ch.chapter_no,
@@ -83,6 +103,7 @@ async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> d
                 }
             )
 
+    breakdown = _aggregate_breakdown(raw_breakdown)
     if not breakdown:
         return None
 

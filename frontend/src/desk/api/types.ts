@@ -9,7 +9,16 @@ type S = components["schemas"];
 
 export type ModelSettingOut = S["ModelSettingOut"];
 export type ModelSettingsOut = S["ModelSettingsOut"];
-export type AgentOpsOut = S["AgentOpsOut"];
+export type AgentOpsOut = S["AgentOpsOut"] & { providers?: ProviderOut[] };
+export type ProviderOut = {
+  id: string;
+  label: string;
+  status: "active" | "coming_soon";
+  description?: string;
+};
+export type TelemetryDeleteOut = {
+  deleted_calls: number;
+};
 export type AgentGlobalsOut = S["AgentGlobalsOut"];
 export type AgentOpsAgentOut = S["AgentOpsAgentOut"];
 export type AgentPresetOut = S["AgentPresetOut"];

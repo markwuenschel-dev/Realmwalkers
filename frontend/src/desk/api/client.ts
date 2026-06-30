@@ -63,6 +63,7 @@ import type {
   SuggestionIn,
   SuggestionOut,
   SuggestionStatus,
+  TelemetryDeleteOut,
   TelemetryProblemsOut,
   ThreadBeatIn,
   ThreadIn,
@@ -292,6 +293,15 @@ export const api = {
     http<TelemetryProblemsOut>(`/books/${bookId}/telemetry/problems`),
   compareRuns: (bookId: string, runA: string, runB: string) =>
     http<RunCompareOut>(`/books/${bookId}/telemetry/compare${qs({ run_a: runA, run_b: runB })}`),
+  deleteBookTelemetry: (bookId: string) =>
+    http<TelemetryDeleteOut>(`/books/${bookId}/telemetry`, { method: "DELETE" }),
+  deleteRunTelemetry: (bookId: string, runId: string) =>
+    http<TelemetryDeleteOut>(`/books/${bookId}/telemetry/runs/${runId}`, { method: "DELETE" }),
+  deleteAllTelemetry: (confirm: string) =>
+    http<TelemetryDeleteOut>("/telemetry", {
+      method: "DELETE",
+      body: JSON.stringify({ confirm }),
+    }),
 
   // --- draft-attempt provenance (preserved prose stages for a scene) ------------------------------
   draftAttempts: (sceneId: string) => http<DraftAttemptOut[]>(`/scenes/${sceneId}/draft-attempts`),

@@ -2233,6 +2233,144 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Clear Book Telemetry",
+        "description": "Delete all llm_calls rows for one book.",
+        "operationId": "clear_book_telemetry_books__book_id__telemetry_delete",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryDeleteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/telemetry/runs/{run_id}": {
+      "delete": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Clear Run Telemetry",
+        "description": "Delete llm_calls for one run scoped to a book.",
+        "operationId": "clear_run_telemetry_books__book_id__telemetry_runs__run_id__delete",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryDeleteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/telemetry": {
+      "delete": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Clear All Telemetry",
+        "description": "Delete every llm_calls row. Requires confirm phrase to prevent accidents.",
+        "operationId": "clear_all_telemetry_telemetry_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlobalTelemetryDeleteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryDeleteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/runs/{run_id}/telemetry": {
@@ -5031,6 +5169,14 @@
           },
           "globals": {
             "$ref": "#/components/schemas/AgentGlobalsOut"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/AgentProviderOut"
+            },
+            "type": "array",
+            "title": "Providers",
+            "default": []
           }
         },
         "type": "object",
@@ -5350,6 +5496,34 @@
           "best_for"
         ],
         "title": "AgentPresetOut"
+      },
+      "AgentProviderOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "status"
+        ],
+        "title": "AgentProviderOut"
       },
       "AgentStatsListOut": {
         "properties": {
@@ -7285,6 +7459,19 @@
           "draft_ahead"
         ],
         "title": "GateMode"
+      },
+      "GlobalTelemetryDeleteIn": {
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "title": "Confirm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "title": "GlobalTelemetryDeleteIn"
       },
       "HTTPValidationError": {
         "properties": {
@@ -10012,6 +10199,19 @@
           "rejected"
         ],
         "title": "SuggestionStatus"
+      },
+      "TelemetryDeleteOut": {
+        "properties": {
+          "deleted_calls": {
+            "type": "integer",
+            "title": "Deleted Calls"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted_calls"
+        ],
+        "title": "TelemetryDeleteOut"
       },
       "TelemetryGroupOut": {
         "properties": {

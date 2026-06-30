@@ -508,6 +508,14 @@ class TelemetryProblemsOut(BaseModel):
     healthy: bool = True
 
 
+class TelemetryDeleteOut(BaseModel):
+    deleted_calls: int
+
+
+class GlobalTelemetryDeleteIn(BaseModel):
+    confirm: str
+
+
 class StageDeltaOut(BaseModel):
     stage: str
     calls_delta: int = 0
@@ -1009,6 +1017,13 @@ class CustomPresetCreateIn(BaseModel):
     description: str | None = None
 
 
+class AgentProviderOut(BaseModel):
+    id: str
+    label: str
+    status: str
+    description: str = ""
+
+
 class AgentOpsOut(BaseModel):
     active_preset: str | None
     presets: list[AgentPresetOut]
@@ -1016,6 +1031,7 @@ class AgentOpsOut(BaseModel):
     pipeline_estimate: PipelineEstimateOut
     tiers: dict[str, str]
     globals: AgentGlobalsOut
+    providers: list[AgentProviderOut] = []
 
 
 class AgentPolicyUpdateIn(BaseModel):

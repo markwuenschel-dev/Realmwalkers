@@ -9,6 +9,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from fastapi import HTTPException
+
 from dominion.api.routers import telemetry as tel_router
 from dominion.shared.models import Book, Chapter, LlmCall
 
@@ -449,3 +452,116 @@ async def test_list_llm_calls_problems_only(db_factory):
         out = await tel_router.list_llm_calls(s, book_id=book.id, problems_only=True)
         assert out.total == 1
         assert out.calls[0].truncated is True
+
+
+async def test_delete_book_telemetry(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        s.add_all(
+            [
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="drafter",
+                    model="sonnet",
+                    input_tokens=100,
+                ),
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=50,
+                ),
+            ]
+        )
+        await s.flush()
+
+        out = await tel_router.clear_book_telemetry(book.id, s)
+        assert out.deleted_calls == 2
+
+        remaining = await tel_router.list_llm_calls(s, book_id=book.id)
+        assert remaining.total == 0
+
+
+async def test_delete_run_telemetry_scoped_to_book(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        other_book = Book(title="Other")
+        s.add(other_book)
+        await s.flush()
+        run_id = uuid.uuid4()
+        s.add_all(
+            [
+                LlmCall(
+                    run_id=run_id,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="drafter",
+                    model="sonnet",
+                    input_tokens=100,
+                ),
+                LlmCall(
+                    run_id=run_id,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=50,
+                ),
+            ]
+        )
+        await s.flush()
+
+        out = await tel_router.clear_run_telemetry(book.id, run_id, s)
+        assert out.deleted_calls == 2
+        assert (await tel_router.list_llm_calls(s, book_id=book.id)).total == 0
+
+
+async def test_delete_run_telemetry_wrong_book_404(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        other = Book(title="Other")
+        s.add(other)
+        await s.flush()
+        run_id = uuid.uuid4()
+        s.add(
+            LlmCall(
+                run_id=run_id,
+                book_id=book.id,
+                chapter_id=ch.id,
+                stage="drafter",
+                model="sonnet",
+                input_tokens=100,
+            )
+        )
+        await s.flush()
+
+        with pytest.raises(HTTPException) as exc:
+            await tel_router.clear_run_telemetry(other.id, run_id, s)
+        assert exc.value.status_code == 404
+
+
+async def test_delete_all_telemetry_requires_confirm(db_factory):
+    from dominion.shared.schemas import GlobalTelemetryDeleteIn
+
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        s.add(
+            LlmCall(
+                book_id=book.id,
+                chapter_id=ch.id,
+                stage="drafter",
+                model="sonnet",
+                input_tokens=100,
+            )
+        )
+        await s.flush()
+
+        with pytest.raises(HTTPException) as exc:
+            await tel_router.clear_all_telemetry(GlobalTelemetryDeleteIn(confirm="wrong"), s)
+        assert exc.value.status_code == 400
+
+        out = await tel_router.clear_all_telemetry(GlobalTelemetryDeleteIn(confirm="DELETE_ALL_TELEMETRY"), s)
+        assert out.deleted_calls == 1
+        assert (await tel_router.list_llm_calls(s)).total == 0

@@ -17,12 +17,28 @@ async def test_get_agents_returns_presets_and_contracts(db_factory):
         out = await settings_router.get_agents(s)
         assert len(out.presets) >= 4
         assert len(out.agents) == 7
+        assert len(out.providers) == 6
+        assert out.providers[0].status == "active"
         draft = next(a for a in out.agents if a.setting == "draft_model")
         assert draft.contract.inputs
         assert draft.policy.escalation_rules
 
 
 async def test_apply_preset_sets_all_tiers_and_active(db_factory):
+    original = {a.setting_key: getattr(cfg, a.setting_key) for a in AGENTS}
+    try:
+        async with db_factory() as s:
+            out = await settings_router.apply_preset("continuity_audit", s)
+            assert out.active_preset == "continuity_audit"
+            review = next(a for a in out.agents if a.setting == "review_model")
+            assert review.policy.semantic_escalation is True
+            assert review.policy.quality_level == "quality"
+    finally:
+        for key, val in original.items():
+            setattr(cfg, key, val)
+
+
+async def test_apply_budget_preset_sets_all_tiers(db_factory):
     original = {a.setting_key: getattr(cfg, a.setting_key) for a in AGENTS}
     try:
         async with db_factory() as s:

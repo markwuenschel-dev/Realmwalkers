@@ -143,17 +143,24 @@ export function AgentRow({
           </div>
 
           <div style={css("display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px")}>
-            <label
-              style={css("display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)")}
-            >
-              <input
-                type="checkbox"
-                checked={a.policy.semantic_escalation}
-                disabled={busy}
-                onChange={(e) => onSetSemanticEscalation(a.setting, e.target.checked)}
-              />
-              Semantic escalation (canon conflict / high QA risk)
-            </label>
+            <div>
+              <label
+                style={css(
+                  "display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={a.policy.semantic_escalation}
+                  disabled={busy}
+                  onChange={(e) => onSetSemanticEscalation(a.setting, e.target.checked)}
+                />
+                Semantic escalation (canon conflict / high QA risk)
+              </label>
+              <div style={css("font-size:11px;color:var(--dim);margin-top:4px;padding-left:24px")}>
+                Default on for QA/review agents; presets may override.
+              </div>
+            </div>
             <label
               style={css("display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)")}
             >
