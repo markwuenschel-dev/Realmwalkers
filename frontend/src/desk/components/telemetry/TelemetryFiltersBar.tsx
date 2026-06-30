@@ -153,13 +153,21 @@ export function TelemetryFiltersBar({
 
   const deleteThisRun = () => {
     if (!effectiveRunId) return;
-    if (!confirm(`Delete all telemetry for run ${effectiveRunId.slice(0, 8)}…? This cannot be undone.`))
+    if (
+      !confirm(
+        `Delete all telemetry for run ${effectiveRunId.slice(0, 8)}…? This cannot be undone.`,
+      )
+    )
       return;
     void runDelete("run", () => api.deleteRunTelemetry(bookId, effectiveRunId));
   };
 
   const clearBook = () => {
-    if (!confirm("Delete all telemetry for this book? Agent health stats will reset. This cannot be undone."))
+    if (
+      !confirm(
+        "Delete all telemetry for this book? Agent health stats will reset. This cannot be undone.",
+      )
+    )
       return;
     void runDelete("book", () => api.deleteBookTelemetry(bookId));
   };
@@ -242,7 +250,9 @@ export function TelemetryFiltersBar({
               ]}
             />
             <label style={css("display:flex;flex-direction:column;gap:3px")}>
-              <span style={css("font-family:var(--mono);font-size:9px;color:var(--dim)")}>Scene</span>
+              <span style={css("font-family:var(--mono);font-size:9px;color:var(--dim)")}>
+                Scene
+              </span>
               <input
                 type="number"
                 min={1}
@@ -253,7 +263,9 @@ export function TelemetryFiltersBar({
               />
             </label>
             <label style={css("display:flex;flex-direction:column;gap:3px")}>
-              <span style={css("font-family:var(--mono);font-size:9px;color:var(--dim)")}>Stage</span>
+              <span style={css("font-family:var(--mono);font-size:9px;color:var(--dim)")}>
+                Stage
+              </span>
               <input
                 list="telemetry-stages"
                 value={stage}
@@ -263,7 +275,9 @@ export function TelemetryFiltersBar({
               />
             </label>
             <label style={css("display:flex;flex-direction:column;gap:3px")}>
-              <span style={css("font-family:var(--mono);font-size:9px;color:var(--dim)")}>Model</span>
+              <span style={css("font-family:var(--mono);font-size:9px;color:var(--dim)")}>
+                Model
+              </span>
               <input
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
@@ -332,7 +346,11 @@ export function TelemetryFiltersBar({
           >
             Data management
           </span>
-          <div style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.45")}>
+          <div
+            style={css(
+              "font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.45",
+            )}
+          >
             {effectiveRunId ? (
               <>
                 Selected run:{" "}

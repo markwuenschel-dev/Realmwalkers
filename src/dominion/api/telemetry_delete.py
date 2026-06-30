@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any, cast
 
 import structlog
 from fastapi import HTTPException
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.models import LlmCall
@@ -16,7 +18,7 @@ log = structlog.get_logger()
 
 async def delete_book_telemetry(session: AsyncSession, book_id: uuid.UUID) -> int:
     """Delete all telemetry calls for one book. Returns deleted row count."""
-    result = await session.execute(delete(LlmCall).where(LlmCall.book_id == book_id))
+    result = cast(CursorResult[Any], await session.execute(delete(LlmCall).where(LlmCall.book_id == book_id)))
     deleted = result.rowcount or 0
     log.info("telemetry.cleared", scope="book", book_id=str(book_id), deleted_calls=deleted)
     return deleted
@@ -30,7 +32,10 @@ async def delete_run_telemetry(session: AsyncSession, book_id: uuid.UUID, run_id
     if exists is None:
         raise HTTPException(status_code=404, detail="Run not found in book")
 
-    result = await session.execute(delete(LlmCall).where(LlmCall.run_id == run_id, LlmCall.book_id == book_id))
+    result = cast(
+        CursorResult[Any],
+        await session.execute(delete(LlmCall).where(LlmCall.run_id == run_id, LlmCall.book_id == book_id)),
+    )
     deleted = result.rowcount or 0
     log.info(
         "telemetry.run_deleted",
@@ -43,7 +48,7 @@ async def delete_run_telemetry(session: AsyncSession, book_id: uuid.UUID, run_id
 
 async def delete_all_telemetry(session: AsyncSession) -> int:
     """Delete every llm_calls row (global wipe). Returns deleted row count."""
-    result = await session.execute(delete(LlmCall))
+    result = cast(CursorResult[Any], await session.execute(delete(LlmCall)))
     deleted = result.rowcount or 0
     log.info("telemetry.cleared", scope="global", deleted_calls=deleted)
     return deleted

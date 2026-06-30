@@ -51,7 +51,9 @@ function ProviderCard({ provider: p }: { provider: ProviderOut }) {
       )}
     >
       <div style={css("display:flex;align-items:flex-start;justify-content:space-between;gap:8px")}>
-        <div style={css("font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink)")}>
+        <div
+          style={css("font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink)")}
+        >
           {p.label}
         </div>
         <span
