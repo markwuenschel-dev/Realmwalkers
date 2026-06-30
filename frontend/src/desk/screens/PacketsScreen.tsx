@@ -222,6 +222,33 @@ export default function PacketsScreen() {
               Edit packet
             </button>
           )}
+          {packet && !editing && !proposing && (
+            <button
+              disabled={busy === "clear"}
+              onClick={async () => {
+                if (!chapterId) return;
+                if (
+                  !confirm(
+                    "Clear this chapter packet and all derived scene packets? You will need to re-propose and re-derive before drafting.",
+                  )
+                )
+                  return;
+                setBusy("clear");
+                setError(null);
+                try {
+                  await api.deletePacket(chapterId);
+                  setPacket(null);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setBusy(null);
+                }
+              }}
+              style={btn(busy !== "clear", "var(--bg3)", "var(--warn)")}
+            >
+              {busy === "clear" ? "Clearing…" : "Clear packet"}
+            </button>
+          )}
           <button
             disabled={!chapterId || !hasOutline || proposing || editing}
             title={hasOutline ? undefined : "Outline this chapter first (Inbox → plan a chapter)"}

@@ -10,8 +10,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from dominion.shared.agent_policy import get_runtime_policy
 from dominion.shared.config import settings
 from dominion.shared.enums import PacketVerdict
+from dominion.shared.risk_scorer import qa_result_preferred, score_qa_result, should_semantic_escalate
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
 from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
@@ -63,6 +65,11 @@ def parse_qa(raw: str) -> dict[str, Any] | None:
 async def qa_packet(packet: dict[str, Any], *, budget: TokenBudget) -> dict[str, Any] | None:
     """One bounded call -> {verdict, residual_risks, issues}, or None on a malformed response."""
 
+    def _semantic_escalate(value: dict[str, Any] | None) -> bool:
+        if value is None or not get_runtime_policy("packet_qa_model").semantic_escalation:
+            return False
+        return should_semantic_escalate(score_qa_result(value))
+
     async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, Any]:
         raw, usage = await llm.complete(
             model=model,
@@ -81,5 +88,7 @@ async def qa_packet(packet: dict[str, Any], *, budget: TokenBudget) -> dict[str,
         attempt_fn=_attempt,
         is_success=lambda v: v is not None,
         policy=policy_for_setting("packet_qa_model"),
+        semantic_escalate=_semantic_escalate,
+        pick_preferred=qa_result_preferred,
     )
     return result if isinstance(result, dict) else None

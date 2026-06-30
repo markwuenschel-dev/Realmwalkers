@@ -81,6 +81,9 @@ async def set_agent_policy(setting: str, body: AgentPolicyUpdateIn, session: Ses
             setting,
             fallback_tier=body.fallback_tier,
             never_fallback=body.never_fallback,
+            semantic_escalation=body.semantic_escalation,
+            quality_level=body.quality_level,
+            permissions=body.permissions,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

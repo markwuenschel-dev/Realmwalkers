@@ -15,10 +15,11 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
+from dominion.api.packet_delete import hard_delete_chapter_packets
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import PacketConfidence, PacketStatus
 from dominion.shared.models import Chapter, ChapterPacket
-from dominion.shared.schemas import PacketOut, PacketProposeOut, PacketUpdateIn
+from dominion.shared.schemas import DeleteChapterPacketOut, PacketOut, PacketProposeOut, PacketUpdateIn
 from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.packet import approval_policy as packet_approval
@@ -121,6 +122,21 @@ async def update_packet(chapter_id: uuid.UUID, body: PacketUpdateIn, session: Se
     await session.commit()
     await session.refresh(row)
     return packet_approval.enrich_packet_out(row)
+
+
+@router.delete("/{chapter_id}/packet", response_model=DeleteChapterPacketOut)
+async def delete_packet(chapter_id: uuid.UUID, session: SessionDep) -> DeleteChapterPacketOut:
+    """Clear the chapter packet and all derived scene packets for this chapter."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    row = await _latest(session, chapter_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+    cp_deleted, sp_deleted = await hard_delete_chapter_packets(session, chapter_id)
+    await session.commit()
+    log.info("packet.deleted", chapter=str(chapter_id), chapter_packets=cp_deleted, scene_packets=sp_deleted)
+    return DeleteChapterPacketOut(deleted_chapter_packets=cp_deleted, deleted_scene_packets=sp_deleted)
 
 
 @router.post("/{chapter_id}/packet/approve", response_model=PacketOut)

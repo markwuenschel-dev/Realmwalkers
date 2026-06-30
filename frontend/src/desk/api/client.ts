@@ -192,6 +192,11 @@ export const api = {
     http<PacketOut>(`/chapters/${chapterId}/packet`, { method: "PUT", body: JSON.stringify(body) }),
   approvePacket: (chapterId: string) =>
     http<PacketOut>(`/chapters/${chapterId}/packet/approve`, { method: "POST" }),
+  deletePacket: (chapterId: string) =>
+    http<{ deleted_chapter_packets: number; deleted_scene_packets: number }>(
+      `/chapters/${chapterId}/packet`,
+      { method: "DELETE" },
+    ),
 
   // --- scene packets (scene-local contract; derive runs Author+QA per scene in the background) -----
   scenePackets: (chapterId: string) =>
@@ -220,6 +225,12 @@ export const api = {
     http<ScenePacketOut[]>(`/chapters/${chapterId}/scene-packets/mark-stale`, {
       method: "POST",
       body: JSON.stringify({ packet_ids: packetIds ?? null }),
+    }),
+  deleteScenePacket: (id: string) =>
+    http<{ deleted: string; jobs_purged: number }>(`/scene-packets/${id}`, { method: "DELETE" }),
+  deleteScenePackets: (chapterId: string) =>
+    http<{ deleted: number; jobs_purged: number }>(`/chapters/${chapterId}/scene-packets`, {
+      method: "DELETE",
     }),
 
   // --- LLM call telemetry (persisted per-call cost/cache, aggregated) -----------------------------
@@ -309,7 +320,13 @@ export const api = {
     http<AgentOpsOut>(`/settings/presets/${encodeURIComponent(presetId)}`, { method: "PUT" }),
   setAgentPolicy: (
     setting: string,
-    body: { fallback_tier?: string | null; never_fallback?: string[] | null },
+    body: {
+      fallback_tier?: string | null;
+      never_fallback?: string[] | null;
+      semantic_escalation?: boolean | null;
+      quality_level?: string | null;
+      permissions?: { auto_run?: boolean } | null;
+    },
   ) =>
     http<AgentOpsOut>(`/settings/agents/${encodeURIComponent(setting)}/policy`, {
       method: "PUT",

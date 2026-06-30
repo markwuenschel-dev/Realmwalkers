@@ -17,6 +17,7 @@ import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from dominion.shared import agent_ops
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
@@ -53,6 +54,7 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
     session_factory is injectable so tests can drive the worker against a test database.
     """
     async with session_factory() as session:
+        await agent_ops.apply_model_overrides(session)
         job = await claim_one_job(session)
         if job is None:
             await session.commit()

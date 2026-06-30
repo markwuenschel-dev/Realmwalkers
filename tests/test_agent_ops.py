@@ -9,7 +9,7 @@ from dominion.api.routers import settings as settings_router
 from dominion.shared.agent_registry import AGENTS
 from dominion.shared.config import settings as cfg
 from dominion.shared.models import AgentOpsState
-from dominion.shared.schemas import AgentPolicyUpdateIn, ModelSettingUpdateIn
+from dominion.shared.schemas import AgentPermissionsPatchIn, AgentPolicyUpdateIn, ModelSettingUpdateIn
 
 
 async def test_get_agents_returns_presets_and_contracts(db_factory):
@@ -79,3 +79,36 @@ async def test_apply_preset_unknown_raises(db_factory):
     async with db_factory() as s:
         with pytest.raises(HTTPException):
             await settings_router.apply_preset("nope", s)
+
+
+async def test_policy_quality_and_semantic_escalation(db_factory):
+    async with db_factory() as s:
+        out = await settings_router.set_agent_policy(
+            "draft_model",
+            AgentPolicyUpdateIn(quality_level="quality", semantic_escalation=False),
+            s,
+        )
+        draft = next(a for a in out.agents if a.setting == "draft_model")
+        assert draft.policy.quality_level == "quality"
+        assert draft.policy.semantic_escalation is False
+        assert draft.contract.temperature == 0.5
+
+
+async def test_policy_permissions_patch_merges(db_factory):
+    async with db_factory() as s:
+        out = await settings_router.set_agent_policy(
+            "enrich_model",
+            AgentPolicyUpdateIn(permissions=AgentPermissionsPatchIn(auto_run=False)),
+            s,
+        )
+        enrich = next(a for a in out.agents if a.setting == "enrich_model")
+        assert enrich.permissions.auto_run is False
+
+
+async def test_pipeline_estimate_includes_usd(db_factory):
+    async with db_factory() as s:
+        out = await settings_router.get_agents(s)
+        assert out.pipeline_estimate.estimated_usd_per_chapter is not None
+        assert out.pipeline_estimate.estimated_usd_per_chapter > 0
+        draft = next(a for a in out.agents if a.setting == "draft_model")
+        assert draft.estimate.estimated_usd_per_chapter is not None

@@ -1462,6 +1462,48 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "packets"
+        ],
+        "summary": "Delete Packet",
+        "description": "Clear the chapter packet and all derived scene packets for this chapter.",
+        "operationId": "delete_packet_chapters__chapter_id__packet_delete",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteChapterPacketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/chapters/{chapter_id}/packet/status": {
@@ -1685,6 +1727,48 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Delete Scene Packets",
+        "description": "Clear all scene packets for a chapter.",
+        "operationId": "delete_scene_packets_chapters__chapter_id__scene_packets_delete",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteScenePacketsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/scene-packets/{scene_packet_id}": {
@@ -1765,6 +1849,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ScenePacketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Delete Scene Packet",
+        "description": "Hard-delete one scene packet and detach dependent beats/jobs/scenes.",
+        "operationId": "delete_scene_packet_scene_packets__scene_packet_id__delete",
+        "parameters": [
+          {
+            "name": "scene_packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Packet Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteScenePacketOut"
                 }
               }
             }
@@ -4600,6 +4726,28 @@
           "typical_calls_per_chapter": {
             "type": "integer",
             "title": "Typical Calls Per Chapter"
+          },
+          "estimated_usd_per_chapter": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Usd Per Chapter"
+          },
+          "estimated_latency_sec_per_chapter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Latency Sec Per Chapter"
           }
         },
         "type": "object",
@@ -4762,6 +4910,89 @@
         "type": "object",
         "title": "AgentPermissionsOut"
       },
+      "AgentPermissionsPatchIn": {
+        "properties": {
+          "auto_run": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Run"
+          },
+          "require_approval": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Require Approval"
+          },
+          "can_modify_packet": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Modify Packet"
+          },
+          "can_block_downstream": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Block Downstream"
+          },
+          "can_write_summaries": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Write Summaries"
+          },
+          "can_update_canon": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Update Canon"
+          },
+          "can_only_suggest": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Only Suggest"
+          }
+        },
+        "type": "object",
+        "title": "AgentPermissionsPatchIn"
+      },
       "AgentPolicyOut": {
         "properties": {
           "setting": {
@@ -4820,6 +5051,16 @@
             "type": "array",
             "title": "Escalation Rules",
             "default": []
+          },
+          "semantic_escalation": {
+            "type": "boolean",
+            "title": "Semantic Escalation",
+            "default": true
+          },
+          "quality_level": {
+            "type": "string",
+            "title": "Quality Level",
+            "default": "balanced"
           }
         },
         "type": "object",
@@ -4855,6 +5096,38 @@
               }
             ],
             "title": "Never Fallback"
+          },
+          "semantic_escalation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Escalation"
+          },
+          "quality_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Level"
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentPermissionsPatchIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6053,6 +6326,18 @@
             "format": "uuid",
             "title": "Chapter Id"
           },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
           "totals": {
             "$ref": "#/components/schemas/TelemetryTotals",
             "default": {
@@ -6337,6 +6622,23 @@
         "title": "DecisionIn",
         "description": "POST body for approve / deny / revise (DESIGN \u00a79)."
       },
+      "DeleteChapterPacketOut": {
+        "properties": {
+          "deleted_chapter_packets": {
+            "type": "integer",
+            "title": "Deleted Chapter Packets",
+            "default": 0
+          },
+          "deleted_scene_packets": {
+            "type": "integer",
+            "title": "Deleted Scene Packets",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DeleteChapterPacketOut",
+        "description": "Result of clearing chapter packets (and their scene packets) for one chapter."
+      },
       "DeleteSceneOut": {
         "properties": {
           "deleted": {
@@ -6356,6 +6658,43 @@
         ],
         "title": "DeleteSceneOut",
         "description": "Result of hard-deleting one scene version."
+      },
+      "DeleteScenePacketOut": {
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deleted"
+          },
+          "jobs_purged": {
+            "type": "integer",
+            "title": "Jobs Purged",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "DeleteScenePacketOut",
+        "description": "Result of hard-deleting one scene packet."
+      },
+      "DeleteScenePacketsOut": {
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted",
+            "default": 0
+          },
+          "jobs_purged": {
+            "type": "integer",
+            "title": "Jobs Purged",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DeleteScenePacketsOut",
+        "description": "Result of clearing scene packets for one chapter."
       },
       "DocMeta": {
         "properties": {
@@ -7589,6 +7928,39 @@
           "total_estimated_calls": {
             "type": "integer",
             "title": "Total Estimated Calls"
+          },
+          "estimated_usd_per_chapter": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Usd Per Chapter"
+          },
+          "estimated_usd_low_per_chapter": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Usd Low Per Chapter"
+          },
+          "estimated_latency_sec_per_chapter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Latency Sec Per Chapter"
           }
         },
         "type": "object",

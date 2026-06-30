@@ -60,6 +60,28 @@ export default function SettingsScreen() {
     }
   };
 
+  const patchPolicy = async (setting: string, patch: Parameters<typeof api.setAgentPolicy>[1]) => {
+    setBusy(setting);
+    setError(null);
+    try {
+      const updated = await api.setAgentPolicy(setting, patch);
+      setData(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const setQuality = (setting: string, level: string) =>
+    void patchPolicy(setting, { quality_level: level });
+
+  const setSemanticEscalation = (setting: string, enabled: boolean) =>
+    void patchPolicy(setting, { semantic_escalation: enabled });
+
+  const setAutoRun = (setting: string, enabled: boolean) =>
+    void patchPolicy(setting, { permissions: { auto_run: enabled } });
+
   const applyPreset = async (presetId: string) => {
     setPresetBusy(true);
     setError(null);
@@ -141,6 +163,9 @@ export default function SettingsScreen() {
                 busy={busy === a.setting}
                 onPickTier={pickTier}
                 onSetFallback={setFallback}
+                onSetQuality={setQuality}
+                onSetSemanticEscalation={setSemanticEscalation}
+                onSetAutoRun={setAutoRun}
               />
             ))}
           </div>

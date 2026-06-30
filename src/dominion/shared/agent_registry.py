@@ -30,6 +30,12 @@ FALLBACK_ATTR: dict[str, str] = {
 }
 
 STRUCTURAL_ESCALATION_TRIGGERS: tuple[str, ...] = ("truncated", "unparseable")
+SEMANTIC_ESCALATION_TRIGGERS: tuple[str, ...] = (
+    "canon_conflict",
+    "high_qa_risk",
+    "reviewer_hard_flags",
+)
+QA_ESCALATION_TRIGGERS: tuple[str, ...] = STRUCTURAL_ESCALATION_TRIGGERS + SEMANTIC_ESCALATION_TRIGGERS
 
 
 @dataclass(frozen=True)
@@ -178,6 +184,7 @@ AGENTS: tuple[AgentDefinition, ...] = (
         permissions=AgentPermissions(can_block_downstream=True, can_only_suggest=True),
         default_primary_tier="haiku",
         default_fallback_tier="sonnet",
+        escalation_triggers=QA_ESCALATION_TRIGGERS,
         estimate=AgentEstimate(cost_band="low", speed_band="fast", typical_calls_per_chapter=1),
     ),
     AgentDefinition(
@@ -211,6 +218,7 @@ AGENTS: tuple[AgentDefinition, ...] = (
         permissions=AgentPermissions(can_block_downstream=True, can_only_suggest=True),
         default_primary_tier="haiku",
         default_fallback_tier="sonnet",
+        escalation_triggers=QA_ESCALATION_TRIGGERS,
         estimate=AgentEstimate(cost_band="low", speed_band="fast", typical_calls_per_chapter=12),
     ),
 )

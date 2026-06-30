@@ -46,7 +46,7 @@ from dominion.workers.telemetry_agg import (
     scene_status,
     sort_calls,
 )
-from dominion.workers.telemetry_cost import estimate_call_cost_usd
+from dominion.workers.telemetry_cost import estimate_calls_cost_usd
 from dominion.workers.telemetry_diagnostics import build_problems
 
 router = APIRouter(tags=["telemetry"])
@@ -148,7 +148,7 @@ def _call_out(call: LlmCall, links: LlmCallLinksOut | None = None) -> LlmCallOut
         error=call.error,
         created_at=call.created_at,
         metadata=meta or None,
-        estimated_cost_usd=round(estimate_call_cost_usd(call), 6),
+        estimated_cost_usd=round(estimate_calls_cost_usd([call]), 6),
         links=links or LlmCallLinksOut(chapter_id=call.chapter_id, run_id=call.run_id),
     )
 
@@ -227,7 +227,10 @@ async def chapter_telemetry(chapter_id: uuid.UUID, session: SessionDep) -> Chapt
         _scene_out(scene_no, calls)
         for scene_no, calls in sorted(by_scene.items(), key=lambda kv: (kv[0] is None, kv[0]))
     ]
-    return ChapterTelemetryOut(chapter_id=chapter_id, totals=TelemetryTotals(**_totals(rows)), scenes=scenes)
+    run_id = rows[0].run_id if rows else None
+    return ChapterTelemetryOut(
+        chapter_id=chapter_id, run_id=run_id, totals=TelemetryTotals(**_totals(rows)), scenes=scenes
+    )
 
 
 @router.get("/books/{book_id}/telemetry", response_model=BookTelemetryOut)

@@ -9,9 +9,10 @@ from conftest import seed_scene_packet
 from sqlalchemy import select
 
 from dominion.api.routers import scenes as scenes_router
-from dominion.shared.enums import Decision, JobKind, JobStatus, Severity
+from dominion.shared.enums import BeatStatus, Decision, JobKind, JobStatus, Severity
 from dominion.shared.models import (
     Approval,
+    Beat,
     Book,
     Chapter,
     Critique,
@@ -20,6 +21,7 @@ from dominion.shared.models import (
     Job,
     KnowledgeFact,
     Scene,
+    ScenePacket,
     Summary,
 )
 
@@ -125,3 +127,30 @@ async def test_delete_scene_purges_draft_jobs_for_slot(db_factory):
             .all()
         )
         assert remaining == []
+
+
+async def test_delete_scene_marks_scene_packet_stale(db_factory):
+    from dominion.shared.enums import ScenePacketStatus
+
+    async with db_factory() as s:
+        book = Book(title="Stale")
+        s.add(book)
+        await s.flush()
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
+        s.add(ch)
+        await s.flush()
+        scene = Scene(chapter_id=ch.id, scene_no=1, prose="p", version=1)
+        s.add(scene)
+        await s.flush()
+        beat = Beat(chapter_id=ch.id, scene_no=1, status=BeatStatus.APPROVED, beat_text="b1")
+        s.add(beat)
+        await s.flush()
+        sp = await seed_scene_packet(s, chapter=ch, beat=beat)
+        assert sp.status == ScenePacketStatus.APPROVED
+
+        await scenes_router.delete_scene(scene.id, s)
+
+        refreshed = await s.get(ScenePacket, sp.id)
+        assert refreshed is not None
+        assert refreshed.status == ScenePacketStatus.STALE
+        assert refreshed.stale_reason == "scene deleted"

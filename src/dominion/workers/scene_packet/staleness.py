@@ -21,6 +21,32 @@ from dominion.workers.scene_packet import hash as hash_mod
 from dominion.workers.scene_packet import inputs as sp_inputs
 
 
+async def mark_stale_after_scene_delete(session: AsyncSession, *, chapter_id: uuid.UUID, scene_no: int) -> int:
+    """Mark the scene packet at scene_no stale and recompute drift for downstream packets.
+
+    Called after hard_delete_scene removes prose so prior-scene keys change for later slots."""
+    marked = 0
+    slot_packets = (
+        (
+            await session.execute(
+                select(ScenePacket).where(
+                    ScenePacket.chapter_id == chapter_id,
+                    ScenePacket.scene_no == scene_no,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for sp in slot_packets:
+        if sp.status != ScenePacketStatus.BLOCKED:
+            sp.status = ScenePacketStatus.STALE
+            sp.stale_reason = "scene deleted"
+            marked += 1
+    marked += await recompute_and_mark(session, chapter_id=chapter_id)
+    return marked
+
+
 async def recompute_and_mark(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
     """Recompute each non-blocked ScenePacket's source_hash for the chapter; mark drifted ones STALE.
     Returns the number newly marked stale. The caller commits."""
