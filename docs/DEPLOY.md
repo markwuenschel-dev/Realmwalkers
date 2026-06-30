@@ -1,17 +1,16 @@
 # Deploy — Railway (single service)
 
-The whole app ships as **one container**: the Dockerfile builds the React frontend and runs FastAPI,
-which serves the built SPA *and* the API from the same origin. The frontend calls the API with
-relative paths — so there's no separate API URL, no CORS, and no `localhost`. You get one Railway URL
-that just works.
+The whole app ships as **one container**: the Dockerfile builds the Next.js frontend (standalone
+output) and runs FastAPI alongside it. The browser loads the desk from Next and calls same-origin
+`/api/desk/*`, which the Next BFF proxies to FastAPI — so there's no separate API URL, no CORS, and
+no `localhost`. You get one Railway URL that just works.
 
 ## What's in the repo for this
-- `Dockerfile` — builds `frontend/dist`, then runs `uvicorn` serving the SPA + API.
-- `railway.json` — tells Railway to build the Dockerfile; healthcheck `/health`; runs `init_db.py` on boot.
+- `Dockerfile` — builds the Next.js standalone server (`pnpm build`), installs Python deps via
+  `uv sync --frozen`, runs FastAPI + Next in one container (Python 3.14, Node 24).
+- `railway.json` — tells Railway to build the Dockerfile; runs `init_db.py` on boot.
 - `.dockerignore` — keeps the build context lean.
-- `api/main.py` serves `frontend/dist` (guarded, so local dev is unaffected).
 - `shared/config.py` accepts a bare `DATABASE_URL` (Railway-style) and normalizes the scheme to asyncpg.
-- `desk/api/client.ts` uses a relative API base in production builds.
 
 ## One-time setup on Railway
 1. **New Project → Deploy from GitHub repo →** pick `Realmwalkers`. Railway detects the Dockerfile.
@@ -35,4 +34,4 @@ that just works.
   automatically. To migrate existing data: `pg_dump` the local volume and restore into the Railway
   Postgres (ask and this can be scripted once the local DB is running).
 - **Cost:** Railway is usage-based (~$5/mo hobby tier) on top of your own Anthropic API usage.
-- **Local dev is unchanged:** `dev.sh` still runs Vite + uvicorn (now bound to `0.0.0.0` for LAN access).
+- **Local dev:** `just api` + `just fe-dev` (uv + pnpm), or `dev.sh` if you use it.

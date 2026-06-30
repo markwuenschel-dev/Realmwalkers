@@ -1,7 +1,12 @@
 # Keep the build context small + deterministic (deps are reinstalled in the image).
 .git
 .claude
+.cursor
+.agents
+.github
 .venv
+frontend/playwright-report
+frontend/test-results
 **/node_modules
 **/.next
 frontend/dist

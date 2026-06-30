@@ -3,12 +3,10 @@
 # 127.0.0.1:8000 — so there is still no separate API host, no CORS, and no "localhost" in the client.
 
 # --- 1) build the Next.js frontend -> standalone server -----------------------------------------
-# Node 24 (current LTS). Keep this major in sync with the runtime stage's NodeSource setup_24.x and
-# with .github/workflows/ci.yml (node-version "24").
+# Node 24 (current LTS). Keep this major in sync with .github/workflows/ci.yml (node-version "24").
 FROM node:24-slim AS frontend
 WORKDIR /app/frontend
-# The frontend uses pnpm (pnpm-lock.yaml, no package-lock.json); install pnpm 10 to match CI.
-RUN npm install -g pnpm@10
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
@@ -16,7 +14,7 @@ COPY frontend/ ./
 RUN pnpm build
 
 # --- 2) python + node runtime --------------------------------------------------------------------
-FROM python:3.12-slim AS app
+FROM python:3.14-slim AS app
 WORKDIR /app
 # Next serves the public $PORT (Railway sets PORT=8000); FastAPI runs on a distinct internal port so
 # the two never collide. API_BASE points the BFF at that internal port.
@@ -26,20 +24,18 @@ ENV PYTHONUNBUFFERED=1 \
     HOSTNAME=0.0.0.0 \
     API_BASE=http://127.0.0.1:8001
 
-# Node 24 runtime (runs the Next standalone server) alongside Python — matches the build stage above.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && apt-get purge -y curl && apt-get autoremove -y \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Runtime deps only (we run from source, so repo-relative paths — series/, book1/ — resolve under
-# /app). Keep in sync with pyproject.toml [project.dependencies].
-RUN pip install --no-cache-dir \
-    "fastapi>=0.115" "uvicorn[standard]>=0.32" "sqlalchemy[asyncio]>=2.0" "asyncpg>=0.30" \
-    "pgvector>=0.3" "pydantic>=2.9" "pydantic-settings>=2.6" "anthropic>=0.40" "structlog>=24.4" \
-    "python-dotenv>=1.0" "httpx>=0.27"
+# Node 24 runtime (runs the Next standalone server) — copied from the frontend build stage.
+COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+ENV PATH="/app/.venv/bin:$PATH"
 
 COPY src/ ./src/
 COPY scripts/ ./scripts/
