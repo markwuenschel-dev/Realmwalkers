@@ -16,7 +16,15 @@ export type TelemetryDrawerView =
   | { kind: "scene"; runId: string; sceneNo: number }
   | { kind: "call"; callId: string }
   | { kind: "compare"; runA: string; runB: string; bookId: string }
-  | { kind: "filtered"; label: string; bookId: string; filters: LlmCallFilters };
+  | { kind: "filtered"; label: string; bookId: string; filters: LlmCallFilters }
+  | {
+      kind: "chapter";
+      chapterId: string;
+      bookId: string;
+      chapterNo?: number | null;
+      title?: string | null;
+    }
+  | { kind: "draft_readiness"; bookId: string };
 
 export type DrawerNav = {
   view: TelemetryDrawerView;
@@ -53,6 +61,12 @@ export function groupLabel(view: TelemetryDrawerView): string {
       return "Compare runs";
     case "filtered":
       return view.label;
+    case "chapter":
+      return view.chapterNo != null
+        ? `Chapter ${view.chapterNo}${view.title ? ` · ${view.title}` : ""}`
+        : "Chapter";
+    case "draft_readiness":
+      return "Draft readiness";
     default:
       return "Telemetry";
   }

@@ -4337,7 +4337,7 @@
           "settings"
         ],
         "summary": "Apply Preset",
-        "description": "Apply a built-in preset to all agent roles.",
+        "description": "Apply a built-in or saved custom preset to all agent roles.",
         "operationId": "apply_preset_settings_presets__preset_id__put",
         "parameters": [
           {
@@ -4350,6 +4350,131 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOpsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Delete Custom Preset",
+        "description": "Delete a user-saved custom preset (user:\u2026 ids only).",
+        "operationId": "delete_custom_preset_settings_presets__preset_id__delete",
+        "parameters": [
+          {
+            "name": "preset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Preset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOpsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/presets/custom": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Save Custom Preset",
+        "description": "Save the current agent ops configuration as a named custom preset.",
+        "operationId": "save_custom_preset_settings_presets_custom_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomPresetCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOpsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/agents/globals": {
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Set Agent Globals",
+        "description": "Update global scene token and wall-clock budgets.",
+        "operationId": "set_agent_globals_settings_agents_globals_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentGlobalsUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4455,7 +4580,7 @@
           "settings"
         ],
         "summary": "Smoke Test",
-        "description": "Offline fixture smoke test \u2014 no API spend.",
+        "description": "Offline fixture smoke test, or optional live API pings with cost warning.",
         "operationId": "smoke_test_settings_agents_smoke_test_post",
         "requestBody": {
           "content": {
@@ -4758,6 +4883,52 @@
         ],
         "title": "AgentEstimateOut"
       },
+      "AgentGlobalsOut": {
+        "properties": {
+          "scene_token_budget": {
+            "type": "integer",
+            "title": "Scene Token Budget"
+          },
+          "scene_time_budget_s": {
+            "type": "integer",
+            "title": "Scene Time Budget S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scene_token_budget",
+          "scene_time_budget_s"
+        ],
+        "title": "AgentGlobalsOut"
+      },
+      "AgentGlobalsUpdateIn": {
+        "properties": {
+          "scene_token_budget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Token Budget"
+          },
+          "scene_time_budget_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Time Budget S"
+          }
+        },
+        "type": "object",
+        "title": "AgentGlobalsUpdateIn"
+      },
       "AgentOpsAgentOut": {
         "properties": {
           "setting": {
@@ -4857,6 +5028,9 @@
             },
             "type": "object",
             "title": "Tiers"
+          },
+          "globals": {
+            "$ref": "#/components/schemas/AgentGlobalsOut"
           }
         },
         "type": "object",
@@ -4865,7 +5039,8 @@
           "presets",
           "agents",
           "pipeline_estimate",
-          "tiers"
+          "tiers",
+          "globals"
         ],
         "title": "AgentOpsOut"
       },
@@ -5158,6 +5333,11 @@
           "best_for": {
             "type": "string",
             "title": "Best For"
+          },
+          "is_custom": {
+            "type": "boolean",
+            "title": "Is Custom",
+            "default": false
           }
         },
         "type": "object",
@@ -6566,6 +6746,30 @@
           "severity"
         ],
         "title": "CritiqueOut"
+      },
+      "CustomPresetCreateIn": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "CustomPresetCreateIn"
       },
       "Decision": {
         "type": "string",
@@ -9560,6 +9764,11 @@
               }
             ],
             "title": "Agents"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "default": false
           }
         },
         "type": "object",
@@ -9577,6 +9786,44 @@
           "all_passed": {
             "type": "boolean",
             "title": "All Passed"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "offline"
+          },
+          "estimated_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Usd"
+          },
+          "actual_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Cost Usd"
+          },
+          "live_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Warning"
           }
         },
         "type": "object",

@@ -10,6 +10,7 @@ type S = components["schemas"];
 export type ModelSettingOut = S["ModelSettingOut"];
 export type ModelSettingsOut = S["ModelSettingsOut"];
 export type AgentOpsOut = S["AgentOpsOut"];
+export type AgentGlobalsOut = S["AgentGlobalsOut"];
 export type AgentOpsAgentOut = S["AgentOpsAgentOut"];
 export type AgentPresetOut = S["AgentPresetOut"];
 export type AgentPolicyOut = S["AgentPolicyOut"];

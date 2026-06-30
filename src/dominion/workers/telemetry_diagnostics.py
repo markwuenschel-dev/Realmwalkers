@@ -6,7 +6,7 @@ import uuid
 from typing import Any
 
 from dominion.shared.models import LlmCall
-from dominion.workers.telemetry_agg import PRIME_STAGES, group_calls
+from dominion.workers.telemetry_agg import PRIME_STAGES, call_metadata, group_calls
 
 # Prime calls below this input token count likely did not write a meaningful cache breakpoint.
 _PRIME_MIN_INPUT_TOKENS = 1024
@@ -39,14 +39,26 @@ def detect_truncations(calls: list[LlmCall]) -> dict[str, Any] | None:
     if not truncated:
         return None
     by_stage = group_calls(truncated, lambda c: c.stage)
-    breakdown = [
-        {
+    breakdown = []
+    for stage, t in by_stage:
+        stage_calls = [c for c in truncated if c.stage == stage]
+        meta0 = call_metadata(stage_calls[0]) or {}
+        stop = meta0.get("stop_reason")
+        max_tok = meta0.get("max_tokens")
+        entry: dict[str, Any] = {
             "stage": stage,
             "count": t["calls"],
-            "scenes": sorted({c.scene_no for c in truncated if c.stage == stage and c.scene_no is not None}),
+            "scenes": sorted({c.scene_no for c in stage_calls if c.scene_no is not None}),
+            "stop_reason": stop,
+            "max_tokens": max_tok,
         }
-        for stage, t in by_stage
-    ]
+        if stage.startswith("scene_packet"):
+            entry["recommended_action"] = "Increase scene_packet max_tokens or shorten chapter prefix."
+        elif stage == "drafter":
+            entry["recommended_action"] = "Increase draft max_tokens or reduce scene context."
+        else:
+            entry["recommended_action"] = "Inspect call detail; increase max_tokens or shorten prompt."
+        breakdown.append(entry)
     return _problem(
         kind="truncation",
         severity="warn",

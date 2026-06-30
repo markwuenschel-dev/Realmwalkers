@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -29,6 +30,7 @@ const CONFIDENCE_VAR: Record<string, string> = { green: "--good", yellow: "--war
 export default function PacketsScreen() {
   const { t } = useDesk();
   const data = useDeskData();
+  const searchParams = useSearchParams();
   const chapters = useMemo(
     () => [...data.chapters].sort((a, b) => a.chapter_no - b.chapter_no),
     [data.chapters],
@@ -49,8 +51,13 @@ export default function PacketsScreen() {
 
   // Default to the first chapter once chapters load (without clobbering an explicit pick).
   useEffect(() => {
+    const fromUrl = searchParams.get("chapter");
+    if (fromUrl && chapters.some((c) => c.id === fromUrl)) {
+      setChapterId(fromUrl);
+      return;
+    }
     if (chapterId === null && chapters.length) setChapterId(chapters[0].id);
-  }, [chapters, chapterId]);
+  }, [chapters, chapterId, searchParams]);
 
   const chapter = chapters.find((c) => c.id === chapterId) ?? null;
   const hasOutline = !!(chapter?.outline || "").trim();

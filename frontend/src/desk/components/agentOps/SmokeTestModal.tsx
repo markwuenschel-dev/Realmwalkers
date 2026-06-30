@@ -13,6 +13,8 @@ export function SmokeTestModal({ result, onClose }: SmokeTestModalProps) {
   const { t } = useDesk();
   if (!result) return null;
 
+  const live = result.mode === "live";
+
   return (
     <div
       style={css(
@@ -32,7 +34,7 @@ export function SmokeTestModal({ result, onClose }: SmokeTestModalProps) {
           )}
         >
           <h2 style={css("margin:0;font-family:var(--display);font-size:18px")}>
-            Smoke test results
+            Smoke test results ({result.mode})
           </h2>
           <button
             onClick={onClose}
@@ -41,11 +43,22 @@ export function SmokeTestModal({ result, onClose }: SmokeTestModalProps) {
             ✕
           </button>
         </div>
+        {result.live_warning && (
+          <p style={css(`margin:0 0 10px;font-size:12.5px;color:${t.warn}`)}>
+            {result.live_warning}
+          </p>
+        )}
+        {live && result.estimated_cost_usd != null && (
+          <p style={css("margin:0 0 10px;font-size:12px;color:var(--dim)")}>
+            Est. ${result.estimated_cost_usd.toFixed(4)}
+            {result.actual_cost_usd != null && ` · actual ~$${result.actual_cost_usd.toFixed(4)}`}
+          </p>
+        )}
         <p
           style={css(`margin:0 0 14px;font-size:13px;color:${result.all_passed ? t.good : t.bad}`)}
         >
           {result.all_passed
-            ? "All agents passed (offline fixtures)."
+            ? `All agents passed (${live ? "live API" : "offline fixtures"}).`
             : "Some agents failed — see details."}
         </p>
         <div style={css("display:flex;flex-direction:column;gap:10px")}>

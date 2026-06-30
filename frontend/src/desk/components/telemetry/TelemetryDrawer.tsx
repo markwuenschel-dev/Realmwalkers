@@ -24,6 +24,8 @@ import {
 import { filtersLabel, filtersToApiOpts, type LlmCallFilters } from "./telemetryFilters";
 import { RunCallTimeline } from "./RunCallTimeline";
 import { RunExportToolbar } from "./RunExportToolbar";
+import { CallTruncationPanel, RunCacheDiagnostics, RunSettingsSnapshot } from "./RunDiagnostics";
+import type { DraftReadinessOut, SceneTelemetryOut } from "../../api/types";
 
 export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: string }) {
   const view = nav.view;
@@ -58,6 +60,16 @@ export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: strin
         {view.kind === "filtered" && (
           <FilteredCalls label={view.label} bookId={view.bookId} filters={view.filters} nav={nav} />
         )}
+        {view.kind === "chapter" && (
+          <ChapterDetail
+            chapterId={view.chapterId}
+            bookId={view.bookId}
+            chapterNo={view.chapterNo}
+            title={view.title}
+            nav={nav}
+          />
+        )}
+        {view.kind === "draft_readiness" && <DraftReadinessDetail bookId={view.bookId} nav={nav} />}
       </div>
     </>
   );
@@ -122,6 +134,14 @@ function RunDetail({ runId, bookId, nav }: { runId: string; bookId: string; nav:
       </div>
       <TotalsStrip t={data.totals} />
       <RunExportToolbar data={data} />
+      {data.settings_snapshot && Object.keys(data.settings_snapshot).length > 0 && (
+        <Section label="Settings at run start">
+          <RunSettingsSnapshot snapshot={data.settings_snapshot as Record<string, unknown>} />
+        </Section>
+      )}
+      <Section label="Cache health">
+        <RunCacheDiagnostics calls={data.calls} />
+      </Section>
       <Section label="Timeline">
         <RunCallTimeline calls={data.calls} nav={nav} />
       </Section>
@@ -337,6 +357,10 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
   if (!call) return <SpinnerRow />;
   const meta = (call.metadata ?? {}) as Record<string, unknown>;
   const sections = meta.context_sections as Record<string, number> | undefined;
+  const packetsHref = call.links.chapter_id
+    ? `/packets?chapter=${call.links.chapter_id}`
+    : "/packets";
+  const inboxHref = call.links.chapter_id ? `/inbox?chapter=${call.links.chapter_id}` : "/inbox";
 
   return (
     <div
@@ -344,6 +368,7 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
         "display:flex;flex-direction:column;gap:10px;font-family:var(--mono);font-size:11.5px",
       )}
     >
+      <CallTruncationPanel call={call} />
       <Row label="Stage" value={call.stage} />
       <Row label="Model" value={call.model} />
       <Row label="Scene" value={call.scene_no != null ? String(call.scene_no) : "—"} />
@@ -385,9 +410,13 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
             onClick={() => router.push(`/scene/${call.links.scene_id}`)}
           />
         )}
-        {call.links.chapter_id && (
-          <LinkBtn label="Open packets" onClick={() => router.push("/packets")} />
+        {call.links.scene_packet_id && (
+          <LinkBtn label="Scene packet" onClick={() => router.push(packetsHref)} />
         )}
+        {call.links.chapter_id && (
+          <LinkBtn label="Open packets" onClick={() => router.push(packetsHref)} />
+        )}
+        {call.links.job_id && <LinkBtn label="Open inbox" onClick={() => router.push(inboxHref)} />}
         {call.run_id && (
           <LinkBtn
             label="Open run"
@@ -628,6 +657,216 @@ function SpinnerRow() {
 
 function Err({ msg }: { msg: string }) {
   return <div style={css("color:var(--bad);font-size:12.5px")}>{msg}</div>;
+}
+
+function ChapterDetail({
+  chapterId,
+  bookId: _bookId,
+  chapterNo,
+  title,
+  nav,
+}: {
+  chapterId: string;
+  bookId: string;
+  chapterNo?: number | null;
+  title?: string | null;
+  nav: DrawerNav;
+}) {
+  const router = useRouter();
+  const [telemetry, setTelemetry] = useState<Awaited<
+    ReturnType<typeof api.chapterTelemetry>
+  > | null>(null);
+  const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
+
+  useEffect(() => {
+    setTelemetry(null);
+    setReadiness(null);
+    void Promise.all([api.chapterTelemetry(chapterId), api.draftReadiness(chapterId)]).then(
+      ([tel, ready]) => {
+        setTelemetry(tel);
+        setReadiness(ready);
+      },
+    );
+  }, [chapterId]);
+
+  if (!telemetry) return <SpinnerRow />;
+  const label =
+    chapterNo != null
+      ? `Ch ${chapterNo}${title ? ` · ${title}` : ""}`
+      : (title ?? chapterId.slice(0, 8));
+
+  return (
+    <div style={css("display:flex;flex-direction:column;gap:12px")}>
+      <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>{label}</div>
+      {readiness && !readiness.draftable && (
+        <div
+          style={css(
+            "border:1px solid color-mix(in srgb,var(--warn, #e8a020) 40%,var(--line));border-radius:8px;padding:10px 12px;font-size:12px;color:var(--warn, #e8a020)",
+          )}
+        >
+          Draft not ready — {readiness.blockers.length} blocker(s)
+          {readiness.blockers.slice(0, 3).map((b, i) => (
+            <div
+              key={i}
+              style={css(
+                "font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:4px",
+              )}
+            >
+              Sc{b.scene_no}: {b.required_action}
+            </div>
+          ))}
+        </div>
+      )}
+      <TotalsStrip t={telemetry.totals} />
+      {telemetry.run_id && (
+        <button
+          type="button"
+          onClick={() => nav.push({ kind: "run", runId: telemetry.run_id! })}
+          style={css(
+            "height:26px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer;align-self:flex-start",
+          )}
+        >
+          Open latest run
+        </button>
+      )}
+      <Section label="Scenes">
+        <TotalsTable<SceneTelemetryOut>
+          label="Scene"
+          rows={telemetry.scenes}
+          nameOf={(r) => (
+            <span>
+              Sc{r.scene_no ?? "—"}{" "}
+              <span style={css(`color:${statusColor(r.status)}`)}>({r.status})</span>
+            </span>
+          )}
+          onRowClick={(r) => {
+            if (r.scene_no != null && telemetry.run_id)
+              nav.push({ kind: "scene", runId: telemetry.run_id, sceneNo: r.scene_no });
+          }}
+        />
+      </Section>
+      <div style={css("display:flex;flex-wrap:gap:8px")}>
+        <LinkBtn
+          label="Open packets"
+          onClick={() => router.push(`/packets?chapter=${chapterId}`)}
+        />
+        <LinkBtn label="Open inbox" onClick={() => router.push(`/inbox?chapter=${chapterId}`)} />
+      </div>
+    </div>
+  );
+}
+
+function DraftReadinessDetail({ bookId, nav }: { bookId: string; nav: DrawerNav }) {
+  const router = useRouter();
+  const [rows, setRows] = useState<
+    | {
+        chapterId: string;
+        chapterNo: number | null;
+        title: string | null;
+        readiness: DraftReadinessOut;
+      }[]
+    | null
+  >(null);
+
+  useEffect(() => {
+    setRows(null);
+    api
+      .telemetryProblems(bookId)
+      .then(async (d) => {
+        const draft = d.problems.find((p) => p.kind === "draft_not_ready");
+        if (!draft?.breakdown.length) {
+          setRows([]);
+          return;
+        }
+        const byChapter = new Map<string, typeof draft.breakdown>();
+        for (const b of draft.breakdown) {
+          const cid = String((b as { chapter_id?: string }).chapter_id ?? "");
+          if (!cid) continue;
+          const list = byChapter.get(cid) ?? [];
+          list.push(b);
+          byChapter.set(cid, list);
+        }
+        const out: {
+          chapterId: string;
+          chapterNo: number | null;
+          title: string | null;
+          readiness: DraftReadinessOut;
+        }[] = [];
+        for (const [chapterId, breakdown] of byChapter) {
+          const first = breakdown[0] as { chapter_no?: number; title?: string };
+          let readiness: DraftReadinessOut | null = null;
+          try {
+            readiness = await api.draftReadiness(chapterId);
+          } catch {
+            /* skip */
+          }
+          if (readiness) {
+            out.push({
+              chapterId,
+              chapterNo: first.chapter_no ?? null,
+              title: first.title ?? null,
+              readiness,
+            });
+          }
+        }
+        out.sort((a, b) => (a.chapterNo ?? 0) - (b.chapterNo ?? 0));
+        setRows(out);
+      })
+      .catch(() => setRows([]));
+  }, [bookId]);
+
+  if (rows === null) return <SpinnerRow />;
+  if (!rows.length) {
+    return <div style={css("font-size:12px;color:var(--ok)")}>All chapters draft-ready.</div>;
+  }
+
+  return (
+    <div style={css("display:flex;flex-direction:column;gap:10px")}>
+      {rows.map((r) => (
+        <div
+          key={r.chapterId}
+          style={css(
+            "border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg3)",
+          )}
+        >
+          <button
+            type="button"
+            onClick={() =>
+              nav.push({
+                kind: "chapter",
+                chapterId: r.chapterId,
+                bookId,
+                chapterNo: r.chapterNo,
+                title: r.title,
+              })
+            }
+            style={css(
+              "display:block;width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;font-family:var(--mono);font-size:12px;color:var(--ink)",
+            )}
+          >
+            Ch {r.chapterNo ?? "?"} {r.title ? `· ${r.title}` : ""}
+          </button>
+          {r.readiness.blockers.slice(0, 4).map((b, i) => (
+            <div
+              key={i}
+              style={css(
+                "font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:4px",
+              )}
+            >
+              Sc{b.scene_no}: {b.required_action}
+            </div>
+          ))}
+          <div style={css("display:flex;gap:6px;margin-top:8px;flex-wrap:wrap")}>
+            <LinkBtn
+              label="Packets"
+              onClick={() => router.push(`/packets?chapter=${r.chapterId}`)}
+            />
+            <LinkBtn label="Inbox" onClick={() => router.push(`/inbox?chapter=${r.chapterId}`)} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function useTelemetryDrawer() {

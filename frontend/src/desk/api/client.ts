@@ -333,10 +333,22 @@ export const api = {
       body: JSON.stringify(body),
     }),
   agentStats: () => http<AgentStatsListOut>("/settings/agents/stats"),
-  smokeTest: (agents?: string[]) =>
+  smokeTest: (opts?: { agents?: string[]; live?: boolean }) =>
     http<SmokeTestOut>("/settings/agents/smoke-test", {
       method: "POST",
-      body: JSON.stringify(agents ? { agents } : {}),
+      body: JSON.stringify(opts ?? {}),
+    }),
+  saveCustomPreset: (label: string, description?: string) =>
+    http<AgentOpsOut>("/settings/presets/custom", {
+      method: "POST",
+      body: JSON.stringify({ label, description }),
+    }),
+  deleteCustomPreset: (presetId: string) =>
+    http<AgentOpsOut>(`/settings/presets/${encodeURIComponent(presetId)}`, { method: "DELETE" }),
+  setAgentGlobals: (body: { scene_token_budget?: number; scene_time_budget_s?: number }) =>
+    http<AgentOpsOut>("/settings/agents/globals", {
+      method: "PUT",
+      body: JSON.stringify(body),
     }),
 
   // --- world ledger -------------------------------------------------------------------------------
