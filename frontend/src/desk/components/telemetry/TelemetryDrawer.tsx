@@ -14,6 +14,7 @@ import type {
   TelemetryTotals,
 } from "../../api/types";
 import { groupLabel, statusColor, stageFlags, worstCall, type DrawerNav, type TelemetryDrawerView } from "./types";
+import { filtersLabel, filtersToApiOpts, type LlmCallFilters } from "./telemetryFilters";
 
 export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: string }) {
   const view = nav.view;
@@ -429,31 +430,34 @@ function FilteredCalls({
 }: {
   label: string;
   bookId: string;
-  filters: Record<string, string | boolean | number>;
+  filters: LlmCallFilters;
   nav: DrawerNav;
 }) {
   const [calls, setCalls] = useState<LlmCallOut[] | null>(null);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     api
-      .llmCalls({
-        book_id: bookId,
-        run_id: filters.run_id as string | undefined,
-        stage: filters.stage as string | undefined,
-        truncated: filters.truncated as boolean | undefined,
-        errors_only: filters.errors_only as boolean | undefined,
-        min_latency_ms: filters.min_latency_ms as number | undefined,
-        limit: 50,
+      .llmCalls(filtersToApiOpts(bookId, filters, { limit: 100 }))
+      .then((d) => {
+        setCalls(d.calls);
+        setTotal(d.total);
       })
-      .then((d) => setCalls(d.calls))
       .catch(() => setCalls([]));
-  }, [bookId, filters]);
+  }, [bookId, JSON.stringify(filters)]);
 
   if (!calls) return <SpinnerRow />;
   return (
     <div>
-      <div style={css("font-size:12px;color:var(--dim);margin-bottom:10px")}>{label}</div>
+      <div style={css("font-size:12px;color:var(--dim);margin-bottom:10px")}>
+        {label || filtersLabel(filters)} · {total} match{total === 1 ? "" : "es"}
+      </div>
       <CallList calls={calls} nav={nav} />
+      {total > calls.length && (
+        <div style={css("font-size:11px;color:var(--dim);margin-top:8px")}>
+          Showing {calls.length} of {total} calls
+        </div>
+      )}
     </div>
   );
 }

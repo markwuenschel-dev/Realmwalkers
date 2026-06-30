@@ -5,6 +5,7 @@ import { css } from "../../css";
 import { api } from "../../api/client";
 import type { TelemetryProblemOut } from "../../api/types";
 import type { TelemetryDrawerView } from "./types";
+import { SLOW_LATENCY_MS, type LlmCallFilters } from "./telemetryFilters";
 
 export function ProblemsPanel({
   bookId,
@@ -67,6 +68,28 @@ export function ProblemsPanel({
   );
 }
 
+function problemToFilters(p: TelemetryProblemOut): LlmCallFilters {
+  const drill = p.drill_down as Record<string, unknown> | undefined;
+  switch (p.kind) {
+    case "truncation":
+      return { problems_only: true };
+    case "failed_draft_job":
+      return { errors_only: true };
+    case "cache_prime_short":
+      return { stage_prefix: "scene_packet" };
+    case "high_latency":
+      return { min_latency_ms: SLOW_LATENCY_MS };
+    default: {
+      const f: LlmCallFilters = {};
+      if (drill?.truncated) f.truncated = true;
+      if (drill?.errors) f.errors_only = true;
+      if (typeof drill?.stage === "string") f.stage = drill.stage;
+      if (typeof drill?.run_id === "string") f.run_id = drill.run_id;
+      return f;
+    }
+  }
+}
+
 function ProblemRow({
   problem: p,
   bookId,
@@ -77,21 +100,13 @@ function ProblemRow({
   onOpen: (view: TelemetryDrawerView) => void;
 }) {
   const color = p.severity === "error" ? "var(--bad)" : p.severity === "warn" ? "var(--warn, #e8a020)" : "var(--dim)";
-  const drill = p.drill_down as Record<string, unknown> | undefined;
   return (
     <div>
       <button
         type="button"
-        onClick={() => {
-          if (!drill) return;
-          const filters: Record<string, string | boolean | number> = { book_id: bookId };
-          if (drill.truncated) filters.truncated = true;
-          if (drill.errors) filters.errors_only = true;
-          if (typeof drill.stage === "string") filters.stage = drill.stage;
-          if (typeof drill.run_id === "string") filters.run_id = drill.run_id;
-          if (typeof drill.min_latency_ms === "number") filters.min_latency_ms = drill.min_latency_ms;
-          onOpen({ kind: "filtered", label: p.summary, bookId, filters });
-        }}
+        onClick={() =>
+          onOpen({ kind: "filtered", label: p.summary, bookId, filters: problemToFilters(p) })
+        }
         style={css(
           "display:block;width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;color:inherit;font:inherit",
         )}

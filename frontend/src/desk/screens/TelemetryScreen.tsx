@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { Spinner } from "../components/DraftActivity";
 import { TotalsStrip, TotalsTable, fmtTokens } from "../components/Telemetry";
 import { ProblemsPanel } from "../components/telemetry/ProblemsPanel";
+import { TelemetryFiltersBar, stageOptionsFromBook } from "../components/telemetry/TelemetryFiltersBar";
 import { TelemetryDrawer, useTelemetryDrawer } from "../components/telemetry/TelemetryDrawer";
 import type {
   BookTelemetryOut,
@@ -17,6 +19,13 @@ import type {
   TelemetryGroupOut,
 } from "../api/types";
 import type { TelemetryDrawerView } from "../components/telemetry/types";
+import type { LlmCallFilters } from "../components/telemetry/telemetryFilters";
+import {
+  filtersFromSearchParams,
+  filtersLabel,
+  filtersToSearchParams,
+  hasActiveFilters,
+} from "../components/telemetry/telemetryFilters";
 
 function fmtRun(r: RunRollupOut): string {
   const label =
@@ -30,7 +39,10 @@ function fmtRun(r: RunRollupOut): string {
 const RUN_PAGE = 5;
 
 export default function TelemetryScreen() {
-  const { bookId } = useDeskData();
+  const { bookId, chapters } = useDeskData();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const drawer = useTelemetryDrawer();
   const [data, setData] = useState<BookTelemetryOut | null>(null);
   const [runs, setRuns] = useState<RunRollupOut[]>([]);
@@ -40,6 +52,53 @@ export default function TelemetryScreen() {
   const [error, setError] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareA, setCompareA] = useState<string | null>(null);
+  const [filters, setFilters] = useState<LlmCallFilters>({});
+
+  const stageHints = useMemo(() => stageOptionsFromBook(data), [data]);
+  const latestRunId = runs[0]?.run_id ?? latestRun?.run_id ?? null;
+
+  // Restore filters from URL (?book=…&truncated=1&…).
+  useEffect(() => {
+    if (!bookId) return;
+    const urlBook = searchParams.get("book");
+    if (urlBook && urlBook !== bookId) return;
+    const fromUrl = filtersFromSearchParams(searchParams);
+    if (hasActiveFilters(fromUrl)) {
+      setFilters(fromUrl);
+    }
+  }, [bookId, searchParams]);
+
+  const syncUrl = useCallback(
+    (f: LlmCallFilters) => {
+      if (!bookId) return;
+      const p = hasActiveFilters(f) ? filtersToSearchParams(bookId, f) : new URLSearchParams();
+      if (!hasActiveFilters(f)) p.delete("book");
+      const q = p.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [bookId, pathname, router],
+  );
+
+  const openView = useCallback(
+    (view: TelemetryDrawerView) => {
+      drawer.open(view);
+    },
+    [drawer],
+  );
+
+  const applyFilters = useCallback(
+    (f: LlmCallFilters) => {
+      if (!bookId) return;
+      syncUrl(f);
+      openView({ kind: "filtered", label: filtersLabel(f), bookId, filters: f });
+    },
+    [bookId, openView, syncUrl],
+  );
+
+  const clearFilters = useCallback(() => {
+    setFilters({});
+    syncUrl({});
+  }, [syncUrl]);
 
   const load = useCallback(async () => {
     if (!bookId) return;
@@ -80,13 +139,6 @@ export default function TelemetryScreen() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const openView = useCallback(
-    (view: TelemetryDrawerView) => {
-      drawer.open(view);
-    },
-    [drawer],
-  );
 
   const onRunClick = useCallback(
     (r: RunRollupOut) => {
@@ -175,6 +227,16 @@ export default function TelemetryScreen() {
       ) : data && bookId ? (
         <div style={css("display:flex;flex-direction:column;gap:8px")}>
           <ProblemsPanel bookId={bookId} onOpen={openView} />
+          <TelemetryFiltersBar
+            chapters={chapters}
+            runs={runs}
+            latestRunId={latestRunId}
+            stageHints={stageHints}
+            value={filters}
+            onChange={setFilters}
+            onApply={applyFilters}
+            onClear={clearFilters}
+          />
           <TotalsStrip t={data.totals} />
 
           {latestRun && latestRun.scenes.length > 0 && (

@@ -242,9 +242,12 @@ export const api = {
     run_id?: string;
     scene_no?: number;
     stage?: string;
+    stage_prefix?: string;
+    stages?: string;
     model?: string;
     truncated?: boolean;
     errors_only?: boolean;
+    problems_only?: boolean;
     fallbacks_only?: boolean;
     min_latency_ms?: number;
     min_input_tokens?: number;
@@ -259,9 +262,12 @@ export const api = {
         run_id: opts?.run_id,
         scene_no: opts?.scene_no != null ? String(opts.scene_no) : undefined,
         stage: opts?.stage,
+        stage_prefix: opts?.stage_prefix,
+        stages: opts?.stages,
         model: opts?.model,
         truncated: opts?.truncated != null ? String(opts.truncated) : undefined,
         errors_only: opts?.errors_only != null ? String(opts.errors_only) : undefined,
+        problems_only: opts?.problems_only != null ? String(opts.problems_only) : undefined,
         fallbacks_only: opts?.fallbacks_only != null ? String(opts.fallbacks_only) : undefined,
         min_latency_ms: opts?.min_latency_ms != null ? String(opts.min_latency_ms) : undefined,
         min_input_tokens: opts?.min_input_tokens != null ? String(opts.min_input_tokens) : undefined,

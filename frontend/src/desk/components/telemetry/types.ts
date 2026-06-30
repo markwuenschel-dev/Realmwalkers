@@ -2,6 +2,8 @@
 
 import type { LlmCallOut, RunTelemetryOut, TelemetryGroupOut, TelemetryTotals } from "../../api/types";
 
+import type { LlmCallFilters } from "./telemetryFilters";
+
 export type TelemetryDrawerView =
   | { kind: "run"; runId: string }
   | { kind: "stage"; stage: string; bookId: string; runId?: string }
@@ -9,7 +11,7 @@ export type TelemetryDrawerView =
   | { kind: "scene"; runId: string; sceneNo: number }
   | { kind: "call"; callId: string }
   | { kind: "compare"; runA: string; runB: string; bookId: string }
-  | { kind: "filtered"; label: string; bookId: string; filters: Record<string, string | boolean | number> };
+  | { kind: "filtered"; label: string; bookId: string; filters: LlmCallFilters };
 
 export type DrawerNav = {
   view: TelemetryDrawerView;

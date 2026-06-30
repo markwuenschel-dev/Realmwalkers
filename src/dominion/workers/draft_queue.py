@@ -516,7 +516,9 @@ async def purge_draft_jobs_for_scene(
                     Job.scene_no == scene_no,
                 )
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     purged = await _purge_job_ids(session, job_ids)
     if purged:

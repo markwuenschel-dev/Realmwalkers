@@ -1,7 +1,6 @@
 "use client";
 
 import { css } from "../../css";
-import { useDesk } from "../../state";
 import type { AgentPresetOut, PipelineEstimateOut } from "../../api/types";
 
 const BAND_COLOR: Record<string, string> = {
@@ -29,7 +28,6 @@ export function PresetBar({
   onSmokeTest,
   smokeBusy,
 }: PresetBarProps) {
-  const { t } = useDesk();
   const active = presets.find((p) => p.id === activePreset);
 
   return (

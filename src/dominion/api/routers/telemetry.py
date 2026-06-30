@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
@@ -169,9 +169,12 @@ def _apply_call_filters(
     run_id: uuid.UUID | None,
     scene_no: int | None,
     stage: str | None,
+    stage_prefix: str | None,
+    stages: str | None,
     model: str | None,
     truncated: bool | None,
     errors_only: bool | None,
+    problems_only: bool | None,
     fallbacks_only: bool | None,
     min_latency_ms: int | None,
     min_input_tokens: int | None,
@@ -187,12 +190,20 @@ def _apply_call_filters(
         stmt = stmt.where(LlmCall.scene_no == scene_no)
     if stage is not None:
         stmt = stmt.where(LlmCall.stage == stage)
+    if stage_prefix:
+        stmt = stmt.where(LlmCall.stage.startswith(stage_prefix))
+    if stages:
+        names = [s.strip() for s in stages.split(",") if s.strip()]
+        if names:
+            stmt = stmt.where(LlmCall.stage.in_(names))
     if model is not None:
         stmt = stmt.where(LlmCall.model == model)
     if truncated is True:
         stmt = stmt.where(LlmCall.truncated.is_(True))
     if errors_only:
         stmt = stmt.where(LlmCall.error.isnot(None))
+    if problems_only:
+        stmt = stmt.where(or_(LlmCall.truncated.is_(True), LlmCall.error.isnot(None)))
     if min_latency_ms is not None:
         stmt = stmt.where(LlmCall.latency_ms >= min_latency_ms)
     if min_input_tokens is not None:
@@ -322,9 +333,12 @@ async def list_llm_calls(
     run_id: uuid.UUID | None = None,
     scene_no: int | None = None,
     stage: str | None = None,
+    stage_prefix: str | None = None,
+    stages: str | None = None,
     model: str | None = None,
     truncated: bool | None = None,
     errors_only: bool | None = None,
+    problems_only: bool | None = None,
     fallbacks_only: bool | None = None,
     min_latency_ms: int | None = None,
     min_input_tokens: int | None = None,
@@ -340,9 +354,12 @@ async def list_llm_calls(
         run_id=run_id,
         scene_no=scene_no,
         stage=stage,
+        stage_prefix=stage_prefix,
+        stages=stages,
         model=model,
         truncated=truncated,
         errors_only=errors_only,
+        problems_only=problems_only,
         fallbacks_only=fallbacks_only,
         min_latency_ms=min_latency_ms,
         min_input_tokens=min_input_tokens,

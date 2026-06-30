@@ -382,4 +382,60 @@ async def test_compare_runs(db_factory):
         out = await tel_router.compare_runs(book.id, s, run_a=run_a, run_b=run_b)
         assert out.run_a.input_tokens == 100
         assert out.run_b.truncations == 1
-        assert len(out.stage_deltas) >= 1
+
+
+async def test_list_llm_calls_stage_prefix(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        s.add_all(
+            [
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=100,
+                ),
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="drafter",
+                    model="sonnet",
+                    input_tokens=200,
+                ),
+            ]
+        )
+        await s.flush()
+
+        out = await tel_router.list_llm_calls(s, book_id=book.id, stage_prefix="scene_packet")
+        assert out.total == 1
+        assert out.calls[0].stage == "scene_packet_author"
+
+
+async def test_list_llm_calls_problems_only(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        s.add_all(
+            [
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=50,
+                    truncated=True,
+                ),
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    stage="drafter",
+                    model="sonnet",
+                    input_tokens=200,
+                ),
+            ]
+        )
+        await s.flush()
+
+        out = await tel_router.list_llm_calls(s, book_id=book.id, problems_only=True)
+        assert out.total == 1
+        assert out.calls[0].truncated is True

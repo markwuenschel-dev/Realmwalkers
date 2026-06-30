@@ -2244,6 +2244,38 @@
             }
           },
           {
+            "name": "stage_prefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage Prefix"
+            }
+          },
+          {
+            "name": "stages",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stages"
+            }
+          },
+          {
             "name": "model",
             "in": "query",
             "required": false,
@@ -2289,6 +2321,22 @@
                 }
               ],
               "title": "Errors Only"
+            }
+          },
+          {
+            "name": "problems_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Problems Only"
             }
           },
           {

@@ -5408,9 +5408,12 @@ export interface operations {
         run_id?: string | null;
         scene_no?: number | null;
         stage?: string | null;
+        stage_prefix?: string | null;
+        stages?: string | null;
         model?: string | null;
         truncated?: boolean | null;
         errors_only?: boolean | null;
+        problems_only?: boolean | null;
         fallbacks_only?: boolean | null;
         min_latency_ms?: number | null;
         min_input_tokens?: number | null;

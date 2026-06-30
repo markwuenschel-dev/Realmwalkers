@@ -320,9 +320,7 @@ def capability_warnings(setting_key: str, primary_tier: str | None, fallback_tie
     if setting_key == "review_model" and primary_tier == "haiku":
         warnings.append("Haiku may miss cross-scene continuity issues for long chapters.")
     if setting_key == "packet_qa_model" and primary_tier == "opus" and not fallback_tier:
-        warnings.append(
-            "Opus is probably unnecessary for packet validation unless escalation is enabled."
-        )
+        warnings.append("Opus is probably unnecessary for packet validation unless escalation is enabled.")
     if setting_key == "scene_packet_author_model" and primary_tier == "haiku":
         warnings.append("Haiku is default for per-scene contracts; bump to Sonnet for high canon density.")
     return warnings

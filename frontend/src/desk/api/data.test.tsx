@@ -2,6 +2,10 @@ import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DeskDataProvider, useDeskData } from "./data";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
 vi.mock("../client", () => ({
   api: {
     books: vi.fn().mockResolvedValue([]),

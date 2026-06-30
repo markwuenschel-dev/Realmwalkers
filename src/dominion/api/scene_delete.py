@@ -30,9 +30,7 @@ async def hard_delete_scene(session: AsyncSession, scene_id: uuid.UUID) -> tuple
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
 
-    jobs_purged = await purge_draft_jobs_for_scene(
-        session, chapter_id=scene.chapter_id, scene_no=scene.scene_no
-    )
+    jobs_purged = await purge_draft_jobs_for_scene(session, chapter_id=scene.chapter_id, scene_no=scene.scene_no)
 
     for model in (Critique, Annotation, Suggestion, Approval, EditPair):
         await session.execute(delete(model).where(model.scene_id == scene_id))

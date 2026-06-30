@@ -49,8 +49,7 @@ _SPEED_RANK = {"fast": 0, "medium": 1, "slow": 2}
 
 def _escalation_rules(agent: AgentDefinition) -> list[EscalationRuleOut]:
     return [
-        EscalationRuleOut(trigger=t, description=_ESCALATION_DESCRIPTIONS.get(t, t))
-        for t in agent.escalation_triggers
+        EscalationRuleOut(trigger=t, description=_ESCALATION_DESCRIPTIONS.get(t, t)) for t in agent.escalation_triggers
     ]
 
 
