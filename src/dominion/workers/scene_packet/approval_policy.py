@@ -6,7 +6,7 @@ REVISE_REQUIRED asymmetry (intentional):
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict
 from dominion.shared.models import ScenePacket
@@ -16,6 +16,14 @@ from dominion.workers.gates import GateRefusal
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
 
 _BLOCKING_VERDICTS = {ScenePacketVerdict.BLOCK_DRAFTING, ScenePacketVerdict.REVISE_REQUIRED}
+
+BlockerSource = Literal["author", "qa", "derive", "unknown"]
+
+_STALE_GATE_RECONCILIATION = (
+    "QA now approves, but the packet remains blocked from an earlier gate. "
+    "Re-run derive or edit/reconcile the packet."
+)
+_NO_BLOCKED_REASON = "Scene packet is blocked but no blocked_reason was recorded"
 
 
 def has_blocking_qa(packet: ScenePacket) -> bool:
@@ -44,6 +52,55 @@ def blocking_qa_reasons(packet: ScenePacket) -> list[str]:
     return reasons
 
 
+def first_blocking_qa_reason_or_default(result: dict[str, Any]) -> str:
+    """First block-severity issue detail from a QA result, or the default QA block message."""
+    issues = result.get("issues")
+    if isinstance(issues, list):
+        for i in issues:
+            if isinstance(i, dict) and i.get("severity") == "block":
+                kind = i.get("kind")
+                detail = i.get("detail") or "unspecified"
+                return f"Blocking issue{f' ({kind})' if kind else ''}: {detail}"
+    return "scene packet QA blocked drafting"
+
+
+def resolve_blocked_reason(packet: ScenePacket) -> str | None:
+    """Resolve a human-readable blocked reason from persisted fields and QA state."""
+    if packet.status != ScenePacketStatus.BLOCKED:
+        return None
+    warnings = packet.qa_warnings if isinstance(packet.qa_warnings, dict) else {}
+    body = packet.body if isinstance(packet.body, dict) else {}
+    if reason := warnings.get("blocked_reason"):
+        return str(reason)
+    if reason := body.get("blocked_reason"):
+        return str(reason)
+    qa_reasons = blocking_qa_reasons(packet)
+    if qa_reasons:
+        return qa_reasons[0]
+    return _NO_BLOCKED_REASON
+
+
+def infer_blocker_source(packet: ScenePacket, reason: str | None) -> BlockerSource:
+    """Classify which gate blocked the packet (computed at response time, not persisted)."""
+    if packet.status != ScenePacketStatus.BLOCKED:
+        return "unknown"
+    if not valid_scene_packet_body(packet.body):
+        return "author"
+    if packet.qa_verdict == ScenePacketVerdict.BLOCK_DRAFTING.value:
+        return "qa"
+    issues = (packet.qa_warnings or {}).get("issues") if isinstance(packet.qa_warnings, dict) else None
+    if isinstance(issues, list) and any(
+        isinstance(i, dict) and i.get("severity") == "block" for i in issues
+    ):
+        return "qa"
+    if packet.qa_verdict in {
+        ScenePacketVerdict.APPROVE.value,
+        ScenePacketVerdict.APPROVE_WARN.value,
+    }:
+        return "derive"
+    return "unknown"
+
+
 def can_approve(packet: ScenePacket) -> GateRefusal | None:
     if packet.status == ScenePacketStatus.BLOCKED:
         return GateRefusal("scene packet is blocked — re-derive or edit first")
@@ -53,13 +110,13 @@ def can_approve(packet: ScenePacket) -> GateRefusal | None:
 
 
 def approval_blockers(packet: ScenePacket) -> list[str]:
+    if packet.status == ScenePacketStatus.BLOCKED:
+        return [
+            resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"
+        ]
     if packet.status != ScenePacketStatus.PROPOSED:
         return []
-    blockers: list[str] = []
-    if packet.status == ScenePacketStatus.BLOCKED:
-        blockers.append("scene packet is blocked — re-derive or edit first")
-    blockers.extend(blocking_qa_reasons(packet))
-    return blockers
+    return blocking_qa_reasons(packet)
 
 
 def is_approvable_for_batch(packet: ScenePacket) -> bool:
@@ -92,10 +149,24 @@ def apply_qa_rerun(row: ScenePacket, result: dict[str, Any] | None) -> None:
         row.qa_warnings = {"residual_risks": [], "blocked_reason": "QA returned no usable verdict"}
         row.status = ScenePacketStatus.BLOCKED
         return
+
+    existing_reason = resolve_blocked_reason(row)
+    existing_source = infer_blocker_source(row, existing_reason)
+
     row.qa_verdict = result["verdict"]
-    row.qa_warnings = {"residual_risks": result["residual_risks"], "issues": result["issues"]}
+    qa_warnings: dict[str, Any] = {
+        "residual_risks": result["residual_risks"],
+        "issues": result["issues"],
+    }
     if result["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
         row.status = ScenePacketStatus.BLOCKED
+        qa_warnings["blocked_reason"] = first_blocking_qa_reason_or_default(result)
+    elif row.status == ScenePacketStatus.BLOCKED:
+        if existing_source in {"author", "derive"} and existing_reason:
+            qa_warnings["blocked_reason"] = existing_reason
+        else:
+            qa_warnings["blocked_reason"] = _STALE_GATE_RECONCILIATION
+    row.qa_warnings = qa_warnings
 
 
 def assert_draft_ready(packet: ScenePacket) -> None:
@@ -113,8 +184,12 @@ def assert_draft_ready(packet: ScenePacket) -> None:
 
 def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
     blockers = approval_blockers(row)
+    reason = resolve_blocked_reason(row) if row.status == ScenePacketStatus.BLOCKED else None
+    source = infer_blocker_source(row, reason) if reason else None
     out = ScenePacketOut.model_validate(row)
     return out.model_copy(update={
         "can_approve": row.status == ScenePacketStatus.PROPOSED and not blockers,
         "approval_blockers": blockers,
+        "blocked_reason": reason,
+        "blocker_source": source,
     })

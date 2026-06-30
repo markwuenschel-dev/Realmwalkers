@@ -431,6 +431,43 @@ async def test_derive_blocks_with_specific_truncation_reason(db_factory, monkeyp
         ]
 
 
+async def test_derive_persists_blocked_reason_when_qa_blocks_drafting(db_factory, monkeypatch):
+    _patch_scene_agents(monkeypatch, _scene_body(), verdict=ScenePacketVerdict.BLOCK_DRAFTING)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["blocked"] == 1
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.BLOCKED
+        assert row.qa_warnings.get("blocked_reason") == "scene packet QA blocked drafting"
+
+
+async def test_qa_rerun_route_rejects_invalid_body(db_factory):
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp = ScenePacket(
+            book_id=book.id,
+            chapter_id=ch.id,
+            chapter_packet_id=cp.id,
+            scene_seed_id=uuid.uuid4(),
+            scene_no=1,
+            status=ScenePacketStatus.BLOCKED,
+            qa_verdict=ScenePacketVerdict.BLOCK_DRAFTING,
+            qa_warnings={"blocked_reason": "author failed"},
+            body={"blocked_reason": "author failed"},
+            source_hash="h",
+        )
+        s.add(sp)
+        await s.flush()
+        with pytest.raises(HTTPException) as exc:
+            await sp_router.qa_scene_packet(sp.id, s)
+        assert exc.value.status_code == 409
+        assert "re-run derive" in exc.value.detail.lower()
+
+
 async def test_author_escalates_to_fallback_model_on_bad_primary(db_factory, monkeypatch):
     """A primary model that can't emit valid JSON is rescued by the one-shot fallback escalation."""
     import json

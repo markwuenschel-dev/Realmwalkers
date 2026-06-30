@@ -369,6 +369,8 @@ async def derive_scene_packets(
             {"residual_risks": qa["residual_risks"], "issues": qa["issues"]} if qa
             else {"residual_risks": [], "blocked_reason": blocked_reason}
         )
+        if status == ScenePacketStatus.BLOCKED and blocked_reason:
+            qa_warnings = {**qa_warnings, "blocked_reason": blocked_reason}
 
         row = item.row
         if row is None:

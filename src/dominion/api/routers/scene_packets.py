@@ -40,6 +40,7 @@ from dominion.workers.scene_packet import approval_policy as sp_approval
 from dominion.workers.scene_packet import beats as beats_mod
 from dominion.workers.scene_packet import derive as derive_mod
 from dominion.workers.scene_packet import qa as qa_mod
+from dominion.workers.scene_packet.parse import valid_scene_packet_body
 
 log = structlog.get_logger()
 router = APIRouter(tags=["scene-packets"])
@@ -189,6 +190,11 @@ async def qa_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> Sc
     """Re-run QA against the current body. A BLOCK_DRAFTING verdict blocks the packet; a malformed
     response fails closed (also blocks)."""
     row = await _get(session, scene_packet_id)
+    if not valid_scene_packet_body(row.body):
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot rerun QA: packet has no valid scene contract — re-run derive instead.",
+        )
     cp_body = None
     cp = await session.get(ChapterPacket, row.chapter_packet_id)
     if cp is not None:

@@ -273,6 +273,8 @@ export type ScenePacketOut = Omit<S["ScenePacketOut"], "body" | "qa_warnings" | 
   body: ScenePacketBody;
   qa_warnings: PacketWarnings | null;
   status: ScenePacketStatus | string;
+  blocked_reason?: string | null;
+  blocker_source?: string | null;
 };
 
 export type ScenePacketUpdateIn = Omit<S["ScenePacketUpdateIn"], "body"> & {
