@@ -41,12 +41,11 @@ docs/         DESIGN.md (spec), BUILD.md (this file)
 ```bash
 cp .env.example .env                 # fill in ANTHROPIC_API_KEY
 docker compose up -d                 # Postgres + pgvector on :5432
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-python scripts/init_db.py            # create extension + tables
+uv sync --frozen --extra dev
+uv run python scripts/init_db.py     # create extension + tables
 
-uvicorn dominion.api.main:app --reload --port 8000   # terminal 1: API
-cd frontend && npm install && npm run dev            # terminal 2: review app on :5173
+uv run uvicorn dominion.api.main:app --reload --port 8000   # terminal 1: API
+cd frontend && pnpm install && pnpm dev                     # terminal 2: desk on :3000
 ```
 
 A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker-once`, …).
@@ -97,9 +96,9 @@ Desk to the live API) lives in [`ROADMAP.md`](ROADMAP.md).
 ## Checks (all currently clean)
 
 ```bash
-pytest -q              # tests
-ruff check src tests   # lint (F-codes catch real bugs: undefined names, unused vars)
-mypy src               # strict type check
+uv run pytest -q       # tests
+uv run ruff check src tests   # lint
+uv run mypy src        # strict type check
 ```
 
 DB-backed tests get a real database from the `db_factory` fixture (`tests/conftest.py`), which forces
@@ -113,11 +112,11 @@ exercise them. Tests that don't need a DB run regardless.
 
 | Job | What runs | Notes |
 |---|---|---|
-| **lint + types** | `ruff check src tests`, `mypy src` (strict) | one interpreter; config targets py312 |
-| **tests** | `pytest -q` against a real `pgvector/pgvector:pg16` service | matrix: Python 3.12 (the supported floor) + 3.14 (the pinned dev version) |
-| **frontend build** | `npm ci && npm run build` (`tsc -b && vite build`) | Node 20; reproducible install from `package-lock.json` |
+| **lint + types** | `ruff check src tests`, `mypy src` (strict) | Python 3.14 via uv |
+| **tests** | `pytest -q` against a real `pgvector/pgvector:pg16` service | Python 3.14 via uv |
+| **frontend** | OpenAPI codegen drift, typecheck, lint, format, unit tests, Playwright e2e | Node 24 + pnpm (`pnpm-lock.yaml`) |
 
-Installs are reproducible: backend via `uv sync --frozen` (honours `uv.lock`), frontend via `npm ci`.
+Installs are reproducible: backend via `uv sync --frozen` (honours `uv.lock`), frontend via `pnpm install --frozen-lockfile`.
 The CI sets **`DOMINION_REQUIRE_DB=1`**, which flips the conftest "Postgres unreachable → skip" into a
 hard failure — so a broken DB service can never produce a falsely-green run (the gap this CI closes).
 `ANTHROPIC_API_KEY` is set to a deliberately-fake value; tests mock the model, and a real call would

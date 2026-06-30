@@ -2,37 +2,37 @@
 set shell := ["bash", "-uc"]
 
 install:
-    pip install -e ".[dev]"
+    uv sync --frozen --extra dev
 
 db-up:
     docker compose up -d
 
 db-init:
-    python scripts/init_db.py
+    uv run python scripts/init_db.py
 
 api:
-    uvicorn dominion.api.main:app --reload --port 8000
+    uv run uvicorn dominion.api.main:app --reload --port 8000
 
 worker-once:
-    python -m dominion.workers.worker --once
+    uv run python -m dominion.workers.worker --once
 
 enqueue-first:
-    python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1
+    uv run python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1
 
 test:
-    pytest -q
+    uv run pytest -q
 
 lint:
-    ruff check src tests
+    uv run ruff check src tests
 
 typecheck:
-    mypy src
+    uv run mypy src
 
 openapi:
     uv run python scripts/export_openapi.py
 
 fe-install:
-    cd frontend; npm install
+    cd frontend && pnpm install
 
 fe-dev:
-    cd frontend; npm run dev
+    cd frontend && pnpm dev
