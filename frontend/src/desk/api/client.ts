@@ -21,6 +21,7 @@ import type {
   ChapterUpdateIn,
   CharacterStateIn,
   CharacterStateOut,
+  ClearFailedOut,
   ContinuityResolveIn,
   DecisionIn,
   DocDetail,
@@ -114,6 +115,8 @@ export const api = {
     http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),
   retryFailed: (bookId?: string) =>
     http<RetryFailedOut>(`/jobs/retry-failed${qs({ book_id: bookId })}`, { method: "POST" }),
+  clearFailed: (bookId?: string) =>
+    http<ClearFailedOut>(`/jobs/clear-failed${qs({ book_id: bookId })}`, { method: "POST" }),
 
   // --- gate 1: books, runs, chapters, beats -------------------------------------------------------
   books: () => http<BookOut[]>("/books"),

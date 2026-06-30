@@ -6,6 +6,7 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import CanonCard from "../components/CanonCard";
+import { ProseInline } from "../components/ProseBlocks";
 import type { CardModel } from "../components/CanonCard";
 import { seg, tokenize } from "../prose";
 import type { Token } from "../prose";
@@ -279,7 +280,7 @@ export default function SceneScreen() {
     if (tok.kind === "text")
       return (
         <span key={key} style={css("color:inherit")}>
-          {tok.text}
+          <ProseInline text={tok.text} />
         </span>
       );
 

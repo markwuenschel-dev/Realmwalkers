@@ -511,6 +511,13 @@ class RetryFailedOut(BaseModel):
     skipped: list[DraftQueueBlockerOut] = []
 
 
+class ClearFailedOut(BaseModel):
+    """Result of purging FAILED draft jobs without re-queueing."""
+
+    purged: int = 0
+    failed: int = 0
+
+
 class DraftQueueBlockerOut(BaseModel):
     chapter_id: uuid.UUID
     scene_no: int | None = None

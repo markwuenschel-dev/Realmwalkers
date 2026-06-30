@@ -360,6 +360,7 @@ function Column({ title, color, count }: { title: string; color: string; count: 
 function RetryFailed() {
   const data = useDeskData();
   const [busy, setBusy] = useState(false);
+  const [clearBusy, setClearBusy] = useState(false);
   const [lastResult, setLastResult] = useState<import("../api/types").RetryFailedOut | null>(null);
   const n = data.jobs.failed;
   if (n <= 0) return null;
@@ -406,23 +407,48 @@ function RetryFailed() {
           )}
         </div>
       )}
-      <button
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            const out = await data.retryFailed();
-            setLastResult(out);
-          } finally {
-            setBusy(false);
-          }
-        }}
-        style={css(
-          `width:100%;padding:8px;border-radius:7px;border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 12%,var(--bg3));color:var(--bad);font-size:12.5px;cursor:${busy ? "default" : "pointer"};font-family:var(--ui)`,
-        )}
-      >
-        {busy ? "Re-queuing…" : `Retry ${n} failed`}
-      </button>
+      <div style={css("display:flex;flex-direction:column;gap:8px")}>
+        <button
+          disabled={busy || clearBusy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const out = await data.retryFailed();
+              setLastResult(out);
+            } finally {
+              setBusy(false);
+            }
+          }}
+          style={css(
+            `width:100%;padding:8px;border-radius:7px;border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 12%,var(--bg3));color:var(--bad);font-size:12.5px;cursor:${busy || clearBusy ? "default" : "pointer"};font-family:var(--ui)`,
+          )}
+        >
+          {busy ? "Re-queuing…" : `Retry ${n} failed`}
+        </button>
+        <button
+          disabled={busy || clearBusy}
+          onClick={async () => {
+            if (
+              !confirm(
+                `Clear ${n} failed draft job${n === 1 ? "" : "s"}? They will not be re-queued.`,
+              )
+            )
+              return;
+            setClearBusy(true);
+            try {
+              await data.clearFailed();
+              setLastResult(null);
+            } finally {
+              setClearBusy(false);
+            }
+          }}
+          style={css(
+            `width:100%;padding:8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:12.5px;cursor:${busy || clearBusy ? "default" : "pointer"};font-family:var(--ui)`,
+          )}
+        >
+          {clearBusy ? "Clearing…" : "Clear failed"}
+        </button>
+      </div>
       {lastResult && (
         <div
           style={css("margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}

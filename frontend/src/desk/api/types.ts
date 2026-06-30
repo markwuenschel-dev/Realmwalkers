@@ -41,6 +41,7 @@ export type RetryFailedOut = S["RetryFailedOut"] & {
   requested?: number;
   skipped?: DraftQueueBlockerOut[];
 };
+export type ClearFailedOut = S["ClearFailedOut"];
 
 export type DraftQueueBlockerOut = {
   chapter_id: string;

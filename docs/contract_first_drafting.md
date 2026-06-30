@@ -77,4 +77,4 @@ uv run python -m dominion.tools.audit_draft_jobs --chapter-id <id> --dry-run
 uv run python -m dominion.tools.repair_draft_queue --chapter-id <id> --apply
 ```
 
-Then use `POST /chapters/{id}/draft` — not blind `retry-failed`.
+Then use `POST /chapters/{id}/draft` — not blind `retry-failed`. To dismiss failed jobs without re-queueing, use `POST /jobs/clear-failed`.
