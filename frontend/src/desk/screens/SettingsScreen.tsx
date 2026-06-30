@@ -8,6 +8,7 @@ import type { AgentOpsOut, AgentStatsListOut, SmokeTestOut } from "../api/types"
 import { PresetBar } from "../components/agentOps/PresetBar";
 import { BudgetControls } from "../components/agentOps/BudgetControls";
 import { AgentRow } from "../components/agentOps/AgentRow";
+import { ProviderCards } from "../components/agentOps/ProviderCards";
 import { SmokeTestModal } from "../components/agentOps/SmokeTestModal";
 
 export default function SettingsScreen() {
@@ -35,6 +36,15 @@ export default function SettingsScreen() {
     void load();
   }, [load]);
 
+  const refreshStats = useCallback(async () => {
+    try {
+      const st = await api.agentStats();
+      setStats(st);
+    } catch {
+      // keep prior stats on refresh failure
+    }
+  }, []);
+
   const pickTier = async (setting: string, tier: string) => {
     setBusy(setting);
     setError(null);
@@ -54,6 +64,7 @@ export default function SettingsScreen() {
     try {
       const updated = await api.setAgentPolicy(setting, { fallback_tier: tier || null });
       setData(updated);
+      await refreshStats();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -67,6 +78,7 @@ export default function SettingsScreen() {
     try {
       const updated = await api.setAgentPolicy(setting, patch);
       setData(updated);
+      await refreshStats();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -89,8 +101,7 @@ export default function SettingsScreen() {
     try {
       const updated = await api.applyPreset(presetId);
       setData(updated);
-      const st = await api.agentStats();
-      setStats(st);
+      await refreshStats();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -117,6 +128,7 @@ export default function SettingsScreen() {
     try {
       const updated = await api.saveCustomPreset(label);
       setData(updated);
+      await refreshStats();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -130,6 +142,7 @@ export default function SettingsScreen() {
     try {
       const updated = await api.deleteCustomPreset(presetId);
       setData(updated);
+      await refreshStats();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -146,6 +159,7 @@ export default function SettingsScreen() {
     try {
       const updated = await api.setAgentGlobals(patch);
       setData(updated);
+      await refreshStats();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -215,6 +229,7 @@ export default function SettingsScreen() {
               />
             ))}
           </div>
+          <ProviderCards providers={data.providers} />
         </>
       )}
 

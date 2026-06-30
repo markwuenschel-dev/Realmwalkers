@@ -738,7 +738,51 @@ export interface paths {
     get: operations["book_telemetry_books__book_id__telemetry_get"];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Clear Book Telemetry
+     * @description Delete all llm_calls rows for one book.
+     */
+    delete: operations["clear_book_telemetry_books__book_id__telemetry_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/telemetry/runs/{run_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Clear Run Telemetry
+     * @description Delete llm_calls for one run scoped to a book.
+     */
+    delete: operations["clear_run_telemetry_books__book_id__telemetry_runs__run_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/telemetry": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Clear All Telemetry
+     * @description Delete every llm_calls row. Requires confirm phrase to prevent accidents.
+     */
+    delete: operations["clear_all_telemetry_telemetry_delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -1602,6 +1646,11 @@ export interface components {
         [key: string]: string;
       };
       globals: components["schemas"]["AgentGlobalsOut"];
+      /**
+       * Providers
+       * @default []
+       */
+      providers: components["schemas"]["AgentProviderOut"][];
     };
     /** AgentPermissionsOut */
     AgentPermissionsOut: {
@@ -1722,6 +1771,20 @@ export interface components {
        * @default false
        */
       is_custom: boolean;
+    };
+    /** AgentProviderOut */
+    AgentProviderOut: {
+      /** Id */
+      id: string;
+      /** Label */
+      label: string;
+      /** Status */
+      status: string;
+      /**
+       * Description
+       * @default
+       */
+      description: string;
     };
     /** AgentStatsListOut */
     AgentStatsListOut: {
@@ -2616,6 +2679,11 @@ export interface components {
      * @enum {string}
      */
     GateMode: "pause_each" | "draft_ahead";
+    /** GlobalTelemetryDeleteIn */
+    GlobalTelemetryDeleteIn: {
+      /** Confirm */
+      confirm: string;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -3870,6 +3938,11 @@ export interface components {
      * @enum {string}
      */
     SuggestionStatus: "pending" | "accepted" | "rejected";
+    /** TelemetryDeleteOut */
+    TelemetryDeleteOut: {
+      /** Deleted Calls */
+      deleted_calls: number;
+    };
     /**
      * TelemetryGroupOut
      * @description A named aggregation bucket for the global tab (by stage or by model).
@@ -5640,6 +5713,102 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["BookTelemetryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clear_book_telemetry_books__book_id__telemetry_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TelemetryDeleteOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clear_run_telemetry_books__book_id__telemetry_runs__run_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TelemetryDeleteOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clear_all_telemetry_telemetry_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GlobalTelemetryDeleteIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TelemetryDeleteOut"];
         };
       };
       /** @description Validation Error */

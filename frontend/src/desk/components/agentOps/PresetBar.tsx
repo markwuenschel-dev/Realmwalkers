@@ -191,6 +191,9 @@ export function PresetBar({
         {pipeline.summary} · {pipeline.opus_calls} Opus · {pipeline.sonnet_calls} Sonnet ·{" "}
         {pipeline.haiku_calls} Haiku calls (est.)
       </div>
+      <div style={css("margin-top:6px;font-size:11.5px;color:var(--dim)")}>
+        Estimated from current tiers (not historical spend)
+      </div>
     </div>
   );
 }

@@ -56,6 +56,7 @@ export default function TelemetryScreen() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareA, setCompareA] = useState<string | null>(null);
   const [filters, setFilters] = useState<LlmCallFilters>({});
+  const [problemsReloadKey, setProblemsReloadKey] = useState(0);
 
   const stageHints = useMemo(() => stageOptionsFromBook(data), [data]);
   const latestRunId = runs[0]?.run_id ?? latestRun?.run_id ?? null;
@@ -146,6 +147,11 @@ export default function TelemetryScreen() {
     void load();
   }, [load]);
 
+  const onDataChanged = useCallback(async () => {
+    await load();
+    setProblemsReloadKey((k) => k + 1);
+  }, [load]);
+
   const onRunClick = useCallback(
     (r: RunRollupOut) => {
       if (!r.run_id || !bookId) return;
@@ -232,16 +238,19 @@ export default function TelemetryScreen() {
         </div>
       ) : data && bookId ? (
         <div style={css("display:flex;flex-direction:column;gap:8px")}>
-          <ProblemsPanel bookId={bookId} onOpen={openView} />
+          <ProblemsPanel bookId={bookId} onOpen={openView} reloadKey={problemsReloadKey} />
           <TelemetryFiltersBar
+            bookId={bookId}
             chapters={chapters}
             runs={runs}
             latestRunId={latestRunId}
             stageHints={stageHints}
             value={filters}
+            selectedRunId={filters.run_id}
             onChange={setFilters}
             onApply={applyFilters}
             onClear={clearFilters}
+            onDataChanged={onDataChanged}
           />
           <TotalsStrip t={data.totals} />
 

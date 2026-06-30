@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.agent_policy import load_runtime_policies, resolve_policy
+from dominion.shared.agent_providers import PROVIDERS
 from dominion.shared.agent_registry import (
     AGENTS,
     BUILTIN_PRESET_IDS,
@@ -47,6 +48,7 @@ from dominion.shared.schemas import (
     AgentPermissionsPatchIn,
     AgentPolicyOut,
     AgentPresetOut,
+    AgentProviderOut,
     AgentStatsListOut,
     AgentStatsOut,
     CustomPresetCreateIn,
@@ -151,7 +153,12 @@ def _agent_ops_row(agent: AgentDefinition, override: AgentPolicyOverride | None)
         ),
         permissions=_permissions_out(agent, override),
         estimate=_estimate_out(agent),
-        warnings=capability_warnings(agent.setting_key, primary_tier, policy.fallback_tier),
+        warnings=capability_warnings(
+            agent.setting_key,
+            primary_tier,
+            policy.fallback_tier,
+            semantic_escalation=resolved.semantic_escalation,
+        ),
     )
 
 
@@ -369,6 +376,15 @@ async def build_agent_ops(session: AsyncSession) -> AgentOpsOut:
         pipeline_estimate=_pipeline_estimate(agents),
         tiers=TIERS,
         globals=_globals_out(ops_row),
+        providers=[
+            AgentProviderOut(
+                id=p.id,
+                label=p.label,
+                status=p.status,
+                description=p.description,
+            )
+            for p in PROVIDERS
+        ],
     )
 
 
@@ -381,6 +397,25 @@ def model_setting_out(agent: AgentDefinition) -> ModelSettingOut:
         model=model,
         tier=tier_of(model),
     )
+
+
+async def _merge_policy_hints(session: AsyncSession, hints: dict[str, dict[str, Any]]) -> None:
+    """Apply preset policy hints into persisted AgentPolicyOverride rows."""
+    role_keys = {a.setting_key for a in AGENTS}
+    for setting_key, hint in hints.items():
+        if setting_key not in role_keys:
+            continue
+        existing = await session.get(AgentPolicyOverride, setting_key)
+        merged = {**(existing.policy_json if existing else {}), **hint}
+        fb_tier = hint.get("fallback_tier")
+        if fb_tier is not None:
+            attr = FALLBACK_ATTR.get(setting_key)
+            if attr:
+                setattr(settings, attr, model_for_tier(fb_tier) if fb_tier else "")
+        if existing is None:
+            session.add(AgentPolicyOverride(setting_name=setting_key, policy_json=merged))
+        else:
+            existing.policy_json = merged
 
 
 async def apply_tier_to_agent(session: AsyncSession, setting_key: str, tier: str) -> ModelSettingOut:
@@ -402,6 +437,8 @@ async def apply_preset(session: AsyncSession, preset_id: str) -> AgentOpsOut:
         preset = PRESET_BY_ID[preset_id]
         for setting_key, tier in preset.tiers.items():
             await apply_tier_to_agent(session, setting_key, tier)
+        if preset.policy_hints:
+            await _merge_policy_hints(session, preset.policy_hints)
     elif preset_id.startswith(_CUSTOM_PRESET_PREFIX):
         row = await session.get(AgentCustomPreset, preset_id)
         if row is None:

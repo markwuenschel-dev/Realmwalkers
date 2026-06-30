@@ -12,16 +12,23 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, or_, select
 
 from dominion.api.deps import SessionDep
+from dominion.api.telemetry_delete import (
+    delete_all_telemetry,
+    delete_book_telemetry,
+    delete_run_telemetry,
+)
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Chapter, Job, LlmCall, Scene, ScenePacket
 from dominion.shared.schemas import (
     BookTelemetryOut,
     ChapterRollupOut,
     ChapterTelemetryOut,
+    GlobalTelemetryDeleteIn,
     LlmCallLinksOut,
     LlmCallListOut,
     LlmCallOut,
@@ -31,6 +38,7 @@ from dominion.shared.schemas import (
     RunTelemetryOut,
     SceneTelemetryOut,
     StageDeltaOut,
+    TelemetryDeleteOut,
     TelemetryGroupOut,
     TelemetryProblemOut,
     TelemetryProblemsOut,
@@ -50,6 +58,7 @@ from dominion.workers.telemetry_cost import estimate_calls_cost_usd
 from dominion.workers.telemetry_diagnostics import build_problems
 from dominion.workers.telemetry_draft_problems import detect_draft_not_ready
 
+log = structlog.get_logger()
 router = APIRouter(tags=["telemetry"])
 
 
@@ -294,6 +303,32 @@ async def book_telemetry(
         by_stage=_group(rows, lambda c: c.stage),
         by_model=_group(rows, lambda c: c.model),
     )
+
+
+@router.delete("/books/{book_id}/telemetry", response_model=TelemetryDeleteOut)
+async def clear_book_telemetry(book_id: uuid.UUID, session: SessionDep) -> TelemetryDeleteOut:
+    """Delete all llm_calls rows for one book."""
+    deleted = await delete_book_telemetry(session, book_id)
+    await session.commit()
+    return TelemetryDeleteOut(deleted_calls=deleted)
+
+
+@router.delete("/books/{book_id}/telemetry/runs/{run_id}", response_model=TelemetryDeleteOut)
+async def clear_run_telemetry(book_id: uuid.UUID, run_id: uuid.UUID, session: SessionDep) -> TelemetryDeleteOut:
+    """Delete llm_calls for one run scoped to a book."""
+    deleted = await delete_run_telemetry(session, book_id, run_id)
+    await session.commit()
+    return TelemetryDeleteOut(deleted_calls=deleted)
+
+
+@router.delete("/telemetry", response_model=TelemetryDeleteOut)
+async def clear_all_telemetry(body: GlobalTelemetryDeleteIn, session: SessionDep) -> TelemetryDeleteOut:
+    """Delete every llm_calls row. Requires confirm phrase to prevent accidents."""
+    if body.confirm != "DELETE_ALL_TELEMETRY":
+        raise HTTPException(status_code=400, detail="confirm must be DELETE_ALL_TELEMETRY")
+    deleted = await delete_all_telemetry(session)
+    await session.commit()
+    return TelemetryDeleteOut(deleted_calls=deleted)
 
 
 @router.get("/runs/{run_id}/telemetry", response_model=RunTelemetryOut)

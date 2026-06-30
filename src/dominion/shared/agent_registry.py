@@ -5,8 +5,9 @@ The Agent Operations panel and settings API read from here instead of duplicatin
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
 
@@ -96,6 +97,7 @@ class AgentPreset:
     latency_band: SpeedBand
     best_for: str
     tiers: dict[str, Tier]
+    policy_hints: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 AGENTS: tuple[AgentDefinition, ...] = (
@@ -250,6 +252,10 @@ PRESETS: tuple[AgentPreset, ...] = (
             "scene_packet_author_model": "haiku",
             "scene_packet_qa_model": "haiku",
         },
+        policy_hints={
+            "draft_model": {"quality_level": "fast"},
+            "review_model": {"semantic_escalation": False},
+        },
     ),
     AgentPreset(
         id="high_quality_chapter",
@@ -266,6 +272,12 @@ PRESETS: tuple[AgentPreset, ...] = (
             "packet_qa_model": "sonnet",
             "scene_packet_author_model": "haiku",
             "scene_packet_qa_model": "sonnet",
+        },
+        policy_hints={
+            "draft_model": {"quality_level": "quality"},
+            "review_model": {"semantic_escalation": True, "quality_level": "quality"},
+            "packet_qa_model": {"semantic_escalation": True},
+            "scene_packet_qa_model": {"semantic_escalation": True},
         },
     ),
     AgentPreset(
@@ -284,6 +296,11 @@ PRESETS: tuple[AgentPreset, ...] = (
             "scene_packet_author_model": "haiku",
             "scene_packet_qa_model": "sonnet",
         },
+        policy_hints={
+            "review_model": {"semantic_escalation": True, "quality_level": "quality"},
+            "packet_qa_model": {"semantic_escalation": True},
+            "scene_packet_qa_model": {"semantic_escalation": True},
+        },
     ),
     AgentPreset(
         id="budget_mode",
@@ -300,6 +317,10 @@ PRESETS: tuple[AgentPreset, ...] = (
             "packet_qa_model": "haiku",
             "scene_packet_author_model": "haiku",
             "scene_packet_qa_model": "haiku",
+        },
+        policy_hints={
+            "draft_model": {"quality_level": "fast"},
+            "review_model": {"semantic_escalation": False},
         },
     ),
 )
@@ -324,13 +345,66 @@ def fallback_attr(setting_key: str) -> str | None:
     return FALLBACK_ATTR.get(setting_key)
 
 
-def capability_warnings(setting_key: str, primary_tier: str | None, fallback_tier: str | None) -> list[str]:
+@dataclass(frozen=True)
+class _CapabilityWarningContext:
+    setting_key: str
+    primary_tier: str | None
+    fallback_tier: str | None
+    semantic_escalation: bool | None = None
+
+
+def _warn_review_haiku(ctx: _CapabilityWarningContext) -> bool:
+    return ctx.setting_key == "review_model" and ctx.primary_tier == "haiku"
+
+
+def _warn_packet_qa_opus_no_fallback(ctx: _CapabilityWarningContext) -> bool:
+    return ctx.setting_key == "packet_qa_model" and ctx.primary_tier == "opus" and not ctx.fallback_tier
+
+
+def _warn_scene_packet_author_haiku(ctx: _CapabilityWarningContext) -> bool:
+    return ctx.setting_key == "scene_packet_author_model" and ctx.primary_tier == "haiku"
+
+
+def _warn_draft_sonnet(ctx: _CapabilityWarningContext) -> bool:
+    return ctx.setting_key == "draft_model" and ctx.primary_tier == "sonnet"
+
+
+def _warn_scene_packet_qa_haiku_no_semantic(ctx: _CapabilityWarningContext) -> bool:
+    return (
+        ctx.setting_key == "scene_packet_qa_model" and ctx.primary_tier == "haiku" and ctx.semantic_escalation is False
+    )
+
+
+_CAPABILITY_WARNING_RULES: tuple[tuple[Callable[[_CapabilityWarningContext], bool], str], ...] = (
+    (_warn_review_haiku, "Haiku may miss cross-scene continuity issues for long chapters."),
+    (
+        _warn_packet_qa_opus_no_fallback,
+        "Opus is probably unnecessary for packet validation unless escalation is enabled.",
+    ),
+    (
+        _warn_scene_packet_author_haiku,
+        "Haiku is default for per-scene contracts; bump to Sonnet for high canon density.",
+    ),
+    (_warn_draft_sonnet, "May need more passes than Opus for voice lock-in."),
+    (
+        _warn_scene_packet_qa_haiku_no_semantic,
+        "Structural-only QA; canon conflicts may slip through.",
+    ),
+)
+
+
+def capability_warnings(
+    setting_key: str,
+    primary_tier: str | None,
+    fallback_tier: str | None,
+    *,
+    semantic_escalation: bool | None = None,
+) -> list[str]:
     """Lightweight advisory strings for the ops panel."""
-    warnings: list[str] = []
-    if setting_key == "review_model" and primary_tier == "haiku":
-        warnings.append("Haiku may miss cross-scene continuity issues for long chapters.")
-    if setting_key == "packet_qa_model" and primary_tier == "opus" and not fallback_tier:
-        warnings.append("Opus is probably unnecessary for packet validation unless escalation is enabled.")
-    if setting_key == "scene_packet_author_model" and primary_tier == "haiku":
-        warnings.append("Haiku is default for per-scene contracts; bump to Sonnet for high canon density.")
-    return warnings
+    ctx = _CapabilityWarningContext(
+        setting_key=setting_key,
+        primary_tier=primary_tier,
+        fallback_tier=fallback_tier,
+        semantic_escalation=semantic_escalation,
+    )
+    return [message for predicate, message in _CAPABILITY_WARNING_RULES if predicate(ctx)]
