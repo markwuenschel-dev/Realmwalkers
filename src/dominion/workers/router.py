@@ -3,6 +3,7 @@
 This is the seat that, in the previous system, was an LLM re-reasoning invariants on boot. Here it
 executes instantly for zero tokens and cannot spiral.
 """
+
 from __future__ import annotations
 
 from dominion.workers.reviewers.base import Reviewer

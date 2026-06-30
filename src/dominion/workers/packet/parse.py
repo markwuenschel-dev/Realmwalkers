@@ -5,6 +5,7 @@ or a prose preamble, so we extract leniently here. NOTE the phase-wide rule: len
 fine, but the orchestration treats a `None` result as fail-closed (packet -> blocked) — a malformed
 packet must never silently degrade into partial drafting constraints.
 """
+
 from __future__ import annotations
 
 import json

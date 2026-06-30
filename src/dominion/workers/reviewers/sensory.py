@@ -1,4 +1,5 @@
 """Sensory review lane (DESIGN §6, OPEN-8). Advisory: flags abstraction where concrete sense detail is due."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

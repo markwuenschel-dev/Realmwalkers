@@ -1,5 +1,6 @@
 """Phase 2 integration tests against real Postgres: ledger, RAG, summaries, auto-advance,
 revise pipeline, continuity resolution. LLM calls (drafter/summaries) are mocked."""
+
 from __future__ import annotations
 
 import pytest
@@ -52,16 +53,22 @@ async def _chapter(s, book, no=1, pov="Marcus"):
 
 
 async def _run(s, book, gate=GateMode.PAUSE_EACH):
-    run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode=gate,
-              token_budget=40_000, status=RunStatus.ACTIVE)
+    run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode=gate, token_budget=40_000, status=RunStatus.ACTIVE)
     s.add(run)
     await s.flush()
     return run
 
 
 async def _beat(s, ch, scene_no=1, *, esc=None, chars=("Marcus",), text="Marcus wakes."):
-    b = Beat(chapter_id=ch.id, scene_no=scene_no, tags=[], characters_present=list(chars),
-             expected_state_changes=esc, status=BeatStatus.APPROVED, beat_text=text)
+    b = Beat(
+        chapter_id=ch.id,
+        scene_no=scene_no,
+        tags=[],
+        characters_present=list(chars),
+        expected_state_changes=esc,
+        status=BeatStatus.APPROVED,
+        beat_text=text,
+    )
     s.add(b)
     await s.flush()
     await seed_scene_packet(s, chapter=ch, beat=b)  # drafting is fail-closed on an approved packet
@@ -69,8 +76,15 @@ async def _beat(s, ch, scene_no=1, *, esc=None, chars=("Marcus",), text="Marcus 
 
 
 async def _scene(s, ch, scene_no=1, *, status=SceneStatus.PENDING_REVIEW, prose="Prose.", version=1):
-    sc = Scene(chapter_id=ch.id, scene_no=scene_no, version=version, status=status,
-               prose=prose, prose_source="agent", passes_run=["drafter"])
+    sc = Scene(
+        chapter_id=ch.id,
+        scene_no=scene_no,
+        version=version,
+        status=status,
+        prose=prose,
+        prose_source="agent",
+        passes_run=["drafter"],
+    )
     s.add(sc)
     await s.flush()
     return sc
@@ -101,9 +115,7 @@ async def test_canon_rag_retrieves_relevant(db_factory, tmp_path):
     (tmp_path / "eyes.md").write_text(
         "The Eyes of Meszkhal let their bearer perceive spectral seams threaded through reality."
     )
-    (tmp_path / "home.md").write_text(
-        "Marcus grew up gutting cod in the cold fishing village of Dunmoor."
-    )
+    (tmp_path / "home.md").write_text("Marcus grew up gutting cod in the cold fishing village of Dunmoor.")
     async with db_factory() as s:
         book = await _book(s)
         n = await canon_rag.ingest_path(s, book_id=book.id, root=tmp_path)
@@ -126,12 +138,13 @@ async def test_summaries_refresh_and_read(db_factory, monkeypatch):
     async with db_factory() as s:
         book = await _book(s)
         ch = await _chapter(s, book)
-        sc = await _scene(s, ch, 1, status=SceneStatus.APPROVED,
-                          prose="Marcus opened his eyes to a humming sky.")
+        sc = await _scene(s, ch, 1, status=SceneStatus.APPROVED, prose="Marcus opened his eyes to a humming sky.")
         await summaries.refresh_on_approval(s, scene_id=sc.id)
         await s.commit()
-        assert await summaries.pov_summary(s, book_id=book.id, pov="Marcus") == \
-            "ROLLING SUMMARY: Marcus woke in the Realm."
+        assert (
+            await summaries.pov_summary(s, book_id=book.id, pov="Marcus")
+            == "ROLLING SUMMARY: Marcus woke in the Realm."
+        )
         rows = (await s.execute(select(Summary))).scalars().all()
         assert sorted(r.scope for r in rows) == ["omniscient", "pov"]
     assert len(calls) == 2  # one pov-scoped, one omniscient
@@ -154,9 +167,7 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
         assert result["status"] == "approved"
         assert result["next_job"] is not None
         assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 1
-        job = (await s.execute(
-            select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)
-        )).scalar_one()
+        job = (await s.execute(select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED))).scalar_one()
         assert job.kind == JobKind.DRAFT
 
     async with db_factory() as s:  # auto-advance is idempotent
@@ -164,9 +175,7 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
         await schedule_next_after_approval(s, sc1)
         await schedule_next_after_approval(s, sc1)
         await s.commit()
-        jobs = (await s.execute(
-            select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)
-        )).scalars().all()
+        jobs = (await s.execute(select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED))).scalars().all()
         assert len(jobs) == 1
 
 
@@ -174,6 +183,7 @@ async def test_reapprove_does_not_double_apply_deltas_or_readvance(db_factory, m
     """An already-approved scene can be re-opened and re-approved (e.g. after a hand-edit). The
     one-shot side effects must not repeat: a relative ledger delta must not double-count, and the
     next scene must not be re-enqueued — only the edited prose is re-committed."""
+
     async def fake_complete(**kwargs):
         return "summary", Usage(10, 10)
 
@@ -191,7 +201,8 @@ async def test_reapprove_does_not_double_apply_deltas_or_readvance(db_factory, m
         result = await reviews.decide(
             sc1.id,
             DecisionIn(decision=Decision.APPROVE, edited_prose="Marcus wakes, edited."),
-            s, BackgroundTasks(),
+            s,
+            BackgroundTasks(),
         )
         await s.commit()
 
@@ -199,12 +210,10 @@ async def test_reapprove_does_not_double_apply_deltas_or_readvance(db_factory, m
         # the relative delta applied exactly once, not twice
         assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 1
         sc1b = (await s.execute(select(Scene).where(Scene.id == sc1.id))).scalar_one()
-        assert sc1b.prose == "Marcus wakes, edited."          # hand-edit landed
+        assert sc1b.prose == "Marcus wakes, edited."  # hand-edit landed
         assert sc1b.prose_source == "agent+human_edit"
-        jobs = (await s.execute(
-            select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)
-        )).scalars().all()
-        assert len(jobs) == 1                                  # still exactly one queued draft
+        jobs = (await s.execute(select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED))).scalars().all()
+        assert len(jobs) == 1  # still exactly one queued draft
 
 
 async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
@@ -234,9 +243,7 @@ async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
     assert await worker.run_once(session_factory=db_factory) is True
 
     async with db_factory() as s:
-        scenes = (await s.execute(
-            select(Scene).where(Scene.scene_no == 1).order_by(Scene.version)
-        )).scalars().all()
+        scenes = (await s.execute(select(Scene).where(Scene.scene_no == 1).order_by(Scene.version))).scalars().all()
         assert len(scenes) == 2
         assert scenes[0].version == 1 and scenes[0].status == SceneStatus.SUPERSEDED
         assert scenes[1].version == 2 and scenes[1].status == SceneStatus.PENDING_REVIEW
@@ -250,14 +257,15 @@ async def test_continuity_resolve_use_prose_corrects_ledger(db_factory):
         ch = await _chapter(s, book)
         sc = await _scene(s, ch, 1)
         crit = Critique(
-            scene_id=sc.id, version=1, reviewer="continuity", severity="hard",
+            scene_id=sc.id,
+            version=1,
+            reviewer="continuity",
+            severity="hard",
             payload={"character": "Marcus", "attribute": "level", "prose_value": "7", "ledger_value": "5"},
         )
         s.add(crit)
         await s.flush()
-        out = await reviews.resolve_continuity(
-            sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_prose"), s
-        )
+        out = await reviews.resolve_continuity(sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_prose"), s)
         await s.commit()
         assert out["resolved"] == "ledger_updated"
         assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 7
@@ -271,14 +279,15 @@ async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
         await _run(s, book)
         sc = await _scene(s, ch, 1)
         crit = Critique(
-            scene_id=sc.id, version=1, reviewer="continuity", severity="hard",
+            scene_id=sc.id,
+            version=1,
+            reviewer="continuity",
+            severity="hard",
             payload={"character": "Marcus", "attribute": "level", "prose_value": "9", "ledger_value": "5"},
         )
         s.add(crit)
         await s.flush()
-        out = await reviews.resolve_continuity(
-            sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_ledger"), s
-        )
+        out = await reviews.resolve_continuity(sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_ledger"), s)
         await s.commit()
         assert out["resolved"] == "revision_enqueued" and out["job"] is not None
         assert (await s.get(Scene, sc.id)).status == SceneStatus.REVISION_REQUESTED
@@ -301,8 +310,7 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
     # a value the ledger contradicts produces a persisted HARD continuity critique reachable from the
     # inbox. The only mocked piece is the model itself.
     extraction = (
-        '[{"character": "Marcus", "attribute": "level", "value": "7", '
-        '"context_sentence": "The panel read LEVEL 7."}]'
+        '[{"character": "Marcus", "attribute": "level", "value": "7", "context_sentence": "The panel read LEVEL 7."}]'
     )
 
     async def fake_complete(**kwargs):
@@ -321,8 +329,16 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
         # ledger already holds Marcus level 5, as if a prior scene had been approved
         s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"level": 5}))
         await _beat(s, ch, 1, chars=("Marcus",), text="Marcus opens his status panel.")
-        s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
-                  token_budget=20_000, status=JobStatus.QUEUED))
+        s.add(
+            Job(
+                run_id=run.id,
+                kind=JobKind.DRAFT,
+                chapter_no=1,
+                scene_no=1,
+                token_budget=20_000,
+                status=JobStatus.QUEUED,
+            )
+        )
         await s.commit()
 
     assert await worker.run_once(session_factory=db_factory) is True  # drafts + reviews the scene
@@ -337,9 +353,7 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
         assert hard[0].payload["ledger_value"] == "5"
 
 
-async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_original(
-    db_factory, monkeypatch
-):
+async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_original(db_factory, monkeypatch):
     # The drafter emits a ```stat``` block; the pipeline draws the box into Scene.prose and keeps the
     # raw marker form in Scene.agent_original. Only the drafter model is mocked (no key here).
     stat_prose = (
@@ -363,8 +377,16 @@ async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_or
         ch = await _chapter(s, book)  # pov Marcus, no PovProfile -> no voice spec
         run = await _run(s, book)
         await _beat(s, ch, 1, chars=("Marcus",), text="Marcus checks his status panel.")
-        s.add(Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
-                  token_budget=20_000, status=JobStatus.QUEUED))
+        s.add(
+            Job(
+                run_id=run.id,
+                kind=JobKind.DRAFT,
+                chapter_no=1,
+                scene_no=1,
+                token_budget=20_000,
+                status=JobStatus.QUEUED,
+            )
+        )
         await s.commit()
 
     assert await worker.run_once(session_factory=db_factory) is True

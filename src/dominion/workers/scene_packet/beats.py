@@ -9,6 +9,7 @@ a human-facing beat_text, target_words, and the scene_packet_id link. The hard c
 (reader/POV knowledge, reveals, mysteries, traps, word budget) stay in the ScenePacket and are read
 at draft time — never copied into the Beat. Keyed by scene_packet_id so re-deriving updates in place.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -28,9 +29,7 @@ def _as_str_list(value: Any) -> list[str]:
 
 
 def _tags_for(body: dict[str, Any]) -> list[str]:
-    haystack = " ".join(
-        [str(body.get("scene_type") or ""), *_as_str_list(body.get("required_beats"))]
-    ).lower()
+    haystack = " ".join([str(body.get("scene_type") or ""), *_as_str_list(body.get("required_beats"))]).lower()
     return [tag for tag in _LANE_TAGS if tag in haystack]
 
 
@@ -53,9 +52,9 @@ def _target_words(body: dict[str, Any]) -> int | None:
 
 async def _chapter_cast(session: AsyncSession, chapter_packet_id: uuid.UUID) -> list[str] | None:
     """Cast for a chapter's beats = the chapter packet's present characters minus the absent ones."""
-    body = (await session.execute(
-        select(ChapterPacket.body).where(ChapterPacket.id == chapter_packet_id)
-    )).scalar_one_or_none()
+    body = (
+        await session.execute(select(ChapterPacket.body).where(ChapterPacket.id == chapter_packet_id))
+    ).scalar_one_or_none()
     if not isinstance(body, dict):
         return None
     absent = set(_as_str_list(body.get("characters_absent")))
@@ -67,18 +66,26 @@ async def derive_beats(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
     """Upsert one Beat per APPROVED ScenePacket of this chapter (keyed by scene_packet_id) and prune
     stale, un-drafted derived beats. Returns the count of scene-packet-linked beats. The caller commits.
     """
-    packets = (await session.execute(
-        select(ScenePacket).where(
-            ScenePacket.chapter_id == chapter_id,
-            ScenePacket.status == ScenePacketStatus.APPROVED,
-        ).order_by(ScenePacket.scene_no)
-    )).scalars().all()
+    packets = (
+        (
+            await session.execute(
+                select(ScenePacket)
+                .where(
+                    ScenePacket.chapter_id == chapter_id,
+                    ScenePacket.status == ScenePacketStatus.APPROVED,
+                )
+                .order_by(ScenePacket.scene_no)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     existing: dict[uuid.UUID, Beat] = {
         b.scene_packet_id: b
-        for b in (await session.execute(
-            select(Beat).where(Beat.chapter_id == chapter_id, Beat.scene_packet_id.isnot(None))
-        )).scalars()
+        for b in (
+            await session.execute(select(Beat).where(Beat.chapter_id == chapter_id, Beat.scene_packet_id.isnot(None)))
+        ).scalars()
         if b.scene_packet_id is not None
     }
 
@@ -101,9 +108,7 @@ async def derive_beats(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
 
     # Prune derived beats whose packet is no longer approved — but never one whose scene was drafted.
     drafted = {
-        sn for (sn,) in (await session.execute(
-            select(Scene.scene_no).where(Scene.chapter_id == chapter_id)
-        )).all()
+        sn for (sn,) in (await session.execute(select(Scene.scene_no).where(Scene.chapter_id == chapter_id))).all()
     }
     for sp_id, beat in existing.items():
         if sp_id not in seen and beat.scene_no not in drafted:

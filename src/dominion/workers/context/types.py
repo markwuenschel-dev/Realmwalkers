@@ -1,4 +1,5 @@
 """Shared types for scene context assembly."""
+
 from __future__ import annotations
 
 import uuid

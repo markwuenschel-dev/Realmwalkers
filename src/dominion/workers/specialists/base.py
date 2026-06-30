@@ -1,4 +1,5 @@
 """Specialist protocol. Drafter writes the spine; enrichment passes deepen it (DESIGN §4-6)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol, runtime_checkable

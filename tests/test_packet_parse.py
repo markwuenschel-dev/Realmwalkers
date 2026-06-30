@@ -4,6 +4,7 @@ Covers the fail-closed contract at the parsing layer and the pure derivation hel
 unknown-verdict response must yield None (so the orchestration blocks), provenance must resolve to
 real sources, scene seeds must get stable ids, and confidence/status must derive conservatively.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -15,6 +16,7 @@ from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
 
 # --- extract_object (tolerant single-object parse) ------------------------------------------------
+
 
 def test_extract_object_plain():
     assert parse.extract_object('{"a": 1}') == {"a": 1}
@@ -39,6 +41,7 @@ def test_str_list_coerces_and_drops_blanks():
 
 # --- Packet QA parse: fail closed on anything unusable --------------------------------------------
 
+
 def test_parse_qa_valid_verdict():
     out = qa_mod.parse_qa('{"verdict": "APPROVE", "residual_risks": ["watch Serra"], "issues": []}')
     assert out is not None
@@ -62,6 +65,7 @@ def test_parse_qa_block_verdict():
 
 # --- _valid_packet --------------------------------------------------------------------------------
 
+
 def test_valid_packet_requires_seeds_and_claims():
     assert pipeline._valid_packet({"scene_seeds": [{"scene_no": 1}], "claims": []}) is True
     assert pipeline._valid_packet({"scene_seeds": [], "claims": []}) is False
@@ -71,24 +75,28 @@ def test_valid_packet_requires_seeds_and_claims():
 
 # --- _mint_seed_ids: server-side stable ids -------------------------------------------------------
 
+
 def test_mint_seed_ids_are_present_and_unique():
     packet = {"scene_seeds": [{"scene_no": 1}, {"scene_no": 2}]}
     pipeline._mint_seed_ids(packet)
     ids = [s["seed_id"] for s in packet["scene_seeds"]]
-    assert all(uuid.UUID(i) for i in ids)        # valid UUIDs
-    assert len(set(ids)) == 2                     # unique per seed
+    assert all(uuid.UUID(i) for i in ids)  # valid UUIDs
+    assert len(set(ids)) == 2  # unique per seed
 
 
 # --- _resolve_provenance: claim handles -> real sources -------------------------------------------
 
+
 def test_resolve_provenance_canon_outline_and_inference():
     canon_id = uuid.uuid4()
     handles = {"C1": {"id": canon_id, "name": "Cosmology", "body": "The Realm is not a game." * 20}}
-    packet = {"claims": [
-        {"claim": "Realm is real", "source_strength": "LOCKED_CANON", "source_id": "C1"},
-        {"claim": "Serra pressures", "source_strength": "DERIVED_FROM_OUTLINE", "source_id": "OUTLINE"},
-        {"claim": "404 feels loose", "source_strength": "PLAUSIBLE_INFERENCE", "source_id": None},
-    ]}
+    packet = {
+        "claims": [
+            {"claim": "Realm is real", "source_strength": "LOCKED_CANON", "source_id": "C1"},
+            {"claim": "Serra pressures", "source_strength": "DERIVED_FROM_OUTLINE", "source_id": "OUTLINE"},
+            {"claim": "404 feels loose", "source_strength": "PLAUSIBLE_INFERENCE", "source_id": None},
+        ]
+    }
     pipeline._resolve_provenance(packet, handles)
     c0, c1, c2 = packet["claims"]
     assert c0["source_id"] == str(canon_id) and c0["source_title_or_file"] == "Cosmology"
@@ -98,6 +106,7 @@ def test_resolve_provenance_canon_outline_and_inference():
 
 
 # --- _derive: conservative confidence + status ----------------------------------------------------
+
 
 def _qa(verdict: PacketVerdict, issues=None):
     return {"verdict": verdict, "issues": issues or [], "residual_risks": []}
@@ -142,10 +151,15 @@ def test_derive_takes_worst_of_author_and_verdict():
 
 # --- prompt builders carry the key inputs ---------------------------------------------------------
 
+
 def test_author_prompt_includes_outline_and_canon_handles():
     prompt = author_mod.build_prompt(
-        chapter_no=1, pov="Marcus", outline="Marcus intercepts the rogue.",
-        omniscient_summary=None, prior_exit_state=None, next_entry_intent=None,
+        chapter_no=1,
+        pov="Marcus",
+        outline="Marcus intercepts the rogue.",
+        omniscient_summary=None,
+        prior_exit_state=None,
+        next_entry_intent=None,
         canon_handles={"C1": {"name": "Cosmology", "body": "real not game"}},
     )
     assert "Marcus intercepts the rogue." in prompt

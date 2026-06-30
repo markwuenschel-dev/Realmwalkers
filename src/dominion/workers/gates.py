@@ -1,4 +1,5 @@
 """Shared gate refusal types for fail-closed approval and drafting policies."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

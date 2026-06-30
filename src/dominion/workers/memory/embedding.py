@@ -16,6 +16,7 @@ Note: `embed()` is synchronous (callers in ingest + retrieval rely on that). The
 blocking HTTP call; it is bounded by `settings.embedding_time_budget_s` and falls back to the hash
 vector on any error, so a provider outage never breaks drafting.
 """
+
 from __future__ import annotations
 
 import hashlib

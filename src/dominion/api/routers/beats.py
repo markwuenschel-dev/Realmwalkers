@@ -1,5 +1,6 @@
 """Beat editing (gate 1). Beats are a review surface: you edit a proposed beat before approving it
 (DESIGN §4, OPEN-2). Only fields you supply are changed; the rest stay as proposed."""
+
 from __future__ import annotations
 
 import uuid

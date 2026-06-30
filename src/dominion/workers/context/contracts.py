@@ -1,4 +1,5 @@
 """Load approved ScenePacket rows and project contract fields."""
+
 from __future__ import annotations
 
 import uuid
@@ -12,9 +13,7 @@ from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet.projections import project
 
 
-async def load_scene_packet_fields(
-    session: AsyncSession, scene_packet_id: uuid.UUID
-) -> ScenePacketFields:
+async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.UUID) -> ScenePacketFields:
     """Load an approved, non-stale ScenePacket and return consumer-facing contract fields."""
     sp = await session.get(ScenePacket, scene_packet_id)
     if sp is None:
@@ -22,9 +21,9 @@ async def load_scene_packet_fields(
     approval_policy.assert_draft_ready(sp)
 
     body = sp.body or {}
-    chapter_body = (await session.execute(
-        select(ChapterPacket.body).where(ChapterPacket.id == sp.chapter_packet_id)
-    )).scalar_one_or_none()
+    chapter_body = (
+        await session.execute(select(ChapterPacket.body).where(ChapterPacket.id == sp.chapter_packet_id))
+    ).scalar_one_or_none()
     chapter_body = chapter_body if isinstance(chapter_body, dict) else {}
 
     p = project(body, chapter_body)

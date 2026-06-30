@@ -7,6 +7,7 @@ column math (padding every line to equal width) produces ragged borders; determi
 Pure text in, text out: no I/O, no state, no randomness, no clock. Prose outside ```stat``` blocks is
 left byte-for-byte unchanged, and malformed/empty markers are left exactly as written — never raises.
 """
+
 from __future__ import annotations
 
 import re
@@ -51,17 +52,17 @@ def _render_block(content: list[str]) -> str | None:
         line = raw.strip()
         if not line:
             continue
-        if set(line) == {"-"}:            # a line of only dashes -> a divider rule
+        if set(line) == {"-"}:  # a line of only dashes -> a divider rule
             elements.append(("div", "", ""))
-        elif ": " in line:                # Label: Value (split on the first ": ") -> a row
+        elif ": " in line:  # Label: Value (split on the first ": ") -> a row
             label, value = line.split(": ", 1)
             elements.append(("row", label.strip(), value.strip()))
-        else:                             # no "Label: Value" -> a centered header line
+        else:  # no "Label: Value" -> a centered header line
             elements.append(("hdr", line, ""))
 
     rows = [(label, value) for kind, label, value in elements if kind == "row"]
     headers = [text for kind, text, _ in elements if kind == "hdr"]
-    if not rows and not headers:          # only dividers / blanks -> nothing to draw
+    if not rows and not headers:  # only dividers / blanks -> nothing to draw
         return None
 
     label_w = max((len(label) for label, _ in rows), default=0)

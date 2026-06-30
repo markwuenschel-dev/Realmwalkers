@@ -1,4 +1,5 @@
 """Enrichment pass: sharpen fight choreography (DESIGN §5-6). Runs only when the beat carries the matching tag."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

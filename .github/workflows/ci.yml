@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 jobs:
-  # ---- static analysis: ruff + mypy. No DB, no network. Python 3.14 (matches .python-version). ----
+  # ---- static analysis: ruff + pyright (changed files). No DB, no network. Python 3.14. ----
   static:
     name: lint + types
     runs-on: ubuntu-latest
@@ -27,14 +27,22 @@ jobs:
       UV_PYTHON: "3.14"   # pin every uv command (sync AND run) to one interpreter
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - run: uv sync --frozen --extra dev
-      - name: ruff
+      - name: ruff check
         run: uv run --no-sync ruff check src tests
-      - name: mypy (strict)
-        run: uv run --no-sync mypy src
+      - name: ruff format (check)
+        run: uv run --no-sync ruff format --check src tests
+      - name: pyright (changed files)
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        run: bash scripts/ci_pyright_changed.sh
 
   # ---- tests: real Postgres+pgvector on Python 3.14. --------------------------------------------
   tests:

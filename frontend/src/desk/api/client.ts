@@ -125,7 +125,7 @@ export const api = {
   batchRun: (body: BatchRunStart) =>
     http<BatchRunOut>("/runs/batch", { method: "POST", body: JSON.stringify(body) }),
   approveBeats: (chapterId: string, beatIds?: string[]) =>
-    http<{ chapter_id: string; approved: number; jobs: string[] }>(
+    http<{ chapter_id: string; approved: number; message: string }>(
       `/chapters/${chapterId}/beats/approve`,
       { method: "POST", body: JSON.stringify({ beat_ids: beatIds ?? null }) },
     ),
@@ -145,14 +145,16 @@ export const api = {
   createHumanScene: (chapterId: string, body: HumanSceneIn) =>
     http<SceneOut>(`/chapters/${chapterId}/scenes`, { method: "POST", body: JSON.stringify(body) }),
   redraftScenes: (chapterId: string, sceneIds: string[]) =>
-    http<{ chapter_id: string; queued: number; jobs: string[] }>(
-      `/chapters/${chapterId}/scenes/redraft`,
-      { method: "POST", body: JSON.stringify({ scene_ids: sceneIds } satisfies RedraftIn) },
-    ),
+    http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/scenes/redraft`, {
+      method: "POST",
+      body: JSON.stringify({ scene_ids: sceneIds } satisfies RedraftIn),
+    }),
   draftChapter: (chapterId: string) =>
-    http<{ chapter_id: string; queued: number; jobs: string[] }>(`/chapters/${chapterId}/draft`, {
+    http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/draft`, {
       method: "POST",
     }),
+  draftReadiness: (chapterId: string) =>
+    http<import("./types").DraftReadinessOut>(`/chapters/${chapterId}/draft/readiness`),
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),

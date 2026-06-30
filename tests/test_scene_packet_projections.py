@@ -1,4 +1,5 @@
 """Pure unit tests for ScenePacket body → consumer contract projections."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -9,23 +10,31 @@ from dominion.workers.scene_packet.projections import project
 def _scene_body(word_budget: dict[str, Any] | None = None) -> dict[str, Any]:
     mole = "Serra is the mole"
     return {
-        "scene_no": 1, "scene_job": "Marcus intercepts.", "scene_type": "combat",
+        "scene_no": 1,
+        "scene_job": "Marcus intercepts.",
+        "scene_type": "combat",
         "word_budget": word_budget or {"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400},
         "known_before_scene": {"reader": ["the route"], "pov": ["the route"], "omniscient_author": [mole]},
         "learned_during_scene": {
             "reader_must_learn": ["the cohort is converging"],
-            "reader_may_learn": [], "reader_may_infer_only": [],
+            "reader_may_learn": [],
+            "reader_may_infer_only": [],
         },
         "must_remain_hidden": {"reader": [mole], "pov": [], "all_surface_prose": []},
         "pov_permissions": {
-            "may_notice": [], "may_infer": [], "must_not_know": [mole], "may_be_wrong_about": [],
+            "may_notice": [],
+            "may_infer": [],
+            "must_not_know": [mole],
+            "may_be_wrong_about": [],
         },
         "intentional_mysteries": [
             {"mystery": "who tipped the cohort", "desired_reader_effect": "unease", "do_not_explain": True},
         ],
         "reviewer_false_positive_traps": ["the missing tip source is intentional"],
-        "required_beats": ["land the hit"], "forbidden_beats": ["Marcus uses his Aspect"],
-        "exit_state": "both wounded", "phrases_to_avoid_echoing": ["reader must learn"],
+        "required_beats": ["land the hit"],
+        "forbidden_beats": ["Marcus uses his Aspect"],
+        "exit_state": "both wounded",
+        "phrases_to_avoid_echoing": ["reader must learn"],
         "reviewer_instructions": {"combat": ["track stamina"], "continuity": []},
     }
 

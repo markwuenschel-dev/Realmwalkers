@@ -1,4 +1,5 @@
 """Orchestrate scene context assembly (DESIGN §4, §7)."""
+
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession

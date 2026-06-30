@@ -4,6 +4,7 @@ REVISE_REQUIRED asymmetry (intentional):
   * After derive / QA re-run: packet stays `proposed` so the human can fix the contract.
   * Human approve: REVISE_REQUIRED blocks approval (same as BLOCK_DRAFTING for approval gate).
 """
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -20,8 +21,7 @@ _BLOCKING_VERDICTS = {ScenePacketVerdict.BLOCK_DRAFTING, ScenePacketVerdict.REVI
 BlockerSource = Literal["author", "qa", "derive", "unknown"]
 
 _STALE_GATE_RECONCILIATION = (
-    "QA now approves, but the packet remains blocked from an earlier gate. "
-    "Re-run derive or edit/reconcile the packet."
+    "QA now approves, but the packet remains blocked from an earlier gate. Re-run derive or edit/reconcile the packet."
 )
 _NO_BLOCKED_REASON = "Scene packet is blocked but no blocked_reason was recorded"
 
@@ -89,9 +89,7 @@ def infer_blocker_source(packet: ScenePacket, reason: str | None) -> BlockerSour
     if packet.qa_verdict == ScenePacketVerdict.BLOCK_DRAFTING.value:
         return "qa"
     issues = (packet.qa_warnings or {}).get("issues") if isinstance(packet.qa_warnings, dict) else None
-    if isinstance(issues, list) and any(
-        isinstance(i, dict) and i.get("severity") == "block" for i in issues
-    ):
+    if isinstance(issues, list) and any(isinstance(i, dict) and i.get("severity") == "block" for i in issues):
         return "qa"
     if packet.qa_verdict in {
         ScenePacketVerdict.APPROVE.value,
@@ -111,9 +109,7 @@ def can_approve(packet: ScenePacket) -> GateRefusal | None:
 
 def approval_blockers(packet: ScenePacket) -> list[str]:
     if packet.status == ScenePacketStatus.BLOCKED:
-        return [
-            resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"
-        ]
+        return [resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"]
     if packet.status != ScenePacketStatus.PROPOSED:
         return []
     return blocking_qa_reasons(packet)
@@ -130,13 +126,9 @@ def status_after_author_qa(
 ) -> tuple[str, str | None]:
     """(status, blocked_reason). Fail closed on thin body or unusable QA."""
     if not valid_scene_packet_body(body):
-        return ScenePacketStatus.BLOCKED, (
-            error_detail or "scene packet author returned an incomplete body"
-        )
+        return ScenePacketStatus.BLOCKED, (error_detail or "scene packet author returned an incomplete body")
     if qa is None:
-        return ScenePacketStatus.BLOCKED, (
-            error_detail or "scene packet QA returned no usable verdict"
-        )
+        return ScenePacketStatus.BLOCKED, (error_detail or "scene packet QA returned no usable verdict")
     if qa["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
         return ScenePacketStatus.BLOCKED, "scene packet QA blocked drafting"
     return ScenePacketStatus.PROPOSED, None
@@ -187,9 +179,11 @@ def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
     reason = resolve_blocked_reason(row) if row.status == ScenePacketStatus.BLOCKED else None
     source = infer_blocker_source(row, reason) if reason else None
     out = ScenePacketOut.model_validate(row)
-    return out.model_copy(update={
-        "can_approve": row.status == ScenePacketStatus.PROPOSED and not blockers,
-        "approval_blockers": blockers,
-        "blocked_reason": reason,
-        "blocker_source": source,
-    })
+    return out.model_copy(
+        update={
+            "can_approve": row.status == ScenePacketStatus.PROPOSED and not blockers,
+            "approval_blockers": blockers,
+            "blocked_reason": reason,
+            "blocker_source": source,
+        }
+    )

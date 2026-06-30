@@ -10,6 +10,7 @@ function swallows its own errors; a missing entry just means the UI shows a gene
 terminal worker (`dominion-worker`) is a separate process, so its phases aren't visible here — that's
 fine, since the Desk is the path a human actually watches.
 """
+
 from __future__ import annotations
 
 import time
@@ -79,7 +80,7 @@ def set_cache_stats(
             cache_tokens_saved=cache_tokens_saved,
         )
         _cache_stats[job_id] = stats
-        _last_cache = stats          # persists past job completion so the Desk sees it while idle
+        _last_cache = stats  # persists past job completion so the Desk sees it while idle
     except Exception:  # noqa: BLE001
         pass
 

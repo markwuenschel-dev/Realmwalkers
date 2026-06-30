@@ -7,6 +7,7 @@ helpers are the single place those ids are populated, so no creation path can fo
 A draft job must carry a non-null scene_packet_id (drafting requires an approved scene contract); the
 caller is responsible for only enqueuing beats whose ScenePacket is approved.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -39,14 +40,18 @@ def draft_job_for_beat(
 
 
 async def _beat_for_scene(session: AsyncSession, *, chapter_id: uuid.UUID, scene_no: int) -> Beat | None:
-    return (await session.execute(
-        select(Beat).where(Beat.chapter_id == chapter_id, Beat.scene_no == scene_no).order_by(Beat.id)
-    )).scalars().first()
+    return (
+        (
+            await session.execute(
+                select(Beat).where(Beat.chapter_id == chapter_id, Beat.scene_no == scene_no).order_by(Beat.id)
+            )
+        )
+        .scalars()
+        .first()
+    )
 
 
-async def draft_job_for_scene(
-    session: AsyncSession, *, scene: Scene, chapter: Chapter, run: Run | None
-) -> Job:
+async def draft_job_for_scene(session: AsyncSession, *, scene: Scene, chapter: Chapter, run: Run | None) -> Job:
     """A DRAFT job that re-drafts (supersedes) an existing scene. Direct IDs come from the scene and
     its beat; scene_packet_id is the scene's own contract (falling back to the beat's)."""
     beat = await _beat_for_scene(session, chapter_id=scene.chapter_id, scene_no=scene.scene_no)

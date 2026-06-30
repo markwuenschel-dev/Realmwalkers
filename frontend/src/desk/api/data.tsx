@@ -89,7 +89,7 @@ export interface DeskData {
   ) => Promise<RunStartOut | null>;
   planningChapters: Set<number>;
   approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
-  retryFailed: () => Promise<number>;
+  retryFailed: () => Promise<import("./types").RetryFailedOut | null>;
   runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;

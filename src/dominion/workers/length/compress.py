@@ -4,6 +4,7 @@ Runs on the cheap review/enrich tier, never the main draft model. Compresses pro
 target without changing canon, reveals, POV knowledge, outcome, or voice. It is a targeted edit on an
 existing draft, so it must add no new facts and remove no required beats.
 """
+
 from __future__ import annotations
 
 from typing import Any

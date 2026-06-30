@@ -21,6 +21,7 @@ Concurrency is bounded by a process-global semaphore (settings.scene_packet_max_
 chapter's scenes×sections fan-out can't spike Anthropic's rate limits and trigger the 429 backoff that
 would eat the latency win.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -49,6 +50,7 @@ class _Section:
     """One slice of the contract: the top-level keys it owns, the schema subset shown to the model, and
     its token cap. `name` is stamped into the system prompt so the call site (and tests) can tell the
     section calls apart."""
+
     name: str
     keys: tuple[str, ...]
     schema_hint: str
@@ -63,14 +65,14 @@ _SECTIONS: tuple[_Section, ...] = (
         name="knowledge",
         keys=("known_before_scene", "learned_during_scene", "must_remain_hidden", "pov_permissions"),
         schema_hint=(
-            '{\n'
+            "{\n"
             '  "known_before_scene": {"reader": [str], "pov": [str], "omniscient_author": [str]},\n'
             '  "learned_during_scene": {"reader_must_learn": [str], "reader_may_learn": [str], '
             '"reader_may_infer_only": [str]},\n'
             '  "must_remain_hidden": {"reader": [str], "pov": [str], "all_surface_prose": [str]},\n'
             '  "pov_permissions": {"may_notice": [str], "may_infer": [str], "must_not_know": [str], '
             '"may_be_wrong_about": [str]}\n'
-            '}'
+            "}"
         ),
         max_tokens=3500,
     ),
@@ -78,24 +80,32 @@ _SECTIONS: tuple[_Section, ...] = (
         name="mysteries",
         keys=("intentional_mysteries", "reviewer_false_positive_traps"),
         schema_hint=(
-            '{\n'
+            "{\n"
             '  "intentional_mysteries": [{"mystery": str, "desired_reader_effect": str, '
             '"do_not_explain": true}],\n'
             '  "reviewer_false_positive_traps": [str]\n'
-            '}'
+            "}"
         ),
         max_tokens=2000,
     ),
     _Section(
         name="shape",
-        keys=("scene_no", "scene_job", "scene_type", "chapter_position",
-              "required_beats", "forbidden_beats", "exit_state", "tone_pressure"),
+        keys=(
+            "scene_no",
+            "scene_job",
+            "scene_type",
+            "chapter_position",
+            "required_beats",
+            "forbidden_beats",
+            "exit_state",
+            "tone_pressure",
+        ),
         schema_hint=(
-            '{\n'
+            "{\n"
             '  "scene_no": int, "scene_job": str, "scene_type": str,\n'
             '  "chapter_position": "opening|middle|climax|aftermath|bridge",\n'
             '  "required_beats": [str], "forbidden_beats": [str], "exit_state": str, "tone_pressure": str\n'
-            '}'
+            "}"
         ),
         max_tokens=2000,
     ),
@@ -103,10 +113,10 @@ _SECTIONS: tuple[_Section, ...] = (
         name="reviewer",
         keys=("reviewer_instructions",),
         schema_hint=(
-            '{\n'
+            "{\n"
             '  "reviewer_instructions": {"continuity": [str], "pacing": [str], "dialogue": [str], '
             '"combat": [str], "sensory": [str], "voice": [str]}\n'
-            '}'
+            "}"
         ),
         max_tokens=2000,
     ),
@@ -147,8 +157,7 @@ def _section_directive(section: _Section) -> str:
     return (
         f"[section:{section.name}] Emit ONLY the fields for this section — no other keys, no prose, "
         "no code fences. Stay consistent with the chapter packet and the scene seed.\n\n"
-        "Produce ONLY these fields as ONE JSON object (exactly these keys, nothing else):\n"
-        + section.schema_hint
+        "Produce ONLY these fields as ONE JSON object (exactly these keys, nothing else):\n" + section.schema_hint
     )
 
 
@@ -165,8 +174,10 @@ def _slice(obj: dict[str, Any], section: _Section) -> dict[str, Any]:
 
 def _why(obj: Any, usage: Usage, *, section: _Section, model: str, max_tokens: int) -> str:
     if usage.truncated:
-        return (f"section '{section.name}' truncated at max_tokens={max_tokens} on {model} "
-                f"({usage.output_tokens} output tokens)")
+        return (
+            f"section '{section.name}' truncated at max_tokens={max_tokens} on {model} "
+            f"({usage.output_tokens} output tokens)"
+        )
     if not isinstance(obj, dict):
         return f"section '{section.name}' returned no parseable JSON object on {model}"
     missing = [k for k in section.keys if k not in obj]
@@ -174,8 +185,13 @@ def _why(obj: Any, usage: Usage, *, section: _Section, model: str, max_tokens: i
 
 
 async def _author_section(
-    section: _Section, *, system: str, prefix_blocks: tuple[CachedPrefixBlock, ...],
-    user: str, budget: TokenBudget, context_sections: dict[str, int]
+    section: _Section,
+    *,
+    system: str,
+    prefix_blocks: tuple[CachedPrefixBlock, ...],
+    user: str,
+    budget: TokenBudget,
+    context_sections: dict[str, int],
 ) -> dict[str, Any]:
     """Produce one section's slice. Retries ONCE escalated to the fallback model (with extra headroom on
     a truncation) before failing closed for the whole packet. Bounded by the global in-flight semaphore."""
@@ -183,8 +199,12 @@ async def _author_section(
     async def _attempt(model: str, max_tokens: int) -> tuple[Any, Usage]:
         async with _inflight_sem():
             raw, usage = await llm.complete(
-                model=model, system=system, user_prefix_blocks=prefix_blocks, user=user,
-                max_tokens=max_tokens, budget=budget,
+                model=model,
+                system=system,
+                user_prefix_blocks=prefix_blocks,
+                user=user,
+                max_tokens=max_tokens,
+                budget=budget,
                 context_window_budget=settings.scene_packet_context_window_budget,
                 context_sections=context_sections,
             )
@@ -210,7 +230,6 @@ async def _author_section(
     )
 
 
-
 def build_author_prefix_blocks(
     *,
     pov: str,
@@ -226,12 +245,17 @@ def build_author_prefix_blocks(
 ) -> tuple[CachedPrefixBlock, CachedPrefixBlock]:
     chapter_shared_prefix = build_prefix(
         chapter_packet_body=chapter_packet_body,
-        pov_summary=pov_summary, omniscient_summary=omniscient_summary,
+        pov_summary=pov_summary,
+        omniscient_summary=omniscient_summary,
     )
     scene_context_prefix = build_scene_context(
-        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
-        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
-        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
+        pov=pov,
+        scene_seed=scene_seed,
+        word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries,
+        prior_exit_state=prior_exit_state,
+        owner_snippets=owner_snippets,
+        canon_snippets=canon_snippets,
     )
     return (
         CachedPrefixBlock(name="chapter_shared_prefix", text=chapter_shared_prefix),
@@ -239,9 +263,7 @@ def build_author_prefix_blocks(
     )
 
 
-def context_sections_for_author_call(
-    *, prefix_blocks: tuple[CachedPrefixBlock, ...], directive: str
-) -> dict[str, int]:
+def context_sections_for_author_call(*, prefix_blocks: tuple[CachedPrefixBlock, ...], directive: str) -> dict[str, int]:
     sections = {"system": estimate_tokens(_SYSTEM)}
     sections.update({block.name: estimate_tokens(block.text) for block in prefix_blocks})
     sections["section_directive"] = estimate_tokens(directive)
@@ -258,13 +280,17 @@ async def prime_author_shared_prefix(
     """Prime the chapter-shared author prefix outside any scene-local work budget."""
     prefix = build_prefix(
         chapter_packet_body=chapter_packet_body,
-        pov_summary=pov_summary, omniscient_summary=omniscient_summary,
+        pov_summary=pov_summary,
+        omniscient_summary=omniscient_summary,
     )
     user = "Acknowledge cache prime."
     await llm.complete(
-        model=settings.scene_packet_author_model, system=_SYSTEM,
+        model=settings.scene_packet_author_model,
+        system=_SYSTEM,
         user_prefix_blocks=(CachedPrefixBlock(name="chapter_shared_prefix", text=prefix),),
-        user=user, max_tokens=16, budget=budget,
+        user=user,
+        max_tokens=16,
+        budget=budget,
         context_window_budget=settings.scene_packet_context_window_budget,
         context_sections={
             "system": estimate_tokens(_SYSTEM),
@@ -296,19 +322,29 @@ async def author_scene_packet_sectioned(
     # The chapter-shared prefix is a cache breakpoint reused across scenes; the scene-context prefix is a
     # second breakpoint reused across this scene's section calls. Only the section directive varies.
     prefix_blocks = build_author_prefix_blocks(
-        pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=scene_seed,
-        word_budget=word_budget, prior_scene_summaries=prior_scene_summaries,
-        prior_exit_state=prior_exit_state, pov_summary=pov_summary,
-        omniscient_summary=omniscient_summary, owner_snippets=owner_snippets,
+        pov=pov,
+        chapter_packet_body=chapter_packet_body,
+        scene_seed=scene_seed,
+        word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries,
+        prior_exit_state=prior_exit_state,
+        pov_summary=pov_summary,
+        omniscient_summary=omniscient_summary,
+        owner_snippets=owner_snippets,
         canon_snippets=canon_snippets,
     )
 
     async def _run(section: _Section) -> dict[str, Any]:
         directive = _section_directive(section)
         return await _author_section(
-            section, system=_SYSTEM, prefix_blocks=prefix_blocks, user=directive, budget=budget,
+            section,
+            system=_SYSTEM,
+            prefix_blocks=prefix_blocks,
+            user=directive,
+            budget=budget,
             context_sections=context_sections_for_author_call(
-                prefix_blocks=prefix_blocks, directive=directive,
+                prefix_blocks=prefix_blocks,
+                directive=directive,
             ),
         )
 
@@ -328,7 +364,6 @@ async def author_scene_packet_sectioned(
     body["word_budget"] = word_budget  # planner is authoritative, never the model
 
     if not valid_scene_packet_body(body):
-        missing = [k for k in ("known_before_scene", "learned_during_scene", "word_budget")
-                   if k not in body]
+        missing = [k for k in ("known_before_scene", "learned_during_scene", "word_budget") if k not in body]
         raise ScenePacketAuthorError(f"merged section body missing load-bearing keys {missing}")
     return body

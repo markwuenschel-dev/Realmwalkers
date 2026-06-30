@@ -3,6 +3,7 @@
 The pure parsing/extraction is unit-tested with no DB (always runs). The import itself is exercised
 against real Postgres via `db_factory`, with the LLM summary fold turned off so no API key is needed;
 it skips when Postgres isn't reachable (see conftest)."""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -45,6 +46,7 @@ The monitors went to snow, and nothing resolved.
 
 # --- pure parsing (no DB) --------------------------------------------------------------------------
 
+
 def test_split_frontmatter_reads_scalar_keys():
     meta, body = seed._split_frontmatter(_SCENE_FILE)
     assert meta["scene_id"] == "SCENE-001"
@@ -85,15 +87,17 @@ def test_normalize_pov_drops_parenthetical():
 
 def test_scene_and_chapter_numbers():
     from pathlib import Path
+
     p = Path("SCENE-001_earth-opening.md")
     assert seed._scene_no({"scene_id": "SCENE-001"}, p, fallback=9) == 1
-    assert seed._scene_no({"scene": "4"}, p, fallback=9) == 4          # explicit wins
-    assert seed._scene_no({}, Path("untitled.md"), fallback=9) == 9    # fallback to run position
+    assert seed._scene_no({"scene": "4"}, p, fallback=9) == 4  # explicit wins
+    assert seed._scene_no({}, Path("untitled.md"), fallback=9) == 9  # fallback to run position
     assert seed._chapter_no({"chapter": "3"}, default=1) == 3
     assert seed._chapter_no({}, default=1) == 1
 
 
 # --- import against Postgres (skips without a DB) --------------------------------------------------
+
 
 async def test_seed_imports_scenes_and_is_idempotent(db_factory, tmp_path):
     scenes = tmp_path / "scenes"
@@ -103,7 +107,11 @@ async def test_seed_imports_scenes_and_is_idempotent(db_factory, tmp_path):
 
     async with db_factory() as s:
         report = await seed.seed_manuscript(
-            s, book_title="Dominion Realm", scenes_dir=scenes, canon_dir=None, build_summaries=False,
+            s,
+            book_title="Dominion Realm",
+            scenes_dir=scenes,
+            canon_dir=None,
+            build_summaries=False,
         )
         await s.commit()
 
@@ -123,7 +131,11 @@ async def test_seed_imports_scenes_and_is_idempotent(db_factory, tmp_path):
     # Re-running updates in place rather than inserting a duplicate.
     async with db_factory() as s:
         report2 = await seed.seed_manuscript(
-            s, book_title="Dominion Realm", scenes_dir=scenes, canon_dir=None, build_summaries=False,
+            s,
+            book_title="Dominion Realm",
+            scenes_dir=scenes,
+            canon_dir=None,
+            build_summaries=False,
         )
         await s.commit()
     assert report2.imported == [] and len(report2.updated) == 1
@@ -139,13 +151,15 @@ async def test_seed_warns_when_file_pov_differs_from_existing_chapter(db_factory
     (scenes / "SCENE-001.md").write_text(
         "---\nscene: 1\npov: Marcus\n---\n\nMarcus stares at the model.\n", encoding="utf-8"
     )
-    (scenes / "SCENE-002.md").write_text(
-        "---\nscene: 2\npov: Serra\n---\n\nSerra sets her feet.\n", encoding="utf-8"
-    )
+    (scenes / "SCENE-002.md").write_text("---\nscene: 2\npov: Serra\n---\n\nSerra sets her feet.\n", encoding="utf-8")
 
     async with db_factory() as s:
         report = await seed.seed_manuscript(
-            s, book_title="Dominion Realm", scenes_dir=scenes, canon_dir=None, build_summaries=False,
+            s,
+            book_title="Dominion Realm",
+            scenes_dir=scenes,
+            canon_dir=None,
+            build_summaries=False,
         )
         await s.commit()
 
@@ -165,7 +179,11 @@ async def test_seed_builds_canon_index_when_canon_dir_given(db_factory, tmp_path
 
     async with db_factory() as s:
         report = await seed.seed_manuscript(
-            s, book_title="Dominion Realm", scenes_dir=scenes, canon_dir=canon, build_summaries=False,
+            s,
+            book_title="Dominion Realm",
+            scenes_dir=scenes,
+            canon_dir=canon,
+            build_summaries=False,
         )
         await s.commit()
         assert report.canon_chunks >= 1
@@ -173,6 +191,7 @@ async def test_seed_builds_canon_index_when_canon_dir_given(db_factory, tmp_path
     # the indexed passage is retrievable by a semantically-overlapping query
     async with db_factory() as s:
         from dominion.shared.models import Book
+
         book = (await s.execute(select(Book))).scalar_one()
         hits = await canon_rag.retrieve(s, book_id=book.id, query="duelist who commits", k=3)
         assert any("Serra" in h for h in hits)

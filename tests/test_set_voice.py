@@ -1,4 +1,5 @@
 """set_voice authoring CLI: the core upsert finds the book, is idempotent (one row), updates in place."""
+
 from __future__ import annotations
 
 from sqlalchemy import select

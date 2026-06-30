@@ -4,6 +4,7 @@ Versioning is by rows, not Git: a revision inserts a new `Scene` row (version+1,
 parent_scene_id set) and the prior flips to SUPERSEDED. Runtime exhaust (logs, job
 status) lives in tables/stdout, never in a repo.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -20,7 +21,6 @@ class Base(DeclarativeBase):
     pass
 
 
-
 class Book(Base):
     __tablename__ = "books"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -31,18 +31,20 @@ class Book(Base):
 
 class Chapter(Base):
     """Owns POV (Game-of-Thrones model: one POV per whole chapter) and the outline."""
+
     __tablename__ = "chapters"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     chapter_no: Mapped[int] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)  # plan-call proposes; author edits
-    pov: Mapped[str] = mapped_column(Text)                       # single narrating character
+    pov: Mapped[str] = mapped_column(Text)  # single narrating character
     outline: Mapped[str | None] = mapped_column(Text, nullable=True)  # input to beat-proposal
     status: Mapped[str] = mapped_column(Text, default="planned")
 
 
 class PovProfile(Base):
     """Voice + few-shot exemplars per narrating character."""
+
     __tablename__ = "pov_profiles"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
@@ -54,11 +56,12 @@ class PovProfile(Base):
 
 class Run(Base):
     """A generation request: scope + gate mode (DESIGN §8)."""
+
     __tablename__ = "runs"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     scope_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
-    gate_mode: Mapped[str] = mapped_column(Text)                 # pause_each | draft_ahead
+    gate_mode: Mapped[str] = mapped_column(Text)  # pause_each | draft_ahead
     token_budget: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(Text, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -71,10 +74,11 @@ class Job(Base):
     book/chapter/beat/scene_packet ids so `assemble_context` resolves work without `run_id` —
     `run_id` is now batch/provenance metadata, not the routing key.
     """
+
     __tablename__ = "jobs"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
-    kind: Mapped[str] = mapped_column(Text)                      # draft | revise_full | revise_pass
+    kind: Mapped[str] = mapped_column(Text)  # draft | revise_full | revise_pass
     target_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     target_pass: Mapped[str | None] = mapped_column(Text, nullable=True)
     book_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True)
@@ -98,6 +102,7 @@ class Beat(Base):
     ChapterPacket's scene_seeds — `scene_seed_id` is the stable sync key that links a beat back to its
     seed, so re-deriving after a packet edit updates in place instead of duplicating. Null for beats
     that came from the independent plan-call (the fallback path for chapters without a packet)."""
+
     __tablename__ = "beats"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
@@ -121,6 +126,7 @@ class Beat(Base):
 
 class Scene(Base):
     """Prose. A revision is a NEW row, never a mutation. `prose` is the single source of truth."""
+
     __tablename__ = "scenes"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
@@ -152,11 +158,12 @@ class ChapterPacket(Base):
     writer, not the planner). `confidence` drives the autonomy gate: green proceeds, yellow needs the
     human to clear flags, red blocks drafting.
     """
+
     __tablename__ = "chapter_packets"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
-    status: Mapped[str] = mapped_column(Text, default="proposed")     # proposed | approved | blocked
+    status: Mapped[str] = mapped_column(Text, default="proposed")  # proposed | approved | blocked
     confidence: Mapped[str | None] = mapped_column(Text, nullable=True)  # green | yellow | red
     qa_verdict: Mapped[str | None] = mapped_column(Text, nullable=True)  # approve|approve_warn|revise_required|block
     qa_warnings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # {residual_risks: [...]}
@@ -180,6 +187,7 @@ class ScenePacket(Base):
     scene seed, word budget, prior approved scenes, owner-file/canon hashes); when an input changes the
     packet is marked `stale` and cannot create a new draft job until re-derived or re-approved.
     """
+
     __tablename__ = "scene_packets"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
@@ -205,6 +213,7 @@ class DraftAttempt(Base):
     The pipeline rewrites model output before the human sees it (enrichment, length guard); each stage
     is recorded here so the evidence of what every stage did is never destroyed. `stage` is an
     enums.DraftStage value. Append-only; never mutated."""
+
     __tablename__ = "draft_attempts"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id"), nullable=True)
@@ -228,6 +237,7 @@ class LlmCall(Base):
     `truncated`/`error` make a blocked derive diagnosable after the fact without server-log access.
     Pure runtime exhaust: append-only, never mutated, safe to prune.
     """
+
     __tablename__ = "llm_calls"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     # One derive invocation stamps all of its calls with the same run_id, so the telemetry surfaces can
@@ -238,7 +248,7 @@ class LlmCall(Base):
     chapter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapters.id"), nullable=True)
     scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scene_seed_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
-    stage: Mapped[str] = mapped_column(Text)                     # scene_packet_author | scene_packet_qa | ...
+    stage: Mapped[str] = mapped_column(Text)  # scene_packet_author | scene_packet_qa | ...
     model: Mapped[str] = mapped_column(Text)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
@@ -258,18 +268,15 @@ class KnowledgeFact(Base):
     best-effort from approved scenes' ScenePacket reveals (learned_during_scene.reader_must_learn);
     queryable so later tooling can answer "what did the reader know before scene N?" deterministically.
     """
+
     __tablename__ = "knowledge_facts"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     fact: Mapped[str] = mapped_column(Text)
     source_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
-    known_by_reader_after_scene_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("scenes.id"), nullable=True
-    )
+    known_by_reader_after_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     known_by_character: Mapped[str | None] = mapped_column(Text, nullable=True)
-    known_by_character_after_scene_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("scenes.id"), nullable=True
-    )
+    known_by_character_after_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     status: Mapped[str] = mapped_column(Text, default="hidden")  # hidden | revealed
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -282,6 +289,7 @@ class CanonEntity(Base):
     `owner_topic`/`source_priority` drive owner-file precedence over semantic hits, and
     `content_hash`/`embedding_*` make ingest incremental (skip unchanged chunks, re-embed changed ones).
     """
+
     __tablename__ = "canon_entities"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
@@ -301,6 +309,7 @@ class CanonEntity(Base):
 
 class CharacterState(Base):
     """Hard numbers. The Oracle's backing store. NEVER fuzzy-retrieved (DESIGN §5, §7)."""
+
     __tablename__ = "character_state"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
@@ -312,10 +321,11 @@ class CharacterState(Base):
 
 class Summary(Base):
     """Memory. Two scopes: per-POV (feeds drafter) + omniscient (planner + reviewer) (DESIGN §7)."""
+
     __tablename__ = "summaries"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
-    scope: Mapped[str] = mapped_column(Text)                     # pov | omniscient
+    scope: Mapped[str] = mapped_column(Text)  # pov | omniscient
     pov: Mapped[str | None] = mapped_column(Text, nullable=True)
     up_to_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     rolling_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -323,13 +333,14 @@ class Summary(Base):
 
 class Critique(Base):
     """Advisory ONLY. Never changes scene.status. Never blocks the inbox (DESIGN §2, §9)."""
+
     __tablename__ = "critiques"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
     scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
     version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    reviewer: Mapped[str] = mapped_column(Text)                  # continuity|combat|sensory|...
-    severity: Mapped[str] = mapped_column(Text)                  # info|warn|hard
+    reviewer: Mapped[str] = mapped_column(Text)  # continuity|combat|sensory|...
+    severity: Mapped[str] = mapped_column(Text)  # info|warn|hard
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     # for continuity mismatches: {character, prose_value, ledger_value, context_sentence, span}
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
@@ -340,11 +351,12 @@ class Thread(Base):
 
     Human-curated from the Desk's Ledger: the mock invented these, so this is the real backing store.
     """
+
     __tablename__ = "threads"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     name: Mapped[str] = mapped_column(Text)
-    kind: Mapped[str | None] = mapped_column(Text, nullable=True)   # relationship|mentorship|system|power|...
+    kind: Mapped[str | None] = mapped_column(Text, nullable=True)  # relationship|mentorship|system|power|...
     state: Mapped[str | None] = mapped_column(Text, nullable=True)  # active|sealed|contested|rising|...
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -352,6 +364,7 @@ class Thread(Base):
 
 class ThreadBeat(Base):
     """A pinned moment of a thread at a given scene number (the dots on the thread's timeline)."""
+
     __tablename__ = "thread_beats"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     thread_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("threads.id"))
@@ -366,6 +379,7 @@ class Annotation(Base):
     `quote` anchors the inline marker by substring (matches the Desk's tokenize() approach); null quote
     is a scene-level note. Advisory only — never affects scene.status.
     """
+
     __tablename__ = "annotations"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
@@ -382,6 +396,7 @@ class Suggestion(Base):
     Advisory until accepted; accepted suggestions are applied to the prose when the human approves the
     scene (folded into `edited_prose`). `quote` anchors the inline `sugg` marker by substring.
     """
+
     __tablename__ = "suggestions"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
@@ -396,11 +411,12 @@ class Suggestion(Base):
 
 class Approval(Base):
     """The human's verdict = authoritative gate AND future training label (DESIGN §11)."""
+
     __tablename__ = "approvals"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
     version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    decision: Mapped[str] = mapped_column(Text)                  # approve|deny|revise
+    decision: Mapped[str] = mapped_column(Text)  # approve|deny|revise
     target_pass: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -414,6 +430,7 @@ class EditPair(Base):
     `(scene_id, version)`: a re-edit refreshes `human_text` only, keeping the original agent draft so the
     pair never degrades into a human→human diff. This is the dataset every later learning tier reads.
     """
+
     __tablename__ = "edit_pairs"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
@@ -434,11 +451,12 @@ class RuleProposal(Base):
     Advisory until accepted — nothing here changes a draft until the author says so. `pov` matches the
     chapter's narrating character (case-sensitive), exactly as `PovProfile.character` does.
     """
+
     __tablename__ = "rule_proposals"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     pov: Mapped[str] = mapped_column(Text)
-    kind: Mapped[str] = mapped_column(Text)                       # voice | dialogue
+    kind: Mapped[str] = mapped_column(Text)  # voice | dialogue
     rule_text: Mapped[str] = mapped_column(Text)
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     # EditPair ids this batch was distilled from (provenance; stored as text, like exemplar_scene_ids).
@@ -451,6 +469,7 @@ class ModelOverride(Base):
     """Runtime model choice per agent role (e.g. setting_name='draft_model' -> 'claude-opus-4-8').
     Applied to the live `settings` on startup and whenever the Settings screen changes one, so picking
     Haiku/Sonnet/Opus per agent never needs a redeploy."""
+
     __tablename__ = "model_overrides"
     setting_name: Mapped[str] = mapped_column(Text, primary_key=True)
     model: Mapped[str] = mapped_column(Text)

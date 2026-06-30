@@ -360,6 +360,7 @@ function Column({ title, color, count }: { title: string; color: string; count: 
 function RetryFailed() {
   const data = useDeskData();
   const [busy, setBusy] = useState(false);
+  const [lastResult, setLastResult] = useState<import("../api/types").RetryFailedOut | null>(null);
   const n = data.jobs.failed;
   if (n <= 0) return null;
   const errs = data.failedJobs;
@@ -410,7 +411,8 @@ function RetryFailed() {
         onClick={async () => {
           setBusy(true);
           try {
-            await data.retryFailed();
+            const out = await data.retryFailed();
+            setLastResult(out);
           } finally {
             setBusy(false);
           }
@@ -421,6 +423,21 @@ function RetryFailed() {
       >
         {busy ? "Re-queuing…" : `Retry ${n} failed`}
       </button>
+      {lastResult && (
+        <div
+          style={css("margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}
+        >
+          {lastResult.requested ?? n} requested · {lastResult.requeued} queued
+          {(lastResult.skipped?.length ?? 0) > 0 && (
+            <span style={css("color:var(--warn)")}> · {lastResult.skipped!.length} blocked</span>
+          )}
+          {(lastResult.skipped ?? []).slice(0, 4).map((b, i) => (
+            <div key={i} style={css("margin-top:4px;line-height:1.4")}>
+              Sc{b.scene_no ?? "?"}: {b.message} — {b.required_action}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

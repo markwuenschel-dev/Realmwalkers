@@ -5,6 +5,7 @@ text into the rolling summaries, and (in pause_each) auto-enqueue the next scene
 revision job that re-drafts against the feedback. The continuity panel resolves a mismatch by either
 correcting the ledger (prose was right) or queuing a targeted prose fix (ledger was right).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -55,17 +56,20 @@ async def _capture_edit_pair(session: SessionDep, scene: Scene, human_text: str)
     so we keep the true agent draft and never record a human→human diff. Advisory capture; never gates.
     """
     agent_text = render_stat_blocks(scene.agent_original) if scene.agent_original is not None else scene.prose
-    pair = (await session.execute(
-        select(EditPair).where(EditPair.scene_id == scene.id, EditPair.version == scene.version)
-    )).scalar_one_or_none()
+    pair = (
+        await session.execute(select(EditPair).where(EditPair.scene_id == scene.id, EditPair.version == scene.version))
+    ).scalar_one_or_none()
     if pair is None:
-        pov = (await session.execute(
-            select(Chapter.pov).where(Chapter.id == scene.chapter_id)
-        )).scalar_one_or_none()
-        session.add(EditPair(
-            scene_id=scene.id, version=scene.version, pov=pov,
-            agent_text=agent_text, human_text=human_text,
-        ))
+        pov = (await session.execute(select(Chapter.pov).where(Chapter.id == scene.chapter_id))).scalar_one_or_none()
+        session.add(
+            EditPair(
+                scene_id=scene.id,
+                version=scene.version,
+                pov=pov,
+                agent_text=agent_text,
+                human_text=human_text,
+            )
+        )
     else:
         pair.human_text = human_text  # keep the original agent draft; only the human side moved
 
@@ -90,10 +94,15 @@ async def decide(
     # re-enqueue an already-drafted next scene. Those fire only on the first pending -> approved cross.
     first_approval = scene.status != SceneStatus.APPROVED
 
-    session.add(Approval(
-        scene_id=scene.id, version=scene.version, decision=body.decision,
-        target_pass=body.target_pass, feedback=body.feedback,
-    ))
+    session.add(
+        Approval(
+            scene_id=scene.id,
+            version=scene.version,
+            decision=body.decision,
+            target_pass=body.target_pass,
+            feedback=body.feedback,
+        )
+    )
 
     next_job: uuid.UUID | None = None
     if body.decision == Decision.APPROVE:
@@ -138,18 +147,20 @@ async def resolve_continuity(
 
     if body.choice == "use_prose":
         # Prose is right -> correct the Oracle's ledger.
-        row = (await session.execute(
-            select(CharacterState).where(
-                CharacterState.book_id == chapter.book_id, CharacterState.character == character
+        row = (
+            await session.execute(
+                select(CharacterState).where(
+                    CharacterState.book_id == chapter.book_id, CharacterState.character == character
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if row is None:
             row = CharacterState(book_id=chapter.book_id, character=character, stats_json={})
             session.add(row)
         stats = dict(row.stats_json or {})
         stats[attribute] = _coerce(prose_value)
         row.stats_json = stats
-        await session.delete(critique)   # mismatch handled — clear it from the panel
+        await session.delete(critique)  # mismatch handled — clear it from the panel
         await session.commit()
         return {"resolved": "ledger_updated", "job": None}
 
@@ -159,12 +170,10 @@ async def resolve_continuity(
             f"Continuity fix: {character}'s {attribute} must read {ledger_value!r}, "
             f"not {prose_value!r}. Correct the prose accordingly."
         )
-        session.add(Approval(
-            scene_id=scene.id, version=scene.version, decision=Decision.REVISE, feedback=feedback
-        ))
+        session.add(Approval(scene_id=scene.id, version=scene.version, decision=Decision.REVISE, feedback=feedback))
         scene.status = SceneStatus.REVISION_REQUESTED
         job = await schedule_revision(session, scene, target_pass=None)
-        await session.delete(critique)   # superseded by the queued revision — clear it
+        await session.delete(critique)  # superseded by the queued revision — clear it
         await session.commit()
         return {"resolved": "revision_enqueued", "job": str(job) if job else None}
 

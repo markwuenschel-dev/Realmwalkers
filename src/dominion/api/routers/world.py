@@ -4,6 +4,7 @@ The Desk's Ledger screen and the hover-cards over names in the prose read here. 
 from the Oracle's CharacterState; prose/lore bodies from the canon (CanonEntity). Both are real
 story state — nothing here is a fixture.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -39,22 +40,24 @@ async def _require_book(book_id: uuid.UUID, session: SessionDep) -> Book:
     return book
 
 
-async def _character_out(
-    book_id: uuid.UUID, state: CharacterState, session: SessionDep
-) -> CharacterStateOut:
+async def _character_out(book_id: uuid.UUID, state: CharacterState, session: SessionDep) -> CharacterStateOut:
     """One CharacterState -> DTO, resolving POV flag (from chapters) + canon body (kind='character')."""
-    is_pov = (await session.execute(
-        select(Chapter.id)
-        .where(Chapter.book_id == book_id, Chapter.pov == state.character)
-        .limit(1)
-    )).first() is not None
-    body = (await session.execute(
-        select(CanonEntity.body).where(
-            CanonEntity.book_id == book_id,
-            CanonEntity.kind == "character",
-            func.lower(CanonEntity.name) == state.character.lower(),
-        ).limit(1)
-    )).scalar_one_or_none()
+    is_pov = (
+        await session.execute(
+            select(Chapter.id).where(Chapter.book_id == book_id, Chapter.pov == state.character).limit(1)
+        )
+    ).first() is not None
+    body = (
+        await session.execute(
+            select(CanonEntity.body)
+            .where(
+                CanonEntity.book_id == book_id,
+                CanonEntity.kind == "character",
+                func.lower(CanonEntity.name) == state.character.lower(),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     return CharacterStateOut(
         character=state.character,
         stats=state.stats_json or {},
@@ -69,17 +72,25 @@ async def list_characters(book_id: uuid.UUID, session: SessionDep) -> list[Chara
     """Every character the Oracle is tracking, with stats + (if present) the canon body and POV flag."""
     await _require_book(book_id, session)
 
-    states = (await session.execute(
-        select(CharacterState)
-        .where(CharacterState.book_id == book_id)
-        .order_by(CharacterState.character)
-    )).scalars().all()
-    pov_set = set((await session.execute(
-        select(Chapter.pov).where(Chapter.book_id == book_id)
-    )).scalars().all())
-    canon = (await session.execute(
-        select(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.kind == "character")
-    )).scalars().all()
+    states = (
+        (
+            await session.execute(
+                select(CharacterState).where(CharacterState.book_id == book_id).order_by(CharacterState.character)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    pov_set = set((await session.execute(select(Chapter.pov).where(Chapter.book_id == book_id))).scalars().all())
+    canon = (
+        (
+            await session.execute(
+                select(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.kind == "character")
+            )
+        )
+        .scalars()
+        .all()
+    )
     bodies = {(c.name or "").lower(): c.body for c in canon}
 
     return [
@@ -108,11 +119,11 @@ async def upsert_character(
     if not name:
         raise HTTPException(status_code=400, detail="character name required")
 
-    row = (await session.execute(
-        select(CharacterState).where(
-            CharacterState.book_id == book_id, CharacterState.character == name
+    row = (
+        await session.execute(
+            select(CharacterState).where(CharacterState.book_id == book_id, CharacterState.character == name)
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if row is None:
         row = CharacterState(book_id=book_id, character=name, stats_json={})
         session.add(row)
@@ -121,13 +132,17 @@ async def upsert_character(
 
     # An optional description lives as a kind='character' canon entity (what list_characters reads).
     if body.body is not None:
-        canon = (await session.execute(
-            select(CanonEntity).where(
-                CanonEntity.book_id == book_id,
-                CanonEntity.kind == "character",
-                func.lower(CanonEntity.name) == name.lower(),
-            ).limit(1)
-        )).scalar_one_or_none()
+        canon = (
+            await session.execute(
+                select(CanonEntity)
+                .where(
+                    CanonEntity.book_id == book_id,
+                    CanonEntity.kind == "character",
+                    func.lower(CanonEntity.name) == name.lower(),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         text = body.body.strip() or None
         if canon is None:
             canon = CanonEntity(book_id=book_id, kind="character", name=name)
@@ -140,15 +155,13 @@ async def upsert_character(
 
 
 @router.delete("/books/{book_id}/characters/{character}")
-async def delete_character(
-    book_id: uuid.UUID, character: str, session: SessionDep
-) -> dict[str, str]:
+async def delete_character(book_id: uuid.UUID, character: str, session: SessionDep) -> dict[str, str]:
     """Drop a character's tracked stat row (the kind='character' canon description is left in place)."""
-    row = (await session.execute(
-        select(CharacterState).where(
-            CharacterState.book_id == book_id, CharacterState.character == character
+    row = (
+        await session.execute(
+            select(CharacterState).where(CharacterState.book_id == book_id, CharacterState.character == character)
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="character not found")
     await session.delete(row)
@@ -163,18 +176,20 @@ async def list_knowledge(book_id: uuid.UUID, session: SessionDep) -> list[Knowle
     book = await session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="book not found")
-    rows = (await session.execute(
-        select(KnowledgeFact)
-        .where(KnowledgeFact.book_id == book_id)
-        .order_by(KnowledgeFact.created_at)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(KnowledgeFact).where(KnowledgeFact.book_id == book_id).order_by(KnowledgeFact.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
 @router.get("/books/{book_id}/canon", response_model=list[CanonEntityOut])
-async def list_canon(
-    book_id: uuid.UUID, session: SessionDep, kind: str | None = None
-) -> list[CanonEntity]:
+async def list_canon(book_id: uuid.UUID, session: SessionDep, kind: str | None = None) -> list[CanonEntity]:
     """The story bible: characters, locations, factions, items, lore. Filter by `kind` if given."""
     book = await session.get(Book, book_id)
     if book is None:
@@ -187,9 +202,7 @@ async def list_canon(
 
 
 @router.post("/books/{book_id}/canon", response_model=CanonEntityOut)
-async def create_canon(
-    book_id: uuid.UUID, body: CanonEntityIn, session: SessionDep
-) -> CanonEntity:
+async def create_canon(book_id: uuid.UUID, body: CanonEntityIn, session: SessionDep) -> CanonEntity:
     """Add a canon entity (location/faction/item/lore/character/…). Embedded on write so it's
     immediately retrievable by the drafter/planner RAG (DESIGN §7)."""
     await _require_book(book_id, session)
@@ -207,9 +220,7 @@ async def create_canon(
 
 
 @router.put("/canon/{canon_id}", response_model=CanonEntityOut)
-async def update_canon(
-    canon_id: uuid.UUID, body: CanonEntityUpdateIn, session: SessionDep
-) -> CanonEntity:
+async def update_canon(canon_id: uuid.UUID, body: CanonEntityUpdateIn, session: SessionDep) -> CanonEntity:
     """Edit a canon entity. Only provided fields change; a body change re-embeds it for retrieval."""
     entity = await session.get(CanonEntity, canon_id)
     if entity is None:
@@ -248,9 +259,7 @@ async def ingest_canon(book_id: uuid.UUID, session: SessionDep) -> CanonIngestOu
     lore/continuity) so the ledger groups them. Only previously-ingested chunks (non-null doc_path) are
     refreshed/retired; hand-authored entities are untouched. `indexed` reports the live corpus size."""
     await _require_book(book_id, session)
-    out = await canon_rag.ingest_incremental(
-        session, book_id=book_id, root=_PROJECT_ROOT / "series" / "canon"
-    )
+    out = await canon_rag.ingest_incremental(session, book_id=book_id, root=_PROJECT_ROOT / "series" / "canon")
     await session.commit()
     # Total live chunks (newly embedded + unchanged-but-kept), so a no-op re-run still shows the real
     # corpus size rather than 0.

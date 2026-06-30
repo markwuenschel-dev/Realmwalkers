@@ -6,6 +6,7 @@ flags. They never rewrite, never block, and never emit HARD — only the lane fo
 lives here once. The router runs a lane reviewer only when the beat carries its tag, so there is no
 extra "is there combat here?" gate beyond the shared prose-length floor.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -35,6 +36,7 @@ def _scene_section(ctx: SceneContext, name: str) -> str:
     if not rc:
         return ""
     import json as _json
+
     lines: list[str] = []
     if rc.get("scene_job"):
         lines.append(f"Scene job: {rc['scene_job']}")
@@ -63,7 +65,7 @@ def _prompt(prose: str, ctx: SceneContext, name: str) -> str:
         parts.append(f"INTENDED BEAT (what this scene should accomplish):\n{ctx.beat_text}")
     parts.append("SCENE:\n" + prose)
     parts.append(
-        '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
+        "\nReturn ONLY a JSON array (no prose, no code fences). Each item: "
         '{"severity": "info"|"warn", "note": str, "quote": str (the problem phrase, optional)}. '
         "Empty array [] if the dimension holds."
     )
@@ -88,10 +90,12 @@ async def lane_review(scene_prose: str, ctx: SceneContext, *, name: str, focus: 
         if not note:
             continue
         quote = str(item.get("quote", "")).strip()
-        flags.append(Flag(
-            reviewer=name,
-            severity=advisory_severity(item.get("severity")),
-            note=note,
-            payload={"quote": quote} if quote else None,
-        ))
+        flags.append(
+            Flag(
+                reviewer=name,
+                severity=advisory_severity(item.get("severity")),
+                note=note,
+                payload={"quote": quote} if quote else None,
+            )
+        )
     return flags

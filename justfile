@@ -28,6 +28,14 @@ lint:
 typecheck:
     uv run mypy src
 
+# PR-scoped pyright — same as CI static job (see scripts/ci_pyright_changed.sh).
+typecheck-changed:
+    bash scripts/ci_pyright_changed.sh
+
+# Backend gates matching CI static + tests (Postgres required; see scripts/verify.sh).
+verify:
+    bash scripts/verify.sh
+
 openapi:
     uv run python scripts/export_openapi.py
 

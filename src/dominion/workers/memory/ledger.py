@@ -3,6 +3,7 @@
 Deterministic and idempotent-per-scene. One CharacterState row per (book, character) — updated in
 place — so the Oracle's `current()` (which reads the single row) is unambiguous.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -38,26 +39,28 @@ async def commit_declared_deltas(session: AsyncSession, *, scene_id: uuid.UUID) 
     chapter = await session.get(Chapter, scene.chapter_id)
     if chapter is None:
         return
-    beat = (await session.execute(
-        select(Beat).where(Beat.chapter_id == scene.chapter_id, Beat.scene_no == scene.scene_no)
-    )).scalar_one_or_none()
+    beat = (
+        await session.execute(select(Beat).where(Beat.chapter_id == scene.chapter_id, Beat.scene_no == scene.scene_no))
+    ).scalar_one_or_none()
     if beat is None or not beat.expected_state_changes:
         return
 
     for character, deltas in beat.expected_state_changes.items():
         if not isinstance(deltas, dict):
             continue
-        row = (await session.execute(
-            select(CharacterState).where(
-                CharacterState.book_id == chapter.book_id, CharacterState.character == character
+        row = (
+            await session.execute(
+                select(CharacterState).where(
+                    CharacterState.book_id == chapter.book_id, CharacterState.character == character
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if row is None:
             row = CharacterState(book_id=chapter.book_id, character=character, stats_json={})
             session.add(row)
         stats = dict(row.stats_json or {})
         for attr, val in deltas.items():
             stats[attr] = _apply(stats.get(attr), val)
-        row.stats_json = stats          # reassign so SQLAlchemy tracks the JSONB change
+        row.stats_json = stats  # reassign so SQLAlchemy tracks the JSONB change
         row.as_of_scene_id = scene_id
     await session.flush()

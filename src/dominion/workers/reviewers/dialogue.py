@@ -1,4 +1,5 @@
 """Dialogue review lane (DESIGN §6, OPEN-8). Advisory: flags flat voices and on-the-nose exchanges."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

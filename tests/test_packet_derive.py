@@ -1,6 +1,7 @@
 """Phase-2 derivation: an approved chapter packet becomes the chapter's beats, and its constraints
 flow into the drafter. Against real Postgres (skips if unreachable); agents mocked where needed.
 Mirrors tests/test_packet_pipeline.py — router/worker functions are called directly with a session."""
+
 from __future__ import annotations
 
 import uuid
@@ -31,8 +32,14 @@ async def _seed_chapter(s, *, outline: str = "Marcus intercepts the rogue.") -> 
 
 
 def _seed(
-    scene_no: int, job: str, *, scene_type: str | None = None, required: list[str] | None = None,
-    target: int | None = None, exit_state: str | None = None, seed_id: str | None = None,
+    scene_no: int,
+    job: str,
+    *,
+    scene_type: str | None = None,
+    required: list[str] | None = None,
+    target: int | None = None,
+    exit_state: str | None = None,
+    seed_id: str | None = None,
 ) -> dict[str, Any]:
     d: dict[str, Any] = {"scene_no": scene_no, "scene_job": job}
     if scene_type:
@@ -54,8 +61,12 @@ def _body(seeds: list[dict[str, Any]], **extra: Any) -> dict[str, Any]:
 
 async def _approved_packet(s, ch: Chapter, seeds: list[dict[str, Any]], **extra: Any) -> ChapterPacket:
     row = ChapterPacket(
-        book_id=ch.book_id, chapter_id=ch.id, status=PacketStatus.APPROVED, confidence="green",
-        body=_body(seeds, **extra), open_questions={"items": []},
+        book_id=ch.book_id,
+        chapter_id=ch.id,
+        status=PacketStatus.APPROVED,
+        confidence="green",
+        body=_body(seeds, **extra),
+        open_questions={"items": []},
     )
     s.add(row)
     await s.flush()
@@ -75,13 +86,17 @@ def _patch(monkeypatch, body: dict[str, Any]) -> None:
 
 # --- chapter-packet approval no longer derives beats directly (scene-packet cutover) ---------------
 
+
 async def test_chapter_packet_approval_does_not_derive_beats(db_factory, monkeypatch):
     # Beats now derive from APPROVED ScenePackets, not from chapter-packet scene seeds. Approving the
     # chapter packet alone must not create beats.
-    _patch(monkeypatch, _body(
-        [_seed(1, "Cold open on the anomaly.", scene_type="dialogue", target=900)],
-        characters_present=["Marcus"],
-    ))
+    _patch(
+        monkeypatch,
+        _body(
+            [_seed(1, "Cold open on the anomaly.", scene_type="dialogue", target=900)],
+            characters_present=["Marcus"],
+        ),
+    )
     async with db_factory() as s:
         ch = await _seed_chapter(s)
         await packet_pipeline.propose_packet(s, chapter=ch)
@@ -97,6 +112,7 @@ async def test_chapter_packet_approval_does_not_derive_beats(db_factory, monkeyp
 
 # --- seed-id minting on the human-edit path --------------------------------------------------------
 
+
 async def test_update_packet_mints_missing_seed_ids_preserving_existing(db_factory, monkeypatch):
     _patch(monkeypatch, _body([_seed(1, "Only seed.")]))
     async with db_factory() as s:
@@ -105,14 +121,16 @@ async def test_update_packet_mints_missing_seed_ids_preserving_existing(db_facto
         sid1 = proposed.body["scene_seeds"][0]["seed_id"]
         assert sid1
 
-        new_body = _body([
-            {"scene_no": 1, "scene_job": "Only seed.", "seed_id": sid1},
-            {"scene_no": 2, "scene_job": "Added by hand."},                 # no id yet
-        ])
+        new_body = _body(
+            [
+                {"scene_no": 1, "scene_job": "Only seed.", "seed_id": sid1},
+                {"scene_no": 2, "scene_job": "Added by hand."},  # no id yet
+            ]
+        )
         updated = await packets.update_packet(ch.id, PacketUpdateIn(body=new_body), s)
         seeds = updated.body["scene_seeds"]
-        assert seeds[0]["seed_id"] == sid1                                  # preserved
-        assert seeds[1].get("seed_id") and seeds[1]["seed_id"] != sid1      # minted fresh
+        assert seeds[0]["seed_id"] == sid1  # preserved
+        assert seeds[1].get("seed_id") and seeds[1]["seed_id"] != sid1  # minted fresh
 
 
 # --- the contract the drafter is scoped to ---------------------------------------------------------
@@ -123,10 +141,19 @@ async def test_update_packet_mints_missing_seed_ids_preserving_existing(db_facto
 
 def _ctx(contract: dict[str, Any] | None, *, revise: bool = False) -> SceneContext:
     return SceneContext(
-        book_id=uuid.uuid4(), chapter_id=uuid.uuid4(), pov="Marcus", scene_no=1, tags=[],
-        characters_present=["Marcus"], beat_text="They talk.", expected_state_changes=None,
-        knowledge_injections=[], voice_spec=None, budget=TokenBudget(max_tokens=40_000),
-        contract=contract, prior_prose="old draft" if revise else None,
+        book_id=uuid.uuid4(),
+        chapter_id=uuid.uuid4(),
+        pov="Marcus",
+        scene_no=1,
+        tags=[],
+        characters_present=["Marcus"],
+        beat_text="They talk.",
+        expected_state_changes=None,
+        knowledge_injections=[],
+        voice_spec=None,
+        budget=TokenBudget(max_tokens=40_000),
+        contract=contract,
+        prior_prose="old draft" if revise else None,
         revise_feedback="tighten it" if revise else None,
     )
 
@@ -143,11 +170,11 @@ def test_contract_block_appears_in_both_prompts():
         # contract goes into the stable prefix; beat/revision content goes in user
         full = (prefix or "") + "\n" + user
         assert "CONTRACT — obey exactly" in full
-        assert "Serra is the assassin" in full        # forbidden reveal
-        assert "Marcus uses his Aspect" in full       # forbidden beat
-        assert "the cohort is converging" in full     # required reveal
-        assert "the scrim begins" in full             # exit state
-        assert "the Realm is real" in full            # immutable lock
+        assert "Serra is the assassin" in full  # forbidden reveal
+        assert "Marcus uses his Aspect" in full  # forbidden beat
+        assert "the cohort is converging" in full  # required reveal
+        assert "the scrim begins" in full  # exit state
+        assert "the Realm is real" in full  # immutable lock
         assert "MUST NOT:" in full and "MUST:" in full and "IMMUTABLE" in full
 
 

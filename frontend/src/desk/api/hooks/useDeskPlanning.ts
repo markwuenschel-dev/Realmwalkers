@@ -72,12 +72,11 @@ export function useDeskPlanning(fail: DeskFail): DeskPlanningState {
     async (
       chapterId: string,
       beatIds: string[] | undefined,
-      draftNext: () => Promise<void>,
+      _draftNext: () => Promise<void>,
       refreshAll: () => Promise<void>,
     ): Promise<void> => {
       try {
         await api.approveBeats(chapterId, beatIds);
-        await draftNext();
         await refreshAll();
       } catch (e) {
         fail(e);

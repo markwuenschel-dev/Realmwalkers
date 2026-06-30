@@ -7,6 +7,7 @@ summaries), so later tooling can answer "what did the reader know before scene N
 Best-effort + idempotent: re-approving a scene re-upserts the same facts without duplicating, and a
 failure here never blocks the approval (the caller treats it as advisory).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -41,28 +42,33 @@ async def record_scene_reveals(session: AsyncSession, *, scene_id: uuid.UUID) ->
     facts = _reader_facts(sp.body)
     if not facts:
         return 0
-    book_id = (await session.execute(
-        select(Chapter.book_id).where(Chapter.id == scene.chapter_id)
-    )).scalar_one_or_none()
+    book_id = (
+        await session.execute(select(Chapter.book_id).where(Chapter.id == scene.chapter_id))
+    ).scalar_one_or_none()
     if book_id is None:
         return 0
 
     existing = {
         row.fact: row
-        for row in (await session.execute(
-            select(KnowledgeFact).where(
-                KnowledgeFact.book_id == book_id, KnowledgeFact.fact.in_(facts)
+        for row in (
+            await session.execute(
+                select(KnowledgeFact).where(KnowledgeFact.book_id == book_id, KnowledgeFact.fact.in_(facts))
             )
-        )).scalars()
+        ).scalars()
     }
     for fact in facts:
         row = existing.get(fact)
         if row is None:
-            session.add(KnowledgeFact(
-                book_id=book_id, fact=fact, source_scene_id=scene.id,
-                known_by_reader_after_scene_id=scene.id, status=KnowledgeStatus.REVEALED,
-                metadata_json={"scene_no": scene.scene_no},
-            ))
+            session.add(
+                KnowledgeFact(
+                    book_id=book_id,
+                    fact=fact,
+                    source_scene_id=scene.id,
+                    known_by_reader_after_scene_id=scene.id,
+                    status=KnowledgeStatus.REVEALED,
+                    metadata_json={"scene_no": scene.scene_no},
+                )
+            )
         else:
             row.known_by_reader_after_scene_id = scene.id
             row.status = KnowledgeStatus.REVEALED

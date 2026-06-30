@@ -5,6 +5,7 @@ code compares them to the Oracle's ledger. The decision (is this a contradiction
 LLM. It is advisory — it records flags and never blocks the inbox. Until the ledger has state to
 protect (Phase 2 commits it on approval), there is nothing to contradict, so it stays silent.
 """
+
 from __future__ import annotations
 
 import json
@@ -48,7 +49,7 @@ def _extract_prompt(prose: str, watched: dict[str, list[str]]) -> str:
     for character, attrs in watched.items():
         lines.append(f"- {character}: {', '.join(attrs)}")
     lines.append(
-        '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
+        "\nReturn ONLY a JSON array (no prose, no code fences). Each item: "
         '{"character": str, "attribute": str, "value": str, "context_sentence": str}. '
         "Omit anything the scene does not explicitly state."
     )
@@ -61,6 +62,7 @@ def _contract_section(reader_state: dict[str, Any] | None) -> str:
     if not reader_state:
         return ""
     import json as _json
+
     known = reader_state.get("known_before_scene") or {}
     learned = reader_state.get("learned_during_scene") or {}
     hidden = reader_state.get("must_remain_hidden") or {}
@@ -83,7 +85,7 @@ def _knowledge_prompt(prose: str, pov: str, pov_summary: str | None, reader_stat
     knows = f"WHAT {pov} KNOWS SO FAR:\n{pov_summary}\n\n" if pov_summary else ""
     return (
         f"POV character: {pov}\n\n{_contract_section(reader_state)}{knows}SCENE:\n{prose}\n\n"
-        'Return ONLY a JSON array (no prose, no code fences). Each item: '
+        "Return ONLY a JSON array (no prose, no code fences). Each item: "
         '{"reference": str, "kind": '
         '"reader_context_gap|pov_knowledge_leak|premature_reveal|confusing_mystery", '
         '"note": str}. Empty array [] if nothing is out of bounds.'
@@ -168,20 +170,22 @@ class ContinuityReviewer:
                 span, sentence = _locate(scene_prose, prose_value)
                 # Prefer the LLM's context sentence; fall back to the one we located in the prose.
                 context_sentence = str(claim.get("context_sentence", "")).strip() or sentence
-                flags.append(Flag(
-                    reviewer=self.name,
-                    severity=Severity.HARD,
-                    note=f"{character} {attribute}: scene says {prose_value!r}, "
-                         f"ledger says {str(canon[attribute])!r}",
-                    payload={
-                        "character": character,
-                        "attribute": attribute,
-                        "prose_value": prose_value,
-                        "ledger_value": str(canon[attribute]),
-                        "context_sentence": context_sentence,
-                        "span": span,
-                    },
-                ))
+                flags.append(
+                    Flag(
+                        reviewer=self.name,
+                        severity=Severity.HARD,
+                        note=f"{character} {attribute}: scene says {prose_value!r}, "
+                        f"ledger says {str(canon[attribute])!r}",
+                        payload={
+                            "character": character,
+                            "attribute": attribute,
+                            "prose_value": prose_value,
+                            "ledger_value": str(canon[attribute]),
+                            "context_sentence": context_sentence,
+                            "span": span,
+                        },
+                    )
+                )
         return flags
 
     async def _knowledge_flags(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
@@ -206,12 +210,14 @@ class ContinuityReviewer:
                 continue
             reference = str(item.get("reference", "")).strip()
             kind = str(item.get("kind", "")).strip() or "knowledge"
-            flags.append(Flag(
-                reviewer=self.name,
-                severity=Severity.WARN,
-                note=note,
-                payload={"kind": kind, "reference": reference},
-            ))
+            flags.append(
+                Flag(
+                    reviewer=self.name,
+                    severity=Severity.WARN,
+                    note=note,
+                    payload={"kind": kind, "reference": reference},
+                )
+            )
         return flags
 
 

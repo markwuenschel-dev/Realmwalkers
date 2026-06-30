@@ -3,6 +3,7 @@
 Used sparingly: only when a draft is below its budget and either skeletal or missing required beats.
 Expands through physical grounding, reaction beats, and clarity — never new plot, lore, or reveals.
 """
+
 from __future__ import annotations
 
 from typing import Any

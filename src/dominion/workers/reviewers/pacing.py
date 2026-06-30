@@ -5,6 +5,7 @@ arrives too fast, a flat middle — as INFO/WARN flags. It never edits, never bl
 A scene needs enough prose to have pacing at all, so it stays silent (and spends no tokens) on stubs
 below `_MIN_PROSE_CHARS`.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -32,7 +33,7 @@ def _prompt(prose: str, beat_text: str | None) -> str:
         parts.append(f"INTENDED BEAT (what this scene should accomplish):\n{beat_text}")
     parts.append("SCENE:\n" + prose)
     parts.append(
-        '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
+        "\nReturn ONLY a JSON array (no prose, no code fences). Each item: "
         '{"severity": "info"|"warn", "note": str}. Empty array [] if the pacing works.'
     )
     return "\n".join(parts)
@@ -55,11 +56,13 @@ class PacingReviewer:
         for item in parse_json_objects(raw):
             note = str(item.get("note", "")).strip()
             if note:
-                flags.append(Flag(
-                    reviewer=self.name,
-                    severity=advisory_severity(item.get("severity")),
-                    note=note,
-                ))
+                flags.append(
+                    Flag(
+                        reviewer=self.name,
+                        severity=advisory_severity(item.get("severity")),
+                        note=note,
+                    )
+                )
         return flags
 
 

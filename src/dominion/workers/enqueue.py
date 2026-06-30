@@ -5,6 +5,7 @@ One command: create book -> chapter -> beat -> run -> queued job. Pass the beat 
 text upserts the existing beat. Add --draft to draft the scene immediately after enqueueing. In the
 full flow, beats come from the gate-1 plan call (DESIGN §4); this is the manual path for early scenes.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,29 +33,36 @@ from dominion.shared.models import Beat, Book, Chapter, ChapterPacket, Job, Run,
 _PLACEHOLDER = "TODO: write this beat (gate 1)."
 
 
-async def _ensure_scene_packet(
-    s: AsyncSession, *, book: Book, chapter: Chapter, beat: Beat
-) -> ScenePacket:
+async def _ensure_scene_packet(s: AsyncSession, *, book: Book, chapter: Chapter, beat: Beat) -> ScenePacket:
     """Drafting is fail-closed on an approved ScenePacket. The manual enqueue path has no chapter
     packet / scene-packet flow, so mint a minimal APPROVED ChapterPacket + ScenePacket for this scene
     and link the beat to it. Idempotent per (chapter, scene_no): reuse an existing one."""
-    existing: ScenePacket | None = (await s.execute(
-        select(ScenePacket).where(
-            ScenePacket.chapter_id == chapter.id, ScenePacket.scene_no == beat.scene_no
-        ).order_by(ScenePacket.created_at.desc())
-    )).scalars().first()
+    existing: ScenePacket | None = (
+        (
+            await s.execute(
+                select(ScenePacket)
+                .where(ScenePacket.chapter_id == chapter.id, ScenePacket.scene_no == beat.scene_no)
+                .order_by(ScenePacket.created_at.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
     if existing is not None:
         existing.status = ScenePacketStatus.APPROVED
         beat.scene_packet_id = existing.id
         return existing
 
-    cp = (await s.execute(
-        select(ChapterPacket).where(ChapterPacket.chapter_id == chapter.id).limit(1)
-    )).scalar_one_or_none()
+    cp = (
+        await s.execute(select(ChapterPacket).where(ChapterPacket.chapter_id == chapter.id).limit(1))
+    ).scalar_one_or_none()
     if cp is None:
         cp = ChapterPacket(
-            book_id=book.id, chapter_id=chapter.id, status=PacketStatus.APPROVED,
-            confidence="green", body={"scene_seeds": [], "manual": True},
+            book_id=book.id,
+            chapter_id=chapter.id,
+            status=PacketStatus.APPROVED,
+            confidence="green",
+            body={"scene_seeds": [], "manual": True},
             open_questions={"items": []},
         )
         s.add(cp)
@@ -62,14 +70,20 @@ async def _ensure_scene_packet(
 
     target = beat.target_words or 1500
     sp = ScenePacket(
-        book_id=book.id, chapter_id=chapter.id, chapter_packet_id=cp.id, scene_no=beat.scene_no,
-        status=ScenePacketStatus.APPROVED, qa_verdict="approve",
+        book_id=book.id,
+        chapter_id=chapter.id,
+        chapter_packet_id=cp.id,
+        scene_no=beat.scene_no,
+        status=ScenePacketStatus.APPROVED,
+        qa_verdict="approve",
         body={
             "scene_no": beat.scene_no,
             "scene_job": beat.beat_text or "",
             "word_budget": {
-                "target": target, "min": round(target * 0.7),
-                "max": round(target * 1.35), "hard_max": round(target * 1.6),
+                "target": target,
+                "min": round(target * 0.7),
+                "max": round(target * 1.35),
+                "hard_max": round(target * 1.6),
             },
             "known_before_scene": {"reader": [], "pov": [], "omniscient_author": []},
             "learned_during_scene": {"reader_must_learn": [], "reader_may_learn": [], "reader_may_infer_only": []},
@@ -103,18 +117,18 @@ async def enqueue_scene(
             s.add(book)
             await s.flush()
 
-        chapter = (await s.execute(
-            select(Chapter).where(Chapter.book_id == book.id, Chapter.chapter_no == chapter_no)
-        )).scalar_one_or_none()
+        chapter = (
+            await s.execute(select(Chapter).where(Chapter.book_id == book.id, Chapter.chapter_no == chapter_no))
+        ).scalar_one_or_none()
         if chapter is None:
             chapter = Chapter(book_id=book.id, chapter_no=chapter_no, pov=pov)
             s.add(chapter)
             await s.flush()
 
         # Upsert the beat: create it, or update the fields you actually supplied.
-        beat = (await s.execute(
-            select(Beat).where(Beat.chapter_id == chapter.id, Beat.scene_no == scene_no)
-        )).scalar_one_or_none()
+        beat = (
+            await s.execute(select(Beat).where(Beat.chapter_id == chapter.id, Beat.scene_no == scene_no))
+        ).scalar_one_or_none()
         if beat is None:
             beat = Beat(
                 chapter_id=chapter.id,
@@ -144,14 +158,22 @@ async def enqueue_scene(
 
         # Don't stack un-drafted jobs: if one is already queued for this scene, just keep the
         # beat edit and reuse it (so "edit beat -> re-run enqueue" is idempotent).
-        existing = (await s.execute(
-            select(Job).join(Run, Job.run_id == Run.id).where(
-                Run.book_id == book.id,
-                Job.chapter_no == chapter_no,
-                Job.scene_no == scene_no,
-                Job.status == JobStatus.QUEUED,
+        existing = (
+            (
+                await s.execute(
+                    select(Job)
+                    .join(Run, Job.run_id == Run.id)
+                    .where(
+                        Run.book_id == book.id,
+                        Job.chapter_no == chapter_no,
+                        Job.scene_no == scene_no,
+                        Job.status == JobStatus.QUEUED,
+                    )
+                )
             )
-        )).scalars().first()
+            .scalars()
+            .first()
+        )
         if existing is not None:
             await s.commit()
             note = "beat updated" if beat_text is not None else "beat unchanged"
@@ -168,17 +190,22 @@ async def enqueue_scene(
         await s.flush()
 
         job = Job(
-            run_id=run.id, kind=JobKind.DRAFT, chapter_no=chapter_no, scene_no=scene_no,
-            book_id=book.id, chapter_id=chapter.id, beat_id=beat.id,
+            run_id=run.id,
+            kind=JobKind.DRAFT,
+            chapter_no=chapter_no,
+            scene_no=scene_no,
+            book_id=book.id,
+            chapter_id=chapter.id,
+            beat_id=beat.id,
             scene_packet_id=beat.scene_packet_id,
-            token_budget=settings.scene_token_budget, status=JobStatus.QUEUED,
+            token_budget=settings.scene_token_budget,
+            status=JobStatus.QUEUED,
         )
         s.add(job)
         await s.commit()
         has_text = beat_text is not None and beat_text != _PLACEHOLDER
         beat_note = "real beat" if has_text else "PLACEHOLDER beat (pass --beat-text/--beat-file)"
-        print(f"queued job {job.id} for ch{chapter_no} sc{scene_no} "
-              f"(book='{book.title}', pov={pov}, {beat_note})")
+        print(f"queued job {job.id} for ch{chapter_no} sc{scene_no} (book='{book.title}', pov={pov}, {beat_note})")
         return job.id
 
 
@@ -197,7 +224,7 @@ def _parse_esc(raw: str | None) -> dict[str, Any] | None:
     except json.JSONDecodeError as exc:
         raise SystemExit(f"--expected-state-changes is not valid JSON: {exc}") from exc
     if not isinstance(data, dict):
-        raise SystemExit("--expected-state-changes must be a JSON object, e.g. '{\"Marcus\": {\"level\": \"+1\"}}'")
+        raise SystemExit('--expected-state-changes must be a JSON object, e.g. \'{"Marcus": {"level": "+1"}}\'')
     return data
 
 
@@ -209,13 +236,19 @@ async def _run(args: argparse.Namespace) -> None:
         beat_text = args.beat_text
 
     await enqueue_scene(
-        args.book, args.chapter, args.scene, args.pov,
-        beat_text=beat_text, characters=_split(args.characters), tags=_split(args.tags),
+        args.book,
+        args.chapter,
+        args.scene,
+        args.pov,
+        beat_text=beat_text,
+        characters=_split(args.characters),
+        tags=_split(args.tags),
         expected_state_changes=_parse_esc(args.expected_state_changes),
     )
 
     if args.draft:
         from dominion.workers.worker import run_once  # local import: avoids LLM deps unless drafting
+
         drafted = await run_once()
         print("drafted; check the inbox" if drafted else "nothing drafted (no queued job)")
 
@@ -233,8 +266,7 @@ def main() -> None:
     parser.add_argument("--tags", help="comma-separated enrichment tags (Phase 3), e.g. 'combat,dialogue'")
     parser.add_argument(
         "--expected-state-changes",
-        help="JSON stat deltas committed to the ledger on approval, "
-             "e.g. '{\"Marcus\": {\"level\": \"+1\", \"hp\": 100}}'",
+        help='JSON stat deltas committed to the ledger on approval, e.g. \'{"Marcus": {"level": "+1", "hp": 100}}\'',
     )
     parser.add_argument("--draft", action="store_true", help="draft the scene immediately after enqueueing")
     asyncio.run(_run(parser.parse_args()))

@@ -7,7 +7,7 @@ import { useDesk } from "../state";
 import { api } from "../api/client";
 import { Spinner, formatElapsed } from "./DraftActivity";
 import { ChapterTelemetryPanel } from "./Telemetry";
-import type { ScenePacketBody, ScenePacketOut } from "../api/types";
+import type { ScenePacketBody, ScenePacketOut, DraftReadinessOut } from "../api/types";
 
 // Scene packets are the scene-local contract derived from an APPROVED chapter packet: per scene, what
 // the reader/POV know before it, what may be revealed, what stays hidden, the intentional mysteries,
@@ -44,19 +44,30 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const [error, setError] = useState<string | null>(null);
   // Bumped whenever packets reload (chapter change, derive finish) so the telemetry panel re-pulls.
   const [telemetryKey, setTelemetryKey] = useState(0);
+  const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
+  const [drafting, setDrafting] = useState(false);
   const pollRef = useRef<number | null>(null);
+
+  const loadReadiness = useCallback(async () => {
+    try {
+      setReadiness(await api.draftReadiness(chapterId));
+    } catch {
+      setReadiness(null);
+    }
+  }, [chapterId]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setPackets(await api.scenePackets(chapterId));
       setTelemetryKey((k) => k + 1);
+      await loadReadiness();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [chapterId]);
+  }, [chapterId, loadReadiness]);
 
   // On chapter change: load the list + rejoin any in-flight derive (it runs server-side).
   useEffect(() => {
@@ -196,12 +207,59 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
       )}
 
       {approvedCount > 0 && (
-        <div
-          style={css(
-            "font-family:var(--mono);font-size:11.5px;color:var(--good);margin-bottom:12px",
+        <div style={css("margin-bottom:14px")}>
+          <div
+            style={css(
+              "font-family:var(--mono);font-size:11.5px;color:var(--good);margin-bottom:10px",
+            )}
+          >
+            {approvedCount} approved · beats derived · ready to draft.
+          </div>
+          {readiness && (
+            <div
+              style={css(
+                "border:1px solid var(--line);border-radius:9px;background:var(--bg2b);padding:12px 13px;margin-bottom:10px;font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.6",
+              )}
+            >
+              <div>
+                Chapter packet: {readiness.chapter_packet_approved ? "approved" : "missing"}
+              </div>
+              <div>Scene packets: {(readiness.scene_packets.approved as number) ?? 0} approved</div>
+              <div>
+                Beats linked: {(readiness.beats.linked as number) ?? 0}/
+                {(readiness.beats.approved as number) ?? 0}
+              </div>
+              <div>Active draft jobs: {(readiness.jobs.active as number) ?? 0}</div>
+            </div>
           )}
-        >
-          {approvedCount} approved · beats derived · ready to draft.
+          <button
+            disabled={drafting || !readiness?.draftable}
+            onClick={async () => {
+              setDrafting(true);
+              setError(null);
+              try {
+                await api.draftChapter(chapterId);
+                await api.draftNext();
+                await load();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              } finally {
+                setDrafting(false);
+              }
+            }}
+            style={btn(!drafting && !!readiness?.draftable, t.accent, t.onAccent)}
+          >
+            {drafting ? "Queuing…" : "Draft chapter"}
+          </button>
+          {readiness && !readiness.draftable && readiness.blockers.length > 0 && (
+            <div style={css("margin-top:8px;font-size:11.5px;color:var(--warn);line-height:1.45")}>
+              {readiness.blockers.slice(0, 3).map((b, i) => (
+                <div key={i}>
+                  Sc{b.scene_no ?? "?"}: {b.required_action}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

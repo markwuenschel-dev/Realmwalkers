@@ -9,6 +9,7 @@ Like the planner and the advisory reviewers (DESIGN §6), parsing is tolerant �
 response yields no proposals rather than an error. The one bounded failure is a hung call: the endpoint
 runs synchronously, so a timeout raises (the router maps it to 504) instead of spinning the browser.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -37,36 +38,46 @@ _SYSTEM = (
 )
 
 
-async def load_recent_pairs(
-    session: AsyncSession, *, book_id: uuid.UUID, pov: str, limit: int
-) -> list[EditPair]:
+async def load_recent_pairs(session: AsyncSession, *, book_id: uuid.UUID, pov: str, limit: int) -> list[EditPair]:
     """The POV's most-recent agent→human edit pairs in this book (newest first), joined through the
     scene's chapter (EditPair has no book_id of its own). Drops empty or no-op pairs so the model only
     sees real edits."""
-    rows = (await session.execute(
-        select(EditPair)
-        .join(Scene, EditPair.scene_id == Scene.id)
-        .join(Chapter, Scene.chapter_id == Chapter.id)
-        .where(Chapter.book_id == book_id, EditPair.pov == pov)
-        .order_by(EditPair.created_at.desc())
-        .limit(limit)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(EditPair)
+                .join(Scene, EditPair.scene_id == Scene.id)
+                .join(Chapter, Scene.chapter_id == Chapter.id)
+                .where(Chapter.book_id == book_id, EditPair.pov == pov)
+                .order_by(EditPair.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [
-        p for p in rows
-        if (p.agent_text or "").strip() and (p.human_text or "").strip()
-        and p.agent_text != p.human_text
+        p
+        for p in rows
+        if (p.agent_text or "").strip() and (p.human_text or "").strip() and p.agent_text != p.human_text
     ]
 
 
 async def candidate_povs(session: AsyncSession, *, book_id: uuid.UUID) -> list[str]:
     """Distinct POVs that have at least one edit pair in this book — the set worth distilling."""
-    rows = (await session.execute(
-        select(EditPair.pov)
-        .join(Scene, EditPair.scene_id == Scene.id)
-        .join(Chapter, Scene.chapter_id == Chapter.id)
-        .where(Chapter.book_id == book_id, EditPair.pov.is_not(None))
-        .distinct()
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(EditPair.pov)
+                .join(Scene, EditPair.scene_id == Scene.id)
+                .join(Chapter, Scene.chapter_id == Chapter.id)
+                .where(Chapter.book_id == book_id, EditPair.pov.is_not(None))
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [p for p in rows if p]
 
 
@@ -77,7 +88,7 @@ def _prompt(pairs: list[EditPair], *, pov: str, max_chars: int) -> str:
         after = (p.human_text or "")[:max_chars]
         parts.append(f"--- pair {i} ---\nBEFORE:\n{before}\n\nAFTER:\n{after}")
     parts.append(
-        '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
+        "\nReturn ONLY a JSON array (no prose, no code fences). Each item: "
         '{"kind": "voice"|"dialogue", "rule": str (imperative, one line), '
         '"why": str (the pattern you saw, one short sentence)}. Empty array [] if nothing durable stands out.'
     )

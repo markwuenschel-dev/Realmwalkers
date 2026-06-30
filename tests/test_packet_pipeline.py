@@ -4,6 +4,7 @@ The agents are mocked, so these exercise the orchestration's fail-closed behavio
 minting, and the router's approval gate — not the LLM. Mirrors tests/test_desk_api.py: router/pipeline
 functions are called directly with a session (see tests/conftest.py for the DB fixture).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -56,6 +57,7 @@ def _patch(monkeypatch, packet, qa) -> None:
 
 # --- success path ---------------------------------------------------------------------------------
 
+
 async def test_propose_persists_proposed_packet_with_seed_ids(db_factory, monkeypatch):
     _patch(monkeypatch, _packet(), _qa())
     async with db_factory() as s:
@@ -66,13 +68,12 @@ async def test_propose_persists_proposed_packet_with_seed_ids(db_factory, monkey
         # server minted a stable seed id on each scene seed
         assert row.body["scene_seeds"][0].get("seed_id")
         # exactly one current packet for the chapter
-        n = len((await s.execute(
-            select(ChapterPacket).where(ChapterPacket.chapter_id == ch.id)
-        )).scalars().all())
+        n = len((await s.execute(select(ChapterPacket).where(ChapterPacket.chapter_id == ch.id))).scalars().all())
         assert n == 1
 
 
 # --- fail closed ----------------------------------------------------------------------------------
+
 
 async def test_malformed_author_fails_closed_to_blocked(db_factory, monkeypatch):
     async def author_none(**kwargs):
@@ -113,6 +114,7 @@ async def test_no_outline_fails_closed(db_factory, monkeypatch):
 
 # --- approval gate --------------------------------------------------------------------------------
 
+
 async def test_blocked_packet_cannot_be_approved(db_factory, monkeypatch):
     async def author_none(**kwargs):
         return None
@@ -152,6 +154,7 @@ async def test_clean_green_packet_approves(db_factory, monkeypatch):
 
 
 # --- a failed re-propose must not wipe an approved packet -----------------------------------------
+
 
 async def test_failed_repropose_preserves_approved(db_factory, monkeypatch):
     _patch(monkeypatch, _packet(), _qa())

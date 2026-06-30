@@ -2,6 +2,7 @@
 
 Call the router functions directly (as tests/test_phase2.py does); the planner LLM is mocked. These
 skip automatically when Postgres isn't reachable (see tests/conftest.py)."""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -29,11 +30,22 @@ from dominion.shared.schemas import (
 from dominion.workers import planner
 
 _PROPOSED = [
-    {"scene_no": 1, "beat_text": "Marcus wakes.", "characters_present": ["Marcus"],
-     "tags": [], "expected_state_changes": None, "knowledge_injections": []},
-    {"scene_no": 2, "beat_text": "He explores.", "characters_present": ["Marcus"],
-     "tags": ["combat"], "expected_state_changes": {"Marcus": {"level": "+1"}},
-     "knowledge_injections": ["the bridge is cursed"]},
+    {
+        "scene_no": 1,
+        "beat_text": "Marcus wakes.",
+        "characters_present": ["Marcus"],
+        "tags": [],
+        "expected_state_changes": None,
+        "knowledge_injections": [],
+    },
+    {
+        "scene_no": 2,
+        "beat_text": "He explores.",
+        "characters_present": ["Marcus"],
+        "tags": ["combat"],
+        "expected_state_changes": {"Marcus": {"level": "+1"}},
+        "knowledge_injections": ["the bridge is cursed"],
+    },
 ]
 
 
@@ -63,9 +75,11 @@ async def test_start_run_proposes_and_persists_beats(db_factory, monkeypatch):
         ch = (await s.execute(select(Chapter).where(Chapter.id == out.chapter_id))).scalar_one()
         assert ch.outline == "Marcus wakes, then explores."
         assert ch.status == ChapterStatus.BEATS_PROPOSED
-        rows = (await s.execute(
-            select(Beat).where(Beat.chapter_id == out.chapter_id).order_by(Beat.scene_no)
-        )).scalars().all()
+        rows = (
+            (await s.execute(select(Beat).where(Beat.chapter_id == out.chapter_id).order_by(Beat.scene_no)))
+            .scalars()
+            .all()
+        )
         assert [b.scene_no for b in rows] == [1, 2]
         assert rows[1].tags == ["combat"]
         assert rows[1].expected_state_changes == {"Marcus": {"level": "+1"}}
@@ -80,18 +94,15 @@ async def test_update_beat_applies_only_supplied_fields(db_factory):
         ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(ch)
         await s.flush()
-        beat = Beat(chapter_id=ch.id, scene_no=1, beat_text="old text", tags=["dialogue"],
-                    status=BeatStatus.PROPOSED)
+        beat = Beat(chapter_id=ch.id, scene_no=1, beat_text="old text", tags=["dialogue"], status=BeatStatus.PROPOSED)
         s.add(beat)
         await s.flush()
 
-        out = await beats_router.update_beat(
-            beat.id, BeatUpdateIn(beat_text="new text", target_words=500), s
-        )
+        out = await beats_router.update_beat(beat.id, BeatUpdateIn(beat_text="new text", target_words=500), s)
         await s.commit()
         assert out.beat_text == "new text"
         assert out.target_words == 500
-        assert out.tags == ["dialogue"]               # untouched field preserved
+        assert out.tags == ["dialogue"]  # untouched field preserved
 
 
 async def test_delete_beat(db_factory):
@@ -135,22 +146,42 @@ async def test_approve_subset_enqueues_only_selected(db_factory):
         out = await chapters_router.approve_beats(ch.id, s, ApproveBeatsIn(beat_ids=[b1.id]))
         await s.commit()
         assert out["approved"] == 1
-        jobs = (await s.execute(
-            select(Job).where(Job.status == JobStatus.QUEUED)
-        )).scalars().all()
-        assert [j.scene_no for j in jobs] == [1]
+        jobs = (await s.execute(select(Job).where(Job.status == JobStatus.QUEUED))).scalars().all()
+        assert jobs == []
         assert (await s.get(Beat, b1.id)).status == BeatStatus.APPROVED
-        assert (await s.get(Beat, b2.id)).status == BeatStatus.PROPOSED   # unselected stays proposed
+        assert (await s.get(Beat, b2.id)).status == BeatStatus.PROPOSED  # unselected stays proposed
 
 
 async def test_repropose_replaces_proposed_beats(db_factory, monkeypatch):
     takes = [
-        [{"scene_no": 1, "beat_text": "take-1 a", "characters_present": [], "tags": [],
-          "expected_state_changes": None, "knowledge_injections": []},
-         {"scene_no": 2, "beat_text": "take-1 b", "characters_present": [], "tags": [],
-          "expected_state_changes": None, "knowledge_injections": []}],
-        [{"scene_no": 1, "beat_text": "take-2 only", "characters_present": [], "tags": [],
-          "expected_state_changes": None, "knowledge_injections": []}],
+        [
+            {
+                "scene_no": 1,
+                "beat_text": "take-1 a",
+                "characters_present": [],
+                "tags": [],
+                "expected_state_changes": None,
+                "knowledge_injections": [],
+            },
+            {
+                "scene_no": 2,
+                "beat_text": "take-1 b",
+                "characters_present": [],
+                "tags": [],
+                "expected_state_changes": None,
+                "knowledge_injections": [],
+            },
+        ],
+        [
+            {
+                "scene_no": 1,
+                "beat_text": "take-2 only",
+                "characters_present": [],
+                "tags": [],
+                "expected_state_changes": None,
+                "knowledge_injections": [],
+            }
+        ],
     ]
     calls = {"n": 0}
 
@@ -162,9 +193,7 @@ async def test_repropose_replaces_proposed_beats(db_factory, monkeypatch):
     monkeypatch.setattr(planner, "propose_beats", fake_propose)
     async with db_factory() as s:
         book = await _book(s)
-        out1 = await runs_router.start_run(
-            RunStartIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="x"), s
-        )
+        out1 = await runs_router.start_run(RunStartIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="x"), s)
         await s.commit()
         assert len(out1.beats) == 2
 
@@ -172,15 +201,17 @@ async def test_repropose_replaces_proposed_beats(db_factory, monkeypatch):
             RunStartIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="x", target_words=300), s
         )
         await s.commit()
-        rows = (await s.execute(
-            select(Beat).where(Beat.chapter_id == out2.chapter_id).order_by(Beat.scene_no)
-        )).scalars().all()
-        assert len(rows) == 1                        # the take-1 beats were replaced, not stacked
+        rows = (
+            (await s.execute(select(Beat).where(Beat.chapter_id == out2.chapter_id).order_by(Beat.scene_no)))
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1  # the take-1 beats were replaced, not stacked
         assert rows[0].beat_text == "take-2 only"
-        assert rows[0].target_words == 300           # the new per-scene length was stamped
+        assert rows[0].target_words == 300  # the new per-scene length was stamped
 
 
-async def test_approve_beats_enqueues_one_job_per_beat_idempotently(db_factory):
+async def test_approve_beats_does_not_queue_jobs(db_factory):
     async with db_factory() as s:
         book = await _book(s)
         run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode="pause_each", token_budget=40_000)
@@ -188,34 +219,24 @@ async def test_approve_beats_enqueues_one_job_per_beat_idempotently(db_factory):
         ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(ch)
         await s.flush()
-        s.add_all([
-            Beat(chapter_id=ch.id, scene_no=1, beat_text="one", status=BeatStatus.PROPOSED),
-            Beat(chapter_id=ch.id, scene_no=2, beat_text="two", status=BeatStatus.PROPOSED),
-        ])
+        s.add_all(
+            [
+                Beat(chapter_id=ch.id, scene_no=1, beat_text="one", status=BeatStatus.PROPOSED),
+                Beat(chapter_id=ch.id, scene_no=2, beat_text="two", status=BeatStatus.PROPOSED),
+            ]
+        )
         await s.flush()
 
         out = await chapters_router.approve_beats(ch.id, s)
         await s.commit()
-        assert out["approved"] == 2 and len(out["jobs"]) == 2
-
-        ch_after = await s.get(Chapter, ch.id)
-        assert ch_after.status == ChapterStatus.DRAFTING
-        assert all(b.status == BeatStatus.APPROVED for b in (
-            await s.execute(select(Beat).where(Beat.chapter_id == ch.id))
-        ).scalars().all())
-        jobs = (await s.execute(
-            select(Job).where(Job.kind == JobKind.DRAFT, Job.status == JobStatus.QUEUED)
-        )).scalars().all()
-        assert sorted(j.scene_no for j in jobs) == [1, 2]
-
-    async with db_factory() as s:  # approving again must not double-queue
-        ch = (await s.execute(select(Chapter))).scalars().first()
-        out = await chapters_router.approve_beats(ch.id, s)
-        await s.commit()
-        jobs = (await s.execute(
-            select(Job).where(Job.status == JobStatus.QUEUED)
-        )).scalars().all()
-        assert len(jobs) == 2
+        assert out["approved"] == 2
+        assert "message" in out
+        jobs = (
+            (await s.execute(select(Job).where(Job.kind == JobKind.DRAFT, Job.status == JobStatus.QUEUED)))
+            .scalars()
+            .all()
+        )
+        assert jobs == []
 
 
 async def test_scene_versions_returns_lineage(db_factory):
@@ -224,12 +245,27 @@ async def test_scene_versions_returns_lineage(db_factory):
         ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
         s.add(ch)
         await s.flush()
-        v1 = Scene(chapter_id=ch.id, scene_no=1, version=1, status=SceneStatus.SUPERSEDED,
-                   prose="first", prose_source="agent", agent_original="first")
+        v1 = Scene(
+            chapter_id=ch.id,
+            scene_no=1,
+            version=1,
+            status=SceneStatus.SUPERSEDED,
+            prose="first",
+            prose_source="agent",
+            agent_original="first",
+        )
         s.add(v1)
         await s.flush()
-        v2 = Scene(chapter_id=ch.id, scene_no=1, version=2, status=SceneStatus.PENDING_REVIEW,
-                   prose="second", prose_source="agent", parent_scene_id=v1.id, agent_original="second")
+        v2 = Scene(
+            chapter_id=ch.id,
+            scene_no=1,
+            version=2,
+            status=SceneStatus.PENDING_REVIEW,
+            prose="second",
+            prose_source="agent",
+            parent_scene_id=v1.id,
+            agent_original="second",
+        )
         s.add(v2)
         await s.flush()
 
@@ -246,18 +282,50 @@ async def test_manuscript_assembles_latest_approved_in_order(db_factory):
         ch2 = Chapter(book_id=book.id, chapter_no=2, pov="Serra")
         s.add_all([ch1, ch2])
         await s.flush()
-        s.add_all([
-            Scene(chapter_id=ch1.id, scene_no=1, version=1, status=SceneStatus.APPROVED,
-                  prose="A", prose_source="agent"),
-            Scene(chapter_id=ch1.id, scene_no=1, version=2, status=SceneStatus.APPROVED,
-                  prose="A2", prose_source="agent"),          # latest approved version wins
-            Scene(chapter_id=ch1.id, scene_no=2, version=1, status=SceneStatus.APPROVED,
-                  prose="B", prose_source="agent"),
-            Scene(chapter_id=ch1.id, scene_no=3, version=1, status=SceneStatus.PENDING_REVIEW,
-                  prose="draft", prose_source="agent"),        # unapproved -> excluded
-            Scene(chapter_id=ch2.id, scene_no=1, version=1, status=SceneStatus.APPROVED,
-                  prose="C", prose_source="agent"),
-        ])
+        s.add_all(
+            [
+                Scene(
+                    chapter_id=ch1.id,
+                    scene_no=1,
+                    version=1,
+                    status=SceneStatus.APPROVED,
+                    prose="A",
+                    prose_source="agent",
+                ),
+                Scene(
+                    chapter_id=ch1.id,
+                    scene_no=1,
+                    version=2,
+                    status=SceneStatus.APPROVED,
+                    prose="A2",
+                    prose_source="agent",
+                ),  # latest approved version wins
+                Scene(
+                    chapter_id=ch1.id,
+                    scene_no=2,
+                    version=1,
+                    status=SceneStatus.APPROVED,
+                    prose="B",
+                    prose_source="agent",
+                ),
+                Scene(
+                    chapter_id=ch1.id,
+                    scene_no=3,
+                    version=1,
+                    status=SceneStatus.PENDING_REVIEW,
+                    prose="draft",
+                    prose_source="agent",
+                ),  # unapproved -> excluded
+                Scene(
+                    chapter_id=ch2.id,
+                    scene_no=1,
+                    version=1,
+                    status=SceneStatus.APPROVED,
+                    prose="C",
+                    prose_source="agent",
+                ),
+            ]
+        )
         await s.flush()
 
         out = await books_router.manuscript(book.id, s)

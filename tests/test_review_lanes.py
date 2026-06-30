@@ -1,6 +1,7 @@
 """Tag-gated review-lane unit tests — mock the LLM (DESIGN §6, OPEN-8). Like the always-on advisory
 reviewers, the combat/sensory/dialogue lanes never block, never emit HARD, never raise on malformed
 output, and stay silent (no LLM call) on prose below the assess-able floor."""
+
 from __future__ import annotations
 
 import uuid
@@ -25,9 +26,16 @@ _LONG_PROSE = "word " * 400  # > _MIN_PROSE_CHARS (1000) so the lane actually ru
 
 def _ctx(**overrides: object) -> SceneContext:
     base: dict[str, object] = dict(
-        book_id=uuid.uuid4(), chapter_id=uuid.uuid4(), pov="Marcus", scene_no=1,
-        tags=[], characters_present=["Marcus"], beat_text="A duel on the rampart.",
-        expected_state_changes=None, knowledge_injections=[], voice_spec=None,
+        book_id=uuid.uuid4(),
+        chapter_id=uuid.uuid4(),
+        pov="Marcus",
+        scene_no=1,
+        tags=[],
+        characters_present=["Marcus"],
+        beat_text="A duel on the rampart.",
+        expected_state_changes=None,
+        knowledge_injections=[],
+        voice_spec=None,
         budget=TokenBudget(max_tokens=40_000),
     )
     base.update(overrides)
@@ -59,14 +67,14 @@ async def test_lane_flags_on_long_prose(monkeypatch, reviewer, name):
 async def test_lane_noops_on_short_prose(monkeypatch, reviewer, name):
     calls = _mock(monkeypatch, "[]")
     assert await reviewer.review("Too short to assess.", _ctx()) == []
-    assert calls["n"] == 0            # below the floor -> no LLM call, no tokens spent
+    assert calls["n"] == 0  # below the floor -> no LLM call, no tokens spent
 
 
 @pytest.mark.parametrize("reviewer,name", _LANES)
 async def test_lane_never_emits_hard(monkeypatch, reviewer, name):
     _mock(monkeypatch, '[{"severity": "hard", "note": "trying to escalate"}]')
     flags = await reviewer.review(_LONG_PROSE, _ctx())
-    assert flags and all(f.severity != Severity.HARD for f in flags)   # clamped to advisory
+    assert flags and all(f.severity != Severity.HARD for f in flags)  # clamped to advisory
 
 
 @pytest.mark.parametrize("reviewer,name", _LANES)

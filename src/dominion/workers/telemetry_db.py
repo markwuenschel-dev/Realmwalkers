@@ -9,6 +9,7 @@ Every instrumented unit of work (one chapter derive, one scene draft, one beat p
 regeneration) shares a single book/chapter, so those ids are passed once for the whole sink; the
 per-call dimensions (stage, scene_no, seed_id, model, tokens) ride on each CallRecord.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -37,11 +38,21 @@ def persist_sink(
             seed_id = uuid.UUID(rec.seed_id) if rec.seed_id else None
         except (ValueError, TypeError):
             seed_id = None
-        session.add(LlmCall(
-            run_id=run_id,
-            book_id=book_id, chapter_id=chapter_id, scene_no=rec.scene_no, scene_seed_id=seed_id,
-            stage=rec.stage, model=rec.model,
-            input_tokens=rec.input_tokens, output_tokens=rec.output_tokens,
-            cache_creation_tokens=rec.cache_creation_tokens, cache_read_tokens=rec.cache_read_tokens,
-            truncated=rec.truncated, latency_ms=rec.latency_ms, error=rec.error,
-        ))
+        session.add(
+            LlmCall(
+                run_id=run_id,
+                book_id=book_id,
+                chapter_id=chapter_id,
+                scene_no=rec.scene_no,
+                scene_seed_id=seed_id,
+                stage=rec.stage,
+                model=rec.model,
+                input_tokens=rec.input_tokens,
+                output_tokens=rec.output_tokens,
+                cache_creation_tokens=rec.cache_creation_tokens,
+                cache_read_tokens=rec.cache_read_tokens,
+                truncated=rec.truncated,
+                latency_ms=rec.latency_ms,
+                error=rec.error,
+            )
+        )

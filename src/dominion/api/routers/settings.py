@@ -4,6 +4,7 @@ Every agent already reads its model from `settings.<role>_model`. This router pe
 override (model_overrides table) and mutates the live `settings` singleton so the change takes effect
 on the very next agent call — the worker drain runs in this same process — with no redeploy.
 """
+
 from __future__ import annotations
 
 import structlog
@@ -27,10 +28,12 @@ ROLES: list[tuple[str, str, str]] = [
     ("enrich_model", "Enrichment specialists", "Combat / sensory / dialogue enrichment passes"),
     ("packet_author_model", "Packet author", "Authors the chapter knowledge packet from canon + outline"),
     ("packet_qa_model", "Packet QA", "Validates the proposed packet before approval"),
-    ("scene_packet_author_model", "ScenePacket author",
-     "Localizes the chapter packet into each scene's reader/POV/reveal contract (once per scene)"),
-    ("scene_packet_qa_model", "ScenePacket QA",
-     "Attacks each scene packet before approval (once per scene)"),
+    (
+        "scene_packet_author_model",
+        "ScenePacket author",
+        "Localizes the chapter packet into each scene's reader/POV/reveal contract (once per scene)",
+    ),
+    ("scene_packet_qa_model", "ScenePacket QA", "Attacks each scene packet before approval (once per scene)"),
 ]
 _ROLE_KEYS = {r[0] for r in ROLES}
 
@@ -72,8 +75,11 @@ async def get_models(session: SessionDep) -> ModelSettingsOut:
     """Every customizable agent's current model + which tier it is, plus the tier -> id map."""
     agents = [
         ModelSettingOut(
-            setting=key, label=label, description=desc,
-            model=getattr(settings, key), tier=tier_of(getattr(settings, key)),
+            setting=key,
+            label=label,
+            description=desc,
+            model=getattr(settings, key),
+            tier=tier_of(getattr(settings, key)),
         )
         for key, label, desc in ROLES
     ]

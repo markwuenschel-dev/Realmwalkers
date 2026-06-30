@@ -1,4 +1,5 @@
 """Gate-1 planner unit tests — mock the LLM, so no network or API key (DESIGN §4, §8)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -38,22 +39,19 @@ async def test_propose_beats_parses_and_normalizes(monkeypatch):
     assert beats[0]["tags"] == ["dialogue"]
     assert beats[0]["expected_state_changes"] == {"Marcus": {"level": "+1"}}
     assert beats[1]["expected_state_changes"] is None
-    assert "Marcus" in str(captured["user"])             # POV + outline carried into the prompt
+    assert "Marcus" in str(captured["user"])  # POV + outline carried into the prompt
 
 
 async def test_propose_beats_tolerates_fences_and_drops_unusable(monkeypatch):
     # Fenced output + one item with no beat_text (dropped) + one malformed scene_no (renumbered).
     response = (
-        "```json\n"
-        '[{"beat_text": "", "characters_present": []},'
-        '{"scene_no": "x", "beat_text": "A real beat."}]\n'
-        "```"
+        '```json\n[{"beat_text": "", "characters_present": []},{"scene_no": "x", "beat_text": "A real beat."}]\n```'
     )
     _mock(monkeypatch, response)
     beats = await planner.propose_beats(outline="something happens", pov="Serra")
     assert len(beats) == 1
     assert beats[0]["beat_text"] == "A real beat."
-    assert beats[0]["scene_no"] == 2              # fell back to its index when scene_no was unparseable
+    assert beats[0]["scene_no"] == 2  # fell back to its index when scene_no was unparseable
 
 
 async def test_propose_beats_tolerates_object_wrapper(monkeypatch):
@@ -84,7 +82,7 @@ async def test_propose_beats_empty_outline_skips_model(monkeypatch):
 
     monkeypatch.setattr(llm, "complete", boom)
     assert await planner.propose_beats(outline="   ", pov="Marcus") == []
-    assert called["n"] == 0               # no outline -> no plan-call
+    assert called["n"] == 0  # no outline -> no plan-call
 
 
 async def test_propose_beats_salvages_truncated_array(monkeypatch):
@@ -106,6 +104,7 @@ async def test_propose_beats_salvages_truncated_array(monkeypatch):
 
 async def test_propose_beats_raises_on_timeout(monkeypatch):
     """A hung plan-call must surface (mapped to a 504 by the router), not spin forever."""
+
     async def hang(**kwargs):
         await asyncio.sleep(10)
         return "[]", Usage(0, 0)

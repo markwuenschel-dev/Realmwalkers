@@ -8,13 +8,14 @@ A draft runs ONLY when triggered, so the "nothing runs between approvals" guaran
 keeps at most one drain in flight per process; the worker's atomic claim (FOR UPDATE SKIP LOCKED)
 keeps it safe even if a terminal worker drains concurrently.
 """
+
 from __future__ import annotations
 
 import uuid
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
@@ -44,7 +45,9 @@ async def _queue_counts(session: SessionDep, book_id: uuid.UUID | None = None) -
 
 @router.post("/draft-next", response_model=DraftNextOut)
 async def draft_next(
-    background: BackgroundTasks, session: SessionDep, book_id: uuid.UUID | None = None,
+    background: BackgroundTasks,
+    session: SessionDep,
+    book_id: uuid.UUID | None = None,
 ) -> DraftNextOut:
     """Kick off drafting of the queued scenes (background, single-flight). Returns immediately.
 
@@ -61,27 +64,15 @@ async def draft_next(
 
 @router.post("/retry-failed", response_model=RetryFailedOut)
 async def retry_failed(
-    background: BackgroundTasks, session: SessionDep, book_id: uuid.UUID | None = None,
+    background: BackgroundTasks,
+    session: SessionDep,
+    book_id: uuid.UUID | None = None,
 ) -> RetryFailedOut:
-    """Re-queue every FAILED job (scoped to a book when given), then kick off drafting.
+    """Re-queue FAILED draft jobs with fresh ScenePacket resolution — never clone null scene_packet_id."""
+    from dominion.workers.draft_queue import reconcile_and_requeue_failed_draft_jobs
+    from dominion.workers.draft_readiness import blocker_out
 
-    A FAILED job is terminal — draft-next only drains QUEUED — so a scene that died on a transient
-    cause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those
-    rows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the
-    Desk can offer a 'retry failed' affordance without a terminal or a DB round-trip."""
-    # Collect the FAILED job ids first (scoped to the book when given) so we can report an exact
-    # count without leaning on CursorResult.rowcount, which isn't on the async Result type.
-    failed_q = select(Job.id).where(Job.status == JobStatus.FAILED)
-    if book_id is not None:
-        failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
-    failed_ids = (await session.execute(failed_q)).scalars().all()
-    requeued = len(failed_ids)
-    if failed_ids:
-        await session.execute(
-            update(Job)
-            .where(Job.id.in_(failed_ids))
-            .values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None, last_error=None)
-        )
+    requeue = await reconcile_and_requeue_failed_draft_jobs(session, book_id=book_id)
     await session.commit()
 
     counts = await _queue_counts(session, book_id)
@@ -90,9 +81,20 @@ async def retry_failed(
     if queued and not running:
         background.add_task(background_work.drain_queued_jobs)
         running = True
-    log.info("jobs.retry_failed", book=str(book_id) if book_id else None, requeued=requeued)
+    log.info(
+        "jobs.retry_failed",
+        book=str(book_id) if book_id else None,
+        requested=requeue.requested,
+        requeued=requeue.queued,
+        skipped=len(requeue.skipped),
+    )
     return RetryFailedOut(
-        requeued=requeued, scheduled=bool(queued) and running, queued=queued, running=running,
+        requested=requeue.requested,
+        requeued=requeue.queued,
+        scheduled=bool(queued) and running,
+        queued=queued,
+        running=running,
+        skipped=[blocker_out(b) for b in requeue.skipped],
     )
 
 
@@ -107,9 +109,7 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     active_stmt = select(Job.id, Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING)
     if book_id is not None:
         active_stmt = active_stmt.join(Run, Job.run_id == Run.id).where(Run.book_id == book_id)
-    active = (await session.execute(
-        active_stmt.order_by(Job.claimed_at.desc()).limit(1)
-    )).first()
+    active = (await session.execute(active_stmt.order_by(Job.claimed_at.desc()).limit(1))).first()
     running = JobStatus.RUNNING in counts
     if book_id is None:
         running = running or background_work.drain_locked()
@@ -145,13 +145,8 @@ async def failed(session: SessionDep, book_id: uuid.UUID | None = None) -> list[
     """Every FAILED job with the reason it died — so the Desk can show the actual error (a bad API
     key, depleted credits, a 5xx) instead of a generic 'transient issue', and so a failure is
     diagnosable without server-log access. Scoped to a book when given."""
-    stmt = select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(
-        Job.status == JobStatus.FAILED
-    )
+    stmt = select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(Job.status == JobStatus.FAILED)
     if book_id is not None:
         stmt = stmt.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
     rows = (await session.execute(stmt.order_by(Job.chapter_no, Job.scene_no))).all()
-    return [
-        FailedJobOut(id=jid, chapter_no=ch, scene_no=sc, last_error=err)
-        for jid, ch, sc, err in rows
-    ]
+    return [FailedJobOut(id=jid, chapter_no=ch, scene_no=sc, last_error=err) for jid, ch, sc, err in rows]

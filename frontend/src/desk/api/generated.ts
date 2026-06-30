@@ -216,9 +216,8 @@ export interface paths {
     put?: never;
     /**
      * Start Batch Run
-     * @description Propose beats for SEVERAL chapters in one request, sharing a single Run. With `auto_draft`, each
-     *     chapter's freshly-proposed beats are approved and draft jobs are queued immediately (skips gate-1
-     *     review). A planner timeout on any one chapter surfaces as 504 and nothing is committed.
+     * @description Propose beats for SEVERAL chapters in one request, sharing a single Run. `auto_draft` is disabled
+     *     under contract-first drafting — derive and approve ScenePackets first.
      */
     post: operations["start_batch_run_runs_batch_post"];
     delete?: never;
@@ -347,6 +346,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/chapters/{chapter_id}/draft/readiness": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Draft Readiness
+     * @description Read-only contract-first draft prerequisites for this chapter.
+     */
+    get: operations["draft_readiness_chapters__chapter_id__draft_readiness_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/beats/approve": {
     parameters: {
       query?: never;
@@ -356,7 +375,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Approve Beats */
+    /**
+     * Approve Beats
+     * @description Approve beats only — does not queue draft jobs under contract-first drafting.
+     */
     post: operations["approve_beats_chapters__chapter_id__beats_approve_post"];
     delete?: never;
     options?: never;
@@ -375,8 +397,7 @@ export interface paths {
     put?: never;
     /**
      * Redraft Scenes
-     * @description Re-draft existing scenes: queue a DRAFT job per selected scene that TARGETS that scene, so the
-     *     worker version-ups and supersedes it (a clean regenerate, never a duplicate). Caller kicks the drain.
+     * @description Re-draft existing scenes via contract-first scheduling.
      */
     post: operations["redraft_scenes_chapters__chapter_id__scenes_redraft_post"];
     delete?: never;
@@ -396,10 +417,7 @@ export interface paths {
     put?: never;
     /**
      * Draft Chapter
-     * @description Queue a draft for every APPROVED beat of this chapter that has no scene yet — the missing
-     *     'draft' step after a packet is approved (its beats are derived APPROVED, but nothing enqueues
-     *     them, and they don't show in the Planner). Idempotent: skips beats already drafted or queued. The
-     *     caller kicks the drain (POST /jobs/draft-next).
+     * @description Queue draft jobs for approved beats with validated ScenePackets — canonical contract-first entry.
      */
     post: operations["draft_chapter_chapters__chapter_id__draft_post"];
     delete?: never;
@@ -743,12 +761,7 @@ export interface paths {
     put?: never;
     /**
      * Retry Failed
-     * @description Re-queue every FAILED job (scoped to a book when given), then kick off drafting.
-     *
-     *     A FAILED job is terminal — draft-next only drains QUEUED — so a scene that died on a transient
-     *     cause (API outage, depleted credits, a one-off 5xx) never redrafts on its own. This flips those
-     *     rows back to QUEUED (clearing the stale claim) and schedules the same single-flight drain, so the
-     *     Desk can offer a 'retry failed' affordance without a terminal or a DB round-trip.
+     * @description Re-queue FAILED draft jobs with fresh ScenePacket resolution — never clone null scene_packet_id.
      */
     post: operations["retry_failed_jobs_retry_failed_post"];
     delete?: never;
@@ -1836,6 +1849,95 @@ export interface components {
        */
       running: boolean;
     };
+    /** DraftQueueBlockerOut */
+    DraftQueueBlockerOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Beat Id */
+      beat_id?: string | null;
+      /** Scene Packet Id */
+      scene_packet_id?: string | null;
+      /** Reason */
+      reason: string;
+      /** Message */
+      message: string;
+      /** Required Action */
+      required_action: string;
+    };
+    /** DraftReadinessOut */
+    DraftReadinessOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /**
+       * Chapter Packet Approved
+       * @default false
+       */
+      chapter_packet_approved: boolean;
+      /**
+       * Scene Packets
+       * @default {}
+       */
+      scene_packets: {
+        [key: string]: unknown;
+      };
+      /**
+       * Beats
+       * @default {}
+       */
+      beats: {
+        [key: string]: unknown;
+      };
+      /**
+       * Jobs
+       * @default {}
+       */
+      jobs: {
+        [key: string]: unknown;
+      };
+      /**
+       * Draftable
+       * @default false
+       */
+      draftable: boolean;
+      /**
+       * Blockers
+       * @default []
+       */
+      blockers: components["schemas"]["DraftQueueBlockerOut"][];
+    };
+    /** DraftScheduleOut */
+    DraftScheduleOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Queued Job Ids */
+      queued_job_ids: string[];
+      /**
+       * Queued
+       * @default 0
+       */
+      queued: number;
+      /**
+       * Skipped
+       * @default []
+       */
+      skipped: components["schemas"]["DraftQueueBlockerOut"][];
+      /**
+       * Repaired Beats
+       * @default 0
+       */
+      repaired_beats: number;
+    };
     /**
      * ExemplarIn
      * @description Toggle a scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2).
@@ -2122,9 +2224,14 @@ export interface components {
     };
     /**
      * RetryFailedOut
-     * @description Result of re-queuing FAILED jobs (e.g. after a transient outage or topping up API credits).
+     * @description Result of re-queuing FAILED jobs (contract-first: reconciles fresh ScenePackets).
      */
     RetryFailedOut: {
+      /**
+       * Requested
+       * @default 0
+       */
+      requested: number;
       /**
        * Requeued
        * @default 0
@@ -2145,6 +2252,11 @@ export interface components {
        * @default false
        */
       running: boolean;
+      /**
+       * Skipped
+       * @default []
+       */
+      skipped: components["schemas"]["DraftQueueBlockerOut"][];
     };
     /**
      * RuleProposalDecisionIn
@@ -3579,6 +3691,37 @@ export interface operations {
       };
     };
   };
+  draft_readiness_chapters__chapter_id__draft_readiness_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DraftReadinessOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   approve_beats_chapters__chapter_id__beats_approve_post: {
     parameters: {
       query?: never;
@@ -3637,9 +3780,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
+          "application/json": components["schemas"]["DraftScheduleOut"];
         };
       };
       /** @description Validation Error */
@@ -3670,9 +3811,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
+          "application/json": components["schemas"]["DraftScheduleOut"];
         };
       };
       /** @description Validation Error */

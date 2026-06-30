@@ -11,6 +11,7 @@ Runnable as:
     uv run python -m dominion.workers.set_exemplars --book "..." --character Marcus \
         --scene-ids 1f2e... ,  9a8b...
 """
+
 from __future__ import annotations
 
 import argparse
@@ -45,9 +46,11 @@ async def set_exemplars(
         await session.flush()
 
     stored = [str(sid) for sid in scene_ids] or None
-    profile = (await session.execute(
-        select(PovProfile).where(PovProfile.book_id == book.id, PovProfile.character == character)
-    )).scalar_one_or_none()
+    profile = (
+        await session.execute(
+            select(PovProfile).where(PovProfile.book_id == book.id, PovProfile.character == character)
+        )
+    ).scalar_one_or_none()
     if profile is None:
         profile = PovProfile(book_id=book.id, character=character, exemplar_scene_ids=stored)
         session.add(profile)
@@ -72,15 +75,11 @@ async def _run(args: argparse.Namespace) -> None:
     scene_ids = _parse_ids(args.scene_ids)
     async with SessionFactory() as session:
         if scene_ids:  # friendly check: warn on ids that don't exist, but still store what was asked
-            found = set((await session.execute(
-                select(Scene.id).where(Scene.id.in_(scene_ids))
-            )).scalars().all())
+            found = set((await session.execute(select(Scene.id).where(Scene.id.in_(scene_ids)))).scalars().all())
             for sid in scene_ids:
                 if sid not in found:
                     print(f"warning: scene {sid} not found (storing anyway)")
-        profile_id = await set_exemplars(
-            session, book_title=args.book, character=args.character, scene_ids=scene_ids
-        )
+        profile_id = await set_exemplars(session, book_title=args.book, character=args.character, scene_ids=scene_ids)
         await session.commit()
 
     print(
@@ -98,7 +97,8 @@ def main() -> None:
         "--character", required=True, help="must EXACTLY match the chapter's pov, case-sensitive (e.g. 'Marcus')"
     )
     parser.add_argument(
-        "--scene-ids", required=True,
+        "--scene-ids",
+        required=True,
         help="comma/space-separated scene UUIDs to use as voice exemplars (empty string clears the list)",
     )
     asyncio.run(_run(parser.parse_args()))

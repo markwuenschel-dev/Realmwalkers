@@ -8,6 +8,7 @@ ScenePacket builder folds this budget into each scene's contract, and the Length
 Pure and side-effect free: same inputs → same budgets. A human-provided `word_budget` on a scene
 seed overrides the deterministic allocation for that scene (the author's call wins).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -81,9 +82,7 @@ def scene_weight(seed: dict[str, Any]) -> float:
     if len(required_beats) > 2:
         weight += 0.12 * (len(required_beats) - 2)
 
-    required_reveals = _as_str_list(seed.get("required_reveals")) or _as_str_list(
-        seed.get("reader_must_learn")
-    )
+    required_reveals = _as_str_list(seed.get("required_reveals")) or _as_str_list(seed.get("reader_must_learn"))
     weight += 0.20 * len(required_reveals)
 
     characters = _as_str_list(seed.get("characters_present")) or _as_str_list(seed.get("characters"))
@@ -104,13 +103,9 @@ def _must_not_spend_words_on(seed: dict[str, Any], chapter_body: dict[str, Any])
     """Things this scene must not burn words on, from its forbidden reveals/knowledge + packet drift
     risks — phrased as instructions the compressor and drafter can act on."""
     items: list[str] = []
-    for reveal in _as_str_list(seed.get("forbidden_reveals")) + _as_str_list(
-        chapter_body.get("forbidden_reveals")
-    ):
+    for reveal in _as_str_list(seed.get("forbidden_reveals")) + _as_str_list(chapter_body.get("forbidden_reveals")):
         items.append(f"revealing or explaining: {reveal}")
-    for fact in _as_str_list(seed.get("forbidden_knowledge")) + _as_str_list(
-        chapter_body.get("forbidden_knowledge")
-    ):
+    for fact in _as_str_list(seed.get("forbidden_knowledge")) + _as_str_list(chapter_body.get("forbidden_knowledge")):
         items.append(f"explaining hidden canon: {fact}")
     # de-dup, preserve order
     seen: set[str] = set()

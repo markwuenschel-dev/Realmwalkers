@@ -1,5 +1,6 @@
 """Runtime model selection: PUT mutates the live settings + persists, GET lists every role, startup
 re-applies the saved override. Settings is a process-global singleton, so we restore what we touch."""
+
 from __future__ import annotations
 
 import pytest
@@ -16,12 +17,13 @@ async def test_set_model_applies_live_and_persists_and_reloads(db_factory):
     try:
         async with db_factory() as s:
             out = await settings_router.set_model(
-                ModelSettingUpdateIn(setting="draft_model", tier="opus"), s,
+                ModelSettingUpdateIn(setting="draft_model", tier="opus"),
+                s,
             )
             assert out.model == "claude-opus-4-8" and out.tier == "opus"
-            assert cfg.draft_model == "claude-opus-4-8"          # live mutation
+            assert cfg.draft_model == "claude-opus-4-8"  # live mutation
             row = await s.get(ModelOverride, "draft_model")
-            assert row is not None and row.model == "claude-opus-4-8"   # persisted
+            assert row is not None and row.model == "claude-opus-4-8"  # persisted
 
             # startup re-apply restores the saved choice over a fresh-default settings
             cfg.draft_model = "claude-sonnet-4-6"
@@ -36,8 +38,13 @@ async def test_get_models_lists_roles_and_tiers(db_factory):
         out = await settings_router.get_models(s)
         keys = {a.setting for a in out.agents}
         assert {
-            "draft_model", "review_model", "enrich_model", "packet_author_model", "packet_qa_model",
-            "scene_packet_author_model", "scene_packet_qa_model",  # per-scene contract stage
+            "draft_model",
+            "review_model",
+            "enrich_model",
+            "packet_author_model",
+            "packet_qa_model",
+            "scene_packet_author_model",
+            "scene_packet_qa_model",  # per-scene contract stage
         } <= keys
         assert out.tiers["opus"] == "claude-opus-4-8"
         assert out.tiers["haiku"] == "claude-haiku-4-5"
@@ -50,10 +57,11 @@ async def test_scene_packet_author_model_is_settable_from_tab(db_factory):
     try:
         async with db_factory() as s:
             out = await settings_router.set_model(
-                ModelSettingUpdateIn(setting="scene_packet_author_model", tier="sonnet"), s,
+                ModelSettingUpdateIn(setting="scene_packet_author_model", tier="sonnet"),
+                s,
             )
             assert out.model == "claude-sonnet-4-6"
-            assert cfg.scene_packet_author_model == "claude-sonnet-4-6"   # live mutation reaches the stage
+            assert cfg.scene_packet_author_model == "claude-sonnet-4-6"  # live mutation reaches the stage
     finally:
         cfg.scene_packet_author_model = original
 

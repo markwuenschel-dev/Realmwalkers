@@ -11,6 +11,7 @@ Failure contract (DESIGN §4 / OPEN-10): `BudgetExceeded` propagates so the pipe
 aborts remaining passes; any other failure — including empty/degenerate output — becomes a `PassError`
 so the spine still lands, flagged, instead of hard-failing the job.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -56,9 +57,7 @@ _DIALOGUE_RULES = (
 def _user(prose: str, beat_text: str | None) -> str:
     parts: list[str] = []
     if beat_text:
-        parts.append(
-            "INTENDED BEAT (do not change what happens; only deepen the prose):\n" + beat_text
-        )
+        parts.append("INTENDED BEAT (do not change what happens; only deepen the prose):\n" + beat_text)
     parts.append("SCENE TO REVISE:\n" + prose)
     parts.append("\nReturn the full scene, revised in place. Output only the prose.")
     return "\n\n".join(parts)
