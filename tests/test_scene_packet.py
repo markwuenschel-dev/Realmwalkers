@@ -145,6 +145,20 @@ def test_source_hash_is_stable_and_input_sensitive():
     assert sp_hash.source_hash(**changed) != sp_hash.source_hash(**base)
 
 
+def test_source_hash_folds_in_pov_override_without_disturbing_unoverridden():
+    # A per-scene POV override re-opens an already-approved packet (changes the hash), but a scene with
+    # NO override must keep the exact hash it had before scene_pov existed — so the upgrade doesn't
+    # mass-invalidate every packet.
+    base = dict(chapter_packet_id="cp", chapter_packet_body={"a": 1}, scene_seed={"s": 1},
+                chapter_word_budget={"target": 1000})
+    no_override = sp_hash.source_hash(**base)
+    assert sp_hash.source_hash(**base, scene_pov=None) == no_override   # absent override == legacy hash
+    assert sp_hash.source_hash(**base, scene_pov="") == no_override     # blank override == legacy hash
+    assert sp_hash.source_hash(**base, scene_pov="Mara") != no_override  # setting one re-opens
+    # distinct overrides hash distinctly; clearing reverts to the legacy hash (symmetric staleness)
+    assert sp_hash.source_hash(**base, scene_pov="Mara") != sp_hash.source_hash(**base, scene_pov="Kell")
+
+
 # --- DB helpers -----------------------------------------------------------------------------------
 
 async def _seed_book_chapter(s) -> tuple[Book, Chapter]:

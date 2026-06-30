@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.enums import BeatStatus
 from dominion.shared.models import Beat, Chapter, Job, PovProfile, Run
 from dominion.workers.context.types import ResolvedJob
+from dominion.workers.pov import effective_pov
 
 
 async def resolve_job(session: AsyncSession, job: Job) -> ResolvedJob:
@@ -51,9 +52,12 @@ async def resolve_job(session: AsyncSession, job: Job) -> ResolvedJob:
             f"no beat for ch{chapter.chapter_no} sc{job.scene_no} — derive/approve a scene packet first"
         )
 
+    # The scene's effective POV (the beat's per-scene override, else the chapter POV) selects the voice
+    # profile, so an overridden scene draws the OVERRIDE character's voice_spec/exemplars — not a label.
+    pov = effective_pov(beat, chapter)
     profile = (await session.execute(
         select(PovProfile)
-        .where(PovProfile.book_id == book_id, PovProfile.character == chapter.pov)
+        .where(PovProfile.book_id == book_id, PovProfile.character == pov)
         .order_by(PovProfile.id)
         .limit(1)
     )).scalar_one_or_none()

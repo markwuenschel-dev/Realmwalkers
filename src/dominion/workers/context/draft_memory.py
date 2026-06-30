@@ -13,6 +13,7 @@ from dominion.shared.models import Job, PovProfile, Scene
 from dominion.workers.context.types import DraftMemory, ResolvedJob
 from dominion.workers.memory import owner_router, retrieval, summaries
 from dominion.workers.oracle import Oracle
+from dominion.workers.pov import effective_pov
 
 _PRIOR_TAIL_CHARS = 800
 
@@ -45,8 +46,10 @@ async def build_draft_memory(
     rest = [s for s in snippets if s["retrieval_reason"] != "owner_forced"]
     canon = [s["body"] for s in [*owner_first, *rest] if s["body"]]
 
+    # Pull the rolling summary for the scene's EFFECTIVE POV (override beat.pov, else chapter.pov), so
+    # an overridden scene inherits what THAT character knows — not the chapter POV's memory.
     pov_summary = await summaries.pov_summary(
-        session, book_id=resolved.book_id, pov=chapter.pov
+        session, book_id=resolved.book_id, pov=effective_pov(beat, chapter)
     )
     prior_scene_tail = await _prior_tail(
         session, chapter_id=chapter.id, scene_no=resolved.scene_no

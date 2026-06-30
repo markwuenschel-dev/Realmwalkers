@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.models import Chapter, Scene, Summary
-from dominion.workers import llm
+from dominion.workers import llm, telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 
 _SUMMARY_MAX_TOKENS = 600
@@ -40,10 +40,20 @@ async def refresh_on_approval(session: AsyncSession, *, scene_id: uuid.UUID) -> 
     chapter = await session.get(Chapter, scene.chapter_id)
     if chapter is None:
         return
-    await _upsert(session, book_id=chapter.book_id, scope="pov", pov=chapter.pov, scene=scene,
-                 lens=f"what {chapter.pov} has personally experienced and knows")
-    await _upsert(session, book_id=chapter.book_id, scope="omniscient", pov=None, scene=scene,
-                 lens="the whole story so far, across all viewpoints")
+    # Telemetry: both fold-forward calls (POV + omniscient) roll up under one "summary" run row, so
+    # memory regeneration is visible in the Desk telemetry. A fresh run_id per refresh keeps each
+    # approval its own row.
+    sink = telemetry.TelemetrySink()
+    with telemetry.call_context(telemetry.CallContext(
+        sink=sink, stage="summary", book_id=str(chapter.book_id), chapter_id=str(scene.chapter_id),
+    )):
+        await _upsert(session, book_id=chapter.book_id, scope="pov", pov=chapter.pov, scene=scene,
+                     lens=f"what {chapter.pov} has personally experienced and knows")
+        await _upsert(session, book_id=chapter.book_id, scope="omniscient", pov=None, scene=scene,
+                     lens="the whole story so far, across all viewpoints")
+    telemetry_db.persist_sink(
+        session, sink, run_id=uuid.uuid4(), book_id=chapter.book_id, chapter_id=scene.chapter_id
+    )
     await session.flush()
 
 

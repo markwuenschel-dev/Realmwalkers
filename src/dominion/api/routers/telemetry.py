@@ -15,9 +15,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Iterable
 from datetime import datetime
-from typing import Any, cast
+from typing import Annotated, Any, cast
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
@@ -108,9 +108,16 @@ async def chapter_telemetry(chapter_id: uuid.UUID, session: SessionDep) -> Chapt
 
 
 @router.get("/books/{book_id}/telemetry", response_model=BookTelemetryOut)
-async def book_telemetry(book_id: uuid.UUID, session: SessionDep) -> BookTelemetryOut:
+async def book_telemetry(
+    book_id: uuid.UUID,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 5,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> BookTelemetryOut:
     """Global telemetry for a book: overall totals + rollups across chapters, stages, and models for
-    cross-chapter/scene comparison."""
+    cross-chapter/scene comparison. `by_run` is paginated (newest first) via `limit`/`offset` so the
+    run history doesn't grow an unbounded table in the UI; `run_total` reports the full count so the
+    Desk knows whether older runs remain to load. All other rollups stay full-book."""
     rows = list((await session.execute(
         select(LlmCall).where(LlmCall.book_id == book_id)
     )).scalars())
@@ -160,11 +167,14 @@ async def book_telemetry(book_id: uuid.UUID, session: SessionDep) -> BookTelemet
         key=lambda r: cast(datetime, r.started_at), reverse=True,
     )
     by_run = dated + [r for r in by_run if r.started_at is None]
+    run_total = len(by_run)
+    by_run = by_run[offset:offset + limit]  # only the run history paginates; the rest stay full-book
 
     return BookTelemetryOut(
         totals=TelemetryTotals(**_totals(rows)),
         by_chapter=by_chapter,
         by_run=by_run,
+        run_total=run_total,
         by_stage=_group(rows, lambda c: c.stage),
         by_model=_group(rows, lambda c: c.model),
     )

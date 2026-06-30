@@ -11,6 +11,7 @@ from dominion.workers.context.draft_memory import build_draft_memory
 from dominion.workers.context.resolve import resolve_job
 from dominion.workers.context.revision import load_revision_state
 from dominion.workers.context.types import RevisionState, SceneContext, ScenePacketRequiredError
+from dominion.workers.pov import effective_pov
 
 
 async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
@@ -32,10 +33,13 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
     )
 
     beat = resolved.beat
+    # Effective POV = the beat's per-scene override, else the chapter POV. resolved.profile is already
+    # the effective POV's profile (resolve_job loads it that way), so the scene drafts in that voice.
+    pov = effective_pov(beat, resolved.chapter)
     return SceneContext(
         book_id=resolved.book_id,
         chapter_id=resolved.chapter.id,
-        pov=resolved.chapter.pov,
+        pov=pov,
         scene_no=resolved.scene_no,
         tags=list(beat.tags or []),
         characters_present=list(beat.characters_present or []),
@@ -45,7 +49,7 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         voice_spec=resolved.profile.voice_spec if resolved.profile else None,
         budget=TokenBudget(max_tokens=job.token_budget),
         target_words=beat.target_words,
-        dialogue_rules=load_dialogue_rules([resolved.chapter.pov, *(beat.characters_present or [])]),
+        dialogue_rules=load_dialogue_rules([pov, *(beat.characters_present or [])]),
         exemplars=memory.exemplars,
         canon=memory.canon,
         pov_summary=memory.pov_summary,

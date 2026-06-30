@@ -41,6 +41,8 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS embedding_version TEXT",
     # Per-run telemetry scoping: group a derive's calls so the panels can show one run, not a total.
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS run_id UUID",
+    # Per-scene POV override: optional, null/blank inherits the chapter POV (Beat.pov).
+    "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
 )
 
 

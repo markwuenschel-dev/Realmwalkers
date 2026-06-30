@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.enums import DraftStage, SceneStatus, Severity
 from dominion.shared.models import Critique, DraftAttempt, Job, Scene
-from dominion.workers import progress
+from dominion.workers import progress, telemetry, telemetry_db
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context import assemble_context
 from dominion.workers.length import guard as length_guard
@@ -39,6 +39,18 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     jid = str(job.id)
     progress.set_phase(jid, "preparing")
     ctx = await assemble_context(session, job)
+
+    # Telemetry: collect every stage's model calls (drafter / enrichment / length / reviewers) into one
+    # sink tagged with this scene's dimensions, then persist once before returning — so scene drafting,
+    # the most expensive stage, shows up in the Desk telemetry alongside the scene-packet derive.
+    sink = telemetry.TelemetrySink()
+
+    def _tctx(stage: str) -> telemetry.CallContext:
+        return telemetry.CallContext(
+            sink=sink, stage=stage, book_id=str(ctx.book_id),
+            chapter_id=str(ctx.chapter_id), scene_no=ctx.scene_no,
+        )
+
     # A revision job targets an existing scene; the new prose becomes a new version of it.
     prior = await session.get(Scene, job.target_scene_id) if job.target_scene_id is not None else None
 
@@ -51,7 +63,8 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
 
     # 1) the spine (POV-voiced) — or a rewrite, if ctx carries revision feedback
     progress.set_phase(jid, "drafting prose")
-    prose = await drafter.run(ctx.prior_prose, ctx)
+    with telemetry.call_context(_tctx("drafter")):
+        prose = await drafter.run(ctx.prior_prose, ctx)
     passes_run: list[str] = ["drafter"]
     record(DraftStage.DRAFTER_RAW, prose, settings.draft_model)
 
@@ -60,14 +73,15 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     pass_failures: list[tuple[str, str]] = []
     budget_exceeded = False
     try:
-        for specialist in passes_for(ctx.tags):
-            try:
-                progress.set_phase(jid, f"enriching · {specialist.name}")
-                prose = await specialist.run(prose, ctx)
-                passes_run.append(specialist.name)
-                record(_ENRICH_STAGE.get(specialist.name, specialist.name), prose, settings.enrich_model)
-            except PassError as exc:
-                pass_failures.append((specialist.name, str(exc)))
+        with telemetry.call_context(_tctx("enrichment")):
+            for specialist in passes_for(ctx.tags):
+                try:
+                    progress.set_phase(jid, f"enriching · {specialist.name}")
+                    prose = await specialist.run(prose, ctx)
+                    passes_run.append(specialist.name)
+                    record(_ENRICH_STAGE.get(specialist.name, specialist.name), prose, settings.enrich_model)
+                except PassError as exc:
+                    pass_failures.append((specialist.name, str(exc)))
     except BudgetExceeded:
         budget_exceeded = True
 
@@ -79,10 +93,11 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     if not budget_exceeded and ctx.word_budget:
         progress.set_phase(jid, "length guard")
         try:
-            guard_result = await length_guard.apply_length_guard(
-                prose, word_budget=ctx.word_budget, scene_contract=ctx.scene_contract,
-                budget=ctx.budget,
-            )
+            with telemetry.call_context(_tctx("length")):
+                guard_result = await length_guard.apply_length_guard(
+                    prose, word_budget=ctx.word_budget, scene_contract=ctx.scene_contract,
+                    budget=ctx.budget,
+                )
             prose = guard_result.prose
             word_count = guard_result.word_count
             length_status = guard_result.length_status
@@ -151,9 +166,10 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     if not budget_exceeded:
         reviewers = reviewers_for(ctx.tags)
         progress.set_phase(jid, "reviewing")
-        results = await asyncio.gather(
-            *(reviewer.review(prose, ctx) for reviewer in reviewers), return_exceptions=True
-        )
+        with telemetry.call_context(_tctx("reviewers")):
+            results = await asyncio.gather(
+                *(reviewer.review(prose, ctx) for reviewer in reviewers), return_exceptions=True
+            )
         for reviewer, result in zip(reviewers, results, strict=True):
             if isinstance(result, BudgetExceeded):
                 budget_exceeded = True
@@ -202,5 +218,8 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         total_cache_read_tokens=ctx.budget.total_cache_read,
         total_cache_creation_tokens=ctx.budget.total_cache_creation,
         cache_tokens_saved=ctx.budget.cache_tokens_saved,
+    )
+    telemetry_db.persist_sink(
+        session, sink, run_id=job.run_id, book_id=ctx.book_id, chapter_id=ctx.chapter_id
     )
     return scene

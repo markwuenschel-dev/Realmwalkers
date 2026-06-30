@@ -112,6 +112,10 @@ class Beat(Base):
     knowledge_injections: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     beat_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_words: Mapped[int | None] = mapped_column(Integer, nullable=True)  # per-scene length guide
+    # Optional per-scene POV override the author sets after beats are proposed; null/blank inherits the
+    # chapter's POV. A scene drafts in its EFFECTIVE pov (this override or Chapter.pov) — see
+    # workers/pov.effective_pov, used everywhere POV is resolved for a scene.
+    pov: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(Text, default="proposed")
 
 

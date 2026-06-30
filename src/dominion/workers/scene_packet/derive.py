@@ -24,11 +24,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict
-from dominion.shared.models import Chapter, ChapterPacket, LlmCall, ScenePacket, Summary
-from dominion.workers import telemetry
+from dominion.shared.models import Beat, Chapter, ChapterPacket, ScenePacket, Summary
+from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
 from dominion.workers.memory import owner_router, retrieval
+from dominion.workers.pov import effective_pov
 from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet import author as author_mod
 from dominion.workers.scene_packet import author_sections as author_sections_mod
@@ -55,6 +56,10 @@ class _SceneWork:
     owner_snippets: list[str]
     canon_snippets: list[str]
     budget: TokenBudget
+    # This scene's EFFECTIVE POV (beat override, else chapter POV) and that POV's rolling summary —
+    # resolved per scene in Phase 1 (DB-bound) so the LLM fan-out in Phase 2 needs no further reads.
+    pov: str
+    pov_summary: str | None
 
 
 async def _author_then_qa(
@@ -181,8 +186,21 @@ async def derive_scene_packets(
     }
 
     omniscient = await _omniscient_summary(session, packet.book_id)
-    pov = await _chapter_pov(session, packet.chapter_id)
-    pov_summary = await _pov_summary(session, book_id=packet.book_id, pov=pov) if pov else None
+    # Each scene drafts in its EFFECTIVE POV: the beat's per-scene override (Beat.pov) when set, else the
+    # chapter POV. Load the chapter + its beats keyed by scene_no so an overridden scene gets that POV's
+    # actual rolling summary, not just a label. When a scene_no has multiple beat rows, prefer one that
+    # carries an override so a per-scene POV isn't lost to a sibling row.
+    chapter = await session.get(Chapter, packet.chapter_id)
+    beats_by_scene: dict[int, Beat] = {}
+    for b in (await session.execute(
+        select(Beat).where(Beat.chapter_id == packet.chapter_id)
+    )).scalars():
+        prev = beats_by_scene.get(b.scene_no)
+        if prev is None or ((b.pov or "").strip() and not (prev.pov or "").strip()):
+            beats_by_scene[b.scene_no] = b
+    # pov_summary is fetched once per DISTINCT effective POV (cache by pov string); most chapters have a
+    # single POV, so this is one fetch — overrides add at most one more per extra POV.
+    pov_summary_cache: dict[str, str | None] = {}
 
     # ---- Phase 1 (serial, DB): assemble each scene's inputs. The shared AsyncSession is not safe for
     # concurrent use, so every DB read (prior-scene keys, hybrid retrieval) is done here, up front.
@@ -195,10 +213,19 @@ async def derive_scene_packets(
         scene_no = int(seed["scene_no"]) if isinstance(seed.get("scene_no"), int) else 0
         word_budget = budgets.get(str(seed_id), {})
 
+        # This scene's EFFECTIVE POV (beat override, else chapter POV) feeds the author + summary; the raw
+        # override is also a derivation input (folded into source_hash) so changing a beat's POV re-opens an
+        # already-approved packet. No beat / blank override => inherits chapter POV, and the hash is
+        # unchanged from before this input existed (so the upgrade doesn't mass-invalidate packets).
+        beat = beats_by_scene.get(scene_no)
+        scene_pov = effective_pov(beat, chapter) if chapter is not None else ""
+        pov_override = (beat.pov or "").strip() if beat is not None else ""
+
         prior_keys = await sp_inputs.prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
         src_hash = hash_mod.source_hash(
             chapter_packet_id=packet.id, chapter_packet_body=body, scene_seed=seed,
             chapter_word_budget=word_budget, prior_scene_keys=prior_keys,
+            scene_pov=pov_override or None,
         )
 
         row = existing.get(seed_id)
@@ -214,6 +241,14 @@ async def derive_scene_packets(
             session, book_id=packet.book_id, query=query,
             owner_topics=routing.owner_topics, required_doc_paths=routing.doc_paths, k=_CANON_K,
         )
+
+        # That POV's rolling summary, fetched once per DISTINCT effective POV (cache by pov string); most
+        # chapters have a single POV, so this is one fetch. (scene_pov is resolved above, before the hash.)
+        if scene_pov not in pov_summary_cache:
+            pov_summary_cache[scene_pov] = (
+                await _pov_summary(session, book_id=packet.book_id, pov=scene_pov) if scene_pov else None
+            )
+
         work.append(_SceneWork(
             seed=seed, seed_id=seed_id, scene_no=scene_no, word_budget=word_budget,
             src_hash=src_hash, row=row,
@@ -221,6 +256,7 @@ async def derive_scene_packets(
             canon_snippets=[s["body"] for s in snippets if s["retrieval_reason"] != "owner_forced"],
             # Fresh per-scene budget unless the caller bounded the whole run with one explicit budget.
             budget=external_budget or TokenBudget(max_tokens=settings.scene_token_budget),
+            pov=scene_pov, pov_summary=pov_summary_cache[scene_pov],
         ))
 
     # ---- Phase 2 (concurrent, LLM only): the scenes are independent, so their Author+QA pairs fan out
@@ -234,13 +270,14 @@ async def derive_scene_packets(
     async def _run(item: _SceneWork) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
         async with sem:
             return await _author_then_qa(
-                item, chapter_packet_body=body, pov=pov or "",
-                pov_summary=pov_summary, omniscient_summary=omniscient,
+                item, chapter_packet_body=body, pov=item.pov,
+                pov_summary=item.pov_summary, omniscient_summary=omniscient,
                 sink=sink, book_id=book_id_str, chapter_id=chapter_id_str,
             )
 
     # Prime the prefix cache before fanning out. The author and QA prefixes (chapter packet + chapter-
-    # wide summaries) are IDENTICAL across every scene of this chapter, so deriving the first scene alone
+    # wide summaries) are IDENTICAL across every scene of this chapter that shares a POV (the common case:
+    # one POV per chapter; a per-scene POV override only varies the pov_summary slot), so deriving scene 1
     # WRITES that prefix to Anthropic's ephemeral cache; scenes 2..N then READ it instead of each re-
     # writing the full prefix. Without priming, all N scenes start concurrently, every one misses the
     # cold cache and writes its own copy (the 0% hit ratio we saw) — paying the full prefix cost N times.
@@ -285,38 +322,7 @@ async def derive_scene_packets(
 
     # One run_id for every call this derive made, so the Desk can isolate this run (Packets panel) and
     # build a per-run history (Telemetry tab) instead of reading one ever-growing cumulative total.
-    _persist_telemetry(
+    telemetry_db.persist_sink(
         session, sink, run_id=uuid.uuid4(), book_id=packet.book_id, chapter_id=packet.chapter_id
     )
     return counts
-
-
-def _persist_telemetry(
-    session: AsyncSession,
-    sink: telemetry.TelemetrySink,
-    *,
-    run_id: uuid.UUID,
-    book_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-) -> None:
-    """Flush the run's collected per-call telemetry to `llm_calls` (the caller commits). Pure exhaust:
-    a bad row is dropped rather than failing the derive that produced real packets."""
-    for rec in sink.records:
-        try:
-            seed_id = uuid.UUID(rec.seed_id) if rec.seed_id else None
-        except (ValueError, TypeError):
-            seed_id = None
-        session.add(LlmCall(
-            run_id=run_id,
-            book_id=book_id, chapter_id=chapter_id, scene_no=rec.scene_no, scene_seed_id=seed_id,
-            stage=rec.stage, model=rec.model,
-            input_tokens=rec.input_tokens, output_tokens=rec.output_tokens,
-            cache_creation_tokens=rec.cache_creation_tokens, cache_read_tokens=rec.cache_read_tokens,
-            truncated=rec.truncated, latency_ms=rec.latency_ms, error=rec.error,
-        ))
-
-
-async def _chapter_pov(session: AsyncSession, chapter_id: uuid.UUID) -> str | None:
-    return (await session.execute(
-        select(Chapter.pov).where(Chapter.id == chapter_id)
-    )).scalar_one_or_none()
