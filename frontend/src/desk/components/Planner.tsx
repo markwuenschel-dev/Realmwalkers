@@ -656,9 +656,7 @@ export default function Planner() {
                 {batchResults && (
                   <div style={css("display:flex;flex-direction:column;gap:6px")}>
                     {batchResults.length === 0 ? (
-                      <div
-                        style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}
-                      >
+                      <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
                         No chapters were planned.
                       </div>
                     ) : (
