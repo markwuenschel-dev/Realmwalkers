@@ -634,7 +634,12 @@ export default function Planner() {
                     )}
                     title="Disabled under contract-first drafting"
                   >
-                    <input type="checkbox" checked={false} disabled style={css("cursor:not-allowed")} />
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      disabled
+                      style={css("cursor:not-allowed")}
+                    />
                     Auto-approve and draft (disabled)
                   </label>
                   <button style={btnGo} disabled={batchBusy || !data.bookId} onClick={proposeAll}>

@@ -5,6 +5,7 @@ connection) should not fail the whole job. `complete` retries those with exponen
 re-raises anything non-transient (auth, 400/403/404) immediately. The budget is charged only on a
 successful response, so a retried failure never spends tokens.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,6 +31,7 @@ log = structlog.get_logger()
 class CachedPrefixBlock:
     """A named cached user-content block. Order matters: Anthropic cache breakpoints match the
     request prefix through each cache_control block, so callers put the most stable blocks first."""
+
     name: str
     text: str
 
@@ -73,8 +75,11 @@ def check_context_window(
     context_sections: Mapping[str, int] | None = None,
 ) -> dict[str, int]:
     sections = estimate_context_tokens(
-        system=system, user=user, max_tokens=max_tokens,
-        user_prefix_blocks=user_prefix_blocks, context_sections=context_sections,
+        system=system,
+        user=user,
+        max_tokens=max_tokens,
+        user_prefix_blocks=user_prefix_blocks,
+        context_sections=context_sections,
     )
     raw_context_tokens = sum(sections.values())
     if context_window_budget is not None and raw_context_tokens > context_window_budget:
@@ -97,23 +102,21 @@ _CACHE_TTL_WARN_S = 270  # 4.5 min — 30s of headroom before the 5-min cliff
 def _client() -> AsyncAnthropic:
     """Lazily constructed so importing this module never requires the key."""
     if not settings.anthropic_api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set — add it to .env at the repo root (or export it)."
-        )
+        raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to .env at the repo root (or export it).")
     return AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 
 def _is_transient(exc: BaseException) -> bool:
     """Worth retrying: connection/timeout, rate limit (429), 5xx, overloaded (529). NOT 4xx/auth."""
-    if isinstance(
-        exc,
-        (
-            anthropic.APIConnectionError,   # base of APITimeoutError (no HTTP status)
-            anthropic.RateLimitError,       # 429
-            anthropic.InternalServerError,  # 5xx
-            anthropic.OverloadedError,      # 529
-        ),
-    ):
+    transient_types: tuple[type[BaseException], ...] = (
+        anthropic.APIConnectionError,  # base of APITimeoutError (no HTTP status)
+        anthropic.RateLimitError,  # 429
+        anthropic.InternalServerError,  # 5xx
+    )
+    overloaded = getattr(anthropic, "OverloadedError", None)
+    if overloaded is not None:
+        transient_types = transient_types + (overloaded,)  # 529 when SDK exposes it
+    if isinstance(exc, transient_types):
         return True
     # Fallback for any other status error: retry only retryable codes (so 400/401/403/404 do not).
     if isinstance(exc, anthropic.APIStatusError):
@@ -122,7 +125,12 @@ def _is_transient(exc: BaseException) -> bool:
 
 
 async def complete(
-    *, model: str, system: str, user: str, max_tokens: int, budget: TokenBudget,
+    *,
+    model: str,
+    system: str,
+    user: str,
+    max_tokens: int,
+    budget: TokenBudget,
     user_prefix: str | None = None,
     user_prefix_blocks: Sequence[CachedPrefixBlock] | None = None,
     expect_cache: bool = True,
@@ -154,16 +162,19 @@ async def complete(
         blocks = (CachedPrefixBlock(name="user_prefix", text=user_prefix), *blocks)
 
     check_context_window(
-        system=system, user=user, max_tokens=max_tokens, context_window_budget=context_window_budget,
-        user_prefix_blocks=blocks, context_sections=context_sections,
+        system=system,
+        user=user,
+        max_tokens=max_tokens,
+        context_window_budget=context_window_budget,
+        user_prefix_blocks=blocks,
+        context_sections=context_sections,
     )
 
     # Build the user content: plain string or a block list with one or more cached stable prefixes.
     user_content: str | list[TextBlockParam]
     if blocks:
         user_content = [
-            *(TextBlockParam(type="text", text=block.text, cache_control={"type": "ephemeral"})
-              for block in blocks),
+            *(TextBlockParam(type="text", text=block.text, cache_control={"type": "ephemeral"}) for block in blocks),
             TextBlockParam(type="text", text=user),
         ]
     else:
@@ -199,8 +210,7 @@ async def complete(
     # generic "no usable result". The text is still returned — the caller decides whether to fail closed.
     truncated = getattr(resp, "stop_reason", None) == "max_tokens"
     if truncated:
-        log.warning("llm.truncated", model=model, max_tokens=max_tokens,
-                    output_tokens=resp.usage.output_tokens)
+        log.warning("llm.truncated", model=model, max_tokens=max_tokens, output_tokens=resp.usage.output_tokens)
 
     # Only a successful response charges; BudgetExceeded propagates (it is not a transient error).
     ru = resp.usage
@@ -216,15 +226,13 @@ async def complete(
     # Anthropic's minimum cacheable length (~1024 tokens for Sonnet/Opus, 2048 for Haiku).
     # Suppressed when the caller declares the prompt is intentionally short (expect_cache=False).
     if expect_cache and usage.cache_creation_tokens == 0 and usage.cache_read_tokens == 0:
-        log.warning("llm.cache_skipped", model=model,
-                    note="system prompt below minimum cacheable length; cache_control ignored")
+        log.warning(
+            "llm.cache_skipped", model=model, note="system prompt below minimum cacheable length; cache_control ignored"
+        )
 
     budget.charge(usage)
     total_prompt = usage.input_tokens + usage.cache_creation_tokens + usage.cache_read_tokens
-    elapsed_since_first_s = (
-        int(time.time() - budget.first_call_at)
-        if budget.first_call_at is not None else 0
-    )
+    elapsed_since_first_s = int(time.time() - budget.first_call_at) if budget.first_call_at is not None else 0
     log.info(
         "llm.complete",
         model=model,

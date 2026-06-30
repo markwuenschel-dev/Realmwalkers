@@ -15,6 +15,7 @@ Async-safe: each asyncio task copies the current context at creation, so concurr
 set their own per-scene tag (`call_context`) while sharing one sink object — appends interleave
 safely under the single-threaded event loop.
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -27,6 +28,7 @@ from dataclasses import dataclass, field
 class CallRecord:
     """One model call's observable cost + outcome. The dimensions (stage/book/chapter/scene) come from
     the active `CallContext`; the measures (tokens/cache/truncated/latency) from the call itself."""
+
     stage: str
     model: str
     input_tokens: int
@@ -45,6 +47,7 @@ class CallRecord:
 @dataclass
 class TelemetrySink:
     """Collects CallRecords for one orchestrated unit of work (e.g. one chapter's derive run)."""
+
     records: list[CallRecord] = field(default_factory=list)
 
     def add(self, rec: CallRecord) -> None:
@@ -55,6 +58,7 @@ class TelemetrySink:
 class CallContext:
     """The tag applied to every `llm.complete` made within its `call_context` block. The sink is shared
     across a run; the per-call dimensions (stage/scene/seed) are set fresh per scope."""
+
     sink: TelemetrySink
     stage: str
     book_id: str | None = None
@@ -63,9 +67,7 @@ class CallContext:
     seed_id: str | None = None
 
 
-_ctx: contextvars.ContextVar[CallContext | None] = contextvars.ContextVar(
-    "llm_call_ctx", default=None
-)
+_ctx: contextvars.ContextVar[CallContext | None] = contextvars.ContextVar("llm_call_ctx", default=None)
 
 
 @contextmanager

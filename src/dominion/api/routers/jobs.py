@@ -8,12 +8,13 @@ A draft runs ONLY when triggered, so the "nothing runs between approvals" guaran
 keeps at most one drain in flight per process; the worker's atomic claim (FOR UPDATE SKIP LOCKED)
 keeps it safe even if a terminal worker drains concurrently.
 """
+
 from __future__ import annotations
 
 import uuid
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
@@ -44,7 +45,9 @@ async def _queue_counts(session: SessionDep, book_id: uuid.UUID | None = None) -
 
 @router.post("/draft-next", response_model=DraftNextOut)
 async def draft_next(
-    background: BackgroundTasks, session: SessionDep, book_id: uuid.UUID | None = None,
+    background: BackgroundTasks,
+    session: SessionDep,
+    book_id: uuid.UUID | None = None,
 ) -> DraftNextOut:
     """Kick off drafting of the queued scenes (background, single-flight). Returns immediately.
 
@@ -61,7 +64,9 @@ async def draft_next(
 
 @router.post("/retry-failed", response_model=RetryFailedOut)
 async def retry_failed(
-    background: BackgroundTasks, session: SessionDep, book_id: uuid.UUID | None = None,
+    background: BackgroundTasks,
+    session: SessionDep,
+    book_id: uuid.UUID | None = None,
 ) -> RetryFailedOut:
     """Re-queue FAILED draft jobs with fresh ScenePacket resolution — never clone null scene_packet_id."""
     from dominion.workers.draft_queue import reconcile_and_requeue_failed_draft_jobs
@@ -104,9 +109,7 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     active_stmt = select(Job.id, Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING)
     if book_id is not None:
         active_stmt = active_stmt.join(Run, Job.run_id == Run.id).where(Run.book_id == book_id)
-    active = (await session.execute(
-        active_stmt.order_by(Job.claimed_at.desc()).limit(1)
-    )).first()
+    active = (await session.execute(active_stmt.order_by(Job.claimed_at.desc()).limit(1))).first()
     running = JobStatus.RUNNING in counts
     if book_id is None:
         running = running or background_work.drain_locked()
@@ -142,13 +145,8 @@ async def failed(session: SessionDep, book_id: uuid.UUID | None = None) -> list[
     """Every FAILED job with the reason it died — so the Desk can show the actual error (a bad API
     key, depleted credits, a 5xx) instead of a generic 'transient issue', and so a failure is
     diagnosable without server-log access. Scoped to a book when given."""
-    stmt = select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(
-        Job.status == JobStatus.FAILED
-    )
+    stmt = select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(Job.status == JobStatus.FAILED)
     if book_id is not None:
         stmt = stmt.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
     rows = (await session.execute(stmt.order_by(Job.chapter_no, Job.scene_no))).all()
-    return [
-        FailedJobOut(id=jid, chapter_no=ch, scene_no=sc, last_error=err)
-        for jid, ch, sc, err in rows
-    ]
+    return [FailedJobOut(id=jid, chapter_no=ch, scene_no=sc, last_error=err) for jid, ch, sc, err in rows]

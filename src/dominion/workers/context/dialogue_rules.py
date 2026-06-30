@@ -1,4 +1,5 @@
 """Load and scope authoritative dialogue rules from disk."""
+
 from __future__ import annotations
 
 import re
@@ -10,9 +11,7 @@ from dominion.shared.config import settings
 _PROJECT_ROOT = Path(__file__).resolve().parents[4]  # …/workers/context/dialogue_rules.py -> repo root
 _dialogue_rules_warned = False
 
-_CHAR_BLOCK_RE = re.compile(
-    r"^### (?P<header>[^\n]+)\n.*?(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL
-)
+_CHAR_BLOCK_RE = re.compile(r"^### (?P<header>[^\n]+)\n.*?(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL)
 _BLOCK_ALIASES: dict[str, set[str]] = {
     "illyri": {"illyri", "marcus"},
     "illyristranthe": {"illyri", "marcus"},
@@ -43,10 +42,14 @@ def load_dialogue_rules(present: Iterable[str]) -> str | None:
     """Read dialogue rules fresh for each draft and scope per-character profiles to the cast on page."""
     global _dialogue_rules_warned
     configured = Path(settings.dialogue_rules_path)
-    candidates = [configured] if configured.is_absolute() else [
-        _PROJECT_ROOT / configured,
-        Path.cwd() / configured,
-    ]
+    candidates = (
+        [configured]
+        if configured.is_absolute()
+        else [
+            _PROJECT_ROOT / configured,
+            Path.cwd() / configured,
+        ]
+    )
     for path in candidates:
         try:
             text = path.read_text(encoding="utf-8").strip()
@@ -54,7 +57,9 @@ def load_dialogue_rules(present: Iterable[str]) -> str | None:
             continue
         return _scope_dialogue_rules(text, present) or None
     if not _dialogue_rules_warned:
-        print(f"[context] dialogue rules not found at {settings.dialogue_rules_path!r}; "
-              "drafts will run without them", flush=True)
+        print(
+            f"[context] dialogue rules not found at {settings.dialogue_rules_path!r}; drafts will run without them",
+            flush=True,
+        )
         _dialogue_rules_warned = True
     return None

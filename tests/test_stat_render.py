@@ -1,4 +1,5 @@
 """Unit tests for the pure stat-window renderer (no I/O, no DB, no model)."""
+
 from __future__ import annotations
 
 from dominion.workers.stat_render import render_stat_blocks
@@ -19,13 +20,7 @@ def _is_rectangle(rendered: str) -> bool:
 def test_unequal_widths_align_into_a_clean_rectangle():
     out = render_stat_blocks("```stat\nPerception: 15\nReflexes: 11\nResolve: 9\n```")
     assert _is_rectangle(out)
-    assert out == (
-        "┌────────────────┐\n"
-        "│ Perception  15 │\n"
-        "│ Reflexes    11 │\n"
-        "│ Resolve     9  │\n"
-        "└────────────────┘"
-    )
+    assert out == ("┌────────────────┐\n│ Perception  15 │\n│ Reflexes    11 │\n│ Resolve     9  │\n└────────────────┘")
 
 
 def test_values_longer_than_labels_still_align():
@@ -95,10 +90,10 @@ def test_non_stat_fenced_block_is_left_byte_for_byte():
 
 def test_malformed_or_empty_blocks_are_left_as_written_and_never_raise():
     for src in (
-        "```stat\n```",            # empty
-        "```stat\n\n   \n```",     # only blanks
-        "```stat\n---\n```",       # only a divider, no header/row
-        "```stat\nHP: 10",         # unterminated fence
+        "```stat\n```",  # empty
+        "```stat\n\n   \n```",  # only blanks
+        "```stat\n---\n```",  # only a divider, no header/row
+        "```stat\nHP: 10",  # unterminated fence
     ):
         assert render_stat_blocks(src) == src
 

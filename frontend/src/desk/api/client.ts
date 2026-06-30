@@ -145,10 +145,10 @@ export const api = {
   createHumanScene: (chapterId: string, body: HumanSceneIn) =>
     http<SceneOut>(`/chapters/${chapterId}/scenes`, { method: "POST", body: JSON.stringify(body) }),
   redraftScenes: (chapterId: string, sceneIds: string[]) =>
-    http<import("./types").DraftScheduleOut>(
-      `/chapters/${chapterId}/scenes/redraft`,
-      { method: "POST", body: JSON.stringify({ scene_ids: sceneIds } satisfies RedraftIn) },
-    ),
+    http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/scenes/redraft`, {
+      method: "POST",
+      body: JSON.stringify({ scene_ids: sceneIds } satisfies RedraftIn),
+    }),
   draftChapter: (chapterId: string) =>
     http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/draft`, {
       method: "POST",

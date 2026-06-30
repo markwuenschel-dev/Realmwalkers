@@ -3,6 +3,7 @@
 Listing chapters and their beats/scenes powers the planning and History views. Draft jobs are
 queued only via contract-first scheduling after approved ScenePackets exist.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -21,14 +22,13 @@ from dominion.shared.schemas import (
     BeatOut,
     ChapterOut,
     ChapterUpdateIn,
-    DraftScheduleOut,
     DraftReadinessOut,
+    DraftScheduleOut,
     HumanSceneIn,
     RedraftIn,
     SceneOut,
 )
-from dominion.workers.draft_readiness import blocker_out
-from dominion.workers.draft_readiness import compute_draft_readiness
+from dominion.workers.draft_readiness import blocker_out, compute_draft_readiness
 from dominion.workers.job_scheduler import (
     _latest_run,
     schedule_scene_redrafts,
@@ -62,16 +62,16 @@ async def _fold_summary(scene_id: uuid.UUID) -> None:
 
 @router.get("", response_model=list[ChapterOut])
 async def list_chapters(book_id: uuid.UUID, session: SessionDep) -> list[Chapter]:
-    rows = (await session.execute(
-        select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)
-    )).scalars().all()
+    rows = (
+        (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
 @router.patch("/{chapter_id}", response_model=ChapterOut)
-async def update_chapter(
-    chapter_id: uuid.UUID, body: ChapterUpdateIn, session: SessionDep
-) -> Chapter:
+async def update_chapter(chapter_id: uuid.UUID, body: ChapterUpdateIn, session: SessionDep) -> Chapter:
     """Edit a chapter's authored fields (currently the title). Only provided fields are applied, so
     the author can rename the plan-call's proposed title at any time without re-running the planner."""
     chapter = await session.get(Chapter, chapter_id)
@@ -85,20 +85,26 @@ async def update_chapter(
 
 @router.get("/{chapter_id}/beats", response_model=list[BeatOut])
 async def list_beats(chapter_id: uuid.UUID, session: SessionDep) -> list[Beat]:
-    rows = (await session.execute(
-        select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)
-    )).scalars().all()
+    rows = (
+        (await session.execute(select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)))
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
 @router.get("/{chapter_id}/scenes", response_model=list[SceneOut])
 async def list_chapter_scenes(chapter_id: uuid.UUID, session: SessionDep) -> list[Scene]:
     """Every scene of a chapter, all statuses + versions (History browsing)."""
-    rows = (await session.execute(
-        select(Scene)
-        .where(Scene.chapter_id == chapter_id)
-        .order_by(Scene.scene_no, Scene.version)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(Scene).where(Scene.chapter_id == chapter_id).order_by(Scene.scene_no, Scene.version)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
@@ -118,10 +124,14 @@ async def create_beat(chapter_id: uuid.UUID, body: BeatCreateIn, session: Sessio
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
     beat = Beat(
-        chapter_id=chapter_id, scene_no=body.scene_no, beat_text=body.beat_text,
-        characters_present=body.characters_present, tags=body.tags,
+        chapter_id=chapter_id,
+        scene_no=body.scene_no,
+        beat_text=body.beat_text,
+        characters_present=body.characters_present,
+        tags=body.tags,
         expected_state_changes=body.expected_state_changes,
-        knowledge_injections=body.knowledge_injections, target_words=body.target_words,
+        knowledge_injections=body.knowledge_injections,
+        target_words=body.target_words,
         pov=body.pov,
         status=BeatStatus.PROPOSED,
     )
@@ -139,9 +149,11 @@ async def approve_beats(
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
 
-    beats = (await session.execute(
-        select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)
-    )).scalars().all()
+    beats = (
+        (await session.execute(select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)))
+        .scalars()
+        .all()
+    )
     if not beats:
         raise HTTPException(status_code=400, detail="no beats to approve for this chapter")
 
@@ -162,7 +174,10 @@ async def approve_beats(
 
 @router.post("/{chapter_id}/scenes", response_model=SceneOut)
 async def create_human_scene(
-    chapter_id: uuid.UUID, body: HumanSceneIn, session: SessionDep, background: BackgroundTasks,
+    chapter_id: uuid.UUID,
+    body: HumanSceneIn,
+    session: SessionDep,
+    background: BackgroundTasks,
 ) -> Scene:
     """Write a manuscript section by hand. It lands APPROVED (the human is the gate) as a `human`-sourced
     scene, supersedes any existing version at this scene_no, and folds into the POV summary in the
@@ -174,15 +189,22 @@ async def create_human_scene(
     if not prose:
         raise HTTPException(status_code=400, detail="prose is empty")
 
-    prior = (await session.execute(
-        select(Scene).where(Scene.chapter_id == chapter_id, Scene.scene_no == body.scene_no)
-        .order_by(Scene.version.desc()).limit(1)
-    )).scalar_one_or_none()
+    prior = (
+        await session.execute(
+            select(Scene)
+            .where(Scene.chapter_id == chapter_id, Scene.scene_no == body.scene_no)
+            .order_by(Scene.version.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     scene = Scene(
-        chapter_id=chapter_id, scene_no=body.scene_no,
+        chapter_id=chapter_id,
+        scene_no=body.scene_no,
         version=(prior.version + 1) if prior else 1,
         parent_scene_id=prior.id if prior else None,
-        status=SceneStatus.APPROVED, prose=prose, prose_source="human",
+        status=SceneStatus.APPROVED,
+        prose=prose,
+        prose_source="human",
     )
     if prior is not None:
         prior.status = SceneStatus.SUPERSEDED
@@ -195,15 +217,19 @@ async def create_human_scene(
 
 @router.post("/{chapter_id}/scenes/redraft", response_model=DraftScheduleOut)
 async def redraft_scenes(
-    chapter_id: uuid.UUID, body: RedraftIn, session: SessionDep,
+    chapter_id: uuid.UUID,
+    body: RedraftIn,
+    session: SessionDep,
 ) -> DraftScheduleOut:
     """Re-draft existing scenes via contract-first scheduling."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
-    scenes = (await session.execute(
-        select(Scene).where(Scene.id.in_(body.scene_ids), Scene.chapter_id == chapter_id)
-    )).scalars().all()
+    scenes = (
+        (await session.execute(select(Scene).where(Scene.id.in_(body.scene_ids), Scene.chapter_id == chapter_id)))
+        .scalars()
+        .all()
+    )
     if not scenes:
         raise HTTPException(status_code=400, detail="none of the given scene_ids belong to this chapter")
 
@@ -222,10 +248,17 @@ async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> DraftSche
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
-    beats = (await session.execute(
-        select(Beat).where(Beat.chapter_id == chapter_id, Beat.status == BeatStatus.APPROVED)
-        .order_by(Beat.scene_no)
-    )).scalars().all()
+    beats = (
+        (
+            await session.execute(
+                select(Beat)
+                .where(Beat.chapter_id == chapter_id, Beat.status == BeatStatus.APPROVED)
+                .order_by(Beat.scene_no)
+            )
+        )
+        .scalars()
+        .all()
+    )
     if not beats:
         raise HTTPException(status_code=400, detail="no approved beats — approve ScenePackets first")
 

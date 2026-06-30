@@ -1,4 +1,5 @@
 """Unit tests for llm.complete transient-error retry (no network, no key — client is faked)."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -63,9 +64,9 @@ async def test_retries_transient_then_succeeds(monkeypatch):
     text, usage = await llm.complete(model="m", system="s", user="u", max_tokens=100, budget=budget)
 
     assert text == "hello world"
-    assert fake.messages.calls == 3            # 2 failures + 1 success
-    assert sleeps == [1.0, 2.0]                 # base * 2**attempt, with the defaults
-    assert budget.used == 30                    # charged exactly once, only on success
+    assert fake.messages.calls == 3  # 2 failures + 1 success
+    assert sleeps == [1.0, 2.0]  # base * 2**attempt, with the defaults
+    assert budget.used == 30  # charged exactly once, only on success
     assert usage.total == 30
 
 
@@ -77,9 +78,9 @@ async def test_non_transient_raises_immediately_without_retry(monkeypatch):
     with pytest.raises(anthropic.BadRequestError):
         await llm.complete(model="m", system="s", user="u", max_tokens=100, budget=budget)
 
-    assert fake.messages.calls == 1            # no retry on a 400
+    assert fake.messages.calls == 1  # no retry on a 400
     assert sleeps == []
-    assert budget.used == 0                     # nothing charged on failure
+    assert budget.used == 0  # nothing charged on failure
 
 
 async def test_gives_up_and_reraises_after_max_retries(monkeypatch):
@@ -90,16 +91,15 @@ async def test_gives_up_and_reraises_after_max_retries(monkeypatch):
     with pytest.raises(anthropic.APITimeoutError):
         await llm.complete(model="m", system="s", user="u", max_tokens=100, budget=budget)
 
-    assert fake.messages.calls == 4            # initial attempt + 3 retries
-    assert sleeps == [1.0, 2.0, 4.0]           # one backoff per retry, exponential
+    assert fake.messages.calls == 4  # initial attempt + 3 retries
+    assert sleeps == [1.0, 2.0, 4.0]  # one backoff per retry, exponential
 
 
 async def test_system_prompt_is_sent_as_a_cached_block(monkeypatch):
     # Prompt caching: the stable system prefix goes up as an ephemeral-cache text block, so it's
     # cached + cheap across calls. The user message stays a plain string (it varies per scene).
     fake, _ = _patch(monkeypatch, [_ok_response()])
-    await llm.complete(model="m", system="SYSTEM PREFIX", user="u", max_tokens=100,
-                       budget=TokenBudget(max_tokens=1000))
+    await llm.complete(model="m", system="SYSTEM PREFIX", user="u", max_tokens=100, budget=TokenBudget(max_tokens=1000))
 
     system = fake.messages.last_kwargs["system"]
     assert system == [{"type": "text", "text": "SYSTEM PREFIX", "cache_control": {"type": "ephemeral"}}]

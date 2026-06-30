@@ -4,6 +4,7 @@ Forces the app DB to a dedicated test database (never your dev DB — these TRUN
 a session factory bound to the running event loop. DB tests request `db_factory`; everything else
 runs without a database. If Postgres isn't reachable, the DB tests skip rather than fail.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,17 +44,26 @@ async def seed_scene_packet(s, *, chapter, beat, body: dict | None = None):
     from dominion.shared.models import ChapterPacket, ScenePacket
 
     cp = ChapterPacket(
-        book_id=chapter.book_id, chapter_id=chapter.id, status="approved", confidence="green",
-        body={"scene_seeds": []}, open_questions={"items": []},
+        book_id=chapter.book_id,
+        chapter_id=chapter.id,
+        status="approved",
+        confidence="green",
+        body={"scene_seeds": []},
+        open_questions={"items": []},
     )
     s.add(cp)
     await s.flush()
     # No word_budget by default, so the length guard stays inert for tests that fake short prose
     # (a budget would trigger an expansion LLM call). Tests exercising length pass an explicit body.
     sp = ScenePacket(
-        book_id=chapter.book_id, chapter_id=chapter.id, chapter_packet_id=cp.id,
-        scene_no=(beat.scene_no if beat is not None else 1), status="approved", qa_verdict="approve",
-        body=body or {
+        book_id=chapter.book_id,
+        chapter_id=chapter.id,
+        chapter_packet_id=cp.id,
+        scene_no=(beat.scene_no if beat is not None else 1),
+        status="approved",
+        qa_verdict="approve",
+        body=body
+        or {
             "scene_no": beat.scene_no if beat is not None else 1,
             "known_before_scene": {"reader": [], "pov": [], "omniscient_author": []},
             "learned_during_scene": {"reader_must_learn": [], "reader_may_learn": [], "reader_may_infer_only": []},
@@ -86,9 +96,7 @@ async def db_factory():
             pytest.fail(msg, pytrace=False)
         pytest.skip(msg)
     try:
-        exists = await conn.scalar(
-            text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": dbname}
-        )
+        exists = await conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": dbname})
         if not exists:
             await conn.execute(text(f'CREATE DATABASE "{dbname}"'))
     finally:

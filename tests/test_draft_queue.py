@@ -1,11 +1,11 @@
 """Contract-first draft queue scheduler unit tests."""
+
 from __future__ import annotations
 
-from sqlalchemy import select
-
 from conftest import seed_scene_packet
+
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, ScenePacketStatus
-from dominion.shared.models import Beat, Book, Chapter, Job, Scene, ScenePacket
+from dominion.shared.models import Beat, Book, Chapter, Job, ScenePacket
 from dominion.workers.draft_queue import (
     has_active_draft_job_for_scene_packet,
     resolve_approved_scene_packet_for_beat,
@@ -107,8 +107,14 @@ async def test_schedule_dedupes_existing_active_job(db_factory):
         ch, beat = await _chapter_with_beat(s)
         sp = await seed_scene_packet(s, chapter=ch, beat=beat)
         existing = Job(
-            kind=JobKind.DRAFT, chapter_id=ch.id, beat_id=beat.id, scene_packet_id=sp.id,
-            chapter_no=1, scene_no=1, status=JobStatus.QUEUED, token_budget=40_000,
+            kind=JobKind.DRAFT,
+            chapter_id=ch.id,
+            beat_id=beat.id,
+            scene_packet_id=sp.id,
+            chapter_no=1,
+            scene_no=1,
+            status=JobStatus.QUEUED,
+            token_budget=40_000,
         )
         s.add(existing)
         await s.flush()

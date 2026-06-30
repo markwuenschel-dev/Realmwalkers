@@ -1,4 +1,5 @@
 """Unit tests for scene-packet approval policy (no database)."""
+
 from __future__ import annotations
 
 import uuid
@@ -30,12 +31,8 @@ def _sp(**kwargs: object) -> ScenePacket:
 
 
 def test_has_blocking_qa_verdicts():
-    assert approval_policy.has_blocking_qa(
-        _sp(qa_verdict=ScenePacketVerdict.REVISE_REQUIRED.value)
-    )
-    assert approval_policy.has_blocking_qa(
-        _sp(qa_verdict=ScenePacketVerdict.BLOCK_DRAFTING.value)
-    )
+    assert approval_policy.has_blocking_qa(_sp(qa_verdict=ScenePacketVerdict.REVISE_REQUIRED.value))
+    assert approval_policy.has_blocking_qa(_sp(qa_verdict=ScenePacketVerdict.BLOCK_DRAFTING.value))
     assert not approval_policy.has_blocking_qa(_sp(qa_verdict=ScenePacketVerdict.APPROVE.value))
 
 

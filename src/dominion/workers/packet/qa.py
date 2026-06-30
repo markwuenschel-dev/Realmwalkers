@@ -4,6 +4,7 @@ A separate agent that ATTACKS the packet the author produced — the author must
 guardrails. It does not rewrite and does not draft; it returns a verdict plus the residual risks the
 writer must still avoid. The orchestration fails closed: a malformed QA response blocks drafting.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,9 +36,8 @@ _VERDICTS = {v.value.upper(): v for v in PacketVerdict}
 
 
 def build_prompt(packet: dict[str, Any]) -> str:
-    return (
-        "Attack this chapter knowledge packet and return your verdict.\n\nPACKET:\n"
-        + json.dumps(packet, ensure_ascii=False, indent=2)
+    return "Attack this chapter knowledge packet and return your verdict.\n\nPACKET:\n" + json.dumps(
+        packet, ensure_ascii=False, indent=2
     )
 
 

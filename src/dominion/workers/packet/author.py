@@ -9,6 +9,7 @@ Every claim must carry a source-strength label AND a provenance handle into the 
 given (or OUTLINE / null for inference), so "LOCKED CANON" is traceable, not just asserted. Output is
 ONE JSON object; the orchestration (packet/__init__.py) fails closed if it can't be parsed/validated.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -43,7 +44,7 @@ _SYSTEM = (
 # The exact JSON shape we ask for. Provenance: each claim cites a canon handle (e.g. \"C3\"), or
 # \"OUTLINE\", or null for inference. The server resolves handles back to real canon ids + titles.
 _SCHEMA_HINT = (
-    '{\n'
+    "{\n"
     '  "chapter_job": str, "one_sentence_spine": str,\n'
     '  "entry_state": str, "exit_state": str, "emotional_spine": str,\n'
     '  "characters_present": [str], "characters_absent": [str],\n'
@@ -63,7 +64,7 @@ _SCHEMA_HINT = (
     '"confidence": "high|medium|low"}],\n'
     '  "open_questions": [str],\n'
     '  "confidence": "green|yellow|red"\n'
-    '}'
+    "}"
 )
 
 
@@ -88,17 +89,11 @@ def build_prompt(
         parts.append(f"Story so far (all viewpoints):\n{omniscient_summary}")
     if canon_handles:
         snippets = "\n\n".join(
-            f"[{h}] ({meta.get('name') or 'canon'}) {meta.get('body') or ''}"
-            for h, meta in canon_handles.items()
+            f"[{h}] ({meta.get('name') or 'canon'}) {meta.get('body') or ''}" for h, meta in canon_handles.items()
         )
-        parts.append(
-            "CANON SNIPPETS (cite a claim's source_id by its bracket handle, e.g. C1):\n" + snippets
-        )
+        parts.append("CANON SNIPPETS (cite a claim's source_id by its bracket handle, e.g. C1):\n" + snippets)
     parts.append("CHAPTER OUTLINE:\n" + outline)
-    parts.append(
-        "Produce the chapter knowledge packet as ONE JSON object with exactly this shape:\n"
-        + _SCHEMA_HINT
-    )
+    parts.append("Produce the chapter knowledge packet as ONE JSON object with exactly this shape:\n" + _SCHEMA_HINT)
     return "\n\n".join(parts)
 
 
@@ -119,9 +114,13 @@ async def author_packet(
         model=settings.packet_author_model,
         system=_SYSTEM,
         user=build_prompt(
-            chapter_no=chapter_no, pov=pov, outline=outline,
-            omniscient_summary=omniscient_summary, prior_exit_state=prior_exit_state,
-            next_entry_intent=next_entry_intent, canon_handles=canon_handles,
+            chapter_no=chapter_no,
+            pov=pov,
+            outline=outline,
+            omniscient_summary=omniscient_summary,
+            prior_exit_state=prior_exit_state,
+            next_entry_intent=next_entry_intent,
+            canon_handles=canon_handles,
         ),
         max_tokens=_AUTHOR_MAX_TOKENS,
         budget=budget,

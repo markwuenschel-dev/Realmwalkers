@@ -8,6 +8,7 @@ to the owner files that MUST be present, plus the owner topics that should be bo
 Rules are intentionally simple keyword/character triggers; add a rule rather than widening one. A doc
 path that doesn't exist in the corpus yet is harmless — retrieval just finds nothing to force.
 """
+
 from __future__ import annotations
 
 import re
@@ -19,15 +20,14 @@ class OwnerRule:
     owner_topic: str
     doc_paths: tuple[str, ...]
     keywords: tuple[str, ...] = ()
-    all_characters: tuple[str, ...] = ()   # every name must appear (e.g. Marcus AND Serra)
+    all_characters: tuple[str, ...] = ()  # every name must appear (e.g. Marcus AND Serra)
 
 
 # Order matters only for readability; all matching rules contribute.
 _RULES: tuple[OwnerRule, ...] = (
     OwnerRule(
         owner_topic="relationship_invariants",
-        doc_paths=("relationship_invariants.md", "marcus_serra_relationship.md", "mc.md",
-                   "serra_hawthorne.md"),
+        doc_paths=("relationship_invariants.md", "marcus_serra_relationship.md", "mc.md", "serra_hawthorne.md"),
         keywords=("recognition", "romance", "duel", "relationship"),
         all_characters=("marcus", "serra"),
     ),
@@ -80,9 +80,7 @@ def route(query: str, *, characters: list[str] | None = None) -> OwnerRouting:
 
     for rule in _RULES:
         kw_hit = any(_kw_in(k) for k in rule.keywords) if rule.keywords else False
-        char_hit = bool(rule.all_characters) and all(
-            c in haystack_names or c in q for c in rule.all_characters
-        )
+        char_hit = bool(rule.all_characters) and all(c in haystack_names or c in q for c in rule.all_characters)
         if not (kw_hit or char_hit):
             continue
         routing.owner_topics.append(rule.owner_topic)

@@ -9,6 +9,7 @@ Single source of truth: both the boot provisioner (`scripts/init_db.py`) and the
 (`tests/conftest.py`) call `apply_lightweight_migrations`, so the test schema can't silently drift
 from what production runs.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import text
@@ -45,13 +46,9 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
 )
 
-# Idempotent constraints/indexes for contract-first draft jobs (safe to skip if already present).
+# Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
 _EXTRA_DDL: tuple[str, ...] = (
-    """DO $$ BEGIN
-        ALTER TABLE jobs ADD CONSTRAINT draft_jobs_require_scene_packet
-        CHECK (kind != 'draft' OR scene_packet_id IS NOT NULL);
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$""",
+    "ALTER TABLE jobs DROP CONSTRAINT IF EXISTS draft_jobs_require_scene_packet",
     """CREATE UNIQUE INDEX IF NOT EXISTS uq_active_draft_per_scene_packet
        ON jobs (scene_packet_id)
        WHERE kind = 'draft' AND status IN ('queued', 'running') AND target_scene_id IS NULL""",

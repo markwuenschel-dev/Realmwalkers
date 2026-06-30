@@ -1,4 +1,5 @@
 """Dialogue-rules scoping: general craft is always-on, per-character profiles are scene-scoped."""
+
 from __future__ import annotations
 
 from dominion.workers.context.dialogue_rules import (

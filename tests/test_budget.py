@@ -5,6 +5,7 @@ The budget bounds a job's *work*, not its raw token count: a cache READ is re-se
 cached prefix doesn't re-count in full on every call — the regression that blocked scene-packet
 derivation — without ever penalizing the scene that pays the cache write.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -32,7 +33,7 @@ def test_budget_cost_does_not_penalize_cache_writes():
     # never a premium — so priming the cache for later scenes never pushes the primer over its ceiling.
     writer = Usage(input_tokens=100, output_tokens=200, cache_creation_tokens=10_000)
     no_cache = Usage(input_tokens=100, output_tokens=200, cache_creation_tokens=0, cache_read_tokens=0)
-    assert writer.budget_cost == 100 + 200 + 10_000        # write == plain input weight
+    assert writer.budget_cost == 100 + 200 + 10_000  # write == plain input weight
     assert writer.budget_cost - no_cache.budget_cost == 10_000
 
 
@@ -65,7 +66,10 @@ def test_context_window_guard_uses_raw_tokens_not_weighted_cache_cost():
 
     with pytest.raises(ContextWindowExceeded, match="context_window_budget=1000"):
         check_context_window(
-            system="s", user="u", max_tokens=100, context_window_budget=1000,
+            system="s",
+            user="u",
+            max_tokens=100,
+            context_window_budget=1000,
             user_prefix_blocks=(CachedPrefixBlock("chapter_shared_prefix", "x" * 8000),),
             context_sections={"chapter_shared_prefix": 2_000},
         )

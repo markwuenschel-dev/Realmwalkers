@@ -4,6 +4,7 @@ Between jobs, zero processes run — so there is nothing to boot, nothing to re-
 autonomous rolling. `--once` does a single job and exits; `--loop` polls. A hung job is killed
 cleanly by the wall-clock budget (or the OS), leaving Postgres consistent.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,9 +62,7 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         job_id = job.id
         progress.set_phase(str(job_id), "starting")
         try:
-            scene = await asyncio.wait_for(
-                generate_one_scene(session, job), timeout=settings.scene_time_budget_s
-            )
+            scene = await asyncio.wait_for(generate_one_scene(session, job), timeout=settings.scene_time_budget_s)
             job.status = JobStatus.DONE
             await session.commit()
             log.info("scene.drafted", job=str(job_id), scene=str(scene.id), tokens=scene.token_count)

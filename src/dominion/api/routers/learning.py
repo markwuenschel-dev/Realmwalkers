@@ -6,6 +6,7 @@ call. `GET /books/{id}/rule-proposals` lists them; `POST /rule-proposals/{id}/de
 rule is appended to the POV's `PovProfile.voice_spec`, read fresh on the next draft) or rejects one.
 Nothing here changes a draft until the author accepts — the same human gate as any edit (DESIGN §11).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -25,9 +26,7 @@ router = APIRouter(tags=["learning"])
 
 
 @router.post("/books/{book_id}/distill", response_model=list[RuleProposalOut])
-async def distill_rules(
-    book_id: uuid.UUID, session: SessionDep, pov: str | None = None
-) -> list[RuleProposal]:
+async def distill_rules(book_id: uuid.UUID, session: SessionDep, pov: str | None = None) -> list[RuleProposal]:
     """Distill recent edits into proposed rules for one POV (or every POV with edits) and persist the
     new ones as `pending`. Deduped against existing non-rejected proposals so re-running doesn't pile
     up the same rule. Returns the freshly created proposals."""
@@ -36,9 +35,7 @@ async def distill_rules(
 
     created: list[RuleProposal] = []
     for p in povs:
-        pairs = await distill.load_recent_pairs(
-            session, book_id=book_id, pov=p, limit=settings.distill_max_pairs
-        )
+        pairs = await distill.load_recent_pairs(session, book_id=book_id, pov=p, limit=settings.distill_max_pairs)
         try:
             proposals = await distill.propose_rules(
                 pairs, pov=p, budget=budget, time_budget_s=settings.distill_time_budget_s
@@ -49,13 +46,17 @@ async def distill_rules(
         # Don't re-propose a rule already pending or accepted for this (book, pov).
         seen = {
             (r.rule_text or "").strip().lower()
-            for r in (await session.execute(
-                select(RuleProposal).where(
-                    RuleProposal.book_id == book_id,
-                    RuleProposal.pov == p,
-                    RuleProposal.status != RuleProposalStatus.REJECTED,
+            for r in (
+                await session.execute(
+                    select(RuleProposal).where(
+                        RuleProposal.book_id == book_id,
+                        RuleProposal.pov == p,
+                        RuleProposal.status != RuleProposalStatus.REJECTED,
+                    )
                 )
-            )).scalars().all()
+            )
+            .scalars()
+            .all()
         }
         pair_ids = [str(pair.id) for pair in pairs]
         for pr in proposals:
@@ -64,8 +65,12 @@ async def distill_rules(
                 continue
             seen.add(key)
             row = RuleProposal(
-                book_id=book_id, pov=p, kind=pr["kind"], rule_text=pr["rule"],
-                rationale=pr["rationale"] or None, source_pair_ids=pair_ids or None,
+                book_id=book_id,
+                pov=p,
+                kind=pr["kind"],
+                rule_text=pr["rule"],
+                rationale=pr["rationale"] or None,
+                source_pair_ids=pair_ids or None,
                 status=RuleProposalStatus.PENDING,
             )
             session.add(row)
@@ -76,9 +81,7 @@ async def distill_rules(
 
 
 @router.get("/books/{book_id}/rule-proposals", response_model=list[RuleProposalOut])
-async def list_rule_proposals(
-    book_id: uuid.UUID, session: SessionDep, status: str | None = None
-) -> list[RuleProposal]:
+async def list_rule_proposals(book_id: uuid.UUID, session: SessionDep, status: str | None = None) -> list[RuleProposal]:
     stmt = select(RuleProposal).where(RuleProposal.book_id == book_id)
     if status:
         stmt = stmt.where(RuleProposal.status == status)
@@ -90,11 +93,11 @@ async def _apply_rule(session: SessionDep, proposal: RuleProposal) -> None:
     """Append an accepted rule to the POV's voice spec (find-or-create the profile). The drafter reads
     `voice_spec` fresh per scene, so the rule lands on the next draft with no redeploy. Stored as a
     bullet line, distinct from any hand-authored spec text above it."""
-    profile = (await session.execute(
-        select(PovProfile).where(
-            PovProfile.book_id == proposal.book_id, PovProfile.character == proposal.pov
+    profile = (
+        await session.execute(
+            select(PovProfile).where(PovProfile.book_id == proposal.book_id, PovProfile.character == proposal.pov)
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     line = f"- {proposal.rule_text.strip()}"
     if profile is None:
         session.add(PovProfile(book_id=proposal.book_id, character=proposal.pov, voice_spec=line))

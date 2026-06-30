@@ -4,6 +4,7 @@ Same fail-closed philosophy as the chapter packet parser: lenient extraction of 
 an unrecognizable verdict or a structurally-thin body is treated as None so the orchestration blocks
 the packet rather than degrading into partial constraints. Reuses the chapter packet extractor.
 """
+
 from __future__ import annotations
 
 from typing import Any

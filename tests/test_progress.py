@@ -1,4 +1,5 @@
 """Unit tests for the in-process drafting-phase registry (no database)."""
+
 from __future__ import annotations
 
 import uuid

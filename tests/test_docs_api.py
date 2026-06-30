@@ -3,6 +3,7 @@
 The router reads the real Markdown under series/ and book1/. These call the router functions directly
 and assert the listing, round-trip, and the sandbox (no traversal, .md-only, allowed categories only).
 """
+
 from __future__ import annotations
 
 import pytest

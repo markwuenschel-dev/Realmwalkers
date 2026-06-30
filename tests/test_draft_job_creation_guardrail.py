@@ -1,4 +1,5 @@
 """Static guardrail: draft Job rows may only be constructed in approved modules."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -15,7 +16,7 @@ ALLOWED_SUFFIXES = {
 
 def test_draft_job_instantiation_only_in_whitelisted_modules():
     violations: list[str] = []
-    markers = ('kind=JobKind.DRAFT', 'kind="draft"', "kind='draft'")
+    markers = ("kind=JobKind.DRAFT", 'kind="draft"', "kind='draft'")
     for path in SRC.rglob("*.py"):
         rel = path.relative_to(REPO / "src" / "dominion").as_posix()
         if rel in ALLOWED_SUFFIXES:

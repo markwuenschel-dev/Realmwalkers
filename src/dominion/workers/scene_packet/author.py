@@ -9,6 +9,7 @@ The word budget is supplied by the deterministic Length Planner (not invented by
 into the returned body verbatim. Output is ONE JSON object; the orchestration fails closed on a
 malformed/thin body.
 """
+
 from __future__ import annotations
 
 import json
@@ -27,6 +28,7 @@ def _compact(obj: Any) -> str:
     cost) about half the size."""
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
+
 # Headroom for the fallback attempt: a genuine truncation needs more room than the first cap gave it.
 _FALLBACK_MAX_TOKENS_FLOOR = 12000
 
@@ -35,6 +37,7 @@ class ScenePacketAuthorError(RuntimeError):
     """The author could not produce a usable ScenePacket body (truncated/unparseable/thin), even after
     escalating to the fallback model. Carries a human-readable cause so the derive can persist *why*
     the scene blocked instead of a generic 'incomplete body'."""
+
 
 _SYSTEM = (
     "You are the ScenePacket Author. Do NOT write prose. Do NOT invent story. Do NOT resolve "
@@ -51,7 +54,7 @@ _SYSTEM = (
 )
 
 _SCHEMA_HINT = (
-    '{\n'
+    "{\n"
     '  "scene_no": int, "scene_job": str, "scene_type": str,\n'
     '  "chapter_position": "opening|middle|climax|aftermath|bridge",\n'
     '  "word_budget": <use the supplied word_budget object verbatim>,\n'
@@ -67,7 +70,7 @@ _SCHEMA_HINT = (
     '  "phrases_to_avoid_echoing": [str],\n'
     '  "reviewer_instructions": {"continuity": [str], "pacing": [str], "dialogue": [str], '
     '"combat": [str], "sensory": [str], "voice": [str]}\n'
-    '}'
+    "}"
 )
 
 
@@ -108,11 +111,9 @@ def build_scene_context(
     if prior_exit_state:
         parts.append(f"Prior scene exit state:\n{prior_exit_state}")
     if prior_scene_summaries:
-        parts.append("Prior approved scenes (summaries):\n"
-                     + "\n".join(f"- {s}" for s in prior_scene_summaries))
+        parts.append("Prior approved scenes (summaries):\n" + "\n".join(f"- {s}" for s in prior_scene_summaries))
     if owner_snippets:
-        parts.append("OWNER FILES (authority over retrieved snippets):\n"
-                     + "\n\n".join(owner_snippets))
+        parts.append("OWNER FILES (authority over retrieved snippets):\n" + "\n\n".join(owner_snippets))
     if canon_snippets:
         parts.append("RETRIEVED CANON (supporting context):\n" + "\n\n".join(canon_snippets))
     return "\n\n".join(parts)
@@ -133,13 +134,15 @@ def build_prompt(
     whole-packet schema, or a `closing` override). The chapter-wide authority/summaries ride ahead of
     this as the cached prefix (build_prefix)."""
     context = build_scene_context(
-        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
-        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
-        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
+        pov=pov,
+        scene_seed=scene_seed,
+        word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries,
+        prior_exit_state=prior_exit_state,
+        owner_snippets=owner_snippets,
+        canon_snippets=canon_snippets,
     )
-    closing_text = closing or (
-        "Produce the ScenePacket as ONE JSON object with exactly this shape:\n" + _SCHEMA_HINT
-    )
+    closing_text = closing or ("Produce the ScenePacket as ONE JSON object with exactly this shape:\n" + _SCHEMA_HINT)
     return context + "\n\n" + closing_text
 
 
@@ -151,8 +154,10 @@ def _stamp(body: dict[str, Any], word_budget: dict[str, Any]) -> dict[str, Any]:
 def _why(body: Any, usage: Usage, *, model: str, max_tokens: int) -> str:
     """A specific cause for an unusable body, so a blocked scene names its real reason."""
     if usage.truncated:
-        return (f"{model} response truncated at max_tokens={max_tokens} "
-                f"({usage.output_tokens} output tokens) — JSON cut off mid-object")
+        return (
+            f"{model} response truncated at max_tokens={max_tokens} "
+            f"({usage.output_tokens} output tokens) — JSON cut off mid-object"
+        )
     if not isinstance(body, dict):
         return f"{model} returned no parseable JSON object"
     return f"{model} returned a thin body (missing required contract sections)"
@@ -181,18 +186,27 @@ async def author_scene_packet(
     ScenePacketAuthorError carrying the cause — the derive persists that as the scene's blocked reason."""
     prefix = build_prefix(
         chapter_packet_body=chapter_packet_body,
-        pov_summary=pov_summary, omniscient_summary=omniscient_summary,
+        pov_summary=pov_summary,
+        omniscient_summary=omniscient_summary,
     )
     user = build_prompt(
-        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
-        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
-        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
+        pov=pov,
+        scene_seed=scene_seed,
+        word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries,
+        prior_exit_state=prior_exit_state,
+        owner_snippets=owner_snippets,
+        canon_snippets=canon_snippets,
     )
 
     async def _attempt(model: str, max_tokens: int) -> tuple[Any, Usage]:
         raw, usage = await llm.complete(
-            model=model, system=_SYSTEM, user_prefix=prefix, user=user,
-            max_tokens=max_tokens, budget=budget,
+            model=model,
+            system=_SYSTEM,
+            user_prefix=prefix,
+            user=user,
+            max_tokens=max_tokens,
+            budget=budget,
         )
         return extract_object(raw), usage
 
@@ -211,6 +225,4 @@ async def author_scene_packet(
     body2, usage2 = await _attempt(fallback, fb_max)
     if valid_scene_packet_body(body2):
         return _stamp(body2, word_budget)
-    raise ScenePacketAuthorError(
-        f"{first_cause}; fallback {_why(body2, usage2, model=fallback, max_tokens=fb_max)}"
-    )
+    raise ScenePacketAuthorError(f"{first_cause}; fallback {_why(body2, usage2, model=fallback, max_tokens=fb_max)}")

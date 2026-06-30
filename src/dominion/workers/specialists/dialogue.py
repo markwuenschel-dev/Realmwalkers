@@ -1,4 +1,5 @@
 """Enrichment pass: punch up exchanges (DESIGN §5-6). Runs only when the beat carries the matching tag."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -20,9 +21,7 @@ class DialoguePass:
 
     async def run(self, prose: str | None, ctx: SceneContext) -> str:
         # Dialogue rules are authoritative for how dialogue is written/formatted (see drafter._voice_system).
-        return await run_enrichment(
-            prose, ctx, name=self.name, dimension=_DIMENSION, use_dialogue_rules=True
-        )
+        return await run_enrichment(prose, ctx, name=self.name, dimension=_DIMENSION, use_dialogue_rules=True)
 
 
 dialogue_pass = DialoguePass()

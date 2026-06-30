@@ -1,4 +1,5 @@
 """Combat review lane (DESIGN §6, OPEN-8). Advisory: flags muddy or inconsistent fight choreography."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

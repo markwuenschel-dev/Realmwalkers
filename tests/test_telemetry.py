@@ -3,6 +3,7 @@
 Real Postgres (skips if unreachable), router functions called directly with a session — mirrors the
 other router tests.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -26,16 +27,42 @@ async def _book_with_chapters(s) -> tuple[Book, Chapter, Chapter]:
 async def test_chapter_telemetry_aggregates_per_scene(db_factory):
     async with db_factory() as s:
         book, ch, _ = await _book_with_chapters(s)
-        s.add_all([
-            LlmCall(book_id=book.id, chapter_id=ch.id, scene_no=1, stage="scene_packet_author",
-                    model="haiku", input_tokens=1000, output_tokens=200, cache_read_tokens=1000,
-                    latency_ms=400),
-            LlmCall(book_id=book.id, chapter_id=ch.id, scene_no=1, stage="scene_packet_qa",
-                    model="haiku", input_tokens=500, output_tokens=100, truncated=True,
-                    latency_ms=600),
-            LlmCall(book_id=book.id, chapter_id=ch.id, scene_no=2, stage="scene_packet_author",
-                    model="sonnet", input_tokens=2000, output_tokens=300, error="boom"),
-        ])
+        s.add_all(
+            [
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=1000,
+                    output_tokens=200,
+                    cache_read_tokens=1000,
+                    latency_ms=400,
+                ),
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=500,
+                    output_tokens=100,
+                    truncated=True,
+                    latency_ms=600,
+                ),
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=2,
+                    stage="scene_packet_author",
+                    model="sonnet",
+                    input_tokens=2000,
+                    output_tokens=300,
+                    error="boom",
+                ),
+            ]
+        )
         await s.flush()
 
         out = await tel_router.chapter_telemetry(ch.id, s)
@@ -48,7 +75,7 @@ async def test_chapter_telemetry_aggregates_per_scene(db_factory):
         # cache_read 1000 / (input 1500 + cache_creation 0 + cache_read 1000) = 0.4
         assert scene1.cache_hit_ratio == 0.4
         assert scene1.cache_tokens_saved == 900  # int(1000 * 0.9)
-        assert scene1.avg_latency_ms == 500       # (400 + 600) / 2
+        assert scene1.avg_latency_ms == 500  # (400 + 600) / 2
 
 
 async def test_chapter_telemetry_empty_when_never_derived(db_factory):
@@ -65,22 +92,48 @@ async def test_chapter_telemetry_scopes_to_latest_run(db_factory):
         book, ch, _ = await _book_with_chapters(s)
         run_old, run_new = uuid.uuid4(), uuid.uuid4()
         t0 = datetime(2026, 1, 1, tzinfo=UTC)
-        s.add_all([
-            LlmCall(run_id=run_old, book_id=book.id, chapter_id=ch.id, scene_no=1,
-                    stage="scene_packet_author", model="haiku", input_tokens=999, output_tokens=10,
-                    created_at=t0),
-            LlmCall(run_id=run_new, book_id=book.id, chapter_id=ch.id, scene_no=1,
-                    stage="scene_packet_author", model="haiku", input_tokens=100, output_tokens=20,
-                    created_at=t0 + timedelta(minutes=5)),
-            LlmCall(run_id=run_new, book_id=book.id, chapter_id=ch.id, scene_no=2,
-                    stage="scene_packet_qa", model="haiku", input_tokens=200, output_tokens=30,
-                    created_at=t0 + timedelta(minutes=5)),
-        ])
+        s.add_all(
+            [
+                LlmCall(
+                    run_id=run_old,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=999,
+                    output_tokens=10,
+                    created_at=t0,
+                ),
+                LlmCall(
+                    run_id=run_new,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=100,
+                    output_tokens=20,
+                    created_at=t0 + timedelta(minutes=5),
+                ),
+                LlmCall(
+                    run_id=run_new,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=2,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=200,
+                    output_tokens=30,
+                    created_at=t0 + timedelta(minutes=5),
+                ),
+            ]
+        )
         await s.flush()
 
         out = await tel_router.chapter_telemetry(ch.id, s)
-        assert out.totals.calls == 2                       # latest run only, not 3
-        assert out.totals.input_tokens == 300              # 100 + 200; the old run's 999 is excluded
+        assert out.totals.calls == 2  # latest run only, not 3
+        assert out.totals.input_tokens == 300  # 100 + 200; the old run's 999 is excluded
         assert {sc.scene_no for sc in out.scenes} == {1, 2}
 
 
@@ -90,18 +143,36 @@ async def test_book_telemetry_per_run_history_newest_first(db_factory):
         book, ch, _ = await _book_with_chapters(s)
         run_a, run_b = uuid.uuid4(), uuid.uuid4()
         t0 = datetime(2026, 1, 1, tzinfo=UTC)
-        s.add_all([
-            LlmCall(run_id=run_a, book_id=book.id, chapter_id=ch.id, scene_no=1,
-                    stage="scene_packet_author", model="haiku", input_tokens=10, output_tokens=1,
-                    created_at=t0),
-            LlmCall(run_id=run_b, book_id=book.id, chapter_id=ch.id, scene_no=1,
-                    stage="scene_packet_author", model="haiku", input_tokens=20, output_tokens=2,
-                    created_at=t0 + timedelta(minutes=1)),
-        ])
+        s.add_all(
+            [
+                LlmCall(
+                    run_id=run_a,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=10,
+                    output_tokens=1,
+                    created_at=t0,
+                ),
+                LlmCall(
+                    run_id=run_b,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=20,
+                    output_tokens=2,
+                    created_at=t0 + timedelta(minutes=1),
+                ),
+            ]
+        )
         await s.flush()
 
         out = await tel_router.book_telemetry(book.id, s)
-        assert [r.run_id for r in out.by_run] == [run_b, run_a]   # newest run first
+        assert [r.run_id for r in out.by_run] == [run_b, run_a]  # newest run first
         assert out.by_run[0].calls == 1 and out.by_run[0].chapter_no == 1
 
 
@@ -113,12 +184,22 @@ async def test_book_telemetry_paginates_run_history(db_factory):
         t0 = datetime(2026, 1, 1, tzinfo=UTC)
         runs = [uuid.uuid4() for _ in range(7)]
         for i, rid in enumerate(runs):
-            s.add(LlmCall(run_id=rid, book_id=book.id, chapter_id=ch.id, scene_no=1,
-                          stage="scene_packet_author", model="haiku", input_tokens=10, output_tokens=1,
-                          created_at=t0 + timedelta(minutes=i)))
+            s.add(
+                LlmCall(
+                    run_id=rid,
+                    book_id=book.id,
+                    chapter_id=ch.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=10,
+                    output_tokens=1,
+                    created_at=t0 + timedelta(minutes=i),
+                )
+            )
         await s.flush()
 
-        first = await tel_router.book_telemetry(book.id, s)            # default page
+        first = await tel_router.book_telemetry(book.id, s)  # default page
         assert first.run_total == 7
         assert [r.run_id for r in first.by_run] == list(reversed(runs))[:5]  # newest 5, newest first
 
@@ -132,22 +213,43 @@ async def test_book_telemetry_paginates_run_history(db_factory):
 async def test_book_telemetry_rolls_up_chapters_stages_models(db_factory):
     async with db_factory() as s:
         book, ch1, ch2 = await _book_with_chapters(s)
-        s.add_all([
-            LlmCall(book_id=book.id, chapter_id=ch1.id, scene_no=1, stage="scene_packet_author",
-                    model="haiku", input_tokens=1000, output_tokens=100),
-            LlmCall(book_id=book.id, chapter_id=ch1.id, scene_no=1, stage="scene_packet_qa",
-                    model="haiku", input_tokens=400, output_tokens=40),
-            LlmCall(book_id=book.id, chapter_id=ch2.id, scene_no=1, stage="scene_packet_author",
-                    model="sonnet", input_tokens=500, output_tokens=50),
-        ])
+        s.add_all(
+            [
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch1.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="haiku",
+                    input_tokens=1000,
+                    output_tokens=100,
+                ),
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch1.id,
+                    scene_no=1,
+                    stage="scene_packet_qa",
+                    model="haiku",
+                    input_tokens=400,
+                    output_tokens=40,
+                ),
+                LlmCall(
+                    book_id=book.id,
+                    chapter_id=ch2.id,
+                    scene_no=1,
+                    stage="scene_packet_author",
+                    model="sonnet",
+                    input_tokens=500,
+                    output_tokens=50,
+                ),
+            ]
+        )
         await s.flush()
 
         out = await tel_router.book_telemetry(book.id, s)
         assert out.totals.calls == 3
         # chapters ordered by chapter_no, carrying their labels
-        assert [(r.chapter_no, r.title, r.calls) for r in out.by_chapter] == [
-            (1, "One", 2), (2, "Two", 1)
-        ]
+        assert [(r.chapter_no, r.title, r.calls) for r in out.by_chapter] == [(1, "One", 2), (2, "Two", 1)]
         assert {g.key for g in out.by_stage} == {"scene_packet_author", "scene_packet_qa"}
         assert {g.key for g in out.by_model} == {"haiku", "sonnet"}
         haiku = next(g for g in out.by_model if g.key == "haiku")

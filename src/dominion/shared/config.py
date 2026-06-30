@@ -1,4 +1,5 @@
 """Runtime settings, loaded from environment / .env (DESIGN §9, §10)."""
+
 from __future__ import annotations
 
 from pydantic import AliasChoices, Field, field_validator
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
                 return v
         for scheme in ("postgresql://", "postgres://"):
             if v.startswith(scheme):
-                return "postgresql+asyncpg://" + v[len(scheme):]
+                return "postgresql+asyncpg://" + v[len(scheme) :]
         return v
 
     # Anthropic (the key uses its own conventional env var, not the DOMINION_ prefix)

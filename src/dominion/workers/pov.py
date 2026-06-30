@@ -9,6 +9,7 @@ voice and memory, not just under a different label. The rule lives in one place 
 This is a leaf module (imports only the ORM models), so both the `context` and `scene_packet`
 worker packages can import it without forming an import cycle.
 """
+
 from __future__ import annotations
 
 from dominion.shared.models import Beat, Chapter

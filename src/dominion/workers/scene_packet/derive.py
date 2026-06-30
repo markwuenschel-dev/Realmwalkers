@@ -11,6 +11,7 @@ contract. The word budget comes from the deterministic Length Planner, never the
 
 `source_hash` records every input the packet was derived from, so staleness is detectable later.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -48,6 +49,7 @@ _CANON_K = 6
 class _SceneWork:
     """One scene's fully-assembled inputs, gathered serially (Phase 1) so the concurrent Author+QA
     fan-out (Phase 2) never touches the shared AsyncSession."""
+
     seed: dict[str, Any]
     seed_id: uuid.UUID
     scene_no: int
@@ -85,8 +87,12 @@ async def _author_then_qa(
 
     def _ctx(stage: str) -> telemetry.CallContext:
         return telemetry.CallContext(
-            sink=sink, stage=stage, book_id=book_id, chapter_id=chapter_id,
-            scene_no=item.scene_no, seed_id=str(item.seed_id),
+            sink=sink,
+            stage=stage,
+            book_id=book_id,
+            chapter_id=chapter_id,
+            scene_no=item.scene_no,
+            seed_id=str(item.seed_id),
         )
 
     # Sectioned author fans the contract into concurrent section calls (the default — fixes the
@@ -102,10 +108,14 @@ async def _author_then_qa(
     try:
         with telemetry.call_context(_ctx("scene_packet_author")):
             scene_body: dict[str, Any] | None = await author_fn(
-                pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=item.seed,
-                word_budget=item.word_budget, pov_summary=pov_summary,
+                pov=pov,
+                chapter_packet_body=chapter_packet_body,
+                scene_seed=item.seed,
+                word_budget=item.word_budget,
+                pov_summary=pov_summary,
                 omniscient_summary=omniscient_summary,
-                owner_snippets=item.owner_snippets or None, canon_snippets=item.canon_snippets or None,
+                owner_snippets=item.owner_snippets or None,
+                canon_snippets=item.canon_snippets or None,
                 budget=item.budget,
             )
     except Exception as exc:  # noqa: BLE001 — any author failure fails this scene closed
@@ -132,21 +142,24 @@ def _as_str_list(value: Any) -> list[str]:
 
 
 async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str | None:
-    return (await session.execute(
-        select(Summary.rolling_summary).where(
-            Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+    return (
+        await session.execute(
+            select(Summary.rolling_summary).where(
+                Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
 
 async def _pov_summary(session: AsyncSession, *, book_id: uuid.UUID, pov: str) -> str | None:
-    return (await session.execute(
-        select(Summary.rolling_summary)
-        .where(Summary.book_id == book_id, Summary.scope == "pov", Summary.pov == pov)
-        .order_by(Summary.up_to_scene_id.is_(None))
-        .limit(1)
-    )).scalar_one_or_none()
-
+    return (
+        await session.execute(
+            select(Summary.rolling_summary)
+            .where(Summary.book_id == book_id, Summary.scope == "pov", Summary.pov == pov)
+            .order_by(Summary.up_to_scene_id.is_(None))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 def _derive_context_budget_report(
@@ -172,16 +185,18 @@ def _derive_context_budget_report(
         canon = sum(estimate_tokens(s) for s in item.canon_snippets)
         pov_summary = estimate_tokens(item.pov_summary or "")
         scene_total = scene_seed + word_budget + owner + canon + pov_summary
-        report["scenes"].append({
-            "scene_no": item.scene_no,
-            "pov": item.pov,
-            "pov_summary": pov_summary,
-            "scene_seed": scene_seed,
-            "word_budget": word_budget,
-            "owner_snippets": owner,
-            "canon_snippets": canon,
-            "scene_context_total": scene_total,
-        })
+        report["scenes"].append(
+            {
+                "scene_no": item.scene_no,
+                "pov": item.pov,
+                "pov_summary": pov_summary,
+                "scene_seed": scene_seed,
+                "word_budget": word_budget,
+                "owner_snippets": owner,
+                "canon_snippets": canon,
+                "scene_context_total": scene_total,
+            }
+        )
     return report
 
 
@@ -200,20 +215,33 @@ async def _prime_shared_prefixes(
         if key in seen_author_prefixes:
             continue
         seen_author_prefixes.add(key)
-        with telemetry.call_context(telemetry.CallContext(
-            sink=sink, stage="scene_packet_author_prefix_prime", book_id=book_id, chapter_id=chapter_id,
-            scene_no=None, seed_id=None,
-        )):
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink,
+                stage="scene_packet_author_prefix_prime",
+                book_id=book_id,
+                chapter_id=chapter_id,
+                scene_no=None,
+                seed_id=None,
+            )
+        ):
             await author_sections_mod.prime_author_shared_prefix(
-                chapter_packet_body=chapter_packet_body, pov_summary=item.pov_summary,
+                chapter_packet_body=chapter_packet_body,
+                pov_summary=item.pov_summary,
                 omniscient_summary=omniscient_summary,
                 budget=TokenBudget(max_tokens=settings.scene_packet_prefix_prime_token_budget),
             )
 
-    with telemetry.call_context(telemetry.CallContext(
-        sink=sink, stage="scene_packet_qa_prefix_prime", book_id=book_id, chapter_id=chapter_id,
-        scene_no=None, seed_id=None,
-    )):
+    with telemetry.call_context(
+        telemetry.CallContext(
+            sink=sink,
+            stage="scene_packet_qa_prefix_prime",
+            book_id=book_id,
+            chapter_id=chapter_id,
+            scene_no=None,
+            seed_id=None,
+        )
+    ):
         await qa_mod.prime_qa_shared_prefix(
             chapter_packet_body,
             budget=TokenBudget(max_tokens=settings.scene_packet_prefix_prime_token_budget),
@@ -243,17 +271,21 @@ async def derive_scene_packets(
     external_scene_budget = budget
     chapter_target, chapter_max = sp_inputs.chapter_targets(body, seeds)
     budgets = length_planner.plan_word_budgets(
-        chapter_target_words=chapter_target, chapter_max_words=chapter_max,
-        scene_seeds=seeds, chapter_packet_body=body,
+        chapter_target_words=chapter_target,
+        chapter_max_words=chapter_max,
+        scene_seeds=seeds,
+        chapter_packet_body=body,
     )
 
     existing: dict[uuid.UUID, ScenePacket] = {
         sp.scene_seed_id: sp
-        for sp in (await session.execute(
-            select(ScenePacket).where(
-                ScenePacket.chapter_id == packet.chapter_id, ScenePacket.scene_seed_id.isnot(None)
+        for sp in (
+            await session.execute(
+                select(ScenePacket).where(
+                    ScenePacket.chapter_id == packet.chapter_id, ScenePacket.scene_seed_id.isnot(None)
+                )
             )
-        )).scalars()
+        ).scalars()
         if sp.scene_seed_id is not None
     }
 
@@ -264,9 +296,7 @@ async def derive_scene_packets(
     # carries an override so a per-scene POV isn't lost to a sibling row.
     chapter = await session.get(Chapter, packet.chapter_id)
     beats_by_scene: dict[int, Beat] = {}
-    for b in (await session.execute(
-        select(Beat).where(Beat.chapter_id == packet.chapter_id)
-    )).scalars():
+    for b in (await session.execute(select(Beat).where(Beat.chapter_id == packet.chapter_id))).scalars():
         prev = beats_by_scene.get(b.scene_no)
         if prev is None or ((b.pov or "").strip() and not (prev.pov or "").strip()):
             beats_by_scene[b.scene_no] = b
@@ -295,8 +325,11 @@ async def derive_scene_packets(
 
         prior_keys = await sp_inputs.prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
         src_hash = hash_mod.source_hash(
-            chapter_packet_id=packet.id, chapter_packet_body=body, scene_seed=seed,
-            chapter_word_budget=word_budget, prior_scene_keys=prior_keys,
+            chapter_packet_id=packet.id,
+            chapter_packet_body=body,
+            scene_seed=seed,
+            chapter_word_budget=word_budget,
+            prior_scene_keys=prior_keys,
             scene_pov=pov_override or None,
         )
 
@@ -310,8 +343,12 @@ async def derive_scene_packets(
         query = " ".join([str(seed.get("scene_job") or ""), *_as_str_list(seed.get("required_beats"))])
         routing = owner_router.route(query, characters=_as_str_list(body.get("characters_present")))
         snippets = await retrieval.retrieve_hybrid(
-            session, book_id=packet.book_id, query=query,
-            owner_topics=routing.owner_topics, required_doc_paths=routing.doc_paths, k=_CANON_K,
+            session,
+            book_id=packet.book_id,
+            query=query,
+            owner_topics=routing.owner_topics,
+            required_doc_paths=routing.doc_paths,
+            k=_CANON_K,
         )
 
         # That POV's rolling summary, fetched once per DISTINCT effective POV (cache by pov string); most
@@ -321,16 +358,23 @@ async def derive_scene_packets(
                 await _pov_summary(session, book_id=packet.book_id, pov=scene_pov) if scene_pov else None
             )
 
-        work.append(_SceneWork(
-            seed=seed, seed_id=seed_id, scene_no=scene_no, word_budget=word_budget,
-            src_hash=src_hash, row=row,
-            owner_snippets=[s["body"] for s in snippets if s["retrieval_reason"] == "owner_forced"],
-            canon_snippets=[s["body"] for s in snippets if s["retrieval_reason"] != "owner_forced"],
-            # Fresh per-scene budget unless the caller explicitly supplied a shared scene-work budget.
-            # Prefix-prime calls are always charged to the separate prefix-prime budget.
-            budget=external_scene_budget or TokenBudget(max_tokens=settings.scene_token_budget),
-            pov=scene_pov, pov_summary=pov_summary_cache[scene_pov],
-        ))
+        work.append(
+            _SceneWork(
+                seed=seed,
+                seed_id=seed_id,
+                scene_no=scene_no,
+                word_budget=word_budget,
+                src_hash=src_hash,
+                row=row,
+                owner_snippets=[s["body"] for s in snippets if s["retrieval_reason"] == "owner_forced"],
+                canon_snippets=[s["body"] for s in snippets if s["retrieval_reason"] != "owner_forced"],
+                # Fresh per-scene budget unless the caller explicitly supplied a shared scene-work budget.
+                # Prefix-prime calls are always charged to the separate prefix-prime budget.
+                budget=external_scene_budget or TokenBudget(max_tokens=settings.scene_token_budget),
+                pov=scene_pov,
+                pov_summary=pov_summary_cache[scene_pov],
+            )
+        )
 
     # ---- Phase 2 (concurrent, LLM only): the scenes are independent, so their Author+QA pairs fan out
     # under a concurrency cap. No DB access happens here (each task only touches its own _SceneWork).
@@ -340,20 +384,31 @@ async def derive_scene_packets(
     sink = telemetry.TelemetrySink()
     book_id_str, chapter_id_str = str(packet.book_id), str(packet.chapter_id)
     counts["context_budget_report"] = _derive_context_budget_report(
-        chapter_packet_body=body, work=work, omniscient_summary=omniscient,
+        chapter_packet_body=body,
+        work=work,
+        omniscient_summary=omniscient,
     )
 
     await _prime_shared_prefixes(
-        work=work, chapter_packet_body=body, omniscient_summary=omniscient, sink=sink,
-        book_id=book_id_str, chapter_id=chapter_id_str,
+        work=work,
+        chapter_packet_body=body,
+        omniscient_summary=omniscient,
+        sink=sink,
+        book_id=book_id_str,
+        chapter_id=chapter_id_str,
     )
 
     async def _run(item: _SceneWork) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
         async with sem:
             return await _author_then_qa(
-                item, chapter_packet_body=body, pov=item.pov,
-                pov_summary=item.pov_summary, omniscient_summary=omniscient,
-                sink=sink, book_id=book_id_str, chapter_id=chapter_id_str,
+                item,
+                chapter_packet_body=body,
+                pov=item.pov,
+                pov_summary=item.pov_summary,
+                omniscient_summary=omniscient,
+                sink=sink,
+                book_id=book_id_str,
+                chapter_id=chapter_id_str,
             )
 
     # Shared chapter prefixes are already primed under a prefix budget, so Scene 1 no longer needs to
@@ -366,7 +421,8 @@ async def derive_scene_packets(
         status, blocked_reason = approval_policy.status_after_author_qa(scene_body, qa, error_detail)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         qa_warnings = (
-            {"residual_risks": qa["residual_risks"], "issues": qa["issues"]} if qa
+            {"residual_risks": qa["residual_risks"], "issues": qa["issues"]}
+            if qa
             else {"residual_risks": [], "blocked_reason": blocked_reason}
         )
         if status == ScenePacketStatus.BLOCKED and blocked_reason:
@@ -375,8 +431,11 @@ async def derive_scene_packets(
         row = item.row
         if row is None:
             row = ScenePacket(
-                book_id=packet.book_id, chapter_id=packet.chapter_id,
-                chapter_packet_id=packet.id, scene_seed_id=item.seed_id, scene_no=item.scene_no,
+                book_id=packet.book_id,
+                chapter_id=packet.chapter_id,
+                chapter_packet_id=packet.id,
+                scene_seed_id=item.seed_id,
+                scene_no=item.scene_no,
             )
             session.add(row)
             counts["created"] += 1
@@ -395,7 +454,5 @@ async def derive_scene_packets(
 
     # One run_id for every call this derive made, so the Desk can isolate this run (Packets panel) and
     # build a per-run history (Telemetry tab) instead of reading one ever-growing cumulative total.
-    telemetry_db.persist_sink(
-        session, sink, run_id=uuid.uuid4(), book_id=packet.book_id, chapter_id=packet.chapter_id
-    )
+    telemetry_db.persist_sink(session, sink, run_id=uuid.uuid4(), book_id=packet.book_id, chapter_id=packet.chapter_id)
     return counts

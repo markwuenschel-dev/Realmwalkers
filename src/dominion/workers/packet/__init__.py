@@ -10,6 +10,7 @@ Two safety jobs live here, not in the agents:
   * stable ids — every scene seed gets a server-minted `seed_id` (the sync key for later phases),
     never a model-supplied one.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,6 +35,7 @@ log = structlog.get_logger()
 
 _CANON_K = 16  # the author gets broad canon (scoping protects the writer, not the planner)
 _EXCERPT_CHARS = 240
+
 
 def _valid_packet(packet: dict[str, Any]) -> bool:
     """A usable packet must carry at least one scene seed and a claims list (provenance). Anything
@@ -87,35 +89,43 @@ def _open_questions(packet: dict[str, Any]) -> list[str]:
 
 async def _prior_exit_state(session: AsyncSession, *, book_id: uuid.UUID, chapter_no: int) -> str | None:
     """The previous chapter's approved exit state = this chapter's entry state, if we have it."""
-    prior_chapter = (await session.execute(
-        select(Chapter.id).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no - 1)
-    )).scalar_one_or_none()
+    prior_chapter = (
+        await session.execute(
+            select(Chapter.id).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no - 1)
+        )
+    ).scalar_one_or_none()
     if prior_chapter is None:
         return None
-    body = (await session.execute(
-        select(ChapterPacket.body)
-        .where(ChapterPacket.chapter_id == prior_chapter, ChapterPacket.status == PacketStatus.APPROVED)
-        .order_by(ChapterPacket.created_at.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    body = (
+        await session.execute(
+            select(ChapterPacket.body)
+            .where(ChapterPacket.chapter_id == prior_chapter, ChapterPacket.status == PacketStatus.APPROVED)
+            .order_by(ChapterPacket.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     return str(body.get("exit_state")) if isinstance(body, dict) and body.get("exit_state") else None
 
 
 async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str | None:
-    return (await session.execute(
-        select(Summary.rolling_summary).where(
-            Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+    return (
+        await session.execute(
+            select(Summary.rolling_summary).where(
+                Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
 
 async def latest_approved(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterPacket | None:
-    return (await session.execute(
-        select(ChapterPacket)
-        .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED)
-        .order_by(ChapterPacket.created_at.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    return (
+        await session.execute(
+            select(ChapterPacket)
+            .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED)
+            .order_by(ChapterPacket.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 def _blocked_row(
@@ -133,9 +143,7 @@ def _blocked_row(
     )
 
 
-async def propose_packet(
-    session: AsyncSession, *, chapter: Chapter, progress_key: str | None = None
-) -> ChapterPacket:
+async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_key: str | None = None) -> ChapterPacket:
     """Author -> QA -> persist a ChapterPacket for this chapter (proposed/blocked). Fail-closed.
 
     The row is added to the session (and existing packets for the chapter replaced on success) but the
@@ -165,7 +173,9 @@ async def propose_packet(
         if existing is not None:
             return existing
         return await _persist(
-            session, chapter_id=chapter.id, replace=True,
+            session,
+            chapter_id=chapter.id,
+            replace=True,
             row=_blocked_row(book_id=book_id, chapter_id=chapter.id, reason=reason, body=body),
         )
 
@@ -185,14 +195,24 @@ async def propose_packet(
     author_error: str | None = None
     progress.set_phase(progress_key, "authoring")
     try:
-        with telemetry.call_context(telemetry.CallContext(
-            sink=sink, stage="packet_author", book_id=str(book_id), chapter_id=str(chapter.id),
-        )):
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink,
+                stage="packet_author",
+                book_id=str(book_id),
+                chapter_id=str(chapter.id),
+            )
+        ):
             packet = await asyncio.wait_for(
                 author_mod.author_packet(
-                    chapter_no=chapter.chapter_no, pov=chapter.pov, outline=outline,
-                    omniscient_summary=omniscient, prior_exit_state=prior_exit,
-                    next_entry_intent=None, canon_handles=handles, budget=budget,
+                    chapter_no=chapter.chapter_no,
+                    pov=chapter.pov,
+                    outline=outline,
+                    omniscient_summary=omniscient,
+                    prior_exit_state=prior_exit,
+                    next_entry_intent=None,
+                    canon_handles=handles,
+                    budget=budget,
                 ),
                 timeout=settings.packet_time_budget_s,
             )
@@ -215,11 +235,15 @@ async def propose_packet(
 
     progress.set_phase(progress_key, "qa")
     try:
-        with telemetry.call_context(telemetry.CallContext(
-            sink=sink, stage="packet_qa", book_id=str(book_id), chapter_id=str(chapter.id),
-        )):
-            qa = await asyncio.wait_for(qa_mod.qa_packet(packet, budget=budget),
-                                        timeout=settings.packet_time_budget_s)
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink,
+                stage="packet_qa",
+                book_id=str(book_id),
+                chapter_id=str(chapter.id),
+            )
+        ):
+            qa = await asyncio.wait_for(qa_mod.qa_packet(packet, budget=budget), timeout=settings.packet_time_budget_s)
     except Exception as exc:  # noqa: BLE001 — any QA failure (timeout/budget/API) must fail closed
         log.error("packet.qa_failed", chapter=str(chapter.id), error=str(exc))
         qa = None
@@ -238,8 +262,13 @@ async def propose_packet(
         body=packet,
         open_questions={"items": _open_questions(packet)},
     )
-    log.info("packet.proposed", chapter=str(chapter.id), status=str(status),
-             confidence=str(confidence), verdict=str(qa["verdict"]))
+    log.info(
+        "packet.proposed",
+        chapter=str(chapter.id),
+        status=str(status),
+        confidence=str(confidence),
+        verdict=str(qa["verdict"]),
+    )
     _persist_telemetry()
     return await _persist(session, chapter_id=chapter.id, row=row, replace=True)
 

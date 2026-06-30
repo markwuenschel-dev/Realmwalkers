@@ -1,4 +1,5 @@
 """Unit tests for chapter-packet approval policy (no database)."""
+
 from __future__ import annotations
 
 import uuid

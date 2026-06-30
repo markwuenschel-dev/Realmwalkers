@@ -1,4 +1,5 @@
 """Chapter-packet approval and derive gates — single source for routers and workers."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -59,9 +60,7 @@ def can_derive_scene_packets(chapter_packet: ChapterPacket | None) -> GateRefusa
     return None
 
 
-def status_from_qa(
-    packet_body: dict[str, Any], qa: dict[str, Any]
-) -> tuple[PacketConfidence, PacketStatus]:
+def status_from_qa(packet_body: dict[str, Any], qa: dict[str, Any]) -> tuple[PacketConfidence, PacketStatus]:
     """Confidence + status from author self-assessment and QA verdict (propose path)."""
     verdict: PacketVerdict = qa["verdict"]
     conf = _worst(_as_confidence(packet_body.get("confidence")), _VERDICT_FLOOR[verdict])
@@ -75,7 +74,9 @@ def status_from_qa(
 def enrich_packet_out(row: ChapterPacket) -> PacketOut:
     blockers = approval_blockers(row)
     out = PacketOut.model_validate(row)
-    return out.model_copy(update={
-        "can_approve": row.status == PacketStatus.PROPOSED and not blockers,
-        "approval_blockers": blockers,
-    })
+    return out.model_copy(
+        update={
+            "can_approve": row.status == PacketStatus.PROPOSED and not blockers,
+            "approval_blockers": blockers,
+        }
+    )

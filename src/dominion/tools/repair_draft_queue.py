@@ -1,4 +1,5 @@
 """Repair beat/ScenePacket links and cancel invalid draft jobs."""
+
 from __future__ import annotations
 
 import argparse
@@ -7,8 +8,8 @@ import json
 import uuid
 
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import JobKind, JobStatus
-from dominion.shared.models import Beat, Job, ScenePacket
+from dominion.shared.enums import JobStatus
+from dominion.shared.models import Beat, Job
 from dominion.tools.draft_audit import audit_chapter
 
 

@@ -6,6 +6,7 @@ implies a stat/inventory/condition change the beat never declared — drift the 
 miss. It is advisory (INFO/WARN), never HARD, never blocking; the Oracle still owns truth and the
 human adjudicates (DESIGN §5, §15). With nothing declared to compare against, it stays silent.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,9 +32,11 @@ _SYSTEM = (
 
 def _prompt(prose: str, declared: dict[str, object]) -> str:
     return (
-        "DECLARED state changes for this scene (JSON):\n" + json.dumps(declared)
-        + "\n\nSCENE:\n" + prose
-        + '\n\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
+        "DECLARED state changes for this scene (JSON):\n"
+        + json.dumps(declared)
+        + "\n\nSCENE:\n"
+        + prose
+        + "\n\nReturn ONLY a JSON array (no prose, no code fences). Each item: "
         '{"character": str, "change": str, "note": str, "severity": "info"|"warn"}. '
         "Empty array [] if no undeclared state change is implied."
     )
@@ -59,12 +62,14 @@ class StateDriftReviewer:
                 continue
             character = str(item.get("character", "")).strip()
             change = str(item.get("change", "")).strip()
-            flags.append(Flag(
-                reviewer=self.name,
-                severity=advisory_severity(item.get("severity")),
-                note=note,
-                payload={"character": character, "change": change} if character or change else None,
-            ))
+            flags.append(
+                Flag(
+                    reviewer=self.name,
+                    severity=advisory_severity(item.get("severity")),
+                    note=note,
+                    payload={"character": character, "change": change} if character or change else None,
+                )
+            )
         return flags
 
 

@@ -2,6 +2,7 @@
 
 Every draft job must carry a validated approved ScenePacket before insert. See docs/contract_first_drafting.md.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -109,16 +110,20 @@ def _validate_packet_for_beat(beat: Beat, packet: ScenePacket) -> DraftQueueBloc
     return None
 
 
-async def _lookup_approved_packets(
-    session: AsyncSession, *, chapter_id: uuid.UUID, scene_no: int
-) -> list[ScenePacket]:
-    return list((await session.execute(
-        select(ScenePacket).where(
-            ScenePacket.chapter_id == chapter_id,
-            ScenePacket.scene_no == scene_no,
-            ScenePacket.status == ScenePacketStatus.APPROVED,
+async def _lookup_approved_packets(session: AsyncSession, *, chapter_id: uuid.UUID, scene_no: int) -> list[ScenePacket]:
+    return list(
+        (
+            await session.execute(
+                select(ScenePacket).where(
+                    ScenePacket.chapter_id == chapter_id,
+                    ScenePacket.scene_no == scene_no,
+                    ScenePacket.status == ScenePacketStatus.APPROVED,
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
 
 
 async def resolve_approved_scene_packet_for_beat(
@@ -142,9 +147,7 @@ async def resolve_approved_scene_packet_for_beat(
     if beat.scene_packet_id is not None:
         packet = await session.get(ScenePacket, beat.scene_packet_id)
         if packet is not None:
-            if err := _validate_packet_for_beat(beat, packet):
-                pass  # fall through to lookup
-            else:
+            if _validate_packet_for_beat(beat, packet) is None:
                 return packet
 
     matches = await _lookup_approved_packets(session, chapter_id=beat.chapter_id, scene_no=beat.scene_no)
@@ -189,9 +192,10 @@ async def has_active_draft_job_for_scene_packet(
     target_scene_id: uuid.UUID | None = None,
 ) -> bool:
     """True when a QUEUED or RUNNING draft job already targets this contract."""
-    return await find_active_draft_job_id(
-        session, scene_packet_id=scene_packet_id, target_scene_id=target_scene_id
-    ) is not None
+    return (
+        await find_active_draft_job_id(session, scene_packet_id=scene_packet_id, target_scene_id=target_scene_id)
+        is not None
+    )
 
 
 async def find_active_draft_job_id(
@@ -234,26 +238,28 @@ async def schedule_contract_first_draft_jobs(
     drafted: set[int] = set()
     if skip_drafted and scenes is None:
         drafted = {
-            n for (n,) in (await session.execute(
-                select(Scene.scene_no).where(Scene.chapter_id == chapter.id)
-            )).all()
+            n for (n,) in (await session.execute(select(Scene.scene_no).where(Scene.chapter_id == chapter.id))).all()
         }
 
     if scenes is not None:
         for scene in scenes:
-            beat = (await session.execute(
-                select(Beat).where(Beat.chapter_id == chapter.id, Beat.scene_no == scene.scene_no)
-            )).scalar_one_or_none()
+            beat = (
+                await session.execute(
+                    select(Beat).where(Beat.chapter_id == chapter.id, Beat.scene_no == scene.scene_no)
+                )
+            ).scalar_one_or_none()
             if beat is None:
-                result.skipped.append(_blocker(
-                    chapter_id=chapter.id,
-                    scene_no=scene.scene_no,
-                    beat_id=None,
-                    scene_packet_id=scene.scene_packet_id,
-                    reason="no_approved_scene_packet",
-                    message=f"No beat for scene {scene.scene_no}.",
-                    required_action="Derive beats from approved ScenePackets.",
-                ))
+                result.skipped.append(
+                    _blocker(
+                        chapter_id=chapter.id,
+                        scene_no=scene.scene_no,
+                        beat_id=None,
+                        scene_packet_id=scene.scene_packet_id,
+                        reason="no_approved_scene_packet",
+                        message=f"No beat for scene {scene.scene_no}.",
+                        required_action="Derive beats from approved ScenePackets.",
+                    )
+                )
                 continue
             resolved = await resolve_approved_scene_packet_for_beat(session, beat=beat)
             if isinstance(resolved, DraftQueueBlocker):
@@ -289,26 +295,30 @@ async def schedule_contract_first_draft_jobs(
 
     for beat in beats or []:
         if beat.status != BeatStatus.APPROVED:
-            result.skipped.append(_blocker(
-                chapter_id=chapter.id,
-                scene_no=beat.scene_no,
-                beat_id=beat.id,
-                scene_packet_id=beat.scene_packet_id,
-                reason="beat_not_approved",
-                message=f"Beat sc{beat.scene_no} is {beat.status}, not approved.",
-                required_action="Approve ScenePackets to derive approved beats.",
-            ))
+            result.skipped.append(
+                _blocker(
+                    chapter_id=chapter.id,
+                    scene_no=beat.scene_no,
+                    beat_id=beat.id,
+                    scene_packet_id=beat.scene_packet_id,
+                    reason="beat_not_approved",
+                    message=f"Beat sc{beat.scene_no} is {beat.status}, not approved.",
+                    required_action="Approve ScenePackets to derive approved beats.",
+                )
+            )
             continue
         if skip_drafted and beat.scene_no in drafted:
-            result.skipped.append(_blocker(
-                chapter_id=chapter.id,
-                scene_no=beat.scene_no,
-                beat_id=beat.id,
-                scene_packet_id=beat.scene_packet_id,
-                reason="already_drafted",
-                message=f"Scene {beat.scene_no} already has prose.",
-                required_action="Use redraft for existing scenes.",
-            ))
+            result.skipped.append(
+                _blocker(
+                    chapter_id=chapter.id,
+                    scene_no=beat.scene_no,
+                    beat_id=beat.id,
+                    scene_packet_id=beat.scene_packet_id,
+                    reason="already_drafted",
+                    message=f"Scene {beat.scene_no} already has prose.",
+                    required_action="Use redraft for existing scenes.",
+                )
+            )
             continue
         prior_link = beat.scene_packet_id
         resolved = await resolve_approved_scene_packet_for_beat(session, beat=beat)
@@ -350,9 +360,7 @@ async def reconcile_and_requeue_failed_draft_jobs(
     """Create fresh draft jobs for FAILED jobs; never clone null scene_packet_id."""
     failed_q = select(Job).where(Job.status == JobStatus.FAILED, Job.kind == JobKind.DRAFT)
     if book_id is not None:
-        failed_q = failed_q.where(Job.run_id.in_(
-            select(Run.id).where(Run.book_id == book_id)
-        ))
+        failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
     failed_jobs = list((await session.execute(failed_q)).scalars().all())
     result = RequeueResult(requested=len(failed_jobs))
     log.info("draft_requeue.requested", requested=result.requested, book_id=str(book_id) if book_id else None)
@@ -363,47 +371,53 @@ async def reconcile_and_requeue_failed_draft_jobs(
         chapter_id = old.chapter_id
         scene_no = old.scene_no
         if chapter_id is None or scene_no is None:
-            result.skipped.append(_blocker(
-                chapter_id=chapter_id or uuid.UUID(int=0),
-                scene_no=scene_no,
-                beat_id=old.beat_id,
-                scene_packet_id=old.scene_packet_id,
-                reason="legacy_job_unreconcilable",
-                message=f"Job {old.id} missing chapter_id or scene_no.",
-                required_action="Cancel this job and use Draft Chapter after fixing ScenePackets.",
-            ))
+            result.skipped.append(
+                _blocker(
+                    chapter_id=chapter_id or uuid.UUID(int=0),
+                    scene_no=scene_no,
+                    beat_id=old.beat_id,
+                    scene_packet_id=old.scene_packet_id,
+                    reason="legacy_job_unreconcilable",
+                    message=f"Job {old.id} missing chapter_id or scene_no.",
+                    required_action="Cancel this job and use Draft Chapter after fixing ScenePackets.",
+                )
+            )
             continue
 
         chapter = await session.get(Chapter, chapter_id)
         if chapter is None:
-            result.skipped.append(_blocker(
-                chapter_id=chapter_id,
-                scene_no=scene_no,
-                beat_id=old.beat_id,
-                scene_packet_id=old.scene_packet_id,
-                reason="legacy_job_unreconcilable",
-                message=f"Chapter {chapter_id} not found for job {old.id}.",
-                required_action="Cancel orphaned job.",
-            ))
+            result.skipped.append(
+                _blocker(
+                    chapter_id=chapter_id,
+                    scene_no=scene_no,
+                    beat_id=old.beat_id,
+                    scene_packet_id=old.scene_packet_id,
+                    reason="legacy_job_unreconcilable",
+                    message=f"Chapter {chapter_id} not found for job {old.id}.",
+                    required_action="Cancel orphaned job.",
+                )
+            )
             continue
 
         beat = None
         if old.beat_id is not None:
             beat = await session.get(Beat, old.beat_id)
         if beat is None:
-            beat = (await session.execute(
-                select(Beat).where(Beat.chapter_id == chapter_id, Beat.scene_no == scene_no)
-            )).scalar_one_or_none()
+            beat = (
+                await session.execute(select(Beat).where(Beat.chapter_id == chapter_id, Beat.scene_no == scene_no))
+            ).scalar_one_or_none()
         if beat is None:
-            result.skipped.append(_blocker(
-                chapter_id=chapter_id,
-                scene_no=scene_no,
-                beat_id=old.beat_id,
-                scene_packet_id=old.scene_packet_id,
-                reason="legacy_job_unreconcilable",
-                message=f"No beat for ch sc{scene_no}.",
-                required_action="Derive beats from approved ScenePackets.",
-            ))
+            result.skipped.append(
+                _blocker(
+                    chapter_id=chapter_id,
+                    scene_no=scene_no,
+                    beat_id=old.beat_id,
+                    scene_packet_id=old.scene_packet_id,
+                    reason="legacy_job_unreconcilable",
+                    message=f"No beat for ch sc{scene_no}.",
+                    required_action="Derive beats from approved ScenePackets.",
+                )
+            )
             continue
 
         dedupe_key = (chapter_id, scene_no, old.target_scene_id)
@@ -423,30 +437,34 @@ async def reconcile_and_requeue_failed_draft_jobs(
         if await has_active_draft_job_for_scene_packet(
             session, scene_packet_id=packet.id, target_scene_id=old.target_scene_id
         ):
-            result.skipped.append(_blocker(
-                chapter_id=chapter_id,
-                scene_no=scene_no,
-                beat_id=beat.id,
-                scene_packet_id=packet.id,
-                reason="already_queued",
-                message=f"Active job already exists for sc{scene_no}.",
-                required_action="Wait for current job.",
-            ))
+            result.skipped.append(
+                _blocker(
+                    chapter_id=chapter_id,
+                    scene_no=scene_no,
+                    beat_id=beat.id,
+                    scene_packet_id=packet.id,
+                    reason="already_queued",
+                    message=f"Active job already exists for sc{scene_no}.",
+                    required_action="Wait for current job.",
+                )
+            )
             continue
 
         run = await session.get(Run, old.run_id) if old.run_id else None
         if old.target_scene_id is not None:
             scene = await session.get(Scene, old.target_scene_id)
             if scene is None:
-                result.skipped.append(_blocker(
-                    chapter_id=chapter_id,
-                    scene_no=scene_no,
-                    beat_id=beat.id,
-                    scene_packet_id=packet.id,
-                    reason="legacy_job_unreconcilable",
-                    message=f"Target scene {old.target_scene_id} missing.",
-                    required_action="Use redraft from Chapters board.",
-                ))
+                result.skipped.append(
+                    _blocker(
+                        chapter_id=chapter_id,
+                        scene_no=scene_no,
+                        beat_id=beat.id,
+                        scene_packet_id=packet.id,
+                        reason="legacy_job_unreconcilable",
+                        message=f"Target scene {old.target_scene_id} missing.",
+                        required_action="Use redraft from Chapters board.",
+                    )
+                )
                 continue
             job = await draft_job_for_scene(session, scene=scene, chapter=chapter, run=run)
         else:

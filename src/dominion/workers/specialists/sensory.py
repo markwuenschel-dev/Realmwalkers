@@ -1,4 +1,5 @@
 """Enrichment pass: replace abstraction with concrete sensory detail (DESIGN §5-6). Tag-gated."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

@@ -1,4 +1,5 @@
 """Pure unit tests for dialogue rules loading and scoping."""
+
 from __future__ import annotations
 
 from dominion.shared.config import settings

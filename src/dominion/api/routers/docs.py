@@ -7,6 +7,7 @@ them and renders one through the shared block/inline renderer
 the allowed category roots, only `.md`, and no path traversal outside them. The manuscript drafts
 under `book1/manuscript/` are Domain A (the reading view owns them) and are deliberately excluded.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -48,11 +49,7 @@ def _safe_doc(rel: str) -> Path:
         raise HTTPException(status_code=404, detail="doc not found")
     root = _ROOTS[parts[0]]
     candidate = (root / Path(*parts[1:])).resolve() if len(parts) > 1 else root
-    if (
-        not candidate.is_relative_to(root)
-        or candidate.suffix != ".md"
-        or not candidate.is_file()
-    ):
+    if not candidate.is_relative_to(root) or candidate.suffix != ".md" or not candidate.is_file():
         raise HTTPException(status_code=404, detail="doc not found")
     return candidate
 

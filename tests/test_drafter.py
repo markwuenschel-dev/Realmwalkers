@@ -1,4 +1,5 @@
 """Drafter unit tests — mock the LLM, so no network or API key (DESIGN §4)."""
+
 from __future__ import annotations
 
 import uuid
@@ -12,9 +13,16 @@ from dominion.workers.specialists.drafter import drafter
 
 def _ctx(**overrides: object) -> SceneContext:
     base: dict[str, object] = dict(
-        book_id=uuid.uuid4(), chapter_id=uuid.uuid4(), pov="Marcus", scene_no=1,
-        tags=[], characters_present=["Marcus"], beat_text="Marcus tests the limits of his eyes.",
-        expected_state_changes=None, knowledge_injections=[], voice_spec="Terse, sensory, wry.",
+        book_id=uuid.uuid4(),
+        chapter_id=uuid.uuid4(),
+        pov="Marcus",
+        scene_no=1,
+        tags=[],
+        characters_present=["Marcus"],
+        beat_text="Marcus tests the limits of his eyes.",
+        expected_state_changes=None,
+        knowledge_injections=[],
+        voice_spec="Terse, sensory, wry.",
         budget=TokenBudget(max_tokens=40_000),
     )
     base.update(overrides)
@@ -33,12 +41,12 @@ async def test_drafter_calls_model_and_returns_stripped_prose(monkeypatch):
     ctx = _ctx()
     out = await drafter.run(None, ctx)
 
-    assert out == "Marcus opened his eyes to a humming sky."        # leading/trailing space stripped
-    assert captured["model"] == settings.draft_model               # the configured draft model
-    assert "Marcus" in captured["system"]                           # POV in the voice/system prompt
-    assert "Terse, sensory, wry." in captured["system"]            # voice_spec carried through
+    assert out == "Marcus opened his eyes to a humming sky."  # leading/trailing space stripped
+    assert captured["model"] == settings.draft_model  # the configured draft model
+    assert "Marcus" in captured["system"]  # POV in the voice/system prompt
+    assert "Terse, sensory, wry." in captured["system"]  # voice_spec carried through
     assert "Marcus tests the limits of his eyes." in captured["user"]  # the beat in the user prompt
-    assert ctx.budget.used == 350                                  # usage charged to the job budget
+    assert ctx.budget.used == 350  # usage charged to the job budget
 
 
 async def test_drafter_includes_phase2_context_when_present(monkeypatch):
@@ -100,6 +108,6 @@ async def test_drafter_injects_dialogue_rules_as_authoritative(monkeypatch):
     await drafter.run(None, ctx)
 
     system = captured["system"]
-    assert "New speaker = new paragraph. Always." in system   # the rules are loaded into the prompt
-    assert "AUTHORITATIVE" in system                          # marked as the source of truth
+    assert "New speaker = new paragraph. Always." in system  # the rules are loaded into the prompt
+    assert "AUTHORITATIVE" in system  # marked as the source of truth
     assert system.index("Terse, sensory, wry.") < system.index("New speaker")  # rules win (placed after voice)

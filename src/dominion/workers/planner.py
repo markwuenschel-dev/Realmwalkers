@@ -6,6 +6,7 @@ drafted. It is not a resident planner: one call per run, no standing process, no
 runs next. Parsing is tolerant — a malformed model response yields no beats rather than an error,
 exactly like the continuity reviewer (DESIGN §6).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -47,9 +48,7 @@ def _strip_fences(s: str) -> str:
     return s.strip()
 
 
-def _plan_prompt(
-    *, outline: str, pov: str, omniscient_summary: str | None, canon: list[str], max_beats: int
-) -> str:
+def _plan_prompt(*, outline: str, pov: str, omniscient_summary: str | None, canon: list[str], max_beats: int) -> str:
     parts: list[str] = [f"POV (the narrating character for this chapter): {pov}"]
     if omniscient_summary:
         parts.append(f"Story so far (all viewpoints):\n{omniscient_summary}")
@@ -167,8 +166,11 @@ async def propose_beats(
                 model=settings.draft_model,
                 system=_SYSTEM,
                 user=_plan_prompt(
-                    outline=outline, pov=pov, omniscient_summary=omniscient_summary,
-                    canon=canon or [], max_beats=max_beats,
+                    outline=outline,
+                    pov=pov,
+                    omniscient_summary=omniscient_summary,
+                    canon=canon or [],
+                    max_beats=max_beats,
                 ),
                 max_tokens=_PLAN_MAX_TOKENS,
                 budget=budget or TokenBudget(max_tokens=settings.scene_token_budget),
@@ -179,9 +181,7 @@ async def propose_beats(
     except TimeoutError:
         # Bounded, unlike the tolerant parse path: a hung call must surface so the request fails
         # with feedback rather than spinning forever (the caller maps this to a 504).
-        raise TimeoutError(
-            f"beat proposal exceeded {settings.plan_time_budget_s}s — try again"
-        ) from None
+        raise TimeoutError(f"beat proposal exceeded {settings.plan_time_budget_s}s — try again") from None
     return _parse_beats(raw)
 
 

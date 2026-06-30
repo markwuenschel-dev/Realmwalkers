@@ -1,4 +1,5 @@
 """The spine: one continuous, POV-voiced draft of the whole scene (DESIGN §4)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -96,9 +97,7 @@ def _contract_block(ctx: SceneContext) -> str | None:
     if must:
         sections.append("MUST:\n" + "\n".join(f"- {m}" for m in must))
 
-    locks = (
-        lst("canon_locks") + lst("roster_locks") + lst("relationship_locks") + lst("timeline_locks")
-    )
+    locks = lst("canon_locks") + lst("roster_locks") + lst("relationship_locks") + lst("timeline_locks")
     if locks:
         sections.append("IMMUTABLE — do not contradict:\n" + "\n".join(f"- {x}" for x in locks))
 
@@ -128,8 +127,9 @@ def _length_instruction(ctx: SceneContext) -> str | None:
     if mns:
         parts.append("Do not spend words on: " + "; ".join(mns) + ".")
     if wb.get("compression_priority"):
-        parts.append("If space is tight, compress in this order: "
-                     + " ".join(str(p) for p in wb["compression_priority"]) )
+        parts.append(
+            "If space is tight, compress in this order: " + " ".join(str(p) for p in wb["compression_priority"])
+        )
     return "LENGTH:\n" + " ".join(parts)
 
 
@@ -142,8 +142,7 @@ def _phrase_avoidance(ctx: SceneContext) -> str | None:
         return None
     return (
         "DO NOT echo contract labels or packet phrasing into prose. Translate constraints into lived "
-        "action, perception, dialogue, and consequence. Avoid these phrasings:\n"
-        + "\n".join(f"- {p}" for p in phrases)
+        "action, perception, dialogue, and consequence. Avoid these phrasings:\n" + "\n".join(f"- {p}" for p in phrases)
     )
 
 

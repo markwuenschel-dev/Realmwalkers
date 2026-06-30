@@ -5,6 +5,7 @@ budget, the prior approved scenes, relevant owner/canon hashes). We hash all of 
 later change to any input is detectable: if the recomputed hash differs from the stored `source_hash`,
 the packet is stale and may not create a new draft job until re-derived or re-approved.
 """
+
 from __future__ import annotations
 
 import hashlib

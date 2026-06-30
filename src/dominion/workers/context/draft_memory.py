@@ -1,4 +1,5 @@
 """Oracle ledger, exemplars, canon RAG, POV summary, and prior-scene tail."""
+
 from __future__ import annotations
 
 import uuid
@@ -18,9 +19,7 @@ from dominion.workers.pov import effective_pov
 _PRIOR_TAIL_CHARS = 800
 
 
-async def build_draft_memory(
-    session: AsyncSession, resolved: ResolvedJob, job: Job
-) -> DraftMemory:
+async def build_draft_memory(session: AsyncSession, resolved: ResolvedJob, job: Job) -> DraftMemory:
     characters_present = list(resolved.beat.characters_present or [])
     beat = resolved.beat
     chapter = resolved.chapter
@@ -32,15 +31,17 @@ async def build_draft_memory(
         if stats:
             ledger[character] = stats
 
-    exemplars = await _load_exemplars(
-        session, resolved.profile, exclude_scene_id=job.target_scene_id
-    )
+    exemplars = await _load_exemplars(session, resolved.profile, exclude_scene_id=job.target_scene_id)
 
     retrieval_query = " ".join(p for p in [beat.beat_text or "", *characters_present] if p)
     routing = owner_router.route(retrieval_query, characters=characters_present)
     snippets = await retrieval.retrieve_hybrid(
-        session, book_id=resolved.book_id, query=retrieval_query,
-        owner_topics=routing.owner_topics, required_doc_paths=routing.doc_paths, k=6,
+        session,
+        book_id=resolved.book_id,
+        query=retrieval_query,
+        owner_topics=routing.owner_topics,
+        required_doc_paths=routing.doc_paths,
+        k=6,
     )
     owner_first = [s for s in snippets if s["retrieval_reason"] == "owner_forced"]
     rest = [s for s in snippets if s["retrieval_reason"] != "owner_forced"]
@@ -48,12 +49,8 @@ async def build_draft_memory(
 
     # Pull the rolling summary for the scene's EFFECTIVE POV (override beat.pov, else chapter.pov), so
     # an overridden scene inherits what THAT character knows — not the chapter POV's memory.
-    pov_summary = await summaries.pov_summary(
-        session, book_id=resolved.book_id, pov=effective_pov(beat, chapter)
-    )
-    prior_scene_tail = await _prior_tail(
-        session, chapter_id=chapter.id, scene_no=resolved.scene_no
-    )
+    pov_summary = await summaries.pov_summary(session, book_id=resolved.book_id, pov=effective_pov(beat, chapter))
+    prior_scene_tail = await _prior_tail(session, chapter_id=chapter.id, scene_no=resolved.scene_no)
 
     return DraftMemory(
         ledger=ledger,
@@ -80,9 +77,7 @@ async def _load_exemplars(
     if not ids:
         return []
 
-    rows = (await session.execute(
-        select(Scene.id, Scene.prose).where(Scene.id.in_(ids))
-    )).all()
+    rows = (await session.execute(select(Scene.id, Scene.prose).where(Scene.id.in_(ids)))).all()
     prose_by_id = {sid: prose for sid, prose in rows if prose}
 
     exemplars: list[str] = []
@@ -96,17 +91,17 @@ async def _load_exemplars(
     return exemplars
 
 
-async def _prior_tail(
-    session: AsyncSession, *, chapter_id: uuid.UUID, scene_no: int
-) -> str | None:
-    prose = (await session.execute(
-        select(Scene.prose)
-        .where(
-            Scene.chapter_id == chapter_id,
-            Scene.scene_no < scene_no,
-            Scene.status == SceneStatus.APPROVED,
+async def _prior_tail(session: AsyncSession, *, chapter_id: uuid.UUID, scene_no: int) -> str | None:
+    prose = (
+        await session.execute(
+            select(Scene.prose)
+            .where(
+                Scene.chapter_id == chapter_id,
+                Scene.scene_no < scene_no,
+                Scene.status == SceneStatus.APPROVED,
+            )
+            .order_by(Scene.scene_no.desc())
+            .limit(1)
         )
-        .order_by(Scene.scene_no.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     return prose[-_PRIOR_TAIL_CHARS:] if prose else None

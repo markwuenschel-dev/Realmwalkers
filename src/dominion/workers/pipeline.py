@@ -5,6 +5,7 @@ Order is fixed code, not an LLM decision: draft the spine -> run only the tagged
 partial spine and flags it; it never fails the job or blocks the inbox (DESIGN §4). Then the process
 exits — nothing keeps running, so there's nothing to re-verify on the next boot.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -47,8 +48,11 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
 
     def _tctx(stage: str) -> telemetry.CallContext:
         return telemetry.CallContext(
-            sink=sink, stage=stage, book_id=str(ctx.book_id),
-            chapter_id=str(ctx.chapter_id), scene_no=ctx.scene_no,
+            sink=sink,
+            stage=stage,
+            book_id=str(ctx.book_id),
+            chapter_id=str(ctx.chapter_id),
+            scene_no=ctx.scene_no,
         )
 
     # A revision job targets an existing scene; the new prose becomes a new version of it.
@@ -95,7 +99,9 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         try:
             with telemetry.call_context(_tctx("length")):
                 guard_result = await length_guard.apply_length_guard(
-                    prose, word_budget=ctx.word_budget, scene_contract=ctx.scene_contract,
+                    prose,
+                    word_budget=ctx.word_budget,
+                    scene_contract=ctx.scene_contract,
                     budget=ctx.budget,
                 )
             prose = guard_result.prose
@@ -127,34 +133,53 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         length_status=length_status,
         prose=rendered_prose,
         prose_source="agent",
-        agent_original=prose,            # marker form preserved for training capture (DESIGN §11)
+        agent_original=prose,  # marker form preserved for training capture (DESIGN §11)
         passes_run=passes_run,
         token_count=ctx.budget.total_input + ctx.budget.total_output,
         model=settings.draft_model,
     )
     session.add(scene)
-    await session.flush()                # get scene.id for the critique + draft-attempt rows
+    await session.flush()  # get scene.id for the critique + draft-attempt rows
 
     # Preserve every prose stage + the final rendered output (provenance).
     record(DraftStage.FINAL_RENDERED, rendered_prose, settings.draft_model)
     for stage, text, wc, model in attempts:
-        session.add(DraftAttempt(
-            job_id=job.id, scene_id=scene.id, scene_packet_id=ctx.scene_packet_id,
-            stage=stage, prose=text, word_count=wc, model=model,
-        ))
+        session.add(
+            DraftAttempt(
+                job_id=job.id,
+                scene_id=scene.id,
+                scene_packet_id=ctx.scene_packet_id,
+                stage=stage,
+                prose=text,
+                word_count=wc,
+                model=model,
+            )
+        )
 
     if length_critique is not None:
         sev, note = length_critique
-        session.add(Critique(
-            scene_id=scene.id, scene_packet_id=ctx.scene_packet_id, version=scene.version,
-            reviewer="length", severity=sev, note=note,
-        ))
+        session.add(
+            Critique(
+                scene_id=scene.id,
+                scene_packet_id=ctx.scene_packet_id,
+                version=scene.version,
+                reviewer="length",
+                severity=sev,
+                note=note,
+            )
+        )
 
     for name, msg in pass_failures:
-        session.add(Critique(
-            scene_id=scene.id, scene_packet_id=ctx.scene_packet_id, version=scene.version,
-            reviewer=name, severity=Severity.WARN, note=f"enrichment pass failed: {msg}",
-        ))
+        session.add(
+            Critique(
+                scene_id=scene.id,
+                scene_packet_id=ctx.scene_packet_id,
+                version=scene.version,
+                reviewer=name,
+                severity=Severity.WARN,
+                note=f"enrichment pass failed: {msg}",
+            )
+        )
 
     # 4) advisory reviewers (read-only) -> Critique rows. They're independent, so run them concurrently
     # and collapse N sequential review-model round-trips into ~one. Never changes status, never blocks.
@@ -178,28 +203,43 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                 # Advisory reviewers must never fail the job or discard the drafted spine (a raise here
                 # propagates to run_once, which rolls the whole scene back). Land a flag like a failed
                 # enrichment pass and keep the good prose — same philosophy as PassError above.
-                session.add(Critique(
-                    scene_id=scene.id, scene_packet_id=ctx.scene_packet_id, version=scene.version,
-                    reviewer=reviewer.name,
-                    severity=Severity.WARN, note=f"reviewer failed: {result}",
-                ))
+                session.add(
+                    Critique(
+                        scene_id=scene.id,
+                        scene_packet_id=ctx.scene_packet_id,
+                        version=scene.version,
+                        reviewer=reviewer.name,
+                        severity=Severity.WARN,
+                        note=f"reviewer failed: {result}",
+                    )
+                )
             else:
                 for flag in result:
-                    session.add(Critique(
-                        scene_id=scene.id, scene_packet_id=ctx.scene_packet_id, version=scene.version,
-                        reviewer=flag.reviewer,
-                        severity=flag.severity, note=flag.note, payload=flag.payload,
-                    ))
+                    session.add(
+                        Critique(
+                            scene_id=scene.id,
+                            scene_packet_id=ctx.scene_packet_id,
+                            version=scene.version,
+                            reviewer=flag.reviewer,
+                            severity=flag.severity,
+                            note=flag.note,
+                            payload=flag.payload,
+                        )
+                    )
 
     # 5) finalize: a budget-exceeded scene is flagged and leaves the prior version intact; otherwise a
     # revision supersedes its parent (DESIGN §10, §3).
     if budget_exceeded:
-        session.add(Critique(
-            scene_id=scene.id, scene_packet_id=ctx.scene_packet_id, version=scene.version,
-            reviewer="budget", severity=Severity.HARD,
-            note=f"token budget exceeded (used {ctx.budget.used} / {ctx.budget.max_tokens}); "
-                 "saved partial draft",
-        ))
+        session.add(
+            Critique(
+                scene_id=scene.id,
+                scene_packet_id=ctx.scene_packet_id,
+                version=scene.version,
+                reviewer="budget",
+                severity=Severity.HARD,
+                note=f"token budget exceeded (used {ctx.budget.used} / {ctx.budget.max_tokens}); saved partial draft",
+            )
+        )
     elif prior is not None:
         prior.status = SceneStatus.SUPERSEDED
 
@@ -219,7 +259,5 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         total_cache_creation_tokens=ctx.budget.total_cache_creation,
         cache_tokens_saved=ctx.budget.cache_tokens_saved,
     )
-    telemetry_db.persist_sink(
-        session, sink, run_id=job.run_id, book_id=ctx.book_id, chapter_id=ctx.chapter_id
-    )
+    telemetry_db.persist_sink(session, sink, run_id=job.run_id, book_id=ctx.book_id, chapter_id=ctx.chapter_id)
     return scene

@@ -4,6 +4,7 @@ The mock Ledger invented these (Soren ⇄ Lyra, Ember Affinity, …). Here they'
 curates from the Desk: a Thread is a named arc with a state; its beats pin a label (+ optional flag)
 to a scene number.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -25,33 +26,55 @@ router = APIRouter(tags=["threads"])
 
 
 async def _render(session: SessionDep, thread: Thread) -> ThreadOut:
-    beats = (await session.execute(
-        select(ThreadBeat).where(ThreadBeat.thread_id == thread.id).order_by(ThreadBeat.scene_no)
-    )).scalars().all()
+    beats = (
+        (
+            await session.execute(
+                select(ThreadBeat).where(ThreadBeat.thread_id == thread.id).order_by(ThreadBeat.scene_no)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return ThreadOut(
-        id=thread.id, name=thread.name, kind=thread.kind, state=thread.state, note=thread.note,
+        id=thread.id,
+        name=thread.name,
+        kind=thread.kind,
+        state=thread.state,
+        note=thread.note,
         beats=[ThreadBeatOut.model_validate(b) for b in beats],
     )
 
 
 @router.get("/books/{book_id}/threads", response_model=list[ThreadOut])
 async def list_threads(book_id: uuid.UUID, session: SessionDep) -> list[ThreadOut]:
-    threads = (await session.execute(
-        select(Thread).where(Thread.book_id == book_id).order_by(Thread.created_at)
-    )).scalars().all()
+    threads = (
+        (await session.execute(select(Thread).where(Thread.book_id == book_id).order_by(Thread.created_at)))
+        .scalars()
+        .all()
+    )
     if not threads:
         return []
-    beats = (await session.execute(
-        select(ThreadBeat)
-        .where(ThreadBeat.thread_id.in_([t.id for t in threads]))
-        .order_by(ThreadBeat.scene_no)
-    )).scalars().all()
+    beats = (
+        (
+            await session.execute(
+                select(ThreadBeat)
+                .where(ThreadBeat.thread_id.in_([t.id for t in threads]))
+                .order_by(ThreadBeat.scene_no)
+            )
+        )
+        .scalars()
+        .all()
+    )
     by_thread: dict[uuid.UUID, list[ThreadBeat]] = {}
     for b in beats:
         by_thread.setdefault(b.thread_id, []).append(b)
     return [
         ThreadOut(
-            id=t.id, name=t.name, kind=t.kind, state=t.state, note=t.note,
+            id=t.id,
+            name=t.name,
+            kind=t.kind,
+            state=t.state,
+            note=t.note,
             beats=[ThreadBeatOut.model_validate(b) for b in by_thread.get(t.id, [])],
         )
         for t in threads
@@ -99,8 +122,13 @@ async def add_thread_beat(thread_id: uuid.UUID, body: ThreadBeatIn, session: Ses
     thread = await session.get(Thread, thread_id)
     if thread is None:
         raise HTTPException(status_code=404, detail="thread not found")
-    session.add(ThreadBeat(
-        thread_id=thread_id, scene_no=body.scene_no, label=body.label, flag=body.flag,
-    ))
+    session.add(
+        ThreadBeat(
+            thread_id=thread_id,
+            scene_no=body.scene_no,
+            label=body.label,
+            flag=body.flag,
+        )
+    )
     await session.commit()
     return await _render(session, thread)

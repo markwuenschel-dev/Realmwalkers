@@ -224,9 +224,7 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
               <div>
                 Chapter packet: {readiness.chapter_packet_approved ? "approved" : "missing"}
               </div>
-              <div>
-                Scene packets: {(readiness.scene_packets.approved as number) ?? 0} approved
-              </div>
+              <div>Scene packets: {(readiness.scene_packets.approved as number) ?? 0} approved</div>
               <div>
                 Beats linked: {(readiness.beats.linked as number) ?? 0}/
                 {(readiness.beats.approved as number) ?? 0}

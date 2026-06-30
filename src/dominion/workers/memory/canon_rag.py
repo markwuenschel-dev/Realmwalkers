@@ -3,6 +3,7 @@
 Stores canon passages as CanonEntity rows (body + embedding) and returns the beat-scoped top-k by
 cosine distance. `ingest_path` (re)builds the index from text/markdown under series/canon.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -45,12 +46,11 @@ def _kind_for(doc_path: str) -> str:
     top = doc_path.split("/", 1)[0] if "/" in doc_path else ""
     return _KIND_BY_FOLDER.get(top, _DEFAULT_INGEST_KIND)
 
+
 # Filename → owner topic / source priority. Owner files (relationship invariants, cast, mechanics, …)
 # get a high source_priority so the reranker keeps them above generic passages. Built from the owner
 # routing rules so the two never drift.
-_OWNER_BY_FILE: dict[str, str] = {
-    path: rule.owner_topic for rule in _RULES for path in rule.doc_paths
-}
+_OWNER_BY_FILE: dict[str, str] = {path: rule.owner_topic for rule in _RULES for path in rule.doc_paths}
 _OWNER_PRIORITY = 100
 
 
@@ -152,28 +152,18 @@ async def retrieve_with_meta(
         .order_by(CanonEntity.embedding.cosine_distance(qvec))
         .limit(k)
     )
-    return [
-        {"id": cid, "name": name, "body": body}
-        for cid, name, body in (await session.execute(stmt)).all()
-        if body
-    ]
+    return [{"id": cid, "name": name, "body": body} for cid, name, body in (await session.execute(stmt)).all() if body]
 
 
-async def ingest_path(
-    session: AsyncSession, *, book_id: uuid.UUID, root: str | Path, kind: str = _PASSAGE_KIND
-) -> int:
+async def ingest_path(session: AsyncSession, *, book_id: uuid.UUID, root: str | Path, kind: str = _PASSAGE_KIND) -> int:
     """Rebuild canon passages for a book from .md/.txt files under root. Returns chunks indexed."""
-    await session.execute(
-        delete(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.kind == kind)
-    )
+    await session.execute(delete(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.kind == kind))
     count = 0
     for path in sorted(Path(root).rglob("*")):
         if not path.is_file() or path.suffix.lower() not in {".md", ".markdown", ".txt"}:
             continue
         for chunk in _chunk(path.read_text(encoding="utf-8")):
-            session.add(CanonEntity(
-                book_id=book_id, kind=kind, name=path.stem, body=chunk, embedding=embed(chunk)
-            ))
+            session.add(CanonEntity(book_id=book_id, kind=kind, name=path.stem, body=chunk, embedding=embed(chunk)))
             count += 1
     await session.flush()
     return count
@@ -199,11 +189,11 @@ async def ingest_incremental(
     root = Path(root)
     existing = {
         (r.doc_path, r.heading_path, r.content_hash): r
-        for r in (await session.execute(
-            select(CanonEntity).where(
-                CanonEntity.book_id == book_id, CanonEntity.doc_path.isnot(None)
+        for r in (
+            await session.execute(
+                select(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.doc_path.isnot(None))
             )
-        )).scalars()
+        ).scalars()
     }
     seen_keys: set[tuple[str | None, str | None]] = set()
     indexed = skipped = 0
@@ -224,12 +214,22 @@ async def ingest_incremental(
             if row is not None and row.embedding_version == version:
                 skipped += 1
                 continue
-            session.add(CanonEntity(
-                book_id=book_id, kind=row_kind, name=path.stem, body=chunk, embedding=embed(chunk),
-                doc_path=doc_path, heading_path=heading_path or None, owner_topic=owner_topic,
-                source_priority=priority, content_hash=chash,
-                embedding_model=settings.embedding_model, embedding_version=version,
-            ))
+            session.add(
+                CanonEntity(
+                    book_id=book_id,
+                    kind=row_kind,
+                    name=path.stem,
+                    body=chunk,
+                    embedding=embed(chunk),
+                    doc_path=doc_path,
+                    heading_path=heading_path or None,
+                    owner_topic=owner_topic,
+                    source_priority=priority,
+                    content_hash=chash,
+                    embedding_model=settings.embedding_model,
+                    embedding_version=version,
+                )
+            )
             indexed += 1
 
     # retire chunks whose (doc_path, heading_path) vanished from disk

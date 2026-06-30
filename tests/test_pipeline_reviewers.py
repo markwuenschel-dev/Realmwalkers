@@ -2,6 +2,7 @@
 than one-after-another. We prove it deterministically with probes that detect simultaneous in-flight
 calls, and confirm a reviewer's BudgetExceeded still downgrades the scene to a partial DRAFT.
 DB-backed; the drafter + reviewers are faked (no network)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -32,17 +33,27 @@ async def _setup_draft_job(s):
     ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
     s.add(ch)
     await s.flush()
-    run = Run(book_id=book.id, scope_json={"chapter": 1}, gate_mode=GateMode.PAUSE_EACH,
-              token_budget=40_000, status=RunStatus.ACTIVE)
+    run = Run(
+        book_id=book.id,
+        scope_json={"chapter": 1},
+        gate_mode=GateMode.PAUSE_EACH,
+        token_budget=40_000,
+        status=RunStatus.ACTIVE,
+    )
     s.add(run)
     await s.flush()
-    beat = Beat(chapter_id=ch.id, scene_no=1, tags=[], characters_present=["Marcus"],
-                status=BeatStatus.APPROVED, beat_text="Marcus presses on.")
+    beat = Beat(
+        chapter_id=ch.id,
+        scene_no=1,
+        tags=[],
+        characters_present=["Marcus"],
+        status=BeatStatus.APPROVED,
+        beat_text="Marcus presses on.",
+    )
     s.add(beat)
     await s.flush()
     await seed_scene_packet(s, chapter=ch, beat=beat)
-    job = Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
-              token_budget=40_000, status=JobStatus.QUEUED)
+    job = Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1, token_budget=40_000, status=JobStatus.QUEUED)
     s.add(job)
     await s.flush()
     return job
@@ -50,6 +61,7 @@ async def _setup_draft_job(s):
 
 class _Probe:
     """Records peak concurrency: if reviewers run in parallel, all are 'live' at once."""
+
     def __init__(self, state: dict[str, int], name: str) -> None:
         self.state, self.name = state, name
 
@@ -116,6 +128,7 @@ async def test_non_budget_reviewer_error_lands_a_flag_not_a_failure(db_factory, 
     """An advisory reviewer that crashes must never fail the job or discard the drafted spine — a
     raise would propagate to run_once, whose rollback nukes the good prose. It lands a WARN flag
     (same as a failed enrichment pass) and the scene still enters the inbox for review."""
+
     async def fake_draft(self, prose, ctx):
         return "A short spine of prose."
 

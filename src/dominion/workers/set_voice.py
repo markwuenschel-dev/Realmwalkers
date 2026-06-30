@@ -10,6 +10,7 @@ second one). Scope is `voice_spec` only; exemplars are left untouched.
 Runnable as:
     uv run python -m dominion.workers.set_voice --book "..." --character Marcus --voice-file series/voice/marcus.md
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,9 +43,11 @@ async def set_voice(
         session.add(book)
         await session.flush()
 
-    profile = (await session.execute(
-        select(PovProfile).where(PovProfile.book_id == book.id, PovProfile.character == character)
-    )).scalar_one_or_none()
+    profile = (
+        await session.execute(
+            select(PovProfile).where(PovProfile.book_id == book.id, PovProfile.character == character)
+        )
+    ).scalar_one_or_none()
     if profile is None:
         profile = PovProfile(book_id=book.id, character=character, voice_spec=voice_spec)
         session.add(profile)
@@ -62,9 +65,7 @@ async def _run(args: argparse.Namespace) -> None:
         voice_spec = args.voice_text
 
     async with SessionFactory() as session:
-        profile_id = await set_voice(
-            session, book_title=args.book, character=args.character, voice_spec=voice_spec
-        )
+        profile_id = await set_voice(session, book_title=args.book, character=args.character, voice_spec=voice_spec)
         await session.commit()
 
     print(
@@ -74,9 +75,7 @@ async def _run(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Upsert a per-POV voice spec (read by the drafter) into PovProfile."
-    )
+    parser = argparse.ArgumentParser(description="Upsert a per-POV voice spec (read by the drafter) into PovProfile.")
     parser.add_argument("--book", required=True)
     parser.add_argument(
         "--character", required=True, help="must EXACTLY match the chapter's pov, case-sensitive (e.g. 'Marcus')"

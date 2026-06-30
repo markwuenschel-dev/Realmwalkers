@@ -1,4 +1,5 @@
 """Wiring smoke: the whole package imports without a database or API key."""
+
 from __future__ import annotations
 
 

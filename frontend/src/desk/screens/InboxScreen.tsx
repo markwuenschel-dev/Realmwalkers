@@ -424,7 +424,9 @@ function RetryFailed() {
         {busy ? "Re-queuing…" : `Retry ${n} failed`}
       </button>
       {lastResult && (
-        <div style={css("margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+        <div
+          style={css("margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}
+        >
           {lastResult.requested ?? n} requested · {lastResult.requeued} queued
           {(lastResult.skipped?.length ?? 0) > 0 && (
             <span style={css("color:var(--warn)")}> · {lastResult.skipped!.length} blocked</span>

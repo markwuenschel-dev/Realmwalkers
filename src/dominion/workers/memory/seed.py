@@ -18,6 +18,7 @@ are declared via beats going forward — this importer never invents `CharacterS
 folds the already-imported scenes into the summaries. The whole import is one transaction: if the
 summary fold fails (e.g. no key), nothing persists — re-run with `--no-summaries`.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -106,10 +107,10 @@ def _chapter_no(meta: dict[str, str], default: int) -> int:
 
 @dataclass
 class SeedReport:
-    imported: list[str] = field(default_factory=list)   # newly created seed scenes
-    updated: list[str] = field(default_factory=list)    # existing seed scenes refreshed in place
-    skipped: list[str] = field(default_factory=list)    # files with no extractable prose
-    warnings: list[str] = field(default_factory=list)   # e.g. a file's POV != the existing chapter's
+    imported: list[str] = field(default_factory=list)  # newly created seed scenes
+    updated: list[str] = field(default_factory=list)  # existing seed scenes refreshed in place
+    skipped: list[str] = field(default_factory=list)  # files with no extractable prose
+    warnings: list[str] = field(default_factory=list)  # e.g. a file's POV != the existing chapter's
     summaries_built: int = 0
     canon_chunks: int = 0
 
@@ -155,9 +156,7 @@ async def seed_manuscript(
             )
         scene, created = await _upsert_seed_scene(session, chapter_id=chapter.id, scene_no=scene_no, prose=prose)
         seeded.append((chapter_no, scene_no, scene))
-        (report.imported if created else report.updated).append(
-            f"ch{chapter_no}.s{scene_no} {title!r} ({chapter.pov})"
-        )
+        (report.imported if created else report.updated).append(f"ch{chapter_no}.s{scene_no} {title!r} ({chapter.pov})")
 
     await session.flush()
 
@@ -181,12 +180,10 @@ async def _get_or_create_book(session: AsyncSession, title: str) -> Book:
     return book
 
 
-async def _get_or_create_chapter(
-    session: AsyncSession, *, book_id: object, chapter_no: int, pov: str
-) -> Chapter:
-    chapter = (await session.execute(
-        select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no)
-    )).scalar_one_or_none()
+async def _get_or_create_chapter(session: AsyncSession, *, book_id: object, chapter_no: int, pov: str) -> Chapter:
+    chapter = (
+        await session.execute(select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no))
+    ).scalar_one_or_none()
     if chapter is None:
         chapter = Chapter(book_id=book_id, chapter_no=chapter_no, pov=pov, status=ChapterStatus.DONE)
         session.add(chapter)
@@ -199,21 +196,30 @@ async def _upsert_seed_scene(
 ) -> tuple[Scene, bool]:
     """Find the existing seed row for (chapter, scene) and refresh its prose, or insert one. Keyed on
     prose_source='human' so a re-import never clobbers an agent-drafted version of the same scene."""
-    existing = (await session.execute(
-        select(Scene).where(
-            Scene.chapter_id == chapter_id,
-            Scene.scene_no == scene_no,
-            Scene.prose_source == _SEED_SOURCE,
-        ).order_by(Scene.version.desc()).limit(1)
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(Scene)
+            .where(
+                Scene.chapter_id == chapter_id,
+                Scene.scene_no == scene_no,
+                Scene.prose_source == _SEED_SOURCE,
+            )
+            .order_by(Scene.version.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     if existing is not None:
         existing.prose = prose
         existing.status = SceneStatus.APPROVED
         await session.flush()
         return existing, False
     scene = Scene(
-        chapter_id=chapter_id, scene_no=scene_no, version=1, status=SceneStatus.APPROVED,
-        prose=prose, prose_source=_SEED_SOURCE,
+        chapter_id=chapter_id,
+        scene_no=scene_no,
+        version=1,
+        status=SceneStatus.APPROVED,
+        prose=prose,
+        prose_source=_SEED_SOURCE,
     )
     session.add(scene)
     await session.flush()
@@ -231,8 +237,10 @@ async def _run(args: argparse.Namespace) -> None:
         )
         await session.commit()
 
-    print(f"seeded '{args.book}': {len(report.imported)} imported, {len(report.updated)} updated, "
-          f"{len(report.skipped)} skipped")
+    print(
+        f"seeded '{args.book}': {len(report.imported)} imported, {len(report.updated)} updated, "
+        f"{len(report.skipped)} skipped"
+    )
     for line in (*report.imported, *report.updated):
         print(f"  + {line}")
     for line in report.skipped:
@@ -254,7 +262,8 @@ def main() -> None:
     parser.add_argument("--canon-dir", default="series/canon")
     parser.add_argument("--no-canon", action="store_true", help="skip rebuilding the canon RAG index")
     parser.add_argument(
-        "--no-summaries", action="store_true",
+        "--no-summaries",
+        action="store_true",
         help="skip the LLM summary fold (the only step needing ANTHROPIC_API_KEY)",
     )
     asyncio.run(_run(parser.parse_args()))

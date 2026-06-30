@@ -9,6 +9,7 @@ Owner-file precedence is structural: an owner-forced chunk gets `rag_owner_file_
 score, so it always outranks a semantic-only hit on the same topic. Vector search is supporting
 context, never the authority.
 """
+
 from __future__ import annotations
 
 import re
@@ -70,8 +71,8 @@ async def retrieve_hybrid(
             return
         # keep the higher base score; owner_forced is the strongest reason and wins ties
         best_score = max(score, prev[1])
-        best_reason = "owner_forced" if "owner_forced" in (reason, prev[2]) else (
-            reason if score >= prev[1] else prev[2]
+        best_reason = (
+            "owner_forced" if "owner_forced" in (reason, prev[2]) else (reason if score >= prev[1] else prev[2])
         )
         candidates[key] = (row, best_score, best_reason)
 
@@ -87,21 +88,29 @@ async def retrieve_hybrid(
                 conds.append(CanonEntity.doc_path.like(f"%/{p}"))
         if owner_topics:
             conds.append(CanonEntity.owner_topic.in_(owner_topics))
-        rows = (await session.execute(
-            select(CanonEntity).where(CanonEntity.book_id == book_id, or_(*conds))
-        )).scalars().all()
+        rows = (
+            (await session.execute(select(CanonEntity).where(CanonEntity.book_id == book_id, or_(*conds))))
+            .scalars()
+            .all()
+        )
         for row in rows:
             consider(row, float(settings.rag_owner_file_boost), "owner_forced")
 
     # 2) keyword/lexical pool ----------------------------------------------------------------------
     if q_tokens:
-        like_terms = sorted(q_tokens)[: 8]
+        like_terms = sorted(q_tokens)[:8]
         like_conds = [CanonEntity.body.ilike(f"%{t}%") for t in like_terms]
-        pool = (await session.execute(
-            select(CanonEntity)
-            .where(CanonEntity.book_id == book_id, CanonEntity.body.isnot(None), or_(*like_conds))
-            .limit(settings.rag_keyword_k * 3)
-        )).scalars().all()
+        pool = (
+            (
+                await session.execute(
+                    select(CanonEntity)
+                    .where(CanonEntity.book_id == book_id, CanonEntity.body.isnot(None), or_(*like_conds))
+                    .limit(settings.rag_keyword_k * 3)
+                )
+            )
+            .scalars()
+            .all()
+        )
         for row in pool:
             overlap = len(q_tokens & _tokens(row.body)) / (len(q_tokens) or 1)
             if overlap:
@@ -110,16 +119,22 @@ async def retrieve_hybrid(
     # 3) semantic vector search --------------------------------------------------------------------
     if query.strip():
         qvec = embed(query)
-        sem = (await session.execute(
-            select(CanonEntity)
-            .where(
-                CanonEntity.book_id == book_id,
-                CanonEntity.body.isnot(None),
-                CanonEntity.embedding.isnot(None),
+        sem = (
+            (
+                await session.execute(
+                    select(CanonEntity)
+                    .where(
+                        CanonEntity.book_id == book_id,
+                        CanonEntity.body.isnot(None),
+                        CanonEntity.embedding.isnot(None),
+                    )
+                    .order_by(CanonEntity.embedding.cosine_distance(qvec))
+                    .limit(settings.rag_semantic_k)
+                )
             )
-            .order_by(CanonEntity.embedding.cosine_distance(qvec))
-            .limit(settings.rag_semantic_k)
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
         for rank, row in enumerate(sem):
             # decaying similarity proxy in [0,1): top hit ~1.0, tapering with rank
             consider(row, 1.0 - rank / (settings.rag_semantic_k + 1), "semantic")
@@ -128,12 +143,11 @@ async def retrieve_hybrid(
     def rerank_key(item: tuple[CanonEntity, float, str]) -> float:
         row, base, _reason = item
         score = base
-        score += (row.source_priority or 0)
+        score += row.source_priority or 0
         if row.owner_topic and owner_topics and row.owner_topic in set(owner_topics):
             score += 1.0
         score += 0.5 * (len(q_tokens & _tokens(row.body)) / (len(q_tokens) or 1))
         return score
 
     ranked = sorted(candidates.values(), key=rerank_key, reverse=True)[:k]
-    return [_row_dict(row, score=rerank_key((row, base, reason)), reason=reason)
-            for row, base, reason in ranked]
+    return [_row_dict(row, score=rerank_key((row, base, reason)), reason=reason) for row, base, reason in ranked]

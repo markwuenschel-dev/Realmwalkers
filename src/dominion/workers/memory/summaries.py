@@ -3,6 +3,7 @@
 Derived from the FINAL (possibly hand-edited) approved text. One row per (book, scope, pov), folded
 forward on each approval via a cheap review-model call.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -24,12 +25,14 @@ async def pov_summary(
     """What THIS character knows: their accumulated rolling summary (knowledge-asymmetry)."""
     # limit(1): a duplicate (book, pov) summary row would otherwise raise MultipleResultsFound and
     # fail every draft for this POV before it begins.
-    return (await session.execute(
-        select(Summary.rolling_summary)
-        .where(Summary.book_id == book_id, Summary.scope == "pov", Summary.pov == pov)
-        .order_by(Summary.id)
-        .limit(1)
-    )).scalar_one_or_none()
+    return (
+        await session.execute(
+            select(Summary.rolling_summary)
+            .where(Summary.book_id == book_id, Summary.scope == "pov", Summary.pov == pov)
+            .order_by(Summary.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 async def refresh_on_approval(session: AsyncSession, *, scene_id: uuid.UUID) -> None:
@@ -44,34 +47,49 @@ async def refresh_on_approval(session: AsyncSession, *, scene_id: uuid.UUID) -> 
     # memory regeneration is visible in the Desk telemetry. A fresh run_id per refresh keeps each
     # approval its own row.
     sink = telemetry.TelemetrySink()
-    with telemetry.call_context(telemetry.CallContext(
-        sink=sink, stage="summary", book_id=str(chapter.book_id), chapter_id=str(scene.chapter_id),
-    )):
-        await _upsert(session, book_id=chapter.book_id, scope="pov", pov=chapter.pov, scene=scene,
-                     lens=f"what {chapter.pov} has personally experienced and knows")
-        await _upsert(session, book_id=chapter.book_id, scope="omniscient", pov=None, scene=scene,
-                     lens="the whole story so far, across all viewpoints")
-    telemetry_db.persist_sink(
-        session, sink, run_id=uuid.uuid4(), book_id=chapter.book_id, chapter_id=scene.chapter_id
-    )
+    with telemetry.call_context(
+        telemetry.CallContext(
+            sink=sink,
+            stage="summary",
+            book_id=str(chapter.book_id),
+            chapter_id=str(scene.chapter_id),
+        )
+    ):
+        await _upsert(
+            session,
+            book_id=chapter.book_id,
+            scope="pov",
+            pov=chapter.pov,
+            scene=scene,
+            lens=f"what {chapter.pov} has personally experienced and knows",
+        )
+        await _upsert(
+            session,
+            book_id=chapter.book_id,
+            scope="omniscient",
+            pov=None,
+            scene=scene,
+            lens="the whole story so far, across all viewpoints",
+        )
+    telemetry_db.persist_sink(session, sink, run_id=uuid.uuid4(), book_id=chapter.book_id, chapter_id=scene.chapter_id)
     await session.flush()
 
 
 async def _upsert(
     session: AsyncSession, *, book_id: uuid.UUID, scope: str, pov: str | None, scene: Scene, lens: str
 ) -> None:
-    row = (await session.execute(
-        select(Summary)
-        .where(Summary.book_id == book_id, Summary.scope == scope, Summary.pov == pov)
-        .order_by(Summary.id)
-        .limit(1)
-    )).scalar_one_or_none()
+    row = (
+        await session.execute(
+            select(Summary)
+            .where(Summary.book_id == book_id, Summary.scope == scope, Summary.pov == pov)
+            .order_by(Summary.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     previous = row.rolling_summary if row else None
     updated = await _summarize(previous, scene.prose or "", lens)
     if row is None:
-        session.add(Summary(
-            book_id=book_id, scope=scope, pov=pov, rolling_summary=updated, up_to_scene_id=scene.id
-        ))
+        session.add(Summary(book_id=book_id, scope=scope, pov=pov, rolling_summary=updated, up_to_scene_id=scene.id))
     else:
         row.rolling_summary = updated
         row.up_to_scene_id = scene.id
@@ -91,8 +109,11 @@ async def _summarize(previous: str | None, scene_prose: str, lens: str) -> str:
     # well past a tight cap. Size it to the per-scene budget — folding a scene shouldn't cost more
     # than drafting one — so long authored scenes (e.g. the seed import) fold instead of aborting.
     text, _usage = await llm.complete(
-        model=settings.review_model, system=system, user=user,
-        max_tokens=_SUMMARY_MAX_TOKENS, budget=TokenBudget(max_tokens=settings.scene_token_budget),
+        model=settings.review_model,
+        system=system,
+        user=user,
+        max_tokens=_SUMMARY_MAX_TOKENS,
+        budget=TokenBudget(max_tokens=settings.scene_token_budget),
         expect_cache=False,
     )
     return text.strip()

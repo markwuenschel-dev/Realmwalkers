@@ -1,4 +1,5 @@
 """Draft readiness queries — read-only diagnostics for contract-first drafting."""
+
 from __future__ import annotations
 
 import uuid
@@ -29,17 +30,21 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     if chapter is None:
         raise ValueError("chapter not found")
 
-    cp = (await session.execute(
-        select(ChapterPacket).where(
-            ChapterPacket.chapter_id == chapter_id,
-            ChapterPacket.status == PacketStatus.APPROVED,
-        ).limit(1)
-    )).scalar_one_or_none()
+    cp = (
+        await session.execute(
+            select(ChapterPacket)
+            .where(
+                ChapterPacket.chapter_id == chapter_id,
+                ChapterPacket.status == PacketStatus.APPROVED,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     chapter_packet_approved = cp is not None
 
-    sp_rows = list((await session.execute(
-        select(ScenePacket).where(ScenePacket.chapter_id == chapter_id)
-    )).scalars().all())
+    sp_rows = list(
+        (await session.execute(select(ScenePacket).where(ScenePacket.chapter_id == chapter_id))).scalars().all()
+    )
     approved_sp = [p for p in sp_rows if p.status == ScenePacketStatus.APPROVED]
     stale_sp = [p for p in sp_rows if p.status == ScenePacketStatus.STALE]
     blocked_sp = [p for p in sp_rows if p.status == ScenePacketStatus.BLOCKED]
@@ -47,38 +52,52 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     approved_nos = {p.scene_no for p in approved_sp}
     missing = sorted(set(range(1, seed_count + 1)) - approved_nos) if seed_count else []
 
-    beats = list((await session.execute(
-        select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)
-    )).scalars().all())
+    beats = list(
+        (await session.execute(select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)))
+        .scalars()
+        .all()
+    )
     approved_beats = [b for b in beats if b.status == BeatStatus.APPROVED]
     linked = [b for b in approved_beats if b.scene_packet_id is not None]
     unlinked = [b.id for b in approved_beats if b.scene_packet_id is None]
 
-    active_jobs = (await session.execute(
-        select(func.count()).select_from(Job).where(
-            Job.chapter_id == chapter_id,
-            Job.kind == JobKind.DRAFT,
-            Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+    active_jobs = (
+        await session.execute(
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.chapter_id == chapter_id,
+                Job.kind == JobKind.DRAFT,
+                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+            )
         )
-    )).scalar_one() or 0
+    ).scalar_one() or 0
 
-    malformed = (await session.execute(
-        select(func.count()).select_from(Job).where(
-            Job.chapter_id == chapter_id,
-            Job.kind == JobKind.DRAFT,
-            Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
-            Job.scene_packet_id.is_(None),
+    malformed = (
+        await session.execute(
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.chapter_id == chapter_id,
+                Job.kind == JobKind.DRAFT,
+                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
+                Job.scene_packet_id.is_(None),
+            )
         )
-    )).scalar_one() or 0
+    ).scalar_one() or 0
 
-    sp_required_failed = (await session.execute(
-        select(func.count()).select_from(Job).where(
-            Job.chapter_id == chapter_id,
-            Job.kind == JobKind.DRAFT,
-            Job.status == JobStatus.FAILED,
-            Job.last_error.ilike("%ScenePacket%"),
+    sp_required_failed = (
+        await session.execute(
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.chapter_id == chapter_id,
+                Job.kind == JobKind.DRAFT,
+                Job.status == JobStatus.FAILED,
+                Job.last_error.ilike("%ScenePacket%"),
+            )
         )
-    )).scalar_one() or 0
+    ).scalar_one() or 0
 
     blockers: list[DraftQueueBlockerOut] = []
     draftable_scenes = 0

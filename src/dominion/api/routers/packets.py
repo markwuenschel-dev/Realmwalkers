@@ -5,6 +5,7 @@ is drafted. This router proposes a packet (synchronous, like the gate-1 plan-cal
 review, accepts human edits, and gates approval: a blocked or red-confidence packet, or one with open
 questions still outstanding, cannot be approved. (Later phases block drafting until approval.)
 """
+
 from __future__ import annotations
 
 import uuid
@@ -28,12 +29,14 @@ router = APIRouter(prefix="/chapters", tags=["packets"])
 
 
 async def _latest(session: SessionDep, chapter_id: uuid.UUID) -> ChapterPacket | None:
-    return (await session.execute(
-        select(ChapterPacket)
-        .where(ChapterPacket.chapter_id == chapter_id)
-        .order_by(ChapterPacket.created_at.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    return (
+        await session.execute(
+            select(ChapterPacket)
+            .where(ChapterPacket.chapter_id == chapter_id)
+            .order_by(ChapterPacket.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 async def _run_propose(chapter_id: uuid.UUID) -> None:
@@ -52,9 +55,7 @@ async def _run_propose(chapter_id: uuid.UUID) -> None:
 
 
 @router.post("/{chapter_id}/packet", response_model=PacketProposeOut)
-async def propose_packet(
-    chapter_id: uuid.UUID, background: BackgroundTasks, session: SessionDep
-) -> PacketProposeOut:
+async def propose_packet(chapter_id: uuid.UUID, background: BackgroundTasks, session: SessionDep) -> PacketProposeOut:
     """Kick off the Packet Author + Packet QA in the BACKGROUND and return immediately.
 
     The author call alone runs ~1-2 min, so blocking the request left the browser spinning and lost
@@ -68,7 +69,9 @@ async def propose_packet(
     background_work.schedule(background, key, "authoring", lambda: _run_propose(chapter_id))
     phase, elapsed_s = progress.get(key)
     return PacketProposeOut(
-        running=background_work.is_running(key), phase=phase or "authoring", elapsed_s=elapsed_s,
+        running=background_work.is_running(key),
+        phase=phase or "authoring",
+        elapsed_s=elapsed_s,
     )
 
 
@@ -90,9 +93,7 @@ async def get_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOut:
 
 
 @router.put("/{chapter_id}/packet", response_model=PacketOut)
-async def update_packet(
-    chapter_id: uuid.UUID, body: PacketUpdateIn, session: SessionDep
-) -> PacketOut:
+async def update_packet(chapter_id: uuid.UUID, body: PacketUpdateIn, session: SessionDep) -> PacketOut:
     """Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after
     reviewing flags. A blocked packet can be edited but stays blocked until re-proposed."""
     row = await _latest(session, chapter_id)

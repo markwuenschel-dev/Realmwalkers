@@ -1,4 +1,5 @@
 """Status vocabularies for the workflow (DESIGN §3). String-backed for clarity in the DB."""
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -26,7 +27,7 @@ class BeatStatus(StrEnum):
 
 
 class GateMode(StrEnum):
-    PAUSE_EACH = "pause_each"   # default, safe
+    PAUSE_EACH = "pause_each"  # default, safe
     DRAFT_AHEAD = "draft_ahead"
 
 
@@ -53,7 +54,7 @@ class JobStatus(StrEnum):
 class Severity(StrEnum):
     INFO = "info"
     WARN = "warn"
-    HARD = "hard"      # never blocks; surfaced in the continuity panel (DESIGN §9)
+    HARD = "hard"  # never blocks; surfaced in the continuity panel (DESIGN §9)
 
 
 class Decision(StrEnum):
@@ -79,12 +80,14 @@ class SuggestionStatus(StrEnum):
 
 class RuleKind(StrEnum):
     """What a distilled rule governs (LEARNING_FROM_EDITS Tier 3)."""
-    VOICE = "voice"        # prose style / structure preference
+
+    VOICE = "voice"  # prose style / structure preference
     DIALOGUE = "dialogue"  # how a character's dialogue is written
 
 
 class RuleProposalStatus(StrEnum):
     """A distilled rule's lifecycle: proposed, then accepted (applied to voice_spec) or rejected."""
+
     PENDING = "pending"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
@@ -94,9 +97,11 @@ class RuleProposalStatus(StrEnum):
 # Scene-level enums (SceneVerdict, the REJECTED/MOVED scene statuses) arrive with the QA gate in a
 # later phase — Phase 1 ships only the packet layer (DESIGN: contract-first drafting, phased build).
 
+
 class PacketConfidence(StrEnum):
     """The Packet Author's self-assessed confidence — drives the autonomy gate.
     GREEN: eligible for fast-approve. YELLOW: human reviews flagged items. RED: drafting blocked."""
+
     GREEN = "green"
     YELLOW = "yellow"
     RED = "red"
@@ -104,6 +109,7 @@ class PacketConfidence(StrEnum):
 
 class PacketVerdict(StrEnum):
     """The Packet QA agent's verdict on a proposed chapter packet."""
+
     APPROVE = "approve"
     APPROVE_WARN = "approve_warn"
     REVISE_REQUIRED = "revise_required"
@@ -119,10 +125,11 @@ class PacketStatus(StrEnum):
 class ClaimSource(StrEnum):
     """Source-strength label the Packet Author must attach to every packet claim, so agents can act
     on packets without pretending all decisions are equally certain."""
+
     LOCKED_CANON = "locked_canon"
     DERIVED_FROM_OUTLINE = "derived_from_outline"
     PLAUSIBLE_INFERENCE = "plausible_inference"
-    UNRESOLVED = "unresolved"          # needs human
+    UNRESOLVED = "unresolved"  # needs human
     FORBIDDEN = "forbidden"
 
 
@@ -130,9 +137,11 @@ class ClaimSource(StrEnum):
 # A ScenePacket localizes the chapter-wide ChapterPacket into one scene's reader/POV/reveal/word
 # constraints. It is the scene-local authority for review; the ChapterPacket stays macro-authoritative.
 
+
 class ScenePacketStatus(StrEnum):
     """A scene packet's lifecycle. STALE means an upstream input changed (chapter packet, prior
     scene, owner file, word budget) and the packet must be re-derived or re-approved before drafting."""
+
     PROPOSED = "proposed"
     APPROVED = "approved"
     BLOCKED = "blocked"
@@ -141,6 +150,7 @@ class ScenePacketStatus(StrEnum):
 
 class ScenePacketVerdict(StrEnum):
     """The ScenePacket QA agent's verdict on a derived scene packet (mirrors PacketVerdict)."""
+
     APPROVE = "approve"
     APPROVE_WARN = "approve_warn"
     REVISE_REQUIRED = "revise_required"
@@ -149,6 +159,7 @@ class ScenePacketVerdict(StrEnum):
 
 class LengthStatus(StrEnum):
     """Where a drafted scene's word count landed against its ScenePacket word_budget (DESIGN: length)."""
+
     UNDER_MIN = "under_min"
     WITHIN_BUDGET = "within_budget"
     OVER_MAX = "over_max"
@@ -158,12 +169,14 @@ class LengthStatus(StrEnum):
 
 class KnowledgeStatus(StrEnum):
     """Lifecycle of a KnowledgeFact: hidden until a scene reveals it to the reader."""
+
     HIDDEN = "hidden"
     REVEALED = "revealed"
 
 
 class DraftStage(StrEnum):
     """A preserved stage of one scene's prose pipeline (DraftAttempt provenance)."""
+
     DRAFTER_RAW = "drafter_raw"
     ENRICHMENT_COMBAT = "enrichment_combat"
     ENRICHMENT_SENSORY = "enrichment_sensory"

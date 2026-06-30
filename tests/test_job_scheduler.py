@@ -1,9 +1,10 @@
 """Direct DB tests for job scheduling after human approval (contract-first)."""
+
 from __future__ import annotations
 
+from conftest import seed_scene_packet
 from sqlalchemy import select
 
-from conftest import seed_scene_packet
 from dominion.shared.enums import BeatStatus, GateMode, JobKind, JobStatus, RunStatus, SceneStatus
 from dominion.shared.models import Beat, Book, Chapter, Job, Run, Scene
 from dominion.workers.draft_queue import has_active_draft_job_for_scene_packet
@@ -29,8 +30,11 @@ async def test_schedule_next_after_approval_pause_each(db_factory):
     async with db_factory() as s:
         book, ch = await _book_chapter(s)
         run = Run(
-            book_id=book.id, scope_json={"chapter": 1}, gate_mode=GateMode.PAUSE_EACH,
-            token_budget=40_000, status=RunStatus.ACTIVE,
+            book_id=book.id,
+            scope_json={"chapter": 1},
+            gate_mode=GateMode.PAUSE_EACH,
+            token_budget=40_000,
+            status=RunStatus.ACTIVE,
         )
         s.add(run)
         b2 = Beat(chapter_id=ch.id, scene_no=2, beat_text="two", status=BeatStatus.APPROVED)
@@ -52,8 +56,11 @@ async def test_schedule_next_after_approval_not_pause_each(db_factory):
     async with db_factory() as s:
         book, ch = await _book_chapter(s)
         run = Run(
-            book_id=book.id, scope_json={"chapter": 1}, gate_mode=GateMode.DRAFT_AHEAD,
-            token_budget=40_000, status=RunStatus.ACTIVE,
+            book_id=book.id,
+            scope_json={"chapter": 1},
+            gate_mode=GateMode.DRAFT_AHEAD,
+            token_budget=40_000,
+            status=RunStatus.ACTIVE,
         )
         s.add(run)
         s.add(Beat(chapter_id=ch.id, scene_no=2, beat_text="two", status=BeatStatus.APPROVED))
@@ -68,8 +75,11 @@ async def test_schedule_next_after_approval_idempotent(db_factory):
     async with db_factory() as s:
         book, ch = await _book_chapter(s)
         run = Run(
-            book_id=book.id, scope_json={"chapter": 1}, gate_mode=GateMode.PAUSE_EACH,
-            token_budget=40_000, status=RunStatus.ACTIVE,
+            book_id=book.id,
+            scope_json={"chapter": 1},
+            gate_mode=GateMode.PAUSE_EACH,
+            token_budget=40_000,
+            status=RunStatus.ACTIVE,
         )
         s.add(run)
         b2 = Beat(chapter_id=ch.id, scene_no=2, beat_text="two", status=BeatStatus.APPROVED)
@@ -82,9 +92,7 @@ async def test_schedule_next_after_approval_idempotent(db_factory):
         first = await schedule_next_after_approval(s, sc1)
         second = await schedule_next_after_approval(s, sc1)
         assert first == second
-        jobs = (await s.execute(
-            select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED)
-        )).scalars().all()
+        jobs = (await s.execute(select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED))).scalars().all()
         assert len(jobs) == 1
 
 
@@ -92,8 +100,11 @@ async def test_schedule_revision_creates_revise_job(db_factory):
     async with db_factory() as s:
         book, ch = await _book_chapter(s)
         run = Run(
-            book_id=book.id, scope_json={"chapter": 1}, gate_mode=GateMode.PAUSE_EACH,
-            token_budget=40_000, status=RunStatus.ACTIVE,
+            book_id=book.id,
+            scope_json={"chapter": 1},
+            gate_mode=GateMode.PAUSE_EACH,
+            token_budget=40_000,
+            status=RunStatus.ACTIVE,
         )
         s.add(run)
         sc = Scene(chapter_id=ch.id, scene_no=1, prose="draft", version=1, status=SceneStatus.PENDING_REVIEW)
@@ -110,8 +121,11 @@ async def test_schedule_beats_on_gate1_idempotent(db_factory):
     async with db_factory() as s:
         book, ch = await _book_chapter(s)
         run = Run(
-            book_id=book.id, scope_json={"chapter": 1}, gate_mode=GateMode.PAUSE_EACH,
-            token_budget=40_000, status=RunStatus.ACTIVE,
+            book_id=book.id,
+            scope_json={"chapter": 1},
+            gate_mode=GateMode.PAUSE_EACH,
+            token_budget=40_000,
+            status=RunStatus.ACTIVE,
         )
         s.add(run)
         b1 = Beat(chapter_id=ch.id, scene_no=1, beat_text="one", status=BeatStatus.APPROVED)
@@ -159,8 +173,14 @@ async def test_has_active_draft_job_for_scene_packet(db_factory):
         await s.flush()
         sp = await seed_scene_packet(s, chapter=ch, beat=b1)
         job = Job(
-            kind=JobKind.DRAFT, chapter_id=ch.id, beat_id=b1.id, scene_packet_id=sp.id,
-            chapter_no=1, scene_no=1, status=JobStatus.QUEUED, token_budget=40_000,
+            kind=JobKind.DRAFT,
+            chapter_id=ch.id,
+            beat_id=b1.id,
+            scene_packet_id=sp.id,
+            chapter_no=1,
+            scene_no=1,
+            status=JobStatus.QUEUED,
+            token_budget=40_000,
         )
         s.add(job)
         await s.flush()

@@ -1,4 +1,5 @@
 """Hard per-job token budget (DESIGN §10). Wall-clock budget is enforced in worker.py via wait_for."""
+
 from __future__ import annotations
 
 import time

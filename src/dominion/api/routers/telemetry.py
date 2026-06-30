@@ -10,6 +10,7 @@ scene-packet derive). These read-only endpoints aggregate it two ways:
 
 No write paths: telemetry is produced by the workers, never by the Desk.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -57,9 +58,7 @@ def _totals(calls: Iterable[LlmCall]) -> dict[str, Any]:
     )
 
 
-def _group(
-    calls: list[LlmCall], key: Callable[[LlmCall], object]
-) -> list[TelemetryGroupOut]:
+def _group(calls: list[LlmCall], key: Callable[[LlmCall], object]) -> list[TelemetryGroupOut]:
     """Group calls by `key(call)` (skipping None keys), each bucket rolled into TelemetryGroupOut,
     sorted by call volume descending."""
     buckets: dict[str, list[LlmCall]] = {}
@@ -87,9 +86,9 @@ async def chapter_telemetry(chapter_id: uuid.UUID, session: SessionDep) -> Chapt
     """Per-scene telemetry for one chapter's LATEST derive run, plus that run's totals. Scoped to the
     latest run (not cumulative) so the panel reflects the run you just kicked off. Empty (zero totals)
     when the chapter has never been derived."""
-    rows = _latest_run_only(list((await session.execute(
-        select(LlmCall).where(LlmCall.chapter_id == chapter_id)
-    )).scalars()))
+    rows = _latest_run_only(
+        list((await session.execute(select(LlmCall).where(LlmCall.chapter_id == chapter_id))).scalars())
+    )
 
     by_scene: dict[int | None, list[LlmCall]] = {}
     for c in rows:
@@ -102,9 +101,7 @@ async def chapter_telemetry(chapter_id: uuid.UUID, session: SessionDep) -> Chapt
         )
         for scene_no, calls in sorted(by_scene.items(), key=lambda kv: (kv[0] is None, kv[0]))
     ]
-    return ChapterTelemetryOut(
-        chapter_id=chapter_id, totals=TelemetryTotals(**_totals(rows)), scenes=scenes
-    )
+    return ChapterTelemetryOut(chapter_id=chapter_id, totals=TelemetryTotals(**_totals(rows)), scenes=scenes)
 
 
 @router.get("/books/{book_id}/telemetry", response_model=BookTelemetryOut)
@@ -118,15 +115,11 @@ async def book_telemetry(
     cross-chapter/scene comparison. `by_run` is paginated (newest first) via `limit`/`offset` so the
     run history doesn't grow an unbounded table in the UI; `run_total` reports the full count so the
     Desk knows whether older runs remain to load. All other rollups stay full-book."""
-    rows = list((await session.execute(
-        select(LlmCall).where(LlmCall.book_id == book_id)
-    )).scalars())
+    rows = list((await session.execute(select(LlmCall).where(LlmCall.book_id == book_id))).scalars())
 
     # Chapter rollup carries chapter_no/title so the tab can label and order chapters meaningfully.
     chapters = {
-        ch.id: ch for ch in (await session.execute(
-            select(Chapter).where(Chapter.book_id == book_id)
-        )).scalars()
+        ch.id: ch for ch in (await session.execute(select(Chapter).where(Chapter.book_id == book_id))).scalars()
     }
     by_chapter_calls: dict[uuid.UUID, list[LlmCall]] = {}
     for c in rows:
@@ -153,22 +146,25 @@ async def book_telemetry(
     for rid, calls in by_run_calls.items():
         cid = next((c.chapter_id for c in calls if c.chapter_id is not None), None)
         ch = chapters.get(cid) if cid is not None else None
-        by_run.append(RunRollupOut(
-            run_id=rid,
-            started_at=min((c.created_at for c in calls), default=None),
-            chapter_id=cid,
-            chapter_no=ch.chapter_no if ch else None,
-            title=ch.title if ch else None,
-            **_totals(calls),
-        ))
+        by_run.append(
+            RunRollupOut(
+                run_id=rid,
+                started_at=min((c.created_at for c in calls), default=None),
+                chapter_id=cid,
+                chapter_no=ch.chapter_no if ch else None,
+                title=ch.title if ch else None,
+                **_totals(calls),
+            )
+        )
     # Newest run first; the legacy (no-run_id) bucket has no timestamp, so it always sorts last.
     dated = sorted(
         (r for r in by_run if r.started_at is not None),
-        key=lambda r: cast(datetime, r.started_at), reverse=True,
+        key=lambda r: cast(datetime, r.started_at),
+        reverse=True,
     )
     by_run = dated + [r for r in by_run if r.started_at is None]
     run_total = len(by_run)
-    by_run = by_run[offset:offset + limit]  # only the run history paginates; the rest stay full-book
+    by_run = by_run[offset : offset + limit]  # only the run history paginates; the rest stay full-book
 
     return BookTelemetryOut(
         totals=TelemetryTotals(**_totals(rows)),

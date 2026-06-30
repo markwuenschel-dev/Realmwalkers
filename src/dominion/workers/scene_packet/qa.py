@@ -7,6 +7,7 @@ required reveal, premature reveal permission, contradictions with the chapter pa
 invariants / cast, implausible word budget, missing false-positive traps or phrase-avoidance). A
 malformed QA response blocks packet approval (fail closed).
 """
+
 from __future__ import annotations
 
 import json
@@ -48,14 +49,11 @@ def build_prefix(chapter_packet_body: dict[str, Any] | None) -> str | None:
     """The chapter packet is identical across every scene's QA, so it rides ahead as a cached block."""
     if not chapter_packet_body:
         return None
-    return ("CHAPTER PACKET (the macro authority it must not contradict):\n"
-            + _compact(chapter_packet_body))
+    return "CHAPTER PACKET (the macro authority it must not contradict):\n" + _compact(chapter_packet_body)
 
 
 def build_prompt(scene_packet: dict[str, Any]) -> str:
-    return ("Attack this scene packet and return your verdict.\n\n"
-            "SCENE PACKET:\n" + _compact(scene_packet))
-
+    return "Attack this scene packet and return your verdict.\n\nSCENE PACKET:\n" + _compact(scene_packet)
 
 
 def build_prefix_blocks(chapter_packet_body: dict[str, Any] | None) -> tuple[CachedPrefixBlock, ...]:
@@ -63,26 +61,27 @@ def build_prefix_blocks(chapter_packet_body: dict[str, Any] | None) -> tuple[Cac
     return (CachedPrefixBlock(name="chapter_shared_prefix", text=prefix),) if prefix else ()
 
 
-def context_sections_for_qa_call(
-    *, prefix_blocks: tuple[CachedPrefixBlock, ...], user: str
-) -> dict[str, int]:
+def context_sections_for_qa_call(*, prefix_blocks: tuple[CachedPrefixBlock, ...], user: str) -> dict[str, int]:
     sections = {"system": estimate_tokens(_SYSTEM)}
     sections.update({block.name: estimate_tokens(block.text) for block in prefix_blocks})
     sections["qa_prompt"] = estimate_tokens(user)
     return sections
 
 
-async def prime_qa_shared_prefix(
-    chapter_packet_body: dict[str, Any] | None, *, budget: TokenBudget
-) -> None:
+async def prime_qa_shared_prefix(chapter_packet_body: dict[str, Any] | None, *, budget: TokenBudget) -> None:
     """Prime the QA chapter-shared prefix outside any scene-local work budget."""
     prefix_blocks = build_prefix_blocks(chapter_packet_body)
     if not prefix_blocks:
         return
     user = "Acknowledge cache prime."
     await llm.complete(
-        model=settings.scene_packet_qa_model, system=_SYSTEM, user_prefix_blocks=prefix_blocks,
-        user=user, max_tokens=16, budget=budget, expect_cache=True,
+        model=settings.scene_packet_qa_model,
+        system=_SYSTEM,
+        user_prefix_blocks=prefix_blocks,
+        user=user,
+        max_tokens=16,
+        budget=budget,
+        expect_cache=True,
         context_window_budget=settings.scene_packet_context_window_budget,
         context_sections={
             "system": estimate_tokens(_SYSTEM),
@@ -106,8 +105,13 @@ async def qa_scene_packet(
 
     async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, bool]:
         raw, usage = await llm.complete(
-            model=model, system=_SYSTEM, user_prefix_blocks=prefix_blocks, user=user,
-            max_tokens=max_tokens, budget=budget, expect_cache=bool(prefix_blocks),
+            model=model,
+            system=_SYSTEM,
+            user_prefix_blocks=prefix_blocks,
+            user=user,
+            max_tokens=max_tokens,
+            budget=budget,
+            expect_cache=bool(prefix_blocks),
             context_window_budget=settings.scene_packet_context_window_budget,
             context_sections=context_sections_for_qa_call(prefix_blocks=prefix_blocks, user=user),
         )
@@ -121,7 +125,10 @@ async def qa_scene_packet(
     fallback = (settings.scene_packet_qa_fallback_model or "").strip()
     if not fallback or fallback == primary:
         return None
-    fb_max = max(settings.scene_packet_qa_max_tokens, _QA_FALLBACK_MAX_TOKENS_FLOOR) if truncated \
+    fb_max = (
+        max(settings.scene_packet_qa_max_tokens, _QA_FALLBACK_MAX_TOKENS_FLOOR)
+        if truncated
         else settings.scene_packet_qa_max_tokens
+    )
     result, _ = await _attempt(fallback, fb_max)
     return result

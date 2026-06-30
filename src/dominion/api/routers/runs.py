@@ -5,6 +5,7 @@ beats for your approval. Nothing is drafted here — the beats land as `proposed
 approve (gate 1) before any scene-draft job is enqueued. POST /runs/batch proposes several chapters in
 one request, sharing one Run, and can optionally auto-approve + queue drafts for each.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -48,9 +49,9 @@ async def _propose_chapter(
     is persisted under this run. Does NOT commit — the caller owns the transaction.
     """
     # Upsert the chapter: this run owns its POV + outline; mark it as having beats proposed.
-    chapter = (await session.execute(
-        select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no)
-    )).scalar_one_or_none()
+    chapter = (
+        await session.execute(select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no))
+    ).scalar_one_or_none()
     if chapter is None:
         chapter = Chapter(book_id=book_id, chapter_no=chapter_no, pov=pov)
         session.add(chapter)
@@ -60,11 +61,13 @@ async def _propose_chapter(
     await session.flush()
 
     # Gate-1 plan-call: grounded in beat-scoped canon + the omniscient summary (DESIGN §7).
-    omniscient = (await session.execute(
-        select(Summary.rolling_summary).where(
-            Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+    omniscient = (
+        await session.execute(
+            select(Summary.rolling_summary).where(
+                Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     canon = await canon_rag.retrieve(session, book_id=book_id, query=outline, k=6)
 
     # Beats + a chapter title in one round-trip: title generation is best-effort and never raises, so
@@ -75,20 +78,35 @@ async def _propose_chapter(
     sink = telemetry.TelemetrySink()
 
     async def _beats() -> list[dict[str, Any]]:
-        with telemetry.call_context(telemetry.CallContext(
-            sink=sink, stage="beats", book_id=str(book_id), chapter_id=str(chapter.id),
-        )):
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink,
+                stage="beats",
+                book_id=str(book_id),
+                chapter_id=str(chapter.id),
+            )
+        ):
             return await planner.propose_beats(
-                outline=outline, pov=pov, omniscient_summary=omniscient, canon=canon,
+                outline=outline,
+                pov=pov,
+                omniscient_summary=omniscient,
+                canon=canon,
                 max_beats=max_beats or 24,
             )
 
     async def _title() -> str | None:
-        with telemetry.call_context(telemetry.CallContext(
-            sink=sink, stage="chapter_title", book_id=str(book_id), chapter_id=str(chapter.id),
-        )):
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink,
+                stage="chapter_title",
+                book_id=str(book_id),
+                chapter_id=str(chapter.id),
+            )
+        ):
             return await planner.propose_chapter_title(
-                outline=outline, pov=pov, omniscient_summary=omniscient,
+                outline=outline,
+                pov=pov,
+                omniscient_summary=omniscient,
             )
 
     try:
@@ -109,9 +127,7 @@ async def _propose_chapter(
         # Replace rather than stack: clear the old proposed beats, then write the new ones. This
         # delete runs ONLY when the new proposal produced beats — an empty result (bad parse,
         # refusal) must never silently wipe the author's existing beats.
-        await session.execute(
-            delete(Beat).where(Beat.chapter_id == chapter.id, Beat.status == BeatStatus.PROPOSED)
-        )
+        await session.execute(delete(Beat).where(Beat.chapter_id == chapter.id, Beat.status == BeatStatus.PROPOSED))
         await session.flush()
         beats: list[Beat] = []
         for item in proposed:
@@ -131,11 +147,17 @@ async def _propose_chapter(
     else:
         # No beats came back — keep whatever proposed beats already exist and return them, so a
         # failed re-propose is a harmless no-op instead of a silent wipe. The UI flags the empty result.
-        beats = list((await session.execute(
-            select(Beat)
-            .where(Beat.chapter_id == chapter.id, Beat.status == BeatStatus.PROPOSED)
-            .order_by(Beat.scene_no)
-        )).scalars().all())
+        beats = list(
+            (
+                await session.execute(
+                    select(Beat)
+                    .where(Beat.chapter_id == chapter.id, Beat.status == BeatStatus.PROPOSED)
+                    .order_by(Beat.scene_no)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     return chapter, beats
 
@@ -207,13 +229,15 @@ async def start_batch_run(body: BatchRunStartIn, session: SessionDep) -> BatchRu
             target_words=spec.target_words,
         )
         queued_jobs = 0
-        results.append(BatchChapterResultOut(
-            chapter_id=chapter.id,
-            chapter_no=chapter.chapter_no,
-            pov=chapter.pov,
-            beat_count=len(beats),
-            queued_jobs=queued_jobs,
-        ))
+        results.append(
+            BatchChapterResultOut(
+                chapter_id=chapter.id,
+                chapter_no=chapter.chapter_no,
+                pov=chapter.pov,
+                beat_count=len(beats),
+                queued_jobs=queued_jobs,
+            )
+        )
 
     await session.commit()
     return BatchRunOut(run_id=run.id, results=results)

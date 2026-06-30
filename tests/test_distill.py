@@ -4,6 +4,7 @@ A review-model pass reads the POV's recent EditPair before→after rows and PROP
 rules (stored pending); accepting one appends it to the POV's PovProfile.voice_spec (read fresh by the
 drafter on the next scene); rejecting changes nothing. The LLM call is mocked. Mirrors test_learning.
 """
+
 from __future__ import annotations
 
 import json
@@ -18,6 +19,7 @@ from dominion.workers import llm
 from dominion.workers.budget import Usage
 
 # --- fixtures (mirror test_learning's tiny builders) ----------------------------------------------
+
 
 async def _book(s, title="Dominion Realm"):
     book = Book(title=title)
@@ -49,6 +51,7 @@ async def _pair(s, sc, *, pov="Marcus", agent_text="He saw the door.", human_tex
 
 def _mock_llm(monkeypatch, payload):
     """Stub llm.complete to return a fixed JSON body (the distiller parses it tolerantly)."""
+
     async def _complete(*, model, system, user, max_tokens, budget):
         budget.charge(Usage(10, 10))
         return json.dumps(payload), Usage(10, 10)
@@ -58,11 +61,15 @@ def _mock_llm(monkeypatch, payload):
 
 # --- distill: propose + persist -------------------------------------------------------------------
 
+
 async def test_distill_creates_pending_proposals_from_pairs(db_factory, monkeypatch):
-    _mock_llm(monkeypatch, [
-        {"kind": "voice", "rule": "Trim filter verbs (saw/felt/noticed)", "why": "cut 'He saw'"},
-        {"kind": "dialogue", "rule": "Keep tags to said/asked", "why": "tags simplified"},
-    ])
+    _mock_llm(
+        monkeypatch,
+        [
+            {"kind": "voice", "rule": "Trim filter verbs (saw/felt/noticed)", "why": "cut 'He saw'"},
+            {"kind": "dialogue", "rule": "Keep tags to said/asked", "why": "tags simplified"},
+        ],
+    )
     async with db_factory() as s:
         book = await _book(s)
         ch = await _chapter(s, book)  # pov Marcus
@@ -125,6 +132,7 @@ async def test_distill_skips_noop_pairs(db_factory, monkeypatch):
 
 # --- decision: accept appends to voice_spec; reject is a no-op ------------------------------------
 
+
 async def test_accept_appends_rule_to_voice_spec(db_factory, monkeypatch):
     _mock_llm(monkeypatch, [{"kind": "voice", "rule": "Trim filter verbs", "why": "x"}])
     async with db_factory() as s:
@@ -149,9 +157,7 @@ async def test_accept_appends_rule_to_voice_spec(db_factory, monkeypatch):
         assert prof.voice_spec == "terse, wry\n- Trim filter verbs"
 
         # Re-accepting must not append the rule a second time (idempotent on the transition).
-        await learning.decide_rule_proposal(
-            proposal.id, RuleProposalDecisionIn(status=RuleProposalStatus.ACCEPTED), s
-        )
+        await learning.decide_rule_proposal(proposal.id, RuleProposalDecisionIn(status=RuleProposalStatus.ACCEPTED), s)
         await s.commit()
         prof = (await s.execute(select(PovProfile).where(PovProfile.character == "Marcus"))).scalar_one()
         assert prof.voice_spec.count("- Trim filter verbs") == 1
@@ -191,8 +197,6 @@ async def test_reject_leaves_voice_spec_untouched(db_factory, monkeypatch):
         [proposal] = await learning.distill_rules(book.id, s, pov="Marcus")
         await s.commit()
 
-        await learning.decide_rule_proposal(
-            proposal.id, RuleProposalDecisionIn(status=RuleProposalStatus.REJECTED), s
-        )
+        await learning.decide_rule_proposal(proposal.id, RuleProposalDecisionIn(status=RuleProposalStatus.REJECTED), s)
         await s.commit()
         assert (await s.execute(select(PovProfile))).scalar_one_or_none() is None  # nothing applied

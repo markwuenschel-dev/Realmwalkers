@@ -1,4 +1,5 @@
 """Resolve a Job row to book/chapter/beat entities (direct IDs + legacy fallbacks)."""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -18,19 +19,23 @@ async def resolve_job(session: AsyncSession, job: Job) -> ResolvedJob:
     if book_id is None:
         if job.run_id is None:
             raise ValueError("job is missing book_id and run_id — cannot resolve the book")
-        book_id = (await session.execute(
-            select(Run.book_id).where(Run.id == job.run_id)
-        )).scalar_one()
+        book_id = (await session.execute(select(Run.book_id).where(Run.id == job.run_id))).scalar_one()
 
     chapter: Chapter | None = None
     if job.chapter_id is not None:
         chapter = await session.get(Chapter, job.chapter_id)
     if chapter is None and job.chapter_no is not None:
-        chapter = (await session.execute(
-            select(Chapter)
-            .where(Chapter.book_id == book_id, Chapter.chapter_no == job.chapter_no)
-            .order_by(Chapter.id)
-        )).scalars().first()
+        chapter = (
+            (
+                await session.execute(
+                    select(Chapter)
+                    .where(Chapter.book_id == book_id, Chapter.chapter_no == job.chapter_no)
+                    .order_by(Chapter.id)
+                )
+            )
+            .scalars()
+            .first()
+        )
     if chapter is None:
         raise ValueError("no chapter for this job (missing chapter_id / chapter_no)")
 
@@ -41,26 +46,30 @@ async def resolve_job(session: AsyncSession, job: Job) -> ResolvedJob:
         scene_no = job.scene_no
         if scene_no is None:
             raise ValueError("job is missing beat_id and scene_no — cannot resolve the beat")
-        beats = (await session.execute(
-            select(Beat)
-            .where(Beat.chapter_id == chapter.id, Beat.scene_no == scene_no)
-            .order_by(Beat.id)
-        )).scalars().all()
+        beats = (
+            (
+                await session.execute(
+                    select(Beat).where(Beat.chapter_id == chapter.id, Beat.scene_no == scene_no).order_by(Beat.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
         beat = next((b for b in beats if b.status == BeatStatus.APPROVED), beats[0] if beats else None)
     if beat is None:
-        raise ValueError(
-            f"no beat for ch{chapter.chapter_no} sc{job.scene_no} — derive/approve a scene packet first"
-        )
+        raise ValueError(f"no beat for ch{chapter.chapter_no} sc{job.scene_no} — derive/approve a scene packet first")
 
     # The scene's effective POV (the beat's per-scene override, else the chapter POV) selects the voice
     # profile, so an overridden scene draws the OVERRIDE character's voice_spec/exemplars — not a label.
     pov = effective_pov(beat, chapter)
-    profile = (await session.execute(
-        select(PovProfile)
-        .where(PovProfile.book_id == book_id, PovProfile.character == pov)
-        .order_by(PovProfile.id)
-        .limit(1)
-    )).scalar_one_or_none()
+    profile = (
+        await session.execute(
+            select(PovProfile)
+            .where(PovProfile.book_id == book_id, PovProfile.character == pov)
+            .order_by(PovProfile.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     scene_no = beat.scene_no if beat.scene_no is not None else job.scene_no
     assert scene_no is not None

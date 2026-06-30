@@ -1,11 +1,12 @@
 """draft_chapter: contract-first draft queueing after ScenePacket approval."""
+
 from __future__ import annotations
 
 import pytest
+from conftest import seed_scene_packet
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from conftest import seed_scene_packet
 from dominion.api.routers import chapters
 from dominion.shared.enums import BeatStatus, JobStatus, SceneStatus
 from dominion.shared.models import Beat, Book, Chapter, Job, Scene
@@ -36,9 +37,7 @@ async def test_draft_chapter_queues_only_undrafted_approved_beats(db_factory):
 
         out = await chapters.draft_chapter(ch.id, s)
         assert out.queued == 1
-        jobs = (await s.execute(
-            select(Job).where(Job.chapter_no == 1, Job.status == JobStatus.QUEUED)
-        )).scalars().all()
+        jobs = (await s.execute(select(Job).where(Job.chapter_no == 1, Job.status == JobStatus.QUEUED))).scalars().all()
         assert [j.scene_no for j in jobs] == [1]
         assert all(j.scene_packet_id is not None for j in jobs)
 

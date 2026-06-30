@@ -1,7 +1,9 @@
 """Repair draft queue audit tests."""
+
 from __future__ import annotations
 
 from conftest import seed_scene_packet
+
 from dominion.shared.enums import BeatStatus
 from dominion.shared.models import Beat, Book, Chapter
 from dominion.tools.draft_audit import audit_chapter

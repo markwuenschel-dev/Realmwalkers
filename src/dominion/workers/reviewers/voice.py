@@ -4,6 +4,7 @@ Read-only. It compares the drafted scene against the POV's `voice_spec` (and exe
 reports drift as INFO/WARN flags — it never edits prose, never blocks, and never emits HARD. With no
 voice spec to measure against, it stays silent and spends no tokens.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -28,11 +29,10 @@ _SYSTEM = (
 def _prompt(prose: str, voice_spec: str, exemplars: list[str]) -> str:
     parts = [f"TARGET VOICE SPEC:\n{voice_spec}"]
     if exemplars:
-        parts.append("VOICE EXEMPLARS (match this register; do not quote them back):\n"
-                     + "\n\n---\n\n".join(exemplars))
+        parts.append("VOICE EXEMPLARS (match this register; do not quote them back):\n" + "\n\n---\n\n".join(exemplars))
     parts.append("SCENE:\n" + prose)
     parts.append(
-        '\nReturn ONLY a JSON array (no prose, no code fences). Each item: '
+        "\nReturn ONLY a JSON array (no prose, no code fences). Each item: "
         '{"severity": "info"|"warn", "note": str, "quote": str (the drifting phrase, optional)}. '
         "Empty array [] if the prose holds the voice."
     )
@@ -58,12 +58,14 @@ class VoiceReviewer:
             if not note:
                 continue
             quote = str(item.get("quote", "")).strip()
-            flags.append(Flag(
-                reviewer=self.name,
-                severity=advisory_severity(item.get("severity")),
-                note=note,
-                payload={"quote": quote} if quote else None,
-            ))
+            flags.append(
+                Flag(
+                    reviewer=self.name,
+                    severity=advisory_severity(item.get("severity")),
+                    note=note,
+                    payload={"quote": quote} if quote else None,
+                )
+            )
         return flags
 
 

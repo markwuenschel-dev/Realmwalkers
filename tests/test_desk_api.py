@@ -4,6 +4,7 @@ The draft-trigger drain logic is exercised without a database (run_once is mocke
 threads endpoints call the router functions directly against real Postgres (like tests/test_gate1.py)
 and skip automatically when Postgres isn't reachable (see tests/conftest.py).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -40,6 +41,7 @@ from dominion.workers.memory import canon_rag
 from dominion.workers.oracle import Oracle
 
 # --- draft trigger (no DB) ------------------------------------------------------------------------
+
 
 async def test_drain_runs_until_queue_empty(monkeypatch):
     """_drain keeps drafting until run_once reports the queue is empty (returns False)."""
@@ -88,6 +90,7 @@ async def test_drain_is_single_flight(monkeypatch):
 
 # --- draft trigger + status (DB) ------------------------------------------------------------------
 
+
 async def _seed_queued_jobs(s, n: int) -> None:
     book = Book(title="X")
     s.add(book)
@@ -96,10 +99,16 @@ async def _seed_queued_jobs(s, n: int) -> None:
     s.add(run)
     await s.flush()
     for scene_no in range(1, n + 1):
-        s.add(Job(
-            run_id=run.id, kind="draft", chapter_no=1, scene_no=scene_no,
-            token_budget=1000, status=JobStatus.QUEUED,
-        ))
+        s.add(
+            Job(
+                run_id=run.id,
+                kind="draft",
+                chapter_no=1,
+                scene_no=scene_no,
+                token_budget=1000,
+                status=JobStatus.QUEUED,
+            )
+        )
     await s.flush()
 
 
@@ -131,6 +140,7 @@ async def test_draft_next_noop_when_queue_empty(db_factory):
 
 
 # --- world ledger (DB) ----------------------------------------------------------------------------
+
 
 async def test_characters_merge_stats_canon_and_pov_flag(db_factory):
     async with db_factory() as s:
@@ -165,6 +175,7 @@ async def test_canon_lists_and_filters_by_kind(db_factory):
 
 
 # --- world authoring: canon CRUD + character upsert + docs ingest (DB) ----------------------------
+
 
 async def test_canon_entity_crud_embeds_and_is_retrievable(db_factory):
     async with db_factory() as s:
@@ -219,6 +230,7 @@ async def test_ingest_canon_indexes_on_disk_docs(db_factory):
 
 # --- threads (DB) ---------------------------------------------------------------------------------
 
+
 async def test_thread_crud_roundtrip(db_factory):
     async with db_factory() as s:
         book = Book(title="X")
@@ -230,9 +242,7 @@ async def test_thread_crud_roundtrip(db_factory):
         )
         assert created.name == "Soren ⇄ Lyra" and created.beats == []
 
-        with_beat = await threads_router.add_thread_beat(
-            created.id, ThreadBeatIn(scene_no=5, label="threadbound"), s
-        )
+        with_beat = await threads_router.add_thread_beat(created.id, ThreadBeatIn(scene_no=5, label="threadbound"), s)
         assert [b.scene_no for b in with_beat.beats] == [5]
 
         updated = await threads_router.update_thread(created.id, ThreadUpdateIn(state="active"), s)
@@ -247,6 +257,7 @@ async def test_thread_crud_roundtrip(db_factory):
 
 # --- markup: annotations + suggestions (DB) -------------------------------------------------------
 
+
 async def _scene(s) -> Scene:
     book = Book(title="X")
     s.add(book)
@@ -254,8 +265,14 @@ async def _scene(s) -> Scene:
     ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
     s.add(ch)
     await s.flush()
-    scene = Scene(chapter_id=ch.id, scene_no=1, version=2, status="pending_review",
-                  prose="He pressed his palm to the door.", prose_source="agent")
+    scene = Scene(
+        chapter_id=ch.id,
+        scene_no=1,
+        version=2,
+        status="pending_review",
+        prose="He pressed his palm to the door.",
+        prose_source="agent",
+    )
     s.add(scene)
     await s.flush()
     return scene
@@ -298,6 +315,7 @@ async def test_suggestion_lifecycle(db_factory):
 
 # --- versions: revert (DB) ------------------------------------------------------------------------
 
+
 async def test_revert_clones_version_and_supersedes_current(db_factory):
     async with db_factory() as s:
         book = Book(title="X")
@@ -315,9 +333,7 @@ async def test_revert_clones_version_and_supersedes_current(db_factory):
         assert out.version == 3 and out.prose == "first" and out.status == "approved"
 
         lineage = await scenes_router.scene_versions(out.id, s)
-        assert [(v.version, str(v.status)) for v in lineage] == [
-            (1, "superseded"), (2, "superseded"), (3, "approved")
-        ]
+        assert [(v.version, str(v.status)) for v in lineage] == [(1, "superseded"), (2, "superseded"), (3, "approved")]
 
         # reverting to the version that is already current is a 409
         with pytest.raises(HTTPException):

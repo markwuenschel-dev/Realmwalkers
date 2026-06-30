@@ -1,4 +1,5 @@
 """Unit tests for dominion.workers.background_work."""
+
 from __future__ import annotations
 
 import asyncio

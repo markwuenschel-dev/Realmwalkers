@@ -1,4 +1,5 @@
 """Reviewer protocol. Reviewers ADVISE; they never mutate prose or block the inbox (DESIGN §2, §9)."""
+
 from __future__ import annotations
 
 import json
@@ -40,6 +41,7 @@ def advisory_severity(value: object) -> Severity:
 @dataclass
 class Flag:
     """An advisory finding. Persisted as a Critique row; HARD numeric ones feed the continuity panel."""
+
     reviewer: str
     severity: Severity
     note: str
@@ -50,5 +52,4 @@ class Flag:
 class Reviewer(Protocol):
     name: str
 
-    async def review(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
-        ...
+    async def review(self, scene_prose: str, ctx: SceneContext) -> list[Flag]: ...

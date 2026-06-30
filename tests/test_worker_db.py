@@ -1,4 +1,5 @@
 """End-to-end worker tests against a real Postgres. The Drafter's LLM call is mocked."""
+
 from __future__ import annotations
 
 import pytest
@@ -27,21 +28,30 @@ async def _seed_job(factory) -> object:
         s.add(chapter)
         await s.flush()
         beat = Beat(
-            chapter_id=chapter.id, scene_no=1, tags=[], status=BeatStatus.APPROVED,
+            chapter_id=chapter.id,
+            scene_no=1,
+            tags=[],
+            status=BeatStatus.APPROVED,
             beat_text="Marcus wakes in the Realm.",
         )
         s.add(beat)
         await s.flush()
         await seed_scene_packet(s, chapter=chapter, beat=beat)
         run = Run(
-            book_id=book.id, scope_json={"chapter": 1, "scene": 1},
-            gate_mode=GateMode.PAUSE_EACH, token_budget=40_000,
+            book_id=book.id,
+            scope_json={"chapter": 1, "scene": 1},
+            gate_mode=GateMode.PAUSE_EACH,
+            token_budget=40_000,
         )
         s.add(run)
         await s.flush()
         job = Job(
-            run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1,
-            token_budget=40_000, status=JobStatus.QUEUED,
+            run_id=run.id,
+            kind=JobKind.DRAFT,
+            chapter_no=1,
+            scene_no=1,
+            token_budget=40_000,
+            status=JobStatus.QUEUED,
         )
         s.add(job)
         await s.commit()
@@ -51,6 +61,7 @@ async def _seed_job(factory) -> object:
 async def test_failure_path_marks_job_failed_without_secondary_error(db_factory, monkeypatch):
     """Regression for the rollback/expired-attribute bug: the worker must re-raise the ORIGINAL
     error and mark the job failed — not blow up with MissingGreenlet in the except block."""
+
     async def boom(self, prose, ctx):
         raise RuntimeError("drafter blew up")
 
@@ -67,6 +78,7 @@ async def test_failure_path_marks_job_failed_without_secondary_error(db_factory,
 
 async def test_happy_path_creates_pending_review_scene(db_factory, monkeypatch):
     """A drafted scene lands as pending_review; the job is done; continuity no-ops on empty ledger."""
+
     async def fake_draft(self, prose, ctx):
         return "Marcus woke to a humming sky, the interface blooming behind his eyes."
 

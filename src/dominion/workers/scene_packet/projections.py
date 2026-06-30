@@ -3,6 +3,7 @@
 Projection field names mirror the author schema in author_sections.py. Context assembly calls
 project() after loading the packet from Postgres; consumers read the results via SceneContext.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,8 +13,12 @@ from dominion.workers.packet.parse import str_list
 
 # Chapter-level locks that still bind every scene; lifted into the flat drafter contract.
 _CHAPTER_LOCK_KEYS: tuple[str, ...] = (
-    "canon_locks", "roster_locks", "relationship_locks", "timeline_locks",
-    "allowed_ui_concepts", "forbidden_ui_concepts",
+    "canon_locks",
+    "roster_locks",
+    "relationship_locks",
+    "timeline_locks",
+    "allowed_ui_concepts",
+    "forbidden_ui_concepts",
 )
 
 

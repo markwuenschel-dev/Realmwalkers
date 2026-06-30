@@ -5,6 +5,7 @@ Suggestions propose replacing a quote with new text; they sit pending until you 
 Desk folds accepted ones into the prose when you approve the scene (so they reach canon through the
 same human gate as any edit). Quote-by-substring anchoring matches the Desk's tokenize().
 """
+
 from __future__ import annotations
 
 import uuid
@@ -34,11 +35,18 @@ async def _scene_or_404(session: SessionDep, scene_id: uuid.UUID) -> Scene:
 
 # --- annotations ----------------------------------------------------------------------------------
 
+
 @router.get("/scenes/{scene_id}/annotations", response_model=list[AnnotationOut])
 async def list_annotations(scene_id: uuid.UUID, session: SessionDep) -> list[Annotation]:
-    rows = (await session.execute(
-        select(Annotation).where(Annotation.scene_id == scene_id).order_by(Annotation.created_at)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(Annotation).where(Annotation.scene_id == scene_id).order_by(Annotation.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
@@ -46,8 +54,11 @@ async def list_annotations(scene_id: uuid.UUID, session: SessionDep) -> list[Ann
 async def create_annotation(scene_id: uuid.UUID, body: AnnotationIn, session: SessionDep) -> Annotation:
     scene = await _scene_or_404(session, scene_id)
     ann = Annotation(
-        scene_id=scene.id, version=scene.version,
-        quote=body.quote, author=body.author, note=body.note,
+        scene_id=scene.id,
+        version=scene.version,
+        quote=body.quote,
+        author=body.author,
+        note=body.note,
     )
     session.add(ann)
     await session.commit()
@@ -66,11 +77,18 @@ async def delete_annotation(annotation_id: uuid.UUID, session: SessionDep) -> di
 
 # --- suggestions ----------------------------------------------------------------------------------
 
+
 @router.get("/scenes/{scene_id}/suggestions", response_model=list[SuggestionOut])
 async def list_suggestions(scene_id: uuid.UUID, session: SessionDep) -> list[Suggestion]:
-    rows = (await session.execute(
-        select(Suggestion).where(Suggestion.scene_id == scene_id).order_by(Suggestion.created_at)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(Suggestion).where(Suggestion.scene_id == scene_id).order_by(Suggestion.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
@@ -78,8 +96,12 @@ async def list_suggestions(scene_id: uuid.UUID, session: SessionDep) -> list[Sug
 async def create_suggestion(scene_id: uuid.UUID, body: SuggestionIn, session: SessionDep) -> Suggestion:
     scene = await _scene_or_404(session, scene_id)
     sug = Suggestion(
-        scene_id=scene.id, version=scene.version,
-        quote=body.quote, new_text=body.new_text, author=body.author, why=body.why,
+        scene_id=scene.id,
+        version=scene.version,
+        quote=body.quote,
+        new_text=body.new_text,
+        author=body.author,
+        why=body.why,
     )
     session.add(sug)
     await session.commit()
@@ -87,9 +109,7 @@ async def create_suggestion(scene_id: uuid.UUID, body: SuggestionIn, session: Se
 
 
 @router.post("/suggestions/{suggestion_id}/decision", response_model=SuggestionOut)
-async def decide_suggestion(
-    suggestion_id: uuid.UUID, body: SuggestionDecisionIn, session: SessionDep
-) -> Suggestion:
+async def decide_suggestion(suggestion_id: uuid.UUID, body: SuggestionDecisionIn, session: SessionDep) -> Suggestion:
     sug = await session.get(Suggestion, suggestion_id)
     if sug is None:
         raise HTTPException(status_code=404, detail="suggestion not found")

@@ -3,6 +3,7 @@
 Distinct from the continuity reviewer (which only REPORTS whether prose matches this truth). The Oracle
 never decides who's right when prose and ledger disagree — the human resolves that (DESIGN §9).
 """
+
 from __future__ import annotations
 
 import uuid

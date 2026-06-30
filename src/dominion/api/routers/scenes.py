@@ -1,4 +1,5 @@
 """Read endpoints for the review inbox (DESIGN §9), plus the voice-exemplar toggle. All real."""
+
 from __future__ import annotations
 
 import uuid
@@ -42,11 +43,11 @@ async def _pov_profile_for_scene(
     chapter = await session.get(Chapter, scene.chapter_id)
     if chapter is None:
         return None
-    profile = (await session.execute(
-        select(PovProfile).where(
-            PovProfile.book_id == chapter.book_id, PovProfile.character == chapter.pov
+    profile = (
+        await session.execute(
+            select(PovProfile).where(PovProfile.book_id == chapter.book_id, PovProfile.character == chapter.pov)
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if profile is None and create_if_missing:
         profile = PovProfile(book_id=chapter.book_id, character=chapter.pov)
         session.add(profile)
@@ -57,25 +58,23 @@ async def _pov_profile_for_scene(
 @router.get("/pending", response_model=list[SceneOut])
 async def pending(session: SessionDep) -> list[Scene]:
     rows = (
-        await session.execute(
-            select(Scene)
-            .where(Scene.status == SceneStatus.PENDING_REVIEW)
-            .order_by(Scene.created_at)
+        (
+            await session.execute(
+                select(Scene).where(Scene.status == SceneStatus.PENDING_REVIEW).order_by(Scene.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
 @router.get("/{scene_id}", response_model=SceneDetail)
 async def scene_detail(scene_id: uuid.UUID, session: SessionDep) -> SceneDetail:
-    scene = (
-        await session.execute(select(Scene).where(Scene.id == scene_id))
-    ).scalar_one_or_none()
+    scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
-    crits = (
-        await session.execute(select(Critique).where(Critique.scene_id == scene_id))
-    ).scalars().all()
+    crits = (await session.execute(select(Critique).where(Critique.scene_id == scene_id))).scalars().all()
     detail = SceneDetail.model_validate(scene)
     detail.critiques = [CritiqueOut.model_validate(c) for c in crits]
     profile = await _pov_profile_for_scene(session, scene)
@@ -84,17 +83,13 @@ async def scene_detail(scene_id: uuid.UUID, session: SessionDep) -> SceneDetail:
 
 
 @router.post("/{scene_id}/exemplar")
-async def set_exemplar(
-    scene_id: uuid.UUID, body: ExemplarIn, session: SessionDep
-) -> dict[str, str | bool]:
+async def set_exemplar(scene_id: uuid.UUID, body: ExemplarIn, session: SessionDep) -> dict[str, str | bool]:
     """Mark/unmark this scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2).
 
     Adds/removes the scene id on the POV's `PovProfile.exemplar_scene_ids` — the list the drafter
     few-shots on. Idempotent; disabling on a scene with no profile is a no-op.
     """
-    scene = (
-        await session.execute(select(Scene).where(Scene.id == scene_id))
-    ).scalar_one_or_none()
+    scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
 
@@ -117,29 +112,35 @@ async def set_exemplar(
 async def scene_draft_attempts(scene_id: uuid.UUID, session: SessionDep) -> list[DraftAttempt]:
     """Provenance: every preserved stage of this scene's prose pipeline (raw draft, each enrichment
     pass, length compress/expand, final rendered), oldest first."""
-    rows = (await session.execute(
-        select(DraftAttempt)
-        .where(DraftAttempt.scene_id == scene_id)
-        .order_by(DraftAttempt.created_at)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(DraftAttempt).where(DraftAttempt.scene_id == scene_id).order_by(DraftAttempt.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
 @router.get("/{scene_id}/versions", response_model=list[SceneVersionOut])
 async def scene_versions(scene_id: uuid.UUID, session: SessionDep) -> list[Scene]:
     """Full lineage of a scene: every version sharing its (chapter, scene_no), oldest first."""
-    scene = (
-        await session.execute(select(Scene).where(Scene.id == scene_id))
-    ).scalar_one_or_none()
+    scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
     rows = (
-        await session.execute(
-            select(Scene)
-            .where(Scene.chapter_id == scene.chapter_id, Scene.scene_no == scene.scene_no)
-            .order_by(Scene.version)
+        (
+            await session.execute(
+                select(Scene)
+                .where(Scene.chapter_id == scene.chapter_id, Scene.scene_no == scene.scene_no)
+                .order_by(Scene.version)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
@@ -155,11 +156,17 @@ async def revert_scene(scene_id: uuid.UUID, session: SessionDep) -> Scene:
     target = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
     if target is None:
         raise HTTPException(status_code=404, detail="scene not found")
-    versions = (await session.execute(
-        select(Scene)
-        .where(Scene.chapter_id == target.chapter_id, Scene.scene_no == target.scene_no)
-        .order_by(Scene.version)
-    )).scalars().all()
+    versions = (
+        (
+            await session.execute(
+                select(Scene)
+                .where(Scene.chapter_id == target.chapter_id, Scene.scene_no == target.scene_no)
+                .order_by(Scene.version)
+            )
+        )
+        .scalars()
+        .all()
+    )
     current = versions[-1]
     if current.id == target.id:
         raise HTTPException(status_code=409, detail="that version is already the current one")
@@ -180,10 +187,14 @@ async def revert_scene(scene_id: uuid.UUID, session: SessionDep) -> Scene:
     current.status = SceneStatus.SUPERSEDED
     session.add(reverted)
     await session.flush()
-    session.add(Approval(
-        scene_id=reverted.id, version=reverted.version, decision=Decision.APPROVE,
-        feedback=f"reverted to v{target.version}",
-    ))
+    session.add(
+        Approval(
+            scene_id=reverted.id,
+            version=reverted.version,
+            decision=Decision.APPROVE,
+            feedback=f"reverted to v{target.version}",
+        )
+    )
     await session.commit()
     return reverted
 
@@ -206,22 +217,13 @@ async def delete_scene(scene_id: uuid.UUID, session: SessionDep) -> dict[str, st
         await session.execute(delete(model).where(model.scene_id == scene_id))
     # Soft references: keep the rows, just detach them from the scene being removed.
     await session.execute(
-        update(CharacterState).where(CharacterState.as_of_scene_id == scene_id)
-        .values(as_of_scene_id=None)
+        update(CharacterState).where(CharacterState.as_of_scene_id == scene_id).values(as_of_scene_id=None)
     )
-    await session.execute(
-        update(Summary).where(Summary.up_to_scene_id == scene_id).values(up_to_scene_id=None)
-    )
-    await session.execute(
-        update(Job).where(Job.target_scene_id == scene_id).values(target_scene_id=None)
-    )
-    await session.execute(
-        update(Scene).where(Scene.parent_scene_id == scene_id).values(parent_scene_id=None)
-    )
+    await session.execute(update(Summary).where(Summary.up_to_scene_id == scene_id).values(up_to_scene_id=None))
+    await session.execute(update(Job).where(Job.target_scene_id == scene_id).values(target_scene_id=None))
+    await session.execute(update(Scene).where(Scene.parent_scene_id == scene_id).values(parent_scene_id=None))
     # DraftAttempt is append-only provenance ("never destroyed") — detach, don't delete.
-    await session.execute(
-        update(DraftAttempt).where(DraftAttempt.scene_id == scene_id).values(scene_id=None)
-    )
+    await session.execute(update(DraftAttempt).where(DraftAttempt.scene_id == scene_id).values(scene_id=None))
     # KnowledgeFact is a book-level ledger; it can reference the deleted scene from three columns.
     for col in (
         KnowledgeFact.source_scene_id,

@@ -12,6 +12,7 @@ rewrite stages to record (raw/final stages are the pipeline's job), a quarantine
 optional advisory critique. Compression/expansion are injectable so the guard is testable without an
 LLM (pipeline passes the real compress/expand from this package).
 """
+
 from __future__ import annotations
 
 import re
@@ -80,50 +81,48 @@ async def apply_length_guard(
 
     # --- over hard_max: always compress -----------------------------------------------------------
     if hard_max and wc > hard_max:
-        new = await compress(
-            prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget
-        )
+        new = await compress(prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget)
         new_wc = count_words(new)
-        stage = StageRecord(
-            DraftStage.LENGTH_COMPRESSION, new, new_wc, settings.length_compress_model
-        )
+        stage = StageRecord(DraftStage.LENGTH_COMPRESSION, new, new_wc, settings.length_compress_model)
         if new_wc > hard_max and settings.length_hard_fail_over_hard_max:
             return GuardResult(
-                prose=new, word_count=new_wc,
+                prose=new,
+                word_count=new_wc,
                 length_status=LengthStatus.OVER_HARD_MAX_QUARANTINED,
-                quarantine=True, stages=[stage],
-                critique=(Severity.HARD,
-                          f"still over hard_max after compression ({new_wc} > {hard_max}); "
-                          "quarantined as draft"),
+                quarantine=True,
+                stages=[stage],
+                critique=(
+                    Severity.HARD,
+                    f"still over hard_max after compression ({new_wc} > {hard_max}); quarantined as draft",
+                ),
             )
-        status = (
-            LengthStatus.WITHIN_BUDGET if maximum and new_wc <= maximum
-            else LengthStatus.OVER_HARD_MAX_COMPRESSED
-        )
+        status = LengthStatus.WITHIN_BUDGET if maximum and new_wc <= maximum else LengthStatus.OVER_HARD_MAX_COMPRESSED
         return GuardResult(
-            prose=new, word_count=new_wc, length_status=status, stages=[stage],
+            prose=new,
+            word_count=new_wc,
+            length_status=status,
+            stages=[stage],
             critique=(Severity.INFO, f"compressed from {wc} to {new_wc} words (hard_max {hard_max})"),
         )
 
     # --- over max, under hard_max -----------------------------------------------------------------
     if maximum and wc > maximum:
         if settings.length_auto_compress_over_max:
-            new = await compress(
-                prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget
-            )
+            new = await compress(prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget)
             new_wc = count_words(new)
-            stage = StageRecord(
-                DraftStage.LENGTH_COMPRESSION, new, new_wc, settings.length_compress_model
-            )
-            status = (
-                LengthStatus.WITHIN_BUDGET if new_wc <= maximum else LengthStatus.OVER_MAX
-            )
+            stage = StageRecord(DraftStage.LENGTH_COMPRESSION, new, new_wc, settings.length_compress_model)
+            status = LengthStatus.WITHIN_BUDGET if new_wc <= maximum else LengthStatus.OVER_MAX
             return GuardResult(
-                prose=new, word_count=new_wc, length_status=status, stages=[stage],
+                prose=new,
+                word_count=new_wc,
+                length_status=status,
+                stages=[stage],
                 critique=(Severity.INFO, f"compressed from {wc} to {new_wc} words (max {maximum})"),
             )
         return GuardResult(
-            prose=prose, word_count=wc, length_status=LengthStatus.OVER_MAX,
+            prose=prose,
+            word_count=wc,
+            length_status=LengthStatus.OVER_MAX,
             critique=(Severity.WARN, f"over budget: {wc} words (max {maximum})"),
         )
 
@@ -131,22 +130,21 @@ async def apply_length_guard(
     if minimum and wc < minimum:
         skeletal = wc < int(minimum * _SKELETAL_RATIO)
         if settings.length_auto_expand_under_min or skeletal:
-            new = await expand(
-                prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget
-            )
+            new = await expand(prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget)
             new_wc = count_words(new)
-            stage = StageRecord(
-                DraftStage.LENGTH_EXPANSION, new, new_wc, settings.length_expand_model
-            )
-            status = (
-                LengthStatus.WITHIN_BUDGET if new_wc >= minimum else LengthStatus.UNDER_MIN
-            )
+            stage = StageRecord(DraftStage.LENGTH_EXPANSION, new, new_wc, settings.length_expand_model)
+            status = LengthStatus.WITHIN_BUDGET if new_wc >= minimum else LengthStatus.UNDER_MIN
             return GuardResult(
-                prose=new, word_count=new_wc, length_status=status, stages=[stage],
+                prose=new,
+                word_count=new_wc,
+                length_status=status,
+                stages=[stage],
                 critique=(Severity.INFO, f"expanded from {wc} to {new_wc} words (min {minimum})"),
             )
         return GuardResult(
-            prose=prose, word_count=wc, length_status=LengthStatus.UNDER_MIN,
+            prose=prose,
+            word_count=wc,
+            length_status=LengthStatus.UNDER_MIN,
             critique=(Severity.INFO, f"under budget: {wc} words (min {minimum})"),
         )
 

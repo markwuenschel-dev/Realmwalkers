@@ -1,4 +1,5 @@
 """The deterministic coordinator is plain, testable code — no LLM, no I/O (DESIGN §5)."""
+
 from __future__ import annotations
 
 from dominion.workers.router import passes_for, reviewers_for
@@ -27,7 +28,7 @@ def test_tag_review_lanes_merge_onto_always_reviewers() -> None:
     for tag, lane in [("combat", "combat"), ("physical_description", "sensory"), ("dialogue", "dialogue")]:
         names = [r.name for r in reviewers_for([tag])]
         assert lane in names
-        assert "continuity" in names                     # always-on reviewers still run
+        assert "continuity" in names  # always-on reviewers still run
 
 
 def test_untagged_scene_runs_only_always_reviewers() -> None:
