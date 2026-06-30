@@ -206,9 +206,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
             with telemetry.call_context(_tctx(reviewer_telemetry_stage(_reviewer_label(reviewer)))):
                 return await reviewer.review(prose, ctx)
 
-        results = await asyncio.gather(
-            *(_review_one(reviewer) for reviewer in reviewers), return_exceptions=True
-        )
+        results = await asyncio.gather(*(_review_one(reviewer) for reviewer in reviewers), return_exceptions=True)
         for reviewer, result in zip(reviewers, results, strict=True):
             if isinstance(result, BudgetExceeded):
                 budget_exceeded = True
