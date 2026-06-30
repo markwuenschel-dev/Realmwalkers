@@ -518,6 +518,48 @@
         }
       }
     },
+    "/runs/batch": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Start Batch Run",
+        "description": "Propose beats for SEVERAL chapters in one request, sharing a single Run. With `auto_draft`, each\nchapter's freshly-proposed beats are approved and draft jobs are queued immediately (skips gate-1\nreview). A planner timeout on any one chapter surfaces as 504 and nothing is committed.",
+        "operationId": "start_batch_run_runs_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRunStartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/books": {
       "get": {
         "tags": [
@@ -1910,7 +1952,7 @@
           "telemetry"
         ],
         "summary": "Book Telemetry",
-        "description": "Global telemetry for a book: overall totals + rollups across chapters, stages, and models for\ncross-chapter/scene comparison.",
+        "description": "Global telemetry for a book: overall totals + rollups across chapters, stages, and models for\ncross-chapter/scene comparison. `by_run` is paginated (newest first) via `limit`/`offset` so the\nrun history doesn't grow an unbounded table in the UI; `run_total` reports the full count so the\nDesk knows whether older runs remain to load. All other rollups stay full-book.",
         "operationId": "book_telemetry_books__book_id__telemetry_get",
         "parameters": [
           {
@@ -1921,6 +1963,29 @@
               "type": "string",
               "format": "uuid",
               "title": "Book Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
             }
           }
         ],
@@ -3745,6 +3810,153 @@
         "title": "ApproveBeatsIn",
         "description": "Optional POST body for approve: restrict to a subset of beats (those to draft now)."
       },
+      "BatchChapterResultOut": {
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "type": "integer",
+            "title": "Chapter No"
+          },
+          "pov": {
+            "type": "string",
+            "title": "Pov"
+          },
+          "beat_count": {
+            "type": "integer",
+            "title": "Beat Count",
+            "default": 0
+          },
+          "queued_jobs": {
+            "type": "integer",
+            "title": "Queued Jobs",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_id",
+          "chapter_no",
+          "pov"
+        ],
+        "title": "BatchChapterResultOut",
+        "description": "Per-chapter outcome of a batch run, for inline display in the Planner."
+      },
+      "BatchChapterSpec": {
+        "properties": {
+          "chapter_no": {
+            "type": "integer",
+            "title": "Chapter No"
+          },
+          "pov": {
+            "type": "string",
+            "title": "Pov"
+          },
+          "outline": {
+            "type": "string",
+            "title": "Outline"
+          },
+          "max_beats": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Beats"
+          },
+          "target_words": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_no",
+          "pov",
+          "outline"
+        ],
+        "title": "BatchChapterSpec",
+        "description": "One chapter to propose in a batch run (mirrors RunStartIn's per-chapter fields)."
+      },
+      "BatchRunOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/BatchChapterResultOut"
+            },
+            "type": "array",
+            "title": "Results",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "BatchRunOut",
+        "description": "Result of a batch run: one row per requested chapter."
+      },
+      "BatchRunStartIn": {
+        "properties": {
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/BatchChapterSpec"
+            },
+            "type": "array",
+            "title": "Chapters"
+          },
+          "gate_mode": {
+            "$ref": "#/components/schemas/GateMode",
+            "default": "pause_each"
+          },
+          "token_budget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Budget"
+          },
+          "auto_draft": {
+            "type": "boolean",
+            "title": "Auto Draft",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "book_id",
+          "chapters"
+        ],
+        "title": "BatchRunStartIn",
+        "description": "POST body to propose beats for SEVERAL chapters in one request. When `auto_draft` is set, each\nchapter's proposed beats are approved and draft jobs are queued immediately (skips gate-1 review)."
+      },
       "BeatCreateIn": {
         "properties": {
           "scene_no": {
@@ -3826,6 +4038,17 @@
               }
             ],
             "title": "Target Words"
+          },
+          "pov": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pov"
           }
         },
         "type": "object",
@@ -3951,6 +4174,17 @@
             ],
             "title": "Target Words"
           },
+          "pov": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pov"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -4042,6 +4276,17 @@
               }
             ],
             "title": "Target Words"
+          },
+          "pov": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pov"
           }
         },
         "type": "object",
@@ -4140,6 +4385,11 @@
             "type": "array",
             "title": "By Run",
             "default": []
+          },
+          "run_total": {
+            "type": "integer",
+            "title": "Run Total",
+            "default": 0
           },
           "by_stage": {
             "items": {

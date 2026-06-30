@@ -22,8 +22,9 @@ export type ChapterOut = Omit<S["ChapterOut"], "title" | "outline"> & {
   outline: string | null;
 };
 export type ChapterUpdateIn = S["ChapterUpdateIn"];
-export type BeatOut = S["BeatOut"];
-export type BeatUpdateIn = S["BeatUpdateIn"];
+// `pov` is a per-scene POV override the wire schema doesn't yet model (blank = inherit chapter POV).
+export type BeatOut = S["BeatOut"] & { pov?: string | null };
+export type BeatUpdateIn = S["BeatUpdateIn"] & { pov?: string | null };
 export type BeatCreateIn = S["BeatCreateIn"];
 export type RunStartIn = S["RunStartIn"];
 export type RunStartOut = S["RunStartOut"];
@@ -65,7 +66,9 @@ export type ChapterTelemetryOut = S["ChapterTelemetryOut"];
 export type TelemetryGroupOut = S["TelemetryGroupOut"];
 export type ChapterRollupOut = S["ChapterRollupOut"];
 export type RunRollupOut = S["RunRollupOut"];
-export type BookTelemetryOut = S["BookTelemetryOut"];
+// `run_total` is the count of all run rows before the limit/offset page slice (the wire schema
+// returns it now, but the generated DTO predates it).
+export type BookTelemetryOut = S["BookTelemetryOut"] & { run_total: number };
 export type DraftAttemptOut = S["DraftAttemptOut"];
 export type KnowledgeFactOut = S["KnowledgeFactOut"];
 export type HumanSceneIn = S["HumanSceneIn"];
@@ -75,6 +78,38 @@ export type GateMode = S["GateMode"];
 export type DecisionKind = S["Decision"];
 export type SuggestionStatus = S["SuggestionStatus"];
 export type RuleProposalStatus = S["RuleProposalStatus"];
+
+// --- batch runs (POST /runs/batch — new endpoint, not yet in OpenAPI) ----------------------------
+// Stage several chapters and plan them all in one call; `auto_draft` runs gate 1 → draft unattended.
+
+export interface BatchChapterSpec {
+  chapter_no: number;
+  pov: string;
+  outline: string;
+  max_beats?: number | null;
+  target_words?: number | null;
+}
+
+export interface BatchRunStart {
+  book_id: string;
+  chapters: BatchChapterSpec[];
+  gate_mode?: GateMode | string;
+  token_budget?: number | null;
+  auto_draft: boolean;
+}
+
+export interface BatchChapterResult {
+  chapter_id: string;
+  chapter_no: number;
+  pov: string;
+  beat_count: number;
+  queued_jobs: number;
+}
+
+export interface BatchRunOut {
+  run_id: string;
+  results: BatchChapterResult[];
+}
 
 // --- frontend refinements (not in OpenAPI or looser on the wire) ---------------------------------
 

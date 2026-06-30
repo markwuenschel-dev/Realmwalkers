@@ -26,7 +26,8 @@ _SYSTEM = (
     "You are a novelist's planning assistant. From a chapter outline you propose a sequence of "
     "per-scene beats for the author to edit and approve. A beat is a short plan, NOT prose: what "
     "happens, who is present, and any declared state changes. Stay within the outline; invent no "
-    "named people, places, or lore the outline and canon do not support."
+    "named people, places, or lore the outline and canon do not support. Propose only as many beats "
+    "as the outline genuinely needs — never pad to reach a count."
 )
 
 _TITLE_SYSTEM = (
@@ -56,7 +57,9 @@ def _plan_prompt(
         parts.append("Relevant canon (treat as true):\n" + "\n".join(f"- {c}" for c in canon))
     parts.append("CHAPTER OUTLINE:\n" + outline)
     parts.append(
-        f"\nPropose up to {max_beats} scene beats covering this outline, in order. "
+        f"\nPropose scene beats that cover this outline, in order — only as many as the outline "
+        f"genuinely needs. A short outline may need just a few scenes; do NOT pad to reach a number. "
+        f"Propose at most {max_beats}. "
         "Return ONLY a JSON array (no prose, no code fences). Each item:\n"
         '{"scene_no": int (1-based, sequential), "beat_text": str (1-3 sentences of plan), '
         '"characters_present": [str], "tags": [str] (any of "combat", "physical_description", '

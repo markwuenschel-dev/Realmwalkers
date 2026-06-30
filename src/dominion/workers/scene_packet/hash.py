@@ -26,13 +26,18 @@ def source_hash(
     prior_scene_keys: list[Any] | None = None,
     owner_file_hashes: dict[str, str] | None = None,
     canon_chunk_hashes: list[str] | None = None,
+    scene_pov: str | None = None,
 ) -> str:
     """sha256 over the canonical JSON of every input a ScenePacket is derived from.
 
     `prior_scene_keys` should be a list of (scene_id, version, word_count)-ish tuples for the prior
     approved scenes — anything that, when it changes, should re-open this scene's contract.
+
+    `scene_pov` is the scene's POV OVERRIDE (Beat.pov) when one is set. It is folded in ONLY when present,
+    so setting/changing/clearing a per-scene POV re-opens an already-approved packet — while scenes with no
+    override keep the exact hash they had before this input existed (no mass re-derive on upgrade).
     """
-    payload = {
+    payload: dict[str, Any] = {
         "chapter_packet_id": str(chapter_packet_id),
         "chapter_packet_body": chapter_packet_body or {},
         "scene_seed": scene_seed or {},
@@ -41,4 +46,6 @@ def source_hash(
         "owner_file_hashes": owner_file_hashes or {},
         "canon_chunk_hashes": sorted(canon_chunk_hashes or []),
     }
+    if scene_pov:
+        payload["scene_pov"] = scene_pov
     return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()

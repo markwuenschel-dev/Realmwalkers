@@ -99,6 +99,7 @@ class BeatOut(_ORM):
     expected_state_changes: dict[str, Any] | None = None
     knowledge_injections: list[str] | None = None
     target_words: int | None = None
+    pov: str | None = None                       # per-scene POV override; null inherits the chapter POV
     status: str
 
 
@@ -110,6 +111,7 @@ class BeatUpdateIn(BaseModel):
     expected_state_changes: dict[str, Any] | None = None
     knowledge_injections: list[str] | None = None
     target_words: int | None = None
+    pov: str | None = None                       # per-scene POV override; null/"" clears it (inherit chapter)
 
 
 class BeatCreateIn(BaseModel):
@@ -121,6 +123,7 @@ class BeatCreateIn(BaseModel):
     expected_state_changes: dict[str, Any] | None = None
     knowledge_injections: list[str] | None = None
     target_words: int | None = None
+    pov: str | None = None                       # per-scene POV override; null inherits the chapter POV
 
 
 class ApproveBeatsIn(BaseModel):
@@ -177,6 +180,42 @@ class RunStartOut(BaseModel):
     chapter_no: int
     pov: str
     beats: list[BeatOut] = []
+
+
+# --- Multi-chapter batch (propose several chapters in one request, optional auto-draft) ------------
+
+class BatchChapterSpec(BaseModel):
+    """One chapter to propose in a batch run (mirrors RunStartIn's per-chapter fields)."""
+    chapter_no: int
+    pov: str
+    outline: str
+    max_beats: int | None = None       # ceiling on proposed scenes (planner won't pad to it)
+    target_words: int | None = None    # default per-scene length stamped on each proposed beat
+
+
+class BatchRunStartIn(BaseModel):
+    """POST body to propose beats for SEVERAL chapters in one request. When `auto_draft` is set, each
+    chapter's proposed beats are approved and draft jobs are queued immediately (skips gate-1 review)."""
+    book_id: uuid.UUID
+    chapters: list[BatchChapterSpec]
+    gate_mode: GateMode = GateMode.PAUSE_EACH
+    token_budget: int | None = None
+    auto_draft: bool = False
+
+
+class BatchChapterResultOut(BaseModel):
+    """Per-chapter outcome of a batch run, for inline display in the Planner."""
+    chapter_id: uuid.UUID
+    chapter_no: int
+    pov: str
+    beat_count: int = 0
+    queued_jobs: int = 0               # draft jobs enqueued (only when auto_draft)
+
+
+class BatchRunOut(BaseModel):
+    """Result of a batch run: one row per requested chapter."""
+    run_id: uuid.UUID
+    results: list[BatchChapterResultOut] = []
 
 
 # --- Contract-first drafting: chapter knowledge packets (Phase 1) ---------------------------------
@@ -335,6 +374,7 @@ class BookTelemetryOut(BaseModel):
     totals: TelemetryTotals = TelemetryTotals()
     by_chapter: list[ChapterRollupOut] = []
     by_run: list[RunRollupOut] = []
+    run_total: int = 0                    # total run rows before limit/offset slicing (for "load older")
     by_stage: list[TelemetryGroupOut] = []
     by_model: list[TelemetryGroupOut] = []
 

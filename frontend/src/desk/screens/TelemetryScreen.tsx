@@ -28,17 +28,25 @@ function fmtRun(r: RunRollupOut): string {
 // instrumented call site). This is the "own tab" cross-chapter view — the per-chapter slice lives
 // under the scene packets. Read-only: telemetry is produced by the workers, never edited here.
 
+// Runs come back newest-first one page at a time; "Load older runs" appends the next page.
+const RUN_PAGE = 5;
+
 export default function TelemetryScreen() {
   const { bookId } = useDeskData();
   const [data, setData] = useState<BookTelemetryOut | null>(null);
+  // Accumulated run rows across paged fetches (data.by_run is only ever the latest page).
+  const [runs, setRuns] = useState<RunRollupOut[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!bookId) return;
     setLoading(true);
     try {
-      setData(await api.bookTelemetry(bookId));
+      const d = await api.bookTelemetry(bookId, { limit: RUN_PAGE, offset: 0 });
+      setData(d);
+      setRuns(d.by_run);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -46,6 +54,23 @@ export default function TelemetryScreen() {
       setLoading(false);
     }
   }, [bookId]);
+
+  // Fetch the next page of runs (offset = rows already shown) and append them. Totals and the other
+  // rollups are full-book already, so we only consume by_run / run_total from the follow-up fetch.
+  const loadMore = useCallback(async () => {
+    if (!bookId) return;
+    setLoadingMore(true);
+    try {
+      const d = await api.bookTelemetry(bookId, { limit: RUN_PAGE, offset: runs.length });
+      setRuns((prev) => [...prev, ...d.by_run]);
+      setData((cur) => (cur ? { ...cur, run_total: d.run_total } : d));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [bookId, runs.length]);
 
   useEffect(() => {
     void load();
@@ -130,10 +155,25 @@ export default function TelemetryScreen() {
           <Section label="By run (newest first)">
             <TotalsTable<RunRollupOut>
               label="Run"
-              rows={data.by_run}
+              rows={runs}
               nameOf={fmtRun}
               emptyText="No derive runs recorded yet."
             />
+            {runs.length < data.run_total && (
+              <div style={css("display:flex;justify-content:center;margin-top:8px")}>
+                <button
+                  disabled={loadingMore}
+                  onClick={() => void loadMore()}
+                  style={css(
+                    `height:30px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px;cursor:${loadingMore ? "default" : "pointer"}`,
+                  )}
+                >
+                  {loadingMore
+                    ? "Loading…"
+                    : `Load older runs (${data.run_total - runs.length} more)`}
+                </button>
+              </div>
+            )}
           </Section>
 
           <div

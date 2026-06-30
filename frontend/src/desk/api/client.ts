@@ -4,6 +4,8 @@
 import type {
   AnnotationIn,
   AnnotationOut,
+  BatchRunOut,
+  BatchRunStart,
   BeatCreateIn,
   BeatOut,
   BeatUpdateIn,
@@ -119,6 +121,9 @@ export const api = {
     http<BookOut>("/books", { method: "POST", body: JSON.stringify(body) }),
   startRun: (body: RunStartIn) =>
     http<RunStartOut>("/runs", { method: "POST", body: JSON.stringify(body) }),
+  // Plan several chapters in one call; auto_draft runs gate 1 → draft without a manual approve.
+  batchRun: (body: BatchRunStart) =>
+    http<BatchRunOut>("/runs/batch", { method: "POST", body: JSON.stringify(body) }),
   approveBeats: (chapterId: string, beatIds?: string[]) =>
     http<{ chapter_id: string; approved: number; jobs: string[] }>(
       `/chapters/${chapterId}/beats/approve`,
@@ -198,7 +203,15 @@ export const api = {
   // --- LLM call telemetry (persisted per-call cost/cache, aggregated) -----------------------------
   chapterTelemetry: (chapterId: string) =>
     http<ChapterTelemetryOut>(`/chapters/${chapterId}/telemetry`),
-  bookTelemetry: (bookId: string) => http<BookTelemetryOut>(`/books/${bookId}/telemetry`),
+  // by_run is paginated (newest first); limit/offset page it while totals/by_chapter/by_stage/by_model
+  // stay full-book. run_total carries the unsliced run count so callers know when to stop paging.
+  bookTelemetry: (bookId: string, opts?: { limit?: number; offset?: number }) =>
+    http<BookTelemetryOut>(
+      `/books/${bookId}/telemetry${qs({
+        limit: opts?.limit != null ? String(opts.limit) : undefined,
+        offset: opts?.offset != null ? String(opts.offset) : undefined,
+      })}`,
+    ),
 
   // --- draft-attempt provenance (preserved prose stages for a scene) ------------------------------
   draftAttempts: (sceneId: string) => http<DraftAttemptOut[]>(`/scenes/${sceneId}/draft-attempts`),

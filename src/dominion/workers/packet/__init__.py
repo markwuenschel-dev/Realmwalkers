@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
 from dominion.shared.models import Chapter, ChapterPacket, Summary
-from dominion.workers import progress
+from dominion.workers import progress, telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.memory import canon_rag
 from dominion.workers.packet import approval_policy
@@ -148,9 +148,19 @@ async def propose_packet(
     outline = (chapter.outline or "").strip()
     budget = TokenBudget(max_tokens=settings.scene_token_budget)
 
+    # Telemetry: the Packet Author + QA calls roll up under one run row (one propose = one run) so the
+    # chapter-packet stage shows in the Desk telemetry like the scene-packet derive. Persisted on EVERY
+    # exit (incl. fail-closed) since the author/QA calls may have charged before a failure path.
+    sink = telemetry.TelemetrySink()
+    run_id = uuid.uuid4()
+
+    def _persist_telemetry() -> None:
+        telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
+
     async def fail_closed(reason: str, body: dict[str, Any] | None = None) -> ChapterPacket:
         # A failed (re)propose must never wipe an already-approved packet; otherwise persist a
         # visible blocked packet so the human sees the failure (never silent partial constraints).
+        _persist_telemetry()
         existing = await latest_approved(session, chapter.id)
         if existing is not None:
             return existing
@@ -175,14 +185,17 @@ async def propose_packet(
     author_error: str | None = None
     progress.set_phase(progress_key, "authoring")
     try:
-        packet = await asyncio.wait_for(
-            author_mod.author_packet(
-                chapter_no=chapter.chapter_no, pov=chapter.pov, outline=outline,
-                omniscient_summary=omniscient, prior_exit_state=prior_exit,
-                next_entry_intent=None, canon_handles=handles, budget=budget,
-            ),
-            timeout=settings.packet_time_budget_s,
-        )
+        with telemetry.call_context(telemetry.CallContext(
+            sink=sink, stage="packet_author", book_id=str(book_id), chapter_id=str(chapter.id),
+        )):
+            packet = await asyncio.wait_for(
+                author_mod.author_packet(
+                    chapter_no=chapter.chapter_no, pov=chapter.pov, outline=outline,
+                    omniscient_summary=omniscient, prior_exit_state=prior_exit,
+                    next_entry_intent=None, canon_handles=handles, budget=budget,
+                ),
+                timeout=settings.packet_time_budget_s,
+            )
     except Exception as exc:  # noqa: BLE001 — any author failure (timeout/budget/API) must fail closed
         log.error("packet.author_failed", chapter=str(chapter.id), error=str(exc))
         author_error = type(exc).__name__
@@ -202,8 +215,11 @@ async def propose_packet(
 
     progress.set_phase(progress_key, "qa")
     try:
-        qa = await asyncio.wait_for(qa_mod.qa_packet(packet, budget=budget),
-                                    timeout=settings.packet_time_budget_s)
+        with telemetry.call_context(telemetry.CallContext(
+            sink=sink, stage="packet_qa", book_id=str(book_id), chapter_id=str(chapter.id),
+        )):
+            qa = await asyncio.wait_for(qa_mod.qa_packet(packet, budget=budget),
+                                        timeout=settings.packet_time_budget_s)
     except Exception as exc:  # noqa: BLE001 — any QA failure (timeout/budget/API) must fail closed
         log.error("packet.qa_failed", chapter=str(chapter.id), error=str(exc))
         qa = None
@@ -224,6 +240,7 @@ async def propose_packet(
     )
     log.info("packet.proposed", chapter=str(chapter.id), status=str(status),
              confidence=str(confidence), verdict=str(qa["verdict"]))
+    _persist_telemetry()
     return await _persist(session, chapter_id=chapter.id, row=row, replace=True)
 
 

@@ -3,7 +3,17 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
-import type { BeatOut } from "../api/types";
+import type { BatchChapterResult, BatchChapterSpec, BeatOut } from "../api/types";
+
+// One staged chapter in the batch panel. Inputs are kept as strings (raw form state) and coerced to
+// the BatchChapterSpec wire shape only at submit time.
+interface BatchRow {
+  chapter_no: string;
+  pov: string;
+  outline: string;
+  max_beats: string;
+  target_words: string;
+}
 
 // Gate 1, in the browser: create a book, outline a chapter (the planner proposes per-scene beats),
 // then edit / add / delete / re-propose those beats, pick which to draft, and approve. One beat =
@@ -22,6 +32,17 @@ export default function Planner() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Batch panel: stage several chapters and plan them in one /runs/batch call. Additive and opt-in —
+  // the single-chapter propose flow above is untouched and remains the default review path.
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchRows, setBatchRows] = useState<BatchRow[]>([
+    { chapter_no: "1", pov: "", outline: "", max_beats: "", target_words: "" },
+  ]);
+  const [batchAuto, setBatchAuto] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchResults, setBatchResults] = useState<BatchChapterResult[] | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
 
   // Is a gate-1 plan call in flight for the chapter in the form? Tracked in the data provider (not
   // here) so it survives an in-app tab switch that unmounts this panel — the propose keeps running
@@ -172,6 +193,56 @@ export default function Planner() {
     setOutline("");
   };
 
+  // --- batch planning -----------------------------------------------------------------------------
+  const setBatchRow = (i: number, patch: Partial<BatchRow>) =>
+    setBatchRows((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const addBatchRow = () =>
+    setBatchRows((rows) => {
+      const next = rows.reduce((m, r) => Math.max(m, Number(r.chapter_no) || 0), 0) + 1;
+      return [
+        ...rows,
+        { chapter_no: String(next), pov: "", outline: "", max_beats: "", target_words: "" },
+      ];
+    });
+  const removeBatchRow = (i: number) =>
+    setBatchRows((rows) => (rows.length > 1 ? rows.filter((_, j) => j !== i) : rows));
+
+  const proposeAll = async () => {
+    if (!data.bookId) return;
+    const chapters: BatchChapterSpec[] = batchRows
+      .filter((r) => r.pov.trim() && r.outline.trim())
+      .map((r) => ({
+        chapter_no: Number(r.chapter_no) || 1,
+        pov: r.pov.trim(),
+        outline: r.outline.trim(),
+        max_beats: numOrUndef(r.max_beats) ?? null,
+        target_words: numOrUndef(r.target_words) ?? null,
+      }));
+    if (chapters.length === 0) {
+      setBatchError("Add at least one row with a POV and an outline.");
+      setBatchResults(null);
+      return;
+    }
+    setBatchBusy(true);
+    setBatchError(null);
+    setBatchResults(null);
+    try {
+      const out = await api.batchRun({
+        book_id: data.bookId,
+        chapters,
+        gate_mode: batchAuto ? "draft_ahead" : "pause_each",
+        auto_draft: batchAuto,
+      });
+      setBatchResults(out.results);
+      // Surface the freshly created chapters/beats elsewhere (dropdown, hydrate path) without a reload.
+      await data.refreshAll();
+    } catch (e) {
+      setBatchError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBatchBusy(false);
+    }
+  };
+
   return (
     <div style={card}>
       <div style={label}>Plan · gate 1</div>
@@ -256,9 +327,10 @@ export default function Planner() {
                 type="number"
                 min={1}
                 value={maxBeats}
-                placeholder="24"
+                placeholder="max 24"
+                title="Upper limit — the planner proposes only what the outline needs, never more than this."
                 onChange={(e) => setMaxBeats(e.target.value)}
-                style={numInput(80)}
+                style={numInput(90)}
               />
             </label>
             <label>
@@ -273,6 +345,14 @@ export default function Planner() {
                 style={numInput(90)}
               />
             </label>
+          </div>
+
+          <div
+            style={css(
+              "font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:6px;line-height:1.5",
+            )}
+          >
+            Max scenes is an upper limit — the planner proposes only what the outline needs.
           </div>
 
           {currentChapter && (
@@ -388,6 +468,18 @@ export default function Planner() {
                       />
                       <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
                         <input
+                          defaultValue={b.pov ?? ""}
+                          placeholder={pov.trim() || currentChapter?.pov || "POV"}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v !== (b.pov ?? "").trim()) patchBeat(b.id, { pov: v });
+                          }}
+                          title="POV override for this scene — leave blank to inherit the chapter POV"
+                          style={css(
+                            "width:110px;background:var(--bg3);color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:11.5px;font-family:var(--mono)",
+                          )}
+                        />
+                        <input
                           defaultValue={(b.tags ?? []).join(", ")}
                           placeholder="tags: combat, dialogue…"
                           onBlur={(e) => patchBeat(b.id, { tags: split(e.target.value) })}
@@ -437,6 +529,160 @@ export default function Planner() {
               </div>
             </div>
           )}
+
+          <div style={css("margin-top:22px;border-top:1px solid var(--line);padding-top:14px")}>
+            <button style={ghost} onClick={() => setBatchOpen((o) => !o)}>
+              {batchOpen ? "Hide batch planning" : "Batch · propose multiple chapters"}
+            </button>
+
+            {batchOpen && (
+              <div style={css("margin-top:14px;display:flex;flex-direction:column;gap:12px")}>
+                <p
+                  style={css(
+                    "margin:0;color:var(--dim);font-size:12.5px;line-height:1.55;max-width:620px",
+                  )}
+                >
+                  Stage several chapters and plan them all at once — each row outlines one chapter.
+                  With Auto-approve and draft on, the planner approves and queues its beats for
+                  drafting, skipping the manual gate-1 review.
+                </p>
+
+                {batchRows.map((r, i) => (
+                  <div
+                    key={i}
+                    style={css(
+                      "border:1px solid var(--line);border-radius:9px;background:var(--bg2b);padding:12px 13px;display:flex;flex-direction:column;gap:9px",
+                    )}
+                  >
+                    <div style={css("display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap")}>
+                      <label>
+                        <span style={fieldLabel}>Chapter</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={r.chapter_no}
+                          onChange={(e) => setBatchRow(i, { chapter_no: e.target.value })}
+                          style={numInput(70)}
+                        />
+                      </label>
+                      <label style={css("flex:1 1 160px")}>
+                        <span style={fieldLabel}>POV character</span>
+                        <input
+                          style={input}
+                          placeholder="e.g. Soren"
+                          value={r.pov}
+                          onChange={(e) => setBatchRow(i, { pov: e.target.value })}
+                        />
+                      </label>
+                      <label>
+                        <span style={fieldLabel}>Max scenes</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={r.max_beats}
+                          placeholder="max 24"
+                          title="Upper limit — the planner proposes only what the outline needs."
+                          onChange={(e) => setBatchRow(i, { max_beats: e.target.value })}
+                          style={numInput(90)}
+                        />
+                      </label>
+                      <label>
+                        <span style={fieldLabel}>Words / scene</span>
+                        <input
+                          type="number"
+                          min={50}
+                          step={50}
+                          value={r.target_words}
+                          placeholder="default"
+                          onChange={(e) => setBatchRow(i, { target_words: e.target.value })}
+                          style={numInput(90)}
+                        />
+                      </label>
+                      {batchRows.length > 1 && (
+                        <button
+                          onClick={() => removeBatchRow(i)}
+                          title="remove chapter row"
+                          style={css(
+                            "flex:none;background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;line-height:1;padding:6px",
+                          )}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    <textarea
+                      style={css(
+                        "width:100%;min-height:72px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-size:13px;line-height:1.5;resize:vertical;font-family:var(--ui)",
+                      )}
+                      placeholder="Outline this chapter — one beat (= one scene) per beat…"
+                      value={r.outline}
+                      onChange={(e) => setBatchRow(i, { outline: e.target.value })}
+                    />
+                  </div>
+                ))}
+
+                <div style={css("display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
+                  <button style={ghost} onClick={addBatchRow}>
+                    + Add chapter
+                  </button>
+                  <label
+                    style={css(
+                      "display:flex;gap:7px;align-items:center;cursor:pointer;font-size:13px;color:var(--ink);font-family:var(--ui)",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={batchAuto}
+                      onChange={(e) => setBatchAuto(e.target.checked)}
+                      style={css("cursor:pointer")}
+                    />
+                    Auto-approve and draft
+                  </label>
+                  <button style={btnGo} disabled={batchBusy || !data.bookId} onClick={proposeAll}>
+                    {batchBusy ? "Proposing…" : "Propose all"}
+                  </button>
+                </div>
+
+                {batchError && (
+                  <div
+                    style={css(
+                      `padding:9px 12px;border-radius:7px;border:1px solid ${t.bad};background:color-mix(in srgb,${t.bad} 10%,transparent);color:var(--ink);font-size:12.5px;line-height:1.5`,
+                    )}
+                  >
+                    {batchError}
+                  </div>
+                )}
+
+                {batchResults && (
+                  <div style={css("display:flex;flex-direction:column;gap:6px")}>
+                    {batchResults.length === 0 ? (
+                      <div
+                        style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}
+                      >
+                        No chapters were planned.
+                      </div>
+                    ) : (
+                      batchResults.map((res) => (
+                        <div
+                          key={res.chapter_id}
+                          style={css(
+                            "display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;background:var(--bg2b);padding:8px 11px;font-family:var(--mono);font-size:11.5px;color:var(--ink)",
+                          )}
+                        >
+                          <span style={css("color:var(--accent)")}>Ch {res.chapter_no}</span>
+                          <span style={css("color:var(--dim)")}>{res.pov}</span>
+                          <span>
+                            {res.beat_count} beat{res.beat_count === 1 ? "" : "s"}
+                          </span>
+                          <span style={css("color:var(--dim)")}>{res.queued_jobs} queued</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>

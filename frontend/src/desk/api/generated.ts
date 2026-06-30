@@ -205,6 +205,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/runs/batch": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start Batch Run
+     * @description Propose beats for SEVERAL chapters in one request, sharing a single Run. With `auto_draft`, each
+     *     chapter's freshly-proposed beats are approved and draft jobs are queued immediately (skips gate-1
+     *     review). A planner timeout on any one chapter surfaces as 504 and nothing is committed.
+     */
+    post: operations["start_batch_run_runs_batch_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/books": {
     parameters: {
       query?: never;
@@ -674,7 +696,9 @@ export interface paths {
     /**
      * Book Telemetry
      * @description Global telemetry for a book: overall totals + rollups across chapters, stages, and models for
-     *     cross-chapter/scene comparison.
+     *     cross-chapter/scene comparison. `by_run` is paginated (newest first) via `limit`/`offset` so the
+     *     run history doesn't grow an unbounded table in the UI; `run_total` reports the full count so the
+     *     Desk knows whether older runs remain to load. All other rollups stay full-book.
      */
     get: operations["book_telemetry_books__book_id__telemetry_get"];
     put?: never;
@@ -1246,6 +1270,86 @@ export interface components {
       beat_ids?: string[] | null;
     };
     /**
+     * BatchChapterResultOut
+     * @description Per-chapter outcome of a batch run, for inline display in the Planner.
+     */
+    BatchChapterResultOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no: number;
+      /** Pov */
+      pov: string;
+      /**
+       * Beat Count
+       * @default 0
+       */
+      beat_count: number;
+      /**
+       * Queued Jobs
+       * @default 0
+       */
+      queued_jobs: number;
+    };
+    /**
+     * BatchChapterSpec
+     * @description One chapter to propose in a batch run (mirrors RunStartIn's per-chapter fields).
+     */
+    BatchChapterSpec: {
+      /** Chapter No */
+      chapter_no: number;
+      /** Pov */
+      pov: string;
+      /** Outline */
+      outline: string;
+      /** Max Beats */
+      max_beats?: number | null;
+      /** Target Words */
+      target_words?: number | null;
+    };
+    /**
+     * BatchRunOut
+     * @description Result of a batch run: one row per requested chapter.
+     */
+    BatchRunOut: {
+      /**
+       * Run Id
+       * Format: uuid
+       */
+      run_id: string;
+      /**
+       * Results
+       * @default []
+       */
+      results: components["schemas"]["BatchChapterResultOut"][];
+    };
+    /**
+     * BatchRunStartIn
+     * @description POST body to propose beats for SEVERAL chapters in one request. When `auto_draft` is set, each
+     *     chapter's proposed beats are approved and draft jobs are queued immediately (skips gate-1 review).
+     */
+    BatchRunStartIn: {
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Chapters */
+      chapters: components["schemas"]["BatchChapterSpec"][];
+      /** @default pause_each */
+      gate_mode: components["schemas"]["GateMode"];
+      /** Token Budget */
+      token_budget?: number | null;
+      /**
+       * Auto Draft
+       * @default false
+       */
+      auto_draft: boolean;
+    };
+    /**
      * BeatCreateIn
      * @description POST body to add a beat by hand (a scene the planner didn't propose).
      */
@@ -1266,6 +1370,8 @@ export interface components {
       knowledge_injections?: string[] | null;
       /** Target Words */
       target_words?: number | null;
+      /** Pov */
+      pov?: string | null;
     };
     /** BeatOut */
     BeatOut: {
@@ -1299,6 +1405,8 @@ export interface components {
       knowledge_injections?: string[] | null;
       /** Target Words */
       target_words?: number | null;
+      /** Pov */
+      pov?: string | null;
       /** Status */
       status: string;
     };
@@ -1321,6 +1429,8 @@ export interface components {
       knowledge_injections?: string[] | null;
       /** Target Words */
       target_words?: number | null;
+      /** Pov */
+      pov?: string | null;
     };
     /**
      * BookIn
@@ -1379,6 +1489,11 @@ export interface components {
        * @default []
        */
       by_run: components["schemas"]["RunRollupOut"][];
+      /**
+       * Run Total
+       * @default 0
+       */
+      run_total: number;
       /**
        * By Stage
        * @default []
@@ -3141,6 +3256,39 @@ export interface operations {
       };
     };
   };
+  start_batch_run_runs_batch_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BatchRunStartIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BatchRunOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_books_books_get: {
     parameters: {
       query?: never;
@@ -4081,7 +4229,10 @@ export interface operations {
   };
   book_telemetry_books__book_id__telemetry_get: {
     parameters: {
-      query?: never;
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
       header?: never;
       path: {
         book_id: string;

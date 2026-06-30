@@ -81,7 +81,7 @@ export default function SettingsScreen() {
         <div style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>Loading…</div>
       )}
 
-      <div style={css("display:flex;flex-direction:column;gap:12px;max-width:760px")}>
+      <div style={css("display:flex;flex-direction:column;gap:12px;max-width:880px")}>
         {data?.agents.map((a) => (
           <div
             key={a.setting}
@@ -89,7 +89,7 @@ export default function SettingsScreen() {
               "display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:16px 18px",
             )}
           >
-            <div style={css("min-width:0")}>
+            <div style={css("flex:1 1 auto;min-width:0")}>
               <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>
                 {a.label}
               </div>

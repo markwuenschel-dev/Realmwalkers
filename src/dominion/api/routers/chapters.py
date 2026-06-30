@@ -102,6 +102,7 @@ async def create_beat(chapter_id: uuid.UUID, body: BeatCreateIn, session: Sessio
         characters_present=body.characters_present, tags=body.tags,
         expected_state_changes=body.expected_state_changes,
         knowledge_injections=body.knowledge_injections, target_words=body.target_words,
+        pov=body.pov,  # optional per-scene POV override; null/blank inherits the chapter POV
         status=BeatStatus.PROPOSED,
     )
     session.add(beat)

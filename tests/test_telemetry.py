@@ -105,6 +105,30 @@ async def test_book_telemetry_per_run_history_newest_first(db_factory):
         assert out.by_run[0].calls == 1 and out.by_run[0].chapter_no == 1
 
 
+async def test_book_telemetry_paginates_run_history(db_factory):
+    # The run history paginates (default 5, newest first) so the Telemetry tab never renders an
+    # unbounded table; run_total reports the full count so the UI knows when older runs remain.
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        t0 = datetime(2026, 1, 1, tzinfo=UTC)
+        runs = [uuid.uuid4() for _ in range(7)]
+        for i, rid in enumerate(runs):
+            s.add(LlmCall(run_id=rid, book_id=book.id, chapter_id=ch.id, scene_no=1,
+                          stage="scene_packet_author", model="haiku", input_tokens=10, output_tokens=1,
+                          created_at=t0 + timedelta(minutes=i)))
+        await s.flush()
+
+        first = await tel_router.book_telemetry(book.id, s)            # default page
+        assert first.run_total == 7
+        assert [r.run_id for r in first.by_run] == list(reversed(runs))[:5]  # newest 5, newest first
+
+        page2 = await tel_router.book_telemetry(book.id, s, limit=5, offset=5)
+        assert page2.run_total == 7
+        assert [r.run_id for r in page2.by_run] == list(reversed(runs))[5:]  # the remaining 2
+        # other rollups stay full-book regardless of run paging
+        assert page2.totals.calls == 7
+
+
 async def test_book_telemetry_rolls_up_chapters_stages_models(db_factory):
     async with db_factory() as s:
         book, ch1, ch2 = await _book_with_chapters(s)
