@@ -13,6 +13,12 @@ const TIER_HINT: Record<string, string> = {
   sonnet: "balanced",
   opus: "strongest / most expensive",
 };
+const QUALITY_ORDER = ["fast", "balanced", "quality"] as const;
+const QUALITY_LABEL: Record<string, string> = {
+  fast: "Fast",
+  balanced: "Balanced",
+  quality: "Quality",
+};
 
 interface AgentRowProps {
   agent: AgentOpsAgentOut;
@@ -20,9 +26,21 @@ interface AgentRowProps {
   busy: boolean;
   onPickTier: (setting: string, tier: string) => void;
   onSetFallback: (setting: string, tier: string) => void;
+  onSetQuality: (setting: string, level: string) => void;
+  onSetSemanticEscalation: (setting: string, enabled: boolean) => void;
+  onSetAutoRun: (setting: string, enabled: boolean) => void;
 }
 
-export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: AgentRowProps) {
+export function AgentRow({
+  agent,
+  stats,
+  busy,
+  onPickTier,
+  onSetFallback,
+  onSetQuality,
+  onSetSemanticEscalation,
+  onSetAutoRun,
+}: AgentRowProps) {
   const { t } = useDesk();
   const [open, setOpen] = useState(false);
   const a = agent;
@@ -63,8 +81,12 @@ export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: Agen
               </span>
             )}
             <span style={css("font-size:11px;color:var(--dim)")}>
-              {a.estimate.cost_band} cost · {a.estimate.speed_band} · {a.contract.context_load}
+              ~${a.estimate.estimated_usd_per_chapter?.toFixed(2) ?? "—"}/ch ·{" "}
+              {a.estimate.cost_band} · {a.contract.context_load}
             </span>
+            {!a.permissions.auto_run && (
+              <span style={css(`font-size:11px;color:${t.warn}`)}>manual only</span>
+            )}
           </div>
           <div style={css("margin-top:6px")}>
             <AgentHealthStrip stats={stats} />
@@ -103,6 +125,46 @@ export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: Agen
                 allowEmpty
               />
             </div>
+            <div>
+              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>
+                Quality / temperature
+              </div>
+              <TierButtons
+                active={a.policy.quality_level}
+                disabled={busy}
+                onPick={(level) => onSetQuality(a.setting, level)}
+                labels={QUALITY_LABEL}
+                order={[...QUALITY_ORDER]}
+              />
+              <div style={css("font-size:11px;color:var(--dim);margin-top:4px")}>
+                temp {a.contract.temperature?.toFixed(1) ?? "—"}
+              </div>
+            </div>
+          </div>
+
+          <div style={css("display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px")}>
+            <label
+              style={css("display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)")}
+            >
+              <input
+                type="checkbox"
+                checked={a.policy.semantic_escalation}
+                disabled={busy}
+                onChange={(e) => onSetSemanticEscalation(a.setting, e.target.checked)}
+              />
+              Semantic escalation (canon conflict / high QA risk)
+            </label>
+            <label
+              style={css("display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)")}
+            >
+              <input
+                type="checkbox"
+                checked={a.permissions.auto_run}
+                disabled={busy}
+                onChange={(e) => onSetAutoRun(a.setting, e.target.checked)}
+              />
+              Auto-run in pipeline
+            </label>
           </div>
 
           <div style={css("font-size:13px;color:var(--dim);line-height:1.5")}>
@@ -165,11 +227,15 @@ function TierButtons({
   disabled,
   onPick,
   allowEmpty,
+  labels = TIER_LABEL,
+  order = TIER_ORDER,
 }: {
   active: string | null | undefined;
   disabled: boolean;
   onPick: (tier: string) => void;
   allowEmpty?: boolean;
+  labels?: Record<string, string>;
+  order?: string[];
 }) {
   return (
     <div
@@ -188,7 +254,7 @@ function TierButtons({
           None
         </button>
       )}
-      {TIER_ORDER.map((tier) => {
+      {order.map((tier) => {
         const on = active === tier;
         return (
           <button
@@ -202,7 +268,7 @@ function TierButtons({
               `padding:5px 12px;border:none;border-radius:7px;cursor:${disabled ? "default" : "pointer"};font-family:var(--ui);font-size:12px;background:${on ? "var(--accent)" : "transparent"};color:${on ? "var(--onAccent)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
             )}
           >
-            {TIER_LABEL[tier]}
+            {labels[tier] ?? tier}
           </button>
         );
       })}

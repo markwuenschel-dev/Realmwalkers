@@ -22,10 +22,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
+from dominion.api.packet_delete import hard_delete_scene_packet, hard_delete_scene_packets_for_chapter
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import ChapterPacket, ScenePacket
 from dominion.shared.schemas import (
+    DeleteScenePacketOut,
+    DeleteScenePacketsOut,
     ScenePacketApproveIn,
     ScenePacketDeriveOut,
     ScenePacketDeriveStatusOut,
@@ -271,6 +274,35 @@ async def approve_scene_packets(
     await session.commit()
     log.info("scene_packet.batch_approved", chapter=str(chapter_id), approved=approved, derived_beats=derived)
     return [sp_approval.enrich_scene_packet_out(r) for r in rows]
+
+
+@router.delete("/scene-packets/{scene_packet_id}", response_model=DeleteScenePacketOut)
+async def delete_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> DeleteScenePacketOut:
+    """Hard-delete one scene packet and detach dependent beats/jobs/scenes."""
+    deleted_id, jobs_purged = await hard_delete_scene_packet(session, scene_packet_id)
+    await session.commit()
+    log.info("scene_packet.deleted", packet=str(deleted_id), jobs_purged=jobs_purged)
+    return DeleteScenePacketOut(deleted=deleted_id, jobs_purged=jobs_purged)
+
+
+@router.delete("/chapters/{chapter_id}/scene-packets", response_model=DeleteScenePacketsOut)
+async def delete_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> DeleteScenePacketsOut:
+    """Clear all scene packets for a chapter."""
+    rows = (
+        (
+            await session.execute(
+                select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="no scene packets for this chapter")
+    deleted, jobs_purged = await hard_delete_scene_packets_for_chapter(session, chapter_id)
+    await session.commit()
+    log.info("scene_packet.batch_deleted", chapter=str(chapter_id), deleted=deleted, jobs_purged=jobs_purged)
+    return DeleteScenePacketsOut(deleted=deleted, jobs_purged=jobs_purged)
 
 
 @router.post("/chapters/{chapter_id}/scene-packets/mark-stale", response_model=list[ScenePacketOut])

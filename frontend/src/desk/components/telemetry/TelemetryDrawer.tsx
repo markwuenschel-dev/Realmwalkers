@@ -22,6 +22,8 @@ import {
   type TelemetryDrawerView,
 } from "./types";
 import { filtersLabel, filtersToApiOpts, type LlmCallFilters } from "./telemetryFilters";
+import { RunCallTimeline } from "./RunCallTimeline";
+import { RunExportToolbar } from "./RunExportToolbar";
 
 export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: string }) {
   const view = nav.view;
@@ -119,6 +121,10 @@ function RunDetail({ runId, bookId, nav }: { runId: string; bookId: string; nav:
         {chLabel ? ` · ${chLabel}` : ""}
       </div>
       <TotalsStrip t={data.totals} />
+      <RunExportToolbar data={data} />
+      <Section label="Timeline">
+        <RunCallTimeline calls={data.calls} nav={nav} />
+      </Section>
       <Section label="Stages">
         <TotalsTable<TelemetryGroupOut>
           label="Stage"

@@ -13,6 +13,7 @@ import asyncio
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.agent_policy import agent_auto_run
 from dominion.shared.config import settings
 from dominion.shared.enums import DraftStage, SceneStatus, Severity
 from dominion.shared.models import Critique, DraftAttempt, Job, Scene
@@ -77,15 +78,18 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     pass_failures: list[tuple[str, str]] = []
     budget_exceeded = False
     try:
-        with telemetry.call_context(_tctx("enrichment")):
-            for specialist in passes_for(ctx.tags):
-                try:
-                    progress.set_phase(jid, f"enriching · {specialist.name}")
-                    prose = await specialist.run(prose, ctx)
-                    passes_run.append(specialist.name)
-                    record(_ENRICH_STAGE.get(specialist.name, specialist.name), prose, settings.enrich_model)
-                except PassError as exc:
-                    pass_failures.append((specialist.name, str(exc)))
+        if agent_auto_run("enrich_model"):
+            with telemetry.call_context(_tctx("enrichment")):
+                for specialist in passes_for(ctx.tags):
+                    try:
+                        progress.set_phase(jid, f"enriching · {specialist.name}")
+                        prose = await specialist.run(prose, ctx)
+                        passes_run.append(specialist.name)
+                        record(_ENRICH_STAGE.get(specialist.name, specialist.name), prose, settings.enrich_model)
+                    except PassError as exc:
+                        pass_failures.append((specialist.name, str(exc)))
+        else:
+            log.info("pipeline.enrichment_skipped", reason="enrich_model auto_run disabled")
     except BudgetExceeded:
         budget_exceeded = True
 
@@ -188,7 +192,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     # still added in reviewer order (continuity first). NOTE: parallel calls each charge on their own
     # response, so a scene near its ceiling can overshoot a little more than the old serial path did —
     # acceptable for these cheap, advisory calls that run after the costly drafting work.
-    if not budget_exceeded:
+    if agent_auto_run("review_model") and not budget_exceeded:
         reviewers = reviewers_for(ctx.tags)
         progress.set_phase(jid, "reviewing")
         with telemetry.call_context(_tctx("reviewers")):

@@ -13,7 +13,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from dominion.shared.agent_policy import get_runtime_policy
 from dominion.shared.config import settings
+from dominion.shared.risk_scorer import qa_result_preferred, score_qa_result, should_semantic_escalate
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
 from dominion.workers.llm import CachedPrefixBlock, estimate_tokens
@@ -104,6 +106,11 @@ async def qa_scene_packet(
     prefix_blocks = build_prefix_blocks(chapter_packet_body)
     user = build_prompt(scene_packet)
 
+    def _semantic_escalate(value: dict[str, Any] | None) -> bool:
+        if value is None or not get_runtime_policy("scene_packet_qa_model").semantic_escalation:
+            return False
+        return should_semantic_escalate(score_qa_result(value))
+
     async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, Any]:
         raw, usage = await llm.complete(
             model=model,
@@ -127,5 +134,7 @@ async def qa_scene_packet(
         is_success=lambda v: v is not None,
         policy=policy,
         fallback_max_tokens=max(settings.scene_packet_qa_max_tokens, _QA_FALLBACK_MAX_TOKENS_FLOOR),
+        semantic_escalate=_semantic_escalate,
+        pick_preferred=qa_result_preferred,
     )
     return result if isinstance(result, dict) else None

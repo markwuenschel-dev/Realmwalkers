@@ -5,6 +5,8 @@ import { css } from "../css";
 import { api } from "../api/client";
 import { Spinner } from "./DraftActivity";
 import type { ChapterTelemetryOut, SceneTelemetryOut, TelemetryTotals } from "../api/types";
+import { statusColor } from "./telemetry/types";
+import type { TelemetryDrawerView } from "./telemetry/types";
 
 // Shared presentation for persisted LLM-call telemetry (workers/telemetry.py → llm_calls). The same
 // pieces render the per-chapter derive panel (under the scene packets) and the global Telemetry tab,
@@ -175,9 +177,13 @@ function SectionLabel({ text }: { text: string }) {
 export function ChapterTelemetryPanel({
   chapterId,
   refreshKey = 0,
+  bookId,
+  onOpen,
 }: {
   chapterId: string;
   refreshKey?: number;
+  bookId?: string;
+  onOpen?: (view: TelemetryDrawerView) => void;
 }) {
   const [data, setData] = useState<ChapterTelemetryOut | null>(null);
   const [loading, setLoading] = useState(false);
@@ -211,18 +217,51 @@ export function ChapterTelemetryPanel({
 
   return (
     <div style={css("margin-top:18px")}>
-      <SectionLabel text={`Derive telemetry · latest run · ${data.totals.calls} model calls`} />
+      <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px")}>
+        <SectionLabel text={`Derive telemetry · latest run · ${data.totals.calls} model calls`} />
+        {data.run_id && onOpen && bookId && (
+          <button
+            type="button"
+            onClick={() => onOpen({ kind: "run", runId: data.run_id! })}
+            style={css(
+              "height:24px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer",
+            )}
+          >
+            Open run
+          </button>
+        )}
+      </div>
       <TotalsStrip t={data.totals} />
       <SectionLabel text="Per scene" />
       <TotalsTable<SceneTelemetryOut>
         label="Scene"
         rows={data.scenes}
-        nameOf={(r) =>
-          `${r.scene_no != null ? `Scene ${r.scene_no}` : "—"}${
-            r.models.length ? ` · ${r.models.join(", ")}` : ""
-          }`
+        nameOf={(r) => (
+          <span>
+            {r.scene_no != null ? `Scene ${r.scene_no}` : "—"}
+            {r.models.length ? ` · ${r.models.join(", ")}` : ""}{" "}
+            <span style={css(`color:${statusColor(r.status)}`)}>({r.status})</span>
+          </span>
+        )}
+        onRowClick={
+          onOpen && data.run_id
+            ? (r) => {
+                if (r.scene_no != null)
+                  onOpen({ kind: "scene", runId: data.run_id!, sceneNo: r.scene_no });
+              }
+            : undefined
         }
       />
+      {data.scenes.map((s) =>
+        s.stage_summary ? (
+          <div
+            key={String(s.scene_no)}
+            style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim);padding:2px 4px")}
+          >
+            Sc{s.scene_no}: {s.stage_summary}
+          </div>
+        ) : null,
+      )}
     </div>
   );
 }

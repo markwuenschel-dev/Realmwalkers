@@ -485,7 +485,11 @@ export interface paths {
      *     a re-trigger while one is already running just reports the in-flight status.
      */
     post: operations["propose_packet_chapters__chapter_id__packet_post"];
-    delete?: never;
+    /**
+     * Delete Packet
+     * @description Clear the chapter packet and all derived scene packets for this chapter.
+     */
+    delete: operations["delete_packet_chapters__chapter_id__packet_delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -587,7 +591,11 @@ export interface paths {
     get: operations["list_scene_packets_chapters__chapter_id__scene_packets_get"];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Scene Packets
+     * @description Clear all scene packets for a chapter.
+     */
+    delete: operations["delete_scene_packets_chapters__chapter_id__scene_packets_delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -609,7 +617,11 @@ export interface paths {
      */
     put: operations["update_scene_packet_scene_packets__scene_packet_id__put"];
     post?: never;
-    delete?: never;
+    /**
+     * Delete Scene Packet
+     * @description Hard-delete one scene packet and detach dependent beats/jobs/scenes.
+     */
+    delete: operations["delete_scene_packet_scene_packets__scene_packet_id__delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -1491,6 +1503,10 @@ export interface components {
       speed_band: string;
       /** Typical Calls Per Chapter */
       typical_calls_per_chapter: number;
+      /** Estimated Usd Per Chapter */
+      estimated_usd_per_chapter?: number | null;
+      /** Estimated Latency Sec Per Chapter */
+      estimated_latency_sec_per_chapter?: number | null;
     };
     /** AgentOpsAgentOut */
     AgentOpsAgentOut: {
@@ -1566,6 +1582,23 @@ export interface components {
        */
       can_only_suggest: boolean;
     };
+    /** AgentPermissionsPatchIn */
+    AgentPermissionsPatchIn: {
+      /** Auto Run */
+      auto_run?: boolean | null;
+      /** Require Approval */
+      require_approval?: boolean | null;
+      /** Can Modify Packet */
+      can_modify_packet?: boolean | null;
+      /** Can Block Downstream */
+      can_block_downstream?: boolean | null;
+      /** Can Write Summaries */
+      can_write_summaries?: boolean | null;
+      /** Can Update Canon */
+      can_update_canon?: boolean | null;
+      /** Can Only Suggest */
+      can_only_suggest?: boolean | null;
+    };
     /** AgentPolicyOut */
     AgentPolicyOut: {
       /** Setting */
@@ -1588,6 +1621,16 @@ export interface components {
        * @default []
        */
       escalation_rules: components["schemas"]["EscalationRuleOut"][];
+      /**
+       * Semantic Escalation
+       * @default true
+       */
+      semantic_escalation: boolean;
+      /**
+       * Quality Level
+       * @default balanced
+       */
+      quality_level: string;
     };
     /** AgentPolicyUpdateIn */
     AgentPolicyUpdateIn: {
@@ -1595,6 +1638,11 @@ export interface components {
       fallback_tier?: string | null;
       /** Never Fallback */
       never_fallback?: string[] | null;
+      /** Semantic Escalation */
+      semantic_escalation?: boolean | null;
+      /** Quality Level */
+      quality_level?: string | null;
+      permissions?: components["schemas"]["AgentPermissionsPatchIn"] | null;
     };
     /** AgentPresetOut */
     AgentPresetOut: {
@@ -2080,6 +2128,8 @@ export interface components {
        * Format: uuid
        */
       chapter_id: string;
+      /** Run Id */
+      run_id?: string | null;
       /**
        * @default {
        *       "calls": 0,
@@ -2240,6 +2290,22 @@ export interface components {
       edited_prose?: string | null;
     };
     /**
+     * DeleteChapterPacketOut
+     * @description Result of clearing chapter packets (and their scene packets) for one chapter.
+     */
+    DeleteChapterPacketOut: {
+      /**
+       * Deleted Chapter Packets
+       * @default 0
+       */
+      deleted_chapter_packets: number;
+      /**
+       * Deleted Scene Packets
+       * @default 0
+       */
+      deleted_scene_packets: number;
+    };
+    /**
      * DeleteSceneOut
      * @description Result of hard-deleting one scene version.
      */
@@ -2249,6 +2315,38 @@ export interface components {
        * Format: uuid
        */
       deleted: string;
+      /**
+       * Jobs Purged
+       * @default 0
+       */
+      jobs_purged: number;
+    };
+    /**
+     * DeleteScenePacketOut
+     * @description Result of hard-deleting one scene packet.
+     */
+    DeleteScenePacketOut: {
+      /**
+       * Deleted
+       * Format: uuid
+       */
+      deleted: string;
+      /**
+       * Jobs Purged
+       * @default 0
+       */
+      jobs_purged: number;
+    };
+    /**
+     * DeleteScenePacketsOut
+     * @description Result of clearing scene packets for one chapter.
+     */
+    DeleteScenePacketsOut: {
+      /**
+       * Deleted
+       * @default 0
+       */
+      deleted: number;
       /**
        * Jobs Purged
        * @default 0
@@ -2815,6 +2913,12 @@ export interface components {
       haiku_calls: number;
       /** Total Estimated Calls */
       total_estimated_calls: number;
+      /** Estimated Usd Per Chapter */
+      estimated_usd_per_chapter?: number | null;
+      /** Estimated Usd Low Per Chapter */
+      estimated_usd_low_per_chapter?: number | null;
+      /** Estimated Latency Sec Per Chapter */
+      estimated_latency_sec_per_chapter?: number | null;
     };
     /**
      * PipelineStepOut
@@ -4951,6 +5055,37 @@ export interface operations {
       };
     };
   };
+  delete_packet_chapters__chapter_id__packet_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeleteChapterPacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   packet_status_chapters__chapter_id__packet_status_get: {
     parameters: {
       query?: never;
@@ -5106,6 +5241,37 @@ export interface operations {
       };
     };
   };
+  delete_scene_packets_chapters__chapter_id__scene_packets_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeleteScenePacketsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   get_scene_packet_scene_packets__scene_packet_id__get: {
     parameters: {
       query?: never;
@@ -5159,6 +5325,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ScenePacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_scene_packet_scene_packets__scene_packet_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeleteScenePacketOut"];
         };
       };
       /** @description Validation Error */

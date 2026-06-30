@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from dominion.shared.agent_policy import quality_prompt_suffix, quality_temperature
 from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
@@ -228,7 +229,7 @@ class Drafter:
         revising = ctx.revise_feedback is not None
         user_prefix, user = _revise_prompt(ctx) if revising else _beat_prompt(ctx)
         max_tok = REVISE_MAX_TOKENS if revising else DRAFT_MAX_TOKENS
-        system = _voice_system(ctx)
+        system = _voice_system(ctx) + quality_prompt_suffix("draft_model")
 
         async def _attempt(model: str, max_tokens: int) -> tuple[str, Any]:
             text, usage = await llm.complete(
@@ -238,6 +239,7 @@ class Drafter:
                 user_prefix=user_prefix,
                 max_tokens=max_tokens,
                 budget=ctx.budget,
+                temperature=quality_temperature("draft_model"),
             )
             return text.strip(), usage
 

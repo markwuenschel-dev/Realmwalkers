@@ -94,11 +94,24 @@ export function PresetBar({
         <span>
           Est. cost:{" "}
           <strong style={{ color: BAND_COLOR[pipeline.cost_band] ?? "var(--ink)" }}>
-            {pipeline.cost_band}
+            {pipeline.estimated_usd_per_chapter != null
+              ? `$${pipeline.estimated_usd_per_chapter.toFixed(2)}/ch`
+              : pipeline.cost_band}
           </strong>
+          {pipeline.estimated_usd_low_per_chapter != null && (
+            <span style={{ color: "var(--dim)", fontWeight: 400 }}>
+              {" "}
+              (as low as ${pipeline.estimated_usd_low_per_chapter.toFixed(2)} with cache)
+            </span>
+          )}
         </span>
         <span>
-          Est. latency: <strong style={{ color: "var(--ink)" }}>{pipeline.latency_band}</strong>
+          Est. latency:{" "}
+          <strong style={{ color: "var(--ink)" }}>
+            {pipeline.estimated_latency_sec_per_chapter != null
+              ? `~${Math.round(pipeline.estimated_latency_sec_per_chapter / 60)}m`
+              : pipeline.latency_band}
+          </strong>
         </span>
         <span>{active?.best_for ?? pipeline.summary}</span>
       </div>

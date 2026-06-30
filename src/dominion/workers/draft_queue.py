@@ -500,6 +500,30 @@ async def _purge_job_ids(session: AsyncSession, job_ids: list[uuid.UUID]) -> int
     return len(job_ids)
 
 
+async def purge_draft_jobs_for_scene_packet(
+    session: AsyncSession,
+    *,
+    scene_packet_id: uuid.UUID,
+) -> int:
+    """Delete all draft jobs tied to one scene packet (queued, running, or failed)."""
+    job_ids = list(
+        (
+            await session.execute(
+                select(Job.id).where(
+                    Job.kind == JobKind.DRAFT,
+                    Job.scene_packet_id == scene_packet_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    purged = await _purge_job_ids(session, job_ids)
+    if purged:
+        log.info("draft_purge.scene_packet_jobs", scene_packet_id=str(scene_packet_id), purged=purged)
+    return purged
+
+
 async def purge_draft_jobs_for_scene(
     session: AsyncSession,
     *,

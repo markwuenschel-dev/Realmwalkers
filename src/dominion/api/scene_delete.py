@@ -22,6 +22,7 @@ from dominion.shared.models import (
     Summary,
 )
 from dominion.workers.draft_queue import purge_draft_jobs_for_scene
+from dominion.workers.scene_packet import staleness as packet_staleness
 
 
 async def hard_delete_scene(session: AsyncSession, scene_id: uuid.UUID) -> tuple[uuid.UUID, int]:
@@ -48,4 +49,5 @@ async def hard_delete_scene(session: AsyncSession, scene_id: uuid.UUID) -> tuple
     ):
         await session.execute(update(KnowledgeFact).where(col == scene_id).values({col: None}))
     await session.execute(delete(Scene).where(Scene.id == scene_id))
+    await packet_staleness.mark_stale_after_scene_delete(session, chapter_id=scene.chapter_id, scene_no=scene.scene_no)
     return scene_id, jobs_purged

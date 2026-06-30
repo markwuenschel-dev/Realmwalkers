@@ -8,6 +8,8 @@ import { api } from "../api/client";
 import { Spinner, formatElapsed } from "./DraftActivity";
 import ClearFailedPanel from "./ClearFailedPanel";
 import { ChapterTelemetryPanel } from "./Telemetry";
+import { TelemetryDrawer, useTelemetryDrawer } from "./telemetry/TelemetryDrawer";
+import type { TelemetryDrawerView } from "./telemetry/types";
 import { useDeskData } from "../api/data";
 import type { ScenePacketBody, ScenePacketOut, DraftReadinessOut } from "../api/types";
 
@@ -39,6 +41,7 @@ function validScenePacketBody(body: ScenePacketBody | undefined | null): boolean
 export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const { t } = useDesk();
   const desk = useDeskData();
+  const drawer = useTelemetryDrawer();
   const [packets, setPackets] = useState<ScenePacketOut[]>([]);
   const [loading, setLoading] = useState(false);
   const [deriving, setDeriving] = useState(false);
@@ -50,6 +53,13 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
   const [drafting, setDrafting] = useState(false);
   const pollRef = useRef<number | null>(null);
+
+  const openTelemetry = useCallback(
+    (view: TelemetryDrawerView) => {
+      drawer.open(view);
+    },
+    [drawer],
+  );
 
   const loadReadiness = useCallback(async () => {
     try {
@@ -191,6 +201,23 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
           </p>
         </div>
         <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
+          {packets.length > 0 && (
+            <button
+              disabled={busy != null || deriving}
+              onClick={() => {
+                if (
+                  !confirm(
+                    `Clear all ${packets.length} scene packet${packets.length === 1 ? "" : "s"} for this chapter? Re-derive before drafting.`,
+                  )
+                )
+                  return;
+                void run("clear-all", () => api.deleteScenePackets(chapterId));
+              }}
+              style={btn(busy == null && !deriving, "var(--bg3)", "var(--warn)")}
+            >
+              {busy === "clear-all" ? "Clearing…" : "Clear scene packets"}
+            </button>
+          )}
           {approvable.length > 0 && (
             <button
               disabled={busy != null || deriving}
@@ -312,12 +339,29 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
               onApprove={() => run(`approve:${p.id}`, () => api.approveScenePacket(p.id))}
               onReQa={() => run(`qa:${p.id}`, () => api.qaScenePacket(p.id))}
               onSave={(body) => run(`save:${p.id}`, () => api.updateScenePacket(p.id, { body }))}
+              onDelete={() => {
+                if (
+                  !confirm(
+                    `Delete scene packet for scene ${p.scene_no}? Re-derive before drafting this scene.`,
+                  )
+                )
+                  return;
+                void run(`delete:${p.id}`, () => api.deleteScenePacket(p.id));
+              }}
             />
           ))}
         </div>
       )}
 
-      <ChapterTelemetryPanel chapterId={chapterId} refreshKey={telemetryKey} />
+      <ChapterTelemetryPanel
+        chapterId={chapterId}
+        refreshKey={telemetryKey}
+        bookId={desk.bookId ?? undefined}
+        onOpen={desk.bookId ? openTelemetry : undefined}
+      />
+      {drawer.isOpen && desk.bookId && drawer.view && (
+        <TelemetryDrawer nav={drawer.nav} bookId={desk.bookId} />
+      )}
     </div>
   );
 }
@@ -328,12 +372,14 @@ function ScenePacketCard({
   onApprove,
   onReQa,
   onSave,
+  onDelete,
 }: {
   packet: ScenePacketOut;
   busy: string | null;
   onApprove: () => void;
   onReQa: () => void;
   onSave: (body: ScenePacketBody) => void;
+  onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -364,7 +410,7 @@ function ScenePacketCard({
   // Per-action busy flags (the panel keys busy as "<action>:<id>"). cardBusy disables every action on
   // this card while any one of them is in flight.
   const mine = (action: string) => busy === `${action}:${packet.id}`;
-  const cardBusy = mine("approve") || mine("qa") || mine("save");
+  const cardBusy = mine("approve") || mine("qa") || mine("save") || mine("delete");
 
   return (
     <div
@@ -439,6 +485,18 @@ function ScenePacketCard({
               style={btn(!cardBusy, "var(--bg3)", "var(--ink)")}
             >
               Edit
+            </button>
+          )}
+          {!editing && (
+            <button
+              disabled={cardBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              style={btn(!cardBusy, "var(--bg3)", "var(--warn)")}
+            >
+              {mine("delete") ? "Deleting…" : "Delete"}
             </button>
           )}
           <span style={css("font-family:var(--mono);font-size:14px;color:var(--dim)")}>

@@ -14,6 +14,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from math import ceil
+from typing import Any
 
 import anthropic
 import structlog
@@ -136,6 +137,7 @@ async def complete(
     expect_cache: bool = True,
     context_window_budget: int | None = None,
     context_sections: Mapping[str, int] | None = None,
+    temperature: float | None = None,
 ) -> tuple[str, Usage]:
     """One LLM call. Retries transient errors with exponential backoff; charges the budget from the
     response usage on success (raises BudgetExceeded if over). Non-transient errors raise at once.
@@ -190,14 +192,17 @@ async def complete(
 
     attempt = 0
     call_started = time.time()
+    create_kwargs: dict[str, Any] = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "system": system_blocks,
+        "messages": [{"role": "user", "content": user_content}],
+    }
+    if temperature is not None:
+        create_kwargs["temperature"] = temperature
     while True:
         try:
-            resp = await _client().messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                system=system_blocks,
-                messages=[{"role": "user", "content": user_content}],
-            )
+            resp = await _client().messages.create(**create_kwargs)
             break
         except Exception as exc:
             if not _is_transient(exc) or attempt >= settings.llm_max_retries:

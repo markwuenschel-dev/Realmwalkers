@@ -135,6 +135,7 @@ async def test_chapter_telemetry_scopes_to_latest_run(db_factory):
         assert out.totals.calls == 2  # latest run only, not 3
         assert out.totals.input_tokens == 300  # 100 + 200; the old run's 999 is excluded
         assert {sc.scene_no for sc in out.scenes} == {1, 2}
+        assert out.run_id == run_new
 
 
 async def test_book_telemetry_per_run_history_newest_first(db_factory):

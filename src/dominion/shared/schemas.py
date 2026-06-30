@@ -394,6 +394,7 @@ class ChapterTelemetryOut(BaseModel):
     """Per-chapter derive telemetry: chapter totals + a per-scene breakdown."""
 
     chapter_id: uuid.UUID
+    run_id: uuid.UUID | None = None
     totals: TelemetryTotals = TelemetryTotals()
     scenes: list[SceneTelemetryOut] = []
 
@@ -622,6 +623,27 @@ class DeleteSceneOut(BaseModel):
     """Result of hard-deleting one scene version."""
 
     deleted: uuid.UUID
+    jobs_purged: int = 0
+
+
+class DeleteChapterPacketOut(BaseModel):
+    """Result of clearing chapter packets (and their scene packets) for one chapter."""
+
+    deleted_chapter_packets: int = 0
+    deleted_scene_packets: int = 0
+
+
+class DeleteScenePacketOut(BaseModel):
+    """Result of hard-deleting one scene packet."""
+
+    deleted: uuid.UUID
+    jobs_purged: int = 0
+
+
+class DeleteScenePacketsOut(BaseModel):
+    """Result of clearing scene packets for one chapter."""
+
+    deleted: int = 0
     jobs_purged: int = 0
 
 
@@ -906,10 +928,22 @@ class AgentPermissionsOut(BaseModel):
     can_only_suggest: bool = True
 
 
+class AgentPermissionsPatchIn(BaseModel):
+    auto_run: bool | None = None
+    require_approval: bool | None = None
+    can_modify_packet: bool | None = None
+    can_block_downstream: bool | None = None
+    can_write_summaries: bool | None = None
+    can_update_canon: bool | None = None
+    can_only_suggest: bool | None = None
+
+
 class AgentEstimateOut(BaseModel):
     cost_band: str
     speed_band: str
     typical_calls_per_chapter: int
+    estimated_usd_per_chapter: float | None = None
+    estimated_latency_sec_per_chapter: int | None = None
 
 
 class AgentPolicyOut(BaseModel):
@@ -920,6 +954,8 @@ class AgentPolicyOut(BaseModel):
     fallback_model: str | None = None
     never_fallback: list[str] = []
     escalation_rules: list[EscalationRuleOut] = []
+    semantic_escalation: bool = True
+    quality_level: str = "balanced"
 
 
 class AgentPresetOut(BaseModel):
@@ -952,6 +988,9 @@ class PipelineEstimateOut(BaseModel):
     sonnet_calls: int
     haiku_calls: int
     total_estimated_calls: int
+    estimated_usd_per_chapter: float | None = None
+    estimated_usd_low_per_chapter: float | None = None
+    estimated_latency_sec_per_chapter: int | None = None
 
 
 class AgentOpsOut(BaseModel):
@@ -965,6 +1004,9 @@ class AgentOpsOut(BaseModel):
 class AgentPolicyUpdateIn(BaseModel):
     fallback_tier: str | None = None
     never_fallback: list[str] | None = None
+    semantic_escalation: bool | None = None
+    quality_level: str | None = None  # fast | balanced | quality
+    permissions: AgentPermissionsPatchIn | None = None
 
 
 class AgentStatsOut(BaseModel):
