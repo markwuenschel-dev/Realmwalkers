@@ -13,6 +13,16 @@ from dominion.workers.draft_readiness import compute_draft_readiness
 from dominion.workers.telemetry_diagnostics import _problem
 
 
+def _int_field(d: dict[str, object], key: str) -> int:
+    v = d.get(key, 0)
+    return int(v) if isinstance(v, int) else 0
+
+
+def _list_field(d: dict[str, object], key: str) -> list[Any]:
+    v = d.get(key)
+    return list(v) if isinstance(v, list) else []
+
+
 async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> dict[str, Any] | None:
     chapters = list(
         (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
@@ -35,18 +45,20 @@ async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> d
         if not readiness.chapter_packet_approved:
             issues.append("chapter packet not approved")
         sp = readiness.scene_packets
-        if sp.get("missing_scene_numbers"):
-            issues.append(f"missing scene packets: {sp['missing_scene_numbers'][:5]}")
-        if sp.get("stale", 0) > 0:
-            issues.append(f"{sp['stale']} stale scene packet(s)")
-        if sp.get("blocked", 0) > 0:
-            issues.append(f"{sp['blocked']} blocked scene packet(s)")
+        missing = _list_field(sp, "missing_scene_numbers")
+        if missing:
+            issues.append(f"missing scene packets: {missing[:5]}")
+        if _int_field(sp, "stale") > 0:
+            issues.append(f"{_int_field(sp, 'stale')} stale scene packet(s)")
+        if _int_field(sp, "blocked") > 0:
+            issues.append(f"{_int_field(sp, 'blocked')} blocked scene packet(s)")
         beats = readiness.beats
-        if beats.get("unlinked"):
-            issues.append(f"{len(beats['unlinked'])} unlinked beat(s)")
+        unlinked = _list_field(beats, "unlinked")
+        if unlinked:
+            issues.append(f"{len(unlinked)} unlinked beat(s)")
         jobs = readiness.jobs
-        if jobs.get("malformed", 0) > 0:
-            issues.append(f"{jobs['malformed']} malformed draft job(s)")
+        if _int_field(jobs, "malformed") > 0:
+            issues.append(f"{_int_field(jobs, 'malformed')} malformed draft job(s)")
         for b in readiness.blockers:
             blocker_count += 1
             breakdown.append(
