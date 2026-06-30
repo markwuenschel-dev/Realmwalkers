@@ -32,6 +32,7 @@ import structlog
 from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget, Usage
+from dominion.workers.llm import CachedPrefixBlock, estimate_tokens
 from dominion.workers.scene_packet.author import (
     _SYSTEM,
     ScenePacketAuthorError,
@@ -173,7 +174,8 @@ def _why(obj: Any, usage: Usage, *, section: _Section, model: str, max_tokens: i
 
 
 async def _author_section(
-    section: _Section, *, system: str, prefix: str, user: str, budget: TokenBudget
+    section: _Section, *, system: str, prefix_blocks: tuple[CachedPrefixBlock, ...],
+    user: str, budget: TokenBudget, context_sections: dict[str, int]
 ) -> dict[str, Any]:
     """Produce one section's slice. Retries ONCE escalated to the fallback model (with extra headroom on
     a truncation) before failing closed for the whole packet. Bounded by the global in-flight semaphore."""
@@ -181,8 +183,10 @@ async def _author_section(
     async def _attempt(model: str, max_tokens: int) -> tuple[Any, Usage]:
         async with _inflight_sem():
             raw, usage = await llm.complete(
-                model=model, system=system, user_prefix=prefix, user=user,
+                model=model, system=system, user_prefix_blocks=prefix_blocks, user=user,
                 max_tokens=max_tokens, budget=budget,
+                context_window_budget=settings.scene_packet_context_window_budget,
+                context_sections=context_sections,
             )
         return extract_object(raw), usage
 
@@ -206,6 +210,70 @@ async def _author_section(
     )
 
 
+
+def build_author_prefix_blocks(
+    *,
+    pov: str,
+    chapter_packet_body: dict[str, Any],
+    scene_seed: dict[str, Any],
+    word_budget: dict[str, Any],
+    prior_scene_summaries: list[str] | None = None,
+    prior_exit_state: str | None = None,
+    pov_summary: str | None = None,
+    omniscient_summary: str | None = None,
+    owner_snippets: list[str] | None = None,
+    canon_snippets: list[str] | None = None,
+) -> tuple[CachedPrefixBlock, CachedPrefixBlock]:
+    chapter_shared_prefix = build_prefix(
+        chapter_packet_body=chapter_packet_body,
+        pov_summary=pov_summary, omniscient_summary=omniscient_summary,
+    )
+    scene_context_prefix = build_scene_context(
+        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
+        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
+        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
+    )
+    return (
+        CachedPrefixBlock(name="chapter_shared_prefix", text=chapter_shared_prefix),
+        CachedPrefixBlock(name="scene_context_prefix", text=scene_context_prefix),
+    )
+
+
+def context_sections_for_author_call(
+    *, prefix_blocks: tuple[CachedPrefixBlock, ...], directive: str
+) -> dict[str, int]:
+    sections = {"system": estimate_tokens(_SYSTEM)}
+    sections.update({block.name: estimate_tokens(block.text) for block in prefix_blocks})
+    sections["section_directive"] = estimate_tokens(directive)
+    return sections
+
+
+async def prime_author_shared_prefix(
+    *,
+    chapter_packet_body: dict[str, Any],
+    pov_summary: str | None = None,
+    omniscient_summary: str | None = None,
+    budget: TokenBudget,
+) -> None:
+    """Prime the chapter-shared author prefix outside any scene-local work budget."""
+    prefix = build_prefix(
+        chapter_packet_body=chapter_packet_body,
+        pov_summary=pov_summary, omniscient_summary=omniscient_summary,
+    )
+    user = "Acknowledge cache prime."
+    await llm.complete(
+        model=settings.scene_packet_author_model, system=_SYSTEM,
+        user_prefix_blocks=(CachedPrefixBlock(name="chapter_shared_prefix", text=prefix),),
+        user=user, max_tokens=16, budget=budget,
+        context_window_budget=settings.scene_packet_context_window_budget,
+        context_sections={
+            "system": estimate_tokens(_SYSTEM),
+            "chapter_shared_prefix": estimate_tokens(prefix),
+            "prime_suffix": estimate_tokens(user),
+        },
+    )
+
+
 async def author_scene_packet_sectioned(
     *,
     pov: str,
@@ -225,33 +293,29 @@ async def author_scene_packet_sectioned(
     `author.author_scene_packet` — the caller (`derive._author_then_qa`) treats them interchangeably.
 
     word_budget is stamped server-side so the model can never override the planner's numbers."""
-    # Everything that is identical across this scene's section calls — the chapter-wide authority AND the
-    # scene context (seed, budget, retrieved canon) — rides as ONE cached prefix. Only the per-section
-    # directive (`user`, below) varies. This is what lets the priming call WRITE the shared prefix once
-    # and the rest READ it (charged at 0.1x), instead of every section re-sending the full context.
-    prefix = build_prefix(
-        chapter_packet_body=chapter_packet_body,
-        pov_summary=pov_summary, omniscient_summary=omniscient_summary,
-    ) + "\n\n" + build_scene_context(
-        pov=pov, scene_seed=scene_seed, word_budget=word_budget,
-        prior_scene_summaries=prior_scene_summaries, prior_exit_state=prior_exit_state,
-        owner_snippets=owner_snippets, canon_snippets=canon_snippets,
+    # The chapter-shared prefix is a cache breakpoint reused across scenes; the scene-context prefix is a
+    # second breakpoint reused across this scene's section calls. Only the section directive varies.
+    prefix_blocks = build_author_prefix_blocks(
+        pov=pov, chapter_packet_body=chapter_packet_body, scene_seed=scene_seed,
+        word_budget=word_budget, prior_scene_summaries=prior_scene_summaries,
+        prior_exit_state=prior_exit_state, pov_summary=pov_summary,
+        omniscient_summary=omniscient_summary, owner_snippets=owner_snippets,
+        canon_snippets=canon_snippets,
     )
 
     async def _run(section: _Section) -> dict[str, Any]:
-        # system is the CONSTANT _SYSTEM (never per-section) — that is what makes the shared prefix below
-        # byte-identical across sections, so the priming call's cache WRITE is actually read back.
+        directive = _section_directive(section)
         return await _author_section(
-            section, system=_SYSTEM, prefix=prefix,
-            user=_section_directive(section), budget=budget,
+            section, system=_SYSTEM, prefix_blocks=prefix_blocks, user=directive, budget=budget,
+            context_sections=context_sections_for_author_call(
+                prefix_blocks=prefix_blocks, directive=directive,
+            ),
         )
 
-    # Prime the shared-prefix cache before fanning out. Running all sections concurrently means they ALL
-    # miss the cold cache and each WRITES the full prefix at full budget weight — which summed past the
-    # per-scene ceiling (the 68k > 60k blocks). So run the cheapest section (smallest output, fastest to
-    # return) FIRST to warm the cache; the remaining sections then run concurrently and READ it (0.1x).
-    # Any section raising ScenePacketAuthorError fails the whole packet closed (the derive persists the
-    # reason as the scene's blocked_reason).
+    # Prime only this scene's scene-context prefix before fanning out the remaining sections. The
+    # chapter-shared prefix has already been primed by derive under the prefix-prime budget; this local
+    # primer prevents every section from writing the scene seed/canon block at full weight. Any section
+    # raising ScenePacketAuthorError fails the whole packet closed (the derive persists the reason).
     primer = min(_SECTIONS, key=lambda s: s.max_tokens)
     rest = [s for s in _SECTIONS if s is not primer]
     first = await _run(primer)

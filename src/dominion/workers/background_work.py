@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import collections.abc
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -24,7 +24,7 @@ log = structlog.get_logger()
 _inflight: set[str] = set()
 
 # Last finished derive counts per chapter id, so a poll after completion can report what happened.
-_derive_results: dict[str, dict[str, int]] = {}
+_derive_results: dict[str, dict[str, Any]] = {}
 
 # At most one drain loop per process. FastAPI background tasks share the API event loop.
 _drain_lock = asyncio.Lock()
@@ -101,13 +101,13 @@ async def drain_queued_jobs() -> None:
                 break
 
 
-def set_derive_result(chapter_id: str, counts: dict[str, int]) -> None:
+def set_derive_result(chapter_id: str, counts: dict[str, Any]) -> None:
     _derive_results[chapter_id] = counts
 
 
-def get_derive_result(chapter_id: str) -> dict[str, int] | None:
+def get_derive_result(chapter_id: str) -> dict[str, Any] | None:
     return _derive_results.get(chapter_id)
 
 
-def pop_derive_result(chapter_id: str) -> dict[str, int] | None:
+def pop_derive_result(chapter_id: str) -> dict[str, Any] | None:
     return _derive_results.pop(chapter_id, None)

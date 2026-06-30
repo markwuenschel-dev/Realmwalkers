@@ -369,7 +369,11 @@ async def test_derive_persists_per_call_telemetry(db_factory, monkeypatch):
         assert counts["created"] == 1 and counts["blocked"] == 0
 
         calls = (await s.execute(select(LlmCall).where(LlmCall.chapter_id == ch.id))).scalars().all()
-        assert sorted(c.stage for c in calls) == ["scene_packet_author", "scene_packet_qa"]
+        assert sorted(c.stage for c in calls) == [
+            "scene_packet_author", "scene_packet_author_prefix_prime",
+            "scene_packet_qa", "scene_packet_qa_prefix_prime",
+        ]
+        assert all(c.scene_no is None for c in calls if c.stage.endswith("prefix_prime"))
         author = next(c for c in calls if c.stage == "scene_packet_author")
         assert author.scene_no == 1
         assert author.model == settings.scene_packet_author_model
@@ -384,6 +388,8 @@ async def test_derive_blocks_with_specific_truncation_reason(db_factory, monkeyp
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # monolithic: primary+fallback = 2 calls
 
     def responder(*, model, system_text, user_text, max_tokens):
+        if "Acknowledge cache prime" in user_text:
+            return _FakeResp("{}")
         # Author always cut off mid-object; QA never reached (body never valid).
         return _FakeResp('{"scene_no": 1, "known_before_scene":', stop_reason="max_tokens")
 
@@ -401,10 +407,14 @@ async def test_derive_blocks_with_specific_truncation_reason(db_factory, monkeyp
         assert reason and "truncated" in reason
 
         calls = (await s.execute(select(LlmCall))).scalars().all()
-        assert len(calls) == 2 and all(c.truncated for c in calls)
-        assert {c.model for c in calls} == {
+        author_calls = [c for c in calls if c.stage == "scene_packet_author"]
+        assert len(author_calls) == 2 and all(c.truncated for c in author_calls)
+        assert {c.model for c in author_calls} == {
             settings.scene_packet_author_model, settings.scene_packet_author_fallback_model
         }
+        assert sorted(c.stage for c in calls if c.stage.endswith("prefix_prime")) == [
+            "scene_packet_author_prefix_prime", "scene_packet_qa_prefix_prime",
+        ]
 
 
 async def test_author_escalates_to_fallback_model_on_bad_primary(db_factory, monkeypatch):
@@ -455,6 +465,8 @@ def _section_responder(monkeypatch, *, overrides: dict[tuple[str, str], tuple[st
             return _FakeResp(_qa_ok())
         # The section marker now rides in the trailing user block (kept out of system so every section
         # shares one cached prefix), so route on user_text.
+        if "Acknowledge cache prime" in user_text:
+            return _FakeResp("{}")
         for sec in sp_sections._SECTIONS:
             if f"[section:{sec.name}]" in user_text:
                 tier = "primary" if model == settings.scene_packet_author_model else "fallback"
@@ -494,30 +506,25 @@ async def test_sectioned_author_merges_sections_into_one_packet(db_factory, monk
         assert all(c.scene_no == 1 for c in authors)
 
 
-async def test_sectioned_author_shares_one_cached_prefix_so_budget_holds(monkeypatch):
-    """Regression for the 68k>60k scene blocks. Every section call must reuse ONE cached prefix so the
-    priming write is read back at 0.1x. The bug put the `[section:NAME]` marker in the SYSTEM prompt,
-    which made each section a DISTINCT cache key (Anthropic caches from the start of the request, system
-    first) — so the shared scene context was never read, every section re-WROTE the full ~14k prefix at
-    full budget weight, and ~5 writes blew the per-scene ceiling. The earlier fakes hardcoded fixed cache
-    fields per call, so they never modeled this and let the regression through CI.
-
-    This drives the REAL sectioned author with a fake client that models prefix caching faithfully
-    (identical leading system+prefix -> cache_read, otherwise a write) and asserts the primer is the SOLE
-    writer and the per-scene budget stays well under the real 60k ceiling. Under the bug this raises
-    BudgetExceeded (5 full writes ~= 71k), so it fails the moment the marker moves back into system."""
+async def test_sectioned_author_uses_chapter_and_scene_cache_breakpoints(monkeypatch):
+    """The sectioned author must send two cache breakpoints: a chapter-shared prefix that can be
+    reused across scenes, then a scene-local prefix reused across sections. The section directive stays
+    uncached so section names cannot poison either cache key."""
     import json
 
     from dominion.workers import llm
 
-    PREFIX = 14_000  # tokens of shared scene context; 5 full writes (~71k) would cross the 60k ceiling
-    writes: list[str] = []
-    seen: set[str] = set()
+    CHAPTER_PREFIX = 14_000
+    SCENE_PREFIX = 6_000
+    chapter_writes: list[str] = []
+    scene_writes: list[str] = []
+    seen_chapter: set[str] = set()
+    seen_scene: set[str] = set()
     complete = _complete_scene_body()
 
     class _Usage:
         def __init__(self, *, creation: int, read: int) -> None:
-            self.input_tokens = 40          # the tiny per-section directive (uncached trailing block)
+            self.input_tokens = 40
             self.output_tokens = 200
             self.cache_creation_input_tokens = creation
             self.cache_read_input_tokens = read
@@ -532,20 +539,26 @@ async def test_sectioned_author_shares_one_cached_prefix_so_budget_holds(monkeyp
         async def create(self, *, model, max_tokens, system, messages):
             sys_text = system[0]["text"]
             blocks = messages[0]["content"]
-            assert isinstance(blocks, list), "sectioned author must send the shared context as a cached block"
-            prefix_text, trailing = blocks[0]["text"], blocks[1]["text"]
-            # Anthropic matches a cache prefix from the START of the request: system THEN the cached user
-            # block. Model exactly that — an identical (system + prefix) is a READ, a new one is a WRITE.
-            cache_key = sys_text + "\x00" + prefix_text
-            if cache_key in seen:
-                usage = _Usage(creation=0, read=PREFIX)
+            assert isinstance(blocks, list) and len(blocks) == 3
+            chapter_text, scene_text, trailing = blocks[0]["text"], blocks[1]["text"], blocks[2]["text"]
+            chapter_key = sys_text + "\x00" + chapter_text
+            scene_key = chapter_key + "\x00" + scene_text
+            creation = read = 0
+            if chapter_key in seen_chapter:
+                read += CHAPTER_PREFIX
             else:
-                seen.add(cache_key)
-                writes.append(cache_key)
-                usage = _Usage(creation=PREFIX, read=0)
+                seen_chapter.add(chapter_key)
+                chapter_writes.append(chapter_key)
+                creation += CHAPTER_PREFIX
+            if scene_key in seen_scene:
+                read += SCENE_PREFIX
+            else:
+                seen_scene.add(scene_key)
+                scene_writes.append(scene_key)
+                creation += SCENE_PREFIX
             for sec in sp_sections._SECTIONS:
                 if f"[section:{sec.name}]" in trailing:
-                    return _Resp(json.dumps({k: complete[k] for k in sec.keys}), usage)
+                    return _Resp(json.dumps({k: complete[k] for k in sec.keys}), _Usage(creation=creation, read=read))
             raise AssertionError(f"no section marker in trailing user block: {trailing[:80]}")
 
     class _Client:
@@ -554,7 +567,7 @@ async def test_sectioned_author_shares_one_cached_prefix_so_budget_holds(monkeyp
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", True)
     monkeypatch.setattr(llm, "_client", lambda: _Client())
 
-    budget = TokenBudget(max_tokens=settings.scene_token_budget)  # the real 60k ceiling
+    budget = TokenBudget(max_tokens=settings.scene_token_budget)
     body = await sp_sections.author_scene_packet_sectioned(
         pov="Marcus",
         chapter_packet_body={"chapter_job": "x" * 400},
@@ -563,12 +576,247 @@ async def test_sectioned_author_shares_one_cached_prefix_so_budget_holds(monkeyp
         budget=budget,
     )
 
-    # the priming section is the ONLY writer; every other section READ the warm cache
-    assert len(writes) == 1, f"expected exactly 1 prefix write (the primer), got {len(writes)}"
+    assert len(chapter_writes) == 1
+    assert len(scene_writes) == 1
     assert "known_before_scene" in body and body["word_budget"]["target"] == 1500
-    # 1 write + (N-1) reads*0.1x + tiny output — nowhere near the ceiling the bug crossed
     assert budget.used < settings.scene_token_budget
-    assert budget.used < PREFIX * 2          # < 28k proves reads happened, not 5 full writes (~71k)
+    assert budget.used < (CHAPTER_PREFIX + SCENE_PREFIX) * 2
+
+
+async def test_sectioned_author_raw_context_window_failure_preflights_before_llm(monkeypatch):
+    """ScenePacket raw context-window failures must happen before the API call and must not rely on
+    weighted/cache-aware TokenBudget accounting."""
+    from dominion.workers import llm
+    from dominion.workers.llm import ContextWindowExceeded
+
+    monkeypatch.setattr(settings, "scene_packet_context_window_budget", 10)
+
+    class _Messages:
+        async def create(self, **kwargs):
+            raise AssertionError("LLM client should not be called after context preflight fails")
+
+    class _Client:
+        messages = _Messages()
+
+    monkeypatch.setattr(llm, "_client", lambda: _Client())
+
+    with pytest.raises(ContextWindowExceeded, match="ScenePacket context window exceeded"):
+        await sp_sections.author_scene_packet_sectioned(
+            pov="Marcus",
+            chapter_packet_body={"chapter_job": "x" * 1000},
+            scene_seed=_seed(str(uuid.uuid4()), scene_no=1),
+            word_budget={"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400},
+            budget=TokenBudget(max_tokens=60_000),
+        )
+
+
+async def test_author_prime_and_real_request_match_through_shared_prefix(monkeypatch):
+    """Author prime and real section calls must be identical through the chapter_shared_prefix
+    breakpoint; otherwise the real call writes the cache again instead of reading it."""
+    import json
+
+    from dominion.workers import llm
+
+    monkeypatch.setattr(settings, "scene_packet_context_window_budget", 500_000)
+    complete = _complete_scene_body()
+    seen: dict[str, object] = {}
+
+    class _Messages:
+        async def create(self, *, model, max_tokens, system, messages):
+            blocks = messages[0]["content"]
+            assert isinstance(blocks, list)
+            trailing = blocks[-1]["text"]
+            shape = {
+                "system": system[0]["text"],
+                "cached": [b["text"] for b in blocks[:-1]],
+                "trailing": trailing,
+            }
+            if "Acknowledge cache prime" in trailing:
+                seen["prime"] = shape
+                return _FakeResp("{}")
+            seen.setdefault("real", shape)
+            for sec in sp_sections._SECTIONS:
+                if f"[section:{sec.name}]" in trailing:
+                    return _FakeResp(json.dumps({k: complete[k] for k in sec.keys}))
+            raise AssertionError(f"no section marker in trailing user block: {trailing[:80]}")
+
+    class _Client:
+        messages = _Messages()
+
+    monkeypatch.setattr(llm, "_client", lambda: _Client())
+    chapter_body = {"chapter_job": "hold the line", "scene_seeds": []}
+    pov_summary = "Marcus knows the bridge is watched."
+    omniscient = "The reader knows the ambush is staged."
+
+    await sp_sections.prime_author_shared_prefix(
+        chapter_packet_body=chapter_body, pov_summary=pov_summary, omniscient_summary=omniscient,
+        budget=TokenBudget(max_tokens=100_000),
+    )
+    await sp_sections.author_scene_packet_sectioned(
+        pov="Marcus", chapter_packet_body=chapter_body,
+        scene_seed=_seed(str(uuid.uuid4()), scene_no=1),
+        word_budget={"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400},
+        pov_summary=pov_summary, omniscient_summary=omniscient,
+        budget=TokenBudget(max_tokens=60_000),
+    )
+
+    prime = seen["prime"]
+    real = seen["real"]
+    assert prime["system"] == real["system"]
+    assert len(prime["cached"]) == 1
+    assert len(real["cached"]) == 2
+    assert prime["cached"][0] == real["cached"][0]
+    assert "THIS SCENE'S SEED" not in prime["cached"][0]
+    assert "THIS SCENE'S SEED" in real["cached"][1]
+    assert "Acknowledge cache prime" not in real["cached"][0]
+
+
+async def test_qa_prime_and_real_request_match_through_shared_prefix(monkeypatch):
+    """QA prime and real QA calls use a different system prompt from Author, but within QA they must
+    match through the chapter_shared_prefix breakpoint."""
+    from dominion.workers import llm
+
+    monkeypatch.setattr(settings, "scene_packet_context_window_budget", 500_000)
+    seen: dict[str, object] = {}
+
+    class _Messages:
+        async def create(self, *, model, max_tokens, system, messages):
+            blocks = messages[0]["content"]
+            assert isinstance(blocks, list)
+            trailing = blocks[-1]["text"]
+            shape = {
+                "system": system[0]["text"],
+                "cached": [b["text"] for b in blocks[:-1]],
+                "trailing": trailing,
+            }
+            if "Acknowledge cache prime" in trailing:
+                seen["prime"] = shape
+                return _FakeResp("{}")
+            seen["real"] = shape
+            return _FakeResp(_qa_ok())
+
+    class _Client:
+        messages = _Messages()
+
+    monkeypatch.setattr(llm, "_client", lambda: _Client())
+    chapter_body = {"chapter_job": "hold the line", "scene_seeds": []}
+
+    await sp_qa.prime_qa_shared_prefix(chapter_body, budget=TokenBudget(max_tokens=100_000))
+    await sp_qa.qa_scene_packet(
+        _complete_scene_body(), chapter_packet_body=chapter_body, budget=TokenBudget(max_tokens=60_000)
+    )
+
+    prime = seen["prime"]
+    real = seen["real"]
+    assert prime["system"] == real["system"]
+    assert len(prime["cached"]) == len(real["cached"]) == 1
+    assert prime["cached"][0] == real["cached"][0]
+    assert "Acknowledge cache prime" not in real["cached"][0]
+    assert "SCENE PACKET" in real["trailing"]
+
+
+async def test_derive_primes_shared_prefix_before_scene_work_for_reported_67k_case(db_factory, monkeypatch):
+    """Regression for Scene 1 failing with `67040 > 60000`: the 66.5k chapter-shared cache write
+    is charged to explicit prefix-prime calls, while both Scene 1 and Scene 2 read that prefix under
+    their own 60k scene-local budgets."""
+    import json
+
+    from dominion.shared.models import LlmCall
+    from dominion.workers import llm
+
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", True)
+    monkeypatch.setattr(settings, "scene_token_budget", 60_000)
+    monkeypatch.setattr(settings, "scene_packet_prefix_prime_token_budget", 100_000)
+    monkeypatch.setattr(settings, "scene_packet_context_window_budget", 500_000)
+
+    CHAPTER_PREFIX = 66_500
+    SCENE_PREFIX = 500
+    DIRECTIVE_INPUT = 40
+    OUTPUT = 500
+    complete = _complete_scene_body()
+    seen: set[str] = set()
+    events: list[str] = []
+
+    class _Usage:
+        def __init__(self, *, creation: int, read: int) -> None:
+            self.input_tokens = DIRECTIVE_INPUT
+            self.output_tokens = OUTPUT
+            self.cache_creation_input_tokens = creation
+            self.cache_read_input_tokens = read
+
+    class _Resp:
+        def __init__(self, text: str, usage: _Usage) -> None:
+            self.content = [_FakeBlock(text)]
+            self.usage = usage
+            self.stop_reason = "end_turn"
+
+    class _Messages:
+        async def create(self, *, model, max_tokens, system, messages):
+            sys_text = system[0]["text"]
+            is_qa = "QA agent" in sys_text
+            blocks = messages[0]["content"]
+            assert isinstance(blocks, list)
+            trailing = blocks[-1]["text"]
+            creation = read = 0
+            prefix_key = sys_text
+            for i, block in enumerate(blocks[:-1]):
+                prefix_key += "\x00" + block["text"]
+                weight = CHAPTER_PREFIX if i == 0 else SCENE_PREFIX
+                if prefix_key in seen:
+                    read += weight
+                else:
+                    seen.add(prefix_key)
+                    creation += weight
+
+            if "Acknowledge cache prime" in trailing:
+                events.append("qa_prime" if is_qa else "author_prime")
+                return _Resp("{}", _Usage(creation=creation, read=read))
+
+            if is_qa:
+                assert events[:2] == ["author_prime", "qa_prime"]
+                events.append("qa_scene")
+                return _Resp(_qa_ok(), _Usage(creation=creation, read=read))
+
+            assert events[:2] == ["author_prime", "qa_prime"]
+            events.append("author_scene")
+            for sec in sp_sections._SECTIONS:
+                if f"[section:{sec.name}]" in trailing:
+                    return _Resp(json.dumps({k: complete[k] for k in sec.keys}), _Usage(creation=creation, read=read))
+            raise AssertionError(f"no section marker in trailing user block: {trailing[:80]}")
+
+    class _Client:
+        def __init__(self) -> None:
+            self.messages = _Messages()
+
+    fake = _Client()
+    monkeypatch.setattr(llm, "_client", lambda: fake)
+
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        seeds = [_seed(str(uuid.uuid4()), scene_no=1), _seed(str(uuid.uuid4()), scene_no=2)]
+        cp = await _approved_chapter_packet(s, book, ch, seeds)
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+
+        assert counts["created"] == 2
+        assert counts["blocked"] == 0
+        assert counts["context_budget_report"]["context_window_budget"] == 500_000
+        assert events[:2] == ["author_prime", "qa_prime"]
+
+        calls = (await s.execute(select(LlmCall).where(LlmCall.chapter_id == ch.id))).scalars().all()
+        prime_calls = [c for c in calls if c.stage.endswith("prefix_prime")]
+        assert sorted(c.stage for c in prime_calls) == [
+            "scene_packet_author_prefix_prime", "scene_packet_qa_prefix_prime",
+        ]
+        assert all(c.scene_no is None for c in prime_calls)
+        assert all(c.cache_creation_tokens == CHAPTER_PREFIX for c in prime_calls)
+
+        scene_author_calls = [c for c in calls if c.stage == "scene_packet_author"]
+        assert scene_author_calls
+        assert all(c.scene_no in {1, 2} for c in scene_author_calls)
+        assert all(c.cache_creation_tokens < CHAPTER_PREFIX for c in scene_author_calls)
+        assert any(c.scene_no == 1 and c.cache_read_tokens >= CHAPTER_PREFIX for c in scene_author_calls)
+        assert any(c.scene_no == 2 and c.cache_read_tokens >= CHAPTER_PREFIX for c in scene_author_calls)
 
 
 async def test_sectioned_author_escalates_only_the_failed_section(db_factory, monkeypatch):
@@ -871,6 +1119,33 @@ async def test_derive_endpoint_requires_approved_chapter_packet(db_factory):
         with pytest.raises(HTTPException) as exc:
             await sp_router.derive_scene_packets(ch.id, BackgroundTasks(), s)
         assert exc.value.status_code == 409
+
+
+async def test_derive_router_outputs_context_budget_report(db_factory, monkeypatch):
+    """Both the sync derive result and the polled derive-status result expose context_budget_report."""
+    report = {"context_window_budget": 123, "chapter_packet": 45, "scenes": []}
+
+    async def fake_derive(session, *, packet):
+        return {"created": 1, "updated": 0, "blocked": 0, "stale": 0, "context_budget_report": report}
+
+    monkeypatch.setattr(sp_router.derive_mod, "derive_scene_packets", fake_derive)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        await s.commit()
+
+        out = await sp_router._derive_sync(ch.id, s)
+        assert out.context_budget_report == report
+
+        bw.set_derive_result(str(ch.id), {
+            "created": 1, "updated": 0, "blocked": 0, "stale": 0, "context_budget_report": report,
+        })
+        try:
+            status = await sp_router.derive_status(ch.id, s)
+            assert status.result is not None
+            assert status.result.context_budget_report == report
+        finally:
+            bw.pop_derive_result(str(ch.id))
 
 
 async def test_derive_endpoint_schedules_background_run(db_factory):

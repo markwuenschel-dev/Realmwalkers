@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from dominion.workers.budget import BudgetExceeded, TokenBudget, Usage
+from dominion.workers.llm import CachedPrefixBlock, ContextWindowExceeded, check_context_window
 
 
 def test_total_stays_raw_token_count():
@@ -53,3 +54,18 @@ def test_charge_raises_when_weighted_cost_crosses_ceiling():
     budget = TokenBudget(max_tokens=1000)
     with pytest.raises(BudgetExceeded):
         budget.charge(Usage(input_tokens=600, output_tokens=600))  # 1200 > 1000
+
+
+def test_context_window_guard_uses_raw_tokens_not_weighted_cache_cost():
+    # Weighted budget would pass because cache reads are discounted to ~10%, but raw context-window
+    # safety must count the full cached prefix plus output allowance.
+    budget = TokenBudget(max_tokens=10_000)
+    budget.charge(Usage(input_tokens=100, output_tokens=100, cache_read_tokens=40_000))
+    assert budget.used == 4_200
+
+    with pytest.raises(ContextWindowExceeded, match="context_window_budget=1000"):
+        check_context_window(
+            system="s", user="u", max_tokens=100, context_window_budget=1000,
+            user_prefix_blocks=(CachedPrefixBlock("chapter_shared_prefix", "x" * 8000),),
+            context_sections={"chapter_shared_prefix": 2_000},
+        )

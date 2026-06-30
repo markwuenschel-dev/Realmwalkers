@@ -293,6 +293,7 @@ class ScenePacketDeriveOut(BaseModel):
     blocked: int = 0
     stale: int = 0
     packets: list[ScenePacketOut] = []
+    context_budget_report: dict[str, Any] | None = None
 
 
 class ScenePacketApproveIn(BaseModel):

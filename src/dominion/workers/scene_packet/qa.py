@@ -15,6 +15,7 @@ from typing import Any
 from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
+from dominion.workers.llm import CachedPrefixBlock, estimate_tokens
 from dominion.workers.scene_packet.parse import parse_scene_qa
 
 # Headroom for the fallback attempt when the first QA pass is cut off mid-verdict.
@@ -56,6 +57,41 @@ def build_prompt(scene_packet: dict[str, Any]) -> str:
             "SCENE PACKET:\n" + _compact(scene_packet))
 
 
+
+def build_prefix_blocks(chapter_packet_body: dict[str, Any] | None) -> tuple[CachedPrefixBlock, ...]:
+    prefix = build_prefix(chapter_packet_body)
+    return (CachedPrefixBlock(name="chapter_shared_prefix", text=prefix),) if prefix else ()
+
+
+def context_sections_for_qa_call(
+    *, prefix_blocks: tuple[CachedPrefixBlock, ...], user: str
+) -> dict[str, int]:
+    sections = {"system": estimate_tokens(_SYSTEM)}
+    sections.update({block.name: estimate_tokens(block.text) for block in prefix_blocks})
+    sections["qa_prompt"] = estimate_tokens(user)
+    return sections
+
+
+async def prime_qa_shared_prefix(
+    chapter_packet_body: dict[str, Any] | None, *, budget: TokenBudget
+) -> None:
+    """Prime the QA chapter-shared prefix outside any scene-local work budget."""
+    prefix_blocks = build_prefix_blocks(chapter_packet_body)
+    if not prefix_blocks:
+        return
+    user = "Acknowledge cache prime."
+    await llm.complete(
+        model=settings.scene_packet_qa_model, system=_SYSTEM, user_prefix_blocks=prefix_blocks,
+        user=user, max_tokens=16, budget=budget, expect_cache=True,
+        context_window_budget=settings.scene_packet_context_window_budget,
+        context_sections={
+            "system": estimate_tokens(_SYSTEM),
+            "chapter_shared_prefix": estimate_tokens(prefix_blocks[0].text),
+            "prime_suffix": estimate_tokens(user),
+        },
+    )
+
+
 async def qa_scene_packet(
     scene_packet: dict[str, Any],
     *,
@@ -65,13 +101,15 @@ async def qa_scene_packet(
     """One bounded call -> {verdict, residual_risks, issues}, or None on a malformed response (the
     caller fails closed on None). If the first pass is truncated or unparseable, retry ONCE escalated
     to the fallback model with extra headroom before giving up — a cut-off verdict is recoverable."""
-    prefix = build_prefix(chapter_packet_body)
+    prefix_blocks = build_prefix_blocks(chapter_packet_body)
     user = build_prompt(scene_packet)
 
     async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, bool]:
         raw, usage = await llm.complete(
-            model=model, system=_SYSTEM, user_prefix=prefix, user=user,
-            max_tokens=max_tokens, budget=budget, expect_cache=False,
+            model=model, system=_SYSTEM, user_prefix_blocks=prefix_blocks, user=user,
+            max_tokens=max_tokens, budget=budget, expect_cache=bool(prefix_blocks),
+            context_window_budget=settings.scene_packet_context_window_budget,
+            context_sections=context_sections_for_qa_call(prefix_blocks=prefix_blocks, user=user),
         )
         return parse_scene_qa(raw), usage.truncated
 
