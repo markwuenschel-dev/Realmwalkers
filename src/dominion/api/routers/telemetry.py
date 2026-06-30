@@ -395,7 +395,7 @@ async def book_telemetry_problems(book_id: uuid.UUID, session: SessionDep) -> Te
             )
         )
     ).all()
-    failed = [(r.id, r.chapter_no, r.scene_no, r.last_error) for r in failed_rows]
+    failed = [(row[0], row[1], row[2], row[3]) for row in failed_rows]
     raw = build_problems(rows, failed)
     problems = [TelemetryProblemOut(**p) for p in raw]
     return TelemetryProblemsOut(problems=problems, healthy=len(problems) == 0)
