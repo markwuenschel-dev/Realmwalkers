@@ -11,14 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, ScenePacketStatus
 from dominion.shared.models import Beat, Job, ScenePacket
 
+AuditRow = dict[str, str | int | None]
+
 
 @dataclass
 class AuditReport:
-    malformed_jobs: list[dict] = field(default_factory=list)
-    unlinked_beats: list[dict] = field(default_factory=list)
-    duplicate_packets: list[dict] = field(default_factory=list)
-    beat_packet_mismatches: list[dict] = field(default_factory=list)
-    repairable_beats: list[dict] = field(default_factory=list)
+    malformed_jobs: list[AuditRow] = field(default_factory=list)
+    unlinked_beats: list[AuditRow] = field(default_factory=list)
+    duplicate_packets: list[AuditRow] = field(default_factory=list)
+    beat_packet_mismatches: list[AuditRow] = field(default_factory=list)
+    repairable_beats: list[AuditRow] = field(default_factory=list)
 
 
 async def audit_chapter(session: AsyncSession, chapter_id: uuid.UUID) -> AuditReport:

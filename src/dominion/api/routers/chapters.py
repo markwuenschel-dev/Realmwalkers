@@ -28,6 +28,7 @@ from dominion.shared.schemas import (
     RedraftIn,
     SceneOut,
 )
+from dominion.workers.draft_queue import DraftScheduleResult
 from dominion.workers.draft_readiness import blocker_out, compute_draft_readiness
 from dominion.workers.job_scheduler import (
     _latest_run,
@@ -40,7 +41,7 @@ log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["chapters"])
 
 
-def _schedule_out(chapter_id: uuid.UUID, result) -> DraftScheduleOut:
+def _schedule_out(chapter_id: uuid.UUID, result: DraftScheduleResult) -> DraftScheduleOut:
     return DraftScheduleOut(
         chapter_id=chapter_id,
         queued_job_ids=result.queued_job_ids,

@@ -10,13 +10,15 @@ import uuid
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Beat, Job
-from dominion.tools.draft_audit import audit_chapter
+from dominion.tools.draft_audit import AuditRow, audit_chapter
 
 
-async def _apply(chapter_id: uuid.UUID, dry_run: bool) -> dict:
+async def _apply(chapter_id: uuid.UUID, dry_run: bool) -> dict[str, object]:
     async with SessionFactory() as session:
         report = await audit_chapter(session, chapter_id)
-        actions: dict = {"repaired_beats": [], "cancelled_jobs": [], "skipped": []}
+        repaired_beats: list[AuditRow] = []
+        cancelled_jobs: list[str] = []
+        skipped: list[AuditRow] = []
 
         if dry_run:
             return {
@@ -28,23 +30,29 @@ async def _apply(chapter_id: uuid.UUID, dry_run: bool) -> dict:
             }
 
         for item in report.repairable_beats:
-            beat = await session.get(Beat, uuid.UUID(item["beat_id"]))
+            beat = await session.get(Beat, uuid.UUID(str(item["beat_id"])))
             if beat is not None:
-                beat.scene_packet_id = uuid.UUID(item["scene_packet_id"])
-                actions["repaired_beats"].append(item)
+                beat.scene_packet_id = uuid.UUID(str(item["scene_packet_id"]))
+                repaired_beats.append(item)
 
         for item in report.malformed_jobs:
-            job = await session.get(Job, uuid.UUID(item["id"]))
+            job = await session.get(Job, uuid.UUID(str(item["id"])))
             if job is not None and job.status in (JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED):
                 job.status = JobStatus.FAILED
                 job.last_error = (job.last_error or "") + " [cancelled: invalid scene_packet_id]"
-                actions["cancelled_jobs"].append(item["id"])
+                cancelled_jobs.append(str(item["id"]))
 
         if report.unlinked_beats or report.duplicate_packets:
-            actions["skipped"] = report.unlinked_beats + report.duplicate_packets
+            skipped = report.unlinked_beats + report.duplicate_packets
 
         await session.commit()
-        return {"chapter_id": str(chapter_id), "dry_run": False, **actions}
+        return {
+            "chapter_id": str(chapter_id),
+            "dry_run": False,
+            "repaired_beats": repaired_beats,
+            "cancelled_jobs": cancelled_jobs,
+            "skipped": skipped,
+        }
 
 
 def main() -> None:
