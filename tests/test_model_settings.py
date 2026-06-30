@@ -26,7 +26,7 @@ async def test_set_model_applies_live_and_persists_and_reloads(db_factory):
             assert row is not None and row.model == "claude-opus-4-8"  # persisted
 
             # startup re-apply restores the saved choice over a fresh-default settings
-            cfg.draft_model = "claude-sonnet-4-6"
+            cfg.draft_model = "claude-sonnet-5"
             applied = await settings_router.apply_model_overrides(s)
             assert applied >= 1 and cfg.draft_model == "claude-opus-4-8"
     finally:
@@ -60,8 +60,8 @@ async def test_scene_packet_author_model_is_settable_from_tab(db_factory):
                 ModelSettingUpdateIn(setting="scene_packet_author_model", tier="sonnet"),
                 s,
             )
-            assert out.model == "claude-sonnet-4-6"
-            assert cfg.scene_packet_author_model == "claude-sonnet-4-6"  # live mutation reaches the stage
+            assert out.model == "claude-sonnet-5"
+            assert cfg.scene_packet_author_model == "claude-sonnet-5"  # live mutation reaches the stage
     finally:
         cfg.scene_packet_author_model = original
 

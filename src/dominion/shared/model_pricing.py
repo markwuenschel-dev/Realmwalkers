@@ -33,6 +33,10 @@ class ModelPricing:
 
 _MODEL_PRICING: dict[str, ModelPricing] = {
     "claude-opus-4": ModelPricing(input=15.0, output=75.0, cache_write=18.75, cache_read=1.50),
+    # Standard Sonnet 5 rates ($3/$15); intro pricing ($2/$10) runs through 2026-08-31, so estimate
+    # at the durable standard rate. Keyed separately from claude-sonnet-4 because the prefix match
+    # ("claude-sonnet-4" in id) does not catch "claude-sonnet-5".
+    "claude-sonnet-5": ModelPricing(input=3.0, output=15.0, cache_write=3.75, cache_read=0.30),
     "claude-sonnet-4": ModelPricing(input=3.0, output=15.0, cache_write=3.75, cache_read=0.30),
     "claude-haiku-4": ModelPricing(input=0.80, output=4.0, cache_write=1.0, cache_read=0.08),
 }

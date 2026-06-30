@@ -29,27 +29,27 @@ class Settings(BaseSettings):
 
     # Anthropic (the key uses its own conventional env var, not the DOMINION_ prefix)
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
-    draft_model: str = "claude-sonnet-4-6"
+    draft_model: str = "claude-sonnet-5"
     draft_fallback_model: str = "claude-haiku-4-5"
     review_model: str = "claude-haiku-4-5-20251001"
-    review_fallback_model: str = "claude-sonnet-4-6"
+    review_fallback_model: str = "claude-sonnet-5"
     # Enrichment passes are targeted rewrites layered on the Sonnet-drafted spine, so they run on Haiku
     # by default — roughly a third the cost and ~2-3x faster per pass, with little prose impact since
     # the spine already carries the voice. Override DOMINION_ENRICH_MODEL to put them back on Sonnet if
     # a chapter needs richer enrichment (DESIGN §5-6).
     enrich_model: str = "claude-haiku-4-5"
-    enrich_fallback_model: str = "claude-sonnet-4-6"
+    enrich_fallback_model: str = "claude-sonnet-5"
 
     # Contract-first drafting — Phase 1 (chapter packets). The packet agents run ONCE per chapter, so
     # a strong reasoner is cheap (amortized over ~12+ scenes) — they decide the guardrails every later
     # writer obeys, so default them to Sonnet. (Per-scene stage models — preflight/compression/QA —
     # arrive with their phases.)
-    packet_author_model: str = "claude-sonnet-4-6"
+    packet_author_model: str = "claude-sonnet-5"
     packet_author_fallback_model: str = "claude-opus-4-8"
     # QA only ATTACKS the author's packet (a checker, not a creator), so it rides Haiku like the
     # other checker/enrichment stages (review_model, enrich_model) — meaningfully faster second call.
     packet_qa_model: str = "claude-haiku-4-5"
-    packet_qa_fallback_model: str = "claude-sonnet-4-6"
+    packet_qa_fallback_model: str = "claude-sonnet-5"
     # The packet author/QA calls run synchronously inside the propose-packet request; bound them so a
     # hung call surfaces as a clean failure instead of a spinning browser (mirrors plan_time_budget_s).
     packet_time_budget_s: int = 180
@@ -71,8 +71,8 @@ class Settings(BaseSettings):
     # An empty fallback disables the escalation (the single attempt then stands or blocks).
     scene_packet_author_max_tokens: int = 8000
     scene_packet_qa_max_tokens: int = 3000
-    scene_packet_author_fallback_model: str = "claude-sonnet-4-6"
-    scene_packet_qa_fallback_model: str = "claude-sonnet-4-6"
+    scene_packet_author_fallback_model: str = "claude-sonnet-5"
+    scene_packet_qa_fallback_model: str = "claude-sonnet-5"
     # Explicit shared-prefix priming runs before scene fan-out, so Scene 1 no longer pays the chapter-
     # level cache write under its per-scene work budget. This separate ceiling bounds those prime calls.
     scene_packet_prefix_prime_token_budget: int = 100_000
