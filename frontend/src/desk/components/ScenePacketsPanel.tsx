@@ -264,7 +264,7 @@ function ScenePacketCard({
     packet.approval_blockers?.[0] ??
     "Blocked, but no reason was recorded. Re-run derive or inspect telemetry.";
   const blockerLabel = packet.blocker_source
-    ? BLOCKER_SOURCE_LABEL[packet.blocker_source] ?? packet.blocker_source
+    ? (BLOCKER_SOURCE_LABEL[packet.blocker_source] ?? packet.blocker_source)
     : null;
   const qaApprovedWhileBlocked = isBlocked && packet.qa_verdict === "approve";
   const bodyValid = validScenePacketBody(b);
