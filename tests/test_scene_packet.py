@@ -207,6 +207,17 @@ def _scene_body(word_budget: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
+def _patch_prefix_primes_noop(monkeypatch) -> None:
+    """derive_scene_packets primes shared chapter prefixes before scene work; noop unless a test
+    exercises prefix behavior via a fake llm client."""
+
+    async def noop_prime(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(sp_sections, "prime_author_shared_prefix", noop_prime)
+    monkeypatch.setattr(sp_qa, "prime_qa_shared_prefix", noop_prime)
+
+
 def _patch_scene_agents(monkeypatch, body, verdict=ScenePacketVerdict.APPROVE):
     async def fake_author(**kw):
         return dict(body)
@@ -220,6 +231,7 @@ def _patch_scene_agents(monkeypatch, body, verdict=ScenePacketVerdict.APPROVE):
     monkeypatch.setattr(sp_author, "author_scene_packet", fake_author)
     monkeypatch.setattr(sp_sections, "author_scene_packet_sectioned", fake_author)
     monkeypatch.setattr(sp_qa, "qa_scene_packet", fake_qa)
+    _patch_prefix_primes_noop(monkeypatch)
 
 
 # --- fake Anthropic client: exercises the REAL author/QA + llm.complete (incl. telemetry capture,
@@ -307,6 +319,7 @@ async def test_derive_blocks_on_thin_body(db_factory, monkeypatch):
 
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # exercise the monolithic path
     monkeypatch.setattr(sp_author, "author_scene_packet", thin)
+    _patch_prefix_primes_noop(monkeypatch)
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
         sid = str(uuid.uuid4())
@@ -335,6 +348,7 @@ async def test_derive_gives_each_scene_its_own_budget(db_factory, monkeypatch):
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)  # per-scene budget is derive-level
     monkeypatch.setattr(sp_author, "author_scene_packet", charging_author)
     monkeypatch.setattr(sp_qa, "qa_scene_packet", charging_qa)
+    _patch_prefix_primes_noop(monkeypatch)
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
         seeds = [_seed(str(uuid.uuid4()), scene_no=i) for i in range(1, 4)]  # three scenes
@@ -926,6 +940,7 @@ async def test_blocked_scene_packet_cannot_be_approved(db_factory, monkeypatch):
 
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)
     monkeypatch.setattr(sp_author, "author_scene_packet", thin)
+    _patch_prefix_primes_noop(monkeypatch)
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
         cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
