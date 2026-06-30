@@ -11,7 +11,7 @@ from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_
 
 @pytest.mark.asyncio
 async def test_escalates_on_unparseable(monkeypatch):
-    monkeypatch.setattr(cfg, "packet_qa_fallback_model", "claude-sonnet-4-6")
+    monkeypatch.setattr(cfg, "packet_qa_fallback_model", "claude-sonnet-5")
     calls: list[str] = []
 
     async def attempt_fn(model: str, max_tokens: int) -> tuple[dict | None, Usage]:
@@ -29,14 +29,14 @@ async def test_escalates_on_unparseable(monkeypatch):
         policy=policy_for_setting("packet_qa_model"),
     )
     assert escalated is True
-    assert model == "claude-sonnet-4-6"
+    assert model == "claude-sonnet-5"
     assert result == {"verdict": "ok"}
-    assert calls == [cfg.packet_qa_model, "claude-sonnet-4-6"]
+    assert calls == [cfg.packet_qa_model, "claude-sonnet-5"]
 
 
 @pytest.mark.asyncio
 async def test_no_escalation_when_primary_succeeds(monkeypatch):
-    monkeypatch.setattr(cfg, "packet_qa_fallback_model", "claude-sonnet-4-6")
+    monkeypatch.setattr(cfg, "packet_qa_fallback_model", "claude-sonnet-5")
 
     async def attempt_fn(model: str, max_tokens: int) -> tuple[dict | None, Usage]:
         return {"ok": True}, Usage(input_tokens=1, output_tokens=1, truncated=False)
@@ -55,7 +55,7 @@ async def test_no_escalation_when_primary_succeeds(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_escalates_on_truncation_even_when_value_ok(monkeypatch):
-    monkeypatch.setattr(cfg, "draft_fallback_model", "claude-sonnet-4-6")
+    monkeypatch.setattr(cfg, "draft_fallback_model", "claude-sonnet-5")
     n = 0
 
     async def attempt_fn(model: str, max_tokens: int) -> tuple[str, Usage]:
@@ -79,7 +79,7 @@ async def test_escalates_on_truncation_even_when_value_ok(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_escalates_on_semantic_qa_risk(monkeypatch):
-    monkeypatch.setattr(cfg, "packet_qa_fallback_model", "claude-sonnet-4-6")
+    monkeypatch.setattr(cfg, "packet_qa_fallback_model", "claude-sonnet-5")
     from dominion.shared.agent_policy import load_runtime_policies
     from dominion.shared.risk_scorer import qa_result_preferred, score_qa_result, should_semantic_escalate
 
@@ -110,5 +110,5 @@ async def test_escalates_on_semantic_qa_risk(monkeypatch):
         pick_preferred=qa_result_preferred,
     )
     assert escalated is True
-    assert model == "claude-sonnet-4-6"
+    assert model == "claude-sonnet-5"
     assert result["verdict"] == "approve_warn"
