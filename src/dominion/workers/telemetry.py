@@ -19,9 +19,10 @@ safely under the single-threaded event loop.
 from __future__ import annotations
 
 import contextvars
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -42,6 +43,7 @@ class CallRecord:
     scene_no: int | None = None
     seed_id: str | None = None
     error: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass
@@ -68,6 +70,9 @@ class CallContext:
 
 
 _ctx: contextvars.ContextVar[CallContext | None] = contextvars.ContextVar("llm_call_ctx", default=None)
+_metadata_overlay: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
+    "llm_call_metadata", default=None
+)
 
 
 @contextmanager
@@ -81,6 +86,18 @@ def call_context(ctx: CallContext) -> Iterator[CallContext]:
         _ctx.reset(token)
 
 
+@contextmanager
+def call_metadata(**fields: Any) -> Iterator[None]:
+    """Merge extra per-call diagnostics into the next `telemetry.record()` within this block."""
+    prior = _metadata_overlay.get()
+    merged = {**(prior or {}), **fields}
+    token = _metadata_overlay.set(merged)
+    try:
+        yield
+    finally:
+        _metadata_overlay.reset(token)
+
+
 def record(
     *,
     model: str,
@@ -91,12 +108,19 @@ def record(
     truncated: bool,
     latency_ms: int,
     error: str | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> None:
     """Append a CallRecord to the active sink, tagged from the current CallContext. A no-op when no
     context is active (every non-instrumented caller of `llm.complete` is unaffected)."""
     ctx = _ctx.get()
     if ctx is None:
         return
+    meta: dict[str, Any] = {}
+    overlay = _metadata_overlay.get()
+    if overlay:
+        meta.update(overlay)
+    if metadata:
+        meta.update(metadata)
     ctx.sink.add(
         CallRecord(
             stage=ctx.stage,
@@ -112,5 +136,6 @@ def record(
             scene_no=ctx.scene_no,
             seed_id=ctx.seed_id,
             error=error,
+            metadata=meta or None,
         )
     )

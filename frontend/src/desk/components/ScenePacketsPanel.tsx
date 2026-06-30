@@ -6,7 +6,9 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { api } from "../api/client";
 import { Spinner, formatElapsed } from "./DraftActivity";
+import ClearFailedPanel from "./ClearFailedPanel";
 import { ChapterTelemetryPanel } from "./Telemetry";
+import { useDeskData } from "../api/data";
 import type { ScenePacketBody, ScenePacketOut, DraftReadinessOut } from "../api/types";
 
 // Scene packets are the scene-local contract derived from an APPROVED chapter packet: per scene, what
@@ -36,6 +38,7 @@ function validScenePacketBody(body: ScenePacketBody | undefined | null): boolean
 
 export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const { t } = useDesk();
+  const desk = useDeskData();
   const [packets, setPackets] = useState<ScenePacketOut[]>([]);
   const [loading, setLoading] = useState(false);
   const [deriving, setDeriving] = useState(false);
@@ -139,9 +142,35 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
 
   const approvable = packets.filter((p) => p.status === "proposed");
   const approvedCount = packets.filter((p) => p.status === "approved").length;
+  const chapterMeta = desk.chapters.find((c) => c.id === chapterId);
+  const chapterFailedJobs = desk.failedJobs.filter(
+    (f) => chapterMeta != null && f.chapter_no === chapterMeta.chapter_no,
+  );
+  const readinessJobIssues = readiness
+    ? ((readiness.jobs.malformed as number) ?? 0) + ((readiness.jobs.failed as number) ?? 0)
+    : 0;
+  const failedBannerCount =
+    chapterFailedJobs.length > 0
+      ? chapterFailedJobs.length
+      : readinessJobIssues > 0
+        ? readinessJobIssues
+        : desk.jobs.failed;
+  const showFailedBanner =
+    chapterFailedJobs.length > 0 || readinessJobIssues > 0 || desk.jobs.failed > 0;
 
   return (
     <div style={css("margin-top:26px;border-top:1px solid var(--line);padding-top:22px")}>
+      {showFailedBanner && (
+        <div style={css("margin-bottom:14px")}>
+          <ClearFailedPanel
+            failedCount={failedBannerCount}
+            failedJobs={chapterFailedJobs.length > 0 ? chapterFailedJobs : desk.failedJobs}
+            onClear={() => desk.clearFailed(chapterId)}
+            scopeLabel="this chapter"
+            compact={chapterFailedJobs.length === 0}
+          />
+        </div>
+      )}
       <div
         style={css(
           "display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px",

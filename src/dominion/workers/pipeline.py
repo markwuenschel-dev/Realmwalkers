@@ -259,5 +259,14 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         total_cache_creation_tokens=ctx.budget.total_cache_creation,
         cache_tokens_saved=ctx.budget.cache_tokens_saved,
     )
-    telemetry_db.persist_sink(session, sink, run_id=job.run_id, book_id=ctx.book_id, chapter_id=ctx.chapter_id)
+    from dominion.workers.telemetry_settings import telemetry_settings_snapshot
+
+    telemetry_db.persist_sink(
+        session,
+        sink,
+        run_id=job.run_id,
+        book_id=ctx.book_id,
+        chapter_id=ctx.chapter_id,
+        settings_snapshot=telemetry_settings_snapshot(),
+    )
     return scene

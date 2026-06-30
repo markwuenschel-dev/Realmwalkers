@@ -161,7 +161,7 @@ async def complete(
     if user_prefix:
         blocks = (CachedPrefixBlock(name="user_prefix", text=user_prefix), *blocks)
 
-    check_context_window(
+    sections = check_context_window(
         system=system,
         user=user,
         max_tokens=max_tokens,
@@ -169,6 +169,7 @@ async def complete(
         user_prefix_blocks=blocks,
         context_sections=context_sections,
     )
+    raw_context_total = sum(sections.values())
 
     # Build the user content: plain string or a block list with one or more cached stable prefixes.
     user_content: str | list[TextBlockParam]
@@ -208,7 +209,8 @@ async def complete(
     # Truncation is silent at the API level: the response just stops mid-output. Surface it so callers
     # that parse JSON (packet author/QA, reviewers) can see *why* their parse failed instead of only a
     # generic "no usable result". The text is still returned — the caller decides whether to fail closed.
-    truncated = getattr(resp, "stop_reason", None) == "max_tokens"
+    stop_reason = getattr(resp, "stop_reason", None)
+    truncated = stop_reason == "max_tokens"
     if truncated:
         log.warning("llm.truncated", model=model, max_tokens=max_tokens, output_tokens=resp.usage.output_tokens)
 
@@ -231,6 +233,7 @@ async def complete(
         )
 
     budget.charge(usage)
+    weighted_charged = usage.budget_cost
     total_prompt = usage.input_tokens + usage.cache_creation_tokens + usage.cache_read_tokens
     elapsed_since_first_s = int(time.time() - budget.first_call_at) if budget.first_call_at is not None else 0
     log.info(
@@ -256,6 +259,14 @@ async def complete(
         cache_read_tokens=usage.cache_read_tokens,
         truncated=truncated,
         latency_ms=latency_ms,
+        metadata={
+            "max_tokens": max_tokens,
+            "stop_reason": stop_reason,
+            "context_sections": dict(sections),
+            "context_window_budget": context_window_budget,
+            "raw_context_total": raw_context_total,
+            "weighted_budget_charged": weighted_charged,
+        },
     )
     text = "".join(block.text for block in resp.content if block.type == "text")
     return text, usage

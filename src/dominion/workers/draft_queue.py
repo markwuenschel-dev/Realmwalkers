@@ -492,22 +492,73 @@ async def reconcile_and_requeue_failed_draft_jobs(
     return result
 
 
+async def _purge_job_ids(session: AsyncSession, job_ids: list[uuid.UUID]) -> int:
+    if not job_ids:
+        return 0
+    await session.execute(update(DraftAttempt).where(DraftAttempt.job_id.in_(job_ids)).values(job_id=None))
+    await session.execute(delete(Job).where(Job.id.in_(job_ids)))
+    return len(job_ids)
+
+
+async def purge_draft_jobs_for_scene(
+    session: AsyncSession,
+    *,
+    chapter_id: uuid.UUID,
+    scene_no: int,
+) -> int:
+    """Delete all draft jobs for a chapter/scene slot (queued, running, or failed)."""
+    job_ids = list(
+        (
+            await session.execute(
+                select(Job.id).where(
+                    Job.kind == JobKind.DRAFT,
+                    Job.chapter_id == chapter_id,
+                    Job.scene_no == scene_no,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    purged = await _purge_job_ids(session, job_ids)
+    if purged:
+        log.info(
+            "draft_purge.scene_jobs",
+            chapter_id=str(chapter_id),
+            scene_no=scene_no,
+            purged=purged,
+        )
+    return purged
+
+
 async def purge_failed_draft_jobs(
     session: AsyncSession,
     *,
     book_id: uuid.UUID | None = None,
+    chapter_id: uuid.UUID | None = None,
 ) -> PurgeResult:
     """Delete FAILED draft jobs without re-queueing (dismiss from Desk)."""
     failed_q = select(Job.id).where(Job.status == JobStatus.FAILED, Job.kind == JobKind.DRAFT)
     if book_id is not None:
         failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    if chapter_id is not None:
+        failed_q = failed_q.where(Job.chapter_id == chapter_id)
     job_ids = list((await session.execute(failed_q)).scalars().all())
     if not job_ids:
-        log.info("draft_purge.cleared", purged=0, book_id=str(book_id) if book_id else None)
+        log.info(
+            "draft_purge.cleared",
+            purged=0,
+            book_id=str(book_id) if book_id else None,
+            chapter_id=str(chapter_id) if chapter_id else None,
+        )
         return PurgeResult(purged=0)
 
-    await session.execute(update(DraftAttempt).where(DraftAttempt.job_id.in_(job_ids)).values(job_id=None))
-    await session.execute(delete(Job).where(Job.id.in_(job_ids)))
-    result = PurgeResult(purged=len(job_ids))
-    log.info("draft_purge.cleared", purged=result.purged, book_id=str(book_id) if book_id else None)
+    purged = await _purge_job_ids(session, job_ids)
+    result = PurgeResult(purged=purged)
+    log.info(
+        "draft_purge.cleared",
+        purged=result.purged,
+        book_id=str(book_id) if book_id else None,
+        chapter_id=str(chapter_id) if chapter_id else None,
+    )
     return result

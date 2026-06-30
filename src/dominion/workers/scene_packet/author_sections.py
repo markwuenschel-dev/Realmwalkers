@@ -31,7 +31,7 @@ from typing import Any
 import structlog
 
 from dominion.shared.config import settings
-from dominion.workers import llm
+from dominion.workers import llm, telemetry
 from dominion.workers.budget import TokenBudget, Usage
 from dominion.workers.llm import CachedPrefixBlock, estimate_tokens
 from dominion.workers.scene_packet.author import (
@@ -196,18 +196,19 @@ async def _author_section(
     """Produce one section's slice. Retries ONCE escalated to the fallback model (with extra headroom on
     a truncation) before failing closed for the whole packet. Bounded by the global in-flight semaphore."""
 
-    async def _attempt(model: str, max_tokens: int) -> tuple[Any, Usage]:
+    async def _attempt(model: str, max_tokens: int, *, fallback: bool = False) -> tuple[Any, Usage]:
         async with _inflight_sem():
-            raw, usage = await llm.complete(
-                model=model,
-                system=system,
-                user_prefix_blocks=prefix_blocks,
-                user=user,
-                max_tokens=max_tokens,
-                budget=budget,
-                context_window_budget=settings.scene_packet_context_window_budget,
-                context_sections=context_sections,
-            )
+            with telemetry.call_metadata(section_name=section.name, fallback_attempt=fallback):
+                raw, usage = await llm.complete(
+                    model=model,
+                    system=system,
+                    user_prefix_blocks=prefix_blocks,
+                    user=user,
+                    max_tokens=max_tokens,
+                    budget=budget,
+                    context_window_budget=settings.scene_packet_context_window_budget,
+                    context_sections=context_sections,
+                )
         return extract_object(raw), usage
 
     primary = settings.scene_packet_author_model
@@ -216,17 +217,17 @@ async def _author_section(
         return _slice(obj, section)
 
     first_cause = _why(obj, usage, section=section, model=primary, max_tokens=section.max_tokens)
-    fallback = (settings.scene_packet_author_fallback_model or "").strip()
-    if not fallback or fallback == primary:
+    fallback_model = (settings.scene_packet_author_fallback_model or "").strip()
+    if not fallback_model or fallback_model == primary:
         raise ScenePacketAuthorError(f"{first_cause}; no fallback model configured")
 
     fb_max = max(section.max_tokens, _SECTION_FALLBACK_FLOOR) if usage.truncated else section.max_tokens
-    log.info("scene_packet.section_escalate", section=section.name, cause=first_cause, fallback=fallback)
-    obj2, usage2 = await _attempt(fallback, fb_max)
+    log.info("scene_packet.section_escalate", section=section.name, cause=first_cause, fallback=fallback_model)
+    obj2, usage2 = await _attempt(fallback_model, fb_max, fallback=True)
     if _section_ok(obj2, section):
         return _slice(obj2, section)
     raise ScenePacketAuthorError(
-        f"{first_cause}; fallback {_why(obj2, usage2, section=section, model=fallback, max_tokens=fb_max)}"
+        f"{first_cause}; fallback {_why(obj2, usage2, section=section, model=fallback_model, max_tokens=fb_max)}"
     )
 
 

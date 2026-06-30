@@ -1,0 +1,72 @@
+{
+  "chapter_packet": {
+    "chapter_job": "Establish the breach",
+    "one_sentence_spine": "Kael discovers the ward is failing.",
+    "entry_state": "Kael at the gate",
+    "exit_state": "Kael knows the ward is compromised",
+    "emotional_spine": "Dread to resolve",
+    "characters_present": ["Kael"],
+    "characters_absent": [],
+    "characters_mentioned_only": [],
+    "characters_forbidden": [],
+    "allowed_knowledge": ["The ward exists"],
+    "forbidden_knowledge": ["The true betrayer"],
+    "required_reveals": [],
+    "forbidden_reveals": ["Betrayer identity"],
+    "canon_locks": [],
+    "roster_locks": [],
+    "relationship_locks": [],
+    "timeline_locks": [],
+    "allowed_ui_concepts": ["status window"],
+    "forbidden_ui_concepts": [],
+    "required_unanswered_questions": [],
+    "scene_seeds": [
+      {
+        "scene_no": 1,
+        "scene_job": "Kael inspects the ward stone",
+        "required_beats": ["Notice hairline fracture"],
+        "forbidden_beats": ["Reveal betrayer"],
+        "exit_state": "Fracture confirmed",
+        "scene_type": "investigation",
+        "word_budget": {"min": 800, "target": 1200, "max": 1600, "hard_max": 2000}
+      }
+    ],
+    "known_risks": [],
+    "claims": [],
+    "open_questions": [],
+    "confidence": "green"
+  },
+  "scene_packet": {
+    "scene_no": 1,
+    "scene_job": "Kael inspects the ward stone",
+    "scene_type": "investigation",
+    "chapter_position": "opening",
+    "word_budget": {"min": 800, "target": 1200, "max": 1600, "hard_max": 2000},
+    "known_before_scene": {"reader": ["The ward exists"], "pov": ["The ward exists"], "omniscient_author": []},
+    "learned_during_scene": {
+      "reader_must_learn": ["The ward is cracking"],
+      "reader_may_learn": [],
+      "reader_may_infer_only": []
+    },
+    "must_remain_hidden": {"reader": ["Betrayer identity"], "pov": ["Betrayer identity"], "all_surface_prose": []},
+    "pov_permissions": {
+      "may_notice": ["Hairline fracture"],
+      "may_infer": ["Something is wrong"],
+      "must_not_know": ["Who sabotaged it"],
+      "may_be_wrong_about": []
+    },
+    "intentional_mysteries": [],
+    "reviewer_false_positive_traps": ["Do not flag missing betrayer reveal"],
+    "required_beats": ["Notice hairline fracture"],
+    "forbidden_beats": ["Reveal betrayer"],
+    "exit_state": "Fracture confirmed",
+    "tone_pressure": "unease",
+    "phrases_to_avoid_echoing": ["ward stone contract language"],
+    "reviewer_instructions": {"continuity": [], "pacing": [], "dialogue": [], "combat": [], "sensory": [], "voice": []}
+  },
+  "packet_qa_response": "{\"verdict\": \"APPROVE\", \"residual_risks\": [\"Premature betrayer reveal\"], \"issues\": []}",
+  "scene_qa_response": "{\"verdict\": \"APPROVE\", \"residual_risks\": [], \"issues\": []}",
+  "packet_author_response": "{\"chapter_job\": \"Establish the breach\", \"one_sentence_spine\": \"Kael discovers the ward is failing.\", \"entry_state\": \"gate\", \"exit_state\": \"compromised\", \"emotional_spine\": \"dread\", \"characters_present\": [\"Kael\"], \"characters_absent\": [], \"characters_mentioned_only\": [], \"characters_forbidden\": [], \"allowed_knowledge\": [], \"forbidden_knowledge\": [], \"required_reveals\": [], \"forbidden_reveals\": [], \"canon_locks\": [], \"roster_locks\": [], \"relationship_locks\": [], \"timeline_locks\": [], \"allowed_ui_concepts\": [], \"forbidden_ui_concepts\": [], \"required_unanswered_questions\": [], \"scene_seeds\": [], \"known_risks\": [], \"claims\": [], \"open_questions\": [], \"confidence\": \"green\"}",
+  "drafter_response": "Kael pressed his palm to the ward stone. A hairline fracture spidered beneath his fingers.",
+  "beats_response": "[{\"scene_no\": 1, \"beat_text\": \"Kael inspects the ward\", \"characters_present\": [\"Kael\"], \"tags\": [], \"expected_state_changes\": null, \"knowledge_injections\": []}]"
+}

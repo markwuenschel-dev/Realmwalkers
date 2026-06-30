@@ -92,6 +92,12 @@ export default function SceneScreen() {
     }
   }, [loadId, data]);
 
+  useEffect(() => {
+    if (focused && focusSceneId && data.missingSceneId === focusSceneId) {
+      router.replace("/");
+    }
+  }, [focused, focusSceneId, data.missingSceneId, router]);
+
   const cur = data.detail;
   const draftKey = (s: { id: string; version: number }) => `dominion:draft:${s.id}:${s.version}`;
 
@@ -193,7 +199,32 @@ export default function SceneScreen() {
     setSel({ text, x: rect.left + rect.width / 2, y: rect.top });
   };
 
-  // ── empty state ────────────────────────────────────────────────────────────────────────────────
+  // ── empty / missing scene ──────────────────────────────────────────────────────────────────────
+  if (focused && focusSceneId && data.missingSceneId === focusSceneId) {
+    return (
+      <div style={css("max-width:560px;margin:60px auto;text-align:center")}>
+        <h1
+          style={css(
+            "margin:0 0 10px;font-family:var(--display);font-weight:600;font-size:26px;color:var(--ink)",
+          )}
+        >
+          Scene deleted or unavailable
+        </h1>
+        <p style={css("margin:0;color:var(--dim);font-size:14.5px;line-height:1.6")}>
+          This scene was deleted or is no longer reachable.
+        </p>
+        <button
+          onClick={() => router.push("/")}
+          style={css(
+            "margin-top:18px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer;font-family:var(--ui);font-size:13.5px",
+          )}
+        >
+          Go to inbox
+        </button>
+      </div>
+    );
+  }
+
   if (!cur) {
     return (
       <div style={css("max-width:560px;margin:60px auto;text-align:center")}>
@@ -205,9 +236,11 @@ export default function SceneScreen() {
           Nothing to review
         </h1>
         <p style={css("margin:0;color:var(--dim);font-size:14.5px;line-height:1.6")}>
-          {data.jobs.running
-            ? "A scene is drafting — it'll land here shortly."
-            : "Plan a chapter from the Inbox and approve its beats; drafted scenes show up here for review."}
+          {data.loadingScene
+            ? "Loading scene…"
+            : data.jobs.running
+              ? "A scene is drafting — it'll land here shortly."
+              : "Plan a chapter from the Inbox and approve its beats; drafted scenes show up here for review."}
         </p>
         <button
           onClick={() => router.push("/inbox")}

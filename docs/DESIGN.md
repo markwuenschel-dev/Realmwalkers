@@ -381,6 +381,12 @@ Single user. No user management. Host-level password, Cloudflare Access, or a ma
 
 ---
 
+## 12b. Agent operations panel
+
+The Desk `/settings` screen is an **agent operations panel**, not a bare model picker. Authors choose **presets** (Fast Drafting, High Quality Chapter, Continuity Audit, Budget Mode) that set primary tiers across all roles; per-agent **fallback chains** and structural **escalation** (truncation / unparseable) are persisted in `agent_policy_overrides`. **Smoke tests** run offline against fixtures; **per-agent stats** aggregate recent `llm_calls`. Primary models still live in `model_overrides`; the live `settings` singleton is updated on every change so the next worker call picks it up without redeploy.
+
+---
+
 ## 13. Showcase site
 
 Astro, own repo, GH Pages + Netlify, hand-authored MDX (about / story / characters / art). Fully decoupled. Optional someday: pull `published = true` canon/scenes through a read-only endpoint so it stays in sync. `published` is distinct from `approved` (approving for the manuscript ≠ clearing spoilers for the public); the flag exists in the schema now, unused until Phase 4.

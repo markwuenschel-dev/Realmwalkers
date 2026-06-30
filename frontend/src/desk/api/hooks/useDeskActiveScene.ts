@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../client";
+import { isHttpNotFound } from "../../lib/draftStorage";
 import type { AnnotationOut, BeatOut, SceneDetail, SceneVersionOut, SuggestionOut } from "../types";
 import type { DeskFail } from "./shared";
 
@@ -8,6 +9,8 @@ export interface DeskActiveSceneState {
   versions: SceneVersionOut[];
   activeBeat: BeatOut | null;
   activeSceneId: string | null;
+  loadingScene: boolean;
+  missingSceneId: string | null;
   annotations: AnnotationOut[];
   suggestions: SuggestionOut[];
   openSceneById: (id: string | null) => void;
@@ -24,6 +27,8 @@ export function useDeskActiveScene(
   const [versions, setVersions] = useState<SceneVersionOut[]>([]);
   const [activeBeat, setActiveBeat] = useState<BeatOut | null>(null);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
+  const [loadingScene, setLoadingScene] = useState(false);
+  const [missingSceneId, setMissingSceneId] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<AnnotationOut[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionOut[]>([]);
 
@@ -40,7 +45,9 @@ export function useDeskActiveScene(
     (id: string | null): void => {
       const seq = ++openSeqRef.current;
       setActiveSceneId(id);
+      setMissingSceneId(null);
       if (!id) {
+        setLoadingScene(false);
         setDetail(null);
         setVersions([]);
         setActiveBeat(null);
@@ -48,6 +55,7 @@ export function useDeskActiveScene(
         setSuggestions([]);
         return;
       }
+      setLoadingScene(true);
       const live = () => mountedRef.current && openSeqRef.current === seq;
       (async () => {
         try {
@@ -67,7 +75,20 @@ export function useDeskActiveScene(
           setSuggestions(sugs);
           setError(null);
         } catch (e) {
-          if (live()) fail(e);
+          if (!live()) return;
+          if (isHttpNotFound(e)) {
+            setActiveSceneId(null);
+            setDetail(null);
+            setVersions([]);
+            setActiveBeat(null);
+            setAnnotations([]);
+            setSuggestions([]);
+            setMissingSceneId(id);
+            return;
+          }
+          fail(e);
+        } finally {
+          if (live()) setLoadingScene(false);
         }
       })();
     },
@@ -79,6 +100,8 @@ export function useDeskActiveScene(
     versions,
     activeBeat,
     activeSceneId,
+    loadingScene,
+    missingSceneId,
     annotations,
     suggestions,
     openSceneById,

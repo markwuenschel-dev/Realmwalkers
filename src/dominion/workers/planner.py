@@ -17,6 +17,7 @@ from typing import Any
 from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
+from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
 
 # Headroom for a full beat list: a detailed outline can yield a dozen+ beats, each with prose plus
 # knowledge_injections. Too small and the array is truncated mid-element (the parser salvages what
@@ -160,29 +161,41 @@ async def propose_beats(
     malformed response; the author reviews/edits whatever comes back at gate 1."""
     if not outline.strip():
         return []
+    b = budget or TokenBudget(max_tokens=settings.scene_token_budget)
+    user = _plan_prompt(
+        outline=outline,
+        pov=pov,
+        omniscient_summary=omniscient_summary,
+        canon=canon or [],
+        max_beats=max_beats,
+    )
+
+    async def _attempt(model: str, max_tokens: int) -> tuple[list[dict[str, Any]], Any]:
+        raw, usage = await llm.complete(
+            model=model,
+            system=_SYSTEM,
+            user=user,
+            max_tokens=max_tokens,
+            budget=b,
+            expect_cache=False,
+        )
+        return _parse_beats(raw), usage
+
     try:
-        raw, _usage = await asyncio.wait_for(
-            llm.complete(
-                model=settings.draft_model,
-                system=_SYSTEM,
-                user=_plan_prompt(
-                    outline=outline,
-                    pov=pov,
-                    omniscient_summary=omniscient_summary,
-                    canon=canon or [],
-                    max_beats=max_beats,
-                ),
-                max_tokens=_PLAN_MAX_TOKENS,
-                budget=budget or TokenBudget(max_tokens=settings.scene_token_budget),
-                expect_cache=False,
+        beats, _model, _esc = await asyncio.wait_for(
+            attempt_with_escalation(
+                setting_key="draft_model",
+                primary_model=settings.draft_model,
+                primary_max_tokens=_PLAN_MAX_TOKENS,
+                attempt_fn=_attempt,
+                is_success=lambda bts: len(bts) > 0,
+                policy=policy_for_setting("draft_model"),
             ),
             timeout=settings.plan_time_budget_s,
         )
     except TimeoutError:
-        # Bounded, unlike the tolerant parse path: a hung call must surface so the request fails
-        # with feedback rather than spinning forever (the caller maps this to a 504).
         raise TimeoutError(f"beat proposal exceeded {settings.plan_time_budget_s}s — try again") from None
-    return _parse_beats(raw)
+    return beats
 
 
 def _clean_title(raw: str) -> str | None:

@@ -51,12 +51,8 @@ export interface paths {
     post?: never;
     /**
      * Delete Scene
-     * @description Hard-delete one scene version and everything that points at it. Scenes are referenced by
-     *     critiques / annotations / approvals / suggestions and edit-pairs (NOT NULL) and softly by the
-     *     ledger, summaries, jobs, child versions, draft-attempt provenance, and knowledge facts — so we
-     *     remove the hard dependents and null the soft refs first, then the row, or the FK constraints
-     *     (a nullable FK still blocks a delete; there is no ON DELETE SET NULL) would fail the delete.
-     *     Used by the inbox's bulk 'delete selected'.
+     * @description Hard-delete one scene version and everything that points at it. Also purges draft jobs for
+     *     the same chapter/scene slot. Used by the inbox's bulk 'delete selected'.
      */
     delete: operations["delete_scene_scenes__scene_id__delete"];
     options?: never;
@@ -255,6 +251,26 @@ export interface paths {
     get: operations["manuscript_books__book_id__manuscript_get"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/scenes/clear-draft": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clear Draft Scenes
+     * @description Delete all non-approved scenes for a book (optional chapter scope). Approved prose is kept.
+     */
+    post: operations["clear_draft_scenes_books__book_id__scenes_clear_draft_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -689,12 +705,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /**
-     * Chapter Telemetry
-     * @description Per-scene telemetry for one chapter's LATEST derive run, plus that run's totals. Scoped to the
-     *     latest run (not cumulative) so the panel reflects the run you just kicked off. Empty (zero totals)
-     *     when the chapter has never been derived.
-     */
+    /** Chapter Telemetry */
     get: operations["chapter_telemetry_chapters__chapter_id__telemetry_get"];
     put?: never;
     post?: never;
@@ -711,14 +722,93 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /**
-     * Book Telemetry
-     * @description Global telemetry for a book: overall totals + rollups across chapters, stages, and models for
-     *     cross-chapter/scene comparison. `by_run` is paginated (newest first) via `limit`/`offset` so the
-     *     run history doesn't grow an unbounded table in the UI; `run_total` reports the full count so the
-     *     Desk knows whether older runs remain to load. All other rollups stay full-book.
-     */
+    /** Book Telemetry */
     get: operations["book_telemetry_books__book_id__telemetry_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/runs/{run_id}/telemetry": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Run Telemetry */
+    get: operations["run_telemetry_runs__run_id__telemetry_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/llm-calls": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Llm Calls */
+    get: operations["list_llm_calls_llm_calls_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/llm-calls/{call_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Llm Call Detail */
+    get: operations["llm_call_detail_llm_calls__call_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/telemetry/problems": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Book Telemetry Problems */
+    get: operations["book_telemetry_problems_books__book_id__telemetry_problems_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/telemetry/compare": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Compare Runs */
+    get: operations["compare_runs_books__book_id__telemetry_compare_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -1183,7 +1273,7 @@ export interface paths {
     };
     /**
      * Get Models
-     * @description Every customizable agent's current model + which tier it is, plus the tier -> id map.
+     * @description Every customizable agent's current model + tier (legacy endpoint).
      */
     get: operations["get_models_settings_models_get"];
     /**
@@ -1192,6 +1282,106 @@ export interface paths {
      */
     put: operations["set_model_settings_models_put"];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/agents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Agents
+     * @description Full agent operations panel state.
+     */
+    get: operations["get_agents_settings_agents_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/presets/{preset_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Apply Preset
+     * @description Apply a built-in preset to all agent roles.
+     */
+    put: operations["apply_preset_settings_presets__preset_id__put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/agents/{setting}/policy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Set Agent Policy
+     * @description Update fallback chain / never-fallback tiers for one agent.
+     */
+    put: operations["set_agent_policy_settings_agents__setting__policy_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/agents/stats": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Agent Stats
+     * @description Per-agent health stats from recent llm_calls.
+     */
+    get: operations["get_agent_stats_settings_agents_stats_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/agents/smoke-test": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Smoke Test
+     * @description Offline fixture smoke test — no API spend.
+     */
+    post: operations["smoke_test_settings_agents_smoke_test_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1258,6 +1448,199 @@ export interface components {
       total_cache_read_tokens?: number | null;
       /** Total Cache Creation Tokens */
       total_cache_creation_tokens?: number | null;
+    };
+    /** AgentContractOut */
+    AgentContractOut: {
+      /** Inputs */
+      inputs: string[];
+      /** Outputs */
+      outputs: string[];
+      /** Temperature */
+      temperature?: number | null;
+      /**
+       * Max Retries
+       * @default 3
+       */
+      max_retries: number;
+      /**
+       * Context Load
+       * @default
+       */
+      context_load: string;
+      /**
+       * Uses Memory
+       * @default false
+       */
+      uses_memory: boolean;
+      /**
+       * Writes Artifacts
+       * @default false
+       */
+      writes_artifacts: boolean;
+      /**
+       * Requires Approval
+       * @default false
+       */
+      requires_approval: boolean;
+    };
+    /** AgentEstimateOut */
+    AgentEstimateOut: {
+      /** Cost Band */
+      cost_band: string;
+      /** Speed Band */
+      speed_band: string;
+      /** Typical Calls Per Chapter */
+      typical_calls_per_chapter: number;
+    };
+    /** AgentOpsAgentOut */
+    AgentOpsAgentOut: {
+      /** Setting */
+      setting: string;
+      /** Label */
+      label: string;
+      /** Description */
+      description: string;
+      /** Model */
+      model: string;
+      /** Tier */
+      tier?: string | null;
+      policy: components["schemas"]["AgentPolicyOut"];
+      contract: components["schemas"]["AgentContractOut"];
+      permissions: components["schemas"]["AgentPermissionsOut"];
+      estimate: components["schemas"]["AgentEstimateOut"];
+      /**
+       * Warnings
+       * @default []
+       */
+      warnings: string[];
+    };
+    /** AgentOpsOut */
+    AgentOpsOut: {
+      /** Active Preset */
+      active_preset: string | null;
+      /** Presets */
+      presets: components["schemas"]["AgentPresetOut"][];
+      /** Agents */
+      agents: components["schemas"]["AgentOpsAgentOut"][];
+      pipeline_estimate: components["schemas"]["PipelineEstimateOut"];
+      /** Tiers */
+      tiers: {
+        [key: string]: string;
+      };
+    };
+    /** AgentPermissionsOut */
+    AgentPermissionsOut: {
+      /**
+       * Auto Run
+       * @default true
+       */
+      auto_run: boolean;
+      /**
+       * Require Approval
+       * @default false
+       */
+      require_approval: boolean;
+      /**
+       * Can Modify Packet
+       * @default false
+       */
+      can_modify_packet: boolean;
+      /**
+       * Can Block Downstream
+       * @default false
+       */
+      can_block_downstream: boolean;
+      /**
+       * Can Write Summaries
+       * @default false
+       */
+      can_write_summaries: boolean;
+      /**
+       * Can Update Canon
+       * @default false
+       */
+      can_update_canon: boolean;
+      /**
+       * Can Only Suggest
+       * @default true
+       */
+      can_only_suggest: boolean;
+    };
+    /** AgentPolicyOut */
+    AgentPolicyOut: {
+      /** Setting */
+      setting: string;
+      /** Primary Tier */
+      primary_tier?: string | null;
+      /** Primary Model */
+      primary_model: string;
+      /** Fallback Tier */
+      fallback_tier?: string | null;
+      /** Fallback Model */
+      fallback_model?: string | null;
+      /**
+       * Never Fallback
+       * @default []
+       */
+      never_fallback: string[];
+      /**
+       * Escalation Rules
+       * @default []
+       */
+      escalation_rules: components["schemas"]["EscalationRuleOut"][];
+    };
+    /** AgentPolicyUpdateIn */
+    AgentPolicyUpdateIn: {
+      /** Fallback Tier */
+      fallback_tier?: string | null;
+      /** Never Fallback */
+      never_fallback?: string[] | null;
+    };
+    /** AgentPresetOut */
+    AgentPresetOut: {
+      /** Id */
+      id: string;
+      /** Label */
+      label: string;
+      /** Description */
+      description: string;
+      /** Cost Band */
+      cost_band: string;
+      /** Latency Band */
+      latency_band: string;
+      /** Best For */
+      best_for: string;
+    };
+    /** AgentStatsListOut */
+    AgentStatsListOut: {
+      /** Agents */
+      agents: components["schemas"]["AgentStatsOut"][];
+      /** Window Runs */
+      window_runs: number;
+    };
+    /** AgentStatsOut */
+    AgentStatsOut: {
+      /** Setting */
+      setting: string;
+      /** Label */
+      label: string;
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+      /** Avg Tokens */
+      avg_tokens?: number | null;
+      /** Escalation Rate */
+      escalation_rate?: number | null;
+      /** Error Rate */
+      error_rate?: number | null;
+      /** Truncation Rate */
+      truncation_rate?: number | null;
+      /** Qa Pass Rate */
+      qa_pass_rate?: string | null;
     };
     /** AnnotationIn */
     AnnotationIn: {
@@ -1508,7 +1891,10 @@ export interface components {
        *       "cache_hit_ratio": 0,
        *       "cache_tokens_saved": 0,
        *       "truncations": 0,
-       *       "errors": 0
+       *       "errors": 0,
+       *       "fallbacks": 0,
+       *       "estimated_cost_usd": 0,
+       *       "cache_savings_usd": 0
        *     }
        */
       totals: components["schemas"]["TelemetryTotals"];
@@ -1657,8 +2043,23 @@ export interface components {
        * @default 0
        */
       errors: number;
+      /**
+       * Fallbacks
+       * @default 0
+       */
+      fallbacks: number;
       /** Avg Latency Ms */
       avg_latency_ms?: number | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /**
+       * Cache Savings Usd
+       * @default 0
+       */
+      cache_savings_usd: number;
       /**
        * Chapter Id
        * Format: uuid
@@ -1689,7 +2090,10 @@ export interface components {
        *       "cache_hit_ratio": 0,
        *       "cache_tokens_saved": 0,
        *       "truncations": 0,
-       *       "errors": 0
+       *       "errors": 0,
+       *       "fallbacks": 0,
+       *       "estimated_cost_usd": 0,
+       *       "cache_savings_usd": 0
        *     }
        */
       totals: components["schemas"]["TelemetryTotals"];
@@ -1751,6 +2155,22 @@ export interface components {
       is_pov: boolean;
       /** Body */
       body?: string | null;
+    };
+    /**
+     * ClearDraftScenesOut
+     * @description Result of removing all non-approved scenes (draft compile reset).
+     */
+    ClearDraftScenesOut: {
+      /**
+       * Purged
+       * @default 0
+       */
+      purged: number;
+      /**
+       * Jobs Purged
+       * @default 0
+       */
+      jobs_purged: number;
     };
     /**
      * ClearFailedOut
@@ -1818,6 +2238,22 @@ export interface components {
       feedback?: string | null;
       /** Edited Prose */
       edited_prose?: string | null;
+    };
+    /**
+     * DeleteSceneOut
+     * @description Result of hard-deleting one scene version.
+     */
+    DeleteSceneOut: {
+      /**
+       * Deleted
+       * Format: uuid
+       */
+      deleted: string;
+      /**
+       * Jobs Purged
+       * @default 0
+       */
+      jobs_purged: number;
     };
     /** DocMeta */
     DocMeta: {
@@ -1974,6 +2410,13 @@ export interface components {
        */
       repaired_beats: number;
     };
+    /** EscalationRuleOut */
+    EscalationRuleOut: {
+      /** Trigger */
+      trigger: string;
+      /** Description */
+      description: string;
+    };
     /**
      * ExemplarIn
      * @description Toggle a scene as a voice exemplar for its POV (LEARNING_FROM_EDITS Tier 2).
@@ -2085,6 +2528,112 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /**
+     * LlmCallLinksOut
+     * @description Navigation targets for a telemetry call row.
+     */
+    LlmCallLinksOut: {
+      /** Scene Packet Id */
+      scene_packet_id?: string | null;
+      /** Scene Id */
+      scene_id?: string | null;
+      /** Job Id */
+      job_id?: string | null;
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** Run Id */
+      run_id?: string | null;
+    };
+    /** LlmCallListOut */
+    LlmCallListOut: {
+      /**
+       * Calls
+       * @default []
+       */
+      calls: components["schemas"]["LlmCallOut"][];
+      /**
+       * Total
+       * @default 0
+       */
+      total: number;
+      /**
+       * Limit
+       * @default 50
+       */
+      limit: number;
+      /**
+       * Offset
+       * @default 0
+       */
+      offset: number;
+    };
+    /**
+     * LlmCallOut
+     * @description One persisted LLM call — the atomic unit for drill-down drawers.
+     */
+    LlmCallOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Run Id */
+      run_id?: string | null;
+      /** Book Id */
+      book_id?: string | null;
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Scene Seed Id */
+      scene_seed_id?: string | null;
+      /** Stage */
+      stage: string;
+      /** Model */
+      model: string;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Truncated
+       * @default false
+       */
+      truncated: boolean;
+      /** Latency Ms */
+      latency_ms?: number | null;
+      /** Error */
+      error?: string | null;
+      /** Created At */
+      created_at?: string | null;
+      /** Metadata */
+      metadata?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /** @default {} */
+      links: components["schemas"]["LlmCallLinksOut"];
     };
     /** ManuscriptChapter */
     ManuscriptChapter: {
@@ -2250,6 +2799,96 @@ export interface components {
       /** Confidence */
       confidence?: string | null;
     };
+    /** PipelineEstimateOut */
+    PipelineEstimateOut: {
+      /** Cost Band */
+      cost_band: string;
+      /** Latency Band */
+      latency_band: string;
+      /** Summary */
+      summary: string;
+      /** Opus Calls */
+      opus_calls: number;
+      /** Sonnet Calls */
+      sonnet_calls: number;
+      /** Haiku Calls */
+      haiku_calls: number;
+      /** Total Estimated Calls */
+      total_estimated_calls: number;
+    };
+    /**
+     * PipelineStepOut
+     * @description One stage in a scene/run pipeline timeline.
+     */
+    PipelineStepOut: {
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Cache Hit Ratio
+       * @default 0
+       */
+      cache_hit_ratio: number;
+      /**
+       * Cache Tokens Saved
+       * @default 0
+       */
+      cache_tokens_saved: number;
+      /**
+       * Truncations
+       * @default 0
+       */
+      truncations: number;
+      /**
+       * Errors
+       * @default 0
+       */
+      errors: number;
+      /**
+       * Fallbacks
+       * @default 0
+       */
+      fallbacks: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /**
+       * Cache Savings Usd
+       * @default 0
+       */
+      cache_savings_usd: number;
+      /**
+       * Stage
+       * @default
+       */
+      stage: string;
+    };
     /**
      * RedraftIn
      * @description POST body to re-draft existing scenes: re-queue a draft for each (supersedes the current version).
@@ -2340,6 +2979,16 @@ export interface components {
      * @enum {string}
      */
     RuleProposalStatus: "pending" | "accepted" | "rejected";
+    /** RunCompareOut */
+    RunCompareOut: {
+      run_a: components["schemas"]["RunRollupOut"];
+      run_b: components["schemas"]["RunRollupOut"];
+      /**
+       * Stage Deltas
+       * @default []
+       */
+      stage_deltas: components["schemas"]["StageDeltaOut"][];
+    };
     /**
      * RunRollupOut
      * @description One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`
@@ -2391,8 +3040,23 @@ export interface components {
        * @default 0
        */
       errors: number;
+      /**
+       * Fallbacks
+       * @default 0
+       */
+      fallbacks: number;
       /** Avg Latency Ms */
       avg_latency_ms?: number | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /**
+       * Cache Savings Usd
+       * @default 0
+       */
+      cache_savings_usd: number;
       /** Run Id */
       run_id?: string | null;
       /** Started At */
@@ -2455,6 +3119,66 @@ export interface components {
        * @default []
        */
       beats: components["schemas"]["BeatOut"][];
+    };
+    /**
+     * RunTelemetryOut
+     * @description Full drill-down for one telemetry run (all calls sharing a run_id).
+     */
+    RunTelemetryOut: {
+      /**
+       * Run Id
+       * Format: uuid
+       */
+      run_id: string;
+      /** Started At */
+      started_at?: string | null;
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Title */
+      title?: string | null;
+      /**
+       * @default {
+       *       "calls": 0,
+       *       "input_tokens": 0,
+       *       "output_tokens": 0,
+       *       "cache_creation_tokens": 0,
+       *       "cache_read_tokens": 0,
+       *       "cache_hit_ratio": 0,
+       *       "cache_tokens_saved": 0,
+       *       "truncations": 0,
+       *       "errors": 0,
+       *       "fallbacks": 0,
+       *       "estimated_cost_usd": 0,
+       *       "cache_savings_usd": 0
+       *     }
+       */
+      totals: components["schemas"]["TelemetryTotals"];
+      /**
+       * By Stage
+       * @default []
+       */
+      by_stage: components["schemas"]["TelemetryGroupOut"][];
+      /**
+       * By Model
+       * @default []
+       */
+      by_model: components["schemas"]["TelemetryGroupOut"][];
+      /**
+       * Scenes
+       * @default []
+       */
+      scenes: components["schemas"]["SceneTelemetryOut"][];
+      /**
+       * Calls
+       * @default []
+       */
+      calls: components["schemas"]["LlmCallOut"][];
+      /** Settings Snapshot */
+      settings_snapshot?: {
+        [key: string]: unknown;
+      } | null;
     };
     /** SceneDetail */
     SceneDetail: {
@@ -2756,8 +3480,23 @@ export interface components {
        * @default 0
        */
       errors: number;
+      /**
+       * Fallbacks
+       * @default 0
+       */
+      fallbacks: number;
       /** Avg Latency Ms */
       avg_latency_ms?: number | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /**
+       * Cache Savings Usd
+       * @default 0
+       */
+      cache_savings_usd: number;
       /** Scene No */
       scene_no?: number | null;
       /**
@@ -2765,6 +3504,28 @@ export interface components {
        * @default []
        */
       models: string[];
+      /**
+       * Status
+       * @default ok
+       */
+      status: string;
+      /**
+       * Stages
+       * @default []
+       */
+      stages: string[];
+      /** Worst Latency Ms */
+      worst_latency_ms?: number | null;
+      /**
+       * Stage Summary
+       * @default
+       */
+      stage_summary: string;
+      /**
+       * Pipeline
+       * @default []
+       */
+      pipeline: components["schemas"]["PipelineStepOut"][];
     };
     /**
      * SceneVersionOut
@@ -2810,6 +3571,63 @@ export interface components {
       created_at: string;
       /** Agent Original */
       agent_original?: string | null;
+    };
+    /** SmokeTestAgentOut */
+    SmokeTestAgentOut: {
+      /** Setting */
+      setting: string;
+      /** Label */
+      label: string;
+      /** Passed */
+      passed: boolean;
+      /** Checks */
+      checks: components["schemas"]["SmokeTestCheckOut"][];
+    };
+    /** SmokeTestCheckOut */
+    SmokeTestCheckOut: {
+      /** Name */
+      name: string;
+      /** Ok */
+      ok: boolean;
+      /** Detail */
+      detail?: string | null;
+    };
+    /** SmokeTestIn */
+    SmokeTestIn: {
+      /** Agents */
+      agents?: string[] | null;
+    };
+    /** SmokeTestOut */
+    SmokeTestOut: {
+      /** Results */
+      results: components["schemas"]["SmokeTestAgentOut"][];
+      /** All Passed */
+      all_passed: boolean;
+    };
+    /** StageDeltaOut */
+    StageDeltaOut: {
+      /** Stage */
+      stage: string;
+      /**
+       * Calls Delta
+       * @default 0
+       */
+      calls_delta: number;
+      /**
+       * Input Tokens Delta
+       * @default 0
+       */
+      input_tokens_delta: number;
+      /**
+       * Output Tokens Delta
+       * @default 0
+       */
+      output_tokens_delta: number;
+      /**
+       * Truncations Delta
+       * @default 0
+       */
+      truncations_delta: number;
     };
     /** SuggestionDecisionIn */
     SuggestionDecisionIn: {
@@ -2911,13 +3729,74 @@ export interface components {
        * @default 0
        */
       errors: number;
+      /**
+       * Fallbacks
+       * @default 0
+       */
+      fallbacks: number;
       /** Avg Latency Ms */
       avg_latency_ms?: number | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /**
+       * Cache Savings Usd
+       * @default 0
+       */
+      cache_savings_usd: number;
       /**
        * Key
        * @default
        */
       key: string;
+    };
+    /** TelemetryProblemOut */
+    TelemetryProblemOut: {
+      /** Kind */
+      kind: string;
+      /** Severity */
+      severity: string;
+      /** Summary */
+      summary: string;
+      /**
+       * Count
+       * @default 0
+       */
+      count: number;
+      /**
+       * Breakdown
+       * @default []
+       */
+      breakdown: {
+        [key: string]: unknown;
+      }[];
+      /**
+       * Recommended Action
+       * @default
+       */
+      recommended_action: string;
+      /**
+       * Drill Down
+       * @default {}
+       */
+      drill_down: {
+        [key: string]: unknown;
+      };
+    };
+    /** TelemetryProblemsOut */
+    TelemetryProblemsOut: {
+      /**
+       * Problems
+       * @default []
+       */
+      problems: components["schemas"]["TelemetryProblemOut"][];
+      /**
+       * Healthy
+       * @default true
+       */
+      healthy: boolean;
     };
     /**
      * TelemetryTotals
@@ -2969,8 +3848,23 @@ export interface components {
        * @default 0
        */
       errors: number;
+      /**
+       * Fallbacks
+       * @default 0
+       */
+      fallbacks: number;
       /** Avg Latency Ms */
       avg_latency_ms?: number | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /**
+       * Cache Savings Usd
+       * @default 0
+       */
+      cache_savings_usd: number;
     };
     /** ThreadBeatIn */
     ThreadBeatIn: {
@@ -3159,9 +4053,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: string;
-          };
+          "application/json": components["schemas"]["DeleteSceneOut"];
         };
       };
       /** @description Validation Error */
@@ -3516,6 +4408,39 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ManuscriptOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clear_draft_scenes_books__book_id__scenes_clear_draft_post: {
+    parameters: {
+      query?: {
+        chapter_id?: string | null;
+      };
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClearDraftScenesOut"];
         };
       };
       /** @description Validation Error */
@@ -4444,6 +5369,180 @@ export interface operations {
       };
     };
   };
+  run_telemetry_runs__run_id__telemetry_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunTelemetryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_llm_calls_llm_calls_get: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+        chapter_id?: string | null;
+        run_id?: string | null;
+        scene_no?: number | null;
+        stage?: string | null;
+        stage_prefix?: string | null;
+        stages?: string | null;
+        model?: string | null;
+        truncated?: boolean | null;
+        errors_only?: boolean | null;
+        problems_only?: boolean | null;
+        fallbacks_only?: boolean | null;
+        min_latency_ms?: number | null;
+        min_input_tokens?: number | null;
+        cache_miss_only?: boolean | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LlmCallListOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  llm_call_detail_llm_calls__call_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        call_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LlmCallOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  book_telemetry_problems_books__book_id__telemetry_problems_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TelemetryProblemsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  compare_runs_books__book_id__telemetry_compare_get: {
+    parameters: {
+      query: {
+        run_a: string;
+        run_b: string;
+      };
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunCompareOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   draft_next_jobs_draft_next_post: {
     parameters: {
       query?: {
@@ -4510,6 +5609,7 @@ export interface operations {
     parameters: {
       query?: {
         book_id?: string | null;
+        chapter_id?: string | null;
       };
       header?: never;
       path?: never;
@@ -5441,6 +6541,145 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ModelSettingOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_agents_settings_agents_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentOpsOut"];
+        };
+      };
+    };
+  };
+  apply_preset_settings_presets__preset_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        preset_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentOpsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  set_agent_policy_settings_agents__setting__policy_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        setting: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AgentPolicyUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentOpsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_agent_stats_settings_agents_stats_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentStatsListOut"];
+        };
+      };
+    };
+  };
+  smoke_test_settings_agents_smoke_test_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["SmokeTestIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SmokeTestOut"];
         };
       };
       /** @description Validation Error */

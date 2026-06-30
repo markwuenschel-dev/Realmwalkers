@@ -107,8 +107,8 @@ export const DESK_ROUTES: readonly DeskRoute[] = [
   },
   {
     id: "settings",
-    label: "Models",
-    paletteLabel: "Open Model settings",
+    label: "Agents",
+    paletteLabel: "Open Agent operations",
     href: "/settings",
     icon: "⚙",
     nav: true,

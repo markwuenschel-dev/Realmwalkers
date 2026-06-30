@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from dominion.shared.config import settings
 from dominion.workers import llm
+from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
 
 if TYPE_CHECKING:
     from dominion.workers.context import SceneContext
@@ -226,15 +227,29 @@ class Drafter:
     async def run(self, prose: str | None, ctx: SceneContext) -> str:
         revising = ctx.revise_feedback is not None
         user_prefix, user = _revise_prompt(ctx) if revising else _beat_prompt(ctx)
-        text, _usage = await llm.complete(
-            model=settings.draft_model,
-            system=_voice_system(ctx),
-            user=user,
-            user_prefix=user_prefix,
-            max_tokens=REVISE_MAX_TOKENS if revising else DRAFT_MAX_TOKENS,
-            budget=ctx.budget,
+        max_tok = REVISE_MAX_TOKENS if revising else DRAFT_MAX_TOKENS
+        system = _voice_system(ctx)
+
+        async def _attempt(model: str, max_tokens: int) -> tuple[str, Any]:
+            text, usage = await llm.complete(
+                model=model,
+                system=system,
+                user=user,
+                user_prefix=user_prefix,
+                max_tokens=max_tokens,
+                budget=ctx.budget,
+            )
+            return text.strip(), usage
+
+        text, _model, _esc = await attempt_with_escalation(
+            setting_key="draft_model",
+            primary_model=settings.draft_model,
+            primary_max_tokens=max_tok,
+            attempt_fn=_attempt,
+            is_success=lambda t: bool(t),
+            policy=policy_for_setting("draft_model"),
         )
-        return text.strip()
+        return text if isinstance(text, str) else ""
 
 
 drafter = Drafter()

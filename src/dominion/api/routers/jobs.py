@@ -103,17 +103,19 @@ async def retry_failed(
 async def clear_failed(
     session: SessionDep,
     book_id: uuid.UUID | None = None,
+    chapter_id: uuid.UUID | None = None,
 ) -> ClearFailedOut:
     """Delete FAILED draft jobs without re-queueing — dismisses the Desk failed banner."""
     from dominion.workers.draft_queue import purge_failed_draft_jobs
 
-    purge = await purge_failed_draft_jobs(session, book_id=book_id)
+    purge = await purge_failed_draft_jobs(session, book_id=book_id, chapter_id=chapter_id)
     await session.commit()
 
     counts = await _queue_counts(session, book_id)
     log.info(
         "jobs.clear_failed",
         book=str(book_id) if book_id else None,
+        chapter=str(chapter_id) if chapter_id else None,
         purged=purge.purged,
         failed_remaining=counts.get(JobStatus.FAILED, 0),
     )

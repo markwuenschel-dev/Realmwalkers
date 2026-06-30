@@ -44,6 +44,8 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS run_id UUID",
     # Per-scene POV override: optional, null/blank inherits the chapter POV (Beat.pov).
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
+    # Per-call telemetry diagnostics (context budget breakdown, section name, fallback flags, …).
+    "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS metadata JSONB",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).

@@ -17,6 +17,7 @@ from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
 from dominion.workers.llm import CachedPrefixBlock, estimate_tokens
+from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
 from dominion.workers.scene_packet.parse import parse_scene_qa
 
 # Headroom for the fallback attempt when the first QA pass is cut off mid-verdict.
@@ -103,7 +104,7 @@ async def qa_scene_packet(
     prefix_blocks = build_prefix_blocks(chapter_packet_body)
     user = build_prompt(scene_packet)
 
-    async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, bool]:
+    async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, Any]:
         raw, usage = await llm.complete(
             model=model,
             system=_SYSTEM,
@@ -115,20 +116,16 @@ async def qa_scene_packet(
             context_window_budget=settings.scene_packet_context_window_budget,
             context_sections=context_sections_for_qa_call(prefix_blocks=prefix_blocks, user=user),
         )
-        return parse_scene_qa(raw), usage.truncated
+        return parse_scene_qa(raw), usage
 
-    primary = settings.scene_packet_qa_model
-    result, truncated = await _attempt(primary, settings.scene_packet_qa_max_tokens)
-    if result is not None:
-        return result
-
-    fallback = (settings.scene_packet_qa_fallback_model or "").strip()
-    if not fallback or fallback == primary:
-        return None
-    fb_max = (
-        max(settings.scene_packet_qa_max_tokens, _QA_FALLBACK_MAX_TOKENS_FLOOR)
-        if truncated
-        else settings.scene_packet_qa_max_tokens
+    policy = policy_for_setting("scene_packet_qa_model")
+    result, _model, _esc = await attempt_with_escalation(
+        setting_key="scene_packet_qa_model",
+        primary_model=settings.scene_packet_qa_model,
+        primary_max_tokens=settings.scene_packet_qa_max_tokens,
+        attempt_fn=_attempt,
+        is_success=lambda v: v is not None,
+        policy=policy,
+        fallback_max_tokens=max(settings.scene_packet_qa_max_tokens, _QA_FALLBACK_MAX_TOKENS_FLOOR),
     )
-    result, _ = await _attempt(fallback, fb_max)
-    return result
+    return result if isinstance(result, dict) else None

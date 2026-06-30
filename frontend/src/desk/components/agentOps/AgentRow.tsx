@@ -1,0 +1,211 @@
+"use client";
+
+import { useState } from "react";
+import { css } from "../../css";
+import { useDesk } from "../../state";
+import type { AgentOpsAgentOut, AgentStatsOut } from "../../api/types";
+import { AgentHealthStrip } from "./AgentHealthStrip";
+
+const TIER_LABEL: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };
+const TIER_ORDER = ["haiku", "sonnet", "opus"];
+const TIER_HINT: Record<string, string> = {
+  haiku: "fastest / cheapest",
+  sonnet: "balanced",
+  opus: "strongest / most expensive",
+};
+
+interface AgentRowProps {
+  agent: AgentOpsAgentOut;
+  stats: AgentStatsOut | undefined;
+  busy: boolean;
+  onPickTier: (setting: string, tier: string) => void;
+  onSetFallback: (setting: string, tier: string) => void;
+}
+
+export function AgentRow({ agent, stats, busy, onPickTier, onSetFallback }: AgentRowProps) {
+  const { t } = useDesk();
+  const [open, setOpen] = useState(false);
+  const a = agent;
+
+  return (
+    <div
+      style={css(
+        "background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:16px 18px",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={css(
+          "display:flex;width:100%;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;background:transparent;border:none;padding:0;cursor:pointer;text-align:left",
+        )}
+      >
+        <div style={css("flex:1 1 auto;min-width:0")}>
+          <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>
+            {a.label}
+          </div>
+          <div style={css("font-size:13px;color:var(--dim);margin-top:3px;line-height:1.45")}>
+            {a.description}
+          </div>
+          <div
+            style={css("margin-top:6px;display:flex;flex-wrap:wrap;gap:10px;align-items:center")}
+          >
+            <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+              {a.model}
+            </span>
+            {a.policy.fallback_tier && (
+              <span
+                style={css(
+                  "font-size:11px;padding:2px 8px;border-radius:6px;background:var(--bg3);color:var(--dim)",
+                )}
+              >
+                fallback: {TIER_LABEL[a.policy.fallback_tier] ?? a.policy.fallback_tier}
+              </span>
+            )}
+            <span style={css("font-size:11px;color:var(--dim)")}>
+              {a.estimate.cost_band} cost · {a.estimate.speed_band} · {a.contract.context_load}
+            </span>
+          </div>
+          <div style={css("margin-top:6px")}>
+            <AgentHealthStrip stats={stats} />
+          </div>
+        </div>
+        <span style={css("color:var(--dim);font-size:12px")}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {a.warnings.length > 0 && (
+        <div style={css(`margin-top:10px;font-size:12px;color:${t.warn}`)}>
+          {a.warnings.map((w) => (
+            <div key={w}>⚠ {w}</div>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div style={css("margin-top:16px;border-top:1px solid var(--line);padding-top:16px")}>
+          <div style={css("display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px")}>
+            <div>
+              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>
+                Primary model
+              </div>
+              <TierButtons
+                active={a.tier}
+                disabled={busy}
+                onPick={(tier) => onPickTier(a.setting, tier)}
+              />
+            </div>
+            <div>
+              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>Fallback</div>
+              <TierButtons
+                active={a.policy.fallback_tier}
+                disabled={busy}
+                onPick={(tier) => onSetFallback(a.setting, tier)}
+                allowEmpty
+              />
+            </div>
+          </div>
+
+          <div style={css("font-size:13px;color:var(--dim);line-height:1.5")}>
+            <div>
+              <strong style={{ color: "var(--ink)" }}>Inputs:</strong>{" "}
+              {a.contract.inputs.join(", ")}
+            </div>
+            <div>
+              <strong style={{ color: "var(--ink)" }}>Outputs:</strong>{" "}
+              {a.contract.outputs.join(", ")}
+            </div>
+            <div>
+              <strong style={{ color: "var(--ink)" }}>Max retries:</strong> {a.contract.max_retries}{" "}
+              · <strong style={{ color: "var(--ink)" }}>Approval:</strong>{" "}
+              {a.contract.requires_approval ? "required" : "no"}
+            </div>
+            <div style={css("margin-top:8px")}>
+              <strong style={{ color: "var(--ink)" }}>Escalation:</strong>{" "}
+              {a.policy.escalation_rules.map((r) => r.trigger).join(", ")}
+            </div>
+            <div style={css("margin-top:8px")}>
+              <strong style={{ color: "var(--ink)" }}>Permissions:</strong>{" "}
+              {[
+                a.permissions.can_modify_packet && "can propose packet",
+                a.permissions.can_block_downstream && "can block",
+                a.permissions.can_write_summaries && "writes summaries",
+                a.permissions.require_approval && "requires approval",
+              ]
+                .filter(Boolean)
+                .join(" · ") || "advisory only"}
+            </div>
+          </div>
+
+          {stats && stats.calls > 0 && (
+            <div
+              style={css(
+                "margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--dim)",
+              )}
+            >
+              Last window: {stats.calls} calls · err {((stats.error_rate ?? 0) * 100).toFixed(0)}% ·
+              trunc {((stats.truncation_rate ?? 0) * 100).toFixed(0)}% · QA pass{" "}
+              {stats.qa_pass_rate ?? "—"}
+            </div>
+          )}
+
+          <a
+            href="/telemetry"
+            style={css("display:inline-block;margin-top:10px;font-size:12px;color:var(--accent)")}
+          >
+            Full telemetry →
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TierButtons({
+  active,
+  disabled,
+  onPick,
+  allowEmpty,
+}: {
+  active: string | null | undefined;
+  disabled: boolean;
+  onPick: (tier: string) => void;
+  allowEmpty?: boolean;
+}) {
+  return (
+    <div
+      style={css(
+        `display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px;opacity:${disabled ? ".6" : "1"}`,
+      )}
+    >
+      {allowEmpty && (
+        <button
+          disabled={disabled}
+          onClick={() => onPick("")}
+          style={css(
+            `padding:5px 10px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${!active ? "var(--accent)" : "transparent"};color:${!active ? "var(--onAccent)" : "var(--dim)"}`,
+          )}
+        >
+          None
+        </button>
+      )}
+      {TIER_ORDER.map((tier) => {
+        const on = active === tier;
+        return (
+          <button
+            key={tier}
+            disabled={disabled}
+            title={TIER_HINT[tier]}
+            onClick={() => {
+              if (!on) onPick(tier);
+            }}
+            style={css(
+              `padding:5px 12px;border:none;border-radius:7px;cursor:${disabled ? "default" : "pointer"};font-family:var(--ui);font-size:12px;background:${on ? "var(--accent)" : "transparent"};color:${on ? "var(--onAccent)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
+            )}
+          >
+            {TIER_LABEL[tier]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

@@ -102,7 +102,7 @@
           "scenes"
         ],
         "summary": "Delete Scene",
-        "description": "Hard-delete one scene version and everything that points at it. Scenes are referenced by\ncritiques / annotations / approvals / suggestions and edit-pairs (NOT NULL) and softly by the\nledger, summaries, jobs, child versions, draft-attempt provenance, and knowledge facts \u2014 so we\nremove the hard dependents and null the soft refs first, then the row, or the FK constraints\n(a nullable FK still blocks a delete; there is no ON DELETE SET NULL) would fail the delete.\nUsed by the inbox's bulk 'delete selected'.",
+        "description": "Hard-delete one scene version and everything that points at it. Also purges draft jobs for\nthe same chapter/scene slot. Used by the inbox's bulk 'delete selected'.",
         "operationId": "delete_scene_scenes__scene_id__delete",
         "parameters": [
           {
@@ -122,11 +122,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Delete Scene Scenes  Scene Id  Delete"
+                  "$ref": "#/components/schemas/DeleteSceneOut"
                 }
               }
             }
@@ -650,6 +646,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ManuscriptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/scenes/clear-draft": {
+      "post": {
+        "tags": [
+          "books"
+        ],
+        "summary": "Clear Draft Scenes",
+        "description": "Delete all non-approved scenes for a book (optional chapter scope). Approved prose is kept.",
+        "operationId": "clear_draft_scenes_books__book_id__scenes_clear_draft_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "chapter_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearDraftScenesOut"
                 }
               }
             }
@@ -1949,7 +2006,6 @@
           "telemetry"
         ],
         "summary": "Chapter Telemetry",
-        "description": "Per-scene telemetry for one chapter's LATEST derive run, plus that run's totals. Scoped to the\nlatest run (not cumulative) so the panel reflects the run you just kicked off. Empty (zero totals)\nwhen the chapter has never been derived.",
         "operationId": "chapter_telemetry_chapters__chapter_id__telemetry_get",
         "parameters": [
           {
@@ -1993,7 +2049,6 @@
           "telemetry"
         ],
         "summary": "Book Telemetry",
-        "description": "Global telemetry for a book: overall totals + rollups across chapters, stages, and models for\ncross-chapter/scene comparison. `by_run` is paginated (newest first) via `limit`/`offset` so the\nrun history doesn't grow an unbounded table in the UI; `run_total` reports the full count so the\nDesk knows whether older runs remain to load. All other rollups stay full-book.",
         "operationId": "book_telemetry_books__book_id__telemetry_get",
         "parameters": [
           {
@@ -2037,6 +2092,497 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BookTelemetryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/telemetry": {
+      "get": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Run Telemetry",
+        "operationId": "run_telemetry_runs__run_id__telemetry_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTelemetryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm-calls": {
+      "get": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "List Llm Calls",
+        "operationId": "list_llm_calls_llm_calls_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "chapter_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "scene_no",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scene No"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage"
+            }
+          },
+          {
+            "name": "stage_prefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage Prefix"
+            }
+          },
+          {
+            "name": "stages",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stages"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model"
+            }
+          },
+          {
+            "name": "truncated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Truncated"
+            }
+          },
+          {
+            "name": "errors_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Errors Only"
+            }
+          },
+          {
+            "name": "problems_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Problems Only"
+            }
+          },
+          {
+            "name": "fallbacks_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fallbacks Only"
+            }
+          },
+          {
+            "name": "min_latency_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Latency Ms"
+            }
+          },
+          {
+            "name": "min_input_tokens",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Input Tokens"
+            }
+          },
+          {
+            "name": "cache_miss_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cache Miss Only"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmCallListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm-calls/{call_id}": {
+      "get": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Llm Call Detail",
+        "operationId": "llm_call_detail_llm_calls__call_id__get",
+        "parameters": [
+          {
+            "name": "call_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Call Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmCallOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/telemetry/problems": {
+      "get": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Book Telemetry Problems",
+        "operationId": "book_telemetry_problems_books__book_id__telemetry_problems_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryProblemsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/telemetry/compare": {
+      "get": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Compare Runs",
+        "operationId": "compare_runs_books__book_id__telemetry_compare_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "run_a",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run A"
+            }
+          },
+          {
+            "name": "run_b",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run B"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunCompareOut"
                 }
               }
             }
@@ -2180,6 +2726,23 @@
                 }
               ],
               "title": "Book Id"
+            }
+          },
+          {
+            "name": "chapter_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
             }
           }
         ],
@@ -3564,7 +4127,7 @@
           "settings"
         ],
         "summary": "Get Models",
-        "description": "Every customizable agent's current model + which tier it is, plus the tier -> id map.",
+        "description": "Every customizable agent's current model + tier (legacy endpoint).",
         "operationId": "get_models_settings_models_get",
         "responses": {
           "200": {
@@ -3603,6 +4166,195 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModelSettingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/agents": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Agents",
+        "description": "Full agent operations panel state.",
+        "operationId": "get_agents_settings_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOpsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/presets/{preset_id}": {
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Apply Preset",
+        "description": "Apply a built-in preset to all agent roles.",
+        "operationId": "apply_preset_settings_presets__preset_id__put",
+        "parameters": [
+          {
+            "name": "preset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Preset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOpsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/agents/{setting}/policy": {
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Set Agent Policy",
+        "description": "Update fallback chain / never-fallback tiers for one agent.",
+        "operationId": "set_agent_policy_settings_agents__setting__policy_put",
+        "parameters": [
+          {
+            "name": "setting",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Setting"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPolicyUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOpsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/agents/stats": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Agent Stats",
+        "description": "Per-agent health stats from recent llm_calls.",
+        "operationId": "get_agent_stats_settings_agents_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentStatsListOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/agents/smoke-test": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Smoke Test",
+        "description": "Offline fixture smoke test \u2014 no API spend.",
+        "operationId": "smoke_test_settings_agents_smoke_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SmokeTestIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmokeTestOut"
                 }
               }
             }
@@ -3774,6 +4526,487 @@
         },
         "type": "object",
         "title": "ActiveScene"
+      },
+      "AgentContractOut": {
+        "properties": {
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outputs"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries",
+            "default": 3
+          },
+          "context_load": {
+            "type": "string",
+            "title": "Context Load",
+            "default": ""
+          },
+          "uses_memory": {
+            "type": "boolean",
+            "title": "Uses Memory",
+            "default": false
+          },
+          "writes_artifacts": {
+            "type": "boolean",
+            "title": "Writes Artifacts",
+            "default": false
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "title": "Requires Approval",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "inputs",
+          "outputs"
+        ],
+        "title": "AgentContractOut"
+      },
+      "AgentEstimateOut": {
+        "properties": {
+          "cost_band": {
+            "type": "string",
+            "title": "Cost Band"
+          },
+          "speed_band": {
+            "type": "string",
+            "title": "Speed Band"
+          },
+          "typical_calls_per_chapter": {
+            "type": "integer",
+            "title": "Typical Calls Per Chapter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cost_band",
+          "speed_band",
+          "typical_calls_per_chapter"
+        ],
+        "title": "AgentEstimateOut"
+      },
+      "AgentOpsAgentOut": {
+        "properties": {
+          "setting": {
+            "type": "string",
+            "title": "Setting"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/AgentPolicyOut"
+          },
+          "contract": {
+            "$ref": "#/components/schemas/AgentContractOut"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/AgentPermissionsOut"
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/AgentEstimateOut"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "setting",
+          "label",
+          "description",
+          "model",
+          "policy",
+          "contract",
+          "permissions",
+          "estimate"
+        ],
+        "title": "AgentOpsAgentOut"
+      },
+      "AgentOpsOut": {
+        "properties": {
+          "active_preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Preset"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPresetOut"
+            },
+            "type": "array",
+            "title": "Presets"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentOpsAgentOut"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "pipeline_estimate": {
+            "$ref": "#/components/schemas/PipelineEstimateOut"
+          },
+          "tiers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Tiers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active_preset",
+          "presets",
+          "agents",
+          "pipeline_estimate",
+          "tiers"
+        ],
+        "title": "AgentOpsOut"
+      },
+      "AgentPermissionsOut": {
+        "properties": {
+          "auto_run": {
+            "type": "boolean",
+            "title": "Auto Run",
+            "default": true
+          },
+          "require_approval": {
+            "type": "boolean",
+            "title": "Require Approval",
+            "default": false
+          },
+          "can_modify_packet": {
+            "type": "boolean",
+            "title": "Can Modify Packet",
+            "default": false
+          },
+          "can_block_downstream": {
+            "type": "boolean",
+            "title": "Can Block Downstream",
+            "default": false
+          },
+          "can_write_summaries": {
+            "type": "boolean",
+            "title": "Can Write Summaries",
+            "default": false
+          },
+          "can_update_canon": {
+            "type": "boolean",
+            "title": "Can Update Canon",
+            "default": false
+          },
+          "can_only_suggest": {
+            "type": "boolean",
+            "title": "Can Only Suggest",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "AgentPermissionsOut"
+      },
+      "AgentPolicyOut": {
+        "properties": {
+          "setting": {
+            "type": "string",
+            "title": "Setting"
+          },
+          "primary_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Tier"
+          },
+          "primary_model": {
+            "type": "string",
+            "title": "Primary Model"
+          },
+          "fallback_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Tier"
+          },
+          "fallback_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Model"
+          },
+          "never_fallback": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Never Fallback",
+            "default": []
+          },
+          "escalation_rules": {
+            "items": {
+              "$ref": "#/components/schemas/EscalationRuleOut"
+            },
+            "type": "array",
+            "title": "Escalation Rules",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "setting",
+          "primary_model"
+        ],
+        "title": "AgentPolicyOut"
+      },
+      "AgentPolicyUpdateIn": {
+        "properties": {
+          "fallback_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Tier"
+          },
+          "never_fallback": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Never Fallback"
+          }
+        },
+        "type": "object",
+        "title": "AgentPolicyUpdateIn"
+      },
+      "AgentPresetOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "cost_band": {
+            "type": "string",
+            "title": "Cost Band"
+          },
+          "latency_band": {
+            "type": "string",
+            "title": "Latency Band"
+          },
+          "best_for": {
+            "type": "string",
+            "title": "Best For"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "description",
+          "cost_band",
+          "latency_band",
+          "best_for"
+        ],
+        "title": "AgentPresetOut"
+      },
+      "AgentStatsListOut": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentStatsOut"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "window_runs": {
+            "type": "integer",
+            "title": "Window Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents",
+          "window_runs"
+        ],
+        "title": "AgentStatsListOut"
+      },
+      "AgentStatsOut": {
+        "properties": {
+          "setting": {
+            "type": "string",
+            "title": "Setting"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "avg_latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Latency Ms"
+          },
+          "avg_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Tokens"
+          },
+          "escalation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Rate"
+          },
+          "error_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Rate"
+          },
+          "truncation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truncation Rate"
+          },
+          "qa_pass_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qa Pass Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "setting",
+          "label"
+        ],
+        "title": "AgentStatsOut"
       },
       "AnnotationIn": {
         "properties": {
@@ -4459,7 +5692,10 @@
               "cache_hit_ratio": 0.0,
               "cache_tokens_saved": 0,
               "truncations": 0,
-              "errors": 0
+              "errors": 0,
+              "fallbacks": 0,
+              "estimated_cost_usd": 0.0,
+              "cache_savings_usd": 0.0
             }
           },
           "by_chapter": {
@@ -4749,6 +5985,11 @@
             "title": "Errors",
             "default": 0
           },
+          "fallbacks": {
+            "type": "integer",
+            "title": "Fallbacks",
+            "default": 0
+          },
           "avg_latency_ms": {
             "anyOf": [
               {
@@ -4759,6 +6000,16 @@
               }
             ],
             "title": "Avg Latency Ms"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "cache_savings_usd": {
+            "type": "number",
+            "title": "Cache Savings Usd",
+            "default": 0.0
           },
           "chapter_id": {
             "type": "string",
@@ -4813,7 +6064,10 @@
               "cache_hit_ratio": 0.0,
               "cache_tokens_saved": 0,
               "truncations": 0,
-              "errors": 0
+              "errors": 0,
+              "fallbacks": 0,
+              "estimated_cost_usd": 0.0,
+              "cache_savings_usd": 0.0
             }
           },
           "scenes": {
@@ -4914,6 +6168,23 @@
         ],
         "title": "CharacterStateOut",
         "description": "Hard numbers from the Oracle (CharacterState), with the canon body if the character has one."
+      },
+      "ClearDraftScenesOut": {
+        "properties": {
+          "purged": {
+            "type": "integer",
+            "title": "Purged",
+            "default": 0
+          },
+          "jobs_purged": {
+            "type": "integer",
+            "title": "Jobs Purged",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ClearDraftScenesOut",
+        "description": "Result of removing all non-approved scenes (draft compile reset)."
       },
       "ClearFailedOut": {
         "properties": {
@@ -5065,6 +6336,26 @@
         ],
         "title": "DecisionIn",
         "description": "POST body for approve / deny / revise (DESIGN \u00a79)."
+      },
+      "DeleteSceneOut": {
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deleted"
+          },
+          "jobs_purged": {
+            "type": "integer",
+            "title": "Jobs Purged",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "DeleteSceneOut",
+        "description": "Result of hard-deleting one scene version."
       },
       "DocMeta": {
         "properties": {
@@ -5364,6 +6655,24 @@
         ],
         "title": "DraftScheduleOut"
       },
+      "EscalationRuleOut": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger",
+          "description"
+        ],
+        "title": "EscalationRuleOut"
+      },
       "ExemplarIn": {
         "properties": {
           "enabled": {
@@ -5637,6 +6946,266 @@
         ],
         "title": "KnowledgeFactOut",
         "description": "A discrete story fact + who knows it when (scene-packet knowledge ledger)."
+      },
+      "LlmCallLinksOut": {
+        "properties": {
+          "scene_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Packet Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          }
+        },
+        "type": "object",
+        "title": "LlmCallLinksOut",
+        "description": "Navigation targets for a telemetry call row."
+      },
+      "LlmCallListOut": {
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/LlmCallOut"
+            },
+            "type": "array",
+            "title": "Calls",
+            "default": []
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "default": 50
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "LlmCallListOut"
+      },
+      "LlmCallOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "book_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "scene_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene No"
+          },
+          "scene_seed_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Seed Id"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "cache_creation_tokens": {
+            "type": "integer",
+            "title": "Cache Creation Tokens",
+            "default": 0
+          },
+          "cache_read_tokens": {
+            "type": "integer",
+            "title": "Cache Read Tokens",
+            "default": 0
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "links": {
+            "$ref": "#/components/schemas/LlmCallLinksOut",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "model"
+        ],
+        "title": "LlmCallOut",
+        "description": "One persisted LLM call \u2014 the atomic unit for drill-down drawers."
       },
       "ManuscriptChapter": {
         "properties": {
@@ -5991,6 +7560,132 @@
         "title": "PacketUpdateIn",
         "description": "PUT body to adjudicate/edit a proposed packet. Only provided fields are applied. The human\nedits the body, clears open questions, and may raise the confidence after reviewing flags."
       },
+      "PipelineEstimateOut": {
+        "properties": {
+          "cost_band": {
+            "type": "string",
+            "title": "Cost Band"
+          },
+          "latency_band": {
+            "type": "string",
+            "title": "Latency Band"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "opus_calls": {
+            "type": "integer",
+            "title": "Opus Calls"
+          },
+          "sonnet_calls": {
+            "type": "integer",
+            "title": "Sonnet Calls"
+          },
+          "haiku_calls": {
+            "type": "integer",
+            "title": "Haiku Calls"
+          },
+          "total_estimated_calls": {
+            "type": "integer",
+            "title": "Total Estimated Calls"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cost_band",
+          "latency_band",
+          "summary",
+          "opus_calls",
+          "sonnet_calls",
+          "haiku_calls",
+          "total_estimated_calls"
+        ],
+        "title": "PipelineEstimateOut"
+      },
+      "PipelineStepOut": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "cache_creation_tokens": {
+            "type": "integer",
+            "title": "Cache Creation Tokens",
+            "default": 0
+          },
+          "cache_read_tokens": {
+            "type": "integer",
+            "title": "Cache Read Tokens",
+            "default": 0
+          },
+          "cache_hit_ratio": {
+            "type": "number",
+            "title": "Cache Hit Ratio",
+            "default": 0.0
+          },
+          "cache_tokens_saved": {
+            "type": "integer",
+            "title": "Cache Tokens Saved",
+            "default": 0
+          },
+          "truncations": {
+            "type": "integer",
+            "title": "Truncations",
+            "default": 0
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors",
+            "default": 0
+          },
+          "fallbacks": {
+            "type": "integer",
+            "title": "Fallbacks",
+            "default": 0
+          },
+          "avg_latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Latency Ms"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "cache_savings_usd": {
+            "type": "number",
+            "title": "Cache Savings Usd",
+            "default": 0.0
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "PipelineStepOut",
+        "description": "One stage in a scene/run pipeline timeline."
+      },
       "RedraftIn": {
         "properties": {
           "scene_ids": {
@@ -6154,6 +7849,30 @@
         "title": "RuleProposalStatus",
         "description": "A distilled rule's lifecycle: proposed, then accepted (applied to voice_spec) or rejected."
       },
+      "RunCompareOut": {
+        "properties": {
+          "run_a": {
+            "$ref": "#/components/schemas/RunRollupOut"
+          },
+          "run_b": {
+            "$ref": "#/components/schemas/RunRollupOut"
+          },
+          "stage_deltas": {
+            "items": {
+              "$ref": "#/components/schemas/StageDeltaOut"
+            },
+            "type": "array",
+            "title": "Stage Deltas",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_a",
+          "run_b"
+        ],
+        "title": "RunCompareOut"
+      },
       "RunRollupOut": {
         "properties": {
           "calls": {
@@ -6201,6 +7920,11 @@
             "title": "Errors",
             "default": 0
           },
+          "fallbacks": {
+            "type": "integer",
+            "title": "Fallbacks",
+            "default": 0
+          },
           "avg_latency_ms": {
             "anyOf": [
               {
@@ -6211,6 +7935,16 @@
               }
             ],
             "title": "Avg Latency Ms"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "cache_savings_usd": {
+            "type": "number",
+            "title": "Cache Savings Usd",
+            "default": 0.0
           },
           "run_id": {
             "anyOf": [
@@ -6380,6 +8114,128 @@
         ],
         "title": "RunStartOut",
         "description": "Result of starting a run: the chapter and its proposed (unapproved) beats."
+      },
+      "RunTelemetryOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TelemetryTotals",
+            "default": {
+              "calls": 0,
+              "input_tokens": 0,
+              "output_tokens": 0,
+              "cache_creation_tokens": 0,
+              "cache_read_tokens": 0,
+              "cache_hit_ratio": 0.0,
+              "cache_tokens_saved": 0,
+              "truncations": 0,
+              "errors": 0,
+              "fallbacks": 0,
+              "estimated_cost_usd": 0.0,
+              "cache_savings_usd": 0.0
+            }
+          },
+          "by_stage": {
+            "items": {
+              "$ref": "#/components/schemas/TelemetryGroupOut"
+            },
+            "type": "array",
+            "title": "By Stage",
+            "default": []
+          },
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/TelemetryGroupOut"
+            },
+            "type": "array",
+            "title": "By Model",
+            "default": []
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/SceneTelemetryOut"
+            },
+            "type": "array",
+            "title": "Scenes",
+            "default": []
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/LlmCallOut"
+            },
+            "type": "array",
+            "title": "Calls",
+            "default": []
+          },
+          "settings_snapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings Snapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "RunTelemetryOut",
+        "description": "Full drill-down for one telemetry run (all calls sharing a run_id)."
       },
       "SceneDetail": {
         "properties": {
@@ -7031,6 +8887,11 @@
             "title": "Errors",
             "default": 0
           },
+          "fallbacks": {
+            "type": "integer",
+            "title": "Fallbacks",
+            "default": 0
+          },
           "avg_latency_ms": {
             "anyOf": [
               {
@@ -7041,6 +8902,16 @@
               }
             ],
             "title": "Avg Latency Ms"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "cache_savings_usd": {
+            "type": "number",
+            "title": "Cache Savings Usd",
+            "default": 0.0
           },
           "scene_no": {
             "anyOf": [
@@ -7059,6 +8930,43 @@
             },
             "type": "array",
             "title": "Models",
+            "default": []
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stages",
+            "default": []
+          },
+          "worst_latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Latency Ms"
+          },
+          "stage_summary": {
+            "type": "string",
+            "title": "Stage Summary",
+            "default": ""
+          },
+          "pipeline": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineStepOut"
+            },
+            "type": "array",
+            "title": "Pipeline",
             "default": []
           }
         },
@@ -7204,6 +9112,140 @@
         ],
         "title": "SceneVersionOut",
         "description": "A scene row plus its preserved pre-edit text, for version diffing in History."
+      },
+      "SmokeTestAgentOut": {
+        "properties": {
+          "setting": {
+            "type": "string",
+            "title": "Setting"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/SmokeTestCheckOut"
+            },
+            "type": "array",
+            "title": "Checks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "setting",
+          "label",
+          "passed",
+          "checks"
+        ],
+        "title": "SmokeTestAgentOut"
+      },
+      "SmokeTestCheckOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "ok"
+        ],
+        "title": "SmokeTestCheckOut"
+      },
+      "SmokeTestIn": {
+        "properties": {
+          "agents": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agents"
+          }
+        },
+        "type": "object",
+        "title": "SmokeTestIn"
+      },
+      "SmokeTestOut": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SmokeTestAgentOut"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "all_passed": {
+            "type": "boolean",
+            "title": "All Passed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "all_passed"
+        ],
+        "title": "SmokeTestOut"
+      },
+      "StageDeltaOut": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "calls_delta": {
+            "type": "integer",
+            "title": "Calls Delta",
+            "default": 0
+          },
+          "input_tokens_delta": {
+            "type": "integer",
+            "title": "Input Tokens Delta",
+            "default": 0
+          },
+          "output_tokens_delta": {
+            "type": "integer",
+            "title": "Output Tokens Delta",
+            "default": 0
+          },
+          "truncations_delta": {
+            "type": "integer",
+            "title": "Truncations Delta",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage"
+        ],
+        "title": "StageDeltaOut"
       },
       "SuggestionDecisionIn": {
         "properties": {
@@ -7399,6 +9441,11 @@
             "title": "Errors",
             "default": 0
           },
+          "fallbacks": {
+            "type": "integer",
+            "title": "Fallbacks",
+            "default": 0
+          },
           "avg_latency_ms": {
             "anyOf": [
               {
@@ -7410,6 +9457,16 @@
             ],
             "title": "Avg Latency Ms"
           },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "cache_savings_usd": {
+            "type": "number",
+            "title": "Cache Savings Usd",
+            "default": 0.0
+          },
           "key": {
             "type": "string",
             "title": "Key",
@@ -7419,6 +9476,73 @@
         "type": "object",
         "title": "TelemetryGroupOut",
         "description": "A named aggregation bucket for the global tab (by stage or by model)."
+      },
+      "TelemetryProblemOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "breakdown": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Breakdown",
+            "default": []
+          },
+          "recommended_action": {
+            "type": "string",
+            "title": "Recommended Action",
+            "default": ""
+          },
+          "drill_down": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Drill Down",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "severity",
+          "summary"
+        ],
+        "title": "TelemetryProblemOut"
+      },
+      "TelemetryProblemsOut": {
+        "properties": {
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/TelemetryProblemOut"
+            },
+            "type": "array",
+            "title": "Problems",
+            "default": []
+          },
+          "healthy": {
+            "type": "boolean",
+            "title": "Healthy",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "TelemetryProblemsOut"
       },
       "TelemetryTotals": {
         "properties": {
@@ -7467,6 +9591,11 @@
             "title": "Errors",
             "default": 0
           },
+          "fallbacks": {
+            "type": "integer",
+            "title": "Fallbacks",
+            "default": 0
+          },
           "avg_latency_ms": {
             "anyOf": [
               {
@@ -7477,6 +9606,16 @@
               }
             ],
             "title": "Avg Latency Ms"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "cache_savings_usd": {
+            "type": "number",
+            "title": "Cache Savings Usd",
+            "default": 0.0
           }
         },
         "type": "object",

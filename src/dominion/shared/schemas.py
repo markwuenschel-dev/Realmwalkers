@@ -366,7 +366,16 @@ class TelemetryTotals(BaseModel):
     cache_tokens_saved: int = 0  # ~90% of cache_read tokens (cached reads bill at ~10%)
     truncations: int = 0  # calls cut off at max_tokens
     errors: int = 0  # calls that recorded a failure
+    fallbacks: int = 0  # calls marked fallback_attempt in metadata
     avg_latency_ms: int | None = None
+    estimated_cost_usd: float = 0.0
+    cache_savings_usd: float = 0.0
+
+
+class PipelineStepOut(TelemetryTotals):
+    """One stage in a scene/run pipeline timeline."""
+
+    stage: str = ""
 
 
 class SceneTelemetryOut(TelemetryTotals):
@@ -374,6 +383,11 @@ class SceneTelemetryOut(TelemetryTotals):
 
     scene_no: int | None = None
     models: list[str] = []
+    status: str = "ok"  # ok | warn | error
+    stages: list[str] = []
+    worst_latency_ms: int | None = None
+    stage_summary: str = ""
+    pipeline: list[PipelineStepOut] = []
 
 
 class ChapterTelemetryOut(BaseModel):
@@ -419,6 +433,92 @@ class BookTelemetryOut(BaseModel):
     run_total: int = 0  # total run rows before limit/offset slicing (for "load older")
     by_stage: list[TelemetryGroupOut] = []
     by_model: list[TelemetryGroupOut] = []
+
+
+class LlmCallLinksOut(BaseModel):
+    """Navigation targets for a telemetry call row."""
+
+    scene_packet_id: uuid.UUID | None = None
+    scene_id: uuid.UUID | None = None
+    job_id: uuid.UUID | None = None
+    chapter_id: uuid.UUID | None = None
+    run_id: uuid.UUID | None = None
+
+
+class LlmCallOut(BaseModel):
+    """One persisted LLM call — the atomic unit for drill-down drawers."""
+
+    id: uuid.UUID
+    run_id: uuid.UUID | None = None
+    book_id: uuid.UUID | None = None
+    chapter_id: uuid.UUID | None = None
+    scene_no: int | None = None
+    scene_seed_id: uuid.UUID | None = None
+    stage: str
+    model: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_creation_tokens: int = 0
+    cache_read_tokens: int = 0
+    truncated: bool = False
+    latency_ms: int | None = None
+    error: str | None = None
+    created_at: datetime | None = None
+    metadata: dict[str, Any] | None = None
+    estimated_cost_usd: float = 0.0
+    links: LlmCallLinksOut = LlmCallLinksOut()
+
+
+class LlmCallListOut(BaseModel):
+    calls: list[LlmCallOut] = []
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+
+
+class RunTelemetryOut(BaseModel):
+    """Full drill-down for one telemetry run (all calls sharing a run_id)."""
+
+    run_id: uuid.UUID
+    started_at: datetime | None = None
+    chapter_id: uuid.UUID | None = None
+    chapter_no: int | None = None
+    title: str | None = None
+    totals: TelemetryTotals = TelemetryTotals()
+    by_stage: list[TelemetryGroupOut] = []
+    by_model: list[TelemetryGroupOut] = []
+    scenes: list[SceneTelemetryOut] = []
+    calls: list[LlmCallOut] = []
+    settings_snapshot: dict[str, Any] | None = None
+
+
+class TelemetryProblemOut(BaseModel):
+    kind: str
+    severity: str  # info | warn | error
+    summary: str
+    count: int = 0
+    breakdown: list[dict[str, Any]] = []
+    recommended_action: str = ""
+    drill_down: dict[str, Any] = {}
+
+
+class TelemetryProblemsOut(BaseModel):
+    problems: list[TelemetryProblemOut] = []
+    healthy: bool = True
+
+
+class StageDeltaOut(BaseModel):
+    stage: str
+    calls_delta: int = 0
+    input_tokens_delta: int = 0
+    output_tokens_delta: int = 0
+    truncations_delta: int = 0
+
+
+class RunCompareOut(BaseModel):
+    run_a: RunRollupOut
+    run_b: RunRollupOut
+    stage_deltas: list[StageDeltaOut] = []
 
 
 # --- History + manuscript read surfaces (DESIGN §9, §13) ------------------------------------------
@@ -516,6 +616,20 @@ class ClearFailedOut(BaseModel):
 
     purged: int = 0
     failed: int = 0
+
+
+class DeleteSceneOut(BaseModel):
+    """Result of hard-deleting one scene version."""
+
+    deleted: uuid.UUID
+    jobs_purged: int = 0
+
+
+class ClearDraftScenesOut(BaseModel):
+    """Result of removing all non-approved scenes (draft compile reset)."""
+
+    purged: int = 0
+    jobs_purged: int = 0
 
 
 class DraftQueueBlockerOut(BaseModel):
@@ -761,3 +875,132 @@ class ModelSettingUpdateIn(BaseModel):
 
     setting: str
     tier: str  # haiku | sonnet | opus
+
+
+# --- agent operations panel ----------------------------------------------------------------------
+
+
+class EscalationRuleOut(BaseModel):
+    trigger: str
+    description: str
+
+
+class AgentContractOut(BaseModel):
+    inputs: list[str]
+    outputs: list[str]
+    temperature: float | None = None
+    max_retries: int = 3
+    context_load: str = ""
+    uses_memory: bool = False
+    writes_artifacts: bool = False
+    requires_approval: bool = False
+
+
+class AgentPermissionsOut(BaseModel):
+    auto_run: bool = True
+    require_approval: bool = False
+    can_modify_packet: bool = False
+    can_block_downstream: bool = False
+    can_write_summaries: bool = False
+    can_update_canon: bool = False
+    can_only_suggest: bool = True
+
+
+class AgentEstimateOut(BaseModel):
+    cost_band: str
+    speed_band: str
+    typical_calls_per_chapter: int
+
+
+class AgentPolicyOut(BaseModel):
+    setting: str
+    primary_tier: str | None = None
+    primary_model: str
+    fallback_tier: str | None = None
+    fallback_model: str | None = None
+    never_fallback: list[str] = []
+    escalation_rules: list[EscalationRuleOut] = []
+
+
+class AgentPresetOut(BaseModel):
+    id: str
+    label: str
+    description: str
+    cost_band: str
+    latency_band: str
+    best_for: str
+
+
+class AgentOpsAgentOut(BaseModel):
+    setting: str
+    label: str
+    description: str
+    model: str
+    tier: str | None = None
+    policy: AgentPolicyOut
+    contract: AgentContractOut
+    permissions: AgentPermissionsOut
+    estimate: AgentEstimateOut
+    warnings: list[str] = []
+
+
+class PipelineEstimateOut(BaseModel):
+    cost_band: str
+    latency_band: str
+    summary: str
+    opus_calls: int
+    sonnet_calls: int
+    haiku_calls: int
+    total_estimated_calls: int
+
+
+class AgentOpsOut(BaseModel):
+    active_preset: str | None
+    presets: list[AgentPresetOut]
+    agents: list[AgentOpsAgentOut]
+    pipeline_estimate: PipelineEstimateOut
+    tiers: dict[str, str]
+
+
+class AgentPolicyUpdateIn(BaseModel):
+    fallback_tier: str | None = None
+    never_fallback: list[str] | None = None
+
+
+class AgentStatsOut(BaseModel):
+    setting: str
+    label: str
+    calls: int = 0
+    avg_latency_ms: int | None = None
+    avg_tokens: int | None = None
+    escalation_rate: float | None = None
+    error_rate: float | None = None
+    truncation_rate: float | None = None
+    qa_pass_rate: str | None = None  # "—" until Phase 2
+
+
+class AgentStatsListOut(BaseModel):
+    agents: list[AgentStatsOut]
+    window_runs: int
+
+
+class SmokeTestCheckOut(BaseModel):
+    name: str
+    ok: bool
+    detail: str | None = None
+
+
+class SmokeTestAgentOut(BaseModel):
+    setting: str
+    label: str
+    passed: bool
+    checks: list[SmokeTestCheckOut]
+
+
+class SmokeTestOut(BaseModel):
+    results: list[SmokeTestAgentOut]
+    all_passed: bool
+
+
+class SmokeTestIn(BaseModel):
+    agents: list[str] | None = None  # subset of setting keys; None = all
