@@ -277,6 +277,8 @@ class ScenePacketOut(_ORM):
     updated_at: datetime | None = None
     can_approve: bool = False
     approval_blockers: list[str] = []
+    blocked_reason: str | None = None
+    blocker_source: str | None = None  # author | qa | derive | unknown
 
 
 class ScenePacketUpdateIn(BaseModel):

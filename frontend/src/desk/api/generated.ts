@@ -2523,6 +2523,10 @@ export interface components {
        * @default []
        */
       approval_blockers: string[];
+      /** Blocked Reason */
+      blocked_reason?: string | null;
+      /** Blocker Source */
+      blocker_source?: string | null;
     };
     /**
      * ScenePacketQaOut

@@ -22,6 +22,18 @@ const STATUS_VAR: Record<string, string> = {
   proposed: "--info",
 };
 
+const BLOCKER_SOURCE_LABEL: Record<string, string> = {
+  author: "author",
+  derive: "derive",
+  qa: "QA",
+  unknown: "gate",
+};
+
+function validScenePacketBody(body: ScenePacketBody | undefined | null): boolean {
+  if (!body) return false;
+  return !!(body.known_before_scene && body.learned_during_scene && body.word_budget);
+}
+
 export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const { t } = useDesk();
   const [packets, setPackets] = useState<ScenePacketOut[]>([]);
@@ -244,11 +256,23 @@ function ScenePacketCard({
   const learned = b.learned_during_scene ?? {};
   const hidden = b.must_remain_hidden ?? {};
   const statusVar = STATUS_VAR[packet.status] ?? "--dim";
-  const blocked = packet.qa_warnings?.blocked_reason ?? b.blocked_reason;
+  const isBlocked = packet.status === "blocked";
+  const blockedReason =
+    packet.blocked_reason ??
+    packet.qa_warnings?.blocked_reason ??
+    b.blocked_reason ??
+    packet.approval_blockers?.[0] ??
+    "Blocked, but no reason was recorded. Re-run derive or inspect telemetry.";
+  const blockerLabel = packet.blocker_source
+    ? BLOCKER_SOURCE_LABEL[packet.blocker_source] ?? packet.blocker_source
+    : null;
+  const qaApprovedWhileBlocked = isBlocked && packet.qa_verdict === "approve";
+  const bodyValid = validScenePacketBody(b);
   const residual = packet.qa_warnings?.residual_risks ?? [];
   const issues = packet.qa_warnings?.issues ?? [];
   const reasons = packet.approval_blockers;
   const canApprove = packet.can_approve;
+  const showBlockers = reasons.length > 0 && (packet.status === "proposed" || isBlocked);
 
   // Per-action busy flags (the panel keys busy as "<action>:<id>"). cardBusy disables every action on
   // this card while any one of them is in flight.
@@ -278,7 +302,7 @@ function ScenePacketCard({
         {packet.qa_verdict && (
           <Chip
             label={`QA: ${packet.qa_verdict.replace(/_/g, " ")}`}
-            colorVar={packet.approval_blockers.length > 0 ? "--bad" : "--info"}
+            colorVar={isBlocked || packet.approval_blockers.length > 0 ? "--bad" : "--info"}
           />
         )}
         {wb.target ? (
@@ -302,12 +326,17 @@ function ScenePacketCard({
           )}
           {!editing && packet.status !== "approved" && (
             <button
-              disabled={cardBusy}
+              disabled={cardBusy || !bodyValid}
               onClick={(e) => {
                 e.stopPropagation();
                 onReQa();
               }}
-              style={btn(!cardBusy, "var(--bg3)", "var(--ink)")}
+              style={btn(!cardBusy && bodyValid, "var(--bg3)", "var(--ink)")}
+              title={
+                bodyValid
+                  ? undefined
+                  : "Cannot rerun QA: this packet failed during author/derive and has no valid scene contract. Re-run derive instead."
+              }
             >
               {mine("qa") ? "Re-running QA…" : "Re-run QA"}
             </button>
@@ -336,14 +365,33 @@ function ScenePacketCard({
           stale: {packet.stale_reason} — re-derive or re-approve before drafting.
         </div>
       )}
-      {blocked && (
-        <div style={css("font-family:var(--mono);font-size:11px;color:var(--bad);margin-top:7px")}>
-          blocked: {blocked}
+      {!editing && !bodyValid && packet.status !== "approved" && (
+        <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:7px")}>
+          Cannot rerun QA: this packet failed during author/derive and has no valid scene contract.
+          Re-run derive instead.
+        </div>
+      )}
+      {isBlocked && (
+        <div
+          style={css(
+            "margin-top:9px;border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--bg2));border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:4px",
+          )}
+        >
+          <div style={css("font-family:var(--mono);font-size:11px;color:var(--bad)")}>
+            {blockerLabel ? `Blocked by ${blockerLabel}:` : "Blocked:"}
+          </div>
+          <div style={css("font-size:12px;color:var(--ink);line-height:1.4")}>{blockedReason}</div>
+          {qaApprovedWhileBlocked && (
+            <div style={css("font-size:12px;color:var(--ink);line-height:1.4;margin-top:4px")}>
+              Blocked by derive/author gate, not by QA. QA approved the current body, but the packet
+              status remains blocked. Re-run derive to reconcile.
+            </div>
+          )}
         </div>
       )}
 
       {/* Why approval is refused — the data that used to be hidden behind a bare 409. */}
-      {reasons.length > 0 && packet.status === "proposed" && (
+      {showBlockers && !isBlocked && (
         <div
           style={css(
             "margin-top:9px;border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--bg2));border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:4px",
