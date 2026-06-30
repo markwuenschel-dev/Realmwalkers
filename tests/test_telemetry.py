@@ -353,6 +353,15 @@ async def test_telemetry_problems_truncation(db_factory):
         assert any(p.kind == "truncation" for p in out.problems)
 
 
+async def test_telemetry_problems_draft_not_ready(db_factory):
+    async with db_factory() as s:
+        book, ch, _ = await _book_with_chapters(s)
+        # No approved chapter packet → draftable is false for the chapter.
+        out = await tel_router.book_telemetry_problems(book.id, s)
+        assert out.healthy is False
+        assert any(p.kind == "draft_not_ready" for p in out.problems)
+
+
 async def test_compare_runs(db_factory):
     async with db_factory() as s:
         book, ch, _ = await _book_with_chapters(s)

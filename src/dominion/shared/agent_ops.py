@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -24,6 +25,7 @@ from dominion.shared.agent_registry import (
 from dominion.shared.config import settings
 from dominion.shared.model_pricing import estimate_agent_chapter_usd, estimate_pipeline_chapter_usd
 from dominion.shared.models import (
+    AgentCustomPreset,
     AgentOpsState,
     AgentPolicyOverride,
     Approval,
@@ -37,6 +39,8 @@ from dominion.shared.models import (
 from dominion.shared.schemas import (
     AgentContractOut,
     AgentEstimateOut,
+    AgentGlobalsOut,
+    AgentGlobalsUpdateIn,
     AgentOpsAgentOut,
     AgentOpsOut,
     AgentPermissionsOut,
@@ -45,12 +49,14 @@ from dominion.shared.schemas import (
     AgentPresetOut,
     AgentStatsListOut,
     AgentStatsOut,
+    CustomPresetCreateIn,
     EscalationRuleOut,
     ModelSettingOut,
     PipelineEstimateOut,
 )
 
 _OPS_STATE_ID = "default"
+_CUSTOM_PRESET_PREFIX = "user:"
 _ESCALATION_DESCRIPTIONS: dict[str, str] = {
     "truncated": "Escalates when output is cut off at max_tokens",
     "unparseable": "Escalates when the response cannot be parsed",
@@ -206,11 +212,132 @@ async def load_policy_overrides(session: AsyncSession) -> dict[str, AgentPolicyO
     return {r.setting_name: r for r in rows}
 
 
+def _slugify_label(label: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+    return (slug or "preset")[:48]
+
+
+def _custom_preset_id(label: str) -> str:
+    return f"{_CUSTOM_PRESET_PREFIX}{_slugify_label(label)}"
+
+
+async def _load_custom_presets(session: AsyncSession) -> list[AgentCustomPreset]:
+    return list((await session.execute(select(AgentCustomPreset).order_by(AgentCustomPreset.label))).scalars())
+
+
+async def _capture_snapshot(session: AsyncSession) -> dict[str, Any]:
+    policy_map = await load_policy_overrides(session)
+    tiers: dict[str, str] = {}
+    for agent in AGENTS:
+        t = tier_of(getattr(settings, agent.setting_key))
+        if t:
+            tiers[agent.setting_key] = t
+    policies = {k: dict(v.policy_json or {}) for k, v in policy_map.items()}
+    return {"tiers": tiers, "policies": policies}
+
+
+async def _apply_snapshot(session: AsyncSession, snapshot: dict[str, Any]) -> None:
+    tiers = snapshot.get("tiers") or {}
+    for setting_key, tier in tiers.items():
+        if setting_key in {a.setting_key for a in AGENTS} and tier in TIERS:
+            await apply_tier_to_agent(session, setting_key, tier)
+    policies = snapshot.get("policies") or {}
+    for setting_key, pj in policies.items():
+        if setting_key not in {a.setting_key for a in AGENTS}:
+            continue
+        existing = await session.get(AgentPolicyOverride, setting_key)
+        if existing is None:
+            session.add(AgentPolicyOverride(setting_name=setting_key, policy_json=dict(pj)))
+        else:
+            existing.policy_json = dict(pj)
+        fb_tier = pj.get("fallback_tier")
+        if fb_tier:
+            attr = FALLBACK_ATTR.get(setting_key)
+            if attr:
+                setattr(settings, attr, model_for_tier(fb_tier) or "")
+
+
+def _globals_out(row: AgentOpsState | None) -> AgentGlobalsOut:
+    gj = (row.globals_json if row else None) or {}
+    return AgentGlobalsOut(
+        scene_token_budget=int(gj.get("scene_token_budget", settings.scene_token_budget)),
+        scene_time_budget_s=int(gj.get("scene_time_budget_s", settings.scene_time_budget_s)),
+    )
+
+
+def _apply_globals_to_settings(gj: dict[str, Any]) -> None:
+    if "scene_token_budget" in gj:
+        settings.scene_token_budget = int(gj["scene_token_budget"])
+    if "scene_time_budget_s" in gj:
+        settings.scene_time_budget_s = int(gj["scene_time_budget_s"])
+
+
+async def apply_globals(session: AsyncSession, body: AgentGlobalsUpdateIn) -> AgentOpsOut:
+    row = await session.get(AgentOpsState, _OPS_STATE_ID)
+    merged = dict(row.globals_json if row else {})
+    if body.scene_token_budget is not None:
+        if body.scene_token_budget < 5_000 or body.scene_token_budget > 500_000:
+            raise ValueError("scene_token_budget must be between 5000 and 500000")
+        merged["scene_token_budget"] = body.scene_token_budget
+    if body.scene_time_budget_s is not None:
+        if body.scene_time_budget_s < 30 or body.scene_time_budget_s > 3600:
+            raise ValueError("scene_time_budget_s must be between 30 and 3600")
+        merged["scene_time_budget_s"] = body.scene_time_budget_s
+    if row is None:
+        session.add(AgentOpsState(id=_OPS_STATE_ID, globals_json=merged))
+    else:
+        row.globals_json = merged
+    _apply_globals_to_settings(merged)
+    await set_active_preset(session, "custom")
+    await session.commit()
+    return await build_agent_ops(session)
+
+
+async def save_custom_preset(session: AsyncSession, body: CustomPresetCreateIn) -> AgentOpsOut:
+    label = body.label.strip()
+    if not label:
+        raise ValueError("label is required")
+    preset_id = _custom_preset_id(label)
+    existing = await session.get(AgentCustomPreset, preset_id)
+    snapshot = await _capture_snapshot(session)
+    if existing is None:
+        session.add(
+            AgentCustomPreset(
+                id=preset_id,
+                label=label,
+                description=body.description,
+                snapshot_json=snapshot,
+            )
+        )
+    else:
+        existing.label = label
+        existing.description = body.description
+        existing.snapshot_json = snapshot
+    await set_active_preset(session, preset_id)
+    await session.commit()
+    return await build_agent_ops(session)
+
+
+async def delete_custom_preset(session: AsyncSession, preset_id: str) -> AgentOpsOut:
+    if not preset_id.startswith(_CUSTOM_PRESET_PREFIX):
+        raise ValueError("only user presets can be deleted")
+    row = await session.get(AgentCustomPreset, preset_id)
+    if row is None:
+        raise ValueError(f"unknown preset '{preset_id}'")
+    await session.delete(row)
+    active = await get_active_preset(session)
+    if active == preset_id:
+        await set_active_preset(session, "custom")
+    await session.commit()
+    return await build_agent_ops(session)
+
+
 async def build_agent_ops(session: AsyncSession) -> AgentOpsOut:
     policy_map = await load_policy_overrides(session)
     _sync_runtime_policies(policy_map)
     active = await get_active_preset(session)
     agents = [_agent_ops_row(a, policy_map.get(a.setting_key)) for a in AGENTS]
+    ops_row = await session.get(AgentOpsState, _OPS_STATE_ID)
     presets = [
         AgentPresetOut(
             id=p.id,
@@ -219,15 +346,29 @@ async def build_agent_ops(session: AsyncSession) -> AgentOpsOut:
             cost_band=p.cost_band,
             latency_band=p.latency_band,
             best_for=p.best_for,
+            is_custom=False,
         )
         for p in PRESETS
     ]
+    for cp in await _load_custom_presets(session):
+        presets.append(
+            AgentPresetOut(
+                id=cp.id,
+                label=cp.label,
+                description=cp.description or "Saved custom configuration",
+                cost_band="custom",
+                latency_band="custom",
+                best_for="your saved agent ops snapshot",
+                is_custom=True,
+            )
+        )
     return AgentOpsOut(
         active_preset=active,
         presets=presets,
         agents=agents,
         pipeline_estimate=_pipeline_estimate(agents),
         tiers=TIERS,
+        globals=_globals_out(ops_row),
     )
 
 
@@ -257,11 +398,17 @@ async def apply_tier_to_agent(session: AsyncSession, setting_key: str, tier: str
 
 
 async def apply_preset(session: AsyncSession, preset_id: str) -> AgentOpsOut:
-    if preset_id not in BUILTIN_PRESET_IDS:
+    if preset_id in BUILTIN_PRESET_IDS:
+        preset = PRESET_BY_ID[preset_id]
+        for setting_key, tier in preset.tiers.items():
+            await apply_tier_to_agent(session, setting_key, tier)
+    elif preset_id.startswith(_CUSTOM_PRESET_PREFIX):
+        row = await session.get(AgentCustomPreset, preset_id)
+        if row is None:
+            raise ValueError(f"unknown preset '{preset_id}'")
+        await _apply_snapshot(session, row.snapshot_json)
+    else:
         raise ValueError(f"unknown preset '{preset_id}'")
-    preset = PRESET_BY_ID[preset_id]
-    for setting_key, tier in preset.tiers.items():
-        await apply_tier_to_agent(session, setting_key, tier)
     await set_active_preset(session, preset_id)
     await session.commit()
     return await build_agent_ops(session)
@@ -340,6 +487,10 @@ async def apply_model_overrides(session: AsyncSession) -> int:
                 setattr(settings, attr, model_for_tier(fb_tier) or "")
         applied += 1
     _sync_runtime_policies(policy_map)
+    ops_row = await session.get(AgentOpsState, _OPS_STATE_ID)
+    if ops_row and ops_row.globals_json:
+        _apply_globals_to_settings(ops_row.globals_json)
+        applied += 1
     return applied
 
 

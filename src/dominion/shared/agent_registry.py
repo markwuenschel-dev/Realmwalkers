@@ -8,6 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
+
 Tier = Literal["haiku", "sonnet", "opus"]
 CostBand = Literal["low", "medium", "high"]
 SpeedBand = Literal["fast", "medium", "slow"]
@@ -123,7 +125,7 @@ AGENTS: tuple[AgentDefinition, ...] = (
         setting_key="review_model",
         label="Reviewers & summaries",
         description="Continuity / combat / pacing / voice reviewers + rolling summaries",
-        stages=("reviewers", "summary"),
+        stages=(LEGACY_REVIEWERS_STAGE, *REVIEWER_TELEMETRY_STAGES, "summary"),
         contract=AgentContract(
             inputs=("draft prose", "scene packet", "canon context"),
             outputs=("advisory critiques", "rolling summaries"),

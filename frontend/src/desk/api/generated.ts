@@ -1330,9 +1330,53 @@ export interface paths {
     get?: never;
     /**
      * Apply Preset
-     * @description Apply a built-in preset to all agent roles.
+     * @description Apply a built-in or saved custom preset to all agent roles.
      */
     put: operations["apply_preset_settings_presets__preset_id__put"];
+    post?: never;
+    /**
+     * Delete Custom Preset
+     * @description Delete a user-saved custom preset (user:… ids only).
+     */
+    delete: operations["delete_custom_preset_settings_presets__preset_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/presets/custom": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Save Custom Preset
+     * @description Save the current agent ops configuration as a named custom preset.
+     */
+    post: operations["save_custom_preset_settings_presets_custom_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings/agents/globals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Set Agent Globals
+     * @description Update global scene token and wall-clock budgets.
+     */
+    put: operations["set_agent_globals_settings_agents_globals_put"];
     post?: never;
     delete?: never;
     options?: never;
@@ -1391,7 +1435,7 @@ export interface paths {
     put?: never;
     /**
      * Smoke Test
-     * @description Offline fixture smoke test — no API spend.
+     * @description Offline fixture smoke test, or optional live API pings with cost warning.
      */
     post: operations["smoke_test_settings_agents_smoke_test_post"];
     delete?: never;
@@ -1508,6 +1552,20 @@ export interface components {
       /** Estimated Latency Sec Per Chapter */
       estimated_latency_sec_per_chapter?: number | null;
     };
+    /** AgentGlobalsOut */
+    AgentGlobalsOut: {
+      /** Scene Token Budget */
+      scene_token_budget: number;
+      /** Scene Time Budget S */
+      scene_time_budget_s: number;
+    };
+    /** AgentGlobalsUpdateIn */
+    AgentGlobalsUpdateIn: {
+      /** Scene Token Budget */
+      scene_token_budget?: number | null;
+      /** Scene Time Budget S */
+      scene_time_budget_s?: number | null;
+    };
     /** AgentOpsAgentOut */
     AgentOpsAgentOut: {
       /** Setting */
@@ -1543,6 +1601,7 @@ export interface components {
       tiers: {
         [key: string]: string;
       };
+      globals: components["schemas"]["AgentGlobalsOut"];
     };
     /** AgentPermissionsOut */
     AgentPermissionsOut: {
@@ -1658,6 +1717,11 @@ export interface components {
       latency_band: string;
       /** Best For */
       best_for: string;
+      /**
+       * Is Custom
+       * @default false
+       */
+      is_custom: boolean;
     };
     /** AgentStatsListOut */
     AgentStatsListOut: {
@@ -2270,6 +2334,13 @@ export interface components {
       } | null;
       /** Scene Packet Id */
       scene_packet_id?: string | null;
+    };
+    /** CustomPresetCreateIn */
+    CustomPresetCreateIn: {
+      /** Label */
+      label: string;
+      /** Description */
+      description?: string | null;
     };
     /**
      * Decision
@@ -3700,6 +3771,11 @@ export interface components {
     SmokeTestIn: {
       /** Agents */
       agents?: string[] | null;
+      /**
+       * Live
+       * @default false
+       */
+      live: boolean;
     };
     /** SmokeTestOut */
     SmokeTestOut: {
@@ -3707,6 +3783,17 @@ export interface components {
       results: components["schemas"]["SmokeTestAgentOut"][];
       /** All Passed */
       all_passed: boolean;
+      /**
+       * Mode
+       * @default offline
+       */
+      mode: string;
+      /** Estimated Cost Usd */
+      estimated_cost_usd?: number | null;
+      /** Actual Cost Usd */
+      actual_cost_usd?: number | null;
+      /** Live Warning */
+      live_warning?: string | null;
     };
     /** StageDeltaOut */
     StageDeltaOut: {
@@ -6781,6 +6868,103 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentOpsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_custom_preset_settings_presets__preset_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        preset_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentOpsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  save_custom_preset_settings_presets_custom_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CustomPresetCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentOpsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  set_agent_globals_settings_agents_globals_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AgentGlobalsUpdateIn"];
+      };
+    };
     responses: {
       /** @description Successful Response */
       200: {

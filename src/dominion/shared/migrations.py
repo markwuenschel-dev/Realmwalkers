@@ -46,6 +46,7 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
     # Per-call telemetry diagnostics (context budget breakdown, section name, fallback flags, …).
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS metadata JSONB",
+    "ALTER TABLE agent_ops_state ADD COLUMN IF NOT EXISTS globals_json JSONB",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).

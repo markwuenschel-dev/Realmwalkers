@@ -48,6 +48,7 @@ from dominion.workers.telemetry_agg import (
 )
 from dominion.workers.telemetry_cost import estimate_calls_cost_usd
 from dominion.workers.telemetry_diagnostics import build_problems
+from dominion.workers.telemetry_draft_problems import detect_draft_not_ready
 
 router = APIRouter(tags=["telemetry"])
 
@@ -400,6 +401,9 @@ async def book_telemetry_problems(book_id: uuid.UUID, session: SessionDep) -> Te
     ).all()
     failed = [(row[0], row[1], row[2], row[3]) for row in failed_rows]
     raw = build_problems(rows, failed)
+    draft = await detect_draft_not_ready(session, book_id)
+    if draft:
+        raw.append(draft)
     problems = [TelemetryProblemOut(**p) for p in raw]
     return TelemetryProblemsOut(problems=problems, healthy=len(problems) == 0)
 

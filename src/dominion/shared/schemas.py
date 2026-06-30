@@ -965,6 +965,7 @@ class AgentPresetOut(BaseModel):
     cost_band: str
     latency_band: str
     best_for: str
+    is_custom: bool = False
 
 
 class AgentOpsAgentOut(BaseModel):
@@ -993,12 +994,28 @@ class PipelineEstimateOut(BaseModel):
     estimated_latency_sec_per_chapter: int | None = None
 
 
+class AgentGlobalsOut(BaseModel):
+    scene_token_budget: int
+    scene_time_budget_s: int
+
+
+class AgentGlobalsUpdateIn(BaseModel):
+    scene_token_budget: int | None = None
+    scene_time_budget_s: int | None = None
+
+
+class CustomPresetCreateIn(BaseModel):
+    label: str
+    description: str | None = None
+
+
 class AgentOpsOut(BaseModel):
     active_preset: str | None
     presets: list[AgentPresetOut]
     agents: list[AgentOpsAgentOut]
     pipeline_estimate: PipelineEstimateOut
     tiers: dict[str, str]
+    globals: AgentGlobalsOut
 
 
 class AgentPolicyUpdateIn(BaseModel):
@@ -1042,7 +1059,12 @@ class SmokeTestAgentOut(BaseModel):
 class SmokeTestOut(BaseModel):
     results: list[SmokeTestAgentOut]
     all_passed: bool
+    mode: str = "offline"
+    estimated_cost_usd: float | None = None
+    actual_cost_usd: float | None = None
+    live_warning: str | None = None
 
 
 class SmokeTestIn(BaseModel):
     agents: list[str] | None = None  # subset of setting keys; None = all
+    live: bool = False

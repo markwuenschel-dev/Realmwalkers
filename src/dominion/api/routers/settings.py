@@ -10,9 +10,11 @@ from dominion.api.deps import SessionDep
 from dominion.shared import agent_ops
 from dominion.shared.agent_registry import ROLE_KEYS, TIERS
 from dominion.shared.schemas import (
+    AgentGlobalsUpdateIn,
     AgentOpsOut,
     AgentPolicyUpdateIn,
     AgentStatsListOut,
+    CustomPresetCreateIn,
     ModelSettingOut,
     ModelSettingsOut,
     ModelSettingUpdateIn,
@@ -63,9 +65,36 @@ async def get_agents(session: SessionDep) -> AgentOpsOut:
 
 @router.put("/presets/{preset_id}", response_model=AgentOpsOut)
 async def apply_preset(preset_id: str, session: SessionDep) -> AgentOpsOut:
-    """Apply a built-in preset to all agent roles."""
+    """Apply a built-in or saved custom preset to all agent roles."""
     try:
         return await agent_ops.apply_preset(session, preset_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/presets/custom", response_model=AgentOpsOut)
+async def save_custom_preset(body: CustomPresetCreateIn, session: SessionDep) -> AgentOpsOut:
+    """Save the current agent ops configuration as a named custom preset."""
+    try:
+        return await agent_ops.save_custom_preset(session, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.delete("/presets/{preset_id}", response_model=AgentOpsOut)
+async def delete_custom_preset(preset_id: str, session: SessionDep) -> AgentOpsOut:
+    """Delete a user-saved custom preset (user:… ids only)."""
+    try:
+        return await agent_ops.delete_custom_preset(session, preset_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.put("/agents/globals", response_model=AgentOpsOut)
+async def set_agent_globals(body: AgentGlobalsUpdateIn, session: SessionDep) -> AgentOpsOut:
+    """Update global scene token and wall-clock budgets."""
+    try:
+        return await agent_ops.apply_globals(session, body)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -97,6 +126,7 @@ async def get_agent_stats(session: SessionDep) -> AgentStatsListOut:
 
 @router.post("/agents/smoke-test", response_model=SmokeTestOut)
 async def smoke_test(body: SmokeTestIn | None = None) -> SmokeTestOut:
-    """Offline fixture smoke test — no API spend."""
+    """Offline fixture smoke test, or optional live API pings with cost warning."""
     agents = body.agents if body else None
-    return await run_smoke_test(agents=agents)
+    live = body.live if body else False
+    return await run_smoke_test(agents=agents, live=live)

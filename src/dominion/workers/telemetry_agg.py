@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from dominion.shared.models import LlmCall
+from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
 from dominion.workers.telemetry_cost import estimate_cache_savings_usd, estimate_calls_cost_usd
 
 # Canonical pipeline order for scene timeline display.
@@ -15,7 +16,8 @@ PIPELINE_STAGE_ORDER: tuple[str, ...] = (
     "scene_packet_author",
     "scene_packet_qa",
     "drafter",
-    "reviewers",
+    *REVIEWER_TELEMETRY_STAGES,
+    LEGACY_REVIEWERS_STAGE,
     "enrichment",
     "length",
     "packet_author",

@@ -6,6 +6,7 @@ import { useDesk } from "../state";
 import { api } from "../api/client";
 import type { AgentOpsOut, AgentStatsListOut, SmokeTestOut } from "../api/types";
 import { PresetBar } from "../components/agentOps/PresetBar";
+import { BudgetControls } from "../components/agentOps/BudgetControls";
 import { AgentRow } from "../components/agentOps/AgentRow";
 import { SmokeTestModal } from "../components/agentOps/SmokeTestModal";
 
@@ -97,16 +98,58 @@ export default function SettingsScreen() {
     }
   };
 
-  const runSmoke = async () => {
+  const runSmoke = async (live: boolean) => {
     setSmokeBusy(true);
     setError(null);
     try {
-      const result = await api.smokeTest();
+      const result = await api.smokeTest({ live });
       setSmokeResult(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSmokeBusy(false);
+    }
+  };
+
+  const savePreset = async (label: string) => {
+    setPresetBusy(true);
+    setError(null);
+    try {
+      const updated = await api.saveCustomPreset(label);
+      setData(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPresetBusy(false);
+    }
+  };
+
+  const deletePreset = async (presetId: string) => {
+    setPresetBusy(true);
+    setError(null);
+    try {
+      const updated = await api.deleteCustomPreset(presetId);
+      setData(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPresetBusy(false);
+    }
+  };
+
+  const saveGlobals = async (patch: {
+    scene_token_budget?: number;
+    scene_time_budget_s?: number;
+  }) => {
+    setPresetBusy(true);
+    setError(null);
+    try {
+      const updated = await api.setAgentGlobals(patch);
+      setData(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPresetBusy(false);
     }
   };
 
@@ -151,9 +194,12 @@ export default function SettingsScreen() {
             pipeline={data.pipeline_estimate}
             busy={presetBusy}
             onSelectPreset={applyPreset}
+            onDeletePreset={deletePreset}
+            onSavePreset={savePreset}
             onSmokeTest={runSmoke}
             smokeBusy={smokeBusy}
           />
+          <BudgetControls globals={data.globals} busy={presetBusy} onSave={saveGlobals} />
           <div style={css("display:flex;flex-direction:column;gap:12px;max-width:920px")}>
             {data.agents.map((a) => (
               <AgentRow

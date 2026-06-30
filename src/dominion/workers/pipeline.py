@@ -9,6 +9,7 @@ exits — nothing keeps running, so there's nothing to re-verify on the next boo
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -195,10 +196,18 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     if agent_auto_run("review_model") and not budget_exceeded:
         reviewers = reviewers_for(ctx.tags)
         progress.set_phase(jid, "reviewing")
-        with telemetry.call_context(_tctx("reviewers")):
-            results = await asyncio.gather(
-                *(reviewer.review(prose, ctx) for reviewer in reviewers), return_exceptions=True
-            )
+
+        def _reviewer_label(reviewer: Any) -> str:
+            return getattr(reviewer, "name", type(reviewer).__name__)
+
+        async def _review_one(reviewer: Any) -> list[Any]:
+            from dominion.shared.reviewer_telemetry import reviewer_telemetry_stage
+
+            stage = reviewer_telemetry_stage(_reviewer_label(reviewer))
+            with telemetry.call_context(_tctx(stage)):
+                return await reviewer.review(prose, ctx)
+
+        results = await asyncio.gather(*(_review_one(reviewer) for reviewer in reviewers), return_exceptions=True)
         for reviewer, result in zip(reviewers, results, strict=True):
             if isinstance(result, BudgetExceeded):
                 budget_exceeded = True
@@ -212,7 +221,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                         scene_id=scene.id,
                         scene_packet_id=ctx.scene_packet_id,
                         version=scene.version,
-                        reviewer=reviewer.name,
+                        reviewer=_reviewer_label(reviewer),
                         severity=Severity.WARN,
                         note=f"reviewer failed: {result}",
                     )

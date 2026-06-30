@@ -280,6 +280,15 @@ export default function TelemetryScreen() {
                   ? `Ch ${r.chapter_no}${r.title ? ` · ${r.title}` : ""}`
                   : (r.title ?? r.chapter_id.slice(0, 8))
               }
+              onRowClick={(r) =>
+                openView({
+                  kind: "chapter",
+                  chapterId: r.chapter_id,
+                  bookId,
+                  chapterNo: r.chapter_no,
+                  title: r.title,
+                })
+              }
             />
           </Section>
 

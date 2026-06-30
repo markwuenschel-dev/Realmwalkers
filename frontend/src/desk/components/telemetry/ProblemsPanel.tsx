@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { css } from "../../css";
 import { api } from "../../api/client";
 import { copyToClipboard } from "../../lib/download";
@@ -97,6 +98,8 @@ function problemToFilters(p: TelemetryProblemOut): LlmCallFilters {
       return { errors_only: true };
     case "cache_prime_short":
       return { stage_prefix: "scene_packet" };
+    case "cache_miss_after_prime":
+      return { stage: "scene_packet_author" };
     case "high_latency":
       return { min_latency_ms: SLOW_LATENCY_MS };
     default: {
@@ -110,6 +113,33 @@ function problemToFilters(p: TelemetryProblemOut): LlmCallFilters {
   }
 }
 
+function openProblem(
+  p: TelemetryProblemOut,
+  bookId: string,
+  onOpen: (view: TelemetryDrawerView) => void,
+) {
+  if (p.kind === "draft_not_ready") {
+    onOpen({ kind: "draft_readiness", bookId });
+    return;
+  }
+  onOpen({ kind: "filtered", label: p.summary, bookId, filters: problemToFilters(p) });
+}
+
+function formatBreakdownLine(b: Record<string, unknown>): string {
+  if (typeof b.chapter_no === "number" && typeof b.scene_no === "number") {
+    return `Ch${b.chapter_no} Sc${b.scene_no}: ${String(b.required_action ?? b.reason ?? "")}`;
+  }
+  if (typeof b.stage === "string") {
+    let line = b.stage.replace(/_/g, " ");
+    if (typeof b.count === "number") line += `: ${b.count}`;
+    if (typeof b.stop_reason === "string") line += ` (${b.stop_reason})`;
+    if (typeof b.recommended_action === "string") line += ` — ${b.recommended_action}`;
+    return line;
+  }
+  if (typeof b.error === "string") return b.error.slice(0, 80);
+  return JSON.stringify(b).slice(0, 80);
+}
+
 function ProblemRow({
   problem: p,
   bookId,
@@ -119,19 +149,19 @@ function ProblemRow({
   bookId: string;
   onOpen: (view: TelemetryDrawerView) => void;
 }) {
+  const router = useRouter();
   const color =
     p.severity === "error"
       ? "var(--bad)"
       : p.severity === "warn"
         ? "var(--warn, #e8a020)"
         : "var(--dim)";
+
   return (
     <div>
       <button
         type="button"
-        onClick={() =>
-          onOpen({ kind: "filtered", label: p.summary, bookId, filters: problemToFilters(p) })
-        }
+        onClick={() => openProblem(p, bookId, onOpen)}
         style={css(
           "display:block;width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;color:inherit;font:inherit",
         )}
@@ -146,12 +176,27 @@ function ProblemRow({
             "margin:4px 0 0 16px;padding:0;font-family:var(--mono);font-size:11px;color:var(--dim)",
           )}
         >
-          {p.breakdown.slice(0, 5).map((b, j) => (
-            <li key={j}>
-              {typeof b.stage === "string" ? b.stage : ""}
-              {typeof b.count === "number" ? `: ${b.count}` : ""}
-            </li>
-          ))}
+          {p.breakdown.slice(0, 6).map((b, j) => {
+            const row = b as Record<string, unknown>;
+            const chapterId = typeof row.chapter_id === "string" ? row.chapter_id : null;
+            return (
+              <li key={j}>
+                {chapterId && p.kind === "draft_not_ready" ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/packets?chapter=${chapterId}`)}
+                    style={css(
+                      "background:none;border:none;padding:0;cursor:pointer;color:var(--info, #5b9bd5);font:inherit;text-align:left",
+                    )}
+                  >
+                    {formatBreakdownLine(row)}
+                  </button>
+                ) : (
+                  formatBreakdownLine(row)
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       {p.recommended_action && (

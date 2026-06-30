@@ -491,3 +491,15 @@ class AgentOpsState(Base):
     __tablename__ = "agent_ops_state"
     id: Mapped[str] = mapped_column(Text, primary_key=True, default="default")
     active_preset: Mapped[str | None] = mapped_column(Text, nullable=True)
+    globals_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+class AgentCustomPreset(Base):
+    """User-saved snapshot of model tiers + policy overrides (agent-ops Phase 3)."""
+
+    __tablename__ = "agent_custom_presets"
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    label: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

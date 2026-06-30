@@ -383,7 +383,7 @@ Single user. No user management. Host-level password, Cloudflare Access, or a ma
 
 ## 12b. Agent operations panel
 
-The Desk `/settings` screen is an **agent operations panel**, not a bare model picker. Authors choose **presets** (Fast Drafting, High Quality Chapter, Continuity Audit, Budget Mode) that set primary tiers across all roles; per-agent **fallback chains**, **quality sliders** (fast/balanced/quality → temperature + prompt suffix), **semantic escalation** (canon-conflict / high QA risk), and **autonomy** (`auto_run` gates enrichment/review in the pipeline) are persisted in `agent_policy_overrides`. **Smoke tests** run offline against fixtures; **per-agent stats** aggregate recent `llm_calls` and join packet/scene-packet verdicts + human approvals for QA pass rates. **Dollar estimates** use a static per-model price table × typical calls per chapter. Primary models still live in `model_overrides`; the live `settings` singleton is updated on every change so the next worker call picks it up without redeploy.
+The Desk `/settings` screen is an **agent operations panel**, not a bare model picker. Authors choose **presets** (built-in or **user-saved custom** snapshots of tiers + policies), configure **global scene token and wall-clock budgets**, and per-agent **fallback chains**, **quality sliders**, **semantic escalation**, and **autonomy** (`auto_run` gates enrichment/review). **Smoke tests** run offline against fixtures or optionally **live** with a cost warning. **Per-reviewer telemetry** stages (`reviewer_continuity`, `reviewer_voice`, …) split the coarse `reviewers` bucket. Primary models live in `model_overrides`; policies in `agent_policy_overrides`; globals in `agent_ops_state.globals_json`.
 
 ---
 
