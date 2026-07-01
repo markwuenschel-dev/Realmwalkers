@@ -24,6 +24,7 @@ export function ProblemsPanel({
   const [problems, setProblems] = useState<TelemetryProblemOut[] | null>(null);
   const [healthy, setHealthy] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -63,7 +64,13 @@ export function ProblemsPanel({
         "margin-bottom:14px;border:1px solid color-mix(in srgb,var(--warn, #e8a020) 40%,var(--line));background:color-mix(in srgb,var(--warn, #e8a020) 6%,var(--bg2));border-radius:10px;padding:12px 14px",
       )}
     >
-      <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap")}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={css(
+          `display:flex;width:100%;align-items:center;gap:8px;flex-wrap:wrap;background:transparent;border:none;padding:0;cursor:pointer;text-align:left;${open ? "margin-bottom:12px" : ""}`,
+        )}
+      >
         <div
           style={css(
             "font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);flex:1",
@@ -78,37 +85,45 @@ export function ProblemsPanel({
         >
           {problemCount}
         </span>
-        <button
-          type="button"
-          onClick={async () => {
-            const ok = await copyToClipboard(buildProblemsSummary(problems ?? [], healthy));
-            if (ok) {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }
-          }}
-          style={css(
-            "height:24px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer",
-          )}
-        >
-          {copied ? "Copied" : "Copy summary"}
-        </button>
-      </div>
-      <div
-        style={css(
-          "display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px",
-        )}
-      >
-        {problems.map((p, i) => (
-          <ProblemCard
-            key={`${p.kind}-${i}`}
-            problem={p}
-            bookId={bookId}
-            onOpen={onOpen}
-            onReload={load}
-          />
-        ))}
-      </div>
+        <span style={css("color:var(--dim);font-size:11px")}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <>
+          <div style={css("display:flex;justify-content:flex-end;margin-bottom:10px")}>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const ok = await copyToClipboard(buildProblemsSummary(problems ?? [], healthy));
+                if (ok) {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }
+              }}
+              style={css(
+                "height:24px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer",
+              )}
+            >
+              {copied ? "Copied" : "Copy summary"}
+            </button>
+          </div>
+          <div
+            style={css(
+              "display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px",
+            )}
+          >
+            {problems.map((p, i) => (
+              <ProblemCard
+                key={`${p.kind}-${i}`}
+                problem={p}
+                bookId={bookId}
+                onOpen={onOpen}
+                onReload={load}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

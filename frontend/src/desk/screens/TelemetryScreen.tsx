@@ -238,7 +238,6 @@ export default function TelemetryScreen() {
         </div>
       ) : data && bookId ? (
         <div style={css("display:flex;flex-direction:column;gap:8px")}>
-          <ProblemsPanel bookId={bookId} onOpen={openView} reloadKey={problemsReloadKey} />
           <TelemetryFiltersBar
             bookId={bookId}
             chapters={chapters}
@@ -361,6 +360,8 @@ export default function TelemetryScreen() {
               />
             </Section>
           </div>
+
+          <ProblemsPanel bookId={bookId} onOpen={openView} reloadKey={problemsReloadKey} />
 
           <p
             style={css(
