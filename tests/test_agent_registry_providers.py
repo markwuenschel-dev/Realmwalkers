@@ -8,6 +8,7 @@ from dominion.shared.agent_registry import (
     model_for_tier,
     provider_of,
     resolve_tier_for_provider,
+    supports_temperature,
     tier_of,
 )
 
@@ -95,3 +96,33 @@ def test_resolve_tier_for_provider_unknown_provider_returns_tier_unchanged():
     # No catalog to resolve against -- nothing to clamp to, so the caller's own downstream lookup
     # (e.g. model_for_tier) is what actually surfaces the "unknown provider" error.
     assert resolve_tier_for_provider("opus", "mistral") == "opus"
+
+
+# --- supports_temperature: Anthropic flagship models 400 on the `temperature` sampling param -------
+
+
+def test_supports_temperature_true_for_openai_and_xai():
+    # OpenAI and xAI accept `temperature` on every configured model.
+    assert supports_temperature("gpt-5.5") is True
+    assert supports_temperature("gpt-5.4-nano") is True
+    assert supports_temperature("grok-4.3") is True
+
+
+def test_supports_temperature_false_for_anthropic_flagship_models():
+    # The exact bug: the configured sonnet/opus Anthropic tiers reject `temperature` with a 400.
+    assert supports_temperature("claude-sonnet-5") is False
+    assert supports_temperature("claude-opus-4-8") is False
+
+
+def test_supports_temperature_true_for_haiku_and_older_anthropic():
+    assert supports_temperature("claude-haiku-4-5") is True
+    assert supports_temperature("claude-haiku-4-5-20251001") is True  # dated id tolerated
+    assert supports_temperature("claude-sonnet-4-6") is True
+
+
+def test_supports_temperature_false_for_unknown_or_empty_model():
+    # Unknown models classify as Anthropic (provider_of default) and aren't allowlisted -> omit
+    # temperature, so a future/unrecognized Anthropic model can never re-introduce the 400.
+    assert supports_temperature("claude-fable-5") is False
+    assert supports_temperature("") is False
+    assert supports_temperature(None) is False

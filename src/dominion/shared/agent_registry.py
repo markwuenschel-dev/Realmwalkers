@@ -416,6 +416,29 @@ def resolve_tier_for_provider(tier: str, provider: str) -> str:
     return min(available, key=lambda t: (abs(_TIER_RANK.get(t, 1) - target), -_TIER_RANK.get(t, 1)))
 
 
+# Anthropic removed the sampling params (temperature/top_p/top_k) on its flagship models: Opus 4.7+,
+# Sonnet 5, and Fable 5 return a 400 ("temperature is deprecated for this model") if `temperature` is
+# sent. Only older / Haiku Anthropic models still accept it. This is an ALLOWLIST on purpose: any
+# Anthropic model NOT listed (including future ones) is treated as not accepting temperature, so a
+# model upgrade can never silently re-introduce the 400.
+_ANTHROPIC_TEMPERATURE_MODELS: frozenset[str] = frozenset({"claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"})
+
+
+def supports_temperature(model: str | None) -> bool:
+    """Whether `model` accepts the `temperature` sampling parameter.
+
+    OpenAI and xAI models accept it. Anthropic accepts it only on the older / Haiku models in
+    `_ANTHROPIC_TEMPERATURE_MODELS`; its flagship models (Opus 4.7+, Sonnet 5, Fable 5) 400 on it, so
+    callers must omit `temperature` for those and steer via prompt / effort instead.
+    """
+    if not model:
+        return False
+    if provider_of(model) != "anthropic":
+        return True
+    base = model.split("-20", 1)[0]  # tolerate dated ids like "claude-haiku-4-5-20251001"
+    return base in _ANTHROPIC_TEMPERATURE_MODELS
+
+
 def fallback_attr(setting_key: str) -> str | None:
     return FALLBACK_ATTR.get(setting_key)
 

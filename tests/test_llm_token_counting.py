@@ -110,11 +110,21 @@ async def test_count_payload_matches_create_payload(monkeypatch):
 
 
 async def test_temperature_excluded_from_count_but_sent_to_create(monkeypatch):
+    # claude-haiku-4-5 still accepts the temperature sampling param, so it flows into create (never count).
     msgs = _FakeMessages(count_value=100)
     _patch(monkeypatch, msgs)
-    await _complete(temperature=0.7)
+    await _complete(model="claude-haiku-4-5", temperature=0.7)
     assert "temperature" not in msgs.count_kwargs
     assert msgs.create_kwargs["temperature"] == 0.7
+
+
+async def test_temperature_omitted_for_anthropic_models_that_reject_it(monkeypatch):
+    # Regression: Anthropic's flagship models (Opus 4.7+, Sonnet 5, Fable 5) 400 on `temperature`, so
+    # llm.complete must omit it for them (steered by prompt / effort) — see supports_temperature.
+    msgs = _FakeMessages(count_value=100)
+    _patch(monkeypatch, msgs)
+    await _complete(model="claude-opus-4-8", temperature=0.7)
+    assert "temperature" not in msgs.create_kwargs
 
 
 async def test_transient_count_error_retries_then_succeeds(monkeypatch):
