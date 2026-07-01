@@ -18,7 +18,11 @@ from dominion.workers.scene_packet.parse import valid_scene_packet_body
 
 _BLOCKING_VERDICTS = {ScenePacketVerdict.BLOCK_DRAFTING, ScenePacketVerdict.REVISE_REQUIRED}
 
-BlockerSource = Literal["author", "qa", "derive", "unknown"]
+BlockerSource = Literal["author", "validation", "qa", "derive", "unknown"]
+
+# Blocker sources the derive persists on `qa_warnings["blocker_source"]`. "validation" is a deterministic
+# draft-safety block (NOT a QA block) — the distinction the UI needs so it stops labeling both as QA.
+_PERSISTED_BLOCKER_SOURCES: frozenset[str] = frozenset({"author", "validation", "qa", "derive"})
 
 _STALE_GATE_RECONCILIATION = (
     "QA now approves, but the packet remains blocked from an earlier gate. Re-run derive or edit/reconcile the packet."
@@ -81,9 +85,15 @@ def resolve_blocked_reason(packet: ScenePacket) -> str | None:
 
 
 def infer_blocker_source(packet: ScenePacket, reason: str | None) -> BlockerSource:
-    """Classify which gate blocked the packet (computed at response time, not persisted)."""
+    """Classify which gate blocked the packet. The derive now PERSISTS this on
+    `qa_warnings["blocker_source"]`, so prefer that authoritative value; the heuristics below remain only
+    as a fallback for packets derived before that field existed."""
     if packet.status != ScenePacketStatus.BLOCKED:
         return "unknown"
+    warnings = packet.qa_warnings if isinstance(packet.qa_warnings, dict) else {}
+    persisted = warnings.get("blocker_source")
+    if isinstance(persisted, str) and persisted in _PERSISTED_BLOCKER_SOURCES:
+        return persisted  # type: ignore[return-value]
     if not valid_scene_packet_body(packet.body):
         return "author"
     if packet.qa_verdict == ScenePacketVerdict.BLOCK_DRAFTING.value:
@@ -136,9 +146,21 @@ def status_after_author_qa(
 
 def apply_qa_rerun(row: ScenePacket, result: dict[str, Any] | None) -> None:
     """Mutate row after a manual QA re-run (router endpoint). REVISE_REQUIRED stays proposed."""
+    # Deterministic contract violations are independent of QA — carry them forward so a re-run never
+    # erases the advisory/blocking findings the editor is looking at.
+    prior = row.qa_warnings if isinstance(row.qa_warnings, dict) else {}
+    prior_violations = prior.get("violations")
+
     if result is None:
         row.qa_verdict = ScenePacketVerdict.BLOCK_DRAFTING
-        row.qa_warnings = {"residual_risks": [], "blocked_reason": "QA returned no usable verdict"}
+        none_warnings: dict[str, Any] = {
+            "residual_risks": [],
+            "blocked_reason": "QA returned no usable verdict",
+            "blocker_source": "qa",
+        }
+        if prior_violations:
+            none_warnings["violations"] = prior_violations
+        row.qa_warnings = none_warnings
         row.status = ScenePacketStatus.BLOCKED
         return
 
@@ -150,12 +172,18 @@ def apply_qa_rerun(row: ScenePacket, result: dict[str, Any] | None) -> None:
         "residual_risks": result["residual_risks"],
         "issues": result["issues"],
     }
+    if prior_violations:
+        qa_warnings["violations"] = prior_violations
     if result["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
         row.status = ScenePacketStatus.BLOCKED
         qa_warnings["blocked_reason"] = first_blocking_qa_reason_or_default(result)
+        qa_warnings["blocker_source"] = "qa"
     elif row.status == ScenePacketStatus.BLOCKED:
-        if existing_source in {"author", "derive"} and existing_reason:
+        # QA now clears, but an earlier non-QA gate still holds the packet — keep that reason AND its
+        # source so enrichment doesn't degrade a "validation"/"author" block into a guessed "derive".
+        if existing_source in {"author", "validation", "derive"} and existing_reason:
             qa_warnings["blocked_reason"] = existing_reason
+            qa_warnings["blocker_source"] = existing_source
         else:
             qa_warnings["blocked_reason"] = _STALE_GATE_RECONCILIATION
     row.qa_warnings = qa_warnings
