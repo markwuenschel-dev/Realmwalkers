@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../client";
 import type {
@@ -260,18 +260,34 @@ export function useDeskSceneActions(
     [activeSceneId, fail, setDetail],
   );
 
-  return {
-    updateChapter,
-    draftNext,
-    retryFailed,
-    clearFailed,
-    clearDraftScenes,
-    deleteScenes,
-    runBulk,
-    decide,
-    revertScene,
-    resolveContinuity,
-    setExemplar,
-    restartRedraft,
-  };
+  return useMemo(
+    () => ({
+      updateChapter,
+      draftNext,
+      retryFailed,
+      clearFailed,
+      clearDraftScenes,
+      deleteScenes,
+      runBulk,
+      decide,
+      revertScene,
+      resolveContinuity,
+      setExemplar,
+      restartRedraft,
+    }),
+    [
+      updateChapter,
+      draftNext,
+      retryFailed,
+      clearFailed,
+      clearDraftScenes,
+      deleteScenes,
+      runBulk,
+      decide,
+      revertScene,
+      resolveContinuity,
+      setExemplar,
+      restartRedraft,
+    ],
+  );
 }

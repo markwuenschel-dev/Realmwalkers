@@ -1,4 +1,4 @@
-import { createElement, Fragment } from "react";
+import { createElement, Fragment, memo } from "react";
 import { css } from "../css";
 import { formatInterfaceHeader, resolveSurface } from "../lib/litrpgSurfaces";
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
@@ -211,7 +211,10 @@ function Table({ block }: { block: Extract<ProseBlock, { kind: "table" }> }) {
   );
 }
 
-export default function ProseBlocks({
+// React.memo'd: props are primitives (text/proseSize/justify), so a re-render of a parent (e.g. the
+// Manuscript view on a jobs poll tick) no longer re-parses + re-renders every scene's prose unless its
+// text actually changed. parseBlocks is a full line-by-line parse — the biggest per-render cost here.
+function ProseBlocks({
   text,
   proseSize = "18px",
   justify = true,
@@ -291,3 +294,5 @@ export default function ProseBlocks({
     </>
   );
 }
+
+export default memo(ProseBlocks);

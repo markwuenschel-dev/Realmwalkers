@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { api } from "../client";
 import type {
   AnnotationIn,
@@ -84,11 +84,14 @@ export function useDeskMarkup(
     [fail, setSuggestions],
   );
 
-  return {
-    addAnnotation,
-    deleteAnnotation,
-    addSuggestion,
-    decideSuggestion,
-    deleteSuggestion,
-  };
+  return useMemo(
+    () => ({
+      addAnnotation,
+      deleteAnnotation,
+      addSuggestion,
+      decideSuggestion,
+      deleteSuggestion,
+    }),
+    [addAnnotation, deleteAnnotation, addSuggestion, decideSuggestion, deleteSuggestion],
+  );
 }
