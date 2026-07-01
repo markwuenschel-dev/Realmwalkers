@@ -287,7 +287,16 @@ export interface paths {
     /** List Chapters */
     get: operations["list_chapters_chapters_get"];
     put?: never;
-    post?: never;
+    /**
+     * Create Chapter
+     * @description Create/update a chapter's POV + outline with NO LLM beat-proposal call — the contract-first
+     *     entry point (create the chapter, then POST its /packet to author the chapter packet). Upserts
+     *     by (book_id, chapter_no), same shape as the legacy gate-1 upsert in runs.py's _propose_chapter,
+     *     minus the beat-authoring call. A best-effort title is still generated (same bounded, never-raising
+     *     planner.propose_chapter_title call the old flow used), so chapters created this way aren't left
+     *     untitled.
+     */
+    post: operations["create_chapter_chapters_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2144,6 +2153,25 @@ export interface components {
     CanonIngestOut: {
       /** Indexed */
       indexed: number;
+    };
+    /**
+     * ChapterCreateIn
+     * @description POST body to create/update a chapter's POV + outline, with no LLM beat-proposal call — the
+     *     contract-first entry point (create the chapter, then POST its /packet to author the chapter
+     *     packet). Upserts by (book_id, chapter_no); a best-effort title is generated server-side.
+     */
+    ChapterCreateIn: {
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Chapter No */
+      chapter_no: number;
+      /** Pov */
+      pov: string;
+      /** Outline */
+      outline: string;
     };
     /** ChapterOut */
     ChapterOut: {
@@ -4742,6 +4770,39 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ChapterOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_chapter_chapters_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterOut"];
         };
       };
       /** @description Validation Error */

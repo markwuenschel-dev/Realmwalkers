@@ -40,6 +40,7 @@ export type ChapterOut = Omit<S["ChapterOut"], "title" | "outline"> & {
   outline: string | null;
 };
 export type ChapterUpdateIn = S["ChapterUpdateIn"];
+export type ChapterCreateIn = S["ChapterCreateIn"];
 // `pov` is a per-scene POV override the wire schema doesn't yet model (blank = inherit chapter POV).
 export type BeatOut = S["BeatOut"] & { pov?: string | null };
 export type BeatUpdateIn = S["BeatUpdateIn"] & { pov?: string | null };

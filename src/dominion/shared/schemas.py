@@ -171,6 +171,17 @@ class ChapterUpdateIn(BaseModel):
     title: str | None = None
 
 
+class ChapterCreateIn(BaseModel):
+    """POST body to create/update a chapter's POV + outline, with no LLM beat-proposal call — the
+    contract-first entry point (create the chapter, then POST its /packet to author the chapter
+    packet). Upserts by (book_id, chapter_no); a best-effort title is generated server-side."""
+
+    book_id: uuid.UUID
+    chapter_no: int
+    pov: str
+    outline: str
+
+
 class RunStartIn(BaseModel):
     """POST body to start a run: outline a chapter; the planner proposes its beats (gate 1).
 

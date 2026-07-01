@@ -3,11 +3,11 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useDeskActiveScene } from "./hooks/useDeskActiveScene";
 import { useDeskBooks } from "./hooks/useDeskBooks";
+import { useDeskChapterCreate } from "./hooks/useDeskChapterCreate";
 import { useDeskCollections } from "./hooks/useDeskCollections";
 import { useDeskError } from "./hooks/useDeskError";
 import { useDeskJobs } from "./hooks/useDeskJobs";
 import { useDeskMarkup } from "./hooks/useDeskMarkup";
-import { useDeskPlanning } from "./hooks/useDeskPlanning";
 import { useDeskRules } from "./hooks/useDeskRules";
 import { useDeskSceneActions } from "./hooks/useDeskSceneActions";
 import { useDeskWorld } from "./hooks/useDeskWorld";
@@ -31,7 +31,6 @@ import type {
   ManuscriptOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
-  RunStartOut,
   SceneDetail,
   SceneOut,
   SceneVersionOut,
@@ -82,15 +81,8 @@ export interface DeskData {
   refreshAll: () => Promise<void>;
   createBook: (title: string) => Promise<void>;
   updateChapter: (chapterId: string, body: ChapterUpdateIn) => Promise<void>;
-  startRun: (
-    chapterNo: number,
-    pov: string,
-    outline: string,
-    maxBeats?: number,
-    targetWords?: number,
-  ) => Promise<RunStartOut | null>;
-  planningChapters: Set<number>;
-  approveAndDraft: (chapterId: string, beatIds?: string[]) => Promise<void>;
+  creatingChapter: boolean;
+  createAndPropose: (chapterNo: number, pov: string, outline: string) => Promise<string | null>;
   retryFailed: () => Promise<import("./types").RetryFailedOut | null>;
   clearFailed: (chapterId?: string | null) => Promise<import("./types").ClearFailedOut | null>;
   clearDraftScenes: (
@@ -127,14 +119,8 @@ export function useDeskDataState(): DeskData {
 
   const { books, bookId, setBook, createBook } = useDeskBooks(fail, setLoading);
 
-  const planning = useDeskPlanning(fail);
-  const collections = useDeskCollections(
-    bookId,
-    fail,
-    setError,
-    setLoading,
-    planning.resetPlanningOnBookChange,
-  );
+  const chapterCreate = useDeskChapterCreate(fail);
+  const collections = useDeskCollections(bookId, fail, setError, setLoading, () => {});
 
   const refreshAll = useCallback(
     () => collections.refreshAll(bookId),
@@ -171,24 +157,10 @@ export function useDeskDataState(): DeskData {
 
   const markup = useDeskMarkup(fail, scene.setAnnotations, scene.setSuggestions);
 
-  const startRun = useCallback(
-    (chapterNo: number, pov: string, outline: string, maxBeats?: number, targetWords?: number) =>
-      planning.startRun(
-        bookId,
-        chapterNo,
-        pov,
-        outline,
-        collections.loadCollections,
-        maxBeats,
-        targetWords,
-      ),
-    [bookId, collections.loadCollections, planning.startRun],
-  );
-
-  const approveAndDraft = useCallback(
-    (chapterId: string, beatIds?: string[]) =>
-      planning.approveAndDraft(chapterId, beatIds, sceneActions.draftNext, refreshAll),
-    [planning.approveAndDraft, refreshAll, sceneActions.draftNext],
+  const createAndPropose = useCallback(
+    (chapterNo: number, pov: string, outline: string) =>
+      chapterCreate.createAndPropose(bookId, chapterNo, pov, outline, collections.loadCollections),
+    [bookId, collections.loadCollections, chapterCreate.createAndPropose],
   );
 
   const createThread = useCallback(
@@ -264,9 +236,8 @@ export function useDeskDataState(): DeskData {
       refreshAll,
       createBook,
       updateChapter: sceneActions.updateChapter,
-      startRun,
-      planningChapters: planning.planningChapters,
-      approveAndDraft,
+      creatingChapter: chapterCreate.creating,
+      createAndPropose,
       retryFailed: sceneActions.retryFailed,
       clearFailed: sceneActions.clearFailed,
       clearDraftScenes: sceneActions.clearDraftScenes,
@@ -307,9 +278,8 @@ export function useDeskDataState(): DeskData {
       refreshAll,
       createBook,
       sceneActions,
-      startRun,
-      planning.planningChapters,
-      approveAndDraft,
+      chapterCreate.creating,
+      createAndPropose,
       createThread,
       world,
       upsertCharacter,

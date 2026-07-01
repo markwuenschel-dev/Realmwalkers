@@ -17,6 +17,7 @@ import type {
   CanonEntityOut,
   CanonEntityUpdateIn,
   CanonIngestOut,
+  ChapterCreateIn,
   ChapterOut,
   ChapterUpdateIn,
   CharacterStateIn,
@@ -154,6 +155,8 @@ export const api = {
 
   // --- chapters + history -------------------------------------------------------------------------
   chapters: (bookId: string) => http<ChapterOut[]>(`/chapters${qs({ book_id: bookId })}`),
+  createChapter: (body: ChapterCreateIn) =>
+    http<ChapterOut>("/chapters", { method: "POST", body: JSON.stringify(body) }),
   updateChapter: (chapterId: string, body: ChapterUpdateIn) =>
     http<ChapterOut>(`/chapters/${chapterId}`, { method: "PATCH", body: JSON.stringify(body) }),
   chapterBeats: (chapterId: string) => http<BeatOut[]>(`/chapters/${chapterId}/beats`),
