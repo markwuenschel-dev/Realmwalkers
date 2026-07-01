@@ -156,6 +156,50 @@ async def test_clean_green_packet_approves(db_factory, monkeypatch):
 # --- a failed re-propose must not wipe an approved packet -----------------------------------------
 
 
+# --- deterministic roster-consistency validation (blocks before QA) -------------------------------
+
+
+async def test_double_bucketed_roster_blocks_before_qa(db_factory, monkeypatch):
+    """Regression: a character listed in both characters_present and characters_absent is a decidable
+    self-contradiction -- it must block the packet WITHOUT ever calling QA (no point attacking a packet
+    already known internally inconsistent), and the block must be attributed to validation, not QA."""
+    packet = {
+        **_packet(),
+        "characters_present": ["Mara (present, unidentified until Ch2)"],
+        "characters_absent": ["Mara"],
+    }
+    qa_called = False
+
+    async def author_ok(**kwargs):
+        return packet
+
+    async def qa_should_not_run(_packet, **kwargs):
+        nonlocal qa_called
+        qa_called = True
+        return _qa()
+
+    monkeypatch.setattr(author_mod, "author_packet", author_ok)
+    monkeypatch.setattr(qa_mod, "qa_packet", qa_should_not_run)
+    async with db_factory() as s:
+        ch = await _seed_chapter(s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
+        assert row.status == PacketStatus.BLOCKED
+        assert row.qa_verdict is None or row.qa_verdict == PacketVerdict.BLOCK_DRAFTING
+        assert row.qa_warnings.get("blocker_source") == "validation"
+        assert any(v["kind"] == "roster_double_bucketed" for v in row.qa_warnings.get("violations", []))
+        assert qa_called is False
+
+
+async def test_clean_roster_still_runs_qa_and_proposes(db_factory, monkeypatch):
+    """The flip side: a packet with no roster contradiction proceeds through QA as before."""
+    _patch(monkeypatch, _packet(), _qa())
+    async with db_factory() as s:
+        ch = await _seed_chapter(s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
+        assert row.status == PacketStatus.PROPOSED
+        assert "violations" not in row.qa_warnings
+
+
 async def test_failed_repropose_preserves_approved(db_factory, monkeypatch):
     _patch(monkeypatch, _packet(), _qa())
     async with db_factory() as s:

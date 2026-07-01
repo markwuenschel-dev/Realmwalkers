@@ -30,6 +30,7 @@ from dominion.workers.memory import canon_rag
 from dominion.workers.packet import approval_policy
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
+from dominion.workers.packet.validation import validate_chapter_packet_contract
 
 log = structlog.get_logger()
 
@@ -129,17 +130,30 @@ async def latest_approved(session: AsyncSession, chapter_id: uuid.UUID) -> Chapt
 
 
 def _blocked_row(
-    *, book_id: uuid.UUID, chapter_id: uuid.UUID, reason: str, body: dict[str, Any] | None = None
+    *,
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    reason: str,
+    body: dict[str, Any] | None = None,
+    violations: list[dict[str, Any]] | None = None,
+    open_questions: dict[str, Any] | None = None,
 ) -> ChapterPacket:
+    qa_warnings: dict[str, Any] = {"residual_risks": [], "blocked_reason": reason}
+    if violations:
+        # Persist WHICH gate blocked (deterministic validation, not QA) so the UI doesn't mislabel a
+        # decidable roster contradiction as an LLM QA verdict — same distinction the scene-packet UI
+        # already makes for its own deterministic-vs-QA blocks.
+        qa_warnings["violations"] = violations
+        qa_warnings["blocker_source"] = "validation"
     return ChapterPacket(
         book_id=book_id,
         chapter_id=chapter_id,
         status=PacketStatus.BLOCKED,
         confidence=PacketConfidence.RED,
         qa_verdict=PacketVerdict.BLOCK_DRAFTING,
-        qa_warnings={"residual_risks": [], "blocked_reason": reason},
+        qa_warnings=qa_warnings,
         body=body or {"blocked_reason": reason},
-        open_questions={"items": []},
+        open_questions=open_questions if open_questions is not None else {"items": []},
     )
 
 
@@ -165,7 +179,12 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     def _persist_telemetry() -> None:
         telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
 
-    async def fail_closed(reason: str, body: dict[str, Any] | None = None) -> ChapterPacket:
+    async def fail_closed(
+        reason: str,
+        body: dict[str, Any] | None = None,
+        violations: list[dict[str, Any]] | None = None,
+        open_questions: dict[str, Any] | None = None,
+    ) -> ChapterPacket:
         # A failed (re)propose must never wipe an already-approved packet; otherwise persist a
         # visible blocked packet so the human sees the failure (never silent partial constraints).
         _persist_telemetry()
@@ -176,7 +195,14 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
             session,
             chapter_id=chapter.id,
             replace=True,
-            row=_blocked_row(book_id=book_id, chapter_id=chapter.id, reason=reason, body=body),
+            row=_blocked_row(
+                book_id=book_id,
+                chapter_id=chapter.id,
+                reason=reason,
+                body=body,
+                violations=violations,
+                open_questions=open_questions,
+            ),
         )
 
     if not outline:
@@ -233,6 +259,26 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     _mint_seed_ids(packet)
     _resolve_provenance(packet, handles)
 
+    # Deterministic roster-consistency check runs BEFORE QA: a character double-bucketed across
+    # present/absent/mentioned-only/forbidden, or a forbidden name bled into the chapter's own scene
+    # seeds, is a decidable self-contradiction QA should not need to guess at. A hard blocker skips QA
+    # entirely (no point attacking a packet already known internally inconsistent).
+    violations = validate_chapter_packet_contract(packet)
+    block_violations = [v for v in violations if v.severity == "block"]
+    if block_violations:
+        log.warning(
+            "packet.validation_blocked",
+            chapter=str(chapter.id),
+            count=len(block_violations),
+            kinds=sorted({v.kind for v in block_violations}),
+        )
+        return await fail_closed(
+            "deterministic validation failed: " + "; ".join(v.detail for v in block_violations),
+            body=packet,
+            violations=[v.as_dict() for v in violations],
+            open_questions={"items": _open_questions(packet)},
+        )
+
     progress.set_phase(progress_key, "qa")
     try:
         with telemetry.call_context(
@@ -252,13 +298,18 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         return await fail_closed("packet QA returned no usable verdict", body=packet)
 
     confidence, status = approval_policy.status_from_qa(packet, qa)
+    qa_warnings: dict[str, Any] = {"residual_risks": qa["residual_risks"], "issues": qa["issues"]}
+    if violations:
+        # Only warn-severity violations reach here (any block already returned above), surfaced
+        # alongside QA's own findings so the editor sees both channels.
+        qa_warnings["violations"] = [v.as_dict() for v in violations]
     row = ChapterPacket(
         book_id=book_id,
         chapter_id=chapter.id,
         status=status,
         confidence=confidence,
         qa_verdict=qa["verdict"],
-        qa_warnings={"residual_risks": qa["residual_risks"], "issues": qa["issues"]},
+        qa_warnings=qa_warnings,
         body=packet,
         open_questions={"items": _open_questions(packet)},
     )

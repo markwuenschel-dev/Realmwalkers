@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import Beat, Chapter, ChapterPacket, Scene, ScenePacket, Summary
+from dominion.shared.text_match import as_str_list
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
@@ -189,10 +190,6 @@ async def _author_then_qa(
         # author gate blocks it, so attribute the block to the author, not to QA (which never ran).
         blocker_source = "author"
     return scene_body, qa, error_detail, violations, blocker_source
-
-
-def _as_str_list(value: Any) -> list[str]:
-    return [str(v).strip() for v in value if str(v).strip()] if isinstance(value, list) else []
 
 
 def _label_canon_sources(
@@ -475,8 +472,8 @@ async def derive_scene_packets(
         # stale (previously it didn't, so a fixed canon fact left the wrong value sitting in the packet).
         # Cost: an unchanged approved scene now pays retrieval before the skip below, but still skips the
         # expensive Author+QA LLM fan-out; retrieval is DB-only.
-        query = " ".join([str(seed.get("scene_job") or ""), *_as_str_list(seed.get("required_beats"))])
-        routing = owner_router.route(query, characters=_as_str_list(body.get("characters_present")))
+        query = " ".join([str(seed.get("scene_job") or ""), *as_str_list(seed.get("required_beats"))])
+        routing = owner_router.route(query, characters=as_str_list(body.get("characters_present")))
         snippets = await retrieval.retrieve_hybrid(
             session,
             book_id=packet.book_id,
