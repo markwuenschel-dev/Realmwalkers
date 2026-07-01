@@ -32,7 +32,11 @@ export interface DeskSceneActionsState {
   clearFailed: (chapterId?: string | null) => Promise<ClearFailedOut | null>;
   clearDraftScenes: (chapterId?: string | null) => Promise<ClearDraftScenesOut | null>;
   deleteScenes: (ids: string[]) => Promise<void>;
-  runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
+  runBulk: (
+    ids: string[],
+    fn: (id: string) => Promise<unknown>,
+    opts?: { drainAfter?: boolean },
+  ) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
@@ -145,10 +149,20 @@ export function useDeskSceneActions(
   );
 
   const runBulk = useCallback(
-    async (ids: string[], fn: (id: string) => Promise<unknown>): Promise<void> => {
+    async (
+      ids: string[],
+      fn: (id: string) => Promise<unknown>,
+      opts?: { drainAfter?: boolean },
+    ): Promise<void> => {
       if (ids.length === 0) return;
       try {
         const results = await Promise.allSettled(ids.map(fn));
+        // Bulk scene decisions (approve/revise) can each queue a draft Job, but unlike the
+        // single-scene `decide()` path below, this generic runner has no per-call `next_job` to key
+        // off of -- drain once, unconditionally, after the batch settles. draftNext() is a cheap
+        // no-op when nothing's queued, so callers with no drafting side effects (e.g. bulk-deleting
+        // ledger entries) just skip this by leaving drainAfter unset.
+        if (opts?.drainAfter) await draftNext();
         await refreshAll();
         const failures = results.filter((r) => r.status === "rejected").length;
         if (failures > 0) setError(`${failures} of ${ids.length} failed — others applied.`);
@@ -156,7 +170,7 @@ export function useDeskSceneActions(
         fail(e);
       }
     },
-    [fail, refreshAll, setError],
+    [draftNext, fail, refreshAll, setError],
   );
 
   const updateChapter = useCallback(

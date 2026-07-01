@@ -4,6 +4,11 @@ import { EMPTY_JOBS } from "../../constants";
 import { useDeskBooks } from "../useDeskBooks";
 import { useDeskChapterCreate } from "../useDeskChapterCreate";
 import { useDeskJobs } from "../useDeskJobs";
+import { useDeskSceneActions } from "../useDeskSceneActions";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 
 vi.mock("../../client", () => ({
   api: {
@@ -12,6 +17,8 @@ vi.mock("../../client", () => ({
     jobsFailed: vi.fn(),
     createChapter: vi.fn(),
     proposePacket: vi.fn(),
+    decide: vi.fn(),
+    draftNext: vi.fn(),
   },
 }));
 
@@ -177,5 +184,67 @@ describe("useDeskChapterCreate", () => {
     expect(chapterId).toBeNull();
     expect(fail).toHaveBeenCalled();
     expect(api.proposePacket).not.toHaveBeenCalled();
+  });
+});
+
+describe("useDeskSceneActions runBulk", () => {
+  beforeEach(() => {
+    vi.mocked(api.decide).mockReset();
+    vi.mocked(api.draftNext).mockReset();
+  });
+
+  function setup() {
+    const fail = vi.fn();
+    const setError = vi.fn();
+    const refreshAll = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useDeskSceneActions(fail, setError, {
+        bookId: "book-1",
+        activeSceneId: null,
+        setJobs: vi.fn(),
+        setChapters: vi.fn(),
+        setDetail: vi.fn(),
+        openSceneById: vi.fn(),
+        refreshAll,
+      }),
+    );
+    return { result, fail, setError, refreshAll };
+  }
+
+  it("drains the job queue after a bulk action when drainAfter is set", async () => {
+    // Regression: bulk-approve/bulk-revise in the Inbox queue a Job per scene via api.decide, but
+    // unlike the single-scene decide() path, this generic runner has no per-call next_job to key a
+    // draftNext() off of -- without an explicit drain, queued jobs never start (they sit forever as
+    // "N queued" with nothing running, since /jobs/draft-next is the only thing that kicks off the
+    // background drain).
+    vi.mocked(api.decide).mockResolvedValue({
+      scene: "s1",
+      status: "revision_requested",
+      next_job: "j1",
+    });
+    vi.mocked(api.draftNext).mockResolvedValue({ scheduled: true, queued: 4, running: true });
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.runBulk(
+        ["s1", "s2", "s3", "s4"],
+        (id) => api.decide(id, { decision: "revise", feedback: "note" }),
+        { drainAfter: true },
+      );
+    });
+
+    expect(api.decide).toHaveBeenCalledTimes(4);
+    expect(api.draftNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not drain when drainAfter is omitted (e.g. unrelated bulk deletes)", async () => {
+    vi.mocked(api.decide).mockResolvedValue({ scene: "s1", status: "approved", next_job: null });
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.runBulk(["s1"], (id) => api.decide(id, { decision: "approve" }));
+    });
+
+    expect(api.draftNext).not.toHaveBeenCalled();
   });
 });
