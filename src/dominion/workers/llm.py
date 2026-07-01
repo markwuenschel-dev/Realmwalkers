@@ -23,7 +23,7 @@ import structlog
 from anthropic import AsyncAnthropic
 from anthropic.types import TextBlockParam
 
-from dominion.shared.agent_registry import supports_temperature
+from dominion.shared.agent_registry import supports_effort, supports_temperature
 from dominion.shared.config import settings
 from dominion.workers import telemetry
 from dominion.workers.budget import BudgetExceeded, TokenBudget, Usage
@@ -237,6 +237,7 @@ async def complete(
     context_window_budget: int | None = None,
     context_sections: Mapping[str, int] | None = None,
     temperature: float | None = None,
+    effort: str | None = None,
 ) -> tuple[str, Usage]:
     """One LLM call. Retries transient errors with exponential backoff; charges the budget from the
     response usage on success (raises BudgetExceeded if over). Non-transient errors raise at once.
@@ -311,11 +312,14 @@ async def complete(
         # Anthropic's guidance: count against the exact request the model will see); create_kwargs only
         # adds the generation-only params. Building both from one source keeps the preflight count honest.
         create_kwargs = {"model": model, "system": system_blocks, "messages": messages, "max_tokens": max_tokens}
-        # Anthropic's flagship models (Opus 4.7+, Sonnet 5, Fable 5) 400 on `temperature`; only Haiku /
-        # 4.6-era still accept it. Gate on supports_temperature() so the newer models draft without it
-        # (steered by prompt / effort) instead of erroring. The OpenAI/xAI branch below always accepts it.
+        # Sampling vs. effort split: Anthropic models that accept `temperature` (Haiku, 4.6-era) take it;
+        # the flagship models (Opus 4.7+, Sonnet 5, Fable 5) 400 on temperature and take
+        # output_config.effort (low/medium/high, mapped from quality_level) instead. Exactly one is sent
+        # per Anthropic model; the OpenAI/xAI branch below always uses `temperature`.
         if temperature is not None and supports_temperature(model):
             create_kwargs["temperature"] = temperature
+        elif effort is not None and supports_effort(model):
+            create_kwargs["output_config"] = {"effort": effort}
     else:
         # OpenAI-compatible chat completions shape: no explicit cache_control blocks — both OpenAI and
         # xAI cache automatically by exact-prefix match instead, so the request only needs the stable

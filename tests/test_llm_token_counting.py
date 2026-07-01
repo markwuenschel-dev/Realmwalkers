@@ -127,6 +127,24 @@ async def test_temperature_omitted_for_anthropic_models_that_reject_it(monkeypat
     assert "temperature" not in msgs.create_kwargs
 
 
+async def test_effort_sent_instead_of_temperature_for_flagship_models(monkeypatch):
+    # The quality knob for flagship Anthropic models: temperature is dropped, output_config.effort is sent.
+    msgs = _FakeMessages(count_value=100)
+    _patch(monkeypatch, msgs)
+    await _complete(model="claude-opus-4-8", temperature=0.5, effort="high")
+    assert "temperature" not in msgs.create_kwargs
+    assert msgs.create_kwargs["output_config"] == {"effort": "high"}
+
+
+async def test_effort_not_sent_to_models_that_take_temperature(monkeypatch):
+    # Haiku accepts `temperature` and rejects `effort` — it must get temperature, never output_config.
+    msgs = _FakeMessages(count_value=100)
+    _patch(monkeypatch, msgs)
+    await _complete(model="claude-haiku-4-5", temperature=0.5, effort="high")
+    assert msgs.create_kwargs["temperature"] == 0.5
+    assert "output_config" not in msgs.create_kwargs
+
+
 async def test_transient_count_error_retries_then_succeeds(monkeypatch):
     transient = anthropic.APITimeoutError(request=_REQ)
     msgs = _FakeMessages(count_script=[transient, transient, 100])

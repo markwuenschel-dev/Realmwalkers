@@ -9,11 +9,19 @@ from dominion.shared.agent_registry import AGENT_BY_KEY, AGENTS, AgentDefinition
 
 QualityLevel = Literal["fast", "balanced", "quality"]
 
+# temperature steers older / Haiku Anthropic + OpenAI/xAI; effort (output_config.effort) steers the
+# Anthropic flagship models that dropped sampling params (Opus 4.7+, Sonnet 5, Fable 5). llm.complete
+# picks whichever the target model accepts, so a preset's quality_level lands as a real knob either way.
 QUALITY_PROFILES: dict[QualityLevel, dict[str, Any]] = {
-    "fast": {"temperature": 0.9, "prompt_suffix": " Favor speed; minor polish gaps are acceptable."},
-    "balanced": {"temperature": 0.7, "prompt_suffix": ""},
+    "fast": {
+        "temperature": 0.9,
+        "effort": "low",
+        "prompt_suffix": " Favor speed; minor polish gaps are acceptable.",
+    },
+    "balanced": {"temperature": 0.7, "effort": "medium", "prompt_suffix": ""},
     "quality": {
         "temperature": 0.5,
+        "effort": "high",
         "prompt_suffix": " Take extra care with canon fidelity, voice consistency, and contract boundaries.",
     },
 }
@@ -34,6 +42,7 @@ class ResolvedAgentPolicy:
     quality_level: QualityLevel
     semantic_escalation: bool
     temperature: float
+    effort: str  # Anthropic output_config.effort (low/medium/high) for models that reject `temperature`
     prompt_suffix: str
     never_fallback_tiers: frozenset[str]
 
@@ -79,6 +88,7 @@ def resolve_policy(agent: AgentDefinition, policy_json: dict[str, Any] | None) -
         quality_level=ql,  # type: ignore[arg-type]
         semantic_escalation=bool(pj.get("semantic_escalation", semantic_default)),
         temperature=float(profile["temperature"]),
+        effort=str(profile["effort"]),
         prompt_suffix=str(profile.get("prompt_suffix", "")),
         never_fallback_tiers=never_set,
     )
@@ -108,6 +118,10 @@ def agent_auto_run(setting_key: str) -> bool:
 
 def quality_temperature(setting_key: str) -> float:
     return get_runtime_policy(setting_key).temperature
+
+
+def quality_effort(setting_key: str) -> str:
+    return get_runtime_policy(setting_key).effort
 
 
 def quality_prompt_suffix(setting_key: str) -> str:
