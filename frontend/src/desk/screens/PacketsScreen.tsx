@@ -426,6 +426,9 @@ function PacketView({
   const blockedReason = packet.qa_warnings?.blocked_reason ?? b.blocked_reason;
   const residual = packet.qa_warnings?.residual_risks ?? [];
   const issues = packet.qa_warnings?.issues ?? [];
+  // Deterministic-validation channel (distinct from QA `issues`): decidable roster contradictions
+  // (double-bucketed character, forbidden name in a scene seed) caught before QA ever runs.
+  const violations = packet.qa_warnings?.violations ?? [];
 
   return (
     <div style={css("display:flex;flex-direction:column;gap:16px")}>
@@ -453,8 +456,27 @@ function PacketView({
         <Panel accentVar="--bad" title="Blocked">
           <div style={css("font-size:13px;color:var(--ink)")}>{blockedReason}</div>
           <div style={css("font-size:12px;color:var(--dim);margin-top:6px")}>
-            The packet failed closed — no prose may be drafted from it. Re-propose, or edit the
-            chapter outline and try again.
+            {packet.qa_warnings?.blocker_source === "validation"
+              ? "Deterministic roster validation failed closed — a character is double-bucketed or a " +
+                "forbidden name appears in a scene seed. Fix the roster fields below and re-propose."
+              : "The packet failed closed — no prose may be drafted from it. Re-propose, or edit the " +
+                "chapter outline and try again."}
+          </div>
+        </Panel>
+      )}
+
+      {violations.length > 0 && (
+        <Panel accentVar="--warn" title={`Deterministic validation · ${violations.length}`}>
+          <div style={css("display:flex;flex-direction:column;gap:6px")}>
+            {violations.map((v, i) => (
+              <div key={i} style={css("font-size:12.5px;color:var(--ink)")}>
+                <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                  {v.severity ?? "warn"} · {v.kind || "issue"}
+                  {v.field ? ` · ${v.field}` : ""}:{" "}
+                </span>
+                {v.detail}
+              </div>
+            ))}
           </div>
         </Panel>
       )}

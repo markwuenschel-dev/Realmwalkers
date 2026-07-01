@@ -29,6 +29,8 @@ import re
 from dataclasses import dataclass, replace
 from typing import Any, Literal
 
+from dominion.shared.text_match import as_str_list, collect_strings, get_dotted, names_present
+
 Severity = Literal["warn", "block"]
 
 # Meta "sources" the model reaches for when it has no real snippet handle: the outline, the packet
@@ -78,15 +80,6 @@ _AUTHOR_ONLY_REFERENCE_PATHS: tuple[str, ...] = (
 _AUTHOR_ONLY_REFERENCE_FIELDS: tuple[str, ...] = ("intentional_mysteries", "forbidden_beats")
 
 
-def _get_dotted(body: dict[str, Any], dotted: str) -> Any:
-    node: Any = body
-    for part in dotted.split("."):
-        if not isinstance(node, dict):
-            return None
-        node = node.get(part)
-    return node
-
-
 @dataclass(frozen=True)
 class ScenePacketViolation:
     """One deterministic contract breach. `field` is the dotted body path when one applies (else None),
@@ -100,40 +93,6 @@ class ScenePacketViolation:
 
     def as_dict(self) -> dict[str, Any]:
         return {"kind": self.kind, "field": self.field, "detail": self.detail, "severity": self.severity}
-
-
-def _as_str_list(value: Any) -> list[str]:
-    return [str(v).strip() for v in value if str(v).strip()] if isinstance(value, list) else []
-
-
-def _collect_strings(value: Any) -> list[str]:
-    """Flatten any string content reachable from a body field (str / list / nested dict) into a flat
-    list, so an absence scan can look at a field regardless of its shape."""
-    out: list[str] = []
-    if isinstance(value, str):
-        if value.strip():
-            out.append(value)
-    elif isinstance(value, dict):
-        for v in value.values():
-            out.extend(_collect_strings(v))
-    elif isinstance(value, list):
-        for v in value:
-            out.extend(_collect_strings(v))
-    return out
-
-
-def _names_present(text_items: list[str], names: list[str]) -> list[str]:
-    """Names that appear as a whole word (case-insensitive) anywhere in `text_items`. Whole-word, not
-    bare substring, so a short name can't match inside an unrelated word — but still no fuzzy NER."""
-    if not text_items or not names:
-        return []
-    blob = "\n".join(text_items).lower()
-    found: list[str] = []
-    for name in names:
-        n = name.strip().lower()
-        if n and re.search(rf"\b{re.escape(n)}\b", blob):
-            found.append(name)
-    return found
 
 
 def _beat_represented(seed_beat: str, body_beats: list[str]) -> bool:
@@ -224,8 +183,8 @@ def validate_scene_packet_contract(
 
     # 4. Required-beat consistency: a seed required beat that the packet silently drops is a WARN (the
     # packet may reword, and an intentionally-empty list is allowed — only flag when the packet HAS beats).
-    seed_beats = _as_str_list(scene_seed.get("required_beats")) if isinstance(scene_seed, dict) else []
-    body_beats = _as_str_list(body.get("required_beats"))
+    seed_beats = as_str_list(scene_seed.get("required_beats")) if isinstance(scene_seed, dict) else []
+    body_beats = as_str_list(body.get("required_beats"))
     if seed_beats and body_beats:
         for sb in seed_beats:
             if not _beat_represented(sb, body_beats):
@@ -245,10 +204,10 @@ def validate_scene_packet_contract(
     # the exact failure mode). One referenced only in an author-only/protective field (declaring what must
     # stay hidden, an intentional mystery, a forbidden beat) is CORRECT layering → warn only, informational.
     # Known absent names only, whole-word, case-insensitive.
-    absent = _as_str_list(chapter_packet_body.get("characters_absent")) if isinstance(chapter_packet_body, dict) else []
+    absent = as_str_list(chapter_packet_body.get("characters_absent")) if isinstance(chapter_packet_body, dict) else []
     if absent:
         for field_name in _ON_PAGE_FIELDS:
-            for name in _names_present(_collect_strings(body.get(field_name)), absent):
+            for name in names_present(collect_strings(body.get(field_name)), absent):
                 violations.append(
                     ScenePacketViolation(
                         kind="absent_character_on_page",
@@ -260,7 +219,7 @@ def validate_scene_packet_contract(
         pov_perms = body.get("pov_permissions")
         if isinstance(pov_perms, dict):
             for sub in _POV_ON_PAGE_SUBKEYS:
-                for name in _names_present(_collect_strings(pov_perms.get(sub)), absent):
+                for name in names_present(collect_strings(pov_perms.get(sub)), absent):
                     violations.append(
                         ScenePacketViolation(
                             kind="absent_character_on_page",
@@ -270,7 +229,7 @@ def validate_scene_packet_contract(
                         )
                     )
         for dotted in _READER_POV_KNOWLEDGE_PATHS:
-            for name in _names_present(_collect_strings(_get_dotted(body, dotted)), absent):
+            for name in names_present(collect_strings(get_dotted(body, dotted)), absent):
                 violations.append(
                     ScenePacketViolation(
                         kind="absent_character_reader_pov_leak",
@@ -284,7 +243,7 @@ def validate_scene_packet_contract(
                     )
                 )
         for dotted in _AUTHOR_ONLY_REFERENCE_PATHS:
-            for name in _names_present(_collect_strings(_get_dotted(body, dotted)), absent):
+            for name in names_present(collect_strings(get_dotted(body, dotted)), absent):
                 violations.append(
                     ScenePacketViolation(
                         kind="absent_character_author_only_reference",
@@ -297,7 +256,7 @@ def validate_scene_packet_contract(
                     )
                 )
         for field_name in _AUTHOR_ONLY_REFERENCE_FIELDS:
-            for name in _names_present(_collect_strings(body.get(field_name)), absent):
+            for name in names_present(collect_strings(body.get(field_name)), absent):
                 violations.append(
                     ScenePacketViolation(
                         kind="absent_character_author_only_reference",
