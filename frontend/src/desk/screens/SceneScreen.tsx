@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
@@ -171,12 +171,51 @@ export default function SceneScreen() {
   const suggesting = desk.mode === "suggesting";
   const showMarks = !editing;
 
-  const critiques = cur?.critiques ?? [];
-  const conflicts = critiques.filter(isConflict);
+  const critiques = useMemo(() => cur?.critiques ?? [], [cur]);
+  const conflicts = useMemo(() => critiques.filter(isConflict), [critiques]);
   const notes = critiques.filter((c) => !isConflict(c));
   const annotations = data.annotations;
   const suggestions = data.suggestions;
   const pendingSugg = suggestions.filter((s) => s.status === "pending").length;
+
+  // Markers for a paragraph: entity names, conflict prose-values, annotation quotes, suggestion quotes.
+  // useCallback so the tokenization memo below only recomputes when a marker SOURCE actually changes.
+  const markersFor = useCallback(
+    (text: string): Marker[] => {
+      const ms: Marker[] = [];
+      for (const ch of data.characters) {
+        if (ch.character && text.includes(ch.character)) {
+          ms.push({ find: ch.character, kind: "entity", id: ch.character });
+        }
+      }
+      for (const c of conflicts) {
+        const pv = pstr(c, "prose_value");
+        if (pv && text.includes(pv)) ms.push({ find: pv, kind: "conflict", id: c.id });
+      }
+      for (const s of suggestions) {
+        if (s.quote && text.includes(s.quote)) ms.push({ find: s.quote, kind: "sugg", id: s.id });
+      }
+      for (const a of annotations) {
+        if (a.quote && text.includes(a.quote)) ms.push({ find: a.quote, kind: "anno", id: a.id });
+      }
+      return ms;
+    },
+    [data.characters, conflicts, suggestions, annotations],
+  );
+
+  // The expensive part of the reader — split the prose and scan every paragraph for markers
+  // (O(paragraphs × entities)) — depends only on prose + marker sources, NOT on selection/hover/mode.
+  // Memoize it so dragging a selection or toggling a mode no longer re-tokenizes the whole scene; the
+  // cheap per-token rendering (renderToken) still runs each render for live hover/mode styling.
+  const tokenizedParas = useMemo(() => {
+    if (!cur) return [];
+    return seg(cur.prose ?? "").map((b) => {
+      const isLead = b.n === 0;
+      const lead = isLead ? b.text.charAt(0) : "";
+      const text = isLead ? b.text.slice(1) : b.text;
+      return { isLead, lead, tokens: tokenize(text, markersFor(text)) };
+    });
+  }, [cur, markersFor]);
 
   const commit = async (kind: DecisionKind) => {
     if (!cur || committing) return;
@@ -308,27 +347,6 @@ export default function SceneScreen() {
     };
   };
 
-  // markers for a paragraph: entity names, conflict prose-values, annotation quotes, suggestion quotes
-  const markersFor = (text: string): Marker[] => {
-    const ms: Marker[] = [];
-    for (const ch of data.characters) {
-      if (ch.character && text.includes(ch.character)) {
-        ms.push({ find: ch.character, kind: "entity", id: ch.character });
-      }
-    }
-    for (const c of conflicts) {
-      const pv = pstr(c, "prose_value");
-      if (pv && text.includes(pv)) ms.push({ find: pv, kind: "conflict", id: c.id });
-    }
-    for (const s of suggestions) {
-      if (s.quote && text.includes(s.quote)) ms.push({ find: s.quote, kind: "sugg", id: s.id });
-    }
-    for (const a of annotations) {
-      if (a.quote && text.includes(a.quote)) ms.push({ find: a.quote, kind: "anno", id: a.id });
-    }
-    return ms;
-  };
-
   const renderToken = (tok: Token, key: string): ReactNode => {
     if (tok.kind === "text")
       return (
@@ -453,19 +471,13 @@ export default function SceneScreen() {
   const blocksWrapStyle = layout === "columns" ? "column-count:2;column-gap:2.8rem" : "";
 
   let pkey = 0;
-  const blocks = seg(cur.prose ?? "").map((b, bi) => {
-    const isLead = b.n === 0;
-    let text = b.text;
-    let lead = "";
-    let leadStyle = "";
-    if (isLead) {
-      lead = text.charAt(0);
-      text = text.slice(1);
-      leadStyle = desk.isManu
+  const blocks = tokenizedParas.map(({ isLead, lead, tokens }, bi) => {
+    const leadStyle = isLead
+      ? desk.isManu
         ? "float:left;font-family:var(--display);font-size:60px;line-height:.74;padding:9px 12px 0 0;color:var(--accent)"
-        : "font:inherit;color:inherit";
-    }
-    const parts = tokenize(text, markersFor(text)).map((tok) => renderToken(tok, "tk" + pkey++));
+        : "font:inherit;color:inherit"
+      : "";
+    const parts = tokens.map((tok) => renderToken(tok, "tk" + pkey++));
     return (
       <p
         key={`b${bi}`}

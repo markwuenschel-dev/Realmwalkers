@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -143,9 +143,15 @@ export default function InboxScreen() {
   const approved = latest.filter((s) => s.status === "approved");
   const revising = latest.filter((s) => s.status === "revision_requested");
 
-  const manuscriptWords = (data.manuscript?.chapters ?? [])
-    .flatMap((c) => c.scenes)
-    .reduce((acc, s) => acc + wordCount(s.prose), 0);
+  // Word-count the whole assembled manuscript once per manuscript change, not on every Inbox render
+  // (this flatMaps + counts every approved scene's prose — costly on a long book).
+  const manuscriptWords = useMemo(
+    () =>
+      (data.manuscript?.chapters ?? [])
+        .flatMap((c) => c.scenes)
+        .reduce((acc, s) => acc + wordCount(s.prose), 0),
+    [data.manuscript],
+  );
 
   const stats = [
     { label: "Manuscript", value: manuscriptWords.toLocaleString(), suffix: "words" },
