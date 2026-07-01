@@ -5225,14 +5225,6 @@
           },
           "globals": {
             "$ref": "#/components/schemas/AgentGlobalsOut"
-          },
-          "providers": {
-            "items": {
-              "$ref": "#/components/schemas/AgentProviderOut"
-            },
-            "type": "array",
-            "title": "Providers",
-            "default": []
           }
         },
         "type": "object",
@@ -5413,6 +5405,17 @@
             ],
             "title": "Fallback Model"
           },
+          "fallback_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Provider"
+          },
           "never_fallback": {
             "items": {
               "type": "string"
@@ -5459,6 +5462,17 @@
               }
             ],
             "title": "Fallback Tier"
+          },
+          "fallback_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Provider"
           },
           "never_fallback": {
             "anyOf": [
@@ -5552,34 +5566,6 @@
           "best_for"
         ],
         "title": "AgentPresetOut"
-      },
-      "AgentProviderOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "status"
-        ],
-        "title": "AgentProviderOut"
       },
       "AgentStatsListOut": {
         "properties": {

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AgentRow } from "./AgentRow";
-import type { AgentOpsAgentOut, ProviderOut } from "../../api/types";
+import type { AgentOpsAgentOut } from "../../api/types";
 
 vi.mock("../../state", () => ({
   useDesk: () => ({ t: { warn: "#e0b15a" } }),
@@ -12,12 +12,6 @@ const PROVIDER_TIERS: Record<string, Record<string, string>> = {
   openai: { haiku: "gpt-5.4-nano", sonnet: "gpt-5.4-mini", opus: "gpt-5.5" },
   xai: { opus: "grok-4.3" },
 };
-
-const PROVIDERS: ProviderOut[] = [
-  { id: "anthropic", label: "Anthropic", status: "active" },
-  { id: "openai", label: "OpenAI", status: "active" },
-  { id: "xai", label: "xAI", status: "active" },
-];
 
 function agent(over: Partial<AgentOpsAgentOut> = {}): AgentOpsAgentOut {
   return {
@@ -33,6 +27,7 @@ function agent(over: Partial<AgentOpsAgentOut> = {}): AgentOpsAgentOut {
       primary_model: "claude-sonnet-5",
       fallback_tier: null,
       fallback_model: null,
+      fallback_provider: null,
       never_fallback: [],
       escalation_rules: [],
       semantic_escalation: true,
@@ -71,15 +66,15 @@ function agent(over: Partial<AgentOpsAgentOut> = {}): AgentOpsAgentOut {
 
 function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
   const onPickTier = vi.fn();
+  const onSetFallback = vi.fn();
   render(
     <AgentRow
       agent={agent()}
       stats={undefined}
       busy={false}
       providerTiers={PROVIDER_TIERS}
-      providers={PROVIDERS}
       onPickTier={onPickTier}
-      onSetFallback={vi.fn()}
+      onSetFallback={onSetFallback}
       onSetQuality={vi.fn()}
       onSetSemanticEscalation={vi.fn()}
       onSetAutoRun={vi.fn()}
@@ -87,40 +82,97 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
     />,
   );
   fireEvent.click(screen.getByText("Drafter & planner"));
-  return { onPickTier, picker: within(screen.getByTestId("primary-model-picker")) };
+  return {
+    onPickTier,
+    onSetFallback,
+    primary: within(screen.getByTestId("primary-model-picker")),
+    fallback: within(screen.getByTestId("fallback-model-picker")),
+  };
 }
 
-describe("AgentRow provider picker", () => {
-  it("shows a provider selector when more than one provider is wired", () => {
-    const { picker } = renderOpen();
-    expect(picker.getByText("Anthropic")).toBeInTheDocument();
-    expect(picker.getByText("OpenAI")).toBeInTheDocument();
-    expect(picker.getByText("xAI")).toBeInTheDocument();
+describe("AgentRow flat model picker", () => {
+  it("shows all 7 models in one row, in Haiku/Sonnet/Opus/GPT-Nano/GPT-Mini/GPT-5.5/Grok order", () => {
+    const { primary } = renderOpen();
+    const buttons = primary
+      .getAllByRole("button")
+      .map((b) => b.textContent)
+      .filter((text) => text !== "None");
+    expect(buttons).toEqual([
+      "Haiku",
+      "Sonnet",
+      "Opus",
+      "GPT 5.4 Nano",
+      "GPT 5.4 Mini",
+      "GPT 5.5",
+      "Grok",
+    ]);
   });
 
-  it("picking a tier under the current provider calls onPickTier with that provider", () => {
-    const { onPickTier, picker } = renderOpen();
-    fireEvent.click(picker.getByText("Opus"));
-    expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "anthropic");
+  it("picking a model calls onPickTier with its (tier, provider) pair", () => {
+    const { onPickTier, primary } = renderOpen();
+    fireEvent.click(primary.getByText("GPT 5.5"));
+    expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "openai");
   });
 
-  it("switching provider narrows the tier choices to what that provider offers", () => {
-    const { onPickTier, picker } = renderOpen();
-    fireEvent.click(picker.getByText("xAI"));
-    // xAI only ships one model, slotted at opus -- haiku/sonnet must disappear from this picker
-    // (the separate Fallback picker is unaffected and still offers all Anthropic tiers).
-    expect(picker.queryByText("Haiku")).not.toBeInTheDocument();
-    expect(picker.queryByText("Sonnet")).not.toBeInTheDocument();
-    fireEvent.click(picker.getByText("Opus"));
+  it("picking Grok calls onPickTier with xai/opus", () => {
+    const { onPickTier, primary } = renderOpen();
+    fireEvent.click(primary.getByText("Grok"));
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "xai");
   });
 
-  it("hides the provider selector when only Anthropic is wired", () => {
-    const { picker } = renderOpen({
-      providerTiers: { anthropic: PROVIDER_TIERS.anthropic },
-      providers: undefined,
+  it("highlights the active model with its brand color and white text", () => {
+    const { primary } = renderOpen();
+    const sonnetBtn = primary.getByText("Sonnet"); // agent() fixture defaults to anthropic/sonnet
+    expect(sonnetBtn).toHaveStyle({ background: "#E67E51", color: "#FFFFFF" });
+  });
+
+  it("highlights an active OpenAI model with the OpenAI brand color", () => {
+    const { primary } = renderOpen({
+      agent: agent({ provider: "openai", tier: "haiku", model: "gpt-5.4-nano" }),
     });
-    expect(picker.queryByText("OpenAI")).not.toBeInTheDocument();
-    expect(picker.queryByText("xAI")).not.toBeInTheDocument();
+    const btn = primary.getByText("GPT 5.4 Nano");
+    expect(btn).toHaveStyle({ background: "#10A37F", color: "#FFFFFF" });
+  });
+
+  it("highlights an active Grok fallback with the xAI brand color", () => {
+    const { fallback } = renderOpen({
+      agent: agent({
+        policy: {
+          ...agent().policy,
+          fallback_tier: "opus",
+          fallback_model: "grok-4.3",
+          fallback_provider: "xai",
+        },
+      }),
+    });
+    const btn = fallback.getByText("Grok");
+    expect(btn).toHaveStyle({ background: "#0A0A0A", color: "#FFFFFF" });
+  });
+
+  it("fallback row includes a None option that clears the fallback", () => {
+    const { onSetFallback, fallback } = renderOpen({
+      agent: agent({
+        policy: {
+          ...agent().policy,
+          fallback_tier: "sonnet",
+          fallback_model: "claude-sonnet-5",
+          fallback_provider: "anthropic",
+        },
+      }),
+    });
+    fireEvent.click(fallback.getByText("None"));
+    expect(onSetFallback).toHaveBeenCalledWith("draft_model", "", "anthropic");
+  });
+
+  it("fallback row picks a model with (tier, provider), same as primary", () => {
+    const { onSetFallback, fallback } = renderOpen();
+    fireEvent.click(fallback.getByText("GPT 5.4 Mini"));
+    expect(onSetFallback).toHaveBeenCalledWith("draft_model", "sonnet", "openai");
+  });
+
+  it("only shows models that a partial provider catalog actually offers", () => {
+    const { primary } = renderOpen({ providerTiers: { anthropic: PROVIDER_TIERS.anthropic } });
+    expect(primary.queryByText("Grok")).not.toBeInTheDocument();
+    expect(primary.queryByText("GPT 5.5")).not.toBeInTheDocument();
   });
 });

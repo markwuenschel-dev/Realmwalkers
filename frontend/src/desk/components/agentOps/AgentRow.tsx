@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { css } from "../../css";
 import { useDesk } from "../../state";
-import type { AgentOpsAgentOut, AgentStatsOut, ProviderOut } from "../../api/types";
+import type { AgentOpsAgentOut, AgentStatsOut } from "../../api/types";
 import { AgentHealthStrip } from "./AgentHealthStrip";
 
 const TIER_LABEL: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };
-const TIER_ORDER = ["haiku", "sonnet", "opus"];
 const TIER_HINT: Record<string, string> = {
   haiku: "fastest / cheapest",
   sonnet: "balanced",
@@ -19,20 +18,54 @@ const QUALITY_LABEL: Record<string, string> = {
   balanced: "Balanced",
   quality: "Quality",
 };
-const PROVIDER_LABEL_FALLBACK: Record<string, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  xai: "xAI",
+
+// Brand colors for the active/selected model button. Anthropic uses the tier label (no per-model
+// override needed); OpenAI and xAI need explicit labels since raw model ids don't read well.
+const PROVIDER_COLOR: Record<string, string> = {
+  anthropic: "#E67E51",
+  openai: "#10A37F",
+  xai: "#0A0A0A",
 };
+const MODEL_LABEL: Record<string, string> = {
+  "gpt-5.4-nano": "GPT 5.4 Nano",
+  "gpt-5.4-mini": "GPT 5.4 Mini",
+  "gpt-5.5": "GPT 5.5",
+  "grok-4.3": "Grok",
+};
+
+interface ModelOption {
+  provider: string;
+  tier: string;
+  model: string;
+  label: string;
+  color: string;
+}
+
+function modelCatalog(providerTiers: Record<string, Record<string, string>>): ModelOption[] {
+  const options: ModelOption[] = [];
+  for (const [provider, tiers] of Object.entries(providerTiers)) {
+    for (const tier of ["haiku", "sonnet", "opus"]) {
+      const model = tiers[tier];
+      if (!model) continue;
+      options.push({
+        provider,
+        tier,
+        model,
+        label: MODEL_LABEL[model] ?? TIER_LABEL[tier] ?? model,
+        color: PROVIDER_COLOR[provider] ?? "var(--accent)",
+      });
+    }
+  }
+  return options;
+}
 
 interface AgentRowProps {
   agent: AgentOpsAgentOut;
   stats: AgentStatsOut | undefined;
   busy: boolean;
   providerTiers: Record<string, Record<string, string>>;
-  providers?: ProviderOut[];
   onPickTier: (setting: string, tier: string, provider: string) => void;
-  onSetFallback: (setting: string, tier: string) => void;
+  onSetFallback: (setting: string, tier: string, provider: string) => void;
   onSetQuality: (setting: string, level: string) => void;
   onSetSemanticEscalation: (setting: string, enabled: boolean) => void;
   onSetAutoRun: (setting: string, enabled: boolean) => void;
@@ -43,7 +76,6 @@ export function AgentRow({
   stats,
   busy,
   providerTiers,
-  providers,
   onPickTier,
   onSetFallback,
   onSetQuality,
@@ -53,17 +85,7 @@ export function AgentRow({
   const { t } = useDesk();
   const [open, setOpen] = useState(false);
   const a = agent;
-  const currentProvider = a.provider ?? "anthropic";
-  const [pendingProvider, setPendingProvider] = useState(currentProvider);
-  useEffect(() => setPendingProvider(currentProvider), [currentProvider]);
-  const providerLabel = (id: string) =>
-    providers?.find((p) => p.id === id)?.label ?? PROVIDER_LABEL_FALLBACK[id] ?? id;
-  const providerOrder = Object.keys(providerTiers).length
-    ? Object.keys(providerTiers)
-    : ["anthropic"];
-  const tiersForPendingProvider = TIER_ORDER.filter(
-    (tier) => (providerTiers[pendingProvider] ?? {})[tier],
-  );
+  const catalog = modelCatalog(providerTiers);
 
   return (
     <div
@@ -130,31 +152,22 @@ export function AgentRow({
               <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>
                 Primary model
               </div>
-              {providerOrder.length > 1 && (
-                <div style={css("margin-bottom:6px")}>
-                  <ProviderButtons
-                    order={providerOrder}
-                    active={pendingProvider}
-                    disabled={busy}
-                    label={providerLabel}
-                    onPick={setPendingProvider}
-                  />
-                </div>
-              )}
-              <TierButtons
-                active={pendingProvider === currentProvider ? a.tier : null}
+              <ModelButtons
+                options={catalog}
+                active={{ provider: a.provider, tier: a.tier }}
                 disabled={busy}
-                order={tiersForPendingProvider.length ? tiersForPendingProvider : TIER_ORDER}
-                onPick={(tier) => onPickTier(a.setting, tier, pendingProvider)}
+                onPick={(opt) => onPickTier(a.setting, opt.tier, opt.provider)}
               />
             </div>
-            <div>
+            <div data-testid="fallback-model-picker">
               <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>Fallback</div>
-              <TierButtons
-                active={a.policy.fallback_tier}
+              <ModelButtons
+                options={catalog}
+                active={{ provider: a.policy.fallback_provider, tier: a.policy.fallback_tier }}
                 disabled={busy}
-                onPick={(tier) => onSetFallback(a.setting, tier)}
                 allowEmpty
+                onPickEmpty={() => onSetFallback(a.setting, "", "anthropic")}
+                onPick={(opt) => onSetFallback(a.setting, opt.tier, opt.provider)}
               />
             </div>
             <div>
@@ -265,16 +278,14 @@ function TierButtons({
   active,
   disabled,
   onPick,
-  allowEmpty,
-  labels = TIER_LABEL,
-  order = TIER_ORDER,
+  labels,
+  order,
 }: {
   active: string | null | undefined;
   disabled: boolean;
   onPick: (tier: string) => void;
-  allowEmpty?: boolean;
-  labels?: Record<string, string>;
-  order?: string[];
+  labels: Record<string, string>;
+  order: string[];
 }) {
   return (
     <div
@@ -282,24 +293,12 @@ function TierButtons({
         `display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px;opacity:${disabled ? ".6" : "1"}`,
       )}
     >
-      {allowEmpty && (
-        <button
-          disabled={disabled}
-          onClick={() => onPick("")}
-          style={css(
-            `padding:5px 10px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${!active ? "var(--accent)" : "transparent"};color:${!active ? "var(--onAccent)" : "var(--dim)"}`,
-          )}
-        >
-          None
-        </button>
-      )}
       {order.map((tier) => {
         const on = active === tier;
         return (
           <button
             key={tier}
             disabled={disabled}
-            title={TIER_HINT[tier]}
             onClick={() => {
               if (!on) onPick(tier);
             }}
@@ -315,39 +314,56 @@ function TierButtons({
   );
 }
 
-function ProviderButtons({
+function ModelButtons({
+  options,
   active,
   disabled,
-  order,
-  label,
+  allowEmpty,
   onPick,
+  onPickEmpty,
 }: {
-  active: string;
+  options: ModelOption[];
+  active: { provider?: string | null; tier?: string | null };
   disabled: boolean;
-  order: string[];
-  label: (id: string) => string;
-  onPick: (provider: string) => void;
+  allowEmpty?: boolean;
+  onPick: (option: ModelOption) => void;
+  onPickEmpty?: () => void;
 }) {
+  const isActive = (opt: ModelOption) =>
+    active.provider === opt.provider && active.tier === opt.tier;
+  const noneActive = allowEmpty && !active.tier;
   return (
     <div
       style={css(
-        `display:flex;padding:2px;gap:2px;background:var(--bg1);border:1px solid var(--line);border-radius:8px;opacity:${disabled ? ".6" : "1"}`,
+        `display:flex;flex-wrap:wrap;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px;opacity:${disabled ? ".6" : "1"}`,
       )}
     >
-      {order.map((provider) => {
-        const on = active === provider;
+      {allowEmpty && (
+        <button
+          disabled={disabled}
+          onClick={() => onPickEmpty?.()}
+          style={css(
+            `padding:5px 10px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${noneActive ? "var(--accent)" : "transparent"};color:${noneActive ? "var(--onAccent)" : "var(--dim)"}`,
+          )}
+        >
+          None
+        </button>
+      )}
+      {options.map((opt) => {
+        const on = isActive(opt);
         return (
           <button
-            key={provider}
+            key={opt.model}
             disabled={disabled}
+            title={TIER_HINT[opt.tier] ?? opt.model}
             onClick={() => {
-              if (!on) onPick(provider);
+              if (!on) onPick(opt);
             }}
             style={css(
-              `padding:3px 9px;border:none;border-radius:6px;cursor:${disabled ? "default" : "pointer"};font-family:var(--ui);font-size:11px;background:${on ? "var(--bg3)" : "transparent"};color:${on ? "var(--ink)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
+              `padding:5px 12px;border:none;border-radius:7px;cursor:${disabled ? "default" : "pointer"};font-family:var(--ui);font-size:12px;background:${on ? opt.color : "transparent"};color:${on ? "#FFFFFF" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
             )}
           >
-            {label(provider)}
+            {opt.label}
           </button>
         );
       })}

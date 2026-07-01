@@ -8,7 +8,6 @@ import type { AgentOpsOut, AgentStatsListOut, SmokeTestOut } from "../api/types"
 import { PresetBar } from "../components/agentOps/PresetBar";
 import { BudgetControls } from "../components/agentOps/BudgetControls";
 import { AgentRow } from "../components/agentOps/AgentRow";
-import { ProviderCards } from "../components/agentOps/ProviderCards";
 import { SmokeTestModal } from "../components/agentOps/SmokeTestModal";
 
 export default function SettingsScreen() {
@@ -58,11 +57,14 @@ export default function SettingsScreen() {
     }
   };
 
-  const setFallback = async (setting: string, tier: string) => {
+  const setFallback = async (setting: string, tier: string, provider: string) => {
     setBusy(setting);
     setError(null);
     try {
-      const updated = await api.setAgentPolicy(setting, { fallback_tier: tier || null });
+      const updated = await api.setAgentPolicy(setting, {
+        fallback_tier: tier || null,
+        fallback_provider: tier ? provider : null,
+      });
       setData(updated);
       await refreshStats();
     } catch (e) {
@@ -222,7 +224,6 @@ export default function SettingsScreen() {
                 stats={statsBySetting[a.setting]}
                 busy={busy === a.setting}
                 providerTiers={data.provider_tiers ?? {}}
-                providers={data.providers}
                 onPickTier={pickTier}
                 onSetFallback={setFallback}
                 onSetQuality={setQuality}
@@ -231,7 +232,6 @@ export default function SettingsScreen() {
               />
             ))}
           </div>
-          <ProviderCards providers={data.providers} />
         </>
       )}
 

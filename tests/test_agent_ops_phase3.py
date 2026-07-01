@@ -37,6 +37,21 @@ async def test_save_and_apply_custom_preset(db_factory):
         assert review.tier == "sonnet"
 
 
+async def test_custom_preset_snapshot_preserves_primary_model_provider(db_factory):
+    # Regression: _capture_snapshot/_apply_snapshot used to record only the tier, so restoring a
+    # snapshot captured with a non-Anthropic primary model silently restored the Anthropic model
+    # for that tier instead (e.g. "opus" -> claude-opus-4-8 instead of the saved gpt-5.5).
+    async with db_factory() as s:
+        await settings_router.set_model(ModelSettingUpdateIn(setting="review_model", tier="opus", provider="openai"), s)
+        saved = await settings_router.save_custom_preset(CustomPresetCreateIn(label="OpenAI Review"), s)
+        custom_id = next(p.id for p in saved.presets if p.is_custom)
+        await settings_router.set_model(ModelSettingUpdateIn(setting="review_model", tier="haiku"), s)
+        restored = await settings_router.apply_preset(custom_id, s)
+        review = next(a for a in restored.agents if a.setting == "review_model")
+        assert review.provider == "openai"
+        assert review.model == "gpt-5.5"
+
+
 async def test_delete_custom_preset(db_factory):
     async with db_factory() as s:
         saved = await settings_router.save_custom_preset(CustomPresetCreateIn(label="To Delete"), s)

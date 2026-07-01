@@ -111,6 +111,7 @@ async def set_agent_policy(setting: str, body: AgentPolicyUpdateIn, session: Ses
             session,
             setting,
             fallback_tier=body.fallback_tier,
+            fallback_provider=body.fallback_provider or "anthropic",
             never_fallback=body.never_fallback,
             semantic_escalation=body.semantic_escalation,
             quality_level=body.quality_level,

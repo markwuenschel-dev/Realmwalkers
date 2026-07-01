@@ -977,6 +977,7 @@ class AgentPolicyOut(BaseModel):
     primary_model: str
     fallback_tier: str | None = None
     fallback_model: str | None = None
+    fallback_provider: str | None = None
     never_fallback: list[str] = []
     escalation_rules: list[EscalationRuleOut] = []
     semantic_escalation: bool = True
@@ -1035,13 +1036,6 @@ class CustomPresetCreateIn(BaseModel):
     description: str | None = None
 
 
-class AgentProviderOut(BaseModel):
-    id: str
-    label: str
-    status: str
-    description: str = ""
-
-
 class AgentOpsOut(BaseModel):
     active_preset: str | None
     presets: list[AgentPresetOut]
@@ -1050,11 +1044,11 @@ class AgentOpsOut(BaseModel):
     tiers: dict[str, str]
     provider_tiers: dict[str, dict[str, str]] = {}
     globals: AgentGlobalsOut
-    providers: list[AgentProviderOut] = []
 
 
 class AgentPolicyUpdateIn(BaseModel):
     fallback_tier: str | None = None
+    fallback_provider: str | None = None
     never_fallback: list[str] | None = None
     semantic_escalation: bool | None = None
     quality_level: str | None = None  # fast | balanced | quality
