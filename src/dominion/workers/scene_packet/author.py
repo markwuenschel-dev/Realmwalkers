@@ -42,6 +42,10 @@ class ScenePacketAuthorError(RuntimeError):
 _SYSTEM = (
     "You are the ScenePacket Author. Do NOT write prose. Do NOT invent story. Do NOT resolve "
     "unresolved canon. Do NOT import future knowledge into the reader or POV fields.\n\n"
+    "If RESOLVED AUTHOR RULINGS are supplied, they are settled fact — write consistently with them, but "
+    "a ruling being true does not make it reader/POV-known: place it in known_before_scene.omniscient_author "
+    "and must_remain_hidden unless the ruling itself says the reader/POV already knows. If UNRESOLVED OPEN "
+    "QUESTIONS are supplied, leave them genuinely open — do not invent an answer for one.\n\n"
     "Translate the approved chapter packet's chapter-wide constraints into THIS scene's local "
     "boundary. Decide precisely what the reader knows before the scene vs. what the POV character "
     "knows; what the reader must learn, may learn, or may only infer; what must remain hidden from "
@@ -54,9 +58,12 @@ _SYSTEM = (
     "reader/POV knowledge item is grounded in a specific retrieved snippet, record it in claim_sources: "
     "the claim text plus that snippet's handle (like C1, C2 — only handles visible in THIS prompt) as "
     "source_id. Use null when the claim rests on the chapter packet, outline, scene seed, word budget, a "
-    "prior summary, or your own inference. claim_sources is OPTIONAL — prefer null over an invented id, "
-    "and NEVER use OUTLINE, CHAPTER_PACKET, SCENE_SEED, a UUID, a file name, a seed id, or any label that "
-    "is not a visible [C#] handle. This keeps a wrong claim traceable to the canon it came from.\n\n"
+    "prior summary, a RESOLVED AUTHOR RULING, or your own inference. A resolved ruling is NOT a retrieved "
+    "snippet — never cite a [C#] handle for a fact that comes from a ruling, even if a handle happens to "
+    "discuss a related topic; use null. claim_sources is OPTIONAL — prefer null over an invented or "
+    "mismatched id, and NEVER use OUTLINE, CHAPTER_PACKET, SCENE_SEED, a UUID, a file name, a seed id, or "
+    "any label that is not a visible [C#] handle whose content actually supports the claim. This keeps a "
+    "wrong claim traceable to the canon it came from.\n\n"
     "Reply with ONE JSON object only — no prose, no code fences."
 )
 
@@ -67,6 +74,50 @@ CLAIM_SOURCES_SCHEMA_HINT = (
     'prompt like "C1"; use null for the chapter packet, outline, seed, word budget, prior summary, or '
     "inference. Never invent a handle.}]\n"
 )
+
+
+def format_chapter_rulings(open_questions: dict[str, Any] | None) -> str | None:
+    """Render a ChapterPacket's `open_questions` (its `items`/`resolved` shape — see PacketsScreen's
+    resolveQuestion/unresolveQuestion) as an explicit RESOLVED-vs-UNRESOLVED prompt block.
+
+    This is the fix for the reported "resolved ruling still gets attacked as an unresolved open
+    question" collapse: `open_questions` is a SIBLING column on ChapterPacket, not part of `body`, so it
+    was never reaching the author or QA prompt at all — a human's ruling ("It's Mara; 404 doesn't know
+    until Chapter 2") was invisible downstream of the chapter-packet editor. Shared by both the scene
+    author and scene QA prompts (imported, not duplicated) so the two can't drift on how a ruling reads.
+    """
+    if not isinstance(open_questions, dict):
+        return None
+    parts: list[str] = []
+    resolved = open_questions.get("resolved")
+    if isinstance(resolved, list):
+        lines = []
+        for r in resolved:
+            if not isinstance(r, dict):
+                continue
+            q = str(r.get("q") or "").strip()
+            res = str(r.get("resolution") or "").strip()
+            if q or res:
+                lines.append(f"- Q: {q}\n  RULING: {res}")
+        if lines:
+            parts.append(
+                "RESOLVED AUTHOR RULINGS (settled — treat as fact; do NOT re-litigate or contradict. A "
+                "ruling being true does NOT make it reader/POV-known — apply it with normal knowledge-access "
+                "rules: author-only truth belongs in known_before_scene.omniscient_author / "
+                "must_remain_hidden, never in a reader/POV-visible or on-page field, unless the ruling "
+                "itself says the fact is already reader/POV-known):\n" + "\n".join(lines)
+            )
+    items = open_questions.get("items")
+    if isinstance(items, list):
+        open_items = [str(i).strip() for i in items if str(i).strip()]
+        if open_items:
+            parts.append(
+                "UNRESOLVED OPEN QUESTIONS (still genuinely undecided — do not invent an answer, and do "
+                "not treat a packet that stays silent on one of these as broken; silence on a genuinely "
+                "open question is correct, not a defect):\n" + "\n".join(f"- {q}" for q in open_items)
+            )
+    return "\n\n".join(parts) if parts else None
+
 
 _SCHEMA_HINT = (
     "{\n"
@@ -93,11 +144,15 @@ def build_prefix(
     chapter_packet_body: dict[str, Any],
     pov_summary: str | None = None,
     omniscient_summary: str | None = None,
+    chapter_open_questions: dict[str, Any] | None = None,
 ) -> str:
     """The chapter-wide context that is IDENTICAL across every scene of the chapter, sent as a cached
     block so scenes 2..N read it instead of re-paying for it. Everything scene-specific lives in
     build_prompt below the cache breakpoint."""
     parts = ["APPROVED CHAPTER PACKET (chapter-wide authority):\n" + _compact(chapter_packet_body)]
+    rulings = format_chapter_rulings(chapter_open_questions)
+    if rulings:
+        parts.append(rulings)
     if pov_summary:
         parts.append(f"What this POV knows so far:\n{pov_summary}")
     if omniscient_summary:
@@ -187,6 +242,7 @@ async def author_scene_packet(
     prior_exit_state: str | None = None,
     pov_summary: str | None = None,
     omniscient_summary: str | None = None,
+    chapter_open_questions: dict[str, Any] | None = None,
     owner_snippets: list[str] | None = None,
     canon_snippets: list[str] | None = None,
     budget: TokenBudget,
@@ -202,6 +258,7 @@ async def author_scene_packet(
         chapter_packet_body=chapter_packet_body,
         pov_summary=pov_summary,
         omniscient_summary=omniscient_summary,
+        chapter_open_questions=chapter_open_questions,
     )
     user = build_prompt(
         pov=pov,

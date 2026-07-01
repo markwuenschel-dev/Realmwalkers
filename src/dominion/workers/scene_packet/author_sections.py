@@ -340,6 +340,7 @@ def build_author_prefix_blocks(
     prior_exit_state: str | None = None,
     pov_summary: str | None = None,
     omniscient_summary: str | None = None,
+    chapter_open_questions: dict[str, Any] | None = None,
     owner_snippets: list[str] | None = None,
     canon_snippets: list[str] | None = None,
 ) -> tuple[CachedPrefixBlock, CachedPrefixBlock]:
@@ -347,6 +348,7 @@ def build_author_prefix_blocks(
         chapter_packet_body=chapter_packet_body,
         pov_summary=pov_summary,
         omniscient_summary=omniscient_summary,
+        chapter_open_questions=chapter_open_questions,
     )
     scene_context_prefix = build_scene_context(
         pov=pov,
@@ -375,6 +377,7 @@ async def prime_author_shared_prefix(
     chapter_packet_body: dict[str, Any],
     pov_summary: str | None = None,
     omniscient_summary: str | None = None,
+    chapter_open_questions: dict[str, Any] | None = None,
     budget: TokenBudget,
 ) -> None:
     """Prime the chapter-shared author prefix outside any scene-local work budget."""
@@ -382,6 +385,7 @@ async def prime_author_shared_prefix(
         chapter_packet_body=chapter_packet_body,
         pov_summary=pov_summary,
         omniscient_summary=omniscient_summary,
+        chapter_open_questions=chapter_open_questions,
     )
     user = "Acknowledge cache prime."
     await llm.complete(
@@ -410,6 +414,7 @@ async def author_scene_packet_sectioned(
     prior_exit_state: str | None = None,
     pov_summary: str | None = None,
     omniscient_summary: str | None = None,
+    chapter_open_questions: dict[str, Any] | None = None,
     owner_snippets: list[str] | None = None,
     canon_snippets: list[str] | None = None,
     budget: TokenBudget,
@@ -430,6 +435,7 @@ async def author_scene_packet_sectioned(
         prior_exit_state=prior_exit_state,
         pov_summary=pov_summary,
         omniscient_summary=omniscient_summary,
+        chapter_open_questions=chapter_open_questions,
         owner_snippets=owner_snippets,
         canon_snippets=canon_snippets,
     )

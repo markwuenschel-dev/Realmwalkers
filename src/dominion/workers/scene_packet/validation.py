@@ -5,11 +5,17 @@ deterministic gate that runs BEFORE QA and decides the facts a checker should ne
 
 WRITER-FIRST POLICY: the product is drafting, so this gate hard-BLOCKS only true draft-safety failures
 — a malformed body, a model-overridden word budget that can't be recovered, an absent character placed
-ON-PAGE (acting in a scene they're not in), a scene-number contradiction. Everything that is optional
+ON-PAGE (acting in a scene they're not in) OR leaked into a READER/POV-KNOWLEDGE field (the reader/POV
+already effectively "knows" someone declared absent from the roster — the same collapse as being on-page,
+just via knowledge instead of action), a scene-number contradiction. Everything that is optional
 provenance hygiene is normalized or WARNED, never blocked: an invalid `claim_sources.source_id` (an
 outline label, a UUID, an out-of-range/fabricated handle) is rewritten to null by `normalize_provenance`
-and surfaced as a single collapsed warning. The orchestrator is `evaluate_scene_packet`, which returns a
-`ScenePacketValidationResult` whose `draftable` reflects only the hard blockers.
+and surfaced as a single collapsed warning. Naming an absent character in an author-only/protective field
+(`known_before_scene.omniscient_author`, `must_remain_hidden.*`, `intentional_mysteries`,
+`forbidden_beats`) is CORRECT layering — hidden truth may exist author-side as long as it stays out of
+reader/POV/surface-prose fields — so it only warns, informationally. The orchestrator is
+`evaluate_scene_packet`, which returns a `ScenePacketValidationResult` whose `draftable` reflects only the
+hard blockers.
 
 Pure and import-light (no DB, no models): inputs are plain dicts, output is a result object / list of
 violations the derive persists on the packet. `block` severity stops drafting; `warn` is surfaced but
@@ -35,17 +41,50 @@ _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 # Body fields that imply a character is ACTING on-page (block an absent character here) vs. fields that
 # are about knowledge/reveals/off-page references (only warn — naming an absent character is plausible).
-_ON_PAGE_FIELDS: tuple[str, ...] = ("required_beats", "exit_state", "reviewer_instructions")
-_OFF_PAGE_FIELDS: tuple[str, ...] = (
-    "forbidden_beats",
-    "known_before_scene",
-    "learned_during_scene",
-    "must_remain_hidden",
-    "intentional_mysteries",
-)
+# reviewer_instructions is deliberately EXCLUDED: it is meta-guidance TO A REVIEWER ("check that X is NOT
+# named", "flag if X surfaces on-page"), never an assertion that a character is on-page. Checking it here
+# produced the exact regression this contract exists to prevent: a reviewer trap protecting a hidden
+# character ("she must stay unmentioned/hidden") was itself blocked for naming that character.
+_ON_PAGE_FIELDS: tuple[str, ...] = ("required_beats", "exit_state")
 # pov_permissions is a dict: only the perception sub-keys imply presence; must_not_know / may_be_wrong
 # legitimately reference an absent character, so they are excluded.
 _POV_ON_PAGE_SUBKEYS: tuple[str, ...] = ("may_notice", "may_infer")
+
+# Dotted body paths where naming an absent/roster-hidden character means the READER or POV already
+# effectively knows them — the exact reader/POV-knowledge collapse this contract exists to prevent (e.g.
+# a character resolved as a hidden threat, still correctly absent from the on-page cast, but leaked into
+# `known_before_scene.reader` as if the reader already knows). This is a real leak, not a plausible
+# off-page mention, so it BLOCKS — same severity as an on-page appearance. Previously these dotted paths
+# were lumped into one generic off-page-warn bucket alongside genuinely safe author-only fields, which is
+# why a leaked reveal only ever warned instead of blocking (the reported collapse bug).
+_READER_POV_KNOWLEDGE_PATHS: tuple[str, ...] = (
+    "known_before_scene.reader",
+    "known_before_scene.pov",
+    "learned_during_scene.reader_must_learn",
+    "learned_during_scene.reader_may_learn",
+    "learned_during_scene.reader_may_infer_only",
+)
+
+# Dotted body paths (or whole-field names) where naming an absent/hidden character is CORRECT usage —
+# author-only bookkeeping, a declaration of what must stay hidden, an intentional mystery, or a protective
+# forbidden-beat. These are never a leak by construction, so they only ever WARN (informational — "here is
+# where the hidden fact lives, confirm it's protected"), never block.
+_AUTHOR_ONLY_REFERENCE_PATHS: tuple[str, ...] = (
+    "known_before_scene.omniscient_author",
+    "must_remain_hidden.reader",
+    "must_remain_hidden.pov",
+    "must_remain_hidden.all_surface_prose",
+)
+_AUTHOR_ONLY_REFERENCE_FIELDS: tuple[str, ...] = ("intentional_mysteries", "forbidden_beats")
+
+
+def _get_dotted(body: dict[str, Any], dotted: str) -> Any:
+    node: Any = body
+    for part in dotted.split("."):
+        if not isinstance(node, dict):
+            return None
+        node = node.get(part)
+    return node
 
 
 @dataclass(frozen=True)
@@ -200,8 +239,12 @@ def validate_scene_packet_contract(
                 )
 
     # 5/6. Roster / absence: an absent character placed in an on-page field is acting in a scene they are
-    # not in → block; one referenced only in a knowledge/off-page field is plausible (reader learns of
-    # them, they stay hidden) → warn. Known absent names only, whole-word, case-insensitive.
+    # not in → block. One named in a reader/POV-knowledge field means the reader/POV already effectively
+    # knows them despite being declared absent → also block (the reader/POV-knowledge collapse this
+    # contract exists to prevent — a hidden reveal leaked early is not "plausible off-page color", it is
+    # the exact failure mode). One referenced only in an author-only/protective field (declaring what must
+    # stay hidden, an intentional mystery, a forbidden beat) is CORRECT layering → warn only, informational.
+    # Known absent names only, whole-word, case-insensitive.
     absent = _as_str_list(chapter_packet_body.get("characters_absent")) if isinstance(chapter_packet_body, dict) else []
     if absent:
         for field_name in _ON_PAGE_FIELDS:
@@ -226,13 +269,43 @@ def validate_scene_packet_contract(
                             severity="block",
                         )
                     )
-        for field_name in _OFF_PAGE_FIELDS:
+        for dotted in _READER_POV_KNOWLEDGE_PATHS:
+            for name in _names_present(_collect_strings(_get_dotted(body, dotted)), absent):
+                violations.append(
+                    ScenePacketViolation(
+                        kind="absent_character_reader_pov_leak",
+                        field=dotted,
+                        detail=(
+                            f"absent character {name!r} appears in reader/POV-knowledge field {dotted!r} — "
+                            "this asserts the reader or POV already knows them despite being declared absent "
+                            "from this chapter's roster"
+                        ),
+                        severity="block",
+                    )
+                )
+        for dotted in _AUTHOR_ONLY_REFERENCE_PATHS:
+            for name in _names_present(_collect_strings(_get_dotted(body, dotted)), absent):
+                violations.append(
+                    ScenePacketViolation(
+                        kind="absent_character_author_only_reference",
+                        field=dotted,
+                        detail=(
+                            f"absent character {name!r} referenced in author-only/protective field {dotted!r} "
+                            "— fine as long as they stay out of reader/POV/surface-prose fields"
+                        ),
+                        severity="warn",
+                    )
+                )
+        for field_name in _AUTHOR_ONLY_REFERENCE_FIELDS:
             for name in _names_present(_collect_strings(body.get(field_name)), absent):
                 violations.append(
                     ScenePacketViolation(
-                        kind="absent_character_off_page",
+                        kind="absent_character_author_only_reference",
                         field=field_name,
-                        detail=f"absent character {name!r} referenced in off-page field {field_name!r}",
+                        detail=(
+                            f"absent character {name!r} referenced in author-only/protective field "
+                            f"{field_name!r} — fine as long as they stay out of reader/POV/surface-prose fields"
+                        ),
                         severity="warn",
                     )
                 )

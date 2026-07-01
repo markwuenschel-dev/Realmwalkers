@@ -80,14 +80,26 @@ def test_scene_no_mismatch_blocks():
     assert any(x.kind == "scene_no_mismatch" and x.severity == "block" for x in v)
 
 
-def test_absent_character_on_page_blocks_required_beat_and_reviewer():
-    body = _body(
-        required_beats=["Eriadne strikes first"],
-        reviewer_instructions={"continuity": ["track Eriadne's wound"], "pacing": []},
-    )
+def test_absent_character_on_page_blocks_required_beat():
+    body = _body(required_beats=["Eriadne strikes first"])
     v = _run(body, chapter=_chapter(absent=["Eriadne"]))
     blocked = [x for x in v if x.kind == "absent_character_on_page" and x.severity == "block"]
-    assert {x.field for x in blocked} >= {"required_beats", "reviewer_instructions"}
+    assert {x.field for x in blocked} >= {"required_beats"}
+
+
+def test_absent_character_in_reviewer_instructions_never_blocks():
+    # Regression: reviewer_instructions is meta-guidance TO A REVIEWER, not an on-page assertion. A
+    # protective trap ("check that she's NOT named/developed here") must never block on its own mention
+    # of the absent character's name — that would punish the exact guardrail meant to keep her hidden.
+    body = _body(
+        reviewer_instructions={
+            "continuity": ["Check that Eriadne is present on roster but NOT named or developed here."],
+            "pacing": [],
+        }
+    )
+    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
+    assert not any(x.severity == "block" for x in v)
+    assert not any(x.field == "reviewer_instructions" for x in v)
 
 
 def test_absent_character_in_pov_may_notice_blocks():
@@ -103,16 +115,73 @@ def test_absent_character_in_must_not_know_does_not_block():
     assert not any(x.severity == "block" for x in v)
 
 
-def test_absent_character_off_page_warns_only():
+def test_absent_character_in_intentional_mystery_warns_only():
+    # A hidden/absent character named as an intentional mystery is CORRECT layering, not a leak.
     body = _body(
         intentional_mysteries=[
             {"mystery": "where is Eriadne", "desired_reader_effect": "unease", "do_not_explain": True}
         ],
-        known_before_scene={"reader": ["Eriadne betrayed the cohort"], "pov": [], "omniscient_author": []},
     )
     v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    assert any(x.kind == "absent_character_off_page" and x.severity == "warn" for x in v)
+    assert any(x.kind == "absent_character_author_only_reference" and x.severity == "warn" for x in v)
     assert not any(x.severity == "block" for x in v)
+
+
+def test_absent_character_in_must_remain_hidden_warns_only():
+    # Declaring what must stay hidden is exactly the correct place for a resolved-but-unrevealed truth.
+    body = _body(must_remain_hidden={"reader": ["Eriadne is the traitor"], "pov": [], "all_surface_prose": []})
+    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
+    assert any(x.kind == "absent_character_author_only_reference" and x.severity == "warn" for x in v)
+    assert not any(x.severity == "block" for x in v)
+
+
+def test_absent_character_in_known_before_scene_omniscient_author_warns_only():
+    # omniscient_author is author-only bookkeeping, never reader/POV knowledge — never a leak by itself.
+    body = _body(known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Eriadne is the traitor"]})
+    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
+    assert any(x.kind == "absent_character_author_only_reference" and x.severity == "warn" for x in v)
+    assert not any(x.severity == "block" for x in v)
+
+
+def test_absent_character_leaked_into_known_before_scene_reader_blocks():
+    # The reader/POV-knowledge collapse bug: a hidden reveal leaked into reader-known facts must BLOCK,
+    # not just warn — the reader is not supposed to know this character exists yet.
+    body = _body(known_before_scene={"reader": ["Eriadne betrayed the cohort"], "pov": [], "omniscient_author": []})
+    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
+    blocked = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "block"]
+    assert any(b.field == "known_before_scene.reader" for b in blocked)
+
+
+def test_absent_character_leaked_into_known_before_scene_pov_blocks():
+    body = _body(known_before_scene={"reader": [], "pov": ["Eriadne betrayed the cohort"], "omniscient_author": []})
+    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
+    blocked = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "block"]
+    assert any(b.field == "known_before_scene.pov" for b in blocked)
+
+
+def test_absent_character_leaked_into_learned_during_scene_blocks():
+    body = _body(learned_during_scene={"reader_must_learn": ["Eriadne betrayed the cohort"]})
+    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
+    blocked = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "block"]
+    assert any(b.field == "learned_during_scene.reader_must_learn" for b in blocked)
+
+
+def test_absent_character_layered_correctly_is_fully_clean():
+    # The Mara regression case: hidden threat resolved author-only, properly hidden from reader/POV/prose,
+    # never named on-page. Zero blocks — only the expected informational warnings.
+    body = _body(
+        known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Mara is the hidden second threat"]},
+        must_remain_hidden={
+            "reader": ["Mara's identity as the hidden threat"],
+            "pov": ["Mara's identity as the hidden threat"],
+            "all_surface_prose": ["Mara's name"],
+        },
+        required_beats=["404 senses an unseen second presence"],
+        pov_permissions={"may_notice": ["an unplaceable unease"], "must_not_know": ["Mara's identity"]},
+    )
+    v = _run(body, chapter=_chapter(absent=["Mara"]))
+    assert not any(x.severity == "block" for x in v)
+    assert {x.kind for x in v} <= {"absent_character_author_only_reference"}
 
 
 def test_short_name_does_not_match_inside_unrelated_word():
@@ -231,16 +300,47 @@ def test_evaluate_absent_active_character_still_blocks():
     assert any(b.kind == "absent_character_on_page" for b in result.draft_blockers)
 
 
-def test_evaluate_off_page_absent_reference_warns_not_blocks():
+def test_evaluate_author_only_absent_reference_warns_not_blocks():
     result = _evaluate(
         _body(
-            known_before_scene={"reader": ["Mara left earlier"], "pov": [], "omniscient_author": []},
+            known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Mara is hidden nearby"]},
             intentional_mysteries=[{"mystery": "why Mara is absent", "desired_reader_effect": "unease"}],
         ),
         chapter=_chapter(absent=["Mara"]),
     )
     assert result.draftable is True
-    assert any(w.kind == "absent_character_off_page" for w in result.warnings)
+    assert any(w.kind == "absent_character_author_only_reference" for w in result.warnings)
+
+
+def test_evaluate_reader_known_leak_blocks():
+    # The Mara/Roth regression class: a hidden reveal leaked into reader-known facts must block, even
+    # though the character is correctly absent from the on-page cast.
+    result = _evaluate(
+        _body(known_before_scene={"reader": ["Mara left earlier"], "pov": [], "omniscient_author": []}),
+        chapter=_chapter(absent=["Mara"]),
+    )
+    assert result.draftable is False
+    assert any(b.kind == "absent_character_reader_pov_leak" for b in result.draft_blockers)
+
+
+def test_evaluate_mara_layered_correctly_is_draftable():
+    # Full regression scenario from the bug report: the hidden second threat is Mara; 404 does not know
+    # until Chapter 2. Properly layered (author-only + must_remain_hidden, never reader/POV/on-page) must
+    # be draftable, with at most informational warnings.
+    result = _evaluate(
+        _body(
+            known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Mara is the hidden second threat"]},
+            must_remain_hidden={
+                "reader": ["Mara's identity"],
+                "pov": ["Mara's identity"],
+                "all_surface_prose": ["Mara's name"],
+            },
+            pov_permissions={"may_notice": [], "must_not_know": ["Mara's identity"]},
+        ),
+        chapter=_chapter(absent=["Mara"]),
+    )
+    assert result.draftable is True
+    assert not any(b.kind.startswith("absent_character") for b in result.draft_blockers)
 
 
 def test_evaluate_non_dict_body_blocks():
