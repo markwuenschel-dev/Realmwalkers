@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../client";
 import { ACTIVITY_MAX, activityLabel, UNREACHABLE_AFTER } from "../constants";
 import type { ActivityEntry, FailedJobOut, JobsStatusOut } from "../types";
@@ -37,7 +37,9 @@ export function useDeskJobs(
         try {
           const js = await api.jobsStatus(id);
           const was = jobsRef.current;
-          setJobs(js);
+          // Only push a new jobs object when something actually changed. An identical poll — the common
+          // idle case, every 4s — must NOT churn the context, or the whole Desk re-renders for nothing.
+          if (JSON.stringify(js) !== JSON.stringify(was)) setJobs(js);
           failCountRef.current = 0;
           setJobsUnreachable(false);
           busyNow = js.running || js.queued > 0;
@@ -88,5 +90,8 @@ export function useDeskJobs(
     };
   }, [loadCollections, setJobs]);
 
-  return { failedJobs, jobsUnreachable, activity, setActivity };
+  return useMemo(
+    () => ({ failedJobs, jobsUnreachable, activity, setActivity }),
+    [failedJobs, jobsUnreachable, activity, setActivity],
+  );
 }

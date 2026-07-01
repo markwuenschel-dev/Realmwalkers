@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { api } from "../client";
 import type {
   CanonEntityIn,
@@ -157,15 +157,28 @@ export function useDeskWorld(
     [fail],
   );
 
-  return {
-    createThread,
-    addThreadBeat,
-    deleteThread,
-    upsertCharacter,
-    deleteCharacter,
-    createCanon,
-    updateCanon,
-    deleteCanon,
-    ingestCanon,
-  };
+  return useMemo(
+    () => ({
+      createThread,
+      addThreadBeat,
+      deleteThread,
+      upsertCharacter,
+      deleteCharacter,
+      createCanon,
+      updateCanon,
+      deleteCanon,
+      ingestCanon,
+    }),
+    [
+      createThread,
+      addThreadBeat,
+      deleteThread,
+      upsertCharacter,
+      deleteCharacter,
+      createCanon,
+      updateCanon,
+      deleteCanon,
+      ingestCanon,
+    ],
+  );
 }

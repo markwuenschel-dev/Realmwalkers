@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../client";
 import { isHttpNotFound } from "../../lib/draftStorage";
 import type { AnnotationOut, BeatOut, SceneDetail, SceneVersionOut, SuggestionOut } from "../types";
@@ -95,18 +95,34 @@ export function useDeskActiveScene(
     [fail, setError],
   );
 
-  return {
-    detail,
-    versions,
-    activeBeat,
-    activeSceneId,
-    loadingScene,
-    missingSceneId,
-    annotations,
-    suggestions,
-    openSceneById,
-    setDetail,
-    setAnnotations,
-    setSuggestions,
-  };
+  return useMemo(
+    () => ({
+      detail,
+      versions,
+      activeBeat,
+      activeSceneId,
+      loadingScene,
+      missingSceneId,
+      annotations,
+      suggestions,
+      openSceneById,
+      setDetail,
+      setAnnotations,
+      setSuggestions,
+    }),
+    [
+      detail,
+      versions,
+      activeBeat,
+      activeSceneId,
+      loadingScene,
+      missingSceneId,
+      annotations,
+      suggestions,
+      openSceneById,
+      setDetail,
+      setAnnotations,
+      setSuggestions,
+    ],
+  );
 }

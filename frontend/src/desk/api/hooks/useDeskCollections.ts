@@ -118,24 +118,49 @@ export function useDeskCollections(
     };
   }, [bookId, fail, loadCollections, onBookChange, setError, setLoading]);
 
-  return {
-    chapters,
-    scenes,
-    latestScenes,
-    pending,
-    manuscript,
-    characters,
-    canon,
-    threads,
-    ruleProposals,
-    jobs,
-    setJobs,
-    setChapters,
-    setRuleProposals,
-    setThreads,
-    setCharacters,
-    setCanon,
-    loadCollections,
-    refreshAll,
-  };
+  // Memoized so this object's identity is stable across renders (all setters are stable, callbacks are
+  // useCallback'd, latestScenes is memoized) — the composing DeskData memo depends on it, so an unstable
+  // container here would re-render every consumer on every render/poll tick.
+  return useMemo(
+    () => ({
+      chapters,
+      scenes,
+      latestScenes,
+      pending,
+      manuscript,
+      characters,
+      canon,
+      threads,
+      ruleProposals,
+      jobs,
+      setJobs,
+      setChapters,
+      setRuleProposals,
+      setThreads,
+      setCharacters,
+      setCanon,
+      loadCollections,
+      refreshAll,
+    }),
+    [
+      chapters,
+      scenes,
+      latestScenes,
+      pending,
+      manuscript,
+      characters,
+      canon,
+      threads,
+      ruleProposals,
+      jobs,
+      setJobs,
+      setChapters,
+      setRuleProposals,
+      setThreads,
+      setCharacters,
+      setCanon,
+      loadCollections,
+      refreshAll,
+    ],
+  );
 }
