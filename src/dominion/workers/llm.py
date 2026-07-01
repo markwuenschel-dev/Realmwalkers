@@ -23,6 +23,7 @@ import structlog
 from anthropic import AsyncAnthropic
 from anthropic.types import TextBlockParam
 
+from dominion.shared.agent_registry import supports_temperature
 from dominion.shared.config import settings
 from dominion.workers import telemetry
 from dominion.workers.budget import BudgetExceeded, TokenBudget, Usage
@@ -310,7 +311,10 @@ async def complete(
         # Anthropic's guidance: count against the exact request the model will see); create_kwargs only
         # adds the generation-only params. Building both from one source keeps the preflight count honest.
         create_kwargs = {"model": model, "system": system_blocks, "messages": messages, "max_tokens": max_tokens}
-        if temperature is not None:
+        # Anthropic's flagship models (Opus 4.7+, Sonnet 5, Fable 5) 400 on `temperature`; only Haiku /
+        # 4.6-era still accept it. Gate on supports_temperature() so the newer models draft without it
+        # (steered by prompt / effort) instead of erroring. The OpenAI/xAI branch below always accepts it.
+        if temperature is not None and supports_temperature(model):
             create_kwargs["temperature"] = temperature
     else:
         # OpenAI-compatible chat completions shape: no explicit cache_control blocks — both OpenAI and
