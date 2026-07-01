@@ -275,7 +275,9 @@ export default function InboxScreen() {
             <BulkButton
               tone="good"
               onClick={() => {
-                void data.runBulk(sel.ids, (id) => api.decide(id, { decision: "approve" }));
+                void data.runBulk(sel.ids, (id) => api.decide(id, { decision: "approve" }), {
+                  drainAfter: true,
+                });
                 clearSel();
               }}
             >
@@ -321,8 +323,10 @@ export default function InboxScreen() {
               tone="good"
               disabled={!note.trim()}
               onClick={() => {
-                void data.runBulk(sel.ids, (id) =>
-                  api.decide(id, { decision: "revise", feedback: note.trim() }),
+                void data.runBulk(
+                  sel.ids,
+                  (id) => api.decide(id, { decision: "revise", feedback: note.trim() }),
+                  { drainAfter: true },
                 );
                 clearSel();
               }}

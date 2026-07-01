@@ -89,7 +89,11 @@ export interface DeskData {
     chapterId?: string | null,
   ) => Promise<import("./types").ClearDraftScenesOut | null>;
   deleteScenes: (ids: string[]) => Promise<void>;
-  runBulk: (ids: string[], fn: (id: string) => Promise<unknown>) => Promise<void>;
+  runBulk: (
+    ids: string[],
+    fn: (id: string) => Promise<unknown>,
+    opts?: { drainAfter?: boolean },
+  ) => Promise<void>;
   decide: (sceneId: string, body: DecisionIn) => Promise<void>;
   revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
