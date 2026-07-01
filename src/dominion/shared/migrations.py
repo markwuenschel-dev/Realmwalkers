@@ -64,6 +64,29 @@ _EXTRA_DDL: tuple[str, ...] = (
     """CREATE UNIQUE INDEX IF NOT EXISTS uq_active_redraft_per_scene
        ON jobs (target_scene_id, scene_packet_id)
        WHERE kind = 'draft' AND status IN ('queued', 'running') AND target_scene_id IS NOT NULL""",
+    # Hot-path indexes for the interaction/refresh queries. Postgres does not auto-index FKs, so every
+    # filter/order below was a sequential scan — costly on the wide tables that carry prose/telemetry and
+    # on the deployed app where each query is a network round-trip. All non-unique and idempotent,
+    # matching the exact filters/orders the routers use on the click path.
+    "CREATE INDEX IF NOT EXISTS ix_scenes_chapter_no_version ON scenes (chapter_id, scene_no, version)",
+    "CREATE INDEX IF NOT EXISTS ix_scenes_status ON scenes (status)",
+    "CREATE INDEX IF NOT EXISTS ix_chapters_book_id ON chapters (book_id)",
+    "CREATE INDEX IF NOT EXISTS ix_beats_chapter_id ON beats (chapter_id)",
+    "CREATE INDEX IF NOT EXISTS ix_critiques_scene_id ON critiques (scene_id)",
+    "CREATE INDEX IF NOT EXISTS ix_scene_packets_chapter_no ON scene_packets (chapter_id, scene_no)",
+    "CREATE INDEX IF NOT EXISTS ix_chapter_packets_chapter_id ON chapter_packets (chapter_id)",
+    "CREATE INDEX IF NOT EXISTS ix_annotations_scene_id ON annotations (scene_id)",
+    "CREATE INDEX IF NOT EXISTS ix_suggestions_scene_id ON suggestions (scene_id)",
+    "CREATE INDEX IF NOT EXISTS ix_approvals_scene_id ON approvals (scene_id)",
+    "CREATE INDEX IF NOT EXISTS ix_edit_pairs_scene_id_version ON edit_pairs (scene_id, version)",
+    "CREATE INDEX IF NOT EXISTS ix_draft_attempts_scene_id ON draft_attempts (scene_id)",
+    "CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs (status)",
+    "CREATE INDEX IF NOT EXISTS ix_jobs_run_id ON jobs (run_id)",
+    "CREATE INDEX IF NOT EXISTS ix_jobs_chapter_id ON jobs (chapter_id)",
+    "CREATE INDEX IF NOT EXISTS ix_llm_calls_chapter_id ON llm_calls (chapter_id)",
+    "CREATE INDEX IF NOT EXISTS ix_llm_calls_book_id ON llm_calls (book_id)",
+    "CREATE INDEX IF NOT EXISTS ix_llm_calls_run_id ON llm_calls (run_id)",
+    "CREATE INDEX IF NOT EXISTS ix_runs_book_id ON runs (book_id)",
 )
 
 

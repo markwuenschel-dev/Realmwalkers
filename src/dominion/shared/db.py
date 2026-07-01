@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from dominion.shared.config import settings
 
-engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+# pool_size/max_overflow raised above the SQLAlchemy defaults (5/10) so the Desk's refresh fan-out
+# (several concurrent chapter/scene/jobs queries) isn't throttled into serial waves of 15.
+engine = create_async_engine(settings.database_url, pool_pre_ping=True, pool_size=10, max_overflow=20)
 SessionFactory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 

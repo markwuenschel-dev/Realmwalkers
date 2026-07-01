@@ -53,23 +53,27 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
         .all()
     )
 
+    # Every approved scene in the book in ONE query (was one query per chapter — an N+1 on the widest
+    # table). Ordered so the first row seen per (chapter_id, scene_no) is the latest version.
+    scene_rows = (
+        (
+            await session.execute(
+                select(Scene)
+                .join(Chapter, Scene.chapter_id == Chapter.id)
+                .where(Chapter.book_id == book_id, Scene.status == SceneStatus.APPROVED)
+                .order_by(Scene.chapter_id, Scene.scene_no, Scene.version.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    latest_by_chapter: dict[uuid.UUID, dict[int, Scene]] = {}
+    for sc in scene_rows:
+        latest_by_chapter.setdefault(sc.chapter_id, {}).setdefault(sc.scene_no, sc)
+
     out_chapters: list[ManuscriptChapter] = []
     for chapter in chapters:
-        # Approved scenes, newest version first so the first row seen per scene_no is the latest.
-        scenes = (
-            (
-                await session.execute(
-                    select(Scene)
-                    .where(Scene.chapter_id == chapter.id, Scene.status == SceneStatus.APPROVED)
-                    .order_by(Scene.scene_no, Scene.version.desc())
-                )
-            )
-            .scalars()
-            .all()
-        )
-        latest: dict[int, Scene] = {}
-        for sc in scenes:
-            latest.setdefault(sc.scene_no, sc)
+        latest = latest_by_chapter.get(chapter.id, {})
         if not latest:
             continue
         out_chapters.append(
