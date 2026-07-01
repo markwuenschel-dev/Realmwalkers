@@ -389,6 +389,33 @@ def model_for_tier(tier: str, provider: str = "anthropic") -> str | None:
     return PROVIDER_TIERS.get(provider, {}).get(tier)
 
 
+_TIER_RANK: dict[str, int] = {"haiku": 0, "sonnet": 1, "opus": 2}
+
+
+def resolve_tier_for_provider(tier: str, provider: str) -> str:
+    """Nearest tier a given provider can actually serve.
+
+    Providers don't all cover the same tiers (xAI ships one model today, slotted at "opus"). When
+    `provider` has `tier` exactly, it's returned unchanged. Otherwise this resolves to that
+    provider's nearest tier by quality rank (haiku < sonnet < opus), rounding UP on a tie, so a
+    provider with partial coverage still gets a sensible, same-provider model instead of an error
+    or a silent switch to a different provider.
+
+    This is for automatic resolution paths (built-in presets, preset policy hints) where only a
+    tier name is known and no human is in the loop to pick a provider. Direct, human-driven picks
+    (`set_model`, an explicit `apply_agent_policy` fallback) validate the exact (tier, provider)
+    pair instead and never call this — an explicit request for a combination the provider doesn't
+    have should 422, not get silently substituted.
+    """
+    available = PROVIDER_TIERS.get(provider) or {}
+    if tier in available:
+        return tier
+    if not available:
+        return tier
+    target = _TIER_RANK.get(tier, 1)
+    return min(available, key=lambda t: (abs(_TIER_RANK.get(t, 1) - target), -_TIER_RANK.get(t, 1)))
+
+
 def fallback_attr(setting_key: str) -> str | None:
     return FALLBACK_ATTR.get(setting_key)
 

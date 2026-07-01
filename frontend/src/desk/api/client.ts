@@ -76,6 +76,21 @@ import type {
 // API_BASE env var on the server instead (see src/app/api/desk/[...path]/route.ts).
 const BASE = "/api/desk";
 
+/** Error thrown for any non-2xx API response. Carries the HTTP status and the parsed JSON body (when
+ *  the body parsed as JSON) so callers can react to specific failures — e.g. read a 409's `blockers`.
+ *  `.message` keeps the same human string every existing `catch (e) { … e.message }` already shows. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly statusText: string,
+    readonly body: string,
+    readonly data: unknown,
+  ) {
+    super(`${status} ${statusText}${body ? ` — ${body}` : ""}`);
+    this.name = "ApiError";
+  }
+}
+
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -83,7 +98,13 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body}` : ""}`);
+    let data: unknown = null;
+    try {
+      data = body ? JSON.parse(body) : null;
+    } catch {
+      /* non-JSON error body — the raw string still rides along on `body`/`message` */
+    }
+    throw new ApiError(res.status, res.statusText, body, data);
   }
   // 204 / empty bodies (rare here) shouldn't blow up JSON.parse.
   const text = await res.text();

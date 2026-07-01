@@ -98,6 +98,7 @@ export interface DeskData {
   revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
   setExemplar: (enabled: boolean) => Promise<void>;
+  restartRedraft: (chapterId: string, sceneId: string) => Promise<void>;
   draftNext: () => Promise<void>;
   createThread: (body: ThreadIn) => Promise<void>;
   addThreadBeat: (threadId: string, body: ThreadBeatIn) => Promise<void>;
@@ -251,6 +252,7 @@ export function useDeskDataState(): DeskData {
       revertScene: sceneActions.revertScene,
       resolveContinuity: sceneActions.resolveContinuity,
       setExemplar: sceneActions.setExemplar,
+      restartRedraft: sceneActions.restartRedraft,
       draftNext: sceneActions.draftNext,
       createThread,
       addThreadBeat: world.addThreadBeat,

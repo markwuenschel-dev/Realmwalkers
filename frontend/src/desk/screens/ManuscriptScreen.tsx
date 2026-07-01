@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { wordCount } from "../lib/format";
+import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import ProseBlocks from "../components/ProseBlocks";
 import type { ManuscriptOut } from "../api/types";
 
@@ -37,25 +38,9 @@ export default function ManuscriptScreen() {
   const [source, setSource] = useState<Source>("approved");
   const [clearFailedBusy, setClearFailedBusy] = useState(false);
   const [clearDraftBusy, setClearDraftBusy] = useState(false);
-  // Author name for the Shunn submission header/byline — persisted so it isn't re-typed each export.
-  // Read after mount (not in the initializer) so server prerender never touches localStorage.
-  const [author, setAuthor] = useState<string>("");
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem("ms_author");
-      if (v) setAuthor(v);
-    } catch {
-      /* unavailable */
-    }
-  }, []);
-  const saveAuthor = (v: string) => {
-    setAuthor(v);
-    try {
-      localStorage.setItem("ms_author", v);
-    } catch {
-      /* ignore */
-    }
-  };
+  // Author name for the Shunn submission header/byline — persisted (shared with every other export
+  // surface) so it isn't re-typed each export.
+  const [author, saveAuthor] = useAuthorName();
 
   // Draft compile: assemble each scene's current (latest-version) prose into manuscript form, whatever
   // its status — built entirely client-side from data already loaded, so viewing/exporting it never
@@ -68,6 +53,8 @@ export default function ManuscriptScreen() {
         chapter_no: ch.chapter_no,
         title: ch.title,
         pov: ch.pov,
+        kind: ch.kind,
+        epigraph: ch.epigraph,
         scenes: latestScenes
           .filter((s) => s.chapter_id === ch.id)
           .sort((a, b) => a.scene_no - b.scene_no)
@@ -100,6 +87,21 @@ export default function ManuscriptScreen() {
 
   const compiled = (): ManuscriptOut | null => (active ? { ...active, chapters } : null);
 
+  // Reader-facing chapter label: non-'chapter' kinds show their own name (Prologue/Interlude/…) with
+  // no number; a plain chapter stays "Chapter N".
+  const chapterLabel = (ch: { kind?: string | null; chapter_no: number }): string => {
+    const named: Record<string, string> = {
+      prologue: "Prologue",
+      interlude: "Interlude",
+      epilogue: "Epilogue",
+      front_matter: "Front Matter",
+      back_matter: "Back Matter",
+    };
+    return ch.kind && ch.kind !== "chapter"
+      ? (named[ch.kind] ?? ch.kind)
+      : `Chapter ${ch.chapter_no}`;
+  };
+
   const exportMarkdown = async () => {
     const ms = compiled();
     if (!ms) return;
@@ -126,11 +128,8 @@ export default function ManuscriptScreen() {
   const exportShunn = async () => {
     const ms = compiled();
     if (!ms) return;
-    const name =
-      author.trim() ||
-      (window.prompt("Author name for the manuscript header / byline:") ?? "").trim();
+    const name = resolveAuthorName(author, saveAuthor);
     if (!name) return;
-    if (name !== author) saveAuthor(name);
     const docx = await import("../lib/docx");
     await docx.saveDocx(
       docx.buildShunnDoc(ms, name, totalWords),
@@ -357,7 +356,7 @@ export default function ManuscriptScreen() {
                     "font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:9px",
                   )}
                 >
-                  Chapter {ch.chapter_no}
+                  {chapterLabel(ch)}
                 </div>
                 <h2
                   style={css(
@@ -374,6 +373,16 @@ export default function ManuscriptScreen() {
                   </span>
                 </h2>
               </div>
+
+              {(ch.epigraph ?? "").trim() ? (
+                <div
+                  style={css(
+                    "text-align:center;max-width:34rem;margin:-8px auto 30px;font-family:var(--display);font-style:italic;font-size:15px;line-height:1.65;color:var(--dim)",
+                  )}
+                >
+                  {ch.epigraph}
+                </div>
+              ) : null}
 
               {/* chapter body — single measure or balanced columns */}
               <div style={css(bodyStyle)}>
@@ -411,7 +420,7 @@ export default function ManuscriptScreen() {
                   "text-align:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)",
                 )}
               >
-                End of Chapter {ch.chapter_no}
+                End of {chapterLabel(ch)}
               </div>
             </section>
           );

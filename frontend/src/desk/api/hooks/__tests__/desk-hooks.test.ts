@@ -19,6 +19,7 @@ vi.mock("../../client", () => ({
     proposePacket: vi.fn(),
     decide: vi.fn(),
     draftNext: vi.fn(),
+    redraftScenes: vi.fn(),
   },
 }));
 
@@ -109,6 +110,7 @@ describe("useDeskChapterCreate", () => {
       pov: "Marcus",
       outline: "An outline",
       status: "planned",
+      kind: "chapter",
     });
     vi.mocked(api.proposePacket).mockResolvedValue({
       running: true,
@@ -246,5 +248,116 @@ describe("useDeskSceneActions runBulk", () => {
     });
 
     expect(api.draftNext).not.toHaveBeenCalled();
+  });
+});
+
+describe("useDeskSceneActions restartRedraft", () => {
+  beforeEach(() => {
+    vi.mocked(api.redraftScenes).mockReset();
+    vi.mocked(api.draftNext).mockReset();
+  });
+
+  function setup() {
+    const fail = vi.fn();
+    const setError = vi.fn();
+    const refreshAll = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useDeskSceneActions(fail, setError, {
+        bookId: "book-1",
+        activeSceneId: null,
+        setJobs: vi.fn(),
+        setChapters: vi.fn(),
+        setDetail: vi.fn(),
+        openSceneById: vi.fn(),
+        refreshAll,
+      }),
+    );
+    return { result, fail, setError, refreshAll };
+  }
+
+  it("re-queues a fresh draft job and drains the queue when a job is scheduled", async () => {
+    // Regression: a scene stuck in "revision_requested" (its auto-queued revision job failed, or
+    // one was never queued) has no manual escape hatch without this -- restartRedraft is the Desk's
+    // only way to re-queue drafting for it (via POST /chapters/{id}/scenes/redraft).
+    vi.mocked(api.redraftScenes).mockResolvedValue({
+      chapter_id: "ch-1",
+      queued_job_ids: ["job-1"],
+      queued: 1,
+      skipped: [],
+      repaired_beats: 0,
+    });
+    vi.mocked(api.draftNext).mockResolvedValue({ scheduled: true, queued: 1, running: true });
+    const { result, fail, refreshAll } = setup();
+
+    await act(async () => {
+      await result.current.restartRedraft("ch-1", "scene-1");
+    });
+
+    expect(api.redraftScenes).toHaveBeenCalledWith("ch-1", ["scene-1"]);
+    expect(api.draftNext).toHaveBeenCalledTimes(1);
+    expect(refreshAll).toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled();
+  });
+
+  it("does not drain when nothing was queued (e.g. a job for this scene is already active)", async () => {
+    vi.mocked(api.redraftScenes).mockResolvedValue({
+      chapter_id: "ch-1",
+      queued_job_ids: [],
+      queued: 0,
+      skipped: [],
+      repaired_beats: 0,
+    });
+    const { result, refreshAll } = setup();
+
+    await act(async () => {
+      await result.current.restartRedraft("ch-1", "scene-1");
+    });
+
+    expect(api.draftNext).not.toHaveBeenCalled();
+    expect(refreshAll).toHaveBeenCalled();
+  });
+
+  it("surfaces failures via fail (e.g. the 409 raised when no scene_ids resolve)", async () => {
+    vi.mocked(api.redraftScenes).mockRejectedValue(new Error("409 Conflict"));
+    const { result, fail, refreshAll } = setup();
+
+    await act(async () => {
+      await result.current.restartRedraft("ch-1", "scene-1");
+    });
+
+    expect(fail).toHaveBeenCalled();
+    expect(api.draftNext).not.toHaveBeenCalled();
+    expect(refreshAll).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a 409's blocker required_action (not an opaque error) when no ScenePacket resolves", async () => {
+    // The no-approved-ScenePacket case: redraft returns 409 with actionable blockers. restartRedraft
+    // must show that reason, not a generic red toast — see draftBlockerMessage / ApiError.
+    const apiErr = Object.assign(new Error("409 Conflict"), {
+      status: 409,
+      data: {
+        blockers: [
+          {
+            chapter_id: "ch-1",
+            scene_no: 3,
+            reason: "beat_scene_packet_mismatch",
+            message: "Scene 3 has no approved ScenePacket.",
+            required_action: "Approve ScenePackets first",
+          },
+        ],
+      },
+    });
+    vi.mocked(api.redraftScenes).mockRejectedValue(apiErr);
+    const { result, fail } = setup();
+
+    await act(async () => {
+      await result.current.restartRedraft("ch-1", "scene-1");
+    });
+
+    expect(fail).toHaveBeenCalledTimes(1);
+    const arg = fail.mock.calls[0]![0];
+    expect(arg).toBeInstanceOf(Error);
+    expect((arg as Error).message).toContain("Scene 3");
+    expect((arg as Error).message).toContain("Approve ScenePackets first");
   });
 });

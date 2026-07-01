@@ -27,6 +27,8 @@ _ROOTS: dict[str, Path] = {
     "canon": (_PROJECT_ROOT / "series" / "canon").resolve(),
     "style": (_PROJECT_ROOT / "series" / "style").resolve(),
     "planning": (_PROJECT_ROOT / "book1" / "planning").resolve(),
+    "frontmatter": (_PROJECT_ROOT / "book1" / "frontmatter").resolve(),
+    "backmatter": (_PROJECT_ROOT / "book1" / "backmatter").resolve(),
 }
 
 

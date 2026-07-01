@@ -11,9 +11,11 @@ import ProseBlocks from "../components/ProseBlocks";
 // files are authored outside the app. Fetches the docs index once, then the body on selection.
 
 const CATEGORIES: { id: string; label: string }[] = [
+  { id: "frontmatter", label: "Front matter" },
   { id: "canon", label: "Canon" },
   { id: "planning", label: "Planning" },
   { id: "style", label: "Style" },
+  { id: "backmatter", label: "Back matter" },
 ];
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -105,11 +107,15 @@ export default function DocsScreen() {
   }
 
   return (
-    <div style={css("display:flex;gap:26px;align-items:flex-start;max-width:72rem;margin:0 auto")}>
+    <div
+      style={css(
+        "display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;width:min(96vw,1800px);margin:0 auto;padding:0 clamp(12px,2vw,32px)",
+      )}
+    >
       {/* index: docs grouped by category */}
       <nav
         style={css(
-          "flex:0 0 252px;position:sticky;top:78px;max-height:calc(100vh - 110px);overflow-y:auto;padding-right:4px",
+          "flex:0 1 252px;position:sticky;top:78px;max-height:calc(100vh - 110px);overflow-y:auto;padding-right:4px",
         )}
       >
         {CATEGORIES.map(({ id, label }) => {
@@ -148,7 +154,9 @@ export default function DocsScreen() {
       </nav>
 
       {/* reading panel */}
-      <article style={css("flex:1 1 auto;min-width:0;max-width:46rem;padding:6px 4px 80px")}>
+      <article
+        style={css("flex:1 1 700px;min-width:min(100%,320px);max-width:none;padding:6px 4px 80px")}
+      >
         {docErr ? (
           <p style={css("color:var(--bad);font-family:var(--mono);font-size:13px")}>
             Couldn't load — {docErr}

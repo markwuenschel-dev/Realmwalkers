@@ -318,8 +318,9 @@ export interface paths {
     head?: never;
     /**
      * Update Chapter
-     * @description Edit a chapter's authored fields (currently the title). Only provided fields are applied, so
-     *     the author can rename the plan-call's proposed title at any time without re-running the planner.
+     * @description Edit a chapter's authored fields (title, structural kind, epigraph). Only provided fields are
+     *     applied, so the author can rename the plan-call's proposed title, mark a prologue/interlude/epilogue,
+     *     or add an epigraph at any time without re-running the planner.
      */
     patch: operations["update_chapter_chapters__chapter_id__patch"];
     trace?: never;
@@ -2172,6 +2173,13 @@ export interface components {
       /** Outline */
       outline: string;
     };
+    /**
+     * ChapterKind
+     * @description Reader-facing structural role of a chapter. Display-only — ordering stays by chapter_no; only
+     *     the heading/label changes (a `chapter` renders "Chapter N", the rest render their own label).
+     * @enum {string}
+     */
+    ChapterKind: "chapter" | "prologue" | "interlude" | "epilogue" | "front_matter" | "back_matter";
     /** ChapterOut */
     ChapterOut: {
       /**
@@ -2194,6 +2202,13 @@ export interface components {
       outline?: string | null;
       /** Status */
       status: string;
+      /**
+       * Kind
+       * @default chapter
+       */
+      kind: string;
+      /** Epigraph */
+      epigraph?: string | null;
     };
     /**
      * ChapterRollupOut
@@ -2309,12 +2324,16 @@ export interface components {
     };
     /**
      * ChapterUpdateIn
-     * @description PATCH body to edit a chapter's authored fields (currently just the title). Only provided
-     *     fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn).
+     * @description PATCH body to edit a chapter's authored fields (title, structural kind, epigraph). Only
+     *     provided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) — send `epigraph: null` to
+     *     clear it. `kind` is validated against ChapterKind.
      */
     ChapterUpdateIn: {
       /** Title */
       title?: string | null;
+      kind?: components["schemas"]["ChapterKind"] | null;
+      /** Epigraph */
+      epigraph?: string | null;
     };
     /**
      * CharacterStateIn
@@ -2907,6 +2926,13 @@ export interface components {
       title?: string | null;
       /** Pov */
       pov: string;
+      /**
+       * Kind
+       * @default chapter
+       */
+      kind: string;
+      /** Epigraph */
+      epigraph?: string | null;
       /**
        * Scenes
        * @default []

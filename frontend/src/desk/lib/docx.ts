@@ -34,6 +34,11 @@ import {
   type Surface,
 } from "./litrpgSurfaces";
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
+import { wordCount } from "./format";
+
+// The three export formats every prose-bearing screen offers (Manuscript, Inbox, Scene, Chapters,
+// Packets): plain semantic Markdown, the styled Reader DOCX, and the plain-format Shunn DOCX.
+export type ExportKind = "md" | "docx" | "shunn";
 
 const TONE_COLOR: Record<Tone, string> = {
   note: "1F3864",
@@ -304,7 +309,7 @@ function paraFor(text: string, book: boolean): Paragraph {
     ? new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
         spacing: { line: 320, lineRule: "auto" },
-        children: inlineRuns(text, { font: "Georgia", size: 24 }),
+        children: inlineRuns(text, { font: "Georgia", size: 22 }),
       })
     : new Paragraph({
         spacing: { after: 120, line: 276, lineRule: "auto" },
@@ -395,6 +400,54 @@ export function buildDocDoc(title: string, content: string): Document {
   });
 }
 
+// --- wrapping arbitrary scenes as a ManuscriptOut -----------------------------------------------
+// Every screen that shows prose (Inbox's selected scenes, a single scene, a single chapter, a scene
+// packet's drafted scene) wraps its own data as a one-off ManuscriptOut here and feeds it straight
+// into buildManuscriptMarkdown / buildManuscriptDoc / buildShunnDoc below — so a Markdown / Reader-DOCX
+// / Shunn-DOCX export looks byte-for-byte identical (same fonts, structure, front matter) no matter
+// which screen triggered it. This is the only place that shape gets assembled; the builders themselves
+// never know whether they're rendering the whole book, one chapter, or one scene.
+
+export interface ManuscriptChapterInput {
+  chapter_no: number;
+  title?: string | null;
+  pov: string;
+  kind?: string | null; // ChapterKind; drives the heading label (Prologue/Interlude/… vs "Chapter N")
+  epigraph?: string | null;
+  scenes: { scene_no: number; prose?: string | null }[];
+}
+
+export function buildManuscriptFrom(
+  title: string,
+  chapters: ManuscriptChapterInput[],
+): ManuscriptOut {
+  return {
+    book_id: "",
+    title,
+    chapters: [...chapters]
+      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .map((c) => ({
+        chapter_no: c.chapter_no,
+        title: c.title ?? null,
+        pov: c.pov,
+        kind: c.kind ?? "chapter",
+        epigraph: c.epigraph ?? null,
+        scenes: [...c.scenes].sort((a, b) => a.scene_no - b.scene_no),
+      })),
+  };
+}
+
+/** Whether any scene in a manuscript-shaped document has prose — the same gate the Manuscript screen
+ *  uses to disable its export buttons before anything has been drafted/approved. */
+export function manuscriptHasProse(ms: ManuscriptOut): boolean {
+  return ms.chapters.some((c) => c.scenes.some((s) => (s.prose ?? "").trim()));
+}
+
+/** Total word count across every scene — what buildShunnDoc's byline word estimate needs. */
+export function manuscriptWordCount(ms: ManuscriptOut): number {
+  return ms.chapters.flatMap((c) => c.scenes).reduce((acc, s) => acc + wordCount(s.prose), 0);
+}
+
 export function buildManuscriptDoc(
   manuscript: ManuscriptOut,
   subtitle = "the approved manuscript, in reading order",
@@ -429,13 +482,18 @@ export function buildManuscriptDoc(
     const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
     if (scenes.length === 0) continue;
     children.push(new Paragraph({ children: [new PageBreak()] }));
+    // Non-'chapter' kinds render their own label (PROLOGUE / INTERLUDE / EPILOGUE / FRONT MATTER /
+    // BACK MATTER) with no number; a plain chapter stays "CHAPTER N".
+    const headingText =
+      ch.kind && ch.kind !== "chapter"
+        ? ch.kind.replace(/_/g, " ").toUpperCase()
+        : `CHAPTER ${ch.chapter_no}`;
+    const epigraph = ch.epigraph?.trim();
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 480, after: ch.title ? 60 : 80 },
-        children: [
-          new TextRun({ text: `CHAPTER ${ch.chapter_no}`, font: "Georgia", bold: true, size: 28 }),
-        ],
+        children: [new TextRun({ text: headingText, font: "Georgia", bold: true, size: 28 })],
       }),
     );
     if (ch.title) {
@@ -450,12 +508,29 @@ export function buildManuscriptDoc(
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 320 },
+        spacing: { after: epigraph ? 200 : 320 },
         children: [
           new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" }),
         ],
       }),
     );
+    if (epigraph) {
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 320 },
+          children: [
+            new TextRun({
+              text: epigraph,
+              font: "Georgia",
+              italics: true,
+              size: 22,
+              color: "606060",
+            }),
+          ],
+        }),
+      );
+    }
     scenes.forEach((sc, si) => {
       if (si > 0) {
         children.push(

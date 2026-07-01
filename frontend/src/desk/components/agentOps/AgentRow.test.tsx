@@ -161,7 +161,9 @@ describe("AgentRow flat model picker", () => {
       }),
     });
     fireEvent.click(fallback.getByText("None"));
-    expect(onSetFallback).toHaveBeenCalledWith("draft_model", "", "anthropic");
+    // Clearing the fallback passes an empty provider too (SettingsScreen nulls it when tier is empty);
+    // it no longer hardcodes "anthropic", which mislabeled a non-Anthropic agent's cleared fallback.
+    expect(onSetFallback).toHaveBeenCalledWith("draft_model", "", "");
   });
 
   it("fallback row picks a model with (tier, provider), same as primary", () => {

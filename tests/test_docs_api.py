@@ -17,7 +17,7 @@ async def test_list_docs_returns_categorised_markdown() -> None:
     assert docs, "expected canon/planning/style docs on disk"
     for d in docs:
         assert d.path.endswith(".md")
-        assert d.category in {"canon", "planning", "style"}
+        assert d.category in {"canon", "planning", "style", "frontmatter", "backmatter"}
         assert d.path.split("/")[0] == d.category
         assert d.title  # never empty — heading or humanised filename
 
