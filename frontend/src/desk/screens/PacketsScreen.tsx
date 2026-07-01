@@ -49,6 +49,17 @@ export default function PacketsScreen() {
   const [phase, setPhase] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState<number | null>(null);
 
+  // Batch panel: fire chapter-packet authoring for several EXISTING chapters at once (e.g. a whole
+  // arc that already has outlines but no packets yet). Reuses the same fire-and-forget per-chapter
+  // proposePacket() the single-chapter flow above uses -- no new backend endpoint, since each call
+  // already just kicks off a background author+QA run and returns immediately.
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchResults, setBatchResults] = useState<
+    { chapterId: string; chapterNo: number; ok: boolean; error?: string }[] | null
+  >(null);
+
   // Default to the first chapter once chapters load (without clobbering an explicit pick).
   useEffect(() => {
     const fromUrl = searchParams.get("chapter");
@@ -147,6 +158,48 @@ export default function PacketsScreen() {
       setBusy(null);
     }
   }, []);
+
+  // Chapters eligible for batch packet generation: same "has an outline" gate the single-chapter
+  // button already uses (author_packet needs an outline to work from). Re-propose is safe here too
+  // (it's the same button/endpoint the single-chapter flow calls "Re-propose"), so a chapter that
+  // already has a packet isn't excluded -- selecting it just re-authors it.
+  const batchEligible = useMemo(() => chapters.filter((c) => (c.outline ?? "").trim()), [chapters]);
+
+  const toggleBatchSelected = (id: string) =>
+    setBatchSelected((sel) => {
+      const next = new Set(sel);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const runBatchGenerate = async () => {
+    if (batchSelected.size === 0) return;
+    setBatchBusy(true);
+    setBatchResults(null);
+    const targets = batchEligible.filter((c) => batchSelected.has(c.id));
+    const results: { chapterId: string; chapterNo: number; ok: boolean; error?: string }[] = [];
+    for (const c of targets) {
+      try {
+        await api.proposePacket(c.id);
+        results.push({ chapterId: c.id, chapterNo: c.chapter_no, ok: true });
+      } catch (e) {
+        results.push({
+          chapterId: c.id,
+          chapterNo: c.chapter_no,
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+    setBatchResults(results);
+    setBatchBusy(false);
+  };
+
+  const viewBatchChapter = (id: string) => {
+    setChapterId(id);
+    setBatchOpen(false);
+  };
 
   const openItems = (packet?.open_questions?.items ?? []).filter(Boolean);
   const resolvedItems = packet?.open_questions?.resolved ?? [];
@@ -269,6 +322,103 @@ export default function PacketsScreen() {
                 : "Propose packet"}
           </button>
         </div>
+      </div>
+
+      <div style={css("margin-bottom:18px")}>
+        <button
+          onClick={() => setBatchOpen((o) => !o)}
+          style={css(
+            "padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:12.5px;cursor:pointer;font-family:var(--ui);white-space:nowrap",
+          )}
+        >
+          {batchOpen ? "Hide batch generate" : "Batch · generate packets for multiple chapters"}
+        </button>
+
+        {batchOpen && (
+          <div
+            data-testid="batch-panel"
+            style={css(
+              "margin-top:12px;border:1px solid var(--line);border-radius:11px;background:var(--bg2);padding:14px 16px;display:flex;flex-direction:column;gap:12px",
+            )}
+          >
+            <p style={css("margin:0;color:var(--dim);font-size:12.5px;line-height:1.55")}>
+              Pick several chapters that already have an outline and generate a chapter packet for
+              each — every chapter authors concurrently in the background, same as a single propose.
+              Selecting a chapter that already has a packet re-proposes it.
+            </p>
+
+            {batchEligible.length === 0 ? (
+              <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
+                No chapters have an outline yet — plan chapters from the Inbox first.
+              </div>
+            ) : (
+              <div
+                style={css(
+                  "display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto",
+                )}
+              >
+                {batchEligible.map((c) => (
+                  <label
+                    key={c.id}
+                    style={css(
+                      "display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;background:var(--bg3);font-size:13px;color:var(--ink);cursor:pointer",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={batchSelected.has(c.id)}
+                      onChange={() => toggleBatchSelected(c.id)}
+                    />
+                    <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                      Ch {c.chapter_no}
+                    </span>
+                    <span>
+                      {c.title || "(untitled)"} · {c.pov}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div style={css("display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
+              <button
+                disabled={batchBusy || batchSelected.size === 0}
+                onClick={runBatchGenerate}
+                style={btn(!batchBusy && batchSelected.size > 0, "var(--good)", "var(--bg)")}
+              >
+                {batchBusy
+                  ? "Generating…"
+                  : `Generate ${batchSelected.size || ""} packet${batchSelected.size === 1 ? "" : "s"}`}
+              </button>
+            </div>
+
+            {batchResults && (
+              <div style={css("display:flex;flex-direction:column;gap:6px")}>
+                {batchResults.map((r) => (
+                  <div
+                    key={r.chapterId}
+                    style={css(
+                      `display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;background:var(--bg3);padding:8px 11px;font-family:var(--mono);font-size:11.5px;color:${r.ok ? "var(--ink)" : "var(--bad)"}`,
+                    )}
+                  >
+                    <span style={css("color:var(--accent)")}>Ch {r.chapterNo}</span>
+                    <span>{r.ok ? "authoring started" : `failed: ${r.error}`}</span>
+                    {r.ok && (
+                      <button
+                        style={css(
+                          "padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui)",
+                        )}
+                        onClick={() => viewBatchChapter(r.chapterId)}
+                      >
+                        View →
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
