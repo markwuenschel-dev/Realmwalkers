@@ -20,6 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 # arrive in a later phase. Phase 1's brand-new `chapter_packets` table is provisioned by create_all.)
 _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS title TEXT",
+    # Narrative-structure Phase 1: reader-facing chapter kind (prologue/interlude/epilogue/front_matter/
+    # back_matter; DEFAULT 'chapter' backfills existing rows) + an optional chapter-opening epigraph.
+    "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS kind TEXT DEFAULT 'chapter'",
+    "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS epigraph TEXT",
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS scene_seed_id UUID",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_error TEXT",
     # Scene-packet contract system: new nullable links + per-scene fields. New tables

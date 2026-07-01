@@ -188,8 +188,8 @@ export function PresetBar({
         <span>{active?.best_for ?? pipeline.summary}</span>
       </div>
       <div style={css("margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-        {pipeline.summary} · {pipeline.opus_calls} Opus · {pipeline.sonnet_calls} Sonnet ·{" "}
-        {pipeline.haiku_calls} Haiku calls (est.)
+        {pipeline.summary} · {pipeline.opus_calls} top-tier · {pipeline.sonnet_calls} mid-tier ·{" "}
+        {pipeline.haiku_calls} fast-tier calls (est.)
       </div>
       <div style={css("margin-top:6px;font-size:11.5px;color:var(--dim)")}>
         Estimated from current tiers (not historical spend)

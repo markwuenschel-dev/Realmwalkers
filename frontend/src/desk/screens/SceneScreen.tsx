@@ -13,8 +13,10 @@ import type { Token } from "../prose";
 import type { Marker } from "../types";
 import { applyAcceptedSuggestions, sceneLabel, statValue, wordCount } from "../lib/format";
 import { buildSceneMarkdown, downloadMarkdown, sceneMarkdownFilename } from "../lib/sceneMarkdown";
+import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { api } from "../api/client";
 import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus } from "../api/types";
+import type { ExportKind } from "../lib/docx";
 
 const KEEP_BTN =
   "flex:1;padding:8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:11.5px;cursor:pointer";
@@ -47,6 +49,7 @@ export default function SceneScreen() {
   const params = useParams<{ sceneId?: string }>();
   const focusSceneId = params.sceneId ?? null;
   const [committing, setCommitting] = useState(false);
+  const [restarting, setRestarting] = useState(false); // manual re-queue for a stuck revision_requested scene
   const [stagesOpen, setStagesOpen] = useState(false); // draft-attempt provenance expander
   // selection toolbar + inline markup composer (replace the old window.prompt flows)
   const [sel, setSel] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -57,6 +60,9 @@ export default function SceneScreen() {
     y: number;
   } | null>(null);
   const [restored, setRestored] = useState(false); // an unsaved hand-edit was recovered from localStorage
+  const [exportingAs, setExportingAs] = useState<ExportKind | null>(null);
+  // Shared with every other export surface (Manuscript, Inbox, Chapters, Packets) so it's typed once.
+  const [author, saveAuthor] = useAuthorName();
   const proseRef = useRef<HTMLDivElement>(null);
   // Reading layout (page / wide / two-column) — a per-user preference that sticks across sessions.
   const [layout, setLayout] = useState<SceneLayout>(() => {
@@ -140,6 +146,20 @@ export default function SceneScreen() {
       /* ignore */
     }
     setRestored(false);
+  };
+
+  // Manual escape hatch for a scene stuck in Revising (its auto-queued revision job failed, or one
+  // was never queued) — re-queues a fresh draft job via the same contract-first redraft path the
+  // Chapters board's bulk "Redraft" action uses (POST /chapters/{id}/scenes/redraft). Guarded by
+  // restartBlockedByActiveJob below against firing while a job for this exact scene is already live.
+  const handleRestart = async () => {
+    if (!cur || restarting) return;
+    setRestarting(true);
+    try {
+      await data.restartRedraft(cur.chapter_id, cur.id);
+    } finally {
+      setRestarting(false);
+    }
   };
 
   const chapter = useMemo(
@@ -489,6 +509,73 @@ export default function SceneScreen() {
 
   const sevColor = (s: string) => (s === "hard" ? t.bad : s === "warn" ? t.warn : t.info);
 
+  // Best-effort guard: hide/disable Restart while a job for this exact scene is the one actively
+  // drafting right now, so a click can't queue a redundant concurrent redraft of the same original
+  // scene (a stale click is still safe otherwise — the redraft endpoint dedupes repeat DRAFT jobs).
+  const restartBlockedByActiveJob =
+    data.jobs.active_scene != null &&
+    chapter != null &&
+    data.jobs.active_scene.chapter_no === chapter.chapter_no &&
+    data.jobs.active_scene.scene_no === cur.scene_no;
+
+  // Manuscript-style single-scene export: the same Markdown / Reader-DOCX / Shunn-DOCX builders the
+  // Manuscript tab uses, wrapping just this scene as a one-chapter ManuscriptOut — so the output is
+  // byte-for-byte the same format (fonts, structure, front matter) no matter which screen produced it.
+  // The "⬇ Markdown" link above bundles reviewer feedback too; these are the plain manuscript exports.
+  const sceneChapterInput = () => [
+    {
+      chapter_no: chapter?.chapter_no ?? 0,
+      title: chapter?.title ?? null,
+      pov: chapter?.pov ?? "",
+      scenes: [{ scene_no: cur.scene_no, prose: cur.prose }],
+    },
+  ];
+  const sceneExportStem = `scene_ch${chapter?.chapter_no ?? "x"}_s${cur.scene_no}_v${cur.version}`;
+
+  const exportSceneMarkdown = async () => {
+    setExportingAs("md");
+    try {
+      const exp = await import("../lib/docx");
+      const ms = exp.buildManuscriptFrom(sceneLabel(cur), sceneChapterInput());
+      exp.saveMarkdown(exp.buildManuscriptMarkdown(ms), exp.markdownFilename(sceneExportStem));
+    } finally {
+      setExportingAs(null);
+    }
+  };
+
+  const exportSceneDocx = async () => {
+    setExportingAs("docx");
+    try {
+      const exp = await import("../lib/docx");
+      const ms = exp.buildManuscriptFrom(sceneLabel(cur), sceneChapterInput());
+      await exp.saveDocx(
+        exp.buildManuscriptDoc(
+          ms,
+          `Chapter ${chapter?.chapter_no ?? "?"} · Scene ${cur.scene_no}`,
+        ),
+        exp.docxFilename(sceneExportStem),
+      );
+    } finally {
+      setExportingAs(null);
+    }
+  };
+
+  const exportSceneShunn = async () => {
+    setExportingAs("shunn");
+    try {
+      const exp = await import("../lib/docx");
+      const ms = exp.buildManuscriptFrom(sceneLabel(cur), sceneChapterInput());
+      const name = resolveAuthorName(author, saveAuthor);
+      if (!name) return;
+      await exp.saveDocx(
+        exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
+        exp.docxFilename(`${sceneExportStem}_shunn`),
+      );
+    } finally {
+      setExportingAs(null);
+    }
+  };
+
   return (
     <div>
       {/* breadcrumb / status row */}
@@ -526,7 +613,7 @@ export default function SceneScreen() {
         </div>
         <div
           style={css(
-            "display:flex;align-items:center;gap:18px;font-family:var(--mono);font-size:12px;color:var(--dim)",
+            "display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;gap:18px;font-family:var(--mono);font-size:12px;color:var(--dim)",
           )}
         >
           <div style={css("display:flex;align-items:center;gap:8px")}>
@@ -586,7 +673,37 @@ export default function SceneScreen() {
               "cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)",
             )}
           >
-            ⬇ Markdown
+            ⬇ Markdown + feedback
+          </span>
+          <span style={css("opacity:.4")}>·</span>
+          <span
+            onClick={() => void exportSceneMarkdown()}
+            title="Semantic Markdown — same format the Manuscript tab exports"
+            style={css(
+              `cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft);opacity:${exportingAs ? 0.6 : 1}`,
+            )}
+          >
+            ⬇ {exportingAs === "md" ? "Exporting…" : "Export Markdown"}
+          </span>
+          <span style={css("opacity:.4")}>·</span>
+          <span
+            onClick={() => void exportSceneDocx()}
+            title="Reader DOCX — styled book format, same as the Manuscript tab"
+            style={css(
+              `cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft);opacity:${exportingAs ? 0.6 : 1}`,
+            )}
+          >
+            ⬇ {exportingAs === "docx" ? "Exporting…" : "Export Reader DOCX"}
+          </span>
+          <span style={css("opacity:.4")}>·</span>
+          <span
+            onClick={() => void exportSceneShunn()}
+            title="Shunn DOCX — plain submission format, same as the Manuscript tab"
+            style={css(
+              `cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft);opacity:${exportingAs ? 0.6 : 1}`,
+            )}
+          >
+            ⬇ {exportingAs === "shunn" ? "Exporting…" : "Export Shunn DOCX"}
           </span>
         </div>
       </div>
@@ -606,11 +723,34 @@ export default function SceneScreen() {
           >
             {cur.status.replace(/_/g, " ")}
           </span>
-          <span>
-            You're editing an already-decided scene. Switch to <b>Editing</b> to change the prose —{" "}
-            <b>Approve</b> saves your changes; <b>Request revision</b> re-drafts it. Use the queue
-            arrows to return to the review queue.
-          </span>
+          {cur.status === "revision_requested" ? (
+            <span>
+              Waiting to redraft against your feedback. If it's been stuck a while (a failed or
+              missed job), <b>Restart</b> re-queues drafting now.
+            </span>
+          ) : (
+            <span>
+              You're editing an already-decided scene. Switch to <b>Editing</b> to change the prose —{" "}
+              <b>Approve</b> saves your changes; <b>Request revision</b> re-drafts it. Use the queue
+              arrows to return to the review queue.
+            </span>
+          )}
+          {cur.status === "revision_requested" && (
+            <button
+              disabled={restarting || restartBlockedByActiveJob}
+              onClick={() => void handleRestart()}
+              title={
+                restartBlockedByActiveJob
+                  ? "Already drafting — wait for it to finish"
+                  : "Re-queue drafting for this scene now"
+              }
+              style={css(
+                "margin-left:auto;flex:none;padding:6px 13px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px;cursor:pointer;font-family:var(--ui);white-space:nowrap",
+              )}
+            >
+              {restarting ? "Restarting…" : "Restart"}
+            </button>
+          )}
         </div>
       )}
 

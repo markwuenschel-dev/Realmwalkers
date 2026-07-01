@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, PacketStatus, ScenePacketStatus
-from dominion.shared.models import Beat, Chapter, ChapterPacket, Job, ScenePacket
+from dominion.shared.models import Beat, Chapter, ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.schemas import DraftQueueBlockerOut, DraftReadinessOut
 from dominion.workers.draft_queue import DraftQueueBlocker, resolve_approved_scene_packet_for_beat
 
@@ -61,6 +61,15 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     linked = [b for b in approved_beats if b.scene_packet_id is not None]
     unlinked = [b.id for b in approved_beats if b.scene_packet_id is None]
 
+    # Mirror schedule_undrafted_beats(skip_drafted=True): a beat whose scene already has prose is not
+    # queueable — redraft is the path for those. Excluding already-drafted scenes here keeps `draftable`
+    # honest, so a fully-drafted chapter reports draftable=False instead of enabling a "Draft chapter"
+    # click that skips every beat and 409s. "Drafted" matches the scheduler exactly: any Scene row for
+    # that scene_no (draft_queue.py:244-247).
+    drafted_scene_nos = {
+        n for (n,) in (await session.execute(select(Scene.scene_no).where(Scene.chapter_id == chapter_id))).all()
+    }
+
     active_jobs = (
         await session.execute(
             select(func.count())
@@ -105,7 +114,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
         resolved = await resolve_approved_scene_packet_for_beat(session, beat=beat, repair=False)
         if isinstance(resolved, DraftQueueBlocker):
             blockers.append(blocker_out(resolved))
-        else:
+        elif beat.scene_no not in drafted_scene_nos:
             draftable_scenes += 1
 
     draftable = (

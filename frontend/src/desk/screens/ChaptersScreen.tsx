@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { wordCount } from "../lib/format";
+import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { useSelection } from "../lib/useSelection";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import type { ChaptersView } from "../types";
-import type { SceneOut } from "../api/types";
+import type { ChapterOut, ChapterUpdateIn, ManuscriptChapter, SceneOut } from "../api/types";
+import type { ExportKind } from "../lib/docx";
 
 const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = {
   approved: "good",
@@ -47,6 +49,46 @@ export default function ChaptersScreen() {
     sel.clear();
     await Promise.allSettled([...byChapter].map(([cid, ids]) => api.redraftScenes(cid, ids)));
     await data.draftNext();
+  };
+
+  // Per-chapter export: the same Markdown / Reader-DOCX / Shunn-DOCX builders the Manuscript tab uses,
+  // scoped to one chapter's approved scenes (data.manuscript is already the approved compile) — so the
+  // output is byte-for-byte the same format no matter which screen produced it.
+  const [author, saveAuthor] = useAuthorName();
+  const [exportingChapter, setExportingChapter] = useState<{
+    id: string;
+    kind: ExportKind;
+  } | null>(null);
+  const manuscriptChapterFor = (chapterNo: number): ManuscriptChapter | null =>
+    data.manuscript?.chapters.find((mc) => mc.chapter_no === chapterNo) ?? null;
+  const exportChapter = async (c: ChapterOut, kind: ExportKind) => {
+    const mc = manuscriptChapterFor(c.chapter_no);
+    if (!mc) return;
+    setExportingChapter({ id: c.id, kind });
+    try {
+      const exp = await import("../lib/docx");
+      const title = `Chapter ${c.chapter_no}${c.title ? `: ${c.title}` : ""}`;
+      const ms = exp.buildManuscriptFrom(title, [mc]);
+      const stem = `chapter_${c.chapter_no}${c.title ? `_${c.title}` : ""}`;
+      if (kind === "md") {
+        exp.saveMarkdown(exp.buildManuscriptMarkdown(ms), exp.markdownFilename(stem));
+      } else if (kind === "docx") {
+        const bookTitle = data.books.find((b) => b.id === data.bookId)?.title;
+        await exp.saveDocx(
+          exp.buildManuscriptDoc(ms, bookTitle ? `from ${bookTitle}` : undefined),
+          exp.docxFilename(stem),
+        );
+      } else {
+        const name = resolveAuthorName(author, saveAuthor);
+        if (!name) return;
+        await exp.saveDocx(
+          exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
+          exp.docxFilename(`${stem}_shunn`),
+        );
+      }
+    } finally {
+      setExportingChapter(null);
+    }
   };
 
   // Write a section by hand → an approved human-authored scene (flows into summaries + prior context).
@@ -242,6 +284,10 @@ export default function ChaptersScreen() {
                         )}
                       />
                     </div>
+                    <ChapterMetaControls
+                      chapter={c}
+                      onSave={(patch) => void data.updateChapter(c.id, patch)}
+                    />
                     <div style={css("margin-top:8px")}>
                       {writeFor === c.id ? (
                         <div
@@ -316,6 +362,14 @@ export default function ChaptersScreen() {
                           + Write section by hand
                         </button>
                       )}
+                    </div>
+                    <div style={css("margin-top:8px")}>
+                      <ChapterExportLinks
+                        chapter={c}
+                        manuscriptChapter={manuscriptChapterFor(c.chapter_no)}
+                        busy={exportingChapter?.id === c.id ? exportingChapter.kind : null}
+                        onExport={(kind) => void exportChapter(c, kind)}
+                      />
                     </div>
                   </div>
                 );
@@ -483,6 +537,127 @@ function Row({
     >
       <span>{k}</span>
       <span style={css(accent && t ? `color:${t.warn}` : "color:var(--ink)")}>{v}</span>
+    </div>
+  );
+}
+
+const KIND_OPTIONS: { value: string; label: string }[] = [
+  { value: "chapter", label: "Chapter" },
+  { value: "prologue", label: "Prologue" },
+  { value: "interlude", label: "Interlude" },
+  { value: "epilogue", label: "Epilogue" },
+  { value: "front_matter", label: "Front matter" },
+  { value: "back_matter", label: "Back matter" },
+];
+
+// Per-chapter structural metadata: reader-facing kind (Prologue/Interlude/…) + an optional epigraph.
+// Kind saves immediately on select; the epigraph saves on blur. Each PATCHes only its changed field,
+// so neither re-runs the planner nor touches prose. Display-only downstream — ordering stays chapter_no.
+function ChapterMetaControls({
+  chapter,
+  onSave,
+}: {
+  chapter: ChapterOut;
+  onSave: (patch: ChapterUpdateIn) => void;
+}) {
+  const [editingEpigraph, setEditingEpigraph] = useState(false);
+  const [draft, setDraft] = useState(chapter.epigraph ?? "");
+  useEffect(() => setDraft(chapter.epigraph ?? ""), [chapter.epigraph]);
+
+  const saveEpigraph = () => {
+    const next = draft.trim();
+    if (next !== (chapter.epigraph ?? "").trim()) onSave({ epigraph: next || null });
+    setEditingEpigraph(false);
+  };
+
+  return (
+    <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px")}>
+      <label
+        style={css(
+          "display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)",
+        )}
+      >
+        kind
+        <select
+          value={chapter.kind ?? "chapter"}
+          onChange={(e) => onSave({ kind: e.target.value as ChapterUpdateIn["kind"] })}
+          style={css(
+            "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11.5px;font-family:var(--ui);cursor:pointer",
+          )}
+        >
+          {KIND_OPTIONS.map((k) => (
+            <option key={k.value} value={k.value}>
+              {k.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {editingEpigraph ? (
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={saveEpigraph}
+          placeholder="epigraph — a short quote shown at the chapter opening"
+          style={css(
+            "flex:1 1 260px;min-width:220px;min-height:44px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;line-height:1.5;resize:vertical;font-family:var(--ui)",
+          )}
+        />
+      ) : (
+        <button
+          onClick={() => setEditingEpigraph(true)}
+          title={chapter.epigraph?.trim() ? "Edit epigraph" : "Add an epigraph"}
+          style={css(
+            "font-family:var(--mono);font-size:10.5px;color:var(--dim);background:none;border:none;cursor:pointer;padding:2px 0;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left",
+          )}
+        >
+          {chapter.epigraph?.trim() ? `epigraph: “${chapter.epigraph.trim()}”` : "+ epigraph"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Same three exports the Manuscript tab offers (Markdown / Reader DOCX / Shunn DOCX), scoped to one
+// chapter's approved scenes. Hidden behind a note until the chapter has any approved prose to export.
+function ChapterExportLinks({
+  chapter,
+  manuscriptChapter,
+  busy,
+  onExport,
+}: {
+  chapter: ChapterOut;
+  manuscriptChapter: ManuscriptChapter | null;
+  busy: ExportKind | null;
+  onExport: (kind: ExportKind) => void;
+}) {
+  const hasProse = !!manuscriptChapter?.scenes.some((s) => (s.prose ?? "").trim());
+  if (!hasProse) {
+    return (
+      <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim);opacity:.55")}>
+        export: no approved prose yet
+      </span>
+    );
+  }
+  const link = (kind: ExportKind, label: string) => (
+    <span
+      key={kind}
+      onClick={() => onExport(kind)}
+      title={`Export Chapter ${chapter.chapter_no} — same format the Manuscript tab uses`}
+      style={css(
+        `font-family:var(--mono);font-size:11px;color:var(--dim);cursor:pointer;opacity:${busy ? 0.6 : 1}`,
+      )}
+    >
+      {busy === kind ? "Exporting…" : label}
+    </span>
+  );
+  return (
+    <div style={css("display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
+      {link("md", "Export Markdown")}
+      <span style={css("color:var(--dim);opacity:.4")}>·</span>
+      {link("docx", "Export Reader DOCX")}
+      <span style={css("color:var(--dim);opacity:.4")}>·</span>
+      {link("shunn", "Export Shunn DOCX")}
     </div>
   );
 }

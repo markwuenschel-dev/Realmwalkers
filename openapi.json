@@ -817,7 +817,7 @@
           "chapters"
         ],
         "summary": "Update Chapter",
-        "description": "Edit a chapter's authored fields (currently the title). Only provided fields are applied, so\nthe author can rename the plan-call's proposed title at any time without re-running the planner.",
+        "description": "Edit a chapter's authored fields (title, structural kind, epigraph). Only provided fields are\napplied, so the author can rename the plan-call's proposed title, mark a prologue/interlude/epilogue,\nor add an epigraph at any time without re-running the planner.",
         "operationId": "update_chapter_chapters__chapter_id__patch",
         "parameters": [
           {
@@ -6580,6 +6580,19 @@
         "title": "ChapterCreateIn",
         "description": "POST body to create/update a chapter's POV + outline, with no LLM beat-proposal call \u2014 the\ncontract-first entry point (create the chapter, then POST its /packet to author the chapter\npacket). Upserts by (book_id, chapter_no); a best-effort title is generated server-side."
       },
+      "ChapterKind": {
+        "type": "string",
+        "enum": [
+          "chapter",
+          "prologue",
+          "interlude",
+          "epilogue",
+          "front_matter",
+          "back_matter"
+        ],
+        "title": "ChapterKind",
+        "description": "Reader-facing structural role of a chapter. Display-only \u2014 ordering stays by chapter_no; only\nthe heading/label changes (a `chapter` renders \"Chapter N\", the rest render their own label)."
+      },
       "ChapterOut": {
         "properties": {
           "id": {
@@ -6625,6 +6638,22 @@
           "status": {
             "type": "string",
             "title": "Status"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "chapter"
+          },
+          "epigraph": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epigraph"
           }
         },
         "type": "object",
@@ -6809,11 +6838,32 @@
               }
             ],
             "title": "Title"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChapterKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "epigraph": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epigraph"
           }
         },
         "type": "object",
         "title": "ChapterUpdateIn",
-        "description": "PATCH body to edit a chapter's authored fields (currently just the title). Only provided\nfields are applied (mirrors BeatUpdateIn / ThreadUpdateIn)."
+        "description": "PATCH body to edit a chapter's authored fields (title, structural kind, epigraph). Only\nprovided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) \u2014 send `epigraph: null` to\nclear it. `kind` is validated against ChapterKind."
       },
       "CharacterStateIn": {
         "properties": {
@@ -8029,6 +8079,22 @@
           "pov": {
             "type": "string",
             "title": "Pov"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "chapter"
+          },
+          "epigraph": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epigraph"
           },
           "scenes": {
             "items": {

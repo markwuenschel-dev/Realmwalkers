@@ -7,12 +7,14 @@ import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { sceneLabel, wordCount } from "../lib/format";
 import { buildScenesMarkdown, downloadMarkdown, type SceneExportItem } from "../lib/sceneMarkdown";
+import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { useSelection } from "../lib/useSelection";
 import Planner from "../components/Planner";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import { ActivityFeed, DraftPanel, formatElapsed } from "../components/DraftActivity";
 import ClearFailedPanel from "../components/ClearFailedPanel";
 import type { SceneOut } from "../api/types";
+import type { ExportKind } from "../lib/docx";
 
 export default function InboxScreen() {
   const { t, openScene, openSceneId } = useDesk();
@@ -21,6 +23,9 @@ export default function InboxScreen() {
   const [reviseMode, setReviseMode] = useState(false);
   const [note, setNote] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [exportingAs, setExportingAs] = useState<ExportKind | null>(null);
+  // Shared with every other export surface (Manuscript, Scene, Chapters, Packets) so it's typed once.
+  const [author, saveAuthor] = useAuthorName();
   const clearSel = () => {
     sel.clear();
     setReviseMode(false);
@@ -59,6 +64,77 @@ export default function InboxScreen() {
       window.alert(`Couldn't export: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Manuscript-style bulk export: the same Markdown / Reader-DOCX / Shunn-DOCX builders the Manuscript
+  // tab uses, fed the selected pending scenes grouped back into their chapters — so the output is
+  // byte-for-byte the same format no matter which screen produced it. Unlike downloadSelected above,
+  // this needs no extra API calls: data.pending already carries every selected scene's prose.
+  const selectedChapters = () => {
+    const chosen = data.pending.filter((s) => sel.has(s.id));
+    const byChapter = new Map<string, typeof chosen>();
+    for (const s of chosen) byChapter.set(s.chapter_id, [...(byChapter.get(s.chapter_id) ?? []), s]);
+    return [...byChapter.entries()].map(([chapterId, scenes]) => {
+      const ch = data.chapters.find((c) => c.id === chapterId);
+      return {
+        chapter_no: ch?.chapter_no ?? 0,
+        title: ch?.title ?? null,
+        pov: ch?.pov ?? "",
+        scenes: scenes.map((s) => ({ scene_no: s.scene_no, prose: s.prose })),
+      };
+    });
+  };
+  const selectedTitle = () =>
+    `${data.books.find((b) => b.id === data.bookId)?.title ?? "Manuscript"} — selected scenes`;
+
+  const exportSelectedMarkdown = async () => {
+    const chapters = selectedChapters();
+    if (chapters.length === 0) return;
+    setExportingAs("md");
+    try {
+      const exp = await import("../lib/docx");
+      const ms = exp.buildManuscriptFrom(selectedTitle(), chapters);
+      exp.saveMarkdown(
+        exp.buildManuscriptMarkdown(ms),
+        exp.markdownFilename(`selected_scenes_${sel.count}`),
+      );
+    } finally {
+      setExportingAs(null);
+    }
+  };
+
+  const exportSelectedDocx = async () => {
+    const chapters = selectedChapters();
+    if (chapters.length === 0) return;
+    setExportingAs("docx");
+    try {
+      const exp = await import("../lib/docx");
+      const ms = exp.buildManuscriptFrom(selectedTitle(), chapters);
+      await exp.saveDocx(
+        exp.buildManuscriptDoc(ms, "selected scenes"),
+        exp.docxFilename(`selected_scenes_${sel.count}`),
+      );
+    } finally {
+      setExportingAs(null);
+    }
+  };
+
+  const exportSelectedShunn = async () => {
+    const chapters = selectedChapters();
+    if (chapters.length === 0) return;
+    setExportingAs("shunn");
+    try {
+      const exp = await import("../lib/docx");
+      const ms = exp.buildManuscriptFrom(selectedTitle(), chapters);
+      const name = resolveAuthorName(author, saveAuthor);
+      if (!name) return;
+      await exp.saveDocx(
+        exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
+        exp.docxFilename(`selected_scenes_${sel.count}_shunn`),
+      );
+    } finally {
+      setExportingAs(null);
     }
   };
 
@@ -253,7 +329,7 @@ export default function InboxScreen() {
           <Column title="Revising" color={t.bad} count={revising.length} />
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             {revising.length === 0 && <Empty text="—" />}
-            {revising.map((s) => sceneCard(s, t.bad, "redrafting"))}
+            {revising.map((s) => sceneCard(s, t.bad, "redrafting", () => openSceneId(s.id)))}
           </div>
         </div>
 
@@ -290,7 +366,31 @@ export default function InboxScreen() {
                 void downloadSelected();
               }}
             >
-              {downloading ? "Exporting…" : "Download .md"}
+              {downloading ? "Exporting…" : "Download .md + feedback"}
+            </BulkButton>
+            <BulkButton
+              disabled={exportingAs != null}
+              onClick={() => {
+                void exportSelectedMarkdown();
+              }}
+            >
+              {exportingAs === "md" ? "Exporting…" : "Export Markdown"}
+            </BulkButton>
+            <BulkButton
+              disabled={exportingAs != null}
+              onClick={() => {
+                void exportSelectedDocx();
+              }}
+            >
+              {exportingAs === "docx" ? "Exporting…" : "Export Reader DOCX"}
+            </BulkButton>
+            <BulkButton
+              disabled={exportingAs != null}
+              onClick={() => {
+                void exportSelectedShunn();
+              }}
+            >
+              {exportingAs === "shunn" ? "Exporting…" : "Export Shunn DOCX"}
             </BulkButton>
             <BulkButton
               tone="bad"

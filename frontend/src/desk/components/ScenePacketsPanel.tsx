@@ -11,13 +11,16 @@ import { ChapterTelemetryPanel } from "./Telemetry";
 import { TelemetryDrawer, useTelemetryDrawer } from "./telemetry/TelemetryDrawer";
 import type { TelemetryDrawerView } from "./telemetry/types";
 import { useDeskData } from "../api/data";
+import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import type {
   ScenePacketBody,
   ScenePacketOut,
   DraftReadinessOut,
   QaIssue,
+  SceneOut,
   SceneSource,
 } from "../api/types";
+import type { ExportKind } from "../lib/docx";
 
 // Scene packets are the scene-local contract derived from an APPROVED chapter packet: per scene, what
 // the reader/POV know before it, what may be revealed, what stays hidden, the intentional mysteries,
@@ -102,6 +105,12 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const [telemetryKey, setTelemetryKey] = useState(0);
   const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
   const [drafting, setDrafting] = useState(false);
+  // Per-scene export (Markdown / Reader-DOCX / Shunn-DOCX) once a scene packet's scene has been
+  // drafted — same builders the Manuscript tab uses. Author name shared with every export surface.
+  const [author, saveAuthor] = useAuthorName();
+  const [exportingScene, setExportingScene] = useState<{ packetId: string; kind: ExportKind } | null>(
+    null,
+  );
   const pollRef = useRef<number | null>(null);
 
   const openTelemetry = useCallback(
@@ -203,6 +212,41 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const approvable = packets.filter((p) => p.status === "proposed");
   const approvedCount = packets.filter((p) => p.status === "approved").length;
   const chapterMeta = desk.chapters.find((c) => c.id === chapterId);
+  // The drafted scene for each scene packet, if any exists yet — keyed by scene_no so each card can
+  // offer to export its own scene once it's been drafted (a scene packet has no prose of its own).
+  const sceneByNo = new Map(
+    desk.latestScenes.filter((s) => s.chapter_id === chapterId).map((s) => [s.scene_no, s]),
+  );
+  const exportScene = async (packetId: string, scene: SceneOut, kind: ExportKind) => {
+    setExportingScene({ packetId, kind });
+    try {
+      const exp = await import("../lib/docx");
+      const title = `Chapter ${chapterMeta?.chapter_no ?? "?"} · Scene ${scene.scene_no}`;
+      const ms = exp.buildManuscriptFrom(title, [
+        {
+          chapter_no: chapterMeta?.chapter_no ?? 0,
+          title: chapterMeta?.title ?? null,
+          pov: chapterMeta?.pov ?? "",
+          scenes: [{ scene_no: scene.scene_no, prose: scene.prose }],
+        },
+      ]);
+      const stem = `scene_ch${chapterMeta?.chapter_no ?? "x"}_s${scene.scene_no}_v${scene.version}`;
+      if (kind === "md") {
+        exp.saveMarkdown(exp.buildManuscriptMarkdown(ms), exp.markdownFilename(stem));
+      } else if (kind === "docx") {
+        await exp.saveDocx(exp.buildManuscriptDoc(ms, title), exp.docxFilename(stem));
+      } else {
+        const name = resolveAuthorName(author, saveAuthor);
+        if (!name) return;
+        await exp.saveDocx(
+          exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
+          exp.docxFilename(`${stem}_shunn`),
+        );
+      }
+    } finally {
+      setExportingScene(null);
+    }
+  };
   const chapterFailedJobs = desk.failedJobs.filter(
     (f) => chapterMeta != null && f.chapter_no === chapterMeta.chapter_no,
   );
@@ -386,6 +430,9 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
               key={p.id}
               packet={p}
               busy={busy}
+              scene={sceneByNo.get(p.scene_no) ?? null}
+              exportingKind={exportingScene?.packetId === p.id ? exportingScene.kind : null}
+              onExport={(scene, kind) => void exportScene(p.id, scene, kind)}
               onApprove={() => run(`approve:${p.id}`, () => api.approveScenePacket(p.id))}
               onReQa={() => run(`qa:${p.id}`, () => api.qaScenePacket(p.id))}
               onSave={(body) => run(`save:${p.id}`, () => api.updateScenePacket(p.id, { body }))}
@@ -419,6 +466,9 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
 function ScenePacketCard({
   packet,
   busy,
+  scene,
+  exportingKind,
+  onExport,
   onApprove,
   onReQa,
   onSave,
@@ -426,6 +476,9 @@ function ScenePacketCard({
 }: {
   packet: ScenePacketOut;
   busy: string | null;
+  scene: SceneOut | null;
+  exportingKind: ExportKind | null;
+  onExport: (scene: SceneOut, kind: ExportKind) => void;
   onApprove: () => void;
   onReQa: () => void;
   onSave: (body: ScenePacketBody) => void;
@@ -722,6 +775,47 @@ function ScenePacketCard({
                 {violations.length > 6 && (
                   <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
                     … {violations.length - 6} more
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Same three exports the Manuscript tab offers, once this scene has actually been
+                drafted — a scene packet is pre-prose planning JSON, so there's nothing to export
+                until drafting produces prose for it. */}
+            {packet.status === "approved" && (
+              <div
+                style={css(
+                  "margin-top:4px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px",
+                )}
+              >
+                <Label text="Export drafted scene" />
+                {scene && (scene.prose ?? "").trim() ? (
+                  <div style={css("display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
+                    <ExportLink
+                      kind="md"
+                      label="Export Markdown"
+                      busy={exportingKind}
+                      onClick={() => onExport(scene, "md")}
+                    />
+                    <span style={css("color:var(--dim);opacity:.4")}>·</span>
+                    <ExportLink
+                      kind="docx"
+                      label="Export Reader DOCX"
+                      busy={exportingKind}
+                      onClick={() => onExport(scene, "docx")}
+                    />
+                    <span style={css("color:var(--dim);opacity:.4")}>·</span>
+                    <ExportLink
+                      kind="shunn"
+                      label="Export Shunn DOCX"
+                      busy={exportingKind}
+                      onClick={() => onExport(scene, "shunn")}
+                    />
+                  </div>
+                ) : (
+                  <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                    Not drafted yet — export options appear once this scene has prose.
                   </div>
                 )}
               </div>
@@ -1242,6 +1336,30 @@ function Label({ text }: { text: string }) {
     >
       {text}
     </div>
+  );
+}
+
+function ExportLink({
+  kind,
+  label,
+  busy,
+  onClick,
+}: {
+  kind: ExportKind;
+  label: string;
+  busy: ExportKind | null;
+  onClick: () => void;
+}) {
+  return (
+    <span
+      onClick={onClick}
+      title="Same format the Manuscript tab exports"
+      style={css(
+        `font-family:var(--mono);font-size:11px;color:var(--dim);cursor:pointer;opacity:${busy ? 0.6 : 1}`,
+      )}
+    >
+      {busy === kind ? "Exporting…" : label}
+    </span>
   );
 }
 

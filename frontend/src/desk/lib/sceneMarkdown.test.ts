@@ -26,6 +26,7 @@ const baseChapter = (): ChapterOut => ({
   pov: "Mara",
   outline: null,
   status: "active",
+  kind: "chapter",
 });
 
 describe("buildSceneMarkdown", () => {

@@ -40,6 +40,12 @@ class Chapter(Base):
     pov: Mapped[str] = mapped_column(Text)  # single narrating character
     outline: Mapped[str | None] = mapped_column(Text, nullable=True)  # input to beat-proposal
     status: Mapped[str] = mapped_column(Text, default="planned")
+    # Reader-facing structural role (see ChapterKind): chapter | prologue | interlude | epilogue |
+    # front_matter | back_matter. Display-only — ordering still keys off chapter_no; a plain "chapter"
+    # renders "Chapter N", the rest render their own label. server_default keeps pre-existing rows valid.
+    kind: Mapped[str] = mapped_column(Text, default="chapter", server_default="chapter")
+    # Optional short quote/text shown at the chapter opening, before the prose, in reader + exports.
+    epigraph: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class PovProfile(Base):

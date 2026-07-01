@@ -77,6 +77,8 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
                 chapter_no=chapter.chapter_no,
                 title=chapter.title,
                 pov=chapter.pov,
+                kind=chapter.kind,
+                epigraph=chapter.epigraph,
                 scenes=[ManuscriptScene(scene_no=no, prose=latest[no].prose) for no in sorted(latest)],
             )
         )

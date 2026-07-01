@@ -10,6 +10,7 @@ import { api } from "../api/client";
 import { Spinner, formatElapsed } from "../components/DraftActivity";
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
 import ClearFailedPanel from "../components/ClearFailedPanel";
+import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import type {
   PacketBody,
   PacketClaim,
@@ -18,6 +19,7 @@ import type {
   PacketSceneSeed,
   ResolvedQuestion,
 } from "../api/types";
+import type { ExportKind } from "../lib/docx";
 
 // The Packet review panel (contract-first drafting, Phase 1). Per chapter, it runs the Packet Author
 // + Packet QA agents, then shows the proposed chapter knowledge packet for the human to adjudicate
@@ -59,6 +61,11 @@ export default function PacketsScreen() {
   const [batchResults, setBatchResults] = useState<
     { chapterId: string; chapterNo: number; ok: boolean; error?: string }[] | null
   >(null);
+
+  // Export the current chapter's approved manuscript content — same Markdown / Reader-DOCX /
+  // Shunn-DOCX builders the Manuscript tab uses. Shared author name with every other export surface.
+  const [author, saveAuthor] = useAuthorName();
+  const [exportingChapter, setExportingChapter] = useState<ExportKind | null>(null);
 
   // Default to the first chapter once chapters load (without clobbering an explicit pick).
   useEffect(() => {
@@ -240,6 +247,41 @@ export default function PacketsScreen() {
     if (ok) setEditing(false);
   };
 
+  // A packet is pre-prose planning JSON — nothing to export until the chapter has approved, drafted
+  // scenes. data.manuscript is already the approved compile, so find this chapter's slice of it.
+  const manuscriptChapter =
+    data.manuscript?.chapters.find((mc) => mc.chapter_no === chapter?.chapter_no) ?? null;
+  const chapterHasProse = !!manuscriptChapter?.scenes.some((s) => (s.prose ?? "").trim());
+
+  const exportChapterAs = async (kind: ExportKind) => {
+    if (!chapter || !manuscriptChapter) return;
+    setExportingChapter(kind);
+    try {
+      const exp = await import("../lib/docx");
+      const title = `Chapter ${chapter.chapter_no}${chapter.title ? `: ${chapter.title}` : ""}`;
+      const ms = exp.buildManuscriptFrom(title, [manuscriptChapter]);
+      const stem = `chapter_${chapter.chapter_no}${chapter.title ? `_${chapter.title}` : ""}`;
+      if (kind === "md") {
+        exp.saveMarkdown(exp.buildManuscriptMarkdown(ms), exp.markdownFilename(stem));
+      } else if (kind === "docx") {
+        const bookTitle = data.books.find((b) => b.id === data.bookId)?.title;
+        await exp.saveDocx(
+          exp.buildManuscriptDoc(ms, bookTitle ? `from ${bookTitle}` : undefined),
+          exp.docxFilename(stem),
+        );
+      } else {
+        const name = resolveAuthorName(author, saveAuthor);
+        if (!name) return;
+        await exp.saveDocx(
+          exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
+          exp.docxFilename(`${stem}_shunn`),
+        );
+      }
+    } finally {
+      setExportingChapter(null);
+    }
+  };
+
   return (
     <div>
       <div
@@ -277,6 +319,44 @@ export default function PacketsScreen() {
               </option>
             ))}
           </select>
+          {/* Same three exports the Manuscript tab offers, scoped to this chapter's approved scenes
+              (data.manuscript is already the approved compile) — a packet has no prose of its own. */}
+          <button
+            disabled={!chapterHasProse || exportingChapter != null}
+            title={
+              chapterHasProse
+                ? "Semantic Markdown — same format the Manuscript tab exports"
+                : "This chapter has no approved prose yet"
+            }
+            onClick={() => void exportChapterAs("md")}
+            style={btn(chapterHasProse && exportingChapter == null, "var(--bg3)", "var(--ink)")}
+          >
+            {exportingChapter === "md" ? "Exporting…" : "Export Markdown"}
+          </button>
+          <button
+            disabled={!chapterHasProse || exportingChapter != null}
+            title={
+              chapterHasProse
+                ? "Reader DOCX — styled book format, same as the Manuscript tab"
+                : "This chapter has no approved prose yet"
+            }
+            onClick={() => void exportChapterAs("docx")}
+            style={btn(chapterHasProse && exportingChapter == null, "var(--bg3)", "var(--ink)")}
+          >
+            {exportingChapter === "docx" ? "Exporting…" : "Export Reader DOCX"}
+          </button>
+          <button
+            disabled={!chapterHasProse || exportingChapter != null}
+            title={
+              chapterHasProse
+                ? "Shunn DOCX — plain submission format, same as the Manuscript tab"
+                : "This chapter has no approved prose yet"
+            }
+            onClick={() => void exportChapterAs("shunn")}
+            style={btn(chapterHasProse && exportingChapter == null, "var(--bg3)", "var(--ink)")}
+          >
+            {exportingChapter === "shunn" ? "Exporting…" : "Export Shunn DOCX"}
+          </button>
           {packet && !editing && !proposing && (
             <button onClick={() => setEditing(true)} style={btn(true, "var(--bg3)", "var(--ink)")}>
               Edit packet

@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from dominion.shared.enums import Decision, GateMode, RuleProposalStatus, SuggestionStatus
+from dominion.shared.enums import ChapterKind, Decision, GateMode, RuleProposalStatus, SuggestionStatus
 
 
 class _ORM(BaseModel):
@@ -162,13 +162,18 @@ class ChapterOut(_ORM):
     pov: str
     outline: str | None = None
     status: str
+    kind: str = "chapter"  # ChapterKind value; str (like status) tolerates any legacy row
+    epigraph: str | None = None
 
 
 class ChapterUpdateIn(BaseModel):
-    """PATCH body to edit a chapter's authored fields (currently just the title). Only provided
-    fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn)."""
+    """PATCH body to edit a chapter's authored fields (title, structural kind, epigraph). Only
+    provided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) — send `epigraph: null` to
+    clear it. `kind` is validated against ChapterKind."""
 
     title: str | None = None
+    kind: ChapterKind | None = None
+    epigraph: str | None = None
 
 
 class ChapterCreateIn(BaseModel):
@@ -574,6 +579,8 @@ class ManuscriptChapter(BaseModel):
     chapter_no: int
     title: str | None = None
     pov: str
+    kind: str = "chapter"
+    epigraph: str | None = None
     scenes: list[ManuscriptScene] = []
 
 

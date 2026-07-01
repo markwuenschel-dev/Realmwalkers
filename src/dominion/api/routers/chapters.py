@@ -87,6 +87,8 @@ async def create_chapter(body: ChapterCreateIn, session: SessionDep) -> Chapter:
         )
     ).scalar_one_or_none()
     if chapter is None:
+        # New chapters are plain "chapter" kind (model default); an author marks a prologue/interlude/
+        # epilogue afterward via PATCH /chapters/{id} (ChapterUpdateIn.kind), never clobbered on re-create.
         chapter = Chapter(book_id=body.book_id, chapter_no=body.chapter_no, pov=body.pov)
         session.add(chapter)
     chapter.pov = body.pov
@@ -124,12 +126,14 @@ async def create_chapter(body: ChapterCreateIn, session: SessionDep) -> Chapter:
 
 @router.patch("/{chapter_id}", response_model=ChapterOut)
 async def update_chapter(chapter_id: uuid.UUID, body: ChapterUpdateIn, session: SessionDep) -> Chapter:
-    """Edit a chapter's authored fields (currently the title). Only provided fields are applied, so
-    the author can rename the plan-call's proposed title at any time without re-running the planner."""
+    """Edit a chapter's authored fields (title, structural kind, epigraph). Only provided fields are
+    applied, so the author can rename the plan-call's proposed title, mark a prologue/interlude/epilogue,
+    or add an epigraph at any time without re-running the planner."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
-    for key, value in body.model_dump(exclude_unset=True).items():
+    # mode="json" so a ChapterKind value serializes to its plain string before hitting the Text column.
+    for key, value in body.model_dump(exclude_unset=True, mode="json").items():
         setattr(chapter, key, value)
     await session.commit()
     return chapter
@@ -289,7 +293,9 @@ async def redraft_scenes(
     result = await schedule_scene_redrafts(session, chapter, list(scenes), run)
     out = _schedule_out(chapter_id, result)
     if not out.queued_job_ids and out.skipped:
-        raise HTTPException(status_code=409, detail={"blockers": [s.model_dump() for s in out.skipped]})
+        # Same UUID-serialization hazard as draft_chapter below: model_dump(mode="json") keeps the
+        # blocker detail JSON-native (raw UUIDs would 500 via Starlette's json.dumps, not this 409).
+        raise HTTPException(status_code=409, detail={"blockers": [s.model_dump(mode="json") for s in out.skipped]})
     await session.commit()
     return out
 
@@ -318,7 +324,11 @@ async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> DraftSche
     result = await schedule_undrafted_beats(session, chapter, run)
     out = _schedule_out(chapter_id, result)
     if not out.queued_job_ids and out.skipped:
-        raise HTTPException(status_code=409, detail={"blockers": [s.model_dump() for s in out.skipped]})
+        # mode="json" is load-bearing: plain model_dump() leaves chapter_id/beat_id/scene_packet_id as
+        # raw UUID objects, and HTTPException.detail skips FastAPI's jsonable_encoder — Starlette's
+        # JSONResponse hits stdlib json.dumps() directly, which can't serialize UUID and raises
+        # TypeError while rendering the response (an unhandled 500 instead of this 409).
+        raise HTTPException(status_code=409, detail={"blockers": [s.model_dump(mode="json") for s in out.skipped]})
     if out.queued_job_ids:
         chapter.status = ChapterStatus.DRAFTING
     await session.commit()

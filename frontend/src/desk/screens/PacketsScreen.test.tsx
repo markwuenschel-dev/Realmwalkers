@@ -39,11 +39,27 @@ const CHAPTERS = [
   },
 ];
 
-const mockData = {
+const mockData: {
+  chapters: typeof CHAPTERS;
+  failedJobs: unknown[];
+  jobs: { running: boolean; queued: number; failed: number; active_scene: null };
+  clearFailed: () => void;
+  manuscript: {
+    chapters: { chapter_no: number; title: string | null; pov: string; scenes: { scene_no: number; prose: string | null }[] }[];
+  } | null;
+  books: { id: string; title: string }[];
+  bookId: string | null;
+  latestScenes: unknown[];
+} = {
   chapters: CHAPTERS,
   failedJobs: [],
   jobs: { running: false, queued: 0, failed: 0, active_scene: null },
   clearFailed: vi.fn(),
+  // Same shape useDeskData() really returns — exercised by the "PacketsScreen exports" suite below.
+  manuscript: null,
+  books: [],
+  bookId: null,
+  latestScenes: [],
 };
 
 vi.mock("../api/data", () => ({
@@ -122,5 +138,46 @@ describe("PacketsScreen batch generate", () => {
 
     await waitFor(() => expect(panel.getByText(/failed: no outline/)).toBeInTheDocument());
     expect(panel.getByText("authoring started")).toBeInTheDocument();
+  });
+});
+
+// Same three exports the Manuscript tab offers, scoped to the selected chapter's approved scenes
+// (data.manuscript is the approved compile — a packet has no prose of its own to export).
+describe("PacketsScreen exports", () => {
+  beforeEach(() => {
+    vi.mocked(api.packet).mockReset().mockRejectedValue(new Error("404"));
+    vi.mocked(api.packetStatus).mockReset().mockResolvedValue({ running: false });
+    mockData.manuscript = null;
+    mockData.books = [];
+    mockData.bookId = null;
+  });
+
+  it("disables export buttons when the selected chapter has no approved prose yet", async () => {
+    render(<PacketsScreen />);
+    const md = await screen.findByRole("button", { name: "Export Markdown" });
+    expect(md).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Export Reader DOCX" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Export Shunn DOCX" })).toBeDisabled();
+  });
+
+  it("enables export buttons once the selected chapter has approved prose", async () => {
+    mockData.manuscript = {
+      chapters: [
+        { chapter_no: 1, title: "The Start", pov: "Soren", scenes: [{ scene_no: 1, prose: "Text." }] },
+      ],
+    };
+    render(<PacketsScreen />);
+    const md = await screen.findByRole("button", { name: "Export Markdown" });
+    expect(md).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Export Reader DOCX" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Export Shunn DOCX" })).not.toBeDisabled();
+  });
+
+  it("stays disabled when the manuscript has the chapter but every scene is empty", async () => {
+    mockData.manuscript = {
+      chapters: [{ chapter_no: 1, title: "The Start", pov: "Soren", scenes: [{ scene_no: 1, prose: "   " }] }],
+    };
+    render(<PacketsScreen />);
+    expect(await screen.findByRole("button", { name: "Export Markdown" })).toBeDisabled();
   });
 });

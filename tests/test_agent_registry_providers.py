@@ -7,6 +7,7 @@ from dominion.shared.agent_registry import (
     TIERS,
     model_for_tier,
     provider_of,
+    resolve_tier_for_provider,
     tier_of,
 )
 
@@ -64,3 +65,33 @@ def test_provider_of_unknown_model_defaults_to_anthropic():
     # those must stay attributed to Anthropic, not silently misclassified.
     assert provider_of("m") == "anthropic"
     assert provider_of(None) == "anthropic"
+
+
+# --- resolve_tier_for_provider: preset tier resolution against a provider's actual coverage --------
+
+
+def test_resolve_tier_for_provider_returns_exact_match_unchanged():
+    assert resolve_tier_for_provider("opus", "anthropic") == "opus"
+    assert resolve_tier_for_provider("haiku", "anthropic") == "haiku"
+    assert resolve_tier_for_provider("sonnet", "openai") == "sonnet"
+    assert resolve_tier_for_provider("opus", "xai") == "opus"
+
+
+def test_resolve_tier_for_provider_clamps_to_xais_only_tier():
+    # xAI only ships one model today (slotted at "opus") -- any requested tier must resolve to it,
+    # not raise and not switch to a different provider.
+    assert resolve_tier_for_provider("haiku", "xai") == "opus"
+    assert resolve_tier_for_provider("sonnet", "xai") == "opus"
+
+
+def test_resolve_tier_for_provider_prefers_higher_tier_on_a_rank_distance_tie(monkeypatch):
+    # Hypothetical provider missing the middle tier: "sonnet" is equidistant from "haiku" and "opus" --
+    # the tie-break rounds UP (never resolves to a lower tier than requested when a tie must be broken).
+    monkeypatch.setitem(PROVIDER_TIERS, "_test_partial", {"haiku": "x-small", "opus": "x-large"})
+    assert resolve_tier_for_provider("sonnet", "_test_partial") == "opus"
+
+
+def test_resolve_tier_for_provider_unknown_provider_returns_tier_unchanged():
+    # No catalog to resolve against -- nothing to clamp to, so the caller's own downstream lookup
+    # (e.g. model_for_tier) is what actually surfaces the "unknown provider" error.
+    assert resolve_tier_for_provider("opus", "mistral") == "opus"

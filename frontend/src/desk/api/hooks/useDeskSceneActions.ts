@@ -13,7 +13,7 @@ import type {
   SceneDetail,
 } from "../types";
 import { purgeDraftLocalStorage, isHttpNotFound } from "../../lib/draftStorage";
-import type { DeskFail } from "./shared";
+import { draftBlockerMessage, type DeskFail } from "./shared";
 
 export interface DeskSceneActionsDeps {
   bookId: string | null;
@@ -41,6 +41,7 @@ export interface DeskSceneActionsState {
   revertScene: (sceneId: string) => Promise<void>;
   resolveContinuity: (sceneId: string, body: ContinuityResolveIn) => Promise<void>;
   setExemplar: (enabled: boolean) => Promise<void>;
+  restartRedraft: (chapterId: string, sceneId: string) => Promise<void>;
 }
 
 export function useDeskSceneActions(
@@ -225,6 +226,27 @@ export function useDeskSceneActions(
     [draftNext, fail, openSceneById, refreshAll],
   );
 
+  // Manual restart for a scene stuck in "revision_requested" (its auto-queued revision job failed,
+  // or one was never queued). Re-queues a fresh DRAFT job for this exact scene via the same
+  // contract-first redraft path the Chapters board's bulk "Redraft" action uses — deliberately NOT
+  // schedule_revision()'s REVISE_* job, because retry-failed/clear-failed only reconcile JobKind.DRAFT
+  // (see draft_queue.py), so a REVISE_* job that fails can never be retried from the Desk today.
+  const restartRedraft = useCallback(
+    async (chapterId: string, sceneId: string): Promise<void> => {
+      try {
+        const out = await api.redraftScenes(chapterId, [sceneId]);
+        if (out.queued > 0) await draftNext();
+        await refreshAll();
+      } catch (e) {
+        // A 409 here means no approved ScenePacket resolved for the scene (stale / unapproved /
+        // missing) — surface the blocker's actionable reason instead of an opaque red toast.
+        const msg = draftBlockerMessage(e);
+        fail(msg ? new Error(msg) : e);
+      }
+    },
+    [draftNext, fail, refreshAll],
+  );
+
   const setExemplar = useCallback(
     async (enabled: boolean): Promise<void> => {
       if (!activeSceneId) return;
@@ -250,5 +272,6 @@ export function useDeskSceneActions(
     revertScene,
     resolveContinuity,
     setExemplar,
+    restartRedraft,
   };
 }

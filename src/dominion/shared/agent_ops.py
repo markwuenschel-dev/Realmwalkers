@@ -22,6 +22,7 @@ from dominion.shared.agent_registry import (
     capability_warnings,
     model_for_tier,
     provider_of,
+    resolve_tier_for_provider,
     tier_of,
 )
 from dominion.shared.config import settings
@@ -412,8 +413,20 @@ async def _merge_policy_hints(session: AsyncSession, hints: dict[str, dict[str, 
         fb_tier = hint.get("fallback_tier")
         if fb_tier is not None:
             attr = FALLBACK_ATTR.get(setting_key)
-            if attr:
-                setattr(settings, attr, model_for_tier(fb_tier) if fb_tier else "")
+            if fb_tier:
+                # Hints only name a tier (like preset.tiers) -- resolve it against this agent's
+                # CURRENT provider rather than defaulting to Anthropic, so a fallback hint doesn't
+                # undo a provider the user picked on this agent.
+                fb_provider = provider_of(getattr(settings, setting_key))
+                fb_tier = resolve_tier_for_provider(fb_tier, fb_provider)
+                merged["fallback_tier"] = fb_tier
+                merged["fallback_provider"] = fb_provider
+                if attr:
+                    setattr(settings, attr, model_for_tier(fb_tier, fb_provider) or "")
+            else:
+                merged["fallback_provider"] = None
+                if attr:
+                    setattr(settings, attr, "")
         if existing is None:
             session.add(AgentPolicyOverride(setting_name=setting_key, policy_json=merged))
         else:
@@ -440,7 +453,14 @@ async def apply_preset(session: AsyncSession, preset_id: str) -> AgentOpsOut:
     if preset_id in BUILTIN_PRESET_IDS:
         preset = PRESET_BY_ID[preset_id]
         for setting_key, tier in preset.tiers.items():
-            await apply_tier_to_agent(session, setting_key, tier)
+            # Built-in presets only name a tier (quality level), never a provider -- resolve it
+            # against each agent's CURRENT provider so applying a preset changes quality without
+            # silently reverting an agent the user put on openai/xai back to Anthropic. When that
+            # provider doesn't ship the exact tier (e.g. xAI only has "opus" today), resolve to its
+            # nearest available tier instead of erroring or switching provider.
+            current_provider = provider_of(getattr(settings, setting_key))
+            resolved_tier = resolve_tier_for_provider(tier, current_provider)
+            await apply_tier_to_agent(session, setting_key, resolved_tier, current_provider)
         if preset.policy_hints:
             await _merge_policy_hints(session, preset.policy_hints)
     elif preset_id.startswith(_CUSTOM_PRESET_PREFIX):
@@ -460,7 +480,7 @@ async def apply_agent_policy(
     setting_key: str,
     *,
     fallback_tier: str | None = None,
-    fallback_provider: str = "anthropic",
+    fallback_provider: str | None = None,
     never_fallback: list[str] | None = None,
     semantic_escalation: bool | None = None,
     quality_level: str | None = None,
@@ -474,6 +494,12 @@ async def apply_agent_policy(
     policy_json: dict[str, Any] = {}
     if fallback_tier is not None:
         if fallback_tier:
+            if not fallback_provider:
+                # Caller named a tier without pinning a provider -- default to this agent's CURRENT
+                # primary provider (not hardcoded Anthropic), so picking "just a fallback tier"
+                # preserves whatever provider the agent is already on. An explicit, wrong provider
+                # (below) still 422s rather than being silently substituted.
+                fallback_provider = provider_of(getattr(settings, setting_key))
             if fallback_provider not in PROVIDER_TIERS:
                 raise ValueError(f"unknown provider '{fallback_provider}'")
             if fallback_tier not in PROVIDER_TIERS[fallback_provider]:

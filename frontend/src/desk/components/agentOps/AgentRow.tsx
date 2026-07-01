@@ -86,6 +86,14 @@ export function AgentRow({
   const [open, setOpen] = useState(false);
   const a = agent;
   const catalog = modelCatalog(providerTiers);
+  // Show the fallback as the actual model (e.g. "Grok", "GPT 5.5") when set, not the raw tier word:
+  // the tier vocabulary (opus/sonnet/haiku) is provider-neutral internally but reads as Anthropic-only.
+  const fbTier = a.policy.fallback_tier;
+  const fbModel =
+    fbTier && a.policy.fallback_provider
+      ? providerTiers[a.policy.fallback_provider]?.[fbTier]
+      : undefined;
+  const fbLabel = fbTier ? ((fbModel && MODEL_LABEL[fbModel]) ?? TIER_LABEL[fbTier] ?? fbTier) : null;
 
   return (
     <div
@@ -119,7 +127,7 @@ export function AgentRow({
                   "font-size:11px;padding:2px 8px;border-radius:6px;background:var(--bg3);color:var(--dim)",
                 )}
               >
-                fallback: {TIER_LABEL[a.policy.fallback_tier] ?? a.policy.fallback_tier}
+                fallback: {fbLabel}
               </span>
             )}
             <span style={css("font-size:11px;color:var(--dim)")}>
@@ -166,7 +174,7 @@ export function AgentRow({
                 active={{ provider: a.policy.fallback_provider, tier: a.policy.fallback_tier }}
                 disabled={busy}
                 allowEmpty
-                onPickEmpty={() => onSetFallback(a.setting, "", "anthropic")}
+                onPickEmpty={() => onSetFallback(a.setting, "", "")}
                 onPick={(opt) => onSetFallback(a.setting, opt.tier, opt.provider)}
               />
             </div>

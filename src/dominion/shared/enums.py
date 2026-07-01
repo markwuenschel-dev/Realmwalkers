@@ -21,6 +21,18 @@ class ChapterStatus(StrEnum):
     DONE = "done"
 
 
+class ChapterKind(StrEnum):
+    """Reader-facing structural role of a chapter. Display-only — ordering stays by chapter_no; only
+    the heading/label changes (a `chapter` renders "Chapter N", the rest render their own label)."""
+
+    CHAPTER = "chapter"
+    PROLOGUE = "prologue"
+    INTERLUDE = "interlude"
+    EPILOGUE = "epilogue"
+    FRONT_MATTER = "front_matter"
+    BACK_MATTER = "back_matter"
+
+
 class BeatStatus(StrEnum):
     PROPOSED = "proposed"
     APPROVED = "approved"
