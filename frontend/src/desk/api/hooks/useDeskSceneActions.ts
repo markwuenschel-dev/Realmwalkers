@@ -22,7 +22,7 @@ export interface DeskSceneActionsDeps {
   setChapters: React.Dispatch<React.SetStateAction<ChapterOut[]>>;
   setDetail: React.Dispatch<React.SetStateAction<SceneDetail | null>>;
   openSceneById: (id: string | null) => void;
-  refreshAll: () => Promise<void>;
+  refreshScenes: () => Promise<void>;
 }
 
 export interface DeskSceneActionsState {
@@ -50,7 +50,7 @@ export function useDeskSceneActions(
   deps: DeskSceneActionsDeps,
 ): DeskSceneActionsState {
   const router = useRouter();
-  const { bookId, activeSceneId, setJobs, setChapters, setDetail, openSceneById, refreshAll } =
+  const { bookId, activeSceneId, setJobs, setChapters, setDetail, openSceneById, refreshScenes } =
     deps;
 
   const draftNext = useCallback(async (): Promise<void> => {
@@ -72,13 +72,13 @@ export function useDeskSceneActions(
         running: out.running || j.running,
         failed: out.skipped?.length ? j.failed : 0,
       }));
-      await refreshAll();
+      await refreshScenes();
       return out;
     } catch (e) {
       fail(e);
       return null;
     }
-  }, [bookId, fail, refreshAll, setJobs]);
+  }, [bookId, fail, refreshScenes, setJobs]);
 
   const clearFailed = useCallback(
     async (chapterId?: string | null): Promise<ClearFailedOut | null> => {
@@ -86,14 +86,14 @@ export function useDeskSceneActions(
       try {
         const out = await api.clearFailed(bookId, chapterId ?? undefined);
         setJobs((j) => ({ ...j, failed: out.failed }));
-        await refreshAll();
+        await refreshScenes();
         return out;
       } catch (e) {
         fail(e);
         return null;
       }
     },
-    [bookId, fail, refreshAll, setJobs],
+    [bookId, fail, refreshScenes, setJobs],
   );
 
   const clearDraftScenes = useCallback(
@@ -119,14 +119,14 @@ export function useDeskSceneActions(
             }
           }
         }
-        await refreshAll();
+        await refreshScenes();
         return out;
       } catch (e) {
         fail(e);
         return null;
       }
     },
-    [activeSceneId, bookId, fail, openSceneById, refreshAll, router],
+    [activeSceneId, bookId, fail, openSceneById, refreshScenes, router],
   );
 
   const deleteScenes = useCallback(
@@ -139,14 +139,14 @@ export function useDeskSceneActions(
           openSceneById(null);
           router.push("/");
         }
-        await refreshAll();
+        await refreshScenes();
         const failures = results.filter((r) => r.status === "rejected").length;
         if (failures > 0) setError(`${failures} of ${ids.length} failed — others applied.`);
       } catch (e) {
         fail(e);
       }
     },
-    [activeSceneId, fail, openSceneById, refreshAll, router, setError],
+    [activeSceneId, fail, openSceneById, refreshScenes, router, setError],
   );
 
   const runBulk = useCallback(
@@ -164,14 +164,14 @@ export function useDeskSceneActions(
         // no-op when nothing's queued, so callers with no drafting side effects (e.g. bulk-deleting
         // ledger entries) just skip this by leaving drainAfter unset.
         if (opts?.drainAfter) await draftNext();
-        await refreshAll();
+        await refreshScenes();
         const failures = results.filter((r) => r.status === "rejected").length;
         if (failures > 0) setError(`${failures} of ${ids.length} failed — others applied.`);
       } catch (e) {
         fail(e);
       }
     },
-    [draftNext, fail, refreshAll, setError],
+    [draftNext, fail, refreshScenes, setError],
   );
 
   const updateChapter = useCallback(
@@ -191,12 +191,12 @@ export function useDeskSceneActions(
       try {
         const res = await api.decide(sceneId, body);
         if (res.next_job) await draftNext();
-        await refreshAll();
+        await refreshScenes();
       } catch (e) {
         fail(e);
       }
     },
-    [draftNext, fail, refreshAll],
+    [draftNext, fail, refreshScenes],
   );
 
   const revertScene = useCallback(
@@ -204,12 +204,12 @@ export function useDeskSceneActions(
       try {
         const created = await api.revertScene(sceneId);
         openSceneById(created.id);
-        await refreshAll();
+        await refreshScenes();
       } catch (e) {
         fail(e);
       }
     },
-    [fail, openSceneById, refreshAll],
+    [fail, openSceneById, refreshScenes],
   );
 
   const resolveContinuity = useCallback(
@@ -218,12 +218,12 @@ export function useDeskSceneActions(
         const res = await api.resolveContinuity(sceneId, body);
         if (res.job) await draftNext();
         openSceneById(sceneId);
-        await refreshAll();
+        await refreshScenes();
       } catch (e) {
         fail(e);
       }
     },
-    [draftNext, fail, openSceneById, refreshAll],
+    [draftNext, fail, openSceneById, refreshScenes],
   );
 
   // Manual restart for a scene stuck in "revision_requested" (its auto-queued revision job failed,
@@ -236,7 +236,7 @@ export function useDeskSceneActions(
       try {
         const out = await api.redraftScenes(chapterId, [sceneId]);
         if (out.queued > 0) await draftNext();
-        await refreshAll();
+        await refreshScenes();
       } catch (e) {
         // A 409 here means no approved ScenePacket resolved for the scene (stale / unapproved /
         // missing) — surface the blocker's actionable reason instead of an opaque red toast.
@@ -244,7 +244,7 @@ export function useDeskSceneActions(
         fail(msg ? new Error(msg) : e);
       }
     },
-    [draftNext, fail, refreshAll],
+    [draftNext, fail, refreshScenes],
   );
 
   const setExemplar = useCallback(

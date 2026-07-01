@@ -32,6 +32,8 @@ export interface DeskCollectionsState {
   setCanon: React.Dispatch<React.SetStateAction<CanonEntityOut[]>>;
   loadCollections: (id: string) => Promise<void>;
   refreshAll: (bookId: string | null) => Promise<void>;
+  refreshScenes: (bookId: string | null) => Promise<void>;
+  refreshManuscript: (bookId: string | null) => Promise<void>;
 }
 
 export function useDeskCollections(
@@ -98,6 +100,42 @@ export function useDeskCollections(
     [fail, loadCollections, setError],
   );
 
+  // Slim reconciliation used after a scene action (approve/revise/redraft/delete/…): refetch only the
+  // collections a scene decision can change — chapters/scenes/pending/jobs — NOT the manuscript (the
+  // heaviest payload) or world/rule data, which a scene decision never touches. The Manuscript screen
+  // pulls its own compile on mount via refreshManuscript, so dropping it here won't leave it stale.
+  const refreshScenes = useCallback(
+    async (activeBookId: string | null): Promise<void> => {
+      if (!activeBookId) return;
+      try {
+        const chs = await api.chapters(activeBookId);
+        const [sceneLists, pend, js] = await Promise.all([
+          Promise.all(chs.map((c) => api.chapterScenes(c.id))),
+          api.pending(),
+          api.jobsStatus(activeBookId).catch(() => EMPTY_JOBS),
+        ]);
+        const chIds = new Set(chs.map((c) => c.id));
+        setChapters(chs);
+        setScenes(sceneLists.flat());
+        setPending(pend.filter((s) => chIds.has(s.chapter_id)));
+        setJobs(js);
+        setError(null);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [fail, setError],
+  );
+
+  const refreshManuscript = useCallback(async (activeBookId: string | null): Promise<void> => {
+    if (!activeBookId) return;
+    try {
+      setManuscript(await api.manuscript(activeBookId));
+    } catch {
+      /* keep the prior manuscript on a transient failure */
+    }
+  }, []);
+
   useEffect(() => {
     if (!bookId) return;
     let alive = true;
@@ -141,6 +179,8 @@ export function useDeskCollections(
       setCanon,
       loadCollections,
       refreshAll,
+      refreshScenes,
+      refreshManuscript,
     }),
     [
       chapters,
@@ -161,6 +201,8 @@ export function useDeskCollections(
       setCanon,
       loadCollections,
       refreshAll,
+      refreshScenes,
+      refreshManuscript,
     ],
   );
 }
