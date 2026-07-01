@@ -421,9 +421,7 @@ def resolve_tier_for_provider(tier: str, provider: str) -> str:
 # sent. Only older / Haiku Anthropic models still accept it. This is an ALLOWLIST on purpose: any
 # Anthropic model NOT listed (including future ones) is treated as not accepting temperature, so a
 # model upgrade can never silently re-introduce the 400.
-_ANTHROPIC_TEMPERATURE_MODELS: frozenset[str] = frozenset(
-    {"claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"}
-)
+_ANTHROPIC_TEMPERATURE_MODELS: frozenset[str] = frozenset({"claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"})
 
 
 def supports_temperature(model: str | None) -> bool:
