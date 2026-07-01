@@ -34,6 +34,23 @@ def _problem(
     }
 
 
+def _section_truncation_detail(stage_calls: list[LlmCall]) -> list[dict[str, Any]]:
+    """Per-(section, model, attempt) truncation counts, so a scene_packet_author truncation names the
+    exact section and cap that was cut off instead of a generic 'increase max_tokens'."""
+    by_section: dict[tuple[Any, Any, Any, Any], int] = {}
+    for c in stage_calls:
+        m = call_metadata(c)
+        name = m.get("section_name")
+        if not name:
+            continue
+        key = (name, c.model, m.get("section_max_tokens") or m.get("max_tokens"), m.get("section_attempt_kind"))
+        by_section[key] = by_section.get(key, 0) + 1
+    return [
+        {"section": name, "model": model, "max_tokens": mt, "attempt_kind": kind, "count": n}
+        for (name, model, mt, kind), n in sorted(by_section.items(), key=lambda kv: kv[1], reverse=True)
+    ]
+
+
 def detect_truncations(calls: list[LlmCall]) -> dict[str, Any] | None:
     truncated = [c for c in calls if c.truncated]
     if not truncated:
@@ -52,7 +69,18 @@ def detect_truncations(calls: list[LlmCall]) -> dict[str, Any] | None:
             "stop_reason": stop,
             "max_tokens": max_tok,
         }
-        if stage.startswith("scene_packet"):
+        sections = _section_truncation_detail(stage_calls)
+        if sections:
+            # Name the exact section/model/cap that truncated, e.g. "reviewer section truncated at 2000
+            # on claude-haiku-4-5 (primary)" — actionable where a bare stage+max_tokens was not.
+            entry["sections"] = sections
+            worst = sections[0]
+            entry["recommended_action"] = (
+                f"Section '{worst['section']}' truncated at max_tokens={worst['max_tokens']} on "
+                f"{worst['model']} ({worst['attempt_kind']}). Raise that section's max_tokens/fallback_floor "
+                "or shorten the chapter/scene prefix."
+            )
+        elif stage.startswith("scene_packet"):
             entry["recommended_action"] = "Increase scene_packet max_tokens or shorten chapter prefix."
         elif stage == "drafter":
             entry["recommended_action"] = "Increase draft max_tokens or reduce scene context."
@@ -60,13 +88,15 @@ def detect_truncations(calls: list[LlmCall]) -> dict[str, Any] | None:
             entry["recommended_action"] = "Inspect call detail; increase max_tokens or shorten prompt."
         breakdown.append(entry)
     return _problem(
+        # kind kept as "truncation" (the frontend ProblemsPanel switches on it); the breakdown now carries
+        # the precise section/model/max_tokens detail that makes an output truncation actionable.
         kind="truncation",
         severity="warn",
         summary=f"{len(truncated)} truncated call{'s' if len(truncated) != 1 else ''}",
         count=len(truncated),
         breakdown=breakdown,
         recommended_action=(
-            "Open truncated calls by stage; increase max_tokens or shorten prompt for the failing stage."
+            "Open truncated calls by stage; raise the failing section/stage max_tokens or shorten its prompt."
         ),
         drill_down={"truncated": True},
     )
@@ -157,6 +187,89 @@ def detect_cache_issues(calls: list[LlmCall]) -> list[dict[str, Any]]:
     return problems
 
 
+def _budget_entry(c: LlmCall) -> dict[str, Any]:
+    m = call_metadata(c)
+    used = m.get("budget_used_after_charge")
+    soft = m.get("budget_soft_limit")
+    hard = m.get("budget_hard_limit")
+    over_soft = used - soft if isinstance(used, int) and isinstance(soft, int) else None
+    return {
+        "stage": c.stage,
+        "scene_no": c.scene_no,
+        "used": used,
+        "soft_limit": soft,
+        "hard_limit": hard,
+        "over_soft_by": over_soft,
+    }
+
+
+def detect_budget_overages(calls: list[LlmCall]) -> list[dict[str, Any]]:
+    """Surface work-budget pressure from the per-call budget metadata. A HARD overage blocked output and
+    is an error; a SOFT-only overage produced valid output just past the target (the `60043 > 60000` case)
+    and is informational — naming it explicitly stops it from reading as a hard failure."""
+    problems: list[dict[str, Any]] = []
+    hard = [c for c in calls if call_metadata(c).get("budget_hard_exceeded")]
+    soft_only = [
+        c
+        for c in calls
+        if call_metadata(c).get("budget_soft_exceeded") and not call_metadata(c).get("budget_hard_exceeded")
+    ]
+    if hard:
+        problems.append(
+            _problem(
+                kind="hard_work_budget_exceeded",
+                severity="error",
+                summary=f"{len(hard)} call(s) crossed the hard work budget (output blocked)",
+                count=len(hard),
+                breakdown=[_budget_entry(c) for c in hard[:10]],
+                recommended_action=(
+                    "A call exceeded its HARD work ceiling and failed closed. Raise the stage's hard budget "
+                    "(scene_token_hard_budget / prefix-prime / manual-QA hard) or reduce per-scene work."
+                ),
+                drill_down={"errors": True},
+            )
+        )
+    if soft_only:
+        problems.append(
+            _problem(
+                kind="soft_work_budget_exceeded",
+                severity="info",
+                summary=f"{len(soft_only)} call(s) over the soft work budget but under the hard ceiling",
+                count=len(soft_only),
+                breakdown=[_budget_entry(c) for c in soft_only[:10]],
+                recommended_action=(
+                    "Informational: these calls produced valid output just over the soft target and were "
+                    "persisted with a warning. Raise the soft budget only if the warnings are noisy."
+                ),
+                drill_down={"stage": "scene_packet_author"},
+            )
+        )
+    return problems
+
+
+def detect_token_count_fallbacks(calls: list[LlmCall]) -> dict[str, Any] | None:
+    """Flag context-window preflights that fell back to the local estimate because Anthropic token
+    counting was unavailable — the window was then gated by an approximation, not the real count."""
+    fb = [c for c in calls if call_metadata(c).get("token_count_method") == "local_estimate"]
+    if not fb:
+        return None
+    return _problem(
+        kind="token_count_fallback",
+        severity="warn",
+        summary=f"{len(fb)} call(s) fell back to a local token estimate for the context-window preflight",
+        count=len(fb),
+        breakdown=[
+            {"stage": c.stage, "scene_no": c.scene_no, "error": call_metadata(c).get("token_count_error")}
+            for c in fb[:10]
+        ],
+        recommended_action=(
+            "Anthropic count_tokens failed, so the local estimate gated the context window. Check API "
+            "connectivity / SDK version; set llm_token_counting_fail_closed to block instead of estimate."
+        ),
+        drill_down={"errors": True},
+    )
+
+
 def detect_high_latency(calls: list[LlmCall]) -> dict[str, Any] | None:
     slow = [c for c in calls if c.latency_ms is not None and c.latency_ms >= _HIGH_LATENCY_MS]
     if not slow:
@@ -192,6 +305,10 @@ def build_problems(
     fj = detect_failed_jobs(failed_jobs)
     if fj:
         problems.append(fj)
+    problems.extend(detect_budget_overages(calls))
+    tcf = detect_token_count_fallbacks(calls)
+    if tcf:
+        problems.append(tcf)
     problems.extend(detect_cache_issues(calls))
     hl = detect_high_latency(calls)
     if hl:

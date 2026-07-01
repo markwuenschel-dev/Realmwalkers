@@ -73,9 +73,18 @@ class Settings(BaseSettings):
     scene_packet_qa_max_tokens: int = 3000
     scene_packet_author_fallback_model: str = "claude-sonnet-5"
     scene_packet_qa_fallback_model: str = "claude-sonnet-5"
+    # Manual QA re-run (POST /scene-packets/{id}/qa) runs one Author-free QA pass against the current
+    # body. It is a single bounded call, so it gets its own soft/hard work budget separate from a full
+    # derive — a tiny soft overage shouldn't discard a usable verdict, but a runaway call must still stop.
+    scene_packet_manual_qa_token_budget: int = 20_000
+    scene_packet_manual_qa_hard_token_budget: int = 30_000
     # Explicit shared-prefix priming runs before scene fan-out, so Scene 1 no longer pays the chapter-
     # level cache write under its per-scene work budget. This separate ceiling bounds those prime calls.
     scene_packet_prefix_prime_token_budget: int = 100_000
+    # Hard ceiling for prefix-prime calls. The prime writes one large chapter-shared block; its soft
+    # target is scene_packet_prefix_prime_token_budget, but a slightly larger chapter packet should warn,
+    # not fail the whole derive before any scene runs. Hard-block only well past the soft target.
+    scene_packet_prefix_prime_hard_token_budget: int = 125_000
     # Raw, unweighted context-window guard for ScenePacket calls. Cache discounts are work/cost
     # accounting only; cached tokens still occupy the model context window.
     scene_packet_context_window_budget: int = 180_000
@@ -153,6 +162,11 @@ class Settings(BaseSettings):
     # headroom. If cost matters more than contract richness later, trim the schema (less output) rather
     # than lowering this — a smaller ceiling just re-blocks honest work.
     scene_token_budget: int = 60_000
+    # The HARD ceiling for one scene's Author+QA work. scene_token_budget is the SOFT target: a scene
+    # that finishes a handful of tokens over it (the recurring `60043 > 60000`) produced valid output —
+    # discarding it just re-runs the same work. So the soft target only WARNS; work is blocked only past
+    # this hard ceiling. Sized with headroom over the soft target so genuine overruns still fail closed.
+    scene_token_hard_budget: int = 75_000
     scene_time_budget_s: int = 300
     # The gate-1 plan-call runs synchronously inside the POST /runs request, so an unbounded LLM
     # call leaves the browser spinning forever. Bound it: on timeout the request fails cleanly
@@ -163,6 +177,19 @@ class Settings(BaseSettings):
     # with exponential backoff (base * 2**attempt). Non-transient errors (auth, 400/403/404) never retry.
     llm_max_retries: int = 3
     llm_retry_base_delay_s: float = 1.0
+
+    # Context-window preflight via Anthropic's real token counter (messages.count_tokens). When enabled,
+    # llm.complete counts the exact request (model+system+messages) BEFORE messages.create and blocks if
+    # count + output allowance exceeds the call's context_window_budget — so an oversized request fails
+    # cleanly instead of erroring mid-generation. The local ceil(len/4) estimate is kept only for section
+    # attribution/reporting and as the fallback when counting is disabled or unavailable.
+    #   fail_closed: if counting errors after retries, raise before generation (True) rather than guess.
+    #   estimate_fallback_multiplier: when fail_closed is False, the local estimate is inflated by this
+    #     factor (the estimate runs low vs. the real tokenizer) before the gate, and the fallback is
+    #     recorded in telemetry — never a silent downgrade to the old heuristic.
+    llm_token_counting_enabled: bool = True
+    llm_token_counting_fail_closed: bool = True
+    llm_token_counting_estimate_fallback_multiplier: float = 1.25
 
     cors_origins: str = "http://localhost:5173"
 

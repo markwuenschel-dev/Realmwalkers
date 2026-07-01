@@ -60,6 +60,10 @@ class _Section:
     schema_hint: str
     max_tokens: int
     optional_keys: tuple[str, ...] = ()
+    # Headroom for an escalated retry that was cut off mid-object. Per-section (not one global floor) so a
+    # dense section gets more room than a list-of-strings one — e.g. reviewer_instructions (six lanes of
+    # bullets) needs more than phrases_to_avoid_echoing. Only applied when the first attempt truncated.
+    fallback_floor: int = 6000
 
 
 # The knowledge cluster is one section ON PURPOSE — its four fields partition a single fact-space and
@@ -85,6 +89,7 @@ _SECTIONS: tuple[_Section, ...] = (
         # back to its source. Optional: a missing citation must not block the packet, so it is NOT in keys.
         optional_keys=("claim_sources",),
         max_tokens=4500,
+        fallback_floor=8000,
     ),
     _Section(
         name="mysteries",
@@ -97,6 +102,7 @@ _SECTIONS: tuple[_Section, ...] = (
             "}"
         ),
         max_tokens=2000,
+        fallback_floor=6000,
     ),
     _Section(
         name="shape",
@@ -118,6 +124,7 @@ _SECTIONS: tuple[_Section, ...] = (
             "}"
         ),
         max_tokens=2000,
+        fallback_floor=6000,
     ),
     _Section(
         name="reviewer",
@@ -129,17 +136,25 @@ _SECTIONS: tuple[_Section, ...] = (
             "}"
         ),
         max_tokens=2000,
+        fallback_floor=7000,
     ),
     _Section(
         name="phrases",
         keys=("phrases_to_avoid_echoing",),
         schema_hint='{\n  "phrases_to_avoid_echoing": [str]\n}',
         max_tokens=1200,
+        fallback_floor=4000,
     ),
 )
 
-# Headroom for a section's escalated retry when its first pass was cut off mid-object.
-_SECTION_FALLBACK_FLOOR = 4000
+# A repair pass reformats a present-but-malformed slice (NOT a truncation) into valid JSON before the
+# whole packet fails closed. It re-emits content that already fit, so it mirrors the section's own cap.
+_SECTION_REPAIR_SYSTEM = (
+    "You repair malformed JSON. You are given a model's raw output that failed to parse as the required "
+    "JSON object, plus the exact schema it must match. Return ONE corrected JSON object with exactly the "
+    "required keys — no prose, no code fences, no commentary. Preserve the original content; fix only "
+    "structure/syntax. If a required key is genuinely absent, emit it with an empty value of the right type."
+)
 
 # One semaphore per running event loop (tests spin up a fresh loop per test), sized from settings on
 # first use within that loop. Caps total in-flight SECTION calls across every scene of a derive.
@@ -164,9 +179,19 @@ def _section_directive(section: _Section) -> str:
     context was never read back — every section re-WROTE the full prefix at full budget weight and ~5
     writes summed past the per-scene ceiling (the 68k>60k blocks). The marker stays in the prompt for
     identifiability (and test routing), just BELOW the cache breakpoint where it can vary for free."""
+    # Brevity is a hard constraint, not a style note: the author call is output-bound (~12.5s/1k tokens),
+    # and the contract is machine-read, so terse lists keep each section well inside its token cap and out
+    # of truncation territory. Reviewer instructions especially must be short imperative bullets, not prose.
+    brevity = (
+        "Be terse. JSON only — no prose, no paragraphs, no code fences. Each list: at most 6 items. "
+        "Each string: one clause, <= 200 characters."
+    )
+    if section.name == "reviewer":
+        brevity += " Each reviewer instruction is a concise, actionable imperative bullet — never a paragraph."
     return (
-        f"[section:{section.name}] Emit ONLY the fields for this section — no other keys, no prose, "
-        "no code fences. Stay consistent with the chapter packet and the scene seed.\n\n"
+        f"[section:{section.name}] Emit ONLY the fields for this section — no other keys. "
+        "Stay consistent with the chapter packet and the scene seed.\n"
+        f"{brevity}\n\n"
         "Produce ONLY these fields as ONE JSON object (exactly these keys, nothing else):\n" + section.schema_hint
     )
 
@@ -194,6 +219,46 @@ def _why(obj: Any, usage: Usage, *, section: _Section, model: str, max_tokens: i
     return f"section '{section.name}' missing required keys {missing} on {model}"
 
 
+async def _repair_section(
+    section: _Section,
+    *,
+    raw: str,
+    model: str,
+    budget: TokenBudget,
+    failure_cause: str,
+) -> Any:
+    """Last-chance reformat of a present-but-malformed slice into valid JSON. Runs ONLY for a
+    non-truncation parse failure (the keys are there, the structure is broken) on the fallback model, with
+    its own tiny system prompt and no shared prefix — so it never poisons the author cache. Returns the
+    parsed object (caller validates with `_section_ok`); never merges partial output."""
+    user = (
+        f"[section:{section.name}] Repair the malformed output below into ONE valid JSON object with "
+        f"exactly these keys, preserving its content:\n{section.schema_hint}\n\nMALFORMED OUTPUT:\n{raw}"
+    )
+    async with _inflight_sem():
+        with telemetry.call_metadata(
+            section_name=section.name,
+            section_attempt_kind="repair",
+            section_max_tokens=section.max_tokens,
+            section_failure_cause=failure_cause,
+            fallback_attempt=True,
+        ):
+            repaired_raw, _usage = await llm.complete(
+                model=model,
+                system=_SECTION_REPAIR_SYSTEM,
+                user=user,
+                max_tokens=section.max_tokens,
+                budget=budget,
+                expect_cache=False,
+                context_window_budget=settings.scene_packet_context_window_budget,
+                context_sections={
+                    "system": estimate_tokens(_SECTION_REPAIR_SYSTEM),
+                    "repair_input": estimate_tokens(user),
+                },
+            )
+    return extract_object(repaired_raw)
+
+
 async def _author_section(
     section: _Section,
     *,
@@ -203,12 +268,26 @@ async def _author_section(
     budget: TokenBudget,
     context_sections: dict[str, int],
 ) -> dict[str, Any]:
-    """Produce one section's slice. Retries ONCE escalated to the fallback model (with extra headroom on
-    a truncation) before failing closed for the whole packet. Bounded by the global in-flight semaphore."""
+    """Produce one section's slice. Escalates primary -> fallback model (with extra headroom on a
+    truncation), then -> one repair pass for a non-truncation parse failure, before failing the whole
+    packet closed with a reason naming the section. Bounded by the global in-flight semaphore."""
+    primary = settings.scene_packet_author_model
+    fallback_model = (settings.scene_packet_author_fallback_model or "").strip()
 
-    async def _attempt(model: str, max_tokens: int, *, fallback: bool = False) -> tuple[Any, Usage]:
+    async def _attempt(
+        model: str, max_tokens: int, *, attempt_kind: str, failure_cause: str | None = None
+    ) -> tuple[str, Any, Usage]:
         async with _inflight_sem():
-            with telemetry.call_metadata(section_name=section.name, fallback_attempt=fallback):
+            with telemetry.call_metadata(
+                section_name=section.name,
+                section_primary_model=primary,
+                section_fallback_model=fallback_model or None,
+                section_attempt_kind=attempt_kind,
+                section_max_tokens=max_tokens,
+                section_failure_cause=failure_cause,
+                # Keep the legacy key so telemetry_agg's `fallbacks` rollup still counts escalations.
+                fallback_attempt=attempt_kind != "primary",
+            ):
                 raw, usage = await llm.complete(
                     model=model,
                     system=system,
@@ -219,26 +298,38 @@ async def _author_section(
                     context_window_budget=settings.scene_packet_context_window_budget,
                     context_sections=context_sections,
                 )
-        return extract_object(raw), usage
+        return raw, extract_object(raw), usage
 
-    primary = settings.scene_packet_author_model
-    obj, usage = await _attempt(primary, section.max_tokens)
+    raw1, obj, usage = await _attempt(primary, section.max_tokens, attempt_kind="primary")
     if _section_ok(obj, section):
         return _slice(obj, section)
 
     first_cause = _why(obj, usage, section=section, model=primary, max_tokens=section.max_tokens)
-    fallback_model = (settings.scene_packet_author_fallback_model or "").strip()
     if not fallback_model or fallback_model == primary:
         raise ScenePacketAuthorError(f"{first_cause}; no fallback model configured")
 
-    fb_max = max(section.max_tokens, _SECTION_FALLBACK_FLOOR) if usage.truncated else section.max_tokens
+    # Fallback (escalated). A genuine truncation gets the section's own headroom floor; a parse failure
+    # keeps the same cap (more tokens won't fix malformed-but-complete output).
+    fb_max = max(section.max_tokens, section.fallback_floor) if usage.truncated else section.max_tokens
     log.info("scene_packet.section_escalate", section=section.name, cause=first_cause, fallback=fallback_model)
-    obj2, usage2 = await _attempt(fallback_model, fb_max, fallback=True)
+    raw2, obj2, usage2 = await _attempt(fallback_model, fb_max, attempt_kind="fallback", failure_cause=first_cause)
     if _section_ok(obj2, section):
         return _slice(obj2, section)
-    raise ScenePacketAuthorError(
-        f"{first_cause}; fallback {_why(obj2, usage2, section=section, model=fallback_model, max_tokens=fb_max)}"
-    )
+
+    second_cause = _why(obj2, usage2, section=section, model=fallback_model, max_tokens=fb_max)
+    # Repair ONLY a non-truncation parse failure: the content is present but malformed, so reformatting
+    # the fallback's raw output can recover it. A truncation is missing content — repair can't invent it.
+    if not usage2.truncated:
+        log.info("scene_packet.section_repair", section=section.name, cause=second_cause)
+        repaired = await _repair_section(
+            section, raw=raw2, model=fallback_model, budget=budget, failure_cause=second_cause
+        )
+        if _section_ok(repaired, section):
+            return _slice(repaired, section)
+        raise ScenePacketAuthorError(
+            f"{first_cause}; fallback {second_cause}; repair failed for section '{section.name}'"
+        )
+    raise ScenePacketAuthorError(f"{first_cause}; fallback {second_cause}")
 
 
 def build_author_prefix_blocks(

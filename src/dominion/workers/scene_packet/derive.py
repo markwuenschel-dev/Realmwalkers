@@ -40,6 +40,7 @@ from dominion.workers.scene_packet import hash as hash_mod
 from dominion.workers.scene_packet import inputs as sp_inputs
 from dominion.workers.scene_packet import qa as qa_mod
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
+from dominion.workers.scene_packet.validation import validate_scene_packet_contract
 
 log = structlog.get_logger()
 
@@ -79,15 +80,22 @@ async def _author_then_qa(
     sink: telemetry.TelemetrySink,
     book_id: str,
     chapter_id: str,
-) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
-    """One scene's Author then QA. QA reads the author's output, so the two stay ordered; only
-    different scenes run concurrently. Fails CLOSED: any author/QA error returns a None in the slot
-    that makes `_status_for` block the packet, never raising into the gather — but the failure's real
-    cause is captured (3rd return value) so the blocked packet names *why*, not just "incomplete body".
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None, list[dict[str, Any]]]:
+    """One scene's Author -> deterministic validation -> QA. QA reads the author's output, so they stay
+    ordered; only different scenes run concurrently. Fails CLOSED: any author/QA error (or a blocking
+    deterministic violation) returns a None in the QA slot so `status_after_author_qa` blocks the packet,
+    never raising into the gather — the failure's real cause is captured (3rd return value) so the blocked
+    packet names *why*, and the deterministic violations (4th return value) are persisted for the editor.
+
+    Deterministic validation runs BEFORE QA: fabricated source handles, a model-overridden word budget,
+    a scene-number/required-beat mismatch, or an absent character on-page are decidable facts QA must not
+    be relied on to catch. A blocking violation skips QA entirely (no point attacking a packet already
+    known invalid).
 
     Each call runs inside a telemetry `call_context` tagged with this scene's dimensions, so its cache/
     usage/truncation lands in the shared `sink` (persisted later) under the right stage + scene."""
     error_detail: str | None = None
+    violations: list[dict[str, Any]] = []
 
     def _ctx(stage: str) -> telemetry.CallContext:
         return telemetry.CallContext(
@@ -129,16 +137,41 @@ async def _author_then_qa(
 
     qa: dict[str, Any] | None = None
     if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
-        try:
-            with telemetry.call_context(_ctx("scene_packet_qa")):
-                qa = await qa_mod.qa_scene_packet(
-                    scene_body, chapter_packet_body=chapter_packet_body, budget=item.budget
-                )
-        except Exception as exc:  # noqa: BLE001
-            log.error("scene_packet.qa_failed", seed=str(item.seed_id), error=str(exc))
-            qa = None
-            error_detail = str(exc)
-    return scene_body, qa, error_detail
+        # Re-stamp the deterministic facts the seed/planner own — the model echoes them but must never
+        # override them — so they are authoritative regardless of which author path ran (the real authors
+        # already stamp word_budget; this makes both invariants hold at the derive boundary). The
+        # high-value deterministic checks (fabricated source handles, absent characters on-page) then run
+        # against the stamped body; the word_budget/scene_no checks still guard direct callers.
+        scene_body["word_budget"] = item.word_budget  # planner is authoritative
+        scene_body["scene_no"] = item.scene_no  # the seed is authoritative for scene_no
+        found = validate_scene_packet_contract(
+            body=scene_body,
+            chapter_packet_body=chapter_packet_body,
+            scene_seed=item.seed,
+            word_budget=item.word_budget,
+            sources=item.sources,
+        )
+        violations = [v.as_dict() for v in found]
+        blocking = [v for v in found if v.severity == "block"]
+        if blocking:
+            error_detail = "deterministic validation failed: " + "; ".join(v.detail for v in blocking)
+            log.warning(
+                "scene_packet.validation_blocked",
+                seed=str(item.seed_id),
+                count=len(blocking),
+                kinds=sorted({v.kind for v in blocking}),
+            )
+        else:
+            try:
+                with telemetry.call_context(_ctx("scene_packet_qa")):
+                    qa = await qa_mod.qa_scene_packet(
+                        scene_body, chapter_packet_body=chapter_packet_body, budget=item.budget
+                    )
+            except Exception as exc:  # noqa: BLE001
+                log.error("scene_packet.qa_failed", seed=str(item.seed_id), error=str(exc))
+                qa = None
+                error_detail = str(exc)
+    return scene_body, qa, error_detail, violations
 
 
 def _as_str_list(value: Any) -> list[str]:
@@ -272,7 +305,10 @@ async def _prime_shared_prefixes(
                 chapter_packet_body=chapter_packet_body,
                 pov_summary=item.pov_summary,
                 omniscient_summary=omniscient_summary,
-                budget=TokenBudget(max_tokens=settings.scene_packet_prefix_prime_token_budget),
+                budget=TokenBudget(
+                    max_tokens=settings.scene_packet_prefix_prime_token_budget,
+                    hard_max_tokens=settings.scene_packet_prefix_prime_hard_token_budget,
+                ),
             )
 
     with telemetry.call_context(
@@ -287,7 +323,10 @@ async def _prime_shared_prefixes(
     ):
         await qa_mod.prime_qa_shared_prefix(
             chapter_packet_body,
-            budget=TokenBudget(max_tokens=settings.scene_packet_prefix_prime_token_budget),
+            budget=TokenBudget(
+                max_tokens=settings.scene_packet_prefix_prime_token_budget,
+                hard_max_tokens=settings.scene_packet_prefix_prime_hard_token_budget,
+            ),
         )
 
 
@@ -421,8 +460,13 @@ async def derive_scene_packets(
                 canon_snippets=canon_labeled,
                 sources=sources,
                 # Fresh per-scene budget unless the caller explicitly supplied a shared scene-work budget.
-                # Prefix-prime calls are always charged to the separate prefix-prime budget.
-                budget=external_scene_budget or TokenBudget(max_tokens=settings.scene_token_budget),
+                # Soft target = scene_token_budget (a tiny overage only warns); hard ceiling =
+                # scene_token_hard_budget (the real block). Prefix-prime calls use the separate prime budget.
+                budget=external_scene_budget
+                or TokenBudget(
+                    max_tokens=settings.scene_token_budget,
+                    hard_max_tokens=settings.scene_token_hard_budget,
+                ),
                 pov=scene_pov,
                 pov_summary=pov_summary_cache[scene_pov],
             )
@@ -451,7 +495,9 @@ async def derive_scene_packets(
         chapter_id=chapter_id_str,
     )
 
-    async def _run(item: _SceneWork) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
+    async def _run(
+        item: _SceneWork,
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None, list[dict[str, Any]]]:
         async with sem:
             return await _author_then_qa(
                 item,
@@ -470,7 +516,7 @@ async def derive_scene_packets(
 
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
-    for item, (scene_body, qa, error_detail) in zip(work, results, strict=True):
+    for item, (scene_body, qa, error_detail, violations) in zip(work, results, strict=True):
         status, blocked_reason = approval_policy.status_after_author_qa(scene_body, qa, error_detail)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         qa_warnings = (
@@ -480,6 +526,10 @@ async def derive_scene_packets(
         )
         if status == ScenePacketStatus.BLOCKED and blocked_reason:
             qa_warnings = {**qa_warnings, "blocked_reason": blocked_reason}
+        # Surface deterministic contract violations (block + warn) on the packet so the editor sees the
+        # concrete failure ("source_id C99 not retrieved") instead of only a generic QA verdict.
+        if violations:
+            qa_warnings = {**qa_warnings, "violations": violations}
 
         row = item.row
         if row is None:

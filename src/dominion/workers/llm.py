@@ -23,7 +23,7 @@ from anthropic.types import TextBlockParam
 
 from dominion.shared.config import settings
 from dominion.workers import telemetry
-from dominion.workers.budget import TokenBudget, Usage
+from dominion.workers.budget import BudgetExceeded, TokenBudget, Usage
 
 log = structlog.get_logger()
 
@@ -125,6 +125,47 @@ def _is_transient(exc: BaseException) -> bool:
     return False
 
 
+async def _call_with_retries(make_coro: Any, *, what: str) -> Any:
+    """Await `make_coro()`, retrying transient Anthropic errors with the same exponential backoff used
+    for message creation. Non-transient errors (and exhausted retries) propagate. Shared by both
+    messages.create and messages.count_tokens so a transient blip never one-offs either call."""
+    attempt = 0
+    while True:
+        try:
+            return await make_coro()
+        except Exception as exc:
+            if not _is_transient(exc) or attempt >= settings.llm_max_retries:
+                raise
+            log.warning("llm.retry", what=what, attempt=attempt + 1, error=type(exc).__name__)
+            await asyncio.sleep(settings.llm_retry_base_delay_s * 2**attempt)
+            attempt += 1
+
+
+async def count_input_tokens(
+    *,
+    model: str,
+    system: list[TextBlockParam],
+    messages: list[dict[str, Any]],
+) -> int:
+    """The exact input-token count for a request, from Anthropic's `messages.count_tokens` endpoint.
+
+    Counted against the SAME `model`/`system`/`messages` the matching `messages.create` will send, since
+    tokenization differs by model and the count is the authoritative context-window gate (the local
+    `estimate_tokens` heuristic is kept only for section attribution). Generation-only params
+    (`max_tokens`, `temperature`) are intentionally NOT sent — the endpoint counts input only. Transient
+    errors retry; anything else propagates to the caller's fail-closed / fallback policy."""
+
+    # Spread a dict[str, Any] (as the create call does) so the SDK's strict MessageParam/TextBlockParam
+    # typing doesn't reject our plain dict payload — the shape is the same one create() will send.
+    count_kwargs: dict[str, Any] = {"model": model, "system": system, "messages": messages}
+
+    async def _make() -> Any:
+        return await _client().messages.count_tokens(**count_kwargs)
+
+    resp = await _call_with_retries(_make, what="count_tokens")
+    return int(resp.input_tokens)
+
+
 async def complete(
     *,
     model: str,
@@ -163,16 +204,6 @@ async def complete(
     if user_prefix:
         blocks = (CachedPrefixBlock(name="user_prefix", text=user_prefix), *blocks)
 
-    sections = check_context_window(
-        system=system,
-        user=user,
-        max_tokens=max_tokens,
-        context_window_budget=context_window_budget,
-        user_prefix_blocks=blocks,
-        context_sections=context_sections,
-    )
-    raw_context_total = sum(sections.values())
-
     # Build the user content: plain string or a block list with one or more cached stable prefixes.
     user_content: str | list[TextBlockParam]
     if blocks:
@@ -189,26 +220,75 @@ async def complete(
     system_blocks: list[TextBlockParam] = [
         TextBlockParam(type="text", text=system, cache_control={"type": "ephemeral"})
     ]
+    messages: list[dict[str, Any]] = [{"role": "user", "content": user_content}]
 
-    attempt = 0
-    call_started = time.time()
+    # The token-count payload and the create payload share one model/system/messages shape (per
+    # Anthropic's guidance: count against the exact request the model will see); create_kwargs only adds
+    # the generation-only params. Building both from one source keeps the preflight count honest.
     create_kwargs: dict[str, Any] = {
         "model": model,
-        "max_tokens": max_tokens,
         "system": system_blocks,
-        "messages": [{"role": "user", "content": user_content}],
+        "messages": messages,
+        "max_tokens": max_tokens,
     }
     if temperature is not None:
         create_kwargs["temperature"] = temperature
-    while True:
-        try:
-            resp = await _client().messages.create(**create_kwargs)
-            break
-        except Exception as exc:
-            if not _is_transient(exc) or attempt >= settings.llm_max_retries:
-                raise
-            await asyncio.sleep(settings.llm_retry_base_delay_s * 2**attempt)
-            attempt += 1
+
+    # Local per-section estimate: kept ONLY for attribution/reporting (and the disabled/fallback gate),
+    # never the authoritative context-window gate when real counting succeeds.
+    sections = estimate_context_tokens(
+        system=system,
+        user=user,
+        max_tokens=max_tokens,
+        user_prefix_blocks=blocks,
+        context_sections=context_sections,
+    )
+    raw_context_total = sum(sections.values())
+
+    # ---- Context-window preflight: count the exact request BEFORE creating it, so an oversized prompt
+    # fails cleanly here instead of erroring mid-generation. The real count (input only) plus the output
+    # allowance is the gate; cache discounts are work/cost accounting and do NOT shrink the window.
+    preflight_input_tokens: int | None = None
+    preflight_total: int | None = None
+    token_count_method = "disabled"
+    token_count_error: str | None = None
+    if context_window_budget is not None:
+        local_input_estimate = max(0, raw_context_total - max_tokens)  # sections includes output_allowance
+        if settings.llm_token_counting_enabled:
+            try:
+                preflight_input_tokens = await count_input_tokens(model=model, system=system_blocks, messages=messages)
+                token_count_method = "anthropic"
+            except Exception as exc:  # noqa: BLE001 — policy below decides fail-closed vs. estimate fallback
+                token_count_error = f"{type(exc).__name__}: {exc}"
+                if settings.llm_token_counting_fail_closed:
+                    raise ContextWindowExceeded(
+                        "context window preflight unavailable (fail-closed): "
+                        f"model={model} token_count_error={token_count_error} "
+                        f"output_allowance={max_tokens} context_window_budget={context_window_budget}"
+                    ) from exc
+                # Explicit, telemetry-recorded fallback — never a silent downgrade to the old heuristic.
+                preflight_input_tokens = int(
+                    local_input_estimate * settings.llm_token_counting_estimate_fallback_multiplier
+                )
+                token_count_method = "local_estimate"
+                log.warning("llm.token_count_fallback", model=model, error=token_count_error)
+        else:
+            preflight_input_tokens = local_input_estimate
+
+        preflight_total = preflight_input_tokens + max_tokens
+        if preflight_total > context_window_budget:
+            largest = sorted(sections.items(), key=lambda kv: kv[1], reverse=True)[:6]
+            detail = ", ".join(f"{name}={tokens}" for name, tokens in largest)
+            raise ContextWindowExceeded(
+                "context window preflight exceeded: "
+                f"model={model} preflight_input_tokens={preflight_input_tokens} "
+                f"output_allowance={max_tokens} preflight_total={preflight_total} "
+                f"context_window_budget={context_window_budget} token_count_method={token_count_method} "
+                f"largest_sections: {detail}"
+            )
+
+    call_started = time.time()
+    resp = await _call_with_retries(lambda: _client().messages.create(**create_kwargs), what="create")
     latency_ms = int((time.time() - call_started) * 1000)
 
     # Truncation is silent at the API level: the response just stops mid-output. Surface it so callers
@@ -237,7 +317,9 @@ async def complete(
             "llm.cache_skipped", model=model, note="system prompt below minimum cacheable length; cache_control ignored"
         )
 
-    budget.charge(usage)
+    # Charge WITHOUT raising on a hard overage yet: a valid response body must not be lost before its
+    # cost/outcome is recorded. A soft-only overage never raises; a hard overage raises AFTER telemetry.
+    charge_result = budget.charge(usage, raise_on_hard_exceeded=False)
     weighted_charged = usage.budget_cost
     total_prompt = usage.input_tokens + usage.cache_creation_tokens + usage.cache_read_tokens
     elapsed_since_first_s = int(time.time() - budget.first_call_at) if budget.first_call_at is not None else 0
@@ -253,9 +335,14 @@ async def complete(
         cache_ratio=round(usage.cache_read_tokens / total_prompt, 3) if total_prompt else 0.0,
         elapsed_since_first_s=elapsed_since_first_s,
         system_chars=len(system),
+        token_count_method=token_count_method,
+        preflight_total=preflight_total,
+        budget_soft_exceeded=charge_result.soft_exceeded,
+        budget_hard_exceeded=charge_result.hard_exceeded,
     )
     # Record this call for any active telemetry sink (set by an instrumented orchestrator). No-op
-    # otherwise, so uninstrumented callers are unaffected.
+    # otherwise, so uninstrumented callers are unaffected. Recorded even on a hard-budget overage so
+    # the failure stays observable instead of vanishing with the raised exception.
     telemetry.record(
         model=model,
         input_tokens=usage.input_tokens,
@@ -269,9 +356,26 @@ async def complete(
             "stop_reason": stop_reason,
             "context_sections": dict(sections),
             "context_window_budget": context_window_budget,
+            # `raw_context_total` kept for existing readers; `_estimate` is the clearer alias (this is the
+            # local heuristic sum, NOT the authoritative count — that is `preflight_input_tokens`).
             "raw_context_total": raw_context_total,
+            "raw_context_total_estimate": raw_context_total,
             "weighted_budget_charged": weighted_charged,
+            # Preflight (real or fallback) token accounting.
+            "preflight_input_tokens": preflight_input_tokens,
+            "preflight_output_allowance": max_tokens,
+            "preflight_total": preflight_total,
+            "token_count_method": token_count_method,
+            "token_count_error": token_count_error,
+            # Work-budget state after charging this call.
+            "budget_soft_exceeded": charge_result.soft_exceeded,
+            "budget_hard_exceeded": charge_result.hard_exceeded,
+            "budget_used_after_charge": charge_result.used,
+            "budget_soft_limit": budget.max_tokens,
+            "budget_hard_limit": budget.hard_limit,
         },
     )
+    if charge_result.hard_exceeded:
+        raise BudgetExceeded(f"token budget exceeded: {charge_result.used} > {budget.hard_limit}")
     text = "".join(block.text for block in resp.content if block.type == "text")
     return text, usage
