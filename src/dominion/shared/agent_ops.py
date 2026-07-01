@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.agent_policy import load_runtime_policies, resolve_policy
-from dominion.shared.agent_providers import PROVIDERS
 from dominion.shared.agent_registry import (
     AGENTS,
     BUILTIN_PRESET_IDS,
@@ -50,7 +49,6 @@ from dominion.shared.schemas import (
     AgentPermissionsPatchIn,
     AgentPolicyOut,
     AgentPresetOut,
-    AgentProviderOut,
     AgentStatsListOut,
     AgentStatsOut,
     CustomPresetCreateIn,
@@ -92,13 +90,15 @@ def _policy_from_live(agent: AgentDefinition, override: AgentPolicyOverride | No
     never_fb = list(resolved.never_fallback_tiers)
     if override and override.policy_json and override.policy_json.get("fallback_tier"):
         fb_tier = override.policy_json["fallback_tier"]
-        fallback_model = model_for_tier(fb_tier)
+        fb_provider = override.policy_json.get("fallback_provider") or "anthropic"
+        fallback_model = model_for_tier(fb_tier, fb_provider)
     return AgentPolicyOut(
         setting=agent.setting_key,
         primary_tier=tier_of(primary_model),
         primary_model=primary_model,
         fallback_tier=tier_of(fallback_model) if fallback_model else None,
         fallback_model=fallback_model,
+        fallback_provider=provider_of(fallback_model) if fallback_model else None,
         never_fallback=[str(t) for t in never_fb],
         escalation_rules=_escalation_rules(agent),
         semantic_escalation=resolved.semantic_escalation,
@@ -238,19 +238,24 @@ async def _load_custom_presets(session: AsyncSession) -> list[AgentCustomPreset]
 async def _capture_snapshot(session: AsyncSession) -> dict[str, Any]:
     policy_map = await load_policy_overrides(session)
     tiers: dict[str, str] = {}
+    providers: dict[str, str] = {}
     for agent in AGENTS:
-        t = tier_of(getattr(settings, agent.setting_key))
+        model = getattr(settings, agent.setting_key)
+        t = tier_of(model)
         if t:
             tiers[agent.setting_key] = t
+            providers[agent.setting_key] = provider_of(model)
     policies = {k: dict(v.policy_json or {}) for k, v in policy_map.items()}
-    return {"tiers": tiers, "policies": policies}
+    return {"tiers": tiers, "providers": providers, "policies": policies}
 
 
 async def _apply_snapshot(session: AsyncSession, snapshot: dict[str, Any]) -> None:
     tiers = snapshot.get("tiers") or {}
+    providers = snapshot.get("providers") or {}
     for setting_key, tier in tiers.items():
-        if setting_key in {a.setting_key for a in AGENTS} and tier in TIERS:
-            await apply_tier_to_agent(session, setting_key, tier)
+        provider = providers.get(setting_key, "anthropic")
+        if setting_key in {a.setting_key for a in AGENTS} and tier in PROVIDER_TIERS.get(provider, {}):
+            await apply_tier_to_agent(session, setting_key, tier, provider)
     policies = snapshot.get("policies") or {}
     for setting_key, pj in policies.items():
         if setting_key not in {a.setting_key for a in AGENTS}:
@@ -262,9 +267,10 @@ async def _apply_snapshot(session: AsyncSession, snapshot: dict[str, Any]) -> No
             existing.policy_json = dict(pj)
         fb_tier = pj.get("fallback_tier")
         if fb_tier:
+            fb_provider = pj.get("fallback_provider") or "anthropic"
             attr = FALLBACK_ATTR.get(setting_key)
             if attr:
-                setattr(settings, attr, model_for_tier(fb_tier) or "")
+                setattr(settings, attr, model_for_tier(fb_tier, fb_provider) or "")
 
 
 def _globals_out(row: AgentOpsState | None) -> AgentGlobalsOut:
@@ -380,15 +386,6 @@ async def build_agent_ops(session: AsyncSession) -> AgentOpsOut:
         tiers=TIERS,
         provider_tiers=PROVIDER_TIERS,
         globals=_globals_out(ops_row),
-        providers=[
-            AgentProviderOut(
-                id=p.id,
-                label=p.label,
-                status=p.status,
-                description=p.description,
-            )
-            for p in PROVIDERS
-        ],
     )
 
 
@@ -463,6 +460,7 @@ async def apply_agent_policy(
     setting_key: str,
     *,
     fallback_tier: str | None = None,
+    fallback_provider: str = "anthropic",
     never_fallback: list[str] | None = None,
     semantic_escalation: bool | None = None,
     quality_level: str | None = None,
@@ -475,10 +473,14 @@ async def apply_agent_policy(
     existing = await session.get(AgentPolicyOverride, setting_key)
     policy_json: dict[str, Any] = {}
     if fallback_tier is not None:
-        if fallback_tier and fallback_tier not in TIERS:
-            raise ValueError("fallback_tier must be haiku, sonnet, opus, or empty")
+        if fallback_tier:
+            if fallback_provider not in PROVIDER_TIERS:
+                raise ValueError(f"unknown provider '{fallback_provider}'")
+            if fallback_tier not in PROVIDER_TIERS[fallback_provider]:
+                raise ValueError(f"provider '{fallback_provider}' has no model for tier '{fallback_tier}'")
         policy_json["fallback_tier"] = fallback_tier or None
-        fb_model = model_for_tier(fallback_tier) if fallback_tier else ""
+        policy_json["fallback_provider"] = fallback_provider if fallback_tier else None
+        fb_model = model_for_tier(fallback_tier, fallback_provider) if fallback_tier else ""
         attr = FALLBACK_ATTR.get(setting_key)
         if attr:
             setattr(settings, attr, fb_model or "")
@@ -526,9 +528,10 @@ async def apply_model_overrides(session: AsyncSession) -> int:
         pj = row.policy_json or {}
         fb_tier = pj.get("fallback_tier")
         if fb_tier:
+            fb_provider = pj.get("fallback_provider") or "anthropic"
             attr = FALLBACK_ATTR.get(row.setting_name)
             if attr:
-                setattr(settings, attr, model_for_tier(fb_tier) or "")
+                setattr(settings, attr, model_for_tier(fb_tier, fb_provider) or "")
         applied += 1
     _sync_runtime_policies(policy_map)
     ops_row = await session.get(AgentOpsState, _OPS_STATE_ID)

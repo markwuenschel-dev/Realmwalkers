@@ -1669,11 +1669,6 @@ export interface components {
         };
       };
       globals: components["schemas"]["AgentGlobalsOut"];
-      /**
-       * Providers
-       * @default []
-       */
-      providers: components["schemas"]["AgentProviderOut"][];
     };
     /** AgentPermissionsOut */
     AgentPermissionsOut: {
@@ -1742,6 +1737,8 @@ export interface components {
       fallback_tier?: string | null;
       /** Fallback Model */
       fallback_model?: string | null;
+      /** Fallback Provider */
+      fallback_provider?: string | null;
       /**
        * Never Fallback
        * @default []
@@ -1767,6 +1764,8 @@ export interface components {
     AgentPolicyUpdateIn: {
       /** Fallback Tier */
       fallback_tier?: string | null;
+      /** Fallback Provider */
+      fallback_provider?: string | null;
       /** Never Fallback */
       never_fallback?: string[] | null;
       /** Semantic Escalation */
@@ -1794,20 +1793,6 @@ export interface components {
        * @default false
        */
       is_custom: boolean;
-    };
-    /** AgentProviderOut */
-    AgentProviderOut: {
-      /** Id */
-      id: string;
-      /** Label */
-      label: string;
-      /** Status */
-      status: string;
-      /**
-       * Description
-       * @default
-       */
-      description: string;
     };
     /** AgentStatsListOut */
     AgentStatsListOut: {

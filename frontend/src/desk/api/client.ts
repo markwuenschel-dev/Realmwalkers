@@ -335,6 +335,7 @@ export const api = {
     setting: string,
     body: {
       fallback_tier?: string | null;
+      fallback_provider?: string | null;
       never_fallback?: string[] | null;
       semantic_escalation?: boolean | null;
       quality_level?: string | null;

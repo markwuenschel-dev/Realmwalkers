@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from dominion.api.routers import settings as settings_router
+from dominion.shared import agent_ops
 from dominion.shared.agent_registry import AGENTS
 from dominion.shared.config import settings as cfg
 from dominion.shared.models import AgentOpsState
@@ -17,8 +18,7 @@ async def test_get_agents_returns_presets_and_contracts(db_factory):
         out = await settings_router.get_agents(s)
         assert len(out.presets) >= 4
         assert len(out.agents) == 7
-        assert len(out.providers) == 6
-        assert out.providers[0].status == "active"
+        assert out.provider_tiers["anthropic"]["opus"] == "claude-opus-4-8"
         draft = next(a for a in out.agents if a.setting == "draft_model")
         assert draft.contract.inputs
         assert draft.policy.escalation_rules
@@ -64,11 +64,36 @@ async def test_set_agent_policy_updates_fallback(db_factory):
             )
             qa = next(a for a in out.agents if a.setting == "packet_qa_model")
             assert qa.policy.fallback_tier == "opus"
+            assert qa.policy.fallback_provider == "anthropic"
             assert cfg.packet_qa_fallback_model == "claude-opus-4-8"
             state = await s.get(AgentOpsState, "default")
             assert state is not None and state.active_preset == "custom"
     finally:
         cfg.packet_qa_fallback_model = original_fb
+
+
+async def test_set_agent_policy_accepts_openai_fallback_provider(db_factory):
+    original_fb = cfg.packet_qa_fallback_model
+    try:
+        async with db_factory() as s:
+            out = await settings_router.set_agent_policy(
+                "packet_qa_model",
+                AgentPolicyUpdateIn(fallback_tier="sonnet", fallback_provider="openai"),
+                s,
+            )
+            qa = next(a for a in out.agents if a.setting == "packet_qa_model")
+            assert qa.policy.fallback_tier == "sonnet"
+            assert qa.policy.fallback_provider == "openai"
+            assert cfg.packet_qa_fallback_model == "gpt-5.4-mini"
+    finally:
+        cfg.packet_qa_fallback_model = original_fb
+
+
+async def test_set_agent_policy_rejects_tier_the_fallback_provider_lacks(db_factory):
+    # xAI only ships one model, slotted at opus -- haiku/sonnet fallback must raise, not silently fall back.
+    async with db_factory() as s:
+        with pytest.raises(ValueError, match="xai"):
+            await agent_ops.apply_agent_policy(s, "packet_qa_model", fallback_tier="haiku", fallback_provider="xai")
 
 
 async def test_agent_stats_empty_db(db_factory):
