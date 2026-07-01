@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
 from dominion.api.packet_delete import hard_delete_scene_packet, hard_delete_scene_packets_for_chapter
+from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import ChapterPacket, ScenePacket
@@ -222,7 +223,12 @@ async def qa_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> Sc
     if cp is not None:
         cp_body = cp.body
     result = await qa_mod.qa_scene_packet(
-        row.body or {}, chapter_packet_body=cp_body, budget=TokenBudget(max_tokens=20000)
+        row.body or {},
+        chapter_packet_body=cp_body,
+        budget=TokenBudget(
+            max_tokens=settings.scene_packet_manual_qa_token_budget,
+            hard_max_tokens=settings.scene_packet_manual_qa_hard_token_budget,
+        ),
     )
     sp_approval.apply_qa_rerun(row, result)
     await session.commit()

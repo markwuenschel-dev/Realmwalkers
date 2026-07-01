@@ -7,6 +7,7 @@ mocked — mirrors tests/test_packet_pipeline.py (router/worker functions called
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -35,6 +36,17 @@ from dominion.workers.scene_packet import author_sections as sp_sections
 from dominion.workers.scene_packet import derive as sp_derive
 from dominion.workers.scene_packet import hash as sp_hash
 from dominion.workers.scene_packet import qa as sp_qa
+
+
+class _CountsTokens:
+    """Mixin giving a fake Anthropic `messages` object the `count_tokens` endpoint llm.complete now calls
+    for its context-window preflight. Returns a small fixed input count so preflight passes; tests that
+    assert preflight BLOCKS set a tiny context_window_budget so the output allowance alone trips the gate.
+    Independent of the scripted `create` responder, so it never disturbs response routing."""
+
+    async def count_tokens(self, *, model: Any, system: Any, messages: Any) -> Any:
+        return SimpleNamespace(input_tokens=100)
+
 
 # --- length planner (pure) ------------------------------------------------------------------------
 
@@ -297,7 +309,7 @@ class _FakeResp:
         self.stop_reason = stop_reason
 
 
-class _FakeMessages:
+class _FakeMessages(_CountsTokens):
     def __init__(self, responder) -> None:
         self._responder = responder
 
@@ -638,7 +650,7 @@ async def test_sectioned_author_uses_chapter_and_scene_cache_breakpoints(monkeyp
             self.usage = usage
             self.stop_reason = "end_turn"
 
-    class _Messages:
+    class _Messages(_CountsTokens):
         async def create(self, *, model, max_tokens, system, messages):
             sys_text = system[0]["text"]
             blocks = messages[0]["content"]
@@ -687,14 +699,15 @@ async def test_sectioned_author_uses_chapter_and_scene_cache_breakpoints(monkeyp
 
 
 async def test_sectioned_author_raw_context_window_failure_preflights_before_llm(monkeypatch):
-    """ScenePacket raw context-window failures must happen before the API call and must not rely on
-    weighted/cache-aware TokenBudget accounting."""
+    """ScenePacket context-window failures must happen in the count_tokens preflight, BEFORE the create
+    call, and must not rely on weighted/cache-aware TokenBudget accounting. The count drives the gate;
+    here even a tiny input count plus the section's output allowance exceeds the 10-token budget."""
     from dominion.workers import llm
     from dominion.workers.llm import ContextWindowExceeded
 
     monkeypatch.setattr(settings, "scene_packet_context_window_budget", 10)
 
-    class _Messages:
+    class _Messages(_CountsTokens):
         async def create(self, **kwargs):
             raise AssertionError("LLM client should not be called after context preflight fails")
 
@@ -703,7 +716,7 @@ async def test_sectioned_author_raw_context_window_failure_preflights_before_llm
 
     monkeypatch.setattr(llm, "_client", lambda: _Client())
 
-    with pytest.raises(ContextWindowExceeded, match="ScenePacket context window exceeded"):
+    with pytest.raises(ContextWindowExceeded, match="context window preflight exceeded"):
         await sp_sections.author_scene_packet_sectioned(
             pov="Marcus",
             chapter_packet_body={"chapter_job": "x" * 1000},
@@ -724,7 +737,7 @@ async def test_author_prime_and_real_request_match_through_shared_prefix(monkeyp
     complete = _complete_scene_body()
     seen: dict[str, object] = {}
 
-    class _Messages:
+    class _Messages(_CountsTokens):
         async def create(self, *, model, max_tokens, system, messages):
             blocks = messages[0]["content"]
             assert isinstance(blocks, list)
@@ -786,7 +799,7 @@ async def test_qa_prime_and_real_request_match_through_shared_prefix(monkeypatch
     monkeypatch.setattr(settings, "scene_packet_context_window_budget", 500_000)
     seen: dict[str, object] = {}
 
-    class _Messages:
+    class _Messages(_CountsTokens):
         async def create(self, *, model, max_tokens, system, messages):
             blocks = messages[0]["content"]
             assert isinstance(blocks, list)
@@ -857,7 +870,7 @@ async def test_derive_primes_shared_prefix_before_scene_work_for_reported_67k_ca
             self.usage = usage
             self.stop_reason = "end_turn"
 
-    class _Messages:
+    class _Messages(_CountsTokens):
         async def create(self, *, model, max_tokens, system, messages):
             sys_text = system[0]["text"]
             is_qa = "QA agent" in sys_text
@@ -1630,3 +1643,28 @@ async def test_sectioned_author_keeps_claim_sources_when_emitted(monkeypatch):
     )
     assert body["claim_sources"] == [{"claim": "Marcus wields a spear", "source_id": "C1"}]
     assert "known_before_scene" in body and body["word_budget"]["target"] == 1500
+
+
+async def test_derive_soft_budget_overage_persists_proposed_not_blocked(db_factory, monkeypatch):
+    """Production fix: a scene whose Author+QA work lands over the SOFT token target but under the HARD
+    ceiling keeps its valid output — the packet persists as PROPOSED (with a soft-overage warning in
+    telemetry), never BLOCKED. This is the `60043 > 60000` case that used to discard a usable packet."""
+    from dominion.shared.models import LlmCall
+
+    monkeypatch.setattr(settings, "scene_token_budget", 5_000)  # tiny soft target: normal work exceeds it
+    monkeypatch.setattr(settings, "scene_token_hard_budget", 75_000)  # generous hard ceiling: never hit
+    _section_responder(monkeypatch)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+
+        assert counts["created"] == 1 and counts["blocked"] == 0
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.PROPOSED  # valid output NOT discarded over a soft overage
+
+        authors = [c for c in (await s.execute(select(LlmCall))).scalars() if c.stage == "scene_packet_author"]
+        # At least one author section call crossed the soft target; none crossed the hard ceiling.
+        assert any((c.metadata_ or {}).get("budget_soft_exceeded") for c in authors)
+        assert not any((c.metadata_ or {}).get("budget_hard_exceeded") for c in authors)

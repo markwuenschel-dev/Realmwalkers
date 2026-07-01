@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 
 class BudgetExceeded(Exception):
-    """Raised when a job's cumulative token usage crosses its ceiling. Fail-closed."""
+    """Raised when a job's cumulative token usage crosses its HARD ceiling. Fail-closed."""
 
 
 # The budget is a *work* ceiling, not a dollar ceiling. A cache WRITE is content the model processes
@@ -59,9 +59,29 @@ class Usage:
         return self.cache_read_tokens - self.cache_creation_tokens
 
 
+@dataclass(frozen=True)
+class BudgetChargeResult:
+    """The outcome of one `TokenBudget.charge`, so a caller can record/branch on budget state without
+    re-deriving it. `soft_exceeded` means the soft target was crossed (warn); `hard_exceeded` means the
+    hard ceiling was crossed (block). When `hard_max_tokens` is unset the two coincide."""
+
+    used: int
+    soft_exceeded: bool
+    hard_exceeded: bool
+
+
 @dataclass
 class TokenBudget:
+    """A job's cumulative work ceiling. `max_tokens` is the SOFT target; `hard_max_tokens` (defaulting
+    to `max_tokens` for backward compatibility) is the HARD ceiling that actually blocks.
+
+    The split exists because a scene that lands a few tokens over the soft target (`60043 > 60000`)
+    already produced valid output — raising there just discards it and re-runs identical work. So a soft
+    overage only WARNS (surfaced via telemetry); only a hard overage fails closed. A caller that wants
+    the old single-ceiling behavior passes only `max_tokens` and gets `hard == soft`."""
+
     max_tokens: int
+    hard_max_tokens: int | None = None
     used: int = 0
     total_input: int = field(default=0)
     total_output: int = field(default=0)
@@ -69,7 +89,34 @@ class TokenBudget:
     total_cache_read: int = field(default=0)
     first_call_at: float | None = field(default=None)
 
-    def charge(self, usage: Usage) -> None:
+    @property
+    def hard_limit(self) -> int:
+        """The effective hard ceiling: `hard_max_tokens` when set, else the soft `max_tokens`."""
+        return self.hard_max_tokens if self.hard_max_tokens is not None else self.max_tokens
+
+    @property
+    def soft_exceeded(self) -> bool:
+        return self.used > self.max_tokens
+
+    @property
+    def hard_exceeded(self) -> bool:
+        return self.used > self.hard_limit
+
+    @property
+    def remaining_soft(self) -> int:
+        """Work left under the soft target (0 once exceeded)."""
+        return max(0, self.max_tokens - self.used)
+
+    @property
+    def remaining_hard(self) -> int:
+        """Work left under the hard ceiling (0 once exceeded)."""
+        return max(0, self.hard_limit - self.used)
+
+    def charge(self, usage: Usage, *, raise_on_hard_exceeded: bool = True) -> BudgetChargeResult:
+        """Charge one call's weighted cost. Raises `BudgetExceeded` when the HARD ceiling is crossed and
+        `raise_on_hard_exceeded` is True (the default — backward compatible). Pass False to charge without
+        raising (e.g. so the caller can record telemetry before deciding to fail), reading the returned
+        `BudgetChargeResult` for soft/hard state. A soft-only overage never raises."""
         if self.first_call_at is None:
             self.first_call_at = time.time()
         self.used += usage.budget_cost
@@ -77,8 +124,10 @@ class TokenBudget:
         self.total_output += usage.output_tokens
         self.total_cache_creation += usage.cache_creation_tokens
         self.total_cache_read += usage.cache_read_tokens
-        if self.used > self.max_tokens:
-            raise BudgetExceeded(f"token budget exceeded: {self.used} > {self.max_tokens}")
+        result = BudgetChargeResult(used=self.used, soft_exceeded=self.soft_exceeded, hard_exceeded=self.hard_exceeded)
+        if result.hard_exceeded and raise_on_hard_exceeded:
+            raise BudgetExceeded(f"token budget exceeded: {self.used} > {self.hard_limit}")
+        return result
 
     @property
     def cache_hit_ratio(self) -> float:

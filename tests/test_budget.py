@@ -57,6 +57,48 @@ def test_charge_raises_when_weighted_cost_crosses_ceiling():
         budget.charge(Usage(input_tokens=600, output_tokens=600))  # 1200 > 1000
 
 
+# --- soft / hard budget split ---------------------------------------------------------------------
+
+
+def test_hard_defaults_to_soft_for_backward_compatibility():
+    # An old-style single-ceiling budget: hard == soft, so it raises exactly as before at the ceiling.
+    budget = TokenBudget(max_tokens=1000)
+    assert budget.hard_limit == 1000
+    with pytest.raises(BudgetExceeded):
+        budget.charge(Usage(input_tokens=1001, output_tokens=0))
+
+
+def test_soft_overage_under_hard_does_not_raise():
+    # The production fix: a scene that lands a few tokens over the soft target (the recurring
+    # `60043 > 60000`) keeps its valid output — soft overage warns, it does not block.
+    budget = TokenBudget(max_tokens=60_000, hard_max_tokens=75_000)
+    result = budget.charge(Usage(input_tokens=60_043, output_tokens=0))
+    assert budget.used == 60_043
+    assert result.soft_exceeded and not result.hard_exceeded
+    assert budget.soft_exceeded and not budget.hard_exceeded
+
+
+def test_hard_overage_still_raises():
+    budget = TokenBudget(max_tokens=60_000, hard_max_tokens=75_000)
+    with pytest.raises(BudgetExceeded):
+        budget.charge(Usage(input_tokens=75_001, output_tokens=0))
+
+
+def test_remaining_and_exceeded_properties():
+    budget = TokenBudget(max_tokens=1000, hard_max_tokens=1500)
+    assert budget.remaining_soft == 1000 and budget.remaining_hard == 1500
+    budget.charge(Usage(input_tokens=1200, output_tokens=0))  # over soft, under hard
+    assert budget.soft_exceeded and not budget.hard_exceeded
+    assert budget.remaining_soft == 0  # clamped, not negative
+    assert budget.remaining_hard == 300
+
+
+def test_charge_without_raise_returns_state_on_hard_overage():
+    budget = TokenBudget(max_tokens=1000)  # hard == soft == 1000
+    result = budget.charge(Usage(input_tokens=2000, output_tokens=0), raise_on_hard_exceeded=False)
+    assert result.hard_exceeded and result.soft_exceeded and result.used == 2000  # no raise
+
+
 def test_context_window_guard_uses_raw_tokens_not_weighted_cache_cost():
     # Weighted budget would pass because cache reads are discounted to ~10%, but raw context-window
     # safety must count the full cached prefix plus output allowance.
