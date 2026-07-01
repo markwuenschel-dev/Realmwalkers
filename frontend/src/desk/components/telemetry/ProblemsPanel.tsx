@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { css } from "../../css";
 import { api } from "../../api/client";
+import { useDeskData } from "../../api/data";
+import ClearFailedPanel from "../ClearFailedPanel";
 import { copyToClipboard } from "../../lib/download";
 import type { TelemetryProblemOut } from "../../api/types";
 import type { TelemetryDrawerView } from "./types";
@@ -98,7 +100,13 @@ export function ProblemsPanel({
         )}
       >
         {problems.map((p, i) => (
-          <ProblemCard key={`${p.kind}-${i}`} problem={p} bookId={bookId} onOpen={onOpen} />
+          <ProblemCard
+            key={`${p.kind}-${i}`}
+            problem={p}
+            bookId={bookId}
+            onOpen={onOpen}
+            onReload={load}
+          />
         ))}
       </div>
     </div>
@@ -172,12 +180,15 @@ function ProblemCard({
   problem: p,
   bookId,
   onOpen,
+  onReload,
 }: {
   problem: TelemetryProblemOut;
   bookId: string;
   onOpen: (view: TelemetryDrawerView) => void;
+  onReload: () => Promise<void>;
 }) {
   const router = useRouter();
+  const data = useDeskData();
   const [expanded, setExpanded] = useState(false);
   const color = severityColor(p.severity);
   const breakdown = p.breakdown as Record<string, unknown>[];
@@ -264,6 +275,37 @@ function ProblemCard({
         <div style={css("font-size:11.5px;color:var(--dim);line-height:1.4")}>
           {p.recommended_action}
         </div>
+      )}
+
+      {p.kind === "failed_draft_job" && (
+        <ClearFailedPanel
+          compact
+          failedCount={data.jobs.failed}
+          failedJobs={data.failedJobs}
+          onRetry={async () => {
+            const out = await data.retryFailed();
+            await onReload();
+            return out;
+          }}
+          onClear={async () => {
+            await data.clearFailed();
+            await onReload();
+          }}
+        />
+      )}
+
+      {(p.kind === "soft_work_budget_exceeded" ||
+        p.kind === "hard_work_budget_exceeded" ||
+        p.kind === "high_latency") && (
+        <button
+          type="button"
+          onClick={() => router.push("/settings")}
+          style={css(
+            "align-self:flex-start;background:none;border:none;padding:0;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--info, #5b9bd5)",
+          )}
+        >
+          Adjust in Settings → Agent Ops
+        </button>
       )}
     </div>
   );
