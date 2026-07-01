@@ -439,6 +439,34 @@ def supports_temperature(model: str | None) -> bool:
     return base in _ANTHROPIC_TEMPERATURE_MODELS
 
 
+# output_config.effort (low/medium/high/…) is Anthropic-only and supported on Opus 4.5+, Sonnet 5,
+# Sonnet 4.6, and Fable 5 -- but NOT Haiku 4.5 or Sonnet 4.5 (those 400). Allowlist so unknown / future
+# models default to no effort (safe: the model just runs at its own default effort). It's the complement
+# of the temperature allowlist above: the flagship models reject `temperature` and take effort instead.
+_ANTHROPIC_EFFORT_MODELS: frozenset[str] = frozenset(
+    {
+        "claude-opus-4-8",
+        "claude-opus-4-7",
+        "claude-opus-4-6",
+        "claude-opus-4-5",
+        "claude-sonnet-5",
+        "claude-sonnet-4-6",
+        "claude-fable-5",
+    }
+)
+
+
+def supports_effort(model: str | None) -> bool:
+    """Whether `model` accepts the Anthropic `output_config.effort` param (low/medium/high/…). Non-
+    Anthropic providers don't take this param on the app's chat path, so they're always False."""
+    if not model:
+        return False
+    if provider_of(model) != "anthropic":
+        return False
+    base = model.split("-20", 1)[0]
+    return base in _ANTHROPIC_EFFORT_MODELS
+
+
 def fallback_attr(setting_key: str) -> str | None:
     return FALLBACK_ATTR.get(setting_key)
 

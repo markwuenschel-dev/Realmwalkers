@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from dominion.shared.agent_policy import quality_prompt_suffix, quality_temperature
+from dominion.shared.agent_policy import quality_effort, quality_prompt_suffix, quality_temperature
 from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
@@ -240,6 +240,7 @@ class Drafter:
                 max_tokens=max_tokens,
                 budget=ctx.budget,
                 temperature=quality_temperature("draft_model"),
+                effort=quality_effort("draft_model"),
             )
             return text.strip(), usage
 

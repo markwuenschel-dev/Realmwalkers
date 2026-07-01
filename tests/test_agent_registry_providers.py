@@ -8,6 +8,7 @@ from dominion.shared.agent_registry import (
     model_for_tier,
     provider_of,
     resolve_tier_for_provider,
+    supports_effort,
     supports_temperature,
     tier_of,
 )
@@ -126,3 +127,26 @@ def test_supports_temperature_false_for_unknown_or_empty_model():
     assert supports_temperature("claude-fable-5") is False
     assert supports_temperature("") is False
     assert supports_temperature(None) is False
+
+
+# --- supports_effort: the quality knob for the flagship models that dropped `temperature` -----------
+
+
+def test_supports_effort_true_for_flagship_anthropic_false_for_haiku():
+    assert supports_effort("claude-opus-4-8") is True
+    assert supports_effort("claude-sonnet-5") is True
+    assert supports_effort("claude-haiku-4-5") is False  # Haiku 4.5 rejects effort (it takes temperature)
+
+
+def test_supports_effort_false_for_non_anthropic_and_unknown():
+    assert supports_effort("gpt-5.5") is False  # OpenAI/xAI don't take output_config.effort on this path
+    assert supports_effort("grok-4.3") is False
+    assert supports_effort("claude-something-unknown") is False  # unknown -> no effort (safe default)
+    assert supports_effort(None) is False
+
+
+def test_configured_anthropic_models_take_exactly_one_of_temperature_or_effort():
+    # Every configured Anthropic model accepts exactly one knob — never both, never neither — so a
+    # preset's quality_level always lands as a real setting.
+    for model in PROVIDER_TIERS["anthropic"].values():
+        assert supports_temperature(model) != supports_effort(model)
