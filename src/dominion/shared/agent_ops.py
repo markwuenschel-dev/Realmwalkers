@@ -493,6 +493,7 @@ async def apply_agent_policy(
     existing = await session.get(AgentPolicyOverride, setting_key)
     policy_json: dict[str, Any] = {}
     if fallback_tier is not None:
+        fb_model = ""
         if fallback_tier:
             if not fallback_provider:
                 # Caller named a tier without pinning a provider -- default to this agent's CURRENT
@@ -504,12 +505,13 @@ async def apply_agent_policy(
                 raise ValueError(f"unknown provider '{fallback_provider}'")
             if fallback_tier not in PROVIDER_TIERS[fallback_provider]:
                 raise ValueError(f"provider '{fallback_provider}' has no model for tier '{fallback_tier}'")
+            # fallback_provider is a concrete str here (narrowed above), so model_for_tier is well-typed.
+            fb_model = model_for_tier(fallback_tier, fallback_provider) or ""
         policy_json["fallback_tier"] = fallback_tier or None
         policy_json["fallback_provider"] = fallback_provider if fallback_tier else None
-        fb_model = model_for_tier(fallback_tier, fallback_provider) if fallback_tier else ""
         attr = FALLBACK_ATTR.get(setting_key)
         if attr:
-            setattr(settings, attr, fb_model or "")
+            setattr(settings, attr, fb_model)
     if never_fallback is not None:
         policy_json["never_fallback"] = never_fallback
     if semantic_escalation is not None:

@@ -16,7 +16,9 @@ export function draftBlockerMessage(e: unknown): string | null {
   const blockers = err.data?.blockers;
   if (!blockers?.length) return null;
   return blockers
-    .map((b) => (b.scene_no != null ? `Scene ${b.scene_no}: ${b.required_action}` : b.required_action))
+    .map((b) =>
+      b.scene_no != null ? `Scene ${b.scene_no}: ${b.required_action}` : b.required_action,
+    )
     .join(" · ");
 }
 

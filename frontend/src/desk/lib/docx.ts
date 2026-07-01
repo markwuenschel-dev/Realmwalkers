@@ -520,7 +520,13 @@ export function buildManuscriptDoc(
           alignment: AlignmentType.CENTER,
           spacing: { after: 320 },
           children: [
-            new TextRun({ text: epigraph, font: "Georgia", italics: true, size: 22, color: "606060" }),
+            new TextRun({
+              text: epigraph,
+              font: "Georgia",
+              italics: true,
+              size: 22,
+              color: "606060",
+            }),
           ],
         }),
       );

@@ -155,9 +155,7 @@ export default function DocsScreen() {
 
       {/* reading panel */}
       <article
-        style={css(
-          "flex:1 1 700px;min-width:min(100%,320px);max-width:none;padding:6px 4px 80px",
-        )}
+        style={css("flex:1 1 700px;min-width:min(100%,320px);max-width:none;padding:6px 4px 80px")}
       >
         {docErr ? (
           <p style={css("color:var(--bad);font-family:var(--mono);font-size:13px")}>

@@ -97,7 +97,9 @@ export default function ManuscriptScreen() {
       front_matter: "Front Matter",
       back_matter: "Back Matter",
     };
-    return ch.kind && ch.kind !== "chapter" ? (named[ch.kind] ?? ch.kind) : `Chapter ${ch.chapter_no}`;
+    return ch.kind && ch.kind !== "chapter"
+      ? (named[ch.kind] ?? ch.kind)
+      : `Chapter ${ch.chapter_no}`;
   };
 
   const exportMarkdown = async () => {

@@ -141,7 +141,12 @@ describe("markdownFilename", () => {
 describe("buildManuscriptFrom", () => {
   it("wraps a single chapter with a single scene (the Scene-screen shape)", () => {
     const ms = buildManuscriptFrom("Chapter 3 · Scene 2", [
-      { chapter_no: 3, title: "The Return", pov: "Mara", scenes: [{ scene_no: 2, prose: "Text." }] },
+      {
+        chapter_no: 3,
+        title: "The Return",
+        pov: "Mara",
+        scenes: [{ scene_no: 2, prose: "Text." }],
+      },
     ]);
     expect(ms.title).toBe("Chapter 3 · Scene 2");
     expect(ms.book_id).toBe("");
@@ -182,7 +187,12 @@ describe("buildManuscriptFrom", () => {
 
   it("feeds straight into buildManuscriptMarkdown/buildManuscriptDoc unchanged", () => {
     const ms = buildManuscriptFrom("Chapter 1", [
-      { chapter_no: 1, title: "The Scrim", pov: "Marcus", scenes: [{ scene_no: 1, prose: "Hello." }] },
+      {
+        chapter_no: 1,
+        title: "The Scrim",
+        pov: "Marcus",
+        scenes: [{ scene_no: 1, prose: "Hello." }],
+      },
     ]);
     const md = buildManuscriptMarkdown(ms);
     expect(md).toContain("schema: dominion-manuscript/v1");

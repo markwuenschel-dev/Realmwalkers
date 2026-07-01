@@ -108,9 +108,10 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   // Per-scene export (Markdown / Reader-DOCX / Shunn-DOCX) once a scene packet's scene has been
   // drafted — same builders the Manuscript tab uses. Author name shared with every export surface.
   const [author, saveAuthor] = useAuthorName();
-  const [exportingScene, setExportingScene] = useState<{ packetId: string; kind: ExportKind } | null>(
-    null,
-  );
+  const [exportingScene, setExportingScene] = useState<{
+    packetId: string;
+    kind: ExportKind;
+  } | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const openTelemetry = useCallback(

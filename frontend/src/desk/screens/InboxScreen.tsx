@@ -74,7 +74,8 @@ export default function InboxScreen() {
   const selectedChapters = () => {
     const chosen = data.pending.filter((s) => sel.has(s.id));
     const byChapter = new Map<string, typeof chosen>();
-    for (const s of chosen) byChapter.set(s.chapter_id, [...(byChapter.get(s.chapter_id) ?? []), s]);
+    for (const s of chosen)
+      byChapter.set(s.chapter_id, [...(byChapter.get(s.chapter_id) ?? []), s]);
     return [...byChapter.entries()].map(([chapterId, scenes]) => {
       const ch = data.chapters.find((c) => c.id === chapterId);
       return {

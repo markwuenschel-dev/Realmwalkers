@@ -93,7 +93,9 @@ export function AgentRow({
     fbTier && a.policy.fallback_provider
       ? providerTiers[a.policy.fallback_provider]?.[fbTier]
       : undefined;
-  const fbLabel = fbTier ? ((fbModel && MODEL_LABEL[fbModel]) ?? TIER_LABEL[fbTier] ?? fbTier) : null;
+  const fbLabel = fbTier
+    ? ((fbModel && MODEL_LABEL[fbModel]) ?? TIER_LABEL[fbTier] ?? fbTier)
+    : null;
 
   return (
     <div

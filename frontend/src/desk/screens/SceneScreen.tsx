@@ -549,10 +549,7 @@ export default function SceneScreen() {
       const exp = await import("../lib/docx");
       const ms = exp.buildManuscriptFrom(sceneLabel(cur), sceneChapterInput());
       await exp.saveDocx(
-        exp.buildManuscriptDoc(
-          ms,
-          `Chapter ${chapter?.chapter_no ?? "?"} · Scene ${cur.scene_no}`,
-        ),
+        exp.buildManuscriptDoc(ms, `Chapter ${chapter?.chapter_no ?? "?"} · Scene ${cur.scene_no}`),
         exp.docxFilename(sceneExportStem),
       );
     } finally {
@@ -730,9 +727,9 @@ export default function SceneScreen() {
             </span>
           ) : (
             <span>
-              You're editing an already-decided scene. Switch to <b>Editing</b> to change the prose —{" "}
-              <b>Approve</b> saves your changes; <b>Request revision</b> re-drafts it. Use the queue
-              arrows to return to the review queue.
+              You're editing an already-decided scene. Switch to <b>Editing</b> to change the prose
+              — <b>Approve</b> saves your changes; <b>Request revision</b> re-drafts it. Use the
+              queue arrows to return to the review queue.
             </span>
           )}
           {cur.status === "revision_requested" && (

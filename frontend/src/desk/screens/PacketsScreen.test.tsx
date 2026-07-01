@@ -45,7 +45,12 @@ const mockData: {
   jobs: { running: boolean; queued: number; failed: number; active_scene: null };
   clearFailed: () => void;
   manuscript: {
-    chapters: { chapter_no: number; title: string | null; pov: string; scenes: { scene_no: number; prose: string | null }[] }[];
+    chapters: {
+      chapter_no: number;
+      title: string | null;
+      pov: string;
+      scenes: { scene_no: number; prose: string | null }[];
+    }[];
   } | null;
   books: { id: string; title: string }[];
   bookId: string | null;
@@ -163,7 +168,12 @@ describe("PacketsScreen exports", () => {
   it("enables export buttons once the selected chapter has approved prose", async () => {
     mockData.manuscript = {
       chapters: [
-        { chapter_no: 1, title: "The Start", pov: "Soren", scenes: [{ scene_no: 1, prose: "Text." }] },
+        {
+          chapter_no: 1,
+          title: "The Start",
+          pov: "Soren",
+          scenes: [{ scene_no: 1, prose: "Text." }],
+        },
       ],
     };
     render(<PacketsScreen />);
@@ -175,7 +185,14 @@ describe("PacketsScreen exports", () => {
 
   it("stays disabled when the manuscript has the chapter but every scene is empty", async () => {
     mockData.manuscript = {
-      chapters: [{ chapter_no: 1, title: "The Start", pov: "Soren", scenes: [{ scene_no: 1, prose: "   " }] }],
+      chapters: [
+        {
+          chapter_no: 1,
+          title: "The Start",
+          pov: "Soren",
+          scenes: [{ scene_no: 1, prose: "   " }],
+        },
+      ],
     };
     render(<PacketsScreen />);
     expect(await screen.findByRole("button", { name: "Export Markdown" })).toBeDisabled();
