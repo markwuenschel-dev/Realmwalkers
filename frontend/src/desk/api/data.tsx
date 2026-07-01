@@ -79,6 +79,7 @@ export interface DeskData {
   openSceneById: (id: string | null) => void;
 
   refreshAll: () => Promise<void>;
+  refreshManuscript: () => Promise<void>;
   createBook: (title: string) => Promise<void>;
   updateChapter: (chapterId: string, body: ChapterUpdateIn) => Promise<void>;
   creatingChapter: boolean;
@@ -131,6 +132,15 @@ export function useDeskDataState(): DeskData {
     () => collections.refreshAll(bookId),
     [bookId, collections.refreshAll],
   );
+  // Slim post-action reconciliation (scenes/pending/jobs, no manuscript/world) — see useDeskCollections.
+  const refreshScenes = useCallback(
+    () => collections.refreshScenes(bookId),
+    [bookId, collections.refreshScenes],
+  );
+  const refreshManuscript = useCallback(
+    () => collections.refreshManuscript(bookId),
+    [bookId, collections.refreshManuscript],
+  );
 
   const scene = useDeskActiveScene(fail, setError);
 
@@ -141,7 +151,7 @@ export function useDeskDataState(): DeskData {
     setChapters: collections.setChapters,
     setDetail: scene.setDetail,
     openSceneById: scene.openSceneById,
-    refreshAll,
+    refreshScenes,
   });
 
   const jobs = useDeskJobs(
@@ -239,6 +249,7 @@ export function useDeskDataState(): DeskData {
       suggestions: scene.suggestions,
       openSceneById: scene.openSceneById,
       refreshAll,
+      refreshManuscript,
       createBook,
       updateChapter: sceneActions.updateChapter,
       creatingChapter: chapterCreate.creating,
@@ -282,6 +293,7 @@ export function useDeskDataState(): DeskData {
       jobs,
       scene,
       refreshAll,
+      refreshManuscript,
       createBook,
       sceneActions,
       chapterCreate.creating,

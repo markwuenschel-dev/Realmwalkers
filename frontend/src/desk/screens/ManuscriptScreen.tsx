@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { wordCount } from "../lib/format";
@@ -33,6 +33,7 @@ export default function ManuscriptScreen() {
     jobs,
     clearFailed,
     clearDraftScenes,
+    refreshManuscript,
   } = useDeskData();
   const [layout, setLayout] = useState<Layout>("wide");
   const [source, setSource] = useState<Source>("approved");
@@ -41,6 +42,13 @@ export default function ManuscriptScreen() {
   // Author name for the Shunn submission header/byline — persisted (shared with every other export
   // surface) so it isn't re-typed each export.
   const [author, saveAuthor] = useAuthorName();
+
+  // The approved manuscript is intentionally dropped from the post-action refresh (heaviest payload; a
+  // scene decision elsewhere doesn't need it recompiled). Pull a fresh compile when this screen opens
+  // (and on book change) so the Approved view reflects approvals made since the last full load.
+  useEffect(() => {
+    void refreshManuscript();
+  }, [refreshManuscript]);
 
   // Draft compile: assemble each scene's current (latest-version) prose into manuscript form, whatever
   // its status — built entirely client-side from data already loaded, so viewing/exporting it never

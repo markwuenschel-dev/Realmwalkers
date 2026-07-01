@@ -198,7 +198,7 @@ describe("useDeskSceneActions runBulk", () => {
   function setup() {
     const fail = vi.fn();
     const setError = vi.fn();
-    const refreshAll = vi.fn().mockResolvedValue(undefined);
+    const refreshScenes = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
       useDeskSceneActions(fail, setError, {
         bookId: "book-1",
@@ -207,10 +207,10 @@ describe("useDeskSceneActions runBulk", () => {
         setChapters: vi.fn(),
         setDetail: vi.fn(),
         openSceneById: vi.fn(),
-        refreshAll,
+        refreshScenes,
       }),
     );
-    return { result, fail, setError, refreshAll };
+    return { result, fail, setError, refreshScenes };
   }
 
   it("drains the job queue after a bulk action when drainAfter is set", async () => {
@@ -260,7 +260,7 @@ describe("useDeskSceneActions restartRedraft", () => {
   function setup() {
     const fail = vi.fn();
     const setError = vi.fn();
-    const refreshAll = vi.fn().mockResolvedValue(undefined);
+    const refreshScenes = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
       useDeskSceneActions(fail, setError, {
         bookId: "book-1",
@@ -269,10 +269,10 @@ describe("useDeskSceneActions restartRedraft", () => {
         setChapters: vi.fn(),
         setDetail: vi.fn(),
         openSceneById: vi.fn(),
-        refreshAll,
+        refreshScenes,
       }),
     );
-    return { result, fail, setError, refreshAll };
+    return { result, fail, setError, refreshScenes };
   }
 
   it("re-queues a fresh draft job and drains the queue when a job is scheduled", async () => {
@@ -287,7 +287,7 @@ describe("useDeskSceneActions restartRedraft", () => {
       repaired_beats: 0,
     });
     vi.mocked(api.draftNext).mockResolvedValue({ scheduled: true, queued: 1, running: true });
-    const { result, fail, refreshAll } = setup();
+    const { result, fail, refreshScenes } = setup();
 
     await act(async () => {
       await result.current.restartRedraft("ch-1", "scene-1");
@@ -295,7 +295,7 @@ describe("useDeskSceneActions restartRedraft", () => {
 
     expect(api.redraftScenes).toHaveBeenCalledWith("ch-1", ["scene-1"]);
     expect(api.draftNext).toHaveBeenCalledTimes(1);
-    expect(refreshAll).toHaveBeenCalled();
+    expect(refreshScenes).toHaveBeenCalled();
     expect(fail).not.toHaveBeenCalled();
   });
 
@@ -307,19 +307,19 @@ describe("useDeskSceneActions restartRedraft", () => {
       skipped: [],
       repaired_beats: 0,
     });
-    const { result, refreshAll } = setup();
+    const { result, refreshScenes } = setup();
 
     await act(async () => {
       await result.current.restartRedraft("ch-1", "scene-1");
     });
 
     expect(api.draftNext).not.toHaveBeenCalled();
-    expect(refreshAll).toHaveBeenCalled();
+    expect(refreshScenes).toHaveBeenCalled();
   });
 
   it("surfaces failures via fail (e.g. the 409 raised when no scene_ids resolve)", async () => {
     vi.mocked(api.redraftScenes).mockRejectedValue(new Error("409 Conflict"));
-    const { result, fail, refreshAll } = setup();
+    const { result, fail, refreshScenes } = setup();
 
     await act(async () => {
       await result.current.restartRedraft("ch-1", "scene-1");
@@ -327,7 +327,7 @@ describe("useDeskSceneActions restartRedraft", () => {
 
     expect(fail).toHaveBeenCalled();
     expect(api.draftNext).not.toHaveBeenCalled();
-    expect(refreshAll).not.toHaveBeenCalled();
+    expect(refreshScenes).not.toHaveBeenCalled();
   });
 
   it("surfaces a 409's blocker required_action (not an opaque error) when no ScenePacket resolves", async () => {
