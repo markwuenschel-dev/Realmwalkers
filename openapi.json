@@ -4451,7 +4451,7 @@
           "settings"
         ],
         "summary": "Set Model",
-        "description": "Point one agent role at Haiku / Sonnet / Opus. Applies live + persists.",
+        "description": "Point one agent role at a provider + tier (e.g. anthropic/opus, openai/sonnet). Applies live + persists.",
         "operationId": "set_model_settings_models_put",
         "requestBody": {
           "content": {
@@ -5136,6 +5136,11 @@
             ],
             "title": "Tier"
           },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "anthropic"
+          },
           "policy": {
             "$ref": "#/components/schemas/AgentPolicyOut"
           },
@@ -5206,6 +5211,17 @@
             },
             "type": "object",
             "title": "Tiers"
+          },
+          "provider_tiers": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Provider Tiers",
+            "default": {}
           },
           "globals": {
             "$ref": "#/components/schemas/AgentGlobalsOut"
@@ -8124,6 +8140,11 @@
               }
             ],
             "title": "Tier"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "anthropic"
           }
         },
         "type": "object",
@@ -8134,7 +8155,7 @@
           "model"
         ],
         "title": "ModelSettingOut",
-        "description": "One customizable agent: its current model id + which tier (haiku/sonnet/opus) that is."
+        "description": "One customizable agent: its current model id + which provider/tier that is."
       },
       "ModelSettingUpdateIn": {
         "properties": {
@@ -8145,6 +8166,11 @@
           "tier": {
             "type": "string",
             "title": "Tier"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "anthropic"
           }
         },
         "type": "object",
@@ -8153,7 +8179,7 @@
           "tier"
         ],
         "title": "ModelSettingUpdateIn",
-        "description": "PUT body to point one agent role at a tier."
+        "description": "PUT body to point one agent role at a provider + tier."
       },
       "ModelSettingsOut": {
         "properties": {
@@ -8170,6 +8196,17 @@
             },
             "type": "object",
             "title": "Tiers"
+          },
+          "provider_tiers": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Provider Tiers",
+            "default": {}
           }
         },
         "type": "object",

@@ -1343,7 +1343,7 @@ export interface paths {
     get: operations["get_models_settings_models_get"];
     /**
      * Set Model
-     * @description Point one agent role at Haiku / Sonnet / Opus. Applies live + persists.
+     * @description Point one agent role at a provider + tier (e.g. anthropic/opus, openai/sonnet). Applies live + persists.
      */
     put: operations["set_model_settings_models_put"];
     post?: never;
@@ -1631,6 +1631,11 @@ export interface components {
       model: string;
       /** Tier */
       tier?: string | null;
+      /**
+       * Provider
+       * @default anthropic
+       */
+      provider: string;
       policy: components["schemas"]["AgentPolicyOut"];
       contract: components["schemas"]["AgentContractOut"];
       permissions: components["schemas"]["AgentPermissionsOut"];
@@ -1653,6 +1658,15 @@ export interface components {
       /** Tiers */
       tiers: {
         [key: string]: string;
+      };
+      /**
+       * Provider Tiers
+       * @default {}
+       */
+      provider_tiers: {
+        [key: string]: {
+          [key: string]: string;
+        };
       };
       globals: components["schemas"]["AgentGlobalsOut"];
       /**
@@ -2941,7 +2955,7 @@ export interface components {
     };
     /**
      * ModelSettingOut
-     * @description One customizable agent: its current model id + which tier (haiku/sonnet/opus) that is.
+     * @description One customizable agent: its current model id + which provider/tier that is.
      */
     ModelSettingOut: {
       /** Setting */
@@ -2954,16 +2968,26 @@ export interface components {
       model: string;
       /** Tier */
       tier?: string | null;
+      /**
+       * Provider
+       * @default anthropic
+       */
+      provider: string;
     };
     /**
      * ModelSettingUpdateIn
-     * @description PUT body to point one agent role at a tier.
+     * @description PUT body to point one agent role at a provider + tier.
      */
     ModelSettingUpdateIn: {
       /** Setting */
       setting: string;
       /** Tier */
       tier: string;
+      /**
+       * Provider
+       * @default anthropic
+       */
+      provider: string;
     };
     /** ModelSettingsOut */
     ModelSettingsOut: {
@@ -2972,6 +2996,15 @@ export interface components {
       /** Tiers */
       tiers: {
         [key: string]: string;
+      };
+      /**
+       * Provider Tiers
+       * @default {}
+       */
+      provider_tiers: {
+        [key: string]: {
+          [key: string]: string;
+        };
       };
     };
     /**

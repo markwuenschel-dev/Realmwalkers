@@ -12,13 +12,42 @@ from typing import Any, Literal
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
 
 Tier = Literal["haiku", "sonnet", "opus"]
+Provider = Literal["anthropic", "openai", "xai"]
 CostBand = Literal["low", "medium", "high"]
 SpeedBand = Literal["fast", "medium", "slow"]
 
-TIERS: dict[str, str] = {
-    "haiku": "claude-haiku-4-5",
-    "sonnet": "claude-sonnet-5",
-    "opus": "claude-opus-4-8",
+# Per-provider tier -> model id. Anthropic covers all three tiers; other providers fill in whichever
+# tiers they have a model for (xAI currently ships one general model, slotted at "opus").
+# Typed as plain str keys (not Provider/Tier) so it assigns directly into the dict[str, dict[str, str]]
+# API schemas below without invariance friction.
+PROVIDER_TIERS: dict[str, dict[str, str]] = {
+    "anthropic": {
+        "haiku": "claude-haiku-4-5",
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-4-8",
+    },
+    "openai": {
+        "haiku": "gpt-5.4-nano",
+        "sonnet": "gpt-5.4-mini",
+        "opus": "gpt-5.5",
+    },
+    "xai": {
+        "opus": "grok-4.3",
+    },
+}
+
+PROVIDER_LABELS: dict[Provider, str] = {
+    "anthropic": "Anthropic",
+    "openai": "OpenAI",
+    "xai": "xAI",
+}
+
+# Legacy alias: the settings API predates multi-provider support and only ever resolved tiers
+# against Anthropic models. Keep it pointing at the Anthropic tiers for backward compatibility.
+TIERS: dict[str, str] = PROVIDER_TIERS["anthropic"]
+
+_MODEL_TO_PROVIDER_TIER: dict[str, tuple[str, str]] = {
+    model: (provider, tier) for provider, tiers in PROVIDER_TIERS.items() for tier, model in tiers.items()
 }
 
 # Maps primary `settings` attribute -> fallback `settings` attribute.
@@ -329,16 +358,35 @@ PRESET_BY_ID: dict[str, AgentPreset] = {p.id: p for p in PRESETS}
 BUILTIN_PRESET_IDS: frozenset[str] = frozenset(PRESET_BY_ID)
 
 
-def tier_of(model_id: str | None) -> Tier | None:
-    """Which tier a configured model id belongs to (by family)."""
+def provider_and_tier_of(model_id: str | None) -> tuple[str, str] | None:
+    """Which (provider, tier) a configured model id belongs to.
+
+    Checks the exact catalog first, then falls back to substring-matching a tier name against
+    Anthropic model ids (covers dated ids like "claude-haiku-4-5-20251001" that predate the catalog).
+    """
+    hit = _MODEL_TO_PROVIDER_TIER.get(model_id or "")
+    if hit is not None:
+        return hit
     for tier in ("opus", "sonnet", "haiku"):
         if tier in (model_id or ""):
-            return tier
+            return ("anthropic", tier)
     return None
 
 
-def model_for_tier(tier: str) -> str | None:
-    return TIERS.get(tier)
+def tier_of(model_id: str | None) -> str | None:
+    """Which tier a configured model id belongs to (by family)."""
+    hit = provider_and_tier_of(model_id)
+    return hit[1] if hit else None
+
+
+def provider_of(model_id: str | None) -> str:
+    """Which provider a configured model id belongs to. Unknown ids default to Anthropic."""
+    hit = provider_and_tier_of(model_id)
+    return hit[0] if hit else "anthropic"
+
+
+def model_for_tier(tier: str, provider: str = "anthropic") -> str | None:
+    return PROVIDER_TIERS.get(provider, {}).get(tier)
 
 
 def fallback_attr(setting_key: str) -> str | None:
