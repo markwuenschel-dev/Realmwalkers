@@ -1,4 +1,4 @@
-# Dominion Realm — novel-writing system
+# Dominion Realm — novel-writing system 
 
 A human-gated, scene-by-scene writing system for *The Dominion Realm*. It is a **workflow, not an
 agent**: a worker drafts exactly one scene, writes it to Postgres as `pending_review`, and exits.
