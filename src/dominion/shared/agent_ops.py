@@ -17,10 +17,12 @@ from dominion.shared.agent_registry import (
     FALLBACK_ATTR,
     PRESET_BY_ID,
     PRESETS,
+    PROVIDER_TIERS,
     TIERS,
     AgentDefinition,
     capability_warnings,
     model_for_tier,
+    provider_of,
     tier_of,
 )
 from dominion.shared.config import settings
@@ -140,6 +142,7 @@ def _agent_ops_row(agent: AgentDefinition, override: AgentPolicyOverride | None)
         description=agent.description,
         model=primary_model,
         tier=primary_tier,
+        provider=provider_of(primary_model),
         policy=policy,
         contract=AgentContractOut(
             inputs=list(agent.contract.inputs),
@@ -375,6 +378,7 @@ async def build_agent_ops(session: AsyncSession) -> AgentOpsOut:
         agents=agents,
         pipeline_estimate=_pipeline_estimate(agents),
         tiers=TIERS,
+        provider_tiers=PROVIDER_TIERS,
         globals=_globals_out(ops_row),
         providers=[
             AgentProviderOut(
@@ -396,6 +400,7 @@ def model_setting_out(agent: AgentDefinition) -> ModelSettingOut:
         description=agent.description,
         model=model,
         tier=tier_of(model),
+        provider=provider_of(model),
     )
 
 
@@ -418,10 +423,12 @@ async def _merge_policy_hints(session: AsyncSession, hints: dict[str, dict[str, 
             existing.policy_json = merged
 
 
-async def apply_tier_to_agent(session: AsyncSession, setting_key: str, tier: str) -> ModelSettingOut:
-    model = model_for_tier(tier)
+async def apply_tier_to_agent(
+    session: AsyncSession, setting_key: str, tier: str, provider: str = "anthropic"
+) -> ModelSettingOut:
+    model = model_for_tier(tier, provider)
     if model is None:
-        raise ValueError("tier must be haiku, sonnet, or opus")
+        raise ValueError(f"provider '{provider}' has no model for tier '{tier}'")
     setattr(settings, setting_key, model)
     existing = await session.get(ModelOverride, setting_key)
     if existing is None:

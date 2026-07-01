@@ -4,11 +4,21 @@ import { css } from "../../css";
 import type { ProviderOut } from "../../api/types";
 
 const DEFAULT_PROVIDERS: ProviderOut[] = [
-  { id: "anthropic", label: "Anthropic (Claude)", status: "active", description: "Current agents" },
-  { id: "openai_codex", label: "OpenAI Codex", status: "coming_soon" },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    status: "active",
+    description: "claude-haiku-4-5 / claude-sonnet-5 / claude-opus-4-8",
+  },
+  {
+    id: "openai",
+    label: "OpenAI",
+    status: "active",
+    description: "gpt-5.4-nano / gpt-5.4-mini / gpt-5.5 (requires OPENAI_API_KEY)",
+  },
+  { id: "xai", label: "xAI", status: "active", description: "grok-4.3 (requires XAI_API_KEY)" },
   { id: "google_gemini", label: "Google Gemini", status: "coming_soon" },
   { id: "antigravity", label: "Antigravity", status: "coming_soon" },
-  { id: "xai_grok", label: "xAI Grok", status: "coming_soon" },
   { id: "cursor", label: "Cursor", status: "coming_soon" },
 ];
 
@@ -25,8 +35,8 @@ export function ProviderCards({ providers }: { providers?: ProviderOut[] }) {
         Providers
       </div>
       <p style={css("margin:0 0 14px;font-size:13px;color:var(--dim);line-height:1.45")}>
-        External model backends. Only Anthropic is wired today; others are placeholders for future
-        routing.
+        External model backends. Anthropic, OpenAI, and xAI are wired — pick a provider per role
+        below. Others are placeholders for future routing.
       </p>
       <div
         style={css(

@@ -1,4 +1,8 @@
-"""External LLM provider registry for the Agent Operations panel (scaffold only — Anthropic is active)."""
+"""External LLM provider registry for the Agent Operations panel.
+
+Anthropic, OpenAI, and xAI are wired to execution (see workers.llm's provider dispatch and
+agent_registry.PROVIDER_TIERS for the model catalog). The rest remain placeholders.
+"""
 
 from __future__ import annotations
 
@@ -19,15 +23,21 @@ class AgentProvider:
 PROVIDERS: tuple[AgentProvider, ...] = (
     AgentProvider(
         id="anthropic",
-        label="Anthropic (Claude)",
+        label="Anthropic",
         status="active",
-        description="Current agent models and tiers",
+        description="claude-haiku-4-5 / claude-sonnet-5 / claude-opus-4-8",
     ),
     AgentProvider(
-        id="openai_codex",
-        label="OpenAI Codex",
-        status="coming_soon",
-        description="Placeholder — not wired to execution",
+        id="openai",
+        label="OpenAI",
+        status="active",
+        description="gpt-5.4-nano / gpt-5.4-mini / gpt-5.5 (requires OPENAI_API_KEY)",
+    ),
+    AgentProvider(
+        id="xai",
+        label="xAI",
+        status="active",
+        description="grok-4.3 (requires XAI_API_KEY)",
     ),
     AgentProvider(
         id="google_gemini",
@@ -38,12 +48,6 @@ PROVIDERS: tuple[AgentProvider, ...] = (
     AgentProvider(
         id="antigravity",
         label="Antigravity",
-        status="coming_soon",
-        description="Placeholder — not wired to execution",
-    ),
-    AgentProvider(
-        id="xai_grok",
-        label="xAI Grok",
         status="coming_soon",
         description="Placeholder — not wired to execution",
     ),

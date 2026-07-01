@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { css } from "../../css";
 import { useDesk } from "../../state";
-import type { AgentOpsAgentOut, AgentStatsOut } from "../../api/types";
+import type { AgentOpsAgentOut, AgentStatsOut, ProviderOut } from "../../api/types";
 import { AgentHealthStrip } from "./AgentHealthStrip";
 
 const TIER_LABEL: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };
@@ -19,12 +19,19 @@ const QUALITY_LABEL: Record<string, string> = {
   balanced: "Balanced",
   quality: "Quality",
 };
+const PROVIDER_LABEL_FALLBACK: Record<string, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  xai: "xAI",
+};
 
 interface AgentRowProps {
   agent: AgentOpsAgentOut;
   stats: AgentStatsOut | undefined;
   busy: boolean;
-  onPickTier: (setting: string, tier: string) => void;
+  providerTiers: Record<string, Record<string, string>>;
+  providers?: ProviderOut[];
+  onPickTier: (setting: string, tier: string, provider: string) => void;
   onSetFallback: (setting: string, tier: string) => void;
   onSetQuality: (setting: string, level: string) => void;
   onSetSemanticEscalation: (setting: string, enabled: boolean) => void;
@@ -35,6 +42,8 @@ export function AgentRow({
   agent,
   stats,
   busy,
+  providerTiers,
+  providers,
   onPickTier,
   onSetFallback,
   onSetQuality,
@@ -44,6 +53,17 @@ export function AgentRow({
   const { t } = useDesk();
   const [open, setOpen] = useState(false);
   const a = agent;
+  const currentProvider = a.provider ?? "anthropic";
+  const [pendingProvider, setPendingProvider] = useState(currentProvider);
+  useEffect(() => setPendingProvider(currentProvider), [currentProvider]);
+  const providerLabel = (id: string) =>
+    providers?.find((p) => p.id === id)?.label ?? PROVIDER_LABEL_FALLBACK[id] ?? id;
+  const providerOrder = Object.keys(providerTiers).length
+    ? Object.keys(providerTiers)
+    : ["anthropic"];
+  const tiersForPendingProvider = TIER_ORDER.filter(
+    (tier) => (providerTiers[pendingProvider] ?? {})[tier],
+  );
 
   return (
     <div
@@ -106,14 +126,26 @@ export function AgentRow({
       {open && (
         <div style={css("margin-top:16px;border-top:1px solid var(--line);padding-top:16px")}>
           <div style={css("display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px")}>
-            <div>
+            <div data-testid="primary-model-picker">
               <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>
                 Primary model
               </div>
+              {providerOrder.length > 1 && (
+                <div style={css("margin-bottom:6px")}>
+                  <ProviderButtons
+                    order={providerOrder}
+                    active={pendingProvider}
+                    disabled={busy}
+                    label={providerLabel}
+                    onPick={setPendingProvider}
+                  />
+                </div>
+              )}
               <TierButtons
-                active={a.tier}
+                active={pendingProvider === currentProvider ? a.tier : null}
                 disabled={busy}
-                onPick={(tier) => onPickTier(a.setting, tier)}
+                order={tiersForPendingProvider.length ? tiersForPendingProvider : TIER_ORDER}
+                onPick={(tier) => onPickTier(a.setting, tier, pendingProvider)}
               />
             </div>
             <div>
@@ -276,6 +308,46 @@ function TierButtons({
             )}
           >
             {labels[tier] ?? tier}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProviderButtons({
+  active,
+  disabled,
+  order,
+  label,
+  onPick,
+}: {
+  active: string;
+  disabled: boolean;
+  order: string[];
+  label: (id: string) => string;
+  onPick: (provider: string) => void;
+}) {
+  return (
+    <div
+      style={css(
+        `display:flex;padding:2px;gap:2px;background:var(--bg1);border:1px solid var(--line);border-radius:8px;opacity:${disabled ? ".6" : "1"}`,
+      )}
+    >
+      {order.map((provider) => {
+        const on = active === provider;
+        return (
+          <button
+            key={provider}
+            disabled={disabled}
+            onClick={() => {
+              if (!on) onPick(provider);
+            }}
+            style={css(
+              `padding:3px 9px;border:none;border-radius:6px;cursor:${disabled ? "default" : "pointer"};font-family:var(--ui);font-size:11px;background:${on ? "var(--bg3)" : "transparent"};color:${on ? "var(--ink)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
+            )}
+          >
+            {label(provider)}
           </button>
         );
       })}

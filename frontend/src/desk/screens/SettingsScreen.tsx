@@ -45,11 +45,11 @@ export default function SettingsScreen() {
     }
   }, []);
 
-  const pickTier = async (setting: string, tier: string) => {
+  const pickTier = async (setting: string, tier: string, provider: string) => {
     setBusy(setting);
     setError(null);
     try {
-      await api.setModel(setting, tier);
+      await api.setModel(setting, tier, provider);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -221,6 +221,8 @@ export default function SettingsScreen() {
                 agent={a}
                 stats={statsBySetting[a.setting]}
                 busy={busy === a.setting}
+                providerTiers={data.provider_tiers ?? {}}
+                providers={data.providers}
                 onPickTier={pickTier}
                 onSetFallback={setFallback}
                 onSetQuality={setQuality}

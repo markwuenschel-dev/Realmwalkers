@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from dominion.api.agent_smoke import run_smoke_test
 from dominion.api.deps import SessionDep
 from dominion.shared import agent_ops
-from dominion.shared.agent_registry import ROLE_KEYS, TIERS
+from dominion.shared.agent_registry import PROVIDER_TIERS, ROLE_KEYS, TIERS
 from dominion.shared.schemas import (
     AgentGlobalsUpdateIn,
     AgentOpsOut,
@@ -37,23 +37,25 @@ async def get_models(session: SessionDep) -> ModelSettingsOut:
     from dominion.shared.agent_registry import AGENTS
 
     agents = [agent_ops.model_setting_out(a) for a in AGENTS]
-    return ModelSettingsOut(agents=agents, tiers=TIERS)
+    return ModelSettingsOut(agents=agents, tiers=TIERS, provider_tiers=PROVIDER_TIERS)
 
 
 @router.put("/models", response_model=ModelSettingOut)
 async def set_model(body: ModelSettingUpdateIn, session: SessionDep) -> ModelSettingOut:
-    """Point one agent role at Haiku / Sonnet / Opus. Applies live + persists."""
+    """Point one agent role at a provider + tier (e.g. anthropic/opus, openai/sonnet). Applies live + persists."""
     if body.setting not in ROLE_KEYS:
         raise HTTPException(status_code=422, detail=f"unknown agent setting '{body.setting}'")
-    if body.tier not in TIERS:
-        raise HTTPException(status_code=422, detail="tier must be haiku, sonnet, or opus")
+    if body.provider not in PROVIDER_TIERS:
+        raise HTTPException(status_code=422, detail=f"unknown provider '{body.provider}'")
+    if body.tier not in PROVIDER_TIERS[body.provider]:
+        raise HTTPException(status_code=422, detail=f"provider '{body.provider}' has no model for tier '{body.tier}'")
     try:
-        out = await agent_ops.apply_tier_to_agent(session, body.setting, body.tier)
+        out = await agent_ops.apply_tier_to_agent(session, body.setting, body.tier, body.provider)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     await agent_ops.set_active_preset(session, "custom")
     await session.commit()
-    log.info("settings.model_changed", setting=body.setting, tier=body.tier)
+    log.info("settings.model_changed", setting=body.setting, tier=body.tier, provider=body.provider)
     return out
 
 

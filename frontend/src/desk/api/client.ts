@@ -321,10 +321,10 @@ export const api = {
 
   // --- runtime model selection per agent ----------------------------------------------------------
   modelSettings: () => http<ModelSettingsOut>("/settings/models"),
-  setModel: (setting: string, tier: string) =>
+  setModel: (setting: string, tier: string, provider: string = "anthropic") =>
     http<ModelSettingOut>("/settings/models", {
       method: "PUT",
-      body: JSON.stringify({ setting, tier }),
+      body: JSON.stringify({ setting, tier, provider }),
     }),
 
   // --- agent operations panel ---------------------------------------------------------------------

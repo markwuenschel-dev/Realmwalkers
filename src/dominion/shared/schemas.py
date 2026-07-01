@@ -900,25 +900,28 @@ class DocOut(DocMeta):
 
 
 class ModelSettingOut(BaseModel):
-    """One customizable agent: its current model id + which tier (haiku/sonnet/opus) that is."""
+    """One customizable agent: its current model id + which provider/tier that is."""
 
     setting: str
     label: str
     description: str
     model: str
     tier: str | None = None
+    provider: str = "anthropic"
 
 
 class ModelSettingsOut(BaseModel):
     agents: list[ModelSettingOut]
-    tiers: dict[str, str]  # tier name -> the model id it maps to
+    tiers: dict[str, str]  # legacy: Anthropic tier name -> the model id it maps to
+    provider_tiers: dict[str, dict[str, str]] = {}  # provider id -> {tier name -> model id}
 
 
 class ModelSettingUpdateIn(BaseModel):
-    """PUT body to point one agent role at a tier."""
+    """PUT body to point one agent role at a provider + tier."""
 
     setting: str
     tier: str  # haiku | sonnet | opus
+    provider: str = "anthropic"
 
 
 # --- agent operations panel ----------------------------------------------------------------------
@@ -996,6 +999,7 @@ class AgentOpsAgentOut(BaseModel):
     description: str
     model: str
     tier: str | None = None
+    provider: str = "anthropic"
     policy: AgentPolicyOut
     contract: AgentContractOut
     permissions: AgentPermissionsOut
@@ -1044,6 +1048,7 @@ class AgentOpsOut(BaseModel):
     agents: list[AgentOpsAgentOut]
     pipeline_estimate: PipelineEstimateOut
     tiers: dict[str, str]
+    provider_tiers: dict[str, dict[str, str]] = {}
     globals: AgentGlobalsOut
     providers: list[AgentProviderOut] = []
 
