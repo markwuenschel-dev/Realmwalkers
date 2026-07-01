@@ -206,7 +206,9 @@ async def _seed_book_chapter(s) -> tuple[Book, Chapter]:
     return book, ch
 
 
-async def _approved_chapter_packet(s, book, ch, seeds: list[dict[str, Any]]) -> ChapterPacket:
+async def _approved_chapter_packet(
+    s, book, ch, seeds: list[dict[str, Any]], *, open_questions: dict[str, Any] | None = None
+) -> ChapterPacket:
     cp = ChapterPacket(
         book_id=book.id,
         chapter_id=ch.id,
@@ -218,7 +220,7 @@ async def _approved_chapter_packet(s, book, ch, seeds: list[dict[str, Any]]) -> 
             "characters_absent": ["Eriadne"],
             "canon_locks": ["the Realm is real"],
         },
-        open_questions={"items": []},
+        open_questions=open_questions if open_questions is not None else {"items": []},
     )
     s.add(cp)
     await s.flush()
@@ -1725,3 +1727,224 @@ async def test_derive_soft_budget_overage_persists_proposed_not_blocked(db_facto
         # At least one author section call crossed the soft target; none crossed the hard ceiling.
         assert any((c.metadata_ or {}).get("budget_soft_exceeded") for c in authors)
         assert not any((c.metadata_ or {}).get("budget_hard_exceeded") for c in authors)
+
+
+# --- resolved rulings / open questions (chapter-packet adjudication reaching author + QA) -----------
+
+
+def test_format_chapter_rulings_none_when_empty():
+    assert sp_author.format_chapter_rulings(None) is None
+    assert sp_author.format_chapter_rulings({}) is None
+    assert sp_author.format_chapter_rulings({"items": [], "resolved": []}) is None
+
+
+def test_format_chapter_rulings_renders_resolved_and_unresolved():
+    text = sp_author.format_chapter_rulings(
+        {
+            "items": ["What is Marcus's next move?"],
+            "resolved": [
+                {
+                    "q": "What is Dead Hand's invisible second threat?",
+                    "resolution": "It's Mara. 404 doesn't know until Chapter 2.",
+                    "at": "2026-01-01T00:00:00Z",
+                }
+            ],
+        }
+    )
+    assert text is not None
+    assert "RESOLVED AUTHOR RULINGS" in text
+    assert "It's Mara. 404 doesn't know until Chapter 2." in text
+    assert "UNRESOLVED OPEN QUESTIONS" in text
+    assert "What is Marcus's next move?" in text
+    # A resolved ruling being true is explicitly NOT the same as reader/POV knowledge.
+    assert "does NOT make it reader/POV-known" in text
+
+
+async def test_derive_threads_resolved_ruling_into_author_and_qa_prompts(db_factory, monkeypatch):
+    """The core wiring fix: ChapterPacket.open_questions is a SIBLING column, not part of `body`, so a
+    human's resolved ruling ("It's Mara...") never reached the author/QA prompt before. Both prompts must
+    now see it, so QA stops attacking a settled ruling as an unresolved open question."""
+    import json
+
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)
+    body = _scene_body()
+    seen_author_prompt: dict[str, str] = {}
+    seen_qa_prompt: dict[str, str] = {}
+
+    def responder(*, model, system_text, user_text, max_tokens):
+        if "Acknowledge cache prime" in user_text:
+            return _FakeResp("{}")
+        if "QA agent" in system_text:
+            seen_qa_prompt["text"] = user_text
+            return _FakeResp(_qa_ok())
+        seen_author_prompt["text"] = user_text
+        return _FakeResp(json.dumps(body))
+
+    _patch_llm_client(monkeypatch, responder)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(
+            s,
+            book,
+            ch,
+            [_seed(str(uuid.uuid4()), scene_no=1)],
+            open_questions={
+                "items": [],
+                "resolved": [
+                    {
+                        "q": "What is Dead Hand's invisible second threat?",
+                        "resolution": "It's Mara. 404 doesn't know until Chapter 2.",
+                        "at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+            },
+        )
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["created"] == 1 and counts["blocked"] == 0
+
+    assert "RESOLVED AUTHOR RULINGS" in seen_author_prompt["text"]
+    assert "It's Mara. 404 doesn't know until Chapter 2." in seen_author_prompt["text"]
+    assert "RESOLVED AUTHOR RULINGS" in seen_qa_prompt["text"]
+    assert "It's Mara. 404 doesn't know until Chapter 2." in seen_qa_prompt["text"]
+
+
+# --- chronology-safe summaries (a rolling summary must not leak facts from AFTER the target chapter) --
+
+
+async def _summary_row(s, *, book_id, scope, pov, up_to_scene_id, text):
+    from dominion.shared.models import Summary
+
+    row = Summary(book_id=book_id, scope=scope, pov=pov, up_to_scene_id=up_to_scene_id, rolling_summary=text)
+    s.add(row)
+    await s.flush()
+    return row
+
+
+async def test_omniscient_summary_suppressed_when_folded_past_target_chapter(db_factory):
+    """Regression for the Book-1-ending-leaks-into-Book-1-Chapter-1 contamination class: the omniscient
+    rolling summary is ONE ever-forward-mutated row, so if Chapter 30 was approved/derived (folding its
+    events in) before Chapter 1 is (re-)derived, the summary must not be handed to Chapter 1 as prior
+    knowledge — it is chronologically AHEAD of the chapter being derived."""
+    from dominion.shared.models import Scene
+
+    async with db_factory() as s:
+        book, ch1 = await _seed_book_chapter(s)
+        ch30 = Chapter(book_id=book.id, chapter_no=30, pov="Marcus", outline="o")
+        s.add(ch30)
+        await s.flush()
+        scene30 = Scene(chapter_id=ch30.id, scene_no=1, status="approved", prose="x")
+        s.add(scene30)
+        await s.flush()
+        await _summary_row(
+            s,
+            book_id=book.id,
+            scope="omniscient",
+            pov=None,
+            up_to_scene_id=scene30.id,
+            text="Serra severed the relationship by her own agency at the close of Book 1.",
+        )
+
+        # Deriving Chapter 1: the summary was folded from Chapter 30 — must be suppressed.
+        result = await sp_derive._omniscient_summary(s, book.id, before_chapter_no=ch1.chapter_no)
+        assert result is None
+
+
+async def test_omniscient_summary_kept_when_folded_before_target_chapter(db_factory):
+    """The flip side: a summary folded from an EARLIER chapter than the one being derived is legitimate
+    prior knowledge and must still be returned."""
+    from dominion.shared.models import Scene
+
+    async with db_factory() as s:
+        book, ch1 = await _seed_book_chapter(s)
+        ch5 = Chapter(book_id=book.id, chapter_no=5, pov="Marcus", outline="o")
+        s.add(ch5)
+        await s.flush()
+        scene1 = Scene(chapter_id=ch1.id, scene_no=1, status="approved", prose="x")
+        s.add(scene1)
+        await s.flush()
+        await _summary_row(
+            s, book_id=book.id, scope="omniscient", pov=None, up_to_scene_id=scene1.id, text="Marcus met Serra."
+        )
+
+        result = await sp_derive._omniscient_summary(s, book.id, before_chapter_no=ch5.chapter_no)
+        assert result == "Marcus met Serra."
+
+
+async def test_pov_summary_suppressed_when_folded_past_target_chapter(db_factory):
+    from dominion.shared.models import Scene
+
+    async with db_factory() as s:
+        book, ch1 = await _seed_book_chapter(s)
+        ch30 = Chapter(book_id=book.id, chapter_no=30, pov="Marcus", outline="o")
+        s.add(ch30)
+        await s.flush()
+        scene30 = Scene(chapter_id=ch30.id, scene_no=1, status="approved", prose="x")
+        s.add(scene30)
+        await s.flush()
+        await _summary_row(
+            s,
+            book_id=book.id,
+            scope="pov",
+            pov="Marcus",
+            up_to_scene_id=scene30.id,
+            text="Marcus does not follow Serra after the severance.",
+        )
+
+        result = await sp_derive._pov_summary(s, book_id=book.id, pov="Marcus", before_chapter_no=ch1.chapter_no)
+        assert result is None
+
+
+async def test_summary_with_no_up_to_scene_id_is_never_suppressed(db_factory):
+    """A summary with no chronology anchor at all (up_to_scene_id is None) can't be judged ahead of the
+    target chapter, so it is returned as-is rather than silently discarded."""
+    async with db_factory() as s:
+        book, ch1 = await _seed_book_chapter(s)
+        await _summary_row(s, book_id=book.id, scope="omniscient", pov=None, up_to_scene_id=None, text="baseline")
+        result = await sp_derive._omniscient_summary(s, book.id, before_chapter_no=ch1.chapter_no)
+        assert result == "baseline"
+
+
+async def test_derive_end_to_end_suppresses_future_chapter_summary_from_prompt(db_factory, monkeypatch):
+    """Full regression, end-to-end through derive_scene_packets: a Book-1-ending fact folded into the
+    omniscient summary from a later chapter must NOT reach the author prompt when deriving an earlier
+    chapter — the exact Marcus/Serra severance contamination reported against Chapter 1."""
+    import json
+
+    from dominion.shared.models import Scene
+
+    monkeypatch.setattr(settings, "scene_packet_author_sectioned", False)
+    contaminating_fact = "Serra severed the relationship by her own agency at the close of Book 1."
+    body = _scene_body()
+    seen_author_prompt: dict[str, str] = {}
+
+    def responder(*, model, system_text, user_text, max_tokens):
+        if "Acknowledge cache prime" in user_text:
+            return _FakeResp("{}")
+        if "QA agent" in system_text:
+            return _FakeResp(_qa_ok())
+        seen_author_prompt["text"] = user_text
+        return _FakeResp(json.dumps(body))
+
+    _patch_llm_client(monkeypatch, responder)
+    async with db_factory() as s:
+        book, ch1 = await _seed_book_chapter(s)  # chapter_no=1
+        ch30 = Chapter(book_id=book.id, chapter_no=30, pov="Marcus", outline="o")
+        s.add(ch30)
+        await s.flush()
+        scene30 = Scene(chapter_id=ch30.id, scene_no=1, status="approved", prose="x")
+        s.add(scene30)
+        await s.flush()
+        await _summary_row(
+            s, book_id=book.id, scope="omniscient", pov=None, up_to_scene_id=scene30.id, text=contaminating_fact
+        )
+        await _summary_row(
+            s, book_id=book.id, scope="pov", pov="Marcus", up_to_scene_id=scene30.id, text=contaminating_fact
+        )
+
+        cp = await _approved_chapter_packet(s, book, ch1, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["created"] == 1 and counts["blocked"] == 0
+
+    assert contaminating_fact not in seen_author_prompt["text"]

@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.enums import ScenePacketStatus
-from dominion.shared.models import Beat, Chapter, ChapterPacket, ScenePacket, Summary
+from dominion.shared.models import Beat, Chapter, ChapterPacket, Scene, ScenePacket, Summary
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
@@ -74,6 +74,7 @@ async def _author_then_qa(
     item: _SceneWork,
     *,
     chapter_packet_body: dict[str, Any],
+    chapter_open_questions: dict[str, Any] | None,
     pov: str,
     pov_summary: str | None,
     omniscient_summary: str | None,
@@ -130,6 +131,7 @@ async def _author_then_qa(
                 word_budget=item.word_budget,
                 pov_summary=pov_summary,
                 omniscient_summary=omniscient_summary,
+                chapter_open_questions=chapter_open_questions,
                 owner_snippets=item.owner_snippets or None,
                 canon_snippets=item.canon_snippets or None,
                 budget=item.budget,
@@ -172,7 +174,10 @@ async def _author_then_qa(
             try:
                 with telemetry.call_context(_ctx("scene_packet_qa")):
                     qa = await qa_mod.qa_scene_packet(
-                        scene_body, chapter_packet_body=chapter_packet_body, budget=item.budget
+                        scene_body,
+                        chapter_packet_body=chapter_packet_body,
+                        chapter_open_questions=chapter_open_questions,
+                        budget=item.budget,
                     )
             except Exception as exc:  # noqa: BLE001
                 log.error("scene_packet.qa_failed", seed=str(item.seed_id), error=str(exc))
@@ -229,25 +234,66 @@ def _label_canon_sources(
     return owner_labeled, canon_labeled, sources, chunk_hashes
 
 
-async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str | None:
-    return (
-        await session.execute(
-            select(Summary.rolling_summary).where(
-                Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+async def _chronology_safe_summary(
+    session: AsyncSession, row: Summary | None, *, before_chapter_no: int | None
+) -> str | None:
+    """A rolling summary is ONE ever-forward-mutated row per (book, scope, pov) — `refresh_on_approval`
+    overwrites it on every scene approval, so it always reflects whichever scene was approved MOST
+    RECENTLY, not necessarily anything chronologically before the chapter currently being derived.
+    Re-deriving an earlier chapter after a later one was drafted/approved (revision, backfill,
+    out-of-order work) would otherwise hand that later chapter's events to the author as if they preceded
+    this one — the exact "Book 1 ending facts leak into Book 1 Chapter 1" contamination class. Suppress
+    (return None) rather than hand back a summary that runs chronologically at-or-after the target
+    chapter: no prior-summary context is safer than a spoiler-contaminated one.
+
+    `before_chapter_no=None` means the target chapter's position couldn't be determined (defensive-only —
+    every ScenePacket derive has a real Chapter row); fail open rather than block on missing chronology
+    data, since suppressing here is only ever a mitigation, not the primary contract."""
+    if row is None or not row.rolling_summary:
+        return None
+    if before_chapter_no is not None and row.up_to_scene_id is not None:
+        folded_chapter_no = (
+            await session.execute(
+                select(Chapter.chapter_no)
+                .join(Scene, Scene.chapter_id == Chapter.id)
+                .where(Scene.id == row.up_to_scene_id)
             )
+        ).scalar_one_or_none()
+        if folded_chapter_no is not None and folded_chapter_no > before_chapter_no:
+            log.warning(
+                "scene_packet.summary_chronology_suppressed",
+                scope=row.scope,
+                pov=row.pov,
+                folded_chapter_no=folded_chapter_no,
+                target_chapter_no=before_chapter_no,
+            )
+            return None
+    return row.rolling_summary
+
+
+async def _omniscient_summary(
+    session: AsyncSession, book_id: uuid.UUID, *, before_chapter_no: int | None
+) -> str | None:
+    row = (
+        await session.execute(
+            select(Summary).where(Summary.book_id == book_id, Summary.scope == "omniscient", Summary.pov.is_(None))
         )
     ).scalar_one_or_none()
+    return await _chronology_safe_summary(session, row, before_chapter_no=before_chapter_no)
 
 
-async def _pov_summary(session: AsyncSession, *, book_id: uuid.UUID, pov: str) -> str | None:
-    return (
+async def _pov_summary(
+    session: AsyncSession, *, book_id: uuid.UUID, pov: str, before_chapter_no: int | None
+) -> str | None:
+    row = (
         await session.execute(
-            select(Summary.rolling_summary)
+            select(Summary)
             .where(Summary.book_id == book_id, Summary.scope == "pov", Summary.pov == pov)
-            .order_by(Summary.up_to_scene_id.is_(None))
+            .order_by(Summary.id)
             .limit(1)
         )
     ).scalar_one_or_none()
+    return await _chronology_safe_summary(session, row, before_chapter_no=before_chapter_no)
 
 
 def _derive_context_budget_report(
@@ -292,6 +338,7 @@ async def _prime_shared_prefixes(
     *,
     work: list[_SceneWork],
     chapter_packet_body: dict[str, Any],
+    chapter_open_questions: dict[str, Any] | None,
     omniscient_summary: str | None,
     sink: telemetry.TelemetrySink,
     book_id: str,
@@ -317,6 +364,7 @@ async def _prime_shared_prefixes(
                 chapter_packet_body=chapter_packet_body,
                 pov_summary=item.pov_summary,
                 omniscient_summary=omniscient_summary,
+                chapter_open_questions=chapter_open_questions,
                 budget=TokenBudget(
                     max_tokens=settings.scene_packet_prefix_prime_token_budget,
                     hard_max_tokens=settings.scene_packet_prefix_prime_hard_token_budget,
@@ -335,6 +383,7 @@ async def _prime_shared_prefixes(
     ):
         await qa_mod.prime_qa_shared_prefix(
             chapter_packet_body,
+            chapter_open_questions=chapter_open_questions,
             budget=TokenBudget(
                 max_tokens=settings.scene_packet_prefix_prime_token_budget,
                 hard_max_tokens=settings.scene_packet_prefix_prime_hard_token_budget,
@@ -383,12 +432,15 @@ async def derive_scene_packets(
         if sp.scene_seed_id is not None
     }
 
-    omniscient = await _omniscient_summary(session, packet.book_id)
     # Each scene drafts in its EFFECTIVE POV: the beat's per-scene override (Beat.pov) when set, else the
     # chapter POV. Load the chapter + its beats keyed by scene_no so an overridden scene gets that POV's
     # actual rolling summary, not just a label. When a scene_no has multiple beat rows, prefer one that
-    # carries an override so a per-scene POV isn't lost to a sibling row.
+    # carries an override so a per-scene POV isn't lost to a sibling row. Fetched BEFORE the omniscient
+    # summary so the summary lookup can suppress anything chronologically ahead of this chapter.
     chapter = await session.get(Chapter, packet.chapter_id)
+    target_chapter_no = chapter.chapter_no if chapter is not None else None
+    omniscient = await _omniscient_summary(session, packet.book_id, before_chapter_no=target_chapter_no)
+    chapter_open_questions = packet.open_questions
     beats_by_scene: dict[int, Beat] = {}
     for b in (await session.execute(select(Beat).where(Beat.chapter_id == packet.chapter_id))).scalars():
         prev = beats_by_scene.get(b.scene_no)
@@ -457,7 +509,9 @@ async def derive_scene_packets(
         # chapters have a single POV, so this is one fetch. (scene_pov is resolved above, before the hash.)
         if scene_pov not in pov_summary_cache:
             pov_summary_cache[scene_pov] = (
-                await _pov_summary(session, book_id=packet.book_id, pov=scene_pov) if scene_pov else None
+                await _pov_summary(session, book_id=packet.book_id, pov=scene_pov, before_chapter_no=target_chapter_no)
+                if scene_pov
+                else None
             )
 
         work.append(
@@ -501,6 +555,7 @@ async def derive_scene_packets(
     await _prime_shared_prefixes(
         work=work,
         chapter_packet_body=body,
+        chapter_open_questions=chapter_open_questions,
         omniscient_summary=omniscient,
         sink=sink,
         book_id=book_id_str,
@@ -514,6 +569,7 @@ async def derive_scene_packets(
             return await _author_then_qa(
                 item,
                 chapter_packet_body=body,
+                chapter_open_questions=chapter_open_questions,
                 pov=item.pov,
                 pov_summary=item.pov_summary,
                 omniscient_summary=omniscient,
