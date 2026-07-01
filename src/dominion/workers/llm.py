@@ -9,6 +9,7 @@ successful response, so a retried failure never spends tokens.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -141,6 +142,17 @@ def _openai_compatible_client(base_url: str, api_key: str) -> httpx.AsyncClient:
     return httpx.AsyncClient(base_url=base_url, headers={"Authorization": f"Bearer {api_key}"})
 
 
+def _prompt_cache_key(system: str, blocks: tuple[CachedPrefixBlock, ...]) -> str:
+    """Routing hint for OpenAI/xAI's cache: both providers cache automatically by exact-prefix match,
+    but recommend a stable `prompt_cache_key` so repeat requests sharing the same static prefix get
+    routed to the same cache-holding backend instance (their docs: 'Prompt Caching Best Practices' /
+    xAI 'Maximizing Cache Hits'). Hash only the STABLE prefix (system + the caller's stable prefix
+    blocks) — never the per-call `user` tail — so calls that actually share a cacheable prefix get the
+    same key, and calls that don't, don't."""
+    stable = system + "".join(b.text for b in blocks)
+    return hashlib.sha256(stable.encode()).hexdigest()[:32]
+
+
 def _is_transient(exc: BaseException) -> bool:
     """Worth retrying: connection/timeout, rate limit (429), 5xx, overloaded (529). NOT 4xx/auth."""
     transient_types: tuple[type[BaseException], ...] = (
@@ -239,7 +251,11 @@ async def complete(
 
     # Warn when the cache may have expired: if a prior call in this job wrote to cache more than
     # ~4.5 minutes ago, the next call is likely cold — surfacing this explains a cache_ratio drop.
-    # Anthropic-only: the other provider path never caches, so there's nothing to warn about expiring.
+    # Anthropic-only: we control its cache breakpoints explicitly (cache_control blocks) so a stale
+    # write is actionable to flag ahead of time. OpenAI/xAI cache fully automatically with their own
+    # opaque (and longer-lived: 5-10 min up to 1hr, longer on some models) TTL we don't control or
+    # write to explicitly, so there's no anticipatory warning to raise here for those two paths — a
+    # miss just shows up after the fact as cache_read_tokens=0.
     now = time.time()
     if is_anthropic and budget.first_call_at is not None and now - budget.first_call_at > _CACHE_TTL_WARN_S:
         log.warning(
@@ -297,15 +313,22 @@ async def complete(
         if temperature is not None:
             create_kwargs["temperature"] = temperature
     else:
-        # OpenAI-compatible chat completions shape: no cache blocks (neither provider exposes an
-        # equivalent primitive worth emulating) — the stable prefix content is just folded into the
-        # single user message ahead of the scene-specific `user` text.
+        # OpenAI-compatible chat completions shape: no explicit cache_control blocks — both OpenAI and
+        # xAI cache automatically by exact-prefix match instead, so the request only needs the stable
+        # content (system, then the caller's stable prefix blocks) to consistently come BEFORE the
+        # per-call dynamic `user` text, which it already does here. `prompt_cache_key` is a routing
+        # hint, not a cache directive: it doesn't create the cache, just improves the hit rate.
         oa_user = "\n\n".join([*(b.text for b in blocks), user]) if blocks else user
         oa_messages: list[dict[str, str]] = [
             {"role": "system", "content": system},
             {"role": "user", "content": oa_user},
         ]
-        create_kwargs = {"model": model, "messages": oa_messages, "max_tokens": max_tokens}
+        create_kwargs = {
+            "model": model,
+            "messages": oa_messages,
+            "max_tokens": max_tokens,
+            "prompt_cache_key": _prompt_cache_key(system, blocks),
+        }
         if temperature is not None:
             create_kwargs["temperature"] = temperature
 
@@ -389,11 +412,20 @@ async def complete(
         stop_reason = choice.get("finish_reason")
         truncated = stop_reason == "length"
         ru = body.get("usage") or {}
+        # Both OpenAI and xAI report cached tokens at usage.prompt_tokens_details.cached_tokens (xAI's
+        # chat API mirrors OpenAI's response shape here) — and, unlike Anthropic, `prompt_tokens`
+        # already INCLUDES the cached tokens rather than counting them separately, so cache_read_tokens
+        # must be split back OUT of it here or Usage.total/budget_cost would double-count them.
+        # Neither provider bills or reports a distinct "cache write" — a first-touch miss looks
+        # identical to plain uncached input (cached_tokens=0) — so cache_creation_tokens stays 0 by
+        # design for this path, not as a gap.
+        prompt_tokens = int(ru.get("prompt_tokens") or 0)
+        cached_tokens = int((ru.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
         usage = Usage(
-            input_tokens=int(ru.get("prompt_tokens") or 0),
+            input_tokens=max(0, prompt_tokens - cached_tokens),
             output_tokens=int(ru.get("completion_tokens") or 0),
             cache_creation_tokens=0,
-            cache_read_tokens=0,
+            cache_read_tokens=cached_tokens,
             truncated=truncated,
         )
         text = choice["message"]["content"] or ""
@@ -404,8 +436,12 @@ async def complete(
 
     # Warn when cache_control was sent but nothing was written or read: the prompt was below
     # Anthropic's minimum cacheable length (~1024 tokens for Sonnet/Opus, 2048 for Haiku).
-    # Suppressed when the caller declares the prompt is intentionally short (expect_cache=False), and
-    # entirely for the OpenAI-compatible path, which never caches by design (not a "skip" worth flagging).
+    # Suppressed when the caller declares the prompt is intentionally short (expect_cache=False).
+    # Anthropic-only: unlike Anthropic's explicit cache_control blocks, the OpenAI-compatible path has
+    # no "creation" signal to distinguish a legitimate first-touch miss (cache not warmed yet — expected
+    # on every job's first call) from a genuinely-too-short prompt, so a per-call warning here would
+    # mostly just fire on normal first touches. The aggregate cache_ratio/hit-rate in telemetry is the
+    # right place to notice a persistently-cold OpenAI/xAI cache instead.
     if is_anthropic and expect_cache and usage.cache_creation_tokens == 0 and usage.cache_read_tokens == 0:
         log.warning(
             "llm.cache_skipped", model=model, note="system prompt below minimum cacheable length; cache_control ignored"

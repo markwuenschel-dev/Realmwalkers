@@ -15,13 +15,21 @@ from dominion.workers.budget import TokenBudget
 
 
 def _ok_response(
-    text: str = "hello world", *, prompt_tokens: int = 10, completion_tokens: int = 20, finish_reason: str = "stop"
+    text: str = "hello world",
+    *,
+    prompt_tokens: int = 10,
+    completion_tokens: int = 20,
+    finish_reason: str = "stop",
+    cached_tokens: int | None = None,
 ) -> httpx.Response:
+    usage: dict[str, object] = {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens}
+    if cached_tokens is not None:
+        usage["prompt_tokens_details"] = {"cached_tokens": cached_tokens}
     return httpx.Response(
         200,
         json={
             "choices": [{"message": {"content": text}, "finish_reason": finish_reason}],
-            "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens},
+            "usage": usage,
         },
         request=httpx.Request("POST", "https://example.test/chat/completions"),
     )
@@ -109,6 +117,8 @@ def test_missing_openai_key_raises_clear_error(monkeypatch):
 
 
 async def test_openai_compatible_call_round_trips_text_and_usage(monkeypatch):
+    # No prompt_tokens_details in the response at all (e.g. a provider/model that doesn't report
+    # caching) -- must default to a clean cache miss, not raise.
     fake, _ = _patch(monkeypatch, [_ok_response("hi there", prompt_tokens=15, completion_tokens=25)])
 
     budget = TokenBudget(max_tokens=1000)
@@ -124,8 +134,8 @@ async def test_openai_compatible_call_round_trips_text_and_usage(monkeypatch):
 
 
 async def test_openai_compatible_sends_system_and_user_as_plain_messages(monkeypatch):
-    # No cache blocks for this path -- system stays a plain string message, not an Anthropic-style
-    # cache_control block list.
+    # No cache_control blocks for this path -- system stays a plain string message, not an
+    # Anthropic-style cache_control block list.
     fake, _ = _patch(monkeypatch, [_ok_response()])
     await llm.complete(
         model="grok-4", system="SYSTEM PREFIX", user="u", max_tokens=100, budget=TokenBudget(max_tokens=1000)
@@ -135,6 +145,81 @@ async def test_openai_compatible_sends_system_and_user_as_plain_messages(monkeyp
         {"role": "system", "content": "SYSTEM PREFIX"},
         {"role": "user", "content": "u"},
     ]
+
+
+# --- prompt caching: real cached-token accounting for both OpenAI and xAI --------------------------
+
+
+async def test_openai_compatible_cache_hit_splits_cached_tokens_out_of_prompt_tokens(monkeypatch):
+    # OpenAI/xAI report prompt_tokens INCLUSIVE of cached tokens (unlike Anthropic, which counts them
+    # separately) -- input_tokens must be the UNCACHED remainder, or Usage.total/budget_cost would
+    # double-count the cached portion.
+    fake, _ = _patch(monkeypatch, [_ok_response(prompt_tokens=1200, cached_tokens=1024)])
+
+    budget = TokenBudget(max_tokens=10_000)
+    _text, usage = await llm.complete(model="gpt-4o", system="s", user="u", max_tokens=100, budget=budget)
+
+    assert usage.input_tokens == 1200 - 1024
+    assert usage.cache_read_tokens == 1024
+    assert usage.cache_creation_tokens == 0  # neither provider reports a distinct cache-write signal
+    assert fake.calls == 1
+
+
+async def test_grok_cache_hit_splits_cached_tokens_out_of_prompt_tokens(monkeypatch):
+    # xAI's chat API mirrors OpenAI's usage.prompt_tokens_details.cached_tokens response shape.
+    fake, _ = _patch(monkeypatch, [_ok_response(prompt_tokens=2000, cached_tokens=1500)])
+
+    _text, usage = await llm.complete(
+        model="grok-4", system="s", user="u", max_tokens=100, budget=TokenBudget(max_tokens=10_000)
+    )
+
+    assert usage.input_tokens == 2000 - 1500
+    assert usage.cache_read_tokens == 1500
+    assert fake.calls == 1
+
+
+async def test_openai_compatible_cache_miss_reports_zero_cached_tokens(monkeypatch):
+    # An explicit prompt_tokens_details.cached_tokens=0 (a real miss, not merely absent from the
+    # response) must round-trip as a clean miss, not error.
+    fake, _ = _patch(monkeypatch, [_ok_response(prompt_tokens=500, cached_tokens=0)])
+
+    _text, usage = await llm.complete(
+        model="gpt-4o", system="s", user="u", max_tokens=100, budget=TokenBudget(max_tokens=10_000)
+    )
+
+    assert usage.input_tokens == 500
+    assert usage.cache_read_tokens == 0
+    assert fake.calls == 1
+
+
+async def test_openai_compatible_sends_a_stable_prompt_cache_key(monkeypatch):
+    # A routing hint recommended by both providers' docs to improve cache-hit rate for repeat calls
+    # sharing the same static prefix -- must be present, and stable across calls with the same
+    # system/stable-prefix content (so repeat calls route to the same cache-holding backend).
+    fake, _ = _patch(monkeypatch, [_ok_response(), _ok_response()])
+
+    await llm.complete(
+        model="gpt-4o", system="SAME SYSTEM", user="first ask", max_tokens=100, budget=TokenBudget(max_tokens=1000)
+    )
+    key1 = fake.last_json["prompt_cache_key"]
+    await llm.complete(
+        model="gpt-4o", system="SAME SYSTEM", user="different ask", max_tokens=100, budget=TokenBudget(max_tokens=1000)
+    )
+    key2 = fake.last_json["prompt_cache_key"]
+
+    assert isinstance(key1, str) and key1  # present and non-empty
+    assert key1 == key2  # same stable prefix (system) -> same key, regardless of the dynamic `user` tail
+
+
+async def test_openai_compatible_prompt_cache_key_changes_with_system(monkeypatch):
+    fake, _ = _patch(monkeypatch, [_ok_response(), _ok_response()])
+
+    await llm.complete(model="gpt-4o", system="SYSTEM A", user="u", max_tokens=100, budget=TokenBudget(max_tokens=1000))
+    key_a = fake.last_json["prompt_cache_key"]
+    await llm.complete(model="gpt-4o", system="SYSTEM B", user="u", max_tokens=100, budget=TokenBudget(max_tokens=1000))
+    key_b = fake.last_json["prompt_cache_key"]
+
+    assert key_a != key_b
 
 
 async def test_openai_compatible_truncation_detected_via_finish_reason(monkeypatch):
