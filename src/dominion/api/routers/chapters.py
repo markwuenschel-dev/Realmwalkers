@@ -15,11 +15,12 @@ from sqlalchemy import select
 from dominion.api.deps import SessionDep
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import BeatStatus, ChapterStatus, SceneStatus
-from dominion.shared.models import Beat, Chapter, Scene
+from dominion.shared.models import Beat, Chapter, Scene, Summary
 from dominion.shared.schemas import (
     ApproveBeatsIn,
     BeatCreateIn,
     BeatOut,
+    ChapterCreateIn,
     ChapterOut,
     ChapterUpdateIn,
     DraftReadinessOut,
@@ -28,6 +29,7 @@ from dominion.shared.schemas import (
     RedraftIn,
     SceneOut,
 )
+from dominion.workers import planner, telemetry, telemetry_db
 from dominion.workers.draft_queue import DraftScheduleResult
 from dominion.workers.draft_readiness import blocker_out, compute_draft_readiness
 from dominion.workers.job_scheduler import (
@@ -69,6 +71,55 @@ async def list_chapters(book_id: uuid.UUID, session: SessionDep) -> list[Chapter
         .all()
     )
     return list(rows)
+
+
+@router.post("", response_model=ChapterOut)
+async def create_chapter(body: ChapterCreateIn, session: SessionDep) -> Chapter:
+    """Create/update a chapter's POV + outline with NO LLM beat-proposal call — the contract-first
+    entry point (create the chapter, then POST its /packet to author the chapter packet). Upserts
+    by (book_id, chapter_no), same shape as the legacy gate-1 upsert in runs.py's _propose_chapter,
+    minus the beat-authoring call. A best-effort title is still generated (same bounded, never-raising
+    planner.propose_chapter_title call the old flow used), so chapters created this way aren't left
+    untitled."""
+    chapter = (
+        await session.execute(
+            select(Chapter).where(Chapter.book_id == body.book_id, Chapter.chapter_no == body.chapter_no)
+        )
+    ).scalar_one_or_none()
+    if chapter is None:
+        chapter = Chapter(book_id=body.book_id, chapter_no=body.chapter_no, pov=body.pov)
+        session.add(chapter)
+    chapter.pov = body.pov
+    chapter.outline = body.outline
+    chapter.status = ChapterStatus.PLANNED
+    await session.flush()
+
+    # Stamp a generated title only when the chapter has none yet — never clobber an author's rename
+    # (made via PATCH /chapters/{id}); re-creating with a new outline leaves an existing title intact.
+    if not (chapter.title or "").strip():
+        omniscient = (
+            await session.execute(
+                select(Summary.rolling_summary).where(
+                    Summary.book_id == body.book_id, Summary.scope == "omniscient", Summary.pov.is_(None)
+                )
+            )
+        ).scalar_one_or_none()
+        sink = telemetry.TelemetrySink()
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink, stage="chapter_title", book_id=str(body.book_id), chapter_id=str(chapter.id)
+            )
+        ):
+            title = await planner.propose_chapter_title(
+                outline=body.outline, pov=body.pov, omniscient_summary=omniscient
+            )
+        telemetry_db.persist_sink(session, sink, run_id=uuid.uuid4(), book_id=body.book_id, chapter_id=chapter.id)
+        if title:
+            chapter.title = title
+
+    await session.commit()
+    await session.refresh(chapter)
+    return chapter
 
 
 @router.patch("/{chapter_id}", response_model=ChapterOut)

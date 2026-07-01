@@ -769,6 +769,46 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "chapters"
+        ],
+        "summary": "Create Chapter",
+        "description": "Create/update a chapter's POV + outline with NO LLM beat-proposal call \u2014 the contract-first\nentry point (create the chapter, then POST its /packet to author the chapter packet). Upserts\nby (book_id, chapter_no), same shape as the legacy gate-1 upsert in runs.py's _propose_chapter,\nminus the beat-authoring call. A best-effort title is still generated (same bounded, never-raising\nplanner.propose_chapter_title call the old flow used), so chapters created this way aren't left\nuntitled.",
+        "operationId": "create_chapter_chapters_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChapterCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/chapters/{chapter_id}": {
@@ -6507,6 +6547,36 @@
         ],
         "title": "CanonIngestOut",
         "description": "Result of rebuilding the retrieval index from the on-disk canon docs."
+      },
+      "ChapterCreateIn": {
+        "properties": {
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "chapter_no": {
+            "type": "integer",
+            "title": "Chapter No"
+          },
+          "pov": {
+            "type": "string",
+            "title": "Pov"
+          },
+          "outline": {
+            "type": "string",
+            "title": "Outline"
+          }
+        },
+        "type": "object",
+        "required": [
+          "book_id",
+          "chapter_no",
+          "pov",
+          "outline"
+        ],
+        "title": "ChapterCreateIn",
+        "description": "POST body to create/update a chapter's POV + outline, with no LLM beat-proposal call \u2014 the\ncontract-first entry point (create the chapter, then POST its /packet to author the chapter\npacket). Upserts by (book_id, chapter_no); a best-effort title is generated server-side."
       },
       "ChapterOut": {
         "properties": {

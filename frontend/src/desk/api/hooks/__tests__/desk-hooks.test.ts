@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_JOBS } from "../../constants";
 import { useDeskBooks } from "../useDeskBooks";
+import { useDeskChapterCreate } from "../useDeskChapterCreate";
 import { useDeskJobs } from "../useDeskJobs";
 
 vi.mock("../../client", () => ({
@@ -9,6 +10,8 @@ vi.mock("../../client", () => ({
     books: vi.fn(),
     jobsStatus: vi.fn(),
     jobsFailed: vi.fn(),
+    createChapter: vi.fn(),
+    proposePacket: vi.fn(),
   },
 }));
 
@@ -81,5 +84,98 @@ describe("useDeskJobs", () => {
 
     expect(result.current.jobsUnreachable).toBe(true);
     vi.useRealTimers();
+  });
+});
+
+describe("useDeskChapterCreate", () => {
+  beforeEach(() => {
+    vi.mocked(api.createChapter).mockReset();
+    vi.mocked(api.proposePacket).mockReset();
+  });
+
+  it("creates the chapter, kicks off packet proposal, refreshes, and returns the chapter id", async () => {
+    vi.mocked(api.createChapter).mockResolvedValue({
+      id: "ch-1",
+      book_id: "book-1",
+      chapter_no: 1,
+      title: null,
+      pov: "Marcus",
+      outline: "An outline",
+      status: "planned",
+    });
+    vi.mocked(api.proposePacket).mockResolvedValue({
+      running: true,
+      phase: "authoring",
+      elapsed_s: 0,
+    });
+    const fail = vi.fn();
+    const loadCollections = vi.fn().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useDeskChapterCreate(fail));
+
+    let chapterId: string | null = null;
+    await act(async () => {
+      chapterId = await result.current.createAndPropose(
+        "book-1",
+        1,
+        "Marcus",
+        "An outline",
+        loadCollections,
+      );
+    });
+
+    expect(chapterId).toBe("ch-1");
+    expect(api.createChapter).toHaveBeenCalledWith({
+      book_id: "book-1",
+      chapter_no: 1,
+      pov: "Marcus",
+      outline: "An outline",
+    });
+    expect(api.proposePacket).toHaveBeenCalledWith("ch-1");
+    expect(loadCollections).toHaveBeenCalledWith("book-1");
+    expect(fail).not.toHaveBeenCalled();
+  });
+
+  it("returns null and never proposes a packet when no book is selected", async () => {
+    const fail = vi.fn();
+    const loadCollections = vi.fn();
+    const { result } = renderHook(() => useDeskChapterCreate(fail));
+
+    let chapterId: string | null = "unset";
+    await act(async () => {
+      chapterId = await result.current.createAndPropose(
+        null,
+        1,
+        "Marcus",
+        "An outline",
+        loadCollections,
+      );
+    });
+
+    expect(chapterId).toBeNull();
+    expect(api.createChapter).not.toHaveBeenCalled();
+    expect(loadCollections).not.toHaveBeenCalled();
+  });
+
+  it("surfaces failures via fail and returns null", async () => {
+    vi.mocked(api.createChapter).mockRejectedValue(new Error("boom"));
+    const fail = vi.fn();
+    const loadCollections = vi.fn();
+    const { result } = renderHook(() => useDeskChapterCreate(fail));
+
+    let chapterId: string | null = "unset";
+    await act(async () => {
+      chapterId = await result.current.createAndPropose(
+        "book-1",
+        1,
+        "Marcus",
+        "An outline",
+        loadCollections,
+      );
+    });
+
+    expect(chapterId).toBeNull();
+    expect(fail).toHaveBeenCalled();
+    expect(api.proposePacket).not.toHaveBeenCalled();
   });
 });

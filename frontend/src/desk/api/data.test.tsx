@@ -39,7 +39,7 @@ const EXPECTED_KEYS = [
   "openSceneById",
   "decide",
   "draftNext",
-  "planningChapters",
+  "createAndPropose",
 ] as const;
 
 function Probe() {
