@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProblemsPanel } from "./ProblemsPanel";
 import type { TelemetryProblemOut } from "../../api/types";
@@ -51,6 +51,7 @@ describe("ProblemsPanel", () => {
     });
 
     render(<ProblemsPanel bookId="book-1" onOpen={vi.fn()} />);
+    fireEvent.click(await screen.findByText("Problems detected"));
 
     expect(await screen.findByText("2 failed draft jobs")).toBeInTheDocument();
     expect(await screen.findByText(/Retry 2 failed/)).toBeInTheDocument();
@@ -68,6 +69,7 @@ describe("ProblemsPanel", () => {
     });
 
     render(<ProblemsPanel bookId="book-1" onOpen={vi.fn()} />);
+    fireEvent.click(await screen.findByText("Problems detected"));
 
     await screen.findByText("soft budget exceeded");
     expect(screen.getAllByText("Adjust in Settings → Agent Ops")).toHaveLength(3);
@@ -84,6 +86,7 @@ describe("ProblemsPanel", () => {
     });
 
     render(<ProblemsPanel bookId="book-1" onOpen={vi.fn()} />);
+    fireEvent.click(await screen.findByText("Problems detected"));
 
     await screen.findByText("truncated calls");
     expect(screen.queryByText("Clear failed")).not.toBeInTheDocument();
@@ -96,5 +99,23 @@ describe("ProblemsPanel", () => {
     render(<ProblemsPanel bookId="book-1" onOpen={vi.fn()} />);
 
     expect(await screen.findByText("No problems detected")).toBeInTheDocument();
+  });
+
+  it("collapses the problem list by default, expanding on click", async () => {
+    vi.mocked(api.telemetryProblems).mockResolvedValue({
+      healthy: false,
+      problems: [problem({ kind: "truncation", summary: "truncated calls" })],
+    });
+
+    render(<ProblemsPanel bookId="book-1" onOpen={vi.fn()} />);
+
+    const header = await screen.findByText("Problems detected");
+    expect(screen.queryByText("truncated calls")).not.toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(await screen.findByText("truncated calls")).toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(screen.queryByText("truncated calls")).not.toBeInTheDocument();
   });
 });
