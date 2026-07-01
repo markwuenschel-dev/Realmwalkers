@@ -25,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
-from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict
+from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import Beat, Chapter, ChapterPacket, ScenePacket, Summary
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
@@ -40,7 +40,7 @@ from dominion.workers.scene_packet import hash as hash_mod
 from dominion.workers.scene_packet import inputs as sp_inputs
 from dominion.workers.scene_packet import qa as qa_mod
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
-from dominion.workers.scene_packet.validation import validate_scene_packet_contract
+from dominion.workers.scene_packet.validation import evaluate_scene_packet
 
 log = structlog.get_logger()
 
@@ -80,22 +80,26 @@ async def _author_then_qa(
     sink: telemetry.TelemetrySink,
     book_id: str,
     chapter_id: str,
-) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None, list[dict[str, Any]]]:
-    """One scene's Author -> deterministic validation -> QA. QA reads the author's output, so they stay
-    ordered; only different scenes run concurrently. Fails CLOSED: any author/QA error (or a blocking
-    deterministic violation) returns a None in the QA slot so `status_after_author_qa` blocks the packet,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None, list[dict[str, Any]], str | None]:
+    """One scene's Author -> deterministic evaluation -> QA. QA reads the author's output, so they stay
+    ordered; only different scenes run concurrently. Fails CLOSED: any author/QA error (or a deterministic
+    draft-safety blocker) returns a None in the QA slot so `status_after_author_qa` blocks the packet,
     never raising into the gather — the failure's real cause is captured (3rd return value) so the blocked
-    packet names *why*, and the deterministic violations (4th return value) are persisted for the editor.
+    packet names *why*, the violations (4th value, block + warn) are persisted for the editor, and the
+    blocker's SOURCE (5th value: "author" | "validation" | "qa" | None) is persisted so the UI stops
+    mislabeling a deterministic block as a QA block.
 
-    Deterministic validation runs BEFORE QA: fabricated source handles, a model-overridden word budget,
-    a scene-number/required-beat mismatch, or an absent character on-page are decidable facts QA must not
-    be relied on to catch. A blocking violation skips QA entirely (no point attacking a packet already
-    known invalid).
+    Deterministic evaluation runs BEFORE QA and is WRITER-FIRST: it normalizes optional provenance (an
+    invalid claim source_id is nulled + warned, never blocked) and hard-blocks only true draft-safety
+    failures — a malformed body, an unrecoverable budget/scene_no, an absent character on-page. Only a
+    hard blocker skips QA (no point attacking a packet that can't be drafted); a warning-only packet still
+    runs QA and stays PROPOSED.
 
     Each call runs inside a telemetry `call_context` tagged with this scene's dimensions, so its cache/
     usage/truncation lands in the shared `sink` (persisted later) under the right stage + scene."""
     error_detail: str | None = None
     violations: list[dict[str, Any]] = []
+    blocker_source: str | None = None
 
     def _ctx(stage: str) -> telemetry.CallContext:
         return telemetry.CallContext(
@@ -134,32 +138,35 @@ async def _author_then_qa(
         log.error("scene_packet.author_failed", seed=str(item.seed_id), error=str(exc))
         scene_body = None
         error_detail = str(exc)
+        blocker_source = "author"
 
     qa: dict[str, Any] | None = None
     if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
-        # Re-stamp the deterministic facts the seed/planner own — the model echoes them but must never
-        # override them — so they are authoritative regardless of which author path ran (the real authors
-        # already stamp word_budget; this makes both invariants hold at the derive boundary). The
-        # high-value deterministic checks (fabricated source handles, absent characters on-page) then run
-        # against the stamped body; the word_budget/scene_no checks still guard direct callers.
-        scene_body["word_budget"] = item.word_budget  # planner is authoritative
-        scene_body["scene_no"] = item.scene_no  # the seed is authoritative for scene_no
-        found = validate_scene_packet_contract(
+        # Writer-first deterministic evaluation: stamp the facts the planner/seed own (word_budget,
+        # scene_no) server-side, normalize optional provenance (invalid source ids -> null + one warning),
+        # then run the contract checks — all in one place. Only a true draft-safety failure hard-blocks;
+        # a warning-only packet still runs QA and stays PROPOSED. `normalized_body` is what we persist and
+        # QA attacks, so a sloppy model echo of a deterministic field can never block on its own.
+        result = evaluate_scene_packet(
             body=scene_body,
             chapter_packet_body=chapter_packet_body,
             scene_seed=item.seed,
             word_budget=item.word_budget,
+            scene_no=item.scene_no,
             sources=item.sources,
+            block_on_provenance=settings.scene_packet_block_on_provenance,
         )
-        violations = [v.as_dict() for v in found]
-        blocking = [v for v in found if v.severity == "block"]
-        if blocking:
-            error_detail = "deterministic validation failed: " + "; ".join(v.detail for v in blocking)
+        scene_body = result.normalized_body
+        violations = [v.as_dict() for v in result.violations]
+        draft_blockers = result.draft_blockers
+        if draft_blockers:
+            error_detail = "deterministic validation failed: " + "; ".join(v.detail for v in draft_blockers)
+            blocker_source = "validation"
             log.warning(
                 "scene_packet.validation_blocked",
                 seed=str(item.seed_id),
-                count=len(blocking),
-                kinds=sorted({v.kind for v in blocking}),
+                count=len(draft_blockers),
+                kinds=sorted({v.kind for v in draft_blockers}),
             )
         else:
             try:
@@ -171,7 +178,12 @@ async def _author_then_qa(
                 log.error("scene_packet.qa_failed", seed=str(item.seed_id), error=str(exc))
                 qa = None
                 error_detail = str(exc)
-    return scene_body, qa, error_detail, violations
+                blocker_source = "qa"
+    elif scene_body is not None:
+        # Author returned a body, but it is thin/incomplete (missing required contract sections) — the
+        # author gate blocks it, so attribute the block to the author, not to QA (which never ran).
+        blocker_source = "author"
+    return scene_body, qa, error_detail, violations, blocker_source
 
 
 def _as_str_list(value: Any) -> list[str]:
@@ -497,7 +509,7 @@ async def derive_scene_packets(
 
     async def _run(
         item: _SceneWork,
-    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None, list[dict[str, Any]]]:
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None, list[dict[str, Any]], str | None]:
         async with sem:
             return await _author_then_qa(
                 item,
@@ -516,7 +528,7 @@ async def derive_scene_packets(
 
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
-    for item, (scene_body, qa, error_detail, violations) in zip(work, results, strict=True):
+    for item, (scene_body, qa, error_detail, violations, blocker_source) in zip(work, results, strict=True):
         status, blocked_reason = approval_policy.status_after_author_qa(scene_body, qa, error_detail)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         qa_warnings = (
@@ -527,9 +539,15 @@ async def derive_scene_packets(
         if status == ScenePacketStatus.BLOCKED and blocked_reason:
             qa_warnings = {**qa_warnings, "blocked_reason": blocked_reason}
         # Surface deterministic contract violations (block + warn) on the packet so the editor sees the
-        # concrete failure ("source_id C99 not retrieved") instead of only a generic QA verdict.
+        # concrete failure ("absent character on-page") or advisory ("12 source ids normalized") instead
+        # of only a generic verdict.
         if violations:
             qa_warnings = {**qa_warnings, "violations": violations}
+        # Persist WHICH gate blocked (author | validation | qa) so the UI stops mislabeling a deterministic
+        # block as a QA block. A blocked packet with no attributed source (QA returned a block-drafting
+        # verdict, so _author_then_qa left it None) is a genuine QA block.
+        if status == ScenePacketStatus.BLOCKED:
+            qa_warnings = {**qa_warnings, "blocker_source": blocker_source or "qa"}
 
         row = item.row
         if row is None:
@@ -547,7 +565,10 @@ async def derive_scene_packets(
         row.chapter_packet_id = packet.id
         row.scene_no = item.scene_no
         row.status = status
-        row.qa_verdict = qa["verdict"] if qa else ScenePacketVerdict.BLOCK_DRAFTING
+        # Only record a QA verdict when QA actually ran. A deterministic/author block skips QA, so
+        # forcing BLOCK_DRAFTING here is what made every such block look like a QA block downstream —
+        # leave it None and let the persisted blocker_source name the real gate.
+        row.qa_verdict = qa["verdict"] if qa else None
         row.qa_warnings = qa_warnings
         row.body = persisted_body
         # Persist the provenance legend even on a blocked packet — retrieval succeeded, so the human can

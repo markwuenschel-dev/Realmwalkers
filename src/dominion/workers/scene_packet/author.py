@@ -51,10 +51,21 @@ _SYSTEM = (
     "word_budget EXACTLY — do not change its numbers. Also list phrases the drafter should avoid "
     "echoing (contract/packet language that would read as machine prose).\n\n"
     "Each OWNER FILE / RETRIEVED CANON snippet is prefixed with a bracket handle like [C1]. When a "
-    "reader/POV knowledge item is grounded in a specific snippet, record it in claim_sources: the claim "
-    "text plus that snippet's handle as source_id (use null when it is your inference, not drawn from a "
-    "snippet). This makes a wrong claim in the packet traceable back to the canon it came from.\n\n"
+    "reader/POV knowledge item is grounded in a specific retrieved snippet, record it in claim_sources: "
+    "the claim text plus that snippet's handle (like C1, C2 — only handles visible in THIS prompt) as "
+    "source_id. Use null when the claim rests on the chapter packet, outline, scene seed, word budget, a "
+    "prior summary, or your own inference. claim_sources is OPTIONAL — prefer null over an invented id, "
+    "and NEVER use OUTLINE, CHAPTER_PACKET, SCENE_SEED, a UUID, a file name, a seed id, or any label that "
+    "is not a visible [C#] handle. This keeps a wrong claim traceable to the canon it came from.\n\n"
     "Reply with ONE JSON object only — no prose, no code fences."
+)
+
+# Single source of truth for the claim_sources schema line, shared by the monolithic _SCHEMA_HINT below
+# and the sectioned author's knowledge section — so the source_id contract can't drift between the two.
+CLAIM_SOURCES_SCHEMA_HINT = (
+    '  "claim_sources": [{"claim": str, "source_id": str|null — a retrieved snippet handle shown in this '
+    'prompt like "C1"; use null for the chapter packet, outline, seed, word budget, prior summary, or '
+    "inference. Never invent a handle.}]\n"
 )
 
 _SCHEMA_HINT = (
@@ -73,10 +84,7 @@ _SCHEMA_HINT = (
     '  "required_beats": [str], "forbidden_beats": [str], "exit_state": str, "tone_pressure": str,\n'
     '  "phrases_to_avoid_echoing": [str],\n'
     '  "reviewer_instructions": {"continuity": [str], "pacing": [str], "dialogue": [str], '
-    '"combat": [str], "sensory": [str], "voice": [str]},\n'
-    '  "claim_sources": [{"claim": str, "source_id": str|null (a canon snippet handle like "C1", '
-    "or null for inference)}]\n"
-    "}"
+    '"combat": [str], "sensory": [str], "voice": [str]},\n' + CLAIM_SOURCES_SCHEMA_HINT + "}"
 )
 
 

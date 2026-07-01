@@ -274,6 +274,11 @@ export interface QaIssue {
 export interface PacketWarnings {
   residual_risks?: string[];
   issues?: QaIssue[];
+  // Deterministic-validation channel: contract violations found by the deterministic validator (block +
+  // warn), distinct from QA `issues` above. Invalid provenance collapses to a single warn item with
+  // kind "provenance_normalized". `blocker_source` names which gate produced the block ("validation").
+  violations?: QaIssue[];
+  blocker_source?: string;
   blocked_reason?: string;
 }
 

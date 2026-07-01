@@ -31,6 +31,7 @@ from dominion.workers.budget import TokenBudget
 from dominion.workers.context import ScenePacketRequiredError, assemble_context
 from dominion.workers.length import guard as guard_mod
 from dominion.workers.length import planner as planner_mod
+from dominion.workers.scene_packet import approval_policy as sp_policy
 from dominion.workers.scene_packet import author as sp_author
 from dominion.workers.scene_packet import author_sections as sp_sections
 from dominion.workers.scene_packet import derive as sp_derive
@@ -497,6 +498,62 @@ async def test_derive_persists_blocked_reason_when_qa_blocks_drafting(db_factory
         row = (await s.execute(select(ScenePacket))).scalars().one()
         assert row.status == ScenePacketStatus.BLOCKED
         assert row.qa_warnings.get("blocked_reason") == "scene packet QA blocked drafting"
+        # A genuine QA block is attributed to QA and carries a real QA verdict.
+        assert row.qa_verdict == ScenePacketVerdict.BLOCK_DRAFTING
+        assert row.qa_warnings.get("blocker_source") == "qa"
+
+
+async def test_derive_invalid_provenance_does_not_block(db_factory, monkeypatch):
+    """The exact screenshot failure class, end-to-end: a valid ScenePacket body whose ONLY defect is
+    invalid claim source ids (OUTLINE / UUID / out-of-range handle) must derive to a PROPOSED packet, run
+    QA, normalize the ids to null, and surface a single collapsed provenance warning — never blocked."""
+    body = {
+        **_scene_body(),
+        "claim_sources": [
+            {"claim": "follows the approved outline", "source_id": "OUTLINE"},
+            {"claim": "uses the seed beat", "source_id": "f332489e-faba-443f-9860-518ea790510b"},
+            {"claim": "out-of-range handle", "source_id": "C7"},
+        ],
+    }
+    _patch_scene_agents(monkeypatch, body, verdict=ScenePacketVerdict.APPROVE)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["blocked"] == 0 and counts["created"] == 1
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.PROPOSED
+        assert row.qa_verdict == ScenePacketVerdict.APPROVE  # QA still ran
+        # All invalid source ids were normalized to null on the persisted (draftable) body.
+        assert all(c["source_id"] is None for c in row.body["claim_sources"])
+        # One collapsed, warn-severity provenance violation is surfaced for the editor.
+        violations = (row.qa_warnings or {}).get("violations", [])
+        prov = [v for v in violations if v["kind"] == "provenance_normalized"]
+        assert len(prov) == 1 and prov[0]["severity"] == "warn"
+        # A warning-only packet is approvable.
+        assert sp_policy.can_approve(row) is None
+
+
+async def test_derive_deterministic_block_is_labeled_validation_not_qa(db_factory, monkeypatch):
+    """A true draft-safety failure (an absent character placed on-page) still blocks — but it is attributed
+    to deterministic VALIDATION, not QA: QA never ran, so qa_verdict stays None and blocker_source is
+    'validation'. This is the mislabel the UI was rendering as 'Blocked by QA'."""
+    body = {**_scene_body(), "required_beats": ["Eriadne strikes first"]}  # Eriadne is characters_absent
+    _patch_scene_agents(monkeypatch, body, verdict=ScenePacketVerdict.APPROVE)
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()), scene_no=1)])
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert counts["blocked"] == 1
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert row.status == ScenePacketStatus.BLOCKED
+        assert row.qa_verdict is None  # QA was skipped — not forced to BLOCK_DRAFTING
+        assert row.qa_warnings.get("blocker_source") == "validation"
+        assert "deterministic validation failed" in row.qa_warnings.get("blocked_reason", "")
+        # Enrichment reports the corrected source, not a guessed "qa".
+        assert sp_policy.infer_blocker_source(row, sp_policy.resolve_blocked_reason(row)) == "validation"
 
 
 async def test_qa_rerun_route_rejects_invalid_body(db_factory):

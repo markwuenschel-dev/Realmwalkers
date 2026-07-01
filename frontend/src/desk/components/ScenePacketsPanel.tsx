@@ -36,6 +36,7 @@ const BLOCKER_SOURCE_LABEL: Record<string, string> = {
   author: "author",
   derive: "derive",
   qa: "QA",
+  validation: "deterministic validation",
   unknown: "gate",
 };
 
@@ -452,6 +453,9 @@ function ScenePacketCard({
   const bodyValid = validScenePacketBody(b);
   const residual = packet.qa_warnings?.residual_risks ?? [];
   const issues = packet.qa_warnings?.issues ?? [];
+  // Deterministic-validation channel (distinct from QA `issues`). The backend collapses invalid
+  // provenance into a single warn violation, so this is normally short and advisory.
+  const violations = packet.qa_warnings?.violations ?? [];
   const reasons = packet.approval_blockers;
   const canApprove = packet.can_approve;
   const showBlockers = reasons.length > 0 && (packet.status === "proposed" || isBlocked);
@@ -592,7 +596,11 @@ function ScenePacketCard({
           )}
         >
           <div style={css("font-family:var(--mono);font-size:11px;color:var(--bad)")}>
-            QA blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:
+            {packet.blocker_source === "validation"
+              ? "Deterministic validation blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
+              : packet.blocker_source == null || packet.blocker_source === "qa"
+                ? "QA blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
+                : "Approval blocked — fix the contract below (Edit) and Re-run QA, or Re-derive:"}
           </div>
           {reasons.map((r, i) => (
             <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
@@ -683,6 +691,39 @@ function ScenePacketCard({
                   );
                 })}
                 <Pills label="Residual risks (non-blocking)" items={residual} tone="warn" />
+              </div>
+            )}
+
+            {/* Deterministic-validation channel — advisory contract violations (warn), distinct from QA.
+                Provenance issues arrive pre-collapsed to a single line, so this list stays short. */}
+            {violations.length > 0 && (
+              <div
+                style={css(
+                  "margin-top:4px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px",
+                )}
+              >
+                <Label text="Deterministic validation (non-blocking)" />
+                {violations.slice(0, 6).map((it, i) => {
+                  const sev = it.severity ?? "warn";
+                  const sevVar = SEVERITY_VAR[sev] ?? "--warn";
+                  return (
+                    <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
+                      <Chip label={sev} colorVar={sevVar} />{" "}
+                      {it.field ? (
+                        <>
+                          <Chip label={it.field} colorVar="--info" />{" "}
+                        </>
+                      ) : null}
+                      {it.kind ? <strong>{it.kind}: </strong> : null}
+                      {it.detail}
+                    </div>
+                  );
+                })}
+                {violations.length > 6 && (
+                  <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                    … {violations.length - 6} more
+                  </div>
+                )}
               </div>
             )}
 

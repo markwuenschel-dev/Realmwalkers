@@ -36,6 +36,7 @@ from dominion.workers.budget import TokenBudget, Usage
 from dominion.workers.llm import CachedPrefixBlock, estimate_tokens
 from dominion.workers.scene_packet.author import (
     _SYSTEM,
+    CLAIM_SOURCES_SCHEMA_HINT,
     ScenePacketAuthorError,
     build_prefix,
     build_scene_context,
@@ -80,10 +81,7 @@ _SECTIONS: tuple[_Section, ...] = (
             '"reader_may_infer_only": [str]},\n'
             '  "must_remain_hidden": {"reader": [str], "pov": [str], "all_surface_prose": [str]},\n'
             '  "pov_permissions": {"may_notice": [str], "may_infer": [str], "must_not_know": [str], '
-            '"may_be_wrong_about": [str]},\n'
-            '  "claim_sources": [{"claim": str, "source_id": str|null (a canon snippet handle like '
-            '"C1", or null for inference)}]\n'
-            "}"
+            '"may_be_wrong_about": [str]},\n' + CLAIM_SOURCES_SCHEMA_HINT + "}"
         ),
         # claim_sources cites the [C1] handles on the supplied canon snippets so a knowledge item traces
         # back to its source. Optional: a missing citation must not block the packet, so it is NOT in keys.

@@ -7,8 +7,8 @@ status: canon
 # Class System — Dominion Realm
 
 > **Status:** Canon · working draft
-> **Model:** Base class = *method* · Specialization = *refined role* · Domain = *power expression/source* · Skill Affinity = *skill-progression aptitude* · Legendary/Mythic/Unique titles = *rare evolved expression, title, or state*.
-> **Rarity ladder:** Common → Uncommon → Rare → Exceptional → Legendary → Mythic → Unique. **Rarer classes cost more XP _and_ more energy per level** (see `core_rules.md` → The Class System / Class Tiers).
+> **Model:** Base class = *method* · Specialization = *refined role* · Domain = *power expression/source* · Skill Affinity = *skill-progression aptitude* · Epic/Fabled/Legendary/Mythic/Unique titles = *rare evolved expression, title, or state*.
+> **Rarity ladder:** Common → Uncommon → Rare → Epic → Fabled → Legendary → Mythic → Unique. **Rarer classes cost more XP _and_ more energy per level.** XP thresholds and scene XP formulas live in `xp_progression_formulas.md`; do not duplicate full XP equations here.
 > **Classes are earned through behavior, not selected.** The Realm recognizes what someone repeatedly becomes.
 > **Attribute model:** Classes do not grant bonus attribute-point cadence. They define Prime/Core attribute multipliers that shape how efficiently relevant attributes express through that class.
 > **Cast quick-ref:** Marcus = Mage → **Realmwalker** (Legendary); Serra = **Warrior** → **Worldbreaker** (Mythic; Book-2 direction); Seb = Warrior → **Reaver** (specialization, broker grants it *early*); Mara = **Psion** (Rare) → **Arbiter** *(placeholder specialization; Book-2 direction; rename likely because of Marcus's Arbiter Aspect)*; Mathias = **Scout** → **Emissary** *(specialization; Book-2 direction)*; Brent = **Warden** → **Reckoner** *(specialization; Book-2 direction)*.
@@ -23,7 +23,7 @@ The clean model:
 **Specializations = refined role.**  
 **Domains = power expression/source.**  
 **Skill Affinity = progression aptitude, not power type.**  
-**Legendary/Mythic/Unique titles = rare evolved expression, recognition, mutation, or state.**
+**Epic/Fabled/Legendary/Mythic/Unique titles = rare evolved expression, recognition, mutation, or state.**
 
 ### Terminology Firewall
 
@@ -50,6 +50,68 @@ Class taxonomy does not own the whole power system. A full Realm build resolves 
 
 A class and an interface can align, conflict, or partially overlap, but they are not the same layer. Serra's **Warrior** class and **Pressure-Severance Interface** both point forward, but Warrior is the Realm's method-label while Pressure-Severance is her personal substrate architecture. Marcus's **Realmwalker** class is not the same thing as his Neurochromatic Eyes or the Eyes of Meszkhal.
 
+### XP Progression Formula Ownership
+
+Class taxonomy lives in this file. XP progression math lives in `xp_progression_formulas.md`.
+
+Use `xp_progression_formulas.md` as the canonical owner for:
+
+- level-to-level XP thresholds
+- prevalence-derived rarity information
+- rarity emergence across levels
+- per-scene XP calculation
+- combat XP adaptation
+- medical / physical / neural / resource strain terms
+- recovery and integration effects
+- nonzero class-method coupling
+- interface and domain coupling for XP gain
+
+This file owns what classes **are**:
+
+- base class = method
+- specialization = refined role
+- domain = power expression/source
+- skill affinity = skill-progression aptitude
+- rarity ladder and class taxonomy
+- class profiles and class-specific method notes
+
+Do not duplicate the full XP equations here. Cross-reference `xp_progression_formulas.md` instead.
+
+#### Current Rarity Ladder for XP Tables
+
+The current XP progression model uses this rarity ladder:
+
+```text
+Common → Uncommon → Rare → Epic → Fabled → Legendary → Mythic → Unique
+```
+
+`Exceptional` has been retired/replaced by `Epic` unless a later author decision restores it.
+
+Current prevalence assumptions:
+
+| Rarity | Prevalence relative to Common | Meaning |
+|---|---:|---|
+| Common | 1 | Widely repeatable method basin. |
+| Uncommon | 1 / 10 | Regularly seen, but requires more specialized aptitude, training, or circumstance. |
+| Rare | 1 / 100 | Dependent on unusual talent, institutions, rituals, or exposure. |
+| Epic | 1 / 1,000 | Extraordinary but still socially legible; replacement name for old `Exceptional`. |
+| Fabled | 1 / 100,000 | Known through stories, reports, institutions, and uncertain records; bridge tier before Legendary. |
+| Legendary | 1 / 1,000,000 | History-shaping, world-significant, and institution-altering. |
+| Mythic | 1 / 100,000,000 | Principle-scale, barely repeatable, and often not fully understood. |
+| Unique | one per cosmic cycle | One-of-one across a cosmic cycle or causal impossibility. |
+
+Class rarity does **not** directly grant attribute points and does **not** act as a flat power multiplier.
+
+Class rarity affects:
+
+- XP threshold burden through prevalence-derived self-information
+- energy burden
+- difficulty of clean embodiment
+- rarity of the class basin / method pattern
+- scene XP interpretation through class-method coupling
+
+Class rarity must not be reintroduced as recurring bonus attribute-point cadence.
+
 
 ### Class Attribute Multiplier Firewall
 
@@ -72,7 +134,7 @@ Rules:
 - Multipliers are **not extra points**.
 - Multipliers do **not** replace ordinary level/species attribute growth.
 - Multipliers do **not** retroactively change earlier levels.
-- Rarity does **not** automatically make multipliers larger.
+- Rarity does **not** automatically make multipliers larger; rarity burden belongs to XP/energy progression in `xp_progression_formulas.md`.
 - Legendary/Mythic/Unique classes may define custom multipliers only in their profile.
 - Resource application lives in `resource_system.md`; class profiles live here.
 - If a class does not name an attribute, treat it as Neutral.
@@ -159,7 +221,7 @@ These operate closer to law, meaning, scale, impossibility, cosmic identity, and
 
 **Aether is not an ordinary domain.**
 
-Aether is the higher-order synthesis of the eight Elemental Domains in harmony. It should not casually appear as an ordinary domain, ordinary school, or common class flavor. Aether paths belong in Exceptional, Legendary, Mythic, Unique, item, interface, or world-event territory unless a specific culture or artifact has a carefully bounded partial expression.
+Aether is the higher-order synthesis of the eight Elemental Domains in harmony. It should not casually appear as an ordinary domain, ordinary school, or common class flavor. Aether paths belong in Epic, Fabled, Legendary, Mythic, Unique, item, interface, or world-event territory unless a specific culture or artifact has a carefully bounded partial expression.
 
 ## Disciplines, Schools, and Recipes
 
@@ -240,7 +302,7 @@ These profiles define default attribute resonance for base classes. They are tun
 | **Medium**     | MYS, CHA         | WIS, CVN        | INT, CON             | Spirits, echoes, possession-risk, ghost contact, unseen presences.     |
 | **Seer**       | WIS, MYS         | INT, LCK        | CVN, CHA             | Hidden truths, distant sight, pattern glimpses, incomplete revelation. |
 
-## Exceptional Classes
+## Epic Classes
 
 | Base Class       | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                     |
 | ---------------- | ---------------- | --------------- | -------------------- | --------------------------------------------------------------------------- |
@@ -253,18 +315,26 @@ These profiles define default attribute resonance for base classes. They are tun
 | **Dreamwalker**  | MYS, WIS         | CHA, INT        | CVN, LCK             | Dreams, inner landscapes, sleeping minds, symbolic passage.                 |
 | **Void-Touched** | MYS, CON         | WIS, CVN        | INT, END             | Survival against absence, emptiness, null pressure, impossible spaces.      |
 
+## Fabled Classes
+
+Fabled is the bridge tier between Epic and Legendary. These classes are known through stories, records, elite institutions, or uncertain reports, but they are not yet the history-defining class states that reshape an age.
+
+Agent rule: do not automatically promote every impressive class to Fabled. Use this tier for class expressions that are too rare for Epic, too repeatable for Legendary, and broad enough to appear more than once across an era.
+
+| Base Class      | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                        |
+| --------------- | ---------------- | --------------- | -------------------- | ------------------------------------------------------------------------------ |
+| **Archmage**    | INT, MYS         | WIS, CHA        | DEX, END             | Master-scale spell architecture, deep theory, high-order casting.              |
+| **Dreadnought** | CON, END         | STR, CVN        | WIS, MYS             | Immovable endurance, battlefield anchoring, catastrophic punishment tolerance. |
+| **Dragonrider** | CHA, WIS         | END, STR        | AGI, CVN             | Apex beast-bond, aerial command, shared will, high-risk mobility.              |
+| **Gravemaster** | MYS, WIS         | CVN, INT        | CHA, END             | Death-continuity, grave authority, ancestor/ghost command without cheap necromancy. |
+| **Star-Singer** | CHA, MYS         | WIS, CVN        | INT, END             | Celestial resonance, song-as-law, harmonic authority over distance and omen.   |
+
 ## Legendary Classes
 
 | Base Class       | Prime Attributes | Core Attributes | Secondary Attributes | Resource / method shape                                                             |
 | ---------------- | ---------------- | --------------- | -------------------- | ----------------------------------------------------------------------------------- |
 | **Realmwalker**   | MYS, WIS         | INT, END        | AGI, CVN             | Planar crossing, distance rupture, boundary traversal, world-pathing.               |
-| **Worldbreaker** | STR, CVN         | END, CON        | WIS, MYS             | Catastrophic commitment, severance, pressure, breaking false structures.            |
-| **Archmage**     | INT, MYS         | WIS, CHA        | DEX, END             | Master-scale spell architecture, deep theory, high-order casting.                   |
 | **Saint**        | CVN, CHA         | WIS, MYS        | END, INT             | Sacred authority, miracle-bearing, spiritual gravity, devotion made manifest.       |
-| **Dreadnought**  | CON, END         | STR, CVN        | WIS, MYS             | Immovable endurance, battlefield anchoring, catastrophic punishment tolerance.      |
-| **Dragonrider**  | CHA, WIS         | END, STR        | AGI, CVN             | Apex beast-bond, aerial command, shared will, high-risk mobility.                   |
-| **Gravemaster**  | MYS, WIS         | CVN, INT        | CHA, END             | Death-continuity, grave authority, ancestor/ghost command without cheap necromancy. |
-| **Star-Singer**  | CHA, MYS         | WIS, CVN        | INT, END             | Celestial resonance, song-as-law, harmonic authority over distance and omen.        |
 
 
 ## Mythic Classes
@@ -344,7 +414,7 @@ Domains are separate from classes. Death applied to a Warrior may produce a Deat
 
 Likewise, similar fantasy archetypes should not automatically occupy the same system layer. A Death Knight is not a base class because it already implies a martial method, a Death domain expression, and a developed identity. It is better understood as an evolved title: Warrior plus Knight, Champion, Guardian, or Reaver, shaped by Death. A Realmwalker is not a base class either; it is a Legendary Planar title reached through mastery of gates, boundaries, worlds, or dimensional travel. An Incarnate is not a class at all, but a mythic or unique state in which a person embodies a principle rather than merely using it.
 
-Rarity measures availability, not raw strength. A Common Warrior can become far more dangerous than a Rare novice Oracle. Common means widely repeatable. Uncommon means regularly seen but requiring more specialized aptitude, training, or circumstance. Rare means dependent on unusual talent, institutions, rituals, or exposure. Exceptional means known but noteworthy; many people may never meet one. Legendary belongs to historical figures and world-shaping masters. Mythic belongs to disputed or barely understood beings. Unique belongs to one-of-one outcomes that cannot normally be duplicated.
+Rarity measures availability and information-burden, not raw strength. A Common Warrior can become far more dangerous than a Rare novice Oracle. Common means widely repeatable. Uncommon means regularly seen but requiring more specialized aptitude, training, or circumstance. Rare means dependent on unusual talent, institutions, rituals, or exposure. Epic means extraordinary but still socially legible; it replaces the old `Exceptional` label for current XP tables. Fabled means known through stories, records, institutions, or uncertain reports, but not yet history-defining. Legendary belongs to historical figures and world-shaping masters whose classes can alter institutions or ages. Mythic belongs to disputed, principle-scale, or barely understood beings. Unique belongs to one-of-one outcomes across a cosmic cycle or causal impossibility.
 
 The system should avoid turning every cool concept into a base class. If a concept depends on a specific domain, it is probably a domain-shaped title or specialization. If it depends on a high level of mastery, it is probably an evolved title. If it describes the person's core way of acting even without supernatural flavor, it may be a base class or specialization.
 
