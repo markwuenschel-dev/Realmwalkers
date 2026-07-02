@@ -45,6 +45,12 @@ class SceneContext:
     prior_prose: str | None = None
     revise_feedback: str | None = None
     target_pass: str | None = None
+    # Live production timeline memory injected when DraftRunTimeline is active
+    prior_exit_state: str | None = None
+    spent_beats: list[str] = field(default_factory=list)
+    reader_learned: list[str] = field(default_factory=list)
+    must_not_repeat: list[str] = field(default_factory=list)
+    chapter_so_far_summary: str | None = None
 
 
 @dataclass(frozen=True)
@@ -64,6 +70,12 @@ class DraftMemory:
     canon: list[str]
     pov_summary: str | None
     prior_scene_tail: str | None
+    # Production timeline memory (active DraftRunTimeline when a production run is driving sequential drafting)
+    prior_exit_state: str | None = None
+    spent_beats: list[str] = field(default_factory=list)
+    reader_learned: list[str] = field(default_factory=list)
+    must_not_repeat: list[str] = field(default_factory=list)
+    chapter_so_far_summary: str | None = None
 
 
 @dataclass(frozen=True)

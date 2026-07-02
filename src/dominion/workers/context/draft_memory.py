@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.enums import SceneStatus
-from dominion.shared.models import Job, PovProfile, Scene
+from dominion.shared.models import DraftRunTimeline, Job, PovProfile, Scene
 from dominion.workers.context.types import DraftMemory, ResolvedJob
 from dominion.workers.memory import owner_router, retrieval, summaries
 from dominion.workers.oracle import Oracle
@@ -52,12 +52,52 @@ async def build_draft_memory(session: AsyncSession, resolved: ResolvedJob, job: 
     pov_summary = await summaries.pov_summary(session, book_id=resolved.book_id, pov=effective_pov(beat, chapter))
     prior_scene_tail = await _prior_tail(session, chapter_id=chapter.id, scene_no=resolved.scene_no)
 
+    # Load live DraftRunTimeline scoped to the production run if the job carries one.
+    # Falls back to latest-by-chapter for legacy (non-production) draft jobs.
+    prod_run_id = getattr(job, "production_run_id", None)
+    if prod_run_id:
+        tl: DraftRunTimeline | None = (
+            (
+                await session.execute(
+                    select(DraftRunTimeline)
+                    .where(DraftRunTimeline.production_run_id == prod_run_id)
+                    .order_by(DraftRunTimeline.updated_at.desc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
+    else:
+        tl = (
+            (
+                await session.execute(
+                    select(DraftRunTimeline)
+                    .where(DraftRunTimeline.chapter_id == chapter.id)
+                    .order_by(DraftRunTimeline.updated_at.desc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
+    prior_exit = tl.current_exit_state if tl else None
+    spent = list(tl.spent_beats or []) if tl else []
+    learned = list(tl.reader_learned or []) if tl else []
+    must_not = list(tl.must_not_repeat_after or []) if tl else []
+    summary = tl.chapter_so_far_summary if tl else None
+
     return DraftMemory(
         ledger=ledger,
         exemplars=exemplars,
         canon=canon,
         pov_summary=pov_summary,
         prior_scene_tail=prior_scene_tail,
+        prior_exit_state=prior_exit,
+        spent_beats=spent,
+        reader_learned=learned,
+        must_not_repeat=must_not,
+        chapter_so_far_summary=summary,
     )
 
 

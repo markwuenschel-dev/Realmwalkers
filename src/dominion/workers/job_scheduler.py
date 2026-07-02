@@ -44,12 +44,16 @@ async def schedule_next_after_approval(session: AsyncSession, scene: Scene) -> u
     return result.queued_job_ids[0]
 
 
-async def schedule_revision(session: AsyncSession, scene: Scene, *, target_pass: str | None) -> uuid.UUID | None:
+async def schedule_revision(
+    session: AsyncSession, scene: Scene, *, target_pass: str | None, production_run_id: uuid.UUID | None = None
+) -> uuid.UUID | None:
     chapter = await session.get(Chapter, scene.chapter_id)
     if chapter is None:
         return None
     run = await _latest_run(session, chapter.book_id)
-    job = await revision_job_for_scene(session, scene=scene, chapter=chapter, run=run, target_pass=target_pass)
+    job = await revision_job_for_scene(
+        session, scene=scene, chapter=chapter, run=run, target_pass=target_pass, production_run_id=production_run_id
+    )
     session.add(job)
     await session.flush()
     return job.id

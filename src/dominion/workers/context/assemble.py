@@ -66,4 +66,11 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         prior_prose=revision.prior_prose,
         revise_feedback=revision.revise_feedback,
         target_pass=job.target_pass,
+        # Timeline memory from active production DraftRunTimeline (if any)
+        # The drafter context can use these to avoid repeating prior exit state facts etc.
+        prior_exit_state=getattr(memory, "prior_exit_state", None),
+        spent_beats=list(getattr(memory, "spent_beats", []) or []),
+        reader_learned=list(getattr(memory, "reader_learned", []) or []),
+        must_not_repeat=list(getattr(memory, "must_not_repeat", []) or []),
+        chapter_so_far_summary=getattr(memory, "chapter_so_far_summary", None),
     )

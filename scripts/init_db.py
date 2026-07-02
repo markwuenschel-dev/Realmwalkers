@@ -3,6 +3,7 @@
 For now this is create_all from the ORM metadata. When the schema stabilizes, switch to Alembic
 migrations (the schema will change a lot during the build, so explicit migrations come later).
 """
+
 from __future__ import annotations
 
 import asyncio

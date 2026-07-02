@@ -24,3 +24,4 @@ logs/
 .claude/skills/
 # author's local working notes — scratch, never tracked
 author notes/
+*.json

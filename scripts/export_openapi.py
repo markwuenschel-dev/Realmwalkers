@@ -6,6 +6,7 @@ Does not start the ASGI server or require a live database.
 Forces a stable API-only schema: the SPA static fallback route is omitted so
 local machines with frontend/dist checked in do not drift from CI.
 """
+
 from __future__ import annotations
 
 import json

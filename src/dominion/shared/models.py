@@ -84,6 +84,10 @@ class Job(Base):
     __tablename__ = "jobs"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
+    # Links draft/repair jobs back to a specific ProductionRun so that DraftRunTimeline, context
+    # memory, and post-scene timeline updates are scoped to the correct production execution rather
+    # than the latest by chapter.
+    production_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("production_runs.id"), nullable=True)
     kind: Mapped[str] = mapped_column(Text)  # draft | revise_full | revise_pass
     target_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     target_pass: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -740,3 +744,29 @@ class RepairVerification(Base):
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DraftRunTimeline(Base):
+    """Active sequential drafting memory for a production run.
+
+    Updated after successful scene drafts within the run so that subsequent scenes in the
+    ChapterSequence receive the prior exit state, spent beats, reader-learned facts, and
+    "must not repeat" constraints. This is the live anti-branching brain (not just a snapshot).
+    """
+
+    __tablename__ = "draft_run_timelines"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    production_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("production_runs.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    current_scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chapter_so_far_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    current_exit_state: Mapped[str | None] = mapped_column(Text, nullable=True)
+    spent_beats: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    reader_learned: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    pov_learned: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    must_not_repeat_after: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    drafted_scenes: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

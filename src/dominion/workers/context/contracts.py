@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared.models import ChapterPacket, ScenePacket
+from dominion.shared.models import ChapterPacket, ChapterSequence, ScenePacket
 from dominion.workers.context.types import ScenePacketFields, ScenePacketRequiredError
 from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet.projections import project
@@ -20,11 +20,52 @@ async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.
         raise ScenePacketRequiredError(f"no scene packet {scene_packet_id} for this draft job")
     approval_policy.assert_draft_ready(sp)
 
-    body = sp.body or {}
+    body = dict(sp.body or {})
     chapter_body = (
         await session.execute(select(ChapterPacket.body).where(ChapterPacket.id == sp.chapter_packet_id))
     ).scalar_one_or_none()
     chapter_body = chapter_body if isinstance(chapter_body, dict) else {}
+
+    # Make ChapterSequence operational for the drafter: overlay sequence fields into the
+    # effective packet body used by assemble_context / project. This ensures entry/exit,
+    # owned_beats, must_not_repeat etc. from the production plan control drafting context,
+    # not only the UI artifact.
+    seq = (
+        (
+            await session.execute(
+                select(ChapterSequence)
+                .where(ChapterSequence.chapter_id == sp.chapter_id)
+                .order_by(ChapterSequence.updated_at.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if seq and seq.body:
+        seq_item = next(
+            (
+                it
+                for it in (seq.body.get("scenes") or [])
+                if isinstance(it, dict) and int(it.get("scene_no") or 0) == sp.scene_no
+            ),
+            None,
+        )
+        if seq_item:
+            # Overlay key fields (do not overwrite author-provided if already present)
+            for key in ("entry_state", "exit_state", "scene_function", "sequence_scene_function"):
+                if seq_item.get(key) and key not in body:
+                    body[key] = seq_item.get(key)
+            for key in ("owned_beats", "required_beats", "forbidden_beats", "must_not_repeat"):
+                val = seq_item.get(key) or seq_item.get("required_beats")
+                if val and key not in body:
+                    body[key] = val
+            if seq_item.get("word_budget") and "word_budget" not in body:
+                body["word_budget"] = seq_item["word_budget"]
+            # reader state hints from sequence
+            for k in ("reader_learns", "reader_must_not_know", "reader_knows_at_start"):
+                if seq_item.get(k) and k not in body:
+                    body[k] = seq_item.get(k)
 
     p = project(body, chapter_body)
     return ScenePacketFields(

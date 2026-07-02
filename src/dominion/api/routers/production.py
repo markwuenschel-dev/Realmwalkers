@@ -238,6 +238,21 @@ async def assemble_production_run(run_id: uuid.UUID, session: SessionDep) -> Pro
     return await _action_out(session, run.id)
 
 
+@router.post("/production-runs/{run_id}/draft-missing-scenes", response_model=ProductionRunActionOut)
+async def draft_missing_scenes(run_id: uuid.UUID, session: SessionDep) -> ProductionRunActionOut:
+    """Queue draft jobs for any ChapterSequence scenes that lack prose but have approved contracts.
+
+    This lets the production run drive generation of the full chapter rather than only reacting to
+    pre-existing scenes and escalating missing ones.
+    """
+    detail = await production.production_run_detail(session, run_id)
+    run = detail["run"]
+    await production.queue_draft_jobs_for_missing_sequence_scenes(session, run)
+    await production._update_run_summary(session, run)
+    await session.commit()
+    return await _action_out(session, run.id)
+
+
 @router.get("/production-runs/{run_id}/repair-tasks", response_model=list[RepairTaskOut])
 async def get_production_run_repair_tasks(run_id: uuid.UUID, session: SessionDep) -> list[RepairTaskOut]:
     rows = await production.production_run_repair_tasks(session, run_id)

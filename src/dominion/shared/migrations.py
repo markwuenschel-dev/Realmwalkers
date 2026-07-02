@@ -53,6 +53,8 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # Per-call telemetry diagnostics (context budget breakdown, section name, fallback flags, …).
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS metadata JSONB",
     "ALTER TABLE agent_ops_state ADD COLUMN IF NOT EXISTS globals_json JSONB",
+    # Production driver scoping: tie draft jobs (and therefore timeline updates) to a ProductionRun.
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS production_run_id UUID",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
@@ -83,6 +85,7 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs (status)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_run_id ON jobs (run_id)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_chapter_id ON jobs (chapter_id)",
+    "CREATE INDEX IF NOT EXISTS ix_jobs_production_run_id ON jobs (production_run_id)",
     "CREATE INDEX IF NOT EXISTS ix_llm_calls_chapter_id ON llm_calls (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_llm_calls_book_id ON llm_calls (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_llm_calls_run_id ON llm_calls (run_id)",

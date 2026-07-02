@@ -229,6 +229,7 @@ async def schedule_contract_first_draft_jobs(
     scenes: list[Scene] | None = None,
     run: Run | None,
     skip_drafted: bool = True,
+    production_run_id: uuid.UUID | None = None,
 ) -> DraftScheduleResult:
     """Queue draft jobs only when an approved ScenePacket resolves for each beat/scene."""
     result = DraftScheduleResult()
@@ -284,7 +285,9 @@ async def schedule_contract_first_draft_jobs(
                     result.queued_job_ids.append(existing_id)
                 continue
             beat.scene_packet_id = packet.id
-            job = await draft_job_for_scene(session, scene=scene, chapter=chapter, run=run)
+            job = await draft_job_for_scene(
+                session, scene=scene, chapter=chapter, run=run, production_run_id=production_run_id
+            )
             job.beat_id = beat.id
             job.scene_packet_id = packet.id
             session.add(job)
@@ -344,7 +347,7 @@ async def schedule_contract_first_draft_jobs(
                 result.queued_job_ids.append(existing_id)
             continue
         beat.scene_packet_id = packet.id
-        job = draft_job_for_beat(beat=beat, chapter=chapter, run=run)
+        job = draft_job_for_beat(beat=beat, chapter=chapter, run=run, production_run_id=production_run_id)
         session.add(job)
         await session.flush()
         result.queued_job_ids.append(job.id)
