@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_ENV_FILE = _REPO_ROOT / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="DOMINION_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="DOMINION_", env_file=_ENV_FILE, extra="ignore")
 
     # Also accept the bare DATABASE_URL a host like Railway injects, and normalize whatever scheme it
     # uses (postgres:// or postgresql://) to the async driver the app actually connects with.
