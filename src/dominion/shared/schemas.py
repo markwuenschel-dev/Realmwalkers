@@ -771,9 +771,18 @@ class CharacterStateIn(BaseModel):
 
 
 class CanonIngestOut(BaseModel):
-    """Result of rebuilding the retrieval index from the on-disk canon docs."""
+    """Result of a canon ingest/rebuild from on-disk docs (series/canon).
+
+    For the Ledger "Clean rebuild from docs" (hard path): repo-ingested rows
+    (doc_path IS NOT NULL) are deleted first, then re-ingested from current files.
+    `retired` counts prior repo rows removed. `indexed` is the fresh count.
+    `total` is the resulting live repo-ingested corpus size.
+    """
 
     indexed: int
+    skipped: int = 0
+    retired: int = 0
+    total: int | None = None
 
 
 class KnowledgeFactOut(_ORM):

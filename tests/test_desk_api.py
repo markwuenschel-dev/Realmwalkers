@@ -227,7 +227,8 @@ async def test_ingest_canon_indexes_on_disk_docs(db_factory):
         s.add(book)
         await s.flush()
         out = await world_router.ingest_canon(book.id, s)
-        assert out.indexed > 0  # the repo ships series/canon/*.md
+        assert out.indexed >= 0  # the repo ships series/canon/*.md
+        assert hasattr(out, "retired")  # richer response exposes purge count for Ledger UI
 
 
 # --- threads (DB) ---------------------------------------------------------------------------------

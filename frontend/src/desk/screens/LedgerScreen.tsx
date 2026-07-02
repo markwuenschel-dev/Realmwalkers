@@ -10,6 +10,7 @@ import { useSelection } from "../lib/useSelection";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import type {
   CanonEntityOut,
+  CanonIngestOut,
   CharacterStateOut,
   RuleProposalOut,
   ThreadBeatIn,
@@ -79,13 +80,18 @@ export default function LedgerScreen() {
   const rebuildIndex = async () => {
     setIngesting(true);
     setNotice(null);
-    const n = await data.ingestCanon();
+    const out = await data.ingestCanon();
     setIngesting(false);
-    setNotice(
-      n == null
-        ? "Rebuild failed — check the API logs."
-        : `Indexed ${n} canon passage${n === 1 ? "" : "s"} from the on-disk docs.`,
-    );
+    if (out == null) {
+      setNotice("Rebuild failed — check the API logs.");
+    } else {
+      const o = out as CanonIngestOut;
+      const tot = o.total ?? o.indexed;
+      const ret = o.retired ?? 0;
+      setNotice(
+        `Clean rebuild complete: ${tot} live repo passage(s), ${ret} stale indexed row(s) purged.`,
+      );
+    }
   };
 
   const isChars = ledgerCat === "characters";
@@ -150,10 +156,10 @@ export default function LedgerScreen() {
           <button
             onClick={rebuildIndex}
             disabled={ingesting}
-            title="Re-embed series/canon docs into the retrieval index the drafter & planner query"
+            title="Ledger “Clean rebuild from docs” deletes stale repo-ingested canon chunks (doc_path IS NOT NULL) and rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL)"
             style={css(ghost)}
           >
-            {ingesting ? "Rebuilding…" : "⟳ Rebuild index from docs"}
+            {ingesting ? "Cleaning…" : "⟳ Clean rebuild from docs"}
           </button>
         </div>
       </div>

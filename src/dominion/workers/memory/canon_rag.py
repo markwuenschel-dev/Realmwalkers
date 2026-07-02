@@ -243,6 +243,33 @@ async def ingest_incremental(
     return {"indexed": indexed, "skipped": skipped, "retired": retired}
 
 
+async def ingest_rebuild(
+    session: AsyncSession, *, book_id: uuid.UUID, root: str | Path, kind: str | None = None
+) -> dict[str, int]:
+    """Hard clean rebuild of repo-ingested canon chunks for a book from on-disk docs.
+
+    Deletes *all* repo-ingested rows (doc_path IS NOT NULL) for the book first.
+    Then delegates to ingest_incremental to (re)index current files under root
+    (folder-derived kinds, heading paths, content hashes, owner metadata, etc.).
+
+    Hand-authored canon entries (doc_path IS NULL, e.g. authored in the Ledger UI
+    or seeded via CharacterState bodies) are preserved.
+
+    Returns {indexed, skipped, retired} where retired includes the count of rows
+    purged in the initial delete + any additional retired by the incremental pass.
+    The caller commits.
+    """
+    root = Path(root)
+    del_res = await session.execute(
+        delete(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.doc_path.isnot(None))
+    )
+    deleted = int(getattr(del_res, "rowcount", 0) or 0)
+
+    inc = await ingest_incremental(session, book_id=book_id, root=root, kind=kind)
+    retired = deleted + inc.get("retired", 0)
+    return {"indexed": inc["indexed"], "skipped": inc["skipped"], "retired": retired}
+
+
 async def _build(book_title: str, root: str) -> None:
     async with SessionFactory() as session:
         book = (await session.execute(select(Book).where(Book.title == book_title))).scalar_one_or_none()

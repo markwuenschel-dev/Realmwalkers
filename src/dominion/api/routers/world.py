@@ -253,14 +253,16 @@ async def ingest_canon(book_id: uuid.UUID, session: SessionDep) -> CanonIngestOu
     """Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
     read-only Canon tab into the RAG the drafter/planner actually query.
 
-    Uses the incremental ingest: chunks are tagged with owner metadata (owner_topic/source_priority)
-    so owner files win precedence in hybrid retrieval, content-hashed so unchanged chunks are skipped
-    on re-run (only changed files re-embed), and tagged by folder kind (cast/faction/location/system/
-    lore/continuity) so the ledger groups them. Only previously-ingested chunks (non-null doc_path) are
-    refreshed/retired; hand-authored entities are untouched. `indexed` reports the live corpus size."""
+    Ledger “Clean rebuild from docs” deletes stale repo-ingested canon chunks (doc_path IS NOT NULL)
+    and rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL).
+    Delegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).
+    """
     await _require_book(book_id, session)
-    out = await canon_rag.ingest_incremental(session, book_id=book_id, root=_PROJECT_ROOT / "series" / "canon")
+    out = await canon_rag.ingest_rebuild(session, book_id=book_id, root=_PROJECT_ROOT / "series" / "canon")
     await session.commit()
-    # Total live chunks (newly embedded + unchanged-but-kept), so a no-op re-run still shows the real
-    # corpus size rather than 0.
-    return CanonIngestOut(indexed=out["indexed"] + out["skipped"])
+    return CanonIngestOut(
+        indexed=out["indexed"],
+        skipped=out["skipped"],
+        retired=out["retired"],
+        total=out["indexed"] + out["skipped"],
+    )
