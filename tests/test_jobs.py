@@ -135,6 +135,36 @@ async def test_clear_failed_api_purges_failed_jobs(db_factory):
         assert failed_list == []
 
 
+async def test_clear_failed_purges_revision_jobs_too(db_factory):
+    """Clear must dismiss failed REVISE_* jobs, not just DRAFT — the failed count/banner are
+    kind-agnostic, so a DRAFT-only purge left revision failures counted but unclearable."""
+    async with db_factory() as s:
+        book, ch, beat, run, sp = await _setup(s)
+        for kind in (JobKind.REVISE_FULL, JobKind.REVISE_PASS):
+            s.add(
+                Job(
+                    run_id=run.id,
+                    kind=kind,
+                    chapter_id=ch.id,
+                    beat_id=beat.id,
+                    scene_packet_id=sp.id,
+                    chapter_no=1,
+                    scene_no=1,
+                    status=JobStatus.FAILED,
+                    token_budget=40_000,
+                    last_error="BadRequestError: temperature is deprecated for this model",
+                )
+            )
+        await s.flush()
+        # Banner shows the revision failures (kind-agnostic)...
+        assert len(await jobs_router.failed(session=s, book_id=book.id)) == 2
+        # ...and Clear now dismisses them (previously purged 0, leaving the count stuck).
+        out = await jobs_router.clear_failed(session=s, book_id=book.id)
+        assert out.purged == 2
+        assert out.failed == 0
+        assert await jobs_router.failed(session=s, book_id=book.id) == []
+
+
 async def test_clear_failed_scoped_to_chapter(db_factory):
     async with db_factory() as s:
         book, ch, beat, run, sp = await _setup(s)

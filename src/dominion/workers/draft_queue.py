@@ -564,8 +564,14 @@ async def purge_failed_draft_jobs(
     book_id: uuid.UUID | None = None,
     chapter_id: uuid.UUID | None = None,
 ) -> PurgeResult:
-    """Delete FAILED draft jobs without re-queueing (dismiss from Desk)."""
-    failed_q = select(Job.id).where(Job.status == JobStatus.FAILED, Job.kind == JobKind.DRAFT)
+    """Delete FAILED jobs without re-queueing (dismiss from Desk) — every kind, not just DRAFT.
+
+    The Desk's failed count and banner (`_queue_counts`, `GET /jobs/failed`) are kind-agnostic, so a
+    failed REVISE_FULL/REVISE_PASS job (e.g. an auto-queued revision that errored) shows there too. A
+    DRAFT-only purge left those behind: the count never dropped and the user "couldn't clear" them.
+    Dismiss deletes whatever the banner shows, so it stays consistent across job kinds.
+    """
+    failed_q = select(Job.id).where(Job.status == JobStatus.FAILED)
     if book_id is not None:
         failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
     if chapter_id is not None:
