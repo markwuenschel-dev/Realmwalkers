@@ -81,7 +81,10 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     try:
         if agent_auto_run("enrich_model"):
             with telemetry.call_context(_tctx("enrichment")):
-                for specialist in passes_for(ctx.tags):
+                specialists = passes_for(ctx.tags)
+                if ctx.target_pass:
+                    specialists = [specialist for specialist in specialists if specialist.name == ctx.target_pass]
+                for specialist in specialists:
                     try:
                         progress.set_phase(jid, f"enriching · {specialist.name}")
                         prose = await specialist.run(prose, ctx)

@@ -15,8 +15,10 @@ from dominion.shared.models import (
     Critique,
     DraftAttempt,
     EditPair,
+    Issue,
     Job,
     KnowledgeFact,
+    RepairTask,
     Scene,
     Suggestion,
     Summary,
@@ -40,6 +42,8 @@ async def hard_delete_scene(session: AsyncSession, scene_id: uuid.UUID) -> tuple
     )
     await session.execute(update(Summary).where(Summary.up_to_scene_id == scene_id).values(up_to_scene_id=None))
     await session.execute(update(Job).where(Job.target_scene_id == scene_id).values(target_scene_id=None))
+    await session.execute(update(Issue).where(Issue.scene_id == scene_id).values(scene_id=None))
+    await session.execute(update(RepairTask).where(RepairTask.scene_id == scene_id).values(scene_id=None))
     await session.execute(update(Scene).where(Scene.parent_scene_id == scene_id).values(parent_scene_id=None))
     await session.execute(update(DraftAttempt).where(DraftAttempt.scene_id == scene_id).values(scene_id=None))
     for col in (

@@ -44,6 +44,7 @@ class SceneContext:
     prior_scene_tail: str | None = None
     prior_prose: str | None = None
     revise_feedback: str | None = None
+    target_pass: str | None = None
 
 
 @dataclass(frozen=True)

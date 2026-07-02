@@ -47,8 +47,14 @@ import type {
   PacketProposeOut,
   PacketUpdateIn,
   PacketWarnings,
+  ProductionRunActionOut,
+  ProductionRunCreateIn,
+  ProductionRunDetailOut,
+  ProductionRunOut,
   RedraftIn,
   RetryFailedOut,
+  RepairTaskOut,
+  RepairVerificationOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
   RunStartIn,
@@ -257,6 +263,25 @@ export const api = {
     http<{ deleted: number; jobs_purged: number }>(`/chapters/${chapterId}/scene-packets`, {
       method: "DELETE",
     }),
+
+  // --- editorial production runs ------------------------------------------------------------------
+  startProductionRun: (body: ProductionRunCreateIn) =>
+    http<ProductionRunActionOut>("/production-runs", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  productionRuns: (chapterId: string) =>
+    http<ProductionRunOut[]>(`/chapters/${chapterId}/production-runs`),
+  productionRun: (runId: string) => http<ProductionRunDetailOut>(`/production-runs/${runId}`),
+  triageProductionRun: (runId: string) =>
+    http<ProductionRunActionOut>(`/production-runs/${runId}/triage`, { method: "POST" }),
+  assembleProductionRun: (runId: string) =>
+    http<ProductionRunActionOut>(`/production-runs/${runId}/assemble`, { method: "POST" }),
+  applyRepairTask: (taskId: string) =>
+    http<RepairTaskOut>(`/repair-tasks/${taskId}/apply`, { method: "POST" }),
+  verifyRepairTask: (taskId: string) =>
+    http<RepairVerificationOut>(`/repair-tasks/${taskId}/verify`, { method: "POST" }),
+  repairTask: (taskId: string) => http<RepairTaskOut>(`/repair-tasks/${taskId}`),
 
   // --- LLM call telemetry (persisted per-call cost/cache, aggregated) -----------------------------
   chapterTelemetry: (chapterId: string) =>

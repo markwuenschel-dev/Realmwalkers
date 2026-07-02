@@ -1109,3 +1109,242 @@ class SmokeTestOut(BaseModel):
 class SmokeTestIn(BaseModel):
     agents: list[str] | None = None  # subset of setting keys; None = all
     live: bool = False
+
+
+class ChapterSequenceOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_id: uuid.UUID
+    chapter_packet_id: uuid.UUID
+    status: str
+    target_words: int | None = None
+    max_words: int | None = None
+    hard_max_words: int | None = None
+    target_scene_count: int | None = None
+    hard_max_scene_count: int | None = None
+    body: dict[str, Any]
+    qa_verdict: str | None = None
+    qa_warnings: dict[str, Any] | None = None
+    source_hash: str | None = None
+    stale_reason: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ArtifactOut(_ORM):
+    id: uuid.UUID
+    production_run_id: uuid.UUID | None = None
+    artifact_type: str
+    domain_table: str | None = None
+    domain_id: uuid.UUID | None = None
+    version: int
+    status: str
+    body: dict[str, Any]
+    content_hash: str
+    created_by_agent_run_id: uuid.UUID | None = None
+    created_at: datetime
+
+
+class ArtifactDependencyOut(_ORM):
+    id: uuid.UUID
+    artifact_id: uuid.UUID
+    depends_on_artifact_id: uuid.UUID
+    dependency_kind: str
+    dependency_hash: str | None = None
+    created_at: datetime
+
+
+class AgentEventOut(_ORM):
+    id: uuid.UUID
+    production_run_id: uuid.UUID
+    agent_run_id: uuid.UUID | None = None
+    event_type: str
+    stage: str | None = None
+    message: str | None = None
+    payload_json: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class AgentRunOut(_ORM):
+    id: uuid.UUID
+    production_run_id: uuid.UUID
+    agent_name: str
+    agent_role: str
+    model: str | None = None
+    status: str
+    stage: str
+    input_artifact_ids: list[str]
+    output_artifact_ids: list[str] | None = None
+    prompt_hash: str | None = None
+    input_hash: str | None = None
+    output_hash: str | None = None
+    token_input: int | None = None
+    token_output: int | None = None
+    cost_estimate: float | None = None
+    duration_ms: int | None = None
+    error: str | None = None
+    payload_json: dict[str, Any] | None = None
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+class IssueOut(_ORM):
+    id: uuid.UUID
+    production_run_id: uuid.UUID
+    chapter_id: uuid.UUID
+    artifact_type: str
+    artifact_id: uuid.UUID
+    scene_id: uuid.UUID | None = None
+    scene_no: int | None = None
+    validator: str
+    issue_kind: str
+    severity: str
+    quote: str | None = None
+    span_start: int | None = None
+    span_end: int | None = None
+    claim: str
+    contract_reference: str | None = None
+    recommended_action: str
+    confidence: float | None = None
+    auto_repair_allowed: bool
+    status: str
+    payload_json: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class IssueDecisionOut(_ORM):
+    id: uuid.UUID
+    issue_id: uuid.UUID
+    decided_by: str
+    decision: str
+    reason: str | None = None
+    agent_run_id: uuid.UUID | None = None
+    created_at: datetime
+
+
+class RepairTaskOut(_ORM):
+    id: uuid.UUID
+    production_run_id: uuid.UUID
+    chapter_id: uuid.UUID
+    scene_id: uuid.UUID | None = None
+    scene_no: int | None = None
+    repair_kind: str
+    authority_level: str
+    status: str
+    issue_ids: list[str]
+    target_spans: dict[str, Any] | None = None
+    instructions: str
+    preserve: list[str]
+    must_change: list[str]
+    must_not_change: list[str]
+    allowed_operations: list[str]
+    forbidden_operations: list[str]
+    word_delta_target: int | None = None
+    requires_human_approval: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class RepairAttemptOut(_ORM):
+    id: uuid.UUID
+    repair_task_id: uuid.UUID
+    agent_run_id: uuid.UUID | None = None
+    attempt_no: int
+    model: str
+    patch_json: dict[str, Any] | None = None
+    revised_text: str | None = None
+    change_summary: str | None = None
+    issues_addressed: list[str]
+    new_risks: list[str]
+    word_count_before: int | None = None
+    word_count_after: int | None = None
+    created_at: datetime
+
+
+class RepairVerificationOut(_ORM):
+    id: uuid.UUID
+    repair_attempt_id: uuid.UUID
+    agent_run_id: uuid.UUID | None = None
+    verdict: str
+    resolved_issue_ids: list[str]
+    remaining_issue_ids: list[str]
+    new_issues_json: list[dict[str, Any]] | None = None
+    target_issue_resolved: bool
+    canon_preserved: bool
+    scene_outcome_preserved: bool
+    voice_preserved: bool
+    required_beats_preserved: bool
+    reader_state_preserved: bool
+    regression_score: float
+    reason: str | None = None
+    payload_json: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class IssueDecisionIn(BaseModel):
+    reason: str | None = None
+    merged_into_issue_id: uuid.UUID | None = None
+
+
+class ProductionRunStartIn(BaseModel):
+    mode: str = "full_chapter"
+    target_words: int | None = None
+    hard_max_words: int | None = None
+    auto_triage: bool = True
+
+
+class ChapterSequenceQaOut(BaseModel):
+    verdict: str
+    warnings: dict[str, Any] | None = None
+    required_actions: list[dict[str, Any]] = []
+
+
+class ChapterSequenceUpdateIn(BaseModel):
+    body: dict[str, Any]
+    reason: str | None = None
+
+
+class ProductionRunCreateIn(BaseModel):
+    chapter_id: uuid.UUID
+    mode: str = "full_chapter"
+    target_words: int | None = None
+    hard_max_words: int | None = None
+    auto_triage: bool = True
+
+
+class ProductionRunOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_id: uuid.UUID
+    status: str
+    mode: str
+    target_words: int | None = None
+    hard_max_words: int | None = None
+    current_stage: str | None = None
+    source_hash: str | None = None
+    settings_json: dict[str, Any] | None = None
+    summary_json: dict[str, Any] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProductionRunActionOut(BaseModel):
+    run: ProductionRunOut
+    issue_count: int = 0
+    repair_task_count: int = 0
+    latest_verification: RepairVerificationOut | None = None
+
+
+class ProductionRunDetailOut(BaseModel):
+    run: ProductionRunOut
+    chapter_sequence: ChapterSequenceOut | None = None
+    artifacts: list[ArtifactOut] = []
+    dependencies: list[ArtifactDependencyOut] = []
+    agent_runs: list[AgentRunOut] = []
+    events: list[AgentEventOut] = []
+    issues: list[IssueOut] = []
+    issue_decisions: list[IssueDecisionOut] = []
+    repair_tasks: list[RepairTaskOut] = []
+    repair_attempts: list[RepairAttemptOut] = []
+    repair_verifications: list[RepairVerificationOut] = []

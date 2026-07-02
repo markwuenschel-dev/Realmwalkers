@@ -46,6 +46,16 @@ export const DESK_ROUTES: readonly DeskRoute[] = [
     nav: true,
   },
   {
+    id: "production",
+    label: "Production",
+    paletteLabel: "Open editorial production runs",
+    href: "/production",
+    key: "r",
+    shortcut: "G R",
+    icon: "◫",
+    nav: true,
+  },
+  {
     id: "packets",
     label: "Packets",
     paletteLabel: "Open Knowledge packets",

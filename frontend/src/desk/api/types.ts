@@ -381,3 +381,219 @@ export type ScenePacketOut = Omit<
 export type ScenePacketUpdateIn = Omit<S["ScenePacketUpdateIn"], "body"> & {
   body?: ScenePacketBody | null;
 };
+
+export interface ChapterSequenceOut {
+  id: string;
+  book_id: string;
+  chapter_id: string;
+  chapter_packet_id: string;
+  status: string;
+  target_words?: number | null;
+  max_words?: number | null;
+  hard_max_words?: number | null;
+  target_scene_count?: number | null;
+  hard_max_scene_count?: number | null;
+  body: Record<string, unknown>;
+  qa_verdict?: string | null;
+  qa_warnings?: Record<string, unknown> | null;
+  source_hash?: string | null;
+  stale_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArtifactOut {
+  id: string;
+  production_run_id?: string | null;
+  artifact_type: string;
+  domain_table?: string | null;
+  domain_id?: string | null;
+  version: number;
+  status: string;
+  body: Record<string, unknown>;
+  content_hash: string;
+  created_by_agent_run_id?: string | null;
+  created_at: string;
+}
+
+export interface ArtifactDependencyOut {
+  id: string;
+  artifact_id: string;
+  depends_on_artifact_id: string;
+  dependency_kind: string;
+  dependency_hash?: string | null;
+  created_at: string;
+}
+
+export interface AgentRunOut {
+  id: string;
+  production_run_id: string;
+  agent_name: string;
+  agent_role: string;
+  model?: string | null;
+  status: string;
+  stage: string;
+  input_artifact_ids: string[];
+  output_artifact_ids?: string[] | null;
+  prompt_hash?: string | null;
+  input_hash?: string | null;
+  output_hash?: string | null;
+  token_input?: number | null;
+  token_output?: number | null;
+  cost_estimate?: number | null;
+  duration_ms?: number | null;
+  error?: string | null;
+  payload_json?: Record<string, unknown> | null;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface AgentEventOut {
+  id: string;
+  production_run_id: string;
+  agent_run_id?: string | null;
+  event_type: string;
+  stage?: string | null;
+  message?: string | null;
+  payload_json?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface IssueOut {
+  id: string;
+  production_run_id: string;
+  chapter_id: string;
+  artifact_type: string;
+  artifact_id: string;
+  scene_id?: string | null;
+  scene_no?: number | null;
+  validator: string;
+  issue_kind: string;
+  severity: string;
+  quote?: string | null;
+  span_start?: number | null;
+  span_end?: number | null;
+  claim: string;
+  contract_reference?: string | null;
+  recommended_action: string;
+  confidence?: number | null;
+  auto_repair_allowed: boolean;
+  status: string;
+  payload_json?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface IssueDecisionOut {
+  id: string;
+  issue_id: string;
+  decided_by: string;
+  decision: string;
+  reason?: string | null;
+  agent_run_id?: string | null;
+  created_at: string;
+}
+
+export interface RepairTaskOut {
+  id: string;
+  production_run_id: string;
+  chapter_id: string;
+  scene_id?: string | null;
+  scene_no?: number | null;
+  repair_kind: string;
+  authority_level: string;
+  status: string;
+  issue_ids: string[];
+  target_spans?: Record<string, unknown> | null;
+  instructions: string;
+  preserve: string[];
+  must_change: string[];
+  must_not_change: string[];
+  allowed_operations: string[];
+  forbidden_operations: string[];
+  word_delta_target?: number | null;
+  requires_human_approval: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RepairAttemptOut {
+  id: string;
+  repair_task_id: string;
+  agent_run_id?: string | null;
+  attempt_no: number;
+  model: string;
+  patch_json?: Record<string, unknown> | null;
+  revised_text?: string | null;
+  change_summary?: string | null;
+  issues_addressed: string[];
+  new_risks: string[];
+  word_count_before?: number | null;
+  word_count_after?: number | null;
+  created_at: string;
+}
+
+export interface RepairVerificationOut {
+  id: string;
+  repair_attempt_id: string;
+  agent_run_id?: string | null;
+  verdict: string;
+  resolved_issue_ids: string[];
+  remaining_issue_ids: string[];
+  new_issues_json?: Record<string, unknown>[] | null;
+  target_issue_resolved: boolean;
+  canon_preserved: boolean;
+  scene_outcome_preserved: boolean;
+  voice_preserved: boolean;
+  required_beats_preserved: boolean;
+  reader_state_preserved: boolean;
+  regression_score: number;
+  reason?: string | null;
+  payload_json?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface ProductionRunOut {
+  id: string;
+  book_id: string;
+  chapter_id: string;
+  status: string;
+  mode: string;
+  target_words?: number | null;
+  hard_max_words?: number | null;
+  current_stage?: string | null;
+  source_hash?: string | null;
+  settings_json?: Record<string, unknown> | null;
+  summary_json?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionRunCreateIn {
+  chapter_id: string;
+  mode?: string;
+  target_words?: number | null;
+  hard_max_words?: number | null;
+  auto_triage?: boolean;
+}
+
+export interface ProductionRunActionOut {
+  run: ProductionRunOut;
+  issue_count: number;
+  repair_task_count: number;
+  latest_verification?: RepairVerificationOut | null;
+}
+
+export interface ProductionRunDetailOut {
+  run: ProductionRunOut;
+  chapter_sequence?: ChapterSequenceOut | null;
+  artifacts: ArtifactOut[];
+  dependencies: ArtifactDependencyOut[];
+  agent_runs: AgentRunOut[];
+  events: AgentEventOut[];
+  issues: IssueOut[];
+  issue_decisions: IssueDecisionOut[];
+  repair_tasks: RepairTaskOut[];
+  repair_attempts: RepairAttemptOut[];
+  repair_verifications: RepairVerificationOut[];
+}

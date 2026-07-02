@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.models import (
     Beat,
     ChapterPacket,
+    ChapterSequence,
     Critique,
     DraftAttempt,
     Job,
@@ -66,6 +67,11 @@ async def hard_delete_scene_packets_for_chapter(
 async def hard_delete_chapter_packets(session: AsyncSession, chapter_id: uuid.UUID) -> tuple[int, int]:
     """Delete all chapter packets for a chapter and their scene packets. Returns (chapter_deleted, scene_deleted)."""
     scene_deleted, _ = await hard_delete_scene_packets_for_chapter(session, chapter_id)
+    seq_rows = (
+        (await session.execute(select(ChapterSequence).where(ChapterSequence.chapter_id == chapter_id))).scalars().all()
+    )
+    for row in seq_rows:
+        await session.delete(row)
     rows = (await session.execute(select(ChapterPacket).where(ChapterPacket.chapter_id == chapter_id))).scalars().all()
     for row in rows:
         await session.delete(row)

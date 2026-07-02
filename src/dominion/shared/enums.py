@@ -196,3 +196,76 @@ class DraftStage(StrEnum):
     LENGTH_COMPRESSION = "length_compression"
     LENGTH_EXPANSION = "length_expansion"
     FINAL_RENDERED = "final_rendered"
+
+
+class ProductionRunStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    WAITING_FOR_HUMAN = "waiting_for_human"
+    REPAIRING = "repairing"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class AgentRunStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ChapterSequenceStatus(StrEnum):
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    BLOCKED = "blocked"
+    STALE = "stale"
+
+
+class IssueStatus(StrEnum):
+    PROPOSED = "proposed"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    MERGED = "merged"
+    REPAIR_QUEUED = "repair_queued"
+    REPAIRED = "repaired"
+    VERIFIED = "verified"
+    ESCALATED = "escalated"
+    FALSE_POSITIVE = "false_positive"
+
+
+class IssueDecisionKind(StrEnum):
+    ACCEPT = "accept"
+    REJECT = "reject"
+    MERGE = "merge"
+    ESCALATE = "escalate"
+    MARK_FALSE_POSITIVE = "mark_false_positive"
+    DEFER = "defer"
+
+
+class RepairAuthorityLevel(StrEnum):
+    SPAN_ONLY = "span_only"
+    SCENE_LOCAL = "scene_local"
+    SCENE_STRUCTURAL = "scene_structural"
+    CROSS_SCENE = "cross_scene"
+    CHAPTER_STRUCTURAL = "chapter_structural"
+    HUMAN_REQUIRED = "human_required"
+
+
+class RepairTaskStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    WAITING_FOR_HUMAN = "waiting_for_human"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class RepairVerificationVerdict(StrEnum):
+    ACCEPT = "accept"
+    REJECT = "reject"
+    NEEDS_ANOTHER_REPAIR = "needs_another_repair"
+    ESCALATE_TO_HUMAN = "escalate_to_human"

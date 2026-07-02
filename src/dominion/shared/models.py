@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, Boolean, DateTime, ForeignKey, Integer, Text, func
+from sqlalchemy import ARRAY, Boolean, DateTime, Float, ForeignKey, Integer, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -210,6 +210,31 @@ class ScenePacket(Base):
     # discard everything but the snippet text) so the Desk can show "built from these sources" and the
     # author's claim_sources handles resolve back to a real file + heading — i.e. a wrong claim is traceable.
     sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
+    source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ChapterSequence(Base):
+    """Durable chapter-level scene ownership and budget plan used by the editorial production flow."""
+
+    __tablename__ = "chapter_sequences"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    chapter_packet_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapter_packets.id"))
+    status: Mapped[str] = mapped_column(Text, default="proposed")
+    target_words: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_words: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    hard_max_words: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_scene_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    hard_max_scene_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    body: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    qa_verdict: Mapped[str | None] = mapped_column(Text, nullable=True)
+    qa_warnings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -513,4 +538,205 @@ class AgentCustomPreset(Base):
     label: Mapped[str] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProductionRun(Base):
+    """One full editorial production attempt for a chapter."""
+
+    __tablename__ = "production_runs"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    status: Mapped[str] = mapped_column(Text, default="queued")
+    mode: Mapped[str] = mapped_column(Text, default="full_chapter")
+    target_words: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    hard_max_words: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    current_stage: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    settings_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    summary_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AgentRun(Base):
+    """One agent/model invocation or deterministic orchestration step within a production run."""
+
+    __tablename__ = "agent_runs"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    production_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("production_runs.id"))
+    agent_name: Mapped[str] = mapped_column(Text)
+    agent_role: Mapped[str] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="queued")
+    stage: Mapped[str] = mapped_column(Text)
+    input_artifact_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    output_artifact_ids: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    prompt_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    input_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    output_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_input: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    token_output: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cost_estimate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Artifact(Base):
+    """Versioned production artifact body plus provenance."""
+
+    __tablename__ = "artifacts"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    production_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("production_runs.id"), nullable=True)
+    artifact_type: Mapped[str] = mapped_column(Text)
+    domain_table: Mapped[str | None] = mapped_column(Text, nullable=True)
+    domain_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(Text, default="active")
+    body: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    content_hash: Mapped[str] = mapped_column(Text)
+    created_by_agent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ArtifactDependency(Base):
+    """Directed dependency edge between two production artifacts."""
+
+    __tablename__ = "artifact_dependencies"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    artifact_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifacts.id"))
+    depends_on_artifact_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifacts.id"))
+    dependency_kind: Mapped[str] = mapped_column(Text)
+    dependency_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AgentEvent(Base):
+    """Append-only event log for production-run replay and UI visibility."""
+
+    __tablename__ = "agent_events"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    production_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("production_runs.id"))
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    event_type: Mapped[str] = mapped_column(Text)
+    stage: Mapped[str | None] = mapped_column(Text, nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Issue(Base):
+    """Structured validator finding that can be triaged into a repair task."""
+
+    __tablename__ = "issues"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    production_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("production_runs.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    artifact_type: Mapped[str] = mapped_column(Text)
+    artifact_id: Mapped[uuid.UUID] = mapped_column()
+    scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
+    scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    validator: Mapped[str] = mapped_column(Text)
+    issue_kind: Mapped[str] = mapped_column(Text)
+    severity: Mapped[str] = mapped_column(Text)
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    span_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    span_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    claim: Mapped[str] = mapped_column(Text)
+    contract_reference: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recommended_action: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    auto_repair_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(Text, default="proposed")
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class IssueDecision(Base):
+    """Decision history for one issue."""
+
+    __tablename__ = "issue_decisions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    issue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("issues.id"))
+    decided_by: Mapped[str] = mapped_column(Text)
+    decision: Mapped[str] = mapped_column(Text)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RepairTask(Base):
+    """Durable repair instruction bundle built from one or more accepted issues."""
+
+    __tablename__ = "repair_tasks"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    production_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("production_runs.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
+    scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    repair_kind: Mapped[str] = mapped_column(Text)
+    authority_level: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="queued")
+    issue_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    target_spans: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    instructions: Mapped[str] = mapped_column(Text)
+    preserve: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    must_change: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    must_not_change: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    allowed_operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    forbidden_operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    word_delta_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    requires_human_approval: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RepairAttempt(Base):
+    """One repair execution attempt, including the queued semantic patch request and revised prose."""
+
+    __tablename__ = "repair_attempts"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    repair_task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("repair_tasks.id"))
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    attempt_no: Mapped[int] = mapped_column(Integer)
+    model: Mapped[str] = mapped_column(Text)
+    patch_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    revised_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    change_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    issues_addressed: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    new_risks: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    word_count_before: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    word_count_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RepairVerification(Base):
+    """Verification verdict for one repair attempt."""
+
+    __tablename__ = "repair_verifications"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    repair_attempt_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("repair_attempts.id"))
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    verdict: Mapped[str] = mapped_column(Text)
+    resolved_issue_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    remaining_issue_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    new_issues_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
+    target_issue_resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+    canon_preserved: Mapped[bool] = mapped_column(Boolean, default=False)
+    scene_outcome_preserved: Mapped[bool] = mapped_column(Boolean, default=False)
+    voice_preserved: Mapped[bool] = mapped_column(Boolean, default=False)
+    required_beats_preserved: Mapped[bool] = mapped_column(Boolean, default=False)
+    reader_state_preserved: Mapped[bool] = mapped_column(Boolean, default=False)
+    regression_score: Mapped[float] = mapped_column(Float, default=0.0)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

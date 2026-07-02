@@ -27,6 +27,7 @@ from dominion.api.routers import (
     learning,
     markup,
     packets,
+    production,
     reviews,
     runs,
     scene_packets,
@@ -77,6 +78,7 @@ app.include_router(chapters.router)
 app.include_router(beats.router)
 app.include_router(packets.router)
 app.include_router(scene_packets.router)
+app.include_router(production.router)
 app.include_router(telemetry.router)
 app.include_router(jobs.router)
 app.include_router(world.router)

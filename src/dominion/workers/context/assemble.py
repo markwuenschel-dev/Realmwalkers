@@ -65,4 +65,5 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         contract=packet.contract,
         prior_prose=revision.prior_prose,
         revise_feedback=revision.revise_feedback,
+        target_pass=job.target_pass,
     )
