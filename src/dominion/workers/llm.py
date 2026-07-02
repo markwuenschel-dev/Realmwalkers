@@ -155,7 +155,15 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
 def _openai_compatible_client(base_url: str, api_key: str) -> httpx.AsyncClient:
     """Lazily constructed + cached per (base_url, api_key) pair so the small number of distinct
     provider/key combinations reuse one connection pool instead of opening a new client per call."""
-    return httpx.AsyncClient(base_url=base_url, headers={"Authorization": f"Bearer {api_key}"})
+    # httpx defaults to a 5s timeout on ALL operations — far too short for a chat completion (reasoning
+    # models routinely take 30s-2min), so an otherwise-valid generation dies as a ReadTimeout. Give a
+    # generous read/write budget (matching the Anthropic SDK's ~10-min default); the per-call work
+    # budgets (e.g. packet_time_budget_s) still bound wall-clock below this.
+    return httpx.AsyncClient(
+        base_url=base_url,
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=httpx.Timeout(600.0, connect=15.0),
+    )
 
 
 def _prompt_cache_key(system: str, blocks: tuple[CachedPrefixBlock, ...]) -> str:
