@@ -122,6 +122,16 @@ def _is_anthropic_model(model: str) -> bool:
     return not any(model.startswith(prefix) for prefix in _OPENAI_COMPATIBLE_PREFIXES)
 
 
+# OpenAI's reasoning models (o-series + the gpt-5 family) require `max_completion_tokens` and reject a
+# non-default `temperature` with a 400; older gpt-4* and xAI's Grok take the classic `max_tokens` + a
+# free temperature. Grok is intentionally excluded — it keeps the classic shape in the request builder.
+_OPENAI_REASONING_PREFIXES: tuple[str, ...] = ("o1-", "o3-", "o4-", "gpt-5")
+
+
+def _is_openai_reasoning_model(model: str) -> bool:
+    return any(model.startswith(prefix) for prefix in _OPENAI_REASONING_PREFIXES)
+
+
 def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
     """(base_url, api_key) for a non-Anthropic model. xAI's chat API is OpenAI-request-shape compatible
     (same /chat/completions body/response), reached by swapping base_url + key — routed by the model-id
@@ -339,10 +349,17 @@ async def complete(
         create_kwargs = {
             "model": model,
             "messages": oa_messages,
-            "max_tokens": max_tokens,
             "prompt_cache_key": _prompt_cache_key(system, blocks),
         }
-        if temperature is not None:
+        # Output-length param diverges by provider: OpenAI's current models (gpt-5 / o-series) REQUIRE
+        # `max_completion_tokens` and 400 on the old `max_tokens`; xAI's Grok still takes `max_tokens`.
+        if model.startswith("grok-"):
+            create_kwargs["max_tokens"] = max_tokens
+        else:
+            create_kwargs["max_completion_tokens"] = max_tokens
+        # OpenAI's reasoning models only accept the default temperature (they 400 on any explicit value),
+        # so omit it for them; other OpenAI models and Grok take it freely.
+        if temperature is not None and not _is_openai_reasoning_model(model):
             create_kwargs["temperature"] = temperature
 
     preflight_input_tokens: int | None = None
