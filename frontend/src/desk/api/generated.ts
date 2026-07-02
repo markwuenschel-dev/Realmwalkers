@@ -1706,11 +1706,9 @@ export interface paths {
      * @description Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
      *     read-only Canon tab into the RAG the drafter/planner actually query.
      *
-     *     Uses the incremental ingest: chunks are tagged with owner metadata (owner_topic/source_priority)
-     *     so owner files win precedence in hybrid retrieval, content-hashed so unchanged chunks are skipped
-     *     on re-run (only changed files re-embed), and tagged by folder kind (cast/faction/location/system/
-     *     lore/continuity) so the ledger groups them. Only previously-ingested chunks (non-null doc_path) are
-     *     refreshed/retired; hand-authored entities are untouched. `indexed` reports the live corpus size.
+     *     Ledger “Clean rebuild from docs” deletes stale repo-ingested canon chunks (doc_path IS NOT NULL)
+     *     and rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL).
+     *     Delegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).
      */
     post: operations["ingest_canon_books__book_id__canon_ingest_post"];
     delete?: never;
@@ -2879,11 +2877,28 @@ export interface components {
     };
     /**
      * CanonIngestOut
-     * @description Result of rebuilding the retrieval index from the on-disk canon docs.
+     * @description Result of a canon ingest/rebuild from on-disk docs (series/canon).
+     *
+     *     For the Ledger "Clean rebuild from docs" (hard path): repo-ingested rows
+     *     (doc_path IS NOT NULL) are deleted first, then re-ingested from current files.
+     *     `retired` counts prior repo rows removed. `indexed` is the fresh count.
+     *     `total` is the resulting live repo-ingested corpus size.
      */
     CanonIngestOut: {
       /** Indexed */
       indexed: number;
+      /**
+       * Skipped
+       * @default 0
+       */
+      skipped: number;
+      /**
+       * Retired
+       * @default 0
+       */
+      retired: number;
+      /** Total */
+      total?: number | null;
     };
     /**
      * ChapterCreateIn

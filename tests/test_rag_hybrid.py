@@ -117,6 +117,53 @@ async def test_ingest_retires_deleted_chunks(db_factory, tmp_path):
         assert not any("beta" in (b or "") for b in bodies)
 
 
+async def test_ingest_rebuild_purges_stale_same_path_content_and_preserves_hand_authored(db_factory, tmp_path):
+    """Targeted repro: content change under same (doc_path, heading_path) must not leave stale rows.
+
+    Uses the hard rebuild path (as invoked by the Ledger webpage button): delete all
+    repo-ingested (doc_path IS NOT NULL), then re-ingest. Old bodies under same key gone.
+    Hand-authored (doc_path IS NULL) survive.
+    """
+    from sqlalchemy import select
+
+    root = tmp_path / "canon"
+    root.mkdir(parents=True)
+    f = root / "characters" / "hero.md"
+    f.parent.mkdir()
+    f.write_text("# Protagonist\n\nAyla was the chosen one.\n", encoding="utf-8")
+    async with db_factory() as s:
+        book = await _book(s)
+        # hand-authored row (must survive)
+        hand = CanonEntity(book_id=book.id, kind="lore", name="Note", body="Hand note about Illyri.")
+        s.add(hand)
+        await s.flush()
+
+        # first ingest creates repo row with Ayla
+        r1 = await canon_rag.ingest_rebuild(s, book_id=book.id, root=root)
+        await s.commit()
+        assert r1["indexed"] >= 1
+        assert r1["retired"] >= 0
+
+        # edit same doc+heading
+        f.write_text("# Protagonist\n\nIllyri was the chosen one.\n", encoding="utf-8")
+
+        # hard rebuild (as Ledger does)
+        r2 = await canon_rag.ingest_rebuild(s, book_id=book.id, root=root)
+        await s.commit()
+        assert r2["retired"] >= 1  # at least the prior Ayla row
+
+        rows = (await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all()
+        bodies = [r.body for r in rows]
+        doc_rows = [r for r in rows if r.doc_path is not None]
+        null_rows = [r for r in rows if r.doc_path is None]
+
+        assert not any("Ayla" in (b or "") for b in bodies), "stale Ayla content must be purged"
+        assert any("Illyri" in (b or "") for b in bodies)
+        assert len(doc_rows) >= 1
+        assert any("Illyri" in (b or "") for b in [r.body for r in doc_rows])
+        assert len(null_rows) == 1 and "Hand note" in (null_rows[0].body or "")
+
+
 # --- hybrid retrieval -----------------------------------------------------------------------------
 
 

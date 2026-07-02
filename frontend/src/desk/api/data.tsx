@@ -18,6 +18,7 @@ import type {
   BookOut,
   CanonEntityIn,
   CanonEntityOut,
+  CanonIngestOut,
   CanonEntityUpdateIn,
   ChapterOut,
   ChapterUpdateIn,
@@ -109,7 +110,9 @@ export interface DeskData {
   createCanon: (body: CanonEntityIn) => Promise<void>;
   updateCanon: (id: string, body: CanonEntityUpdateIn) => Promise<void>;
   deleteCanon: (id: string) => Promise<void>;
-  ingestCanon: () => Promise<number | null>;
+  // Ledger "Clean rebuild from docs" action. Returns the full result (indexed, skipped, retired, total)
+  // so the UI can report how many stale repo-ingested rows were purged.
+  ingestCanon: () => Promise<CanonIngestOut | null>;
   distillRules: (pov?: string) => Promise<number>;
   decideRuleProposal: (id: string, body: RuleProposalDecisionIn) => Promise<void>;
   addAnnotation: (body: AnnotationIn) => Promise<void>;

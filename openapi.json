@@ -5289,7 +5289,7 @@
           "world"
         ],
         "summary": "Ingest Canon",
-        "description": "Rebuild the retrieval index from the on-disk canon docs (series/canon) \u2014 the bridge from the\nread-only Canon tab into the RAG the drafter/planner actually query.\n\nUses the incremental ingest: chunks are tagged with owner metadata (owner_topic/source_priority)\nso owner files win precedence in hybrid retrieval, content-hashed so unchanged chunks are skipped\non re-run (only changed files re-embed), and tagged by folder kind (cast/faction/location/system/\nlore/continuity) so the ledger groups them. Only previously-ingested chunks (non-null doc_path) are\nrefreshed/retired; hand-authored entities are untouched. `indexed` reports the live corpus size.",
+        "description": "Rebuild the retrieval index from the on-disk canon docs (series/canon) \u2014 the bridge from the\nread-only Canon tab into the RAG the drafter/planner actually query.\n\nLedger \u201cClean rebuild from docs\u201d deletes stale repo-ingested canon chunks (doc_path IS NOT NULL)\nand rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL).\nDelegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).",
         "operationId": "ingest_canon_books__book_id__canon_ingest_post",
         "parameters": [
           {
@@ -8636,6 +8636,27 @@
           "indexed": {
             "type": "integer",
             "title": "Indexed"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "default": 0
+          },
+          "retired": {
+            "type": "integer",
+            "title": "Retired",
+            "default": 0
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
           }
         },
         "type": "object",
@@ -8643,7 +8664,7 @@
           "indexed"
         ],
         "title": "CanonIngestOut",
-        "description": "Result of rebuilding the retrieval index from the on-disk canon docs."
+        "description": "Result of a canon ingest/rebuild from on-disk docs (series/canon).\n\nFor the Ledger \"Clean rebuild from docs\" (hard path): repo-ingested rows\n(doc_path IS NOT NULL) are deleted first, then re-ingested from current files.\n`retired` counts prior repo rows removed. `indexed` is the fresh count.\n`total` is the resulting live repo-ingested corpus size."
       },
       "ChapterCreateIn": {
         "properties": {

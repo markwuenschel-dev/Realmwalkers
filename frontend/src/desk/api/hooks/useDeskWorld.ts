@@ -4,6 +4,7 @@ import type {
   CanonEntityIn,
   CanonEntityOut,
   CanonEntityUpdateIn,
+  CanonIngestOut,
   CharacterStateIn,
   CharacterStateOut,
   ThreadBeatIn,
@@ -24,7 +25,7 @@ export interface DeskWorldState {
   ingestCanon: (
     bookId: string | null,
     loadCollections: (id: string) => Promise<void>,
-  ) => Promise<number | null>;
+  ) => Promise<CanonIngestOut | null>;
 }
 
 export function useDeskWorld(
@@ -143,12 +144,12 @@ export function useDeskWorld(
     async (
       bookId: string | null,
       loadCollections: (id: string) => Promise<void>,
-    ): Promise<number | null> => {
+    ): Promise<CanonIngestOut | null> => {
       if (!bookId) return null;
       try {
         const out = await api.ingestCanon(bookId);
         await loadCollections(bookId);
-        return out.indexed;
+        return out;
       } catch (e) {
         fail(e);
         return null;
