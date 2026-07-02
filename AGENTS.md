@@ -13,7 +13,7 @@ just verify
 # or: bash scripts/verify.sh
 ```
 
-This runs **ruff check**, **ruff format --check**, **pyright on changed `src/` Python files** (vs `origin/main`), and **pytest -q -rs** with the same env as CI (`DOMINION_REQUIRE_DB=1`, Postgres on `127.0.0.1:5432`). Start Postgres with `just db-up` if tests skip or fail on DB connection.
+This runs **ruff check**, **ruff format --check**, **pyright on changed `src/` Python files** (vs `origin/main`), and **pytest -q -rs** with the same env as CI (`DOMINION_REQUIRE_DB=1`, Postgres on `127.0.0.1:5432`). Provide a Postgres+pgvector instance (or unset `DOMINION_REQUIRE_DB`) if DB-backed tests skip or fail on connection.
 
 ## Contract-first drafting
 

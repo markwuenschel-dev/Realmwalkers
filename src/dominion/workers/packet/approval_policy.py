@@ -40,9 +40,55 @@ def open_question_items(packet: ChapterPacket) -> list[object]:
     return items if isinstance(items, list) else []
 
 
+def _warnings(packet: ChapterPacket) -> dict[str, Any]:
+    return packet.qa_warnings if isinstance(packet.qa_warnings, dict) else {}
+
+
+def _body(packet: ChapterPacket) -> dict[str, Any]:
+    return packet.body if isinstance(packet.body, dict) else {}
+
+
+def resolve_blocked_reason(packet: ChapterPacket) -> str | None:
+    if packet.status != PacketStatus.BLOCKED:
+        return None
+    warnings = _warnings(packet)
+    body = _body(packet)
+    if reason := warnings.get("blocked_reason"):
+        return str(reason)
+    if reason := body.get("blocked_reason"):
+        return str(reason)
+    return "Chapter packet is blocked but no blocked_reason was recorded"
+
+
+def resolve_blocker_source(packet: ChapterPacket) -> str | None:
+    if packet.status != PacketStatus.BLOCKED:
+        return None
+    source = _warnings(packet).get("blocker_source")
+    return str(source) if source else None
+
+
+def resolve_blocker_kind(packet: ChapterPacket) -> str | None:
+    if packet.status != PacketStatus.BLOCKED:
+        return None
+    kind = _warnings(packet).get("blocker_kind")
+    return str(kind) if kind else None
+
+
+def resolve_recovery_actions(packet: ChapterPacket) -> list[str]:
+    actions = _warnings(packet).get("recovery_actions")
+    if not isinstance(actions, list):
+        return []
+    return [str(action).strip() for action in actions if str(action).strip()]
+
+
+def resolve_blocker_diagnostics(packet: ChapterPacket) -> dict[str, Any] | None:
+    diagnostics = _warnings(packet).get("blocker_diagnostics")
+    return diagnostics if isinstance(diagnostics, dict) else None
+
+
 def can_approve(packet: ChapterPacket) -> GateRefusal | None:
     if packet.status == PacketStatus.BLOCKED:
-        return GateRefusal("packet is blocked — re-propose or edit it first")
+        return GateRefusal(resolve_blocked_reason(packet) or "packet is blocked")
     if packet.confidence == PacketConfidence.RED:
         return GateRefusal("red-confidence packet — resolve before approving")
     if open_question_items(packet):
@@ -78,5 +124,10 @@ def enrich_packet_out(row: ChapterPacket) -> PacketOut:
         update={
             "can_approve": row.status == PacketStatus.PROPOSED and not blockers,
             "approval_blockers": blockers,
+            "blocked_reason": resolve_blocked_reason(row),
+            "blocker_source": resolve_blocker_source(row),
+            "blocker_kind": resolve_blocker_kind(row),
+            "recovery_actions": resolve_recovery_actions(row),
+            "blocker_diagnostics": resolve_blocker_diagnostics(row),
         }
     )

@@ -34,4 +34,3 @@ no `localhost`. You get one Railway URL that just works.
   automatically. To migrate existing data: `pg_dump` the local volume and restore into the Railway
   Postgres (ask and this can be scripted once the local DB is running).
 - **Cost:** Railway is usage-based (~$5/mo hobby tier) on top of your own Anthropic API usage.
-- **Local dev:** `just api` + `just fe-dev` (uv + pnpm), or `dev.sh` if you use it.

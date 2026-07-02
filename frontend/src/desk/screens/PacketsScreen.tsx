@@ -11,6 +11,7 @@ import { Spinner, formatElapsed } from "../components/DraftActivity";
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
 import ClearFailedPanel from "../components/ClearFailedPanel";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
+import { packetBlockedGuidance } from "../lib/packetBlockers";
 import type {
   PacketBody,
   PacketClaim,
@@ -653,7 +654,7 @@ function PacketView({
 }) {
   const b: PacketBody = packet.body ?? {};
   const confVar = CONFIDENCE_VAR[packet.confidence ?? ""] ?? "--dim";
-  const blockedReason = packet.qa_warnings?.blocked_reason ?? b.blocked_reason;
+  const blockedGuidance = packet.status === "blocked" ? packetBlockedGuidance(packet) : null;
   const residual = packet.qa_warnings?.residual_risks ?? [];
   const issues = packet.qa_warnings?.issues ?? [];
   // Deterministic-validation channel (distinct from QA `issues`): decidable roster contradictions
@@ -682,16 +683,23 @@ function PacketView({
         )}
       </div>
 
-      {blockedReason && (
-        <Panel accentVar="--bad" title="Blocked">
-          <div style={css("font-size:13px;color:var(--ink)")}>{blockedReason}</div>
-          <div style={css("font-size:12px;color:var(--dim);margin-top:6px")}>
-            {packet.qa_warnings?.blocker_source === "validation"
-              ? "Deterministic roster validation failed closed — a character is double-bucketed or a " +
-                "forbidden name appears in a scene seed. Fix the roster fields below and re-propose."
-              : "The packet failed closed — no prose may be drafted from it. Re-propose, or edit the " +
-                "chapter outline and try again."}
+      {blockedGuidance && (
+        <Panel accentVar="--bad" title={blockedGuidance.title}>
+          <div style={css("font-size:13px;color:var(--ink);line-height:1.45")}>
+            {blockedGuidance.reason ?? "Chapter packet is blocked but no reason was recorded."}
           </div>
+          <div style={css("font-size:12px;color:var(--dim);margin-top:6px;line-height:1.45")}>
+            {blockedGuidance.detail}
+          </div>
+          {blockedGuidance.actions.length > 0 && (
+            <div style={css("display:flex;flex-direction:column;gap:4px;margin-top:8px")}>
+              {blockedGuidance.actions.map((action, i) => (
+                <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
+                  · {action}
+                </div>
+              ))}
+            </div>
+          )}
         </Panel>
       )}
 

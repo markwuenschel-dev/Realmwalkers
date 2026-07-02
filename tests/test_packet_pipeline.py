@@ -16,6 +16,7 @@ from dominion.shared.enums import PacketStatus, PacketVerdict
 from dominion.shared.models import Book, Chapter, ChapterPacket
 from dominion.shared.schemas import PacketUpdateIn
 from dominion.workers import packet as packet_pipeline
+from dominion.workers.packet import approval_policy
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
 
@@ -85,6 +86,36 @@ async def test_malformed_author_fails_closed_to_blocked(db_factory, monkeypatch)
         row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.status == PacketStatus.BLOCKED
         assert row.confidence == "red"
+
+
+async def test_author_timeout_persists_actionable_blocker_metadata(db_factory, monkeypatch):
+    async def author_timeout(**kwargs):
+        raise TimeoutError
+
+    monkeypatch.setattr(author_mod, "author_packet", author_timeout)
+    async with db_factory() as s:
+        ch = await _seed_chapter(s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
+        warnings = row.qa_warnings or {}
+
+        assert row.status == PacketStatus.BLOCKED
+        assert row.confidence == "red"
+        assert warnings.get("blocker_source") == "author"
+        assert warnings.get("blocker_kind") == "timeout"
+        assert "timed out after" in warnings.get("blocked_reason", "")
+        assert "Re-propose will likely time out again" in warnings.get("blocked_reason", "")
+        assert warnings.get("blocker_diagnostics", {}).get("stage") == "packet_author"
+        assert warnings.get("blocker_diagnostics", {}).get("exception_type") == "TimeoutError"
+        assert warnings.get("blocker_diagnostics", {}).get("timeout_s") is not None
+        assert warnings.get("blocker_diagnostics", {}).get("model")
+        assert any("DOMINION_PACKET_TIME_BUDGET_S" in a for a in warnings.get("recovery_actions", []))
+
+        out = approval_policy.enrich_packet_out(row)
+        assert out.blocked_reason == warnings["blocked_reason"]
+        assert out.blocker_source == "author"
+        assert out.blocker_kind == "timeout"
+        assert out.blocker_diagnostics == warnings["blocker_diagnostics"]
+        assert out.recovery_actions == warnings["recovery_actions"]
 
 
 async def test_malformed_qa_fails_closed_but_keeps_body(db_factory, monkeypatch):

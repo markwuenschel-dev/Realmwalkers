@@ -37,6 +37,26 @@ log = structlog.get_logger()
 _CANON_K = 16  # the author gets broad canon (scoping protects the writer, not the planner)
 _EXCERPT_CHARS = 240
 
+_AUTHOR_TIMEOUT_ACTIONS = [
+    "Reduce or split the chapter outline/context, then re-propose.",
+    "Choose a faster packet author model in Settings, then re-propose.",
+    "Increase DOMINION_PACKET_TIME_BUDGET_S and restart the API, then re-propose.",
+]
+_AUTHOR_FAILURE_ACTIONS = [
+    "Check packet-author telemetry/logs for the exact provider error.",
+    "Change the packet author model or reduce the chapter outline/context, then re-propose.",
+]
+_AUTHOR_BODY_ACTIONS = [
+    "Tighten the chapter outline so the packet author can emit clear scene seeds and claims, then re-propose.",
+    "If the chapter is very large, split it or reduce context before re-proposing.",
+]
+_QA_FAILURE_ACTIONS = [
+    "Re-propose after changing the chapter outline/canon inputs, or check packet-QA telemetry for provider errors.",
+]
+_VALIDATION_ACTIONS = [
+    "Fix the roster fields or forbidden names shown below, then re-propose.",
+]
+
 
 def _valid_packet(packet: dict[str, Any]) -> bool:
     """A usable packet must carry at least one scene seed and a claims list (provenance). Anything
@@ -137,14 +157,28 @@ def _blocked_row(
     body: dict[str, Any] | None = None,
     violations: list[dict[str, Any]] | None = None,
     open_questions: dict[str, Any] | None = None,
+    blocker_source: str | None = None,
+    blocker_kind: str | None = None,
+    recovery_actions: list[str] | None = None,
+    blocker_diagnostics: dict[str, Any] | None = None,
 ) -> ChapterPacket:
     qa_warnings: dict[str, Any] = {"residual_risks": [], "blocked_reason": reason}
+    if blocker_source:
+        qa_warnings["blocker_source"] = blocker_source
+    if blocker_kind:
+        qa_warnings["blocker_kind"] = blocker_kind
+    if recovery_actions:
+        qa_warnings["recovery_actions"] = recovery_actions
+    if blocker_diagnostics:
+        qa_warnings["blocker_diagnostics"] = blocker_diagnostics
     if violations:
         # Persist WHICH gate blocked (deterministic validation, not QA) so the UI doesn't mislabel a
         # decidable roster contradiction as an LLM QA verdict — same distinction the scene-packet UI
         # already makes for its own deterministic-vs-QA blocks.
         qa_warnings["violations"] = violations
-        qa_warnings["blocker_source"] = "validation"
+        qa_warnings.setdefault("blocker_source", "validation")
+        qa_warnings.setdefault("blocker_kind", "contract_validation")
+        qa_warnings.setdefault("recovery_actions", _VALIDATION_ACTIONS)
     return ChapterPacket(
         book_id=book_id,
         chapter_id=chapter_id,
@@ -184,6 +218,10 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         body: dict[str, Any] | None = None,
         violations: list[dict[str, Any]] | None = None,
         open_questions: dict[str, Any] | None = None,
+        blocker_source: str | None = None,
+        blocker_kind: str | None = None,
+        recovery_actions: list[str] | None = None,
+        blocker_diagnostics: dict[str, Any] | None = None,
     ) -> ChapterPacket:
         # A failed (re)propose must never wipe an already-approved packet; otherwise persist a
         # visible blocked packet so the human sees the failure (never silent partial constraints).
@@ -202,11 +240,20 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
                 body=body,
                 violations=violations,
                 open_questions=open_questions,
+                blocker_source=blocker_source,
+                blocker_kind=blocker_kind,
+                recovery_actions=recovery_actions,
+                blocker_diagnostics=blocker_diagnostics,
             ),
         )
 
     if not outline:
-        return await fail_closed("chapter has no outline to plan from")
+        return await fail_closed(
+            "Chapter has no outline to plan from. Add a chapter outline, then re-propose the packet.",
+            blocker_source="input",
+            blocker_kind="no_outline",
+            recovery_actions=["Add a chapter outline, then re-propose."],
+        )
 
     omniscient = await _omniscient_summary(session, book_id)
     prior_exit = await _prior_exit_state(session, book_id=book_id, chapter_no=chapter.chapter_no)
@@ -218,7 +265,7 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     #   1. the author *call* raised — timeout / budget / API error (logged below);
     #   2. it returned text we couldn't parse to an object — usually truncation (see llm.truncated);
     #   3. it parsed but the packet was too thin (no scene seeds or no claims list).
-    author_error: str | None = None
+    author_exc: Exception | None = None
     progress.set_phase(progress_key, "authoring")
     try:
         with telemetry.call_context(
@@ -243,18 +290,58 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
                 timeout=settings.packet_time_budget_s,
             )
     except Exception as exc:  # noqa: BLE001 — any author failure (timeout/budget/API) must fail closed
-        log.error("packet.author_failed", chapter=str(chapter.id), error=str(exc))
-        author_error = type(exc).__name__
+        log.error("packet.author_failed", chapter=str(chapter.id), error=str(exc), error_type=type(exc).__name__)
+        author_exc = exc
         packet = None
 
-    if author_error is not None:
-        return await fail_closed(f"packet author call failed ({author_error})")
+    if author_exc is not None:
+        diagnostics: dict[str, Any] = {
+            "stage": "packet_author",
+            "exception_type": type(author_exc).__name__,
+            "timeout_s": settings.packet_time_budget_s,
+            "model": settings.packet_author_model,
+            "fallback_model": settings.packet_author_fallback_model,
+        }
+        if str(author_exc):
+            diagnostics["message"] = str(author_exc)
+        if isinstance(author_exc, TimeoutError):
+            return await fail_closed(
+                "Packet Author timed out after "
+                f"{settings.packet_time_budget_s}s while authoring the chapter packet. "
+                "Re-propose will likely time out again unless the input/model/budget changes.",
+                blocker_source="author",
+                blocker_kind="timeout",
+                recovery_actions=_AUTHOR_TIMEOUT_ACTIONS,
+                blocker_diagnostics=diagnostics,
+            )
+        label = type(author_exc).__name__
+        detail = f": {author_exc}" if str(author_exc) else ""
+        return await fail_closed(
+            f"Packet Author call failed ({label}{detail}).",
+            blocker_source="author",
+            blocker_kind="call_failed",
+            recovery_actions=_AUTHOR_FAILURE_ACTIONS,
+            blocker_diagnostics=diagnostics,
+        )
     if packet is None:
         log.warning("packet.author_unparsable", chapter=str(chapter.id))
-        return await fail_closed("packet author response could not be parsed (possibly truncated)")
+        return await fail_closed(
+            "Packet Author response could not be parsed, possibly because the JSON was truncated.",
+            blocker_source="author",
+            blocker_kind="unparsable",
+            recovery_actions=_AUTHOR_BODY_ACTIONS,
+            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
+        )
     if not _valid_packet(packet):
         log.warning("packet.author_thin", chapter=str(chapter.id))
-        return await fail_closed("packet author returned an incomplete packet (no scene seeds or claims)")
+        return await fail_closed(
+            "Packet Author returned an incomplete packet with no scene seeds or no claims list.",
+            body=packet,
+            blocker_source="author",
+            blocker_kind="thin_packet",
+            recovery_actions=_AUTHOR_BODY_ACTIONS,
+            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
+        )
 
     _mint_seed_ids(packet)
     _resolve_provenance(packet, handles)
@@ -277,6 +364,14 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
             body=packet,
             violations=[v.as_dict() for v in violations],
             open_questions={"items": _open_questions(packet)},
+            blocker_source="validation",
+            blocker_kind="contract_validation",
+            recovery_actions=_VALIDATION_ACTIONS,
+            blocker_diagnostics={
+                "stage": "deterministic_validation",
+                "violation_count": len(block_violations),
+                "violation_kinds": sorted({v.kind for v in block_violations}),
+            },
         )
 
     progress.set_phase(progress_key, "qa")
@@ -295,10 +390,43 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         qa = None
 
     if qa is None:
-        return await fail_closed("packet QA returned no usable verdict", body=packet)
+        return await fail_closed(
+            "Packet QA returned no usable verdict.",
+            body=packet,
+            blocker_source="qa",
+            blocker_kind="no_usable_verdict",
+            recovery_actions=_QA_FAILURE_ACTIONS,
+            blocker_diagnostics={
+                "stage": "packet_qa",
+                "timeout_s": settings.packet_time_budget_s,
+                "model": settings.packet_qa_model,
+                "fallback_model": settings.packet_qa_fallback_model,
+            },
+        )
 
     confidence, status = approval_policy.status_from_qa(packet, qa)
     qa_warnings: dict[str, Any] = {"residual_risks": qa["residual_risks"], "issues": qa["issues"]}
+    if qa["verdict"] == PacketVerdict.BLOCK_DRAFTING:
+        blocking_detail = "Packet QA blocked drafting."
+        issues = qa.get("issues")
+        if isinstance(issues, list):
+            for issue in issues:
+                if isinstance(issue, dict) and issue.get("severity") == "block":
+                    blocking_detail = str(issue.get("detail") or blocking_detail)
+                    break
+        qa_warnings.update(
+            {
+                "blocked_reason": blocking_detail,
+                "blocker_source": "qa",
+                "blocker_kind": "block_drafting",
+                "recovery_actions": _QA_FAILURE_ACTIONS,
+                "blocker_diagnostics": {
+                    "stage": "packet_qa",
+                    "model": settings.packet_qa_model,
+                    "verdict": str(qa["verdict"]),
+                },
+            }
+        )
     if violations:
         # Only warn-severity violations reach here (any block already returned above), surfaced
         # alongside QA's own findings so the editor sees both channels.

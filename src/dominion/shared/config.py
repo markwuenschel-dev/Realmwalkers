@@ -206,7 +206,10 @@ class Settings(BaseSettings):
     llm_token_counting_fail_closed: bool = True
     llm_token_counting_estimate_fallback_multiplier: float = 1.25
 
-    cors_origins: str = "http://localhost:5173"
+    # Same-origin single-service deploy (the Next BFF proxies to FastAPI), so the browser never calls
+    # the API cross-origin and no CORS origins are needed by default. Set DOMINION_CORS_ORIGINS
+    # (comma-separated) only if something hits the API directly from another origin.
+    cors_origins: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

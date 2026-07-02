@@ -274,13 +274,31 @@ export interface PacketWarnings {
   // kind "provenance_normalized". `blocker_source` names which gate produced the block ("validation").
   violations?: QaIssue[];
   blocker_source?: string;
+  blocker_kind?: string;
+  recovery_actions?: string[];
+  blocker_diagnostics?: Record<string, unknown> | null;
   blocked_reason?: string;
 }
 
-export type PacketOut = Omit<S["PacketOut"], "body" | "qa_warnings" | "open_questions"> & {
+export type PacketOut = Omit<
+  S["PacketOut"],
+  | "body"
+  | "qa_warnings"
+  | "open_questions"
+  | "blocked_reason"
+  | "blocker_source"
+  | "blocker_kind"
+  | "recovery_actions"
+  | "blocker_diagnostics"
+> & {
   body: PacketBody;
   qa_warnings: PacketWarnings | null;
   open_questions: { items?: string[]; resolved?: ResolvedQuestion[] } | null;
+  blocked_reason?: string | null;
+  blocker_source?: string | null;
+  blocker_kind?: string | null;
+  recovery_actions?: string[];
+  blocker_diagnostics?: Record<string, unknown> | null;
 };
 
 export type PacketUpdateIn = Omit<S["PacketUpdateIn"], "body" | "open_questions"> & {

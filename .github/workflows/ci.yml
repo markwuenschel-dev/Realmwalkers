@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg16   # same image as docker-compose.yml — pgvector preinstalled
+        image: pgvector/pgvector:pg16   # pgvector preinstalled
         env:
           POSTGRES_USER: dominion
           POSTGRES_PASSWORD: dominion

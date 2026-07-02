@@ -274,6 +274,11 @@ class PacketOut(_ORM):
     created_at: datetime
     can_approve: bool = False
     approval_blockers: list[str] = []
+    blocked_reason: str | None = None
+    blocker_source: str | None = None
+    blocker_kind: str | None = None
+    recovery_actions: list[str] | None = None
+    blocker_diagnostics: dict[str, Any] | None = None
 
 
 class PacketUpdateIn(BaseModel):

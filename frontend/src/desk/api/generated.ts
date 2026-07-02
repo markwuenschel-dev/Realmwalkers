@@ -3076,6 +3076,18 @@ export interface components {
        * @default []
        */
       approval_blockers: string[];
+      /** Blocked Reason */
+      blocked_reason?: string | null;
+      /** Blocker Source */
+      blocker_source?: string | null;
+      /** Blocker Kind */
+      blocker_kind?: string | null;
+      /** Recovery Actions */
+      recovery_actions?: string[] | null;
+      /** Blocker Diagnostics */
+      blocker_diagnostics?: {
+        [key: string]: unknown;
+      } | null;
     };
     /**
      * PacketProposeOut

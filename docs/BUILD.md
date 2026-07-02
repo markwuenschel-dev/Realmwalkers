@@ -36,19 +36,11 @@ tests/        deterministic router tests + import smoke
 docs/         DESIGN.md (spec), BUILD.md (this file)
 ```
 
-## Quickstart (bash)
+## Running it
 
-```bash
-cp .env.example .env                 # fill in ANTHROPIC_API_KEY
-docker compose up -d                 # Postgres + pgvector on :5432
-uv sync --frozen --extra dev
-uv run python scripts/init_db.py     # create extension + tables
-
-uv run uvicorn dominion.api.main:app --reload --port 8000   # terminal 1: API
-cd frontend && pnpm install && pnpm dev                     # terminal 2: desk on :3000
-```
-
-A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker-once`, …).
+The app ships as a **single container** (Next.js standalone + FastAPI) deployed on Railway — see
+[`DEPLOY.md`](DEPLOY.md). There is no separate local run target: the browser loads the desk from Next
+and calls same-origin `/api/desk/*`, which the BFF proxies to FastAPI (no separate API host, no CORS).
 
 > Drafting one scene works end to end: enqueue a beat
 > (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`) then
@@ -103,8 +95,8 @@ uv run mypy src        # strict type check
 
 DB-backed tests get a real database from the `db_factory` fixture (`tests/conftest.py`), which forces
 a dedicated `dominion_test` DB, creates the `vector` extension + schema, and truncates between tests.
-Locally, if Postgres isn't running those tests **skip** (they're opt-in) — run `just db-up` first to
-exercise them. Tests that don't need a DB run regardless.
+If Postgres isn't reachable those tests **skip** (they're opt-in) — point `DOMINION_TEST_DATABASE_URL`
+at a Postgres+pgvector instance to exercise them. Tests that don't need a DB run regardless.
 
 ## Continuous integration
 

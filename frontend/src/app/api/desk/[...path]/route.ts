@@ -1,11 +1,12 @@
 import { type NextRequest } from "next/server";
 
 // BFF proxy: the browser talks to same-origin /api/desk/* and never needs to know the FastAPI host.
-// This handler forwards method, path, query, and body to the backend at API_BASE (server-only env;
-// defaults to the local FastAPI dev server). Status and body are passed through unchanged so the
-// typed client (desk/api/client.ts) keeps its existing error semantics; an unreachable backend
-// becomes a 502, which the client's poll-failure counter reads as "backend unreachable".
-const API_BASE = process.env.API_BASE ?? "http://127.0.0.1:8000";
+// This handler forwards method, path, query, and body to the backend at API_BASE (server-only env,
+// set by the deploy image — the Dockerfile points it at FastAPI's internal port). Status and body
+// pass through unchanged so the typed client (desk/api/client.ts) keeps its existing error semantics;
+// an unreachable or unconfigured backend becomes a 502, which the client's poll-failure counter reads
+// as "backend unreachable".
+const API_BASE = process.env.API_BASE;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,9 @@ async function proxy(
 ): Promise<Response> {
   // Next 15+ makes route-handler params async.
   const { path: segments = [] } = await ctx.params;
+  if (!API_BASE) {
+    return Response.json({ detail: "Desk API is not configured (API_BASE unset)." }, { status: 502 });
+  }
   // Re-encode each decoded segment so spaces/specials survive to FastAPI (e.g. /library/<doc path>).
   const path = "/" + segments.map(encodeURIComponent).join("/");
   const target = `${API_BASE}${path}${req.nextUrl.search}`;

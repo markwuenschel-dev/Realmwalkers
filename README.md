@@ -38,20 +38,14 @@ tests/        deterministic router tests + import smoke
 docs/         DESIGN.md
 ```
 
-## Quickstart (bash)
+## Running it
 
-```bash
-cp .env.example .env                 # fill in ANTHROPIC_API_KEY
-docker compose up -d                 # Postgres + pgvector on :5432
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-python scripts/init_db.py            # create extension + tables
+The whole app ships as a **single container** (Next.js + FastAPI) deployed on Railway — see
+[`docs/DEPLOY.md`](docs/DEPLOY.md). The browser loads the desk from Next and calls same-origin
+`/api/desk/*`, which the Next BFF proxies to FastAPI, so there's no separate API host and no CORS.
 
-uvicorn dominion.api.main:app --reload --port 8000   # terminal 1: API
-cd frontend && npm install && npm run dev            # terminal 2: review app on :5173
-```
-
-A `justfile` wraps these (`just install`, `just db-up`, `just api`, `just worker-once`, …) if you use `just`.
+Backend gates run via `just verify` (or `scripts/verify.sh`); the frontend gates (`pnpm typecheck` /
+`lint` / `format:check` / `test`) run from `frontend/`.
 
 > **The whole loop is now browser-driven — no terminal needed.** In the Writers' Desk: create a book,
 > outline a chapter (the planner proposes beats), approve them, and the API drafts each scene in a
