@@ -18,7 +18,10 @@ async function proxy(
   // Next 15+ makes route-handler params async.
   const { path: segments = [] } = await ctx.params;
   if (!API_BASE) {
-    return Response.json({ detail: "Desk API is not configured (API_BASE unset)." }, { status: 502 });
+    return Response.json(
+      { detail: "Desk API is not configured (API_BASE unset)." },
+      { status: 502 },
+    );
   }
   // Re-encode each decoded segment so spaces/specials survive to FastAPI (e.g. /library/<doc path>).
   const path = "/" + segments.map(encodeURIComponent).join("/");

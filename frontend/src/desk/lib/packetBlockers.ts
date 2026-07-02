@@ -21,7 +21,10 @@ function packetBody(packet: PacketOut): PacketBody {
   return packet.body ?? {};
 }
 
-function defaultActions(source: string | null | undefined, kind: string | null | undefined): string[] {
+function defaultActions(
+  source: string | null | undefined,
+  kind: string | null | undefined,
+): string[] {
   if (source === "author" && kind === "timeout") {
     return [
       "Reduce or split the chapter outline/context, then re-propose.",
@@ -42,7 +45,9 @@ function defaultActions(source: string | null | undefined, kind: string | null |
     return ["Add a chapter outline, then re-propose."];
   }
   if (source === "qa") {
-    return ["Review the QA issue details, adjust the chapter outline/canon inputs, then re-propose."];
+    return [
+      "Review the QA issue details, adjust the chapter outline/canon inputs, then re-propose.",
+    ];
   }
   return ["Re-propose after changing the chapter outline or packet inputs."];
 }
