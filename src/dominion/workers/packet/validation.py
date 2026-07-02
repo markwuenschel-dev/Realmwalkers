@@ -8,14 +8,16 @@ chapter's own scene seeds. It does NOT try to judge whether a bucket assignment 
 the story — that requires authorial knowledge no packet field carries, and is out of reach for a
 deterministic checker.
 
-Not every co-membership is a contradiction. `characters_mentioned_only` means "off-page but referenced
-on the page", so it IMPLIES physical absence — a name in both `characters_absent` and
-`characters_mentioned_only` is redundant, not contradictory, and must never block (blocking it was the
-reported bug). `evaluate_chapter_packet` therefore NORMALIZES that overlap (dropping the name from
-`characters_absent`, keeping the more specific surface-reference bucket) before validating, so the
-downstream scene-packet absence check — which reads `characters_absent` and blocks absent names in
-on-page fields — does not false-block a legitimate on-page mention. Only the TRUE-opposite bucket pairs
-in `_CONTRADICTORY_ROSTER_PAIRS` block.
+Not every co-membership is a contradiction. Some overlaps are just REDUNDANT and are collapsed
+server-side by a deterministic dominance rule (`normalize_chapter_packet_roster`), never blocked:
+`present` dominates `mentioned_only` (a physically-present character redundantly echoed in
+`characters_mentioned_only` — the common masked / late-reveal mis-bucket — is kept present and dropped
+from mentioned_only), and `mentioned_only` (which IMPLIES absence) dominates `characters_absent` (dropped
+there, kept in the more specific surface-reference bucket, so the downstream scene-packet absence check
+does not false-block a legitimate on-page mention). Only the genuinely-impossible pairs in
+`_CONTRADICTORY_ROSTER_PAIRS` block. `evaluate_chapter_packet` validates the ORIGINAL body so a name
+triple-bucketed as present+absent+mentioned_only still blocks on present∩absent rather than being
+normalized away.
 
 Pure and import-light (no DB, no models): input is the packet body dict, output is a list of
 violations the caller persists. `block` severity fails the packet closed; `warn` is advisory. Roster
@@ -47,18 +49,25 @@ _ROSTER_FIELDS: tuple[str, ...] = (
 )
 
 # Roster buckets sit on two independent axes: physical presence (present vs absent) and on-page surface
-# reference (mentioned_only = referenced on-page; forbidden = must NOT be referenced on-page). Only TRUE
-# opposites contradict. `present` excludes every not-present state. `mentioned_only` and `forbidden`
-# exclude each other (a name can't be both referenced and forbidden-from-reference on-page). But `absent`
-# is pure physical absence and is COMPATIBLE with the surface-reference states that presuppose it —
-# "absent AND mentioned only" is the normal way to say "off-page but referenced", and "absent AND
-# forbidden" is "off-page and must not be named"; neither is a contradiction and neither must ever block.
-# (The scene-packet layer already enforces that a mentioned_only/forbidden name doesn't leak into on-page
-# or reader/POV fields — that hidden-truth layering is not this roster gate's job.)
+# reference (mentioned_only = referenced on-page; forbidden = must NOT be referenced on-page). Only pairs
+# that cannot BOTH be resolved to a single coherent state contradict — and a redundant overlap that a
+# server-side dominance rule can safely collapse is NOT one of them (see `normalize_chapter_packet_roster`).
+#
+# BLOCK (impossible — no dominance rule can pick a winner without discarding a hard claim):
+#   present ∩ absent      — physically here and physically not here
+#   present ∩ forbidden    — on-page yet must never be named/referenced on-page
+#   mentioned_only ∩ forbidden — referenced on-page yet must never be referenced on-page
+# NORMALIZE (redundant — a dominance rule collapses it, never blocks):
+#   absent ∩ mentioned_only  — mentioned_only implies absence, so mentioned_only wins (drop from absent)
+#   present ∩ mentioned_only — a physically present character is not "merely mentioned", so present wins
+#                              (drop from mentioned_only); this is the common masked/late-reveal mis-bucket
+# ALLOWED (both coherent, no action): absent ∩ forbidden — "off-page and must not be named".
+#
+# (The scene-packet layer separately enforces that a mentioned_only/forbidden name doesn't leak into
+# on-page or reader/POV fields — that hidden-truth layering is not this roster gate's job.)
 _CONTRADICTORY_ROSTER_PAIRS: frozenset[frozenset[str]] = frozenset(
     {
         frozenset({"characters_present", "characters_absent"}),
-        frozenset({"characters_present", "characters_mentioned_only"}),
         frozenset({"characters_present", "characters_forbidden"}),
         frozenset({"characters_mentioned_only", "characters_forbidden"}),
     }
@@ -165,54 +174,89 @@ def validate_chapter_packet_contract(body: dict[str, Any]) -> list[ChapterPacket
     return violations
 
 
-def normalize_chapter_packet_roster(
-    body: dict[str, Any],
-) -> tuple[dict[str, Any], list[ChapterPacketViolation]]:
-    """Resolve the redundant (non-contradictory) roster overlap before validation.
+def _leading_name_set(entries: list[str]) -> set[str]:
+    """Lower-cased leading identifiers of a roster bucket (empties dropped)."""
+    return {name for entry in entries if (name := _leading_name(entry).lower())}
 
-    `characters_mentioned_only` means "off-page but referenced on the page", so it IMPLIES physical
-    absence. A name in BOTH `characters_absent` and `characters_mentioned_only` is therefore redundant,
-    not a contradiction. We drop it from `characters_absent` (keeping the more specific surface-reference
-    bucket) so that (a) the deterministic roster check never fires on it and (b) the downstream
-    scene-packet absence check — which reads `characters_absent` and blocks absent names appearing in
-    on-page fields — does not false-block a legitimate on-page *mention* of an absent-but-referenced
-    character. Returns the normalized body plus at most ONE collapsed `roster_normalized` warning. Matching
-    is by the same EXACT (case-insensitive) leading identifier the validator uses, so "Seb" (absent) is
-    never confused with "Seb's brother" (mentioned_only)."""
-    if not isinstance(body, dict):
-        return body, []
-    absent_entries = as_str_list(body.get("characters_absent"))
-    mentioned = {
-        _leading_name(entry).lower()
-        for entry in as_str_list(body.get("characters_mentioned_only"))
-        if _leading_name(entry)
-    }
-    if not absent_entries or not mentioned:
-        return body, []
 
+def _partition_by_names(entries: list[str], drop_names: set[str]) -> tuple[list[str], list[str]]:
+    """Split a bucket's entries into (kept, removed-display-names) by whole leading-name membership."""
     kept: list[str] = []
     removed: list[str] = []
-    for entry in absent_entries:
-        if _leading_name(entry).lower() in mentioned:
+    for entry in entries:
+        if _leading_name(entry).lower() in drop_names:
             removed.append(_leading_name(entry) or entry)
         else:
             kept.append(entry)
-    if not removed:
-        return body, []
+    return kept, removed
 
-    normalized = {**body, "characters_absent": kept}
+
+def _roster_normalized_warning(field: str, removed: list[str], reason: str) -> ChapterPacketViolation:
     seen: list[str] = []
     for name in removed:
         if name not in seen:
             seen.append(name)
-    detail = (
-        f"{len(removed)} name(s) were listed in both characters_absent and characters_mentioned_only "
-        "(mentioned_only already implies physical absence) and were removed from characters_absent: "
-        f"{', '.join(seen)}"
-    )
-    return normalized, [
-        ChapterPacketViolation(kind="roster_normalized", field="characters_absent", detail=detail, severity="warn")
-    ]
+    detail = f"{len(removed)} name(s) {reason} and were removed from {field}: {', '.join(seen)}"
+    return ChapterPacketViolation(kind="roster_normalized", field=field, detail=detail, severity="warn")
+
+
+def normalize_chapter_packet_roster(
+    body: dict[str, Any],
+) -> tuple[dict[str, Any], list[ChapterPacketViolation]]:
+    """Collapse the REDUNDANT (non-contradictory) roster overlaps with deterministic dominance rules so a
+    checker never blocks on them and the persisted roster is coherent. Two rules, both surfaced as
+    advisory `roster_normalized` warnings, never blockers:
+
+    1. present dominates mentioned_only — a physically-present character redundantly echoed in
+       `characters_mentioned_only` (the common masked / late-reveal mis-bucket: "she's present but her
+       identity is hidden, so I'll also list her as mentioned") is kept in `characters_present` and dropped
+       from `characters_mentioned_only`. Reveal timing belongs in reader/POV-knowledge + forbidden fields,
+       not a second roster bucket.
+    2. mentioned_only implies absence — a name in both `characters_absent` and `characters_mentioned_only`
+       is redundant; drop it from `characters_absent` (keeping the more specific surface-reference bucket)
+       so the downstream scene-packet absence check does not false-block a legitimate on-page *mention*.
+
+    This never resolves a TRUE contradiction: `present ∩ absent` (and the forbidden pairs) are left intact
+    for `validate_chapter_packet_contract` to block. `evaluate_chapter_packet` therefore validates the
+    ORIGINAL body, so a name triple-bucketed as present+absent+mentioned_only still blocks on present∩absent
+    instead of being silently normalized away. Matching is by the same EXACT (case-insensitive) leading
+    identifier the validator uses, so "Seb" (absent) is never confused with "Seb's brother" (mentioned_only)."""
+    if not isinstance(body, dict):
+        return body, []
+
+    present_names = _leading_name_set(as_str_list(body.get("characters_present")))
+    mentioned_names = _leading_name_set(as_str_list(body.get("characters_mentioned_only")))
+
+    normalized = dict(body)
+    warnings: list[ChapterPacketViolation] = []
+
+    if present_names and mentioned_names:
+        kept, removed = _partition_by_names(as_str_list(body.get("characters_mentioned_only")), present_names)
+        if removed:
+            normalized["characters_mentioned_only"] = kept
+            warnings.append(
+                _roster_normalized_warning(
+                    "characters_mentioned_only",
+                    removed,
+                    "were listed in both characters_present and characters_mentioned_only "
+                    "(a physically present character is not merely mentioned; present wins)",
+                )
+            )
+
+    if mentioned_names and as_str_list(body.get("characters_absent")):
+        kept, removed = _partition_by_names(as_str_list(body.get("characters_absent")), mentioned_names)
+        if removed:
+            normalized["characters_absent"] = kept
+            warnings.append(
+                _roster_normalized_warning(
+                    "characters_absent",
+                    removed,
+                    "were listed in both characters_absent and characters_mentioned_only "
+                    "(mentioned_only already implies physical absence)",
+                )
+            )
+
+    return (normalized, warnings) if warnings else (body, [])
 
 
 @dataclass(frozen=True)
@@ -239,10 +283,14 @@ class ChapterPacketValidationResult:
 
 
 def evaluate_chapter_packet(body: dict[str, Any]) -> ChapterPacketValidationResult:
-    """Normalize the redundant absent∩mentioned_only overlap, then run the deterministic roster checks on
-    the normalized body, in one place. The caller persists `normalized_body` and blocks on
-    `draft_blockers`. Only true-opposite double-bucketing and forbidden-name bleed end up as blockers; the
-    normalization is surfaced as an advisory warning."""
+    """Collapse the redundant roster overlaps into `normalized_body` AND run the deterministic roster
+    checks, in one place. The caller persists `normalized_body` and blocks on `draft_blockers`.
+
+    Validation runs on the ORIGINAL body, not the normalized one: normalization drops names out of
+    `characters_absent`/`characters_mentioned_only`, and validating the post-normalization body could let a
+    genuine `present ∩ absent` contradiction (a name triple-bucketed as present+absent+mentioned_only) be
+    silently normalized away instead of blocking. Only true contradictions and forbidden-name bleed end up
+    as blockers; each dominance collapse is surfaced as an advisory `roster_normalized` warning."""
     if not isinstance(body, dict):
         return ChapterPacketValidationResult(
             normalized_body={},
@@ -253,5 +301,5 @@ def evaluate_chapter_packet(body: dict[str, Any]) -> ChapterPacketValidationResu
     normalized, warnings = normalize_chapter_packet_roster(body)
     return ChapterPacketValidationResult(
         normalized_body=normalized,
-        violations=[*warnings, *validate_chapter_packet_contract(normalized)],
+        violations=[*warnings, *validate_chapter_packet_contract(body)],
     )
