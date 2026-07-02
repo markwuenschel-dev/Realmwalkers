@@ -10,3 +10,5 @@
 *.pdf  binary
 *.woff  binary
 *.woff2 binary
+
+.github/workflows/*.lock.yml linguist-generated=true merge=ours
