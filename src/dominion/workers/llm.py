@@ -127,13 +127,18 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
     (same /chat/completions body/response), reached by swapping base_url + key — routed by the model-id
     prefix (`grok-*`), not a separate code path. No new SDK dependency: a plain httpx POST, matching the
     embedding provider's existing convention (workers.memory.embedding)."""
+    # .strip() the key: a value pasted into Railway with a trailing newline/space would otherwise be
+    # sent as `Bearer <key>\n` (or a lone space slips past a truthiness check as `Bearer `), which the
+    # provider rejects with a confusing 400 "missing bearer authentication" instead of a clear error.
     if model.startswith("grok-"):
-        if not settings.xai_api_key:
+        key = (settings.xai_api_key or "").strip()
+        if not key:
             raise RuntimeError("XAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
-        return settings.xai_base_url, settings.xai_api_key
-    if not settings.openai_api_key:
+        return settings.xai_base_url, key
+    key = (settings.openai_api_key or "").strip()
+    if not key:
         raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
-    return settings.openai_base_url, settings.openai_api_key
+    return settings.openai_base_url, key
 
 
 @lru_cache
@@ -411,7 +416,15 @@ async def complete(
 
         async def _make() -> httpx.Response:
             r = await client.post("/chat/completions", json=create_kwargs)
-            r.raise_for_status()
+            if r.is_error:
+                # Surface the provider's error body (e.g. OpenAI's "missing bearer authentication",
+                # "model not found", "max_tokens is not supported") — raise_for_status alone drops it,
+                # leaving only a bare status code that hides the actionable reason.
+                raise httpx.HTTPStatusError(
+                    f"{r.status_code} from {r.request.url}: {r.text[:600]}",
+                    request=r.request,
+                    response=r,
+                )
             return r
 
         http_resp = await _call_with_retries(_make, what="create", is_transient=_is_transient_http)
