@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.enums import ScenePacketStatus
 from dominion.shared.models import Beat, Chapter, ChapterPacket, Scene, ScenePacket, Summary
-from dominion.shared.text_match import as_str_list
+from dominion.shared.text_match import as_str_list, binding_replacements, project_drafter_fields
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
@@ -399,7 +399,12 @@ async def derive_scene_packets(
     source_hash changes; an unchanged input leaves an approved packet untouched.
     """
     body: dict[str, Any] = packet.body or {}
-    seeds = [s for s in (body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
+    # Prefer the SurfaceContract (drafter-safe projected seeds + fields) when present.
+    # This is the contract-first rule: ScenePacket derivation consumes SurfaceContract, never raw
+    # internal ChapterPacket scene seeds.
+    surface = body.get("_surface_contract") if isinstance(body.get("_surface_contract"), dict) else None
+    effective_body: dict[str, Any] = surface if surface is not None else body
+    seeds = [s for s in (effective_body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
     counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0}
     if not seeds:
         return counts
@@ -409,12 +414,12 @@ async def derive_scene_packets(
     # it does NOT include chapter-prefix prime calls; those always use scene_packet_prefix_prime_token_budget
     # so cache initialization never consumes Scene 1's scene-local budget.
     external_scene_budget = budget
-    chapter_target, chapter_max = sp_inputs.chapter_targets(body, seeds)
+    chapter_target, chapter_max = sp_inputs.chapter_targets(effective_body, seeds)
     budgets = length_planner.plan_word_budgets(
         chapter_target_words=chapter_target,
         chapter_max_words=chapter_max,
         scene_seeds=seeds,
-        chapter_packet_body=body,
+        chapter_packet_body=effective_body,
     )
 
     existing: dict[uuid.UUID, ScenePacket] = {
@@ -473,7 +478,7 @@ async def derive_scene_packets(
         # Cost: an unchanged approved scene now pays retrieval before the skip below, but still skips the
         # expensive Author+QA LLM fan-out; retrieval is DB-only.
         query = " ".join([str(seed.get("scene_job") or ""), *as_str_list(seed.get("required_beats"))])
-        routing = owner_router.route(query, characters=as_str_list(body.get("characters_present")))
+        routing = owner_router.route(query, characters=as_str_list(effective_body.get("characters_present")))
         snippets = await retrieval.retrieve_hybrid(
             session,
             book_id=packet.book_id,
@@ -489,7 +494,7 @@ async def derive_scene_packets(
         prior_keys = await sp_inputs.prior_scene_keys(session, chapter_id=packet.chapter_id, scene_no=scene_no)
         src_hash = hash_mod.source_hash(
             chapter_packet_id=packet.id,
-            chapter_packet_body=body,
+            chapter_packet_body=effective_body,
             scene_seed=seed,
             chapter_word_budget=word_budget,
             prior_scene_keys=prior_keys,
@@ -544,14 +549,14 @@ async def derive_scene_packets(
     derive_run_id = uuid.uuid4()
     book_id_str, chapter_id_str = str(packet.book_id), str(packet.chapter_id)
     counts["context_budget_report"] = _derive_context_budget_report(
-        chapter_packet_body=body,
+        chapter_packet_body=effective_body,
         work=work,
         omniscient_summary=omniscient,
     )
 
     await _prime_shared_prefixes(
         work=work,
-        chapter_packet_body=body,
+        chapter_packet_body=effective_body,
         chapter_open_questions=chapter_open_questions,
         omniscient_summary=omniscient,
         sink=sink,
@@ -565,7 +570,7 @@ async def derive_scene_packets(
         async with sem:
             return await _author_then_qa(
                 item,
-                chapter_packet_body=body,
+                chapter_packet_body=effective_body,
                 chapter_open_questions=chapter_open_questions,
                 pov=item.pov,
                 pov_summary=item.pov_summary,
@@ -579,11 +584,20 @@ async def derive_scene_packets(
     # run first or pay chapter-level cache creation under its scene-local work budget.
     results = await asyncio.gather(*(_run(item) for item in work))
 
+    # Surface-safe projection inputs. Prefer surface_terms (new generic) but fall back to legacy
+    # entity_bindings for transition. The SurfaceContract already performed the main projection on
+    # the seeds; this is a final safety net for Beat bodies.
+    chapter_bindings = effective_body.get("entity_bindings") or body.get("entity_bindings")
+    chapter_reps = binding_replacements(chapter_bindings)
+
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
     for item, (scene_body, qa, error_detail, violations, blocker_source) in zip(work, results, strict=True):
         status, blocked_reason = approval_policy.status_after_author_qa(scene_body, qa, error_detail)
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
+        if chapter_bindings and isinstance(persisted_body, dict):
+            persisted_body = {**persisted_body, "entity_bindings": chapter_bindings}
+            persisted_body, _ = project_drafter_fields(persisted_body, chapter_reps)
         qa_warnings = (
             {"residual_risks": qa["residual_risks"], "issues": qa["issues"]}
             if qa

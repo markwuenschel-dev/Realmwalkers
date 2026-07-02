@@ -30,7 +30,8 @@ from dominion.workers.memory import canon_rag
 from dominion.workers.packet import approval_policy
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
-from dominion.workers.packet.validation import evaluate_chapter_packet
+from dominion.workers.packet.surface_contract import build_surface_contract
+from dominion.workers.packet.validation import evaluate_chapter_packet_internal
 
 log = structlog.get_logger()
 
@@ -346,39 +347,74 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     _mint_seed_ids(packet)
     _resolve_provenance(packet, handles)
 
-    # Deterministic roster-consistency check runs BEFORE QA: a character double-bucketed across
-    # present/absent/mentioned-only/forbidden in a genuinely IMPOSSIBLE way, or a forbidden name bled into
-    # the chapter's own scene seeds, is a decidable self-contradiction QA should not need to guess at. A
-    # hard blocker skips QA entirely (no point attacking a packet already known internally inconsistent).
-    # The evaluate step first collapses the redundant overlaps with dominance rules (present wins over
-    # mentioned_only; mentioned_only, which implies absence, wins over absent) so we persist/QA/draft the
-    # cleaned roster — e.g. a present-but-masked character wrongly echoed in mentioned_only, or a name only
-    # "off-page but referenced" left in characters_absent to false-block a later on-page mention.
-    result = evaluate_chapter_packet(packet)
-    packet = result.normalized_body
-    violations = result.violations
-    block_violations = result.draft_blockers
-    if block_violations:
+    # === Scope-aware contract pipeline (internal -> surface) ===
+    # 1. Internal validation: structure + roster contradictions only. Raw packet may contain hidden
+    #    canonical truth in INTERNAL_PLANNING / AUTHOR_ONLY_CANON fields (including raw scene seeds).
+    internal_result = evaluate_chapter_packet_internal(packet)
+    packet_internal = internal_result.normalized_body
+    violations = internal_result.violations
+    if internal_result.draft_blockers:
         log.warning(
             "packet.validation_blocked",
             chapter=str(chapter.id),
-            count=len(block_violations),
-            kinds=sorted({v.kind for v in block_violations}),
+            count=len(internal_result.draft_blockers),
+            kinds=sorted({v.kind for v in internal_result.draft_blockers}),
+            stage="internal",
         )
         return await fail_closed(
-            "deterministic validation failed: " + "; ".join(v.detail for v in block_violations),
-            body=packet,
+            "deterministic validation failed: " + "; ".join(v.detail for v in internal_result.draft_blockers),
+            body=packet_internal,
             violations=[v.as_dict() for v in violations],
-            open_questions={"items": _open_questions(packet)},
+            open_questions={"items": _open_questions(packet_internal)},
             blocker_source="validation",
             blocker_kind="contract_validation",
             recovery_actions=_VALIDATION_ACTIONS,
             blocker_diagnostics={
-                "stage": "deterministic_validation",
-                "violation_count": len(block_violations),
-                "violation_kinds": sorted({v.kind for v in block_violations}),
+                "stage": "internal_validation",
+                "violation_count": len(internal_result.draft_blockers),
+                "violation_kinds": sorted({v.kind for v in internal_result.draft_blockers}),
             },
         )
+
+    # 2. Build SurfaceContract (drafter-facing projection). This is the contract that must be handed
+    #    to ScenePacket derivation and all drafter-facing consumers.
+    surface_result = build_surface_contract(packet_internal)
+    packet_surface = surface_result.surface_body
+    violations.extend(surface_result.violations)
+    if surface_result.blockers:
+        log.warning(
+            "packet.validation_blocked",
+            chapter=str(chapter.id),
+            count=len(surface_result.blockers),
+            kinds=sorted({v.kind for v in surface_result.blockers}),
+            stage="surface",
+        )
+        return await fail_closed(
+            "deterministic validation failed (surface): " + "; ".join(v.detail for v in surface_result.blockers),
+            body=packet_internal,  # persist internal truth for audit
+            violations=[v.as_dict() for v in violations],
+            open_questions={"items": _open_questions(packet_internal)},
+            blocker_source="validation",
+            blocker_kind="contract_validation",
+            recovery_actions=_VALIDATION_ACTIONS,
+            blocker_diagnostics={
+                "stage": "surface_validation",
+                "violation_count": len(surface_result.blockers),
+                "violation_kinds": sorted({v.kind for v in surface_result.blockers}),
+            },
+        )
+
+    # Choose what to persist as the primary body: internal truth (audit + provenance) remains authoritative.
+    # Downstream derive will read surface seeds via the _surface_contract key or explicit surface handoff.
+    # For the ChapterPacket row we persist the internal (with surface attached for easy access).
+    packet = dict(packet_internal)
+    packet["_surface_contract"] = packet_surface  # min-viable without schema change
+    # Also keep the projected seeds at top level for immediate compatibility during transition
+    # (scene seeds in surface are the safe ones).
+    if "scene_seeds" in packet_surface:
+        packet["scene_seeds"] = packet_surface.get("scene_seeds", packet.get("scene_seeds"))
+
+    # All blockers (internal + surface) have already been checked. Warnings may remain.
 
     progress.set_phase(progress_key, "qa")
     try:

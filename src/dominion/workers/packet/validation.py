@@ -1,34 +1,17 @@
-"""Deterministic ChapterPacket roster-consistency validation (contract-first drafting, Phase 1).
+"""Deterministic ChapterPacket INTERNAL validation (roster + structural contradictions).
 
-QA is an LLM attacker — good at semantic risk, unreliable at hard facts. This module catches decidable
-roster contradictions a checker should never need to guess at: a character double-bucketed across the
-four roster categories (`characters_present` / `characters_absent` / `characters_mentioned_only` /
-`characters_forbidden`) in a way that is a TRUE self-contradiction, or a forbidden name bleeding into the
-chapter's own scene seeds. It does NOT try to judge whether a bucket assignment is factually correct for
-the story — that requires authorial knowledge no packet field carries, and is out of reach for a
-deterministic checker.
+Per the scope-aware contract architecture:
 
-Not every co-membership is a contradiction. Some overlaps are just REDUNDANT and are collapsed
-server-side by a deterministic dominance rule (`normalize_chapter_packet_roster`), never blocked:
-`present` dominates `mentioned_only` (a physically-present character redundantly echoed in
-`characters_mentioned_only` — the common masked / late-reveal mis-bucket — is kept present and dropped
-from mentioned_only), and `mentioned_only` (which IMPLIES absence) dominates `characters_absent` (dropped
-there, kept in the more specific surface-reference bucket, so the downstream scene-packet absence check
-does not false-block a legitimate on-page mention). Only the genuinely-impossible pairs in
-`_CONTRADICTORY_ROSTER_PAIRS` block. `evaluate_chapter_packet` validates the ORIGINAL body so a name
-triple-bucketed as present+absent+mentioned_only still blocks on present∩absent rather than being
-normalized away.
+- This module (and `evaluate_chapter_packet`) validates AuthorPacketInternal / raw ChapterPacket.
+- Raw scene seeds and internal planning fields MAY contain hidden canonical terms.
+- Surface leakage / forbidden surface terms are detected ONLY after SurfaceContractBuilder projection.
+- No validator here scans raw scene seeds for characters_forbidden (that was the old design error).
+- Roster matrix rules remain: present∩absent etc block; redundant overlaps are normalized (warn only).
 
-Pure and import-light (no DB, no models): input is the packet body dict, output is a list of
-violations the caller persists. `block` severity fails the packet closed; `warn` is advisory. Roster
-entries are free text ("Brent (404 guild member, present in the scrim)"), so name extraction takes only
-the text before the first parenthetical/comma/dash as the candidate identifier and compares it for
-EXACT (case-insensitive) equality across buckets — never a fuzzy substring/NER match against another
-bucket's full prose, which produces false positives (e.g. "Seb" present vs. "Seb's brother" mentioned-
-only are different entities, but a naive whole-word scan of the *other bucket's raw text* collides on
-"Seb" inside "Seb's"). Forbidden-name bleed into scene seeds reuses the same whole-word matcher already
-proven safe for scene-packet absence checks, since scene-seed prose won't accidentally contain an exact
-multi-word forbidden name/entity.
+Field scope lives in scopes.py. A term may be forbidden from the reader without being forbidden from
+the system.
+
+See surface_contract.py for the projection stage that produces the drafter-safe contract.
 """
 
 from __future__ import annotations
@@ -37,7 +20,12 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from dominion.shared.text_match import as_str_list, collect_strings, names_present
+from dominion.shared.text_match import (
+    DRAFTER_TEXT_FIELDS,
+    as_str_list,
+    binding_replacements,
+    project_drafter_fields,
+)
 
 Severity = Literal["warn", "block"]
 
@@ -63,8 +51,10 @@ _ROSTER_FIELDS: tuple[str, ...] = (
 #                              (drop from mentioned_only); this is the common masked/late-reveal mis-bucket
 # ALLOWED (both coherent, no action): absent ∩ forbidden — "off-page and must not be named".
 #
-# (The scene-packet layer separately enforces that a mentioned_only/forbidden name doesn't leak into
-# on-page or reader/POV fields — that hidden-truth layering is not this roster gate's job.)
+# Per the new architecture:
+#   Raw `scene_seeds.*` live in INTERNAL_PLANNING (see RAW_SCENE_SEED_FIELD_SCOPES).
+#   Forbidden surface leakage is checked on the *projected* SurfaceContract (DRAFTER_SURFACE), not here.
+#   A canonical term listed in characters_forbidden may legitimately exist in raw internal planning fields.
 _CONTRADICTORY_ROSTER_PAIRS: frozenset[frozenset[str]] = frozenset(
     {
         frozenset({"characters_present", "characters_absent"}),
@@ -72,10 +62,6 @@ _CONTRADICTORY_ROSTER_PAIRS: frozenset[frozenset[str]] = frozenset(
         frozenset({"characters_mentioned_only", "characters_forbidden"}),
     }
 )
-
-# Scene-seed fields that describe what actually happens on-page this chapter — a forbidden name/entity
-# appearing here is a real, decidable violation (not a plausible background reference).
-_SCENE_SEED_FIELDS: tuple[str, ...] = ("scene_job", "required_beats", "exit_state")
 
 _LEADING_NAME_RE = re.compile(r"^[^(,;—-]+")
 
@@ -148,28 +134,12 @@ def validate_chapter_packet_contract(body: dict[str, Any]) -> list[ChapterPacket
                     )
                 )
 
-    # 2. Forbidden-name bleed: a name/entity the chapter marks FORBIDDEN (must not be named or referenced
-    # at all) appearing anywhere in the chapter's own scene seeds is a direct contradiction the packet
-    # author introduced against itself.
-    forbidden_names = names_by_field.get("characters_forbidden", [])
-    if forbidden_names:
-        for seed in body.get("scene_seeds") or []:
-            if not isinstance(seed, dict):
-                continue
-            scene_no = seed.get("scene_no")
-            for field_name in _SCENE_SEED_FIELDS:
-                for name in names_present(collect_strings(seed.get(field_name)), forbidden_names):
-                    violations.append(
-                        ChapterPacketViolation(
-                            kind="forbidden_name_in_scene_seed",
-                            field=f"scene_seeds[scene_no={scene_no}].{field_name}",
-                            detail=(
-                                f"forbidden name/entity {name!r} appears in scene_seeds[scene_no={scene_no}]."
-                                f"{field_name} despite being listed in characters_forbidden"
-                            ),
-                            severity="block",
-                        )
-                    )
+    # NOTE: Forbidden surface bleed is no longer checked here.
+    # Raw ChapterPacket.scene_seeds (and other INTERNAL_PLANNING fields) may contain canonical terms
+    # that are listed in characters_forbidden. SurfaceContractBuilder + validate_surface_contract
+    # are responsible for ensuring DRAFTER_SURFACE fields are clean (or blocked when unprojectable).
+    #
+    # Old "forbidden_name_in_scene_seed" checks on raw seeds have been removed from internal validation.
 
     return violations
 
@@ -259,6 +229,46 @@ def normalize_chapter_packet_roster(
     return (normalized, warnings) if warnings else (body, [])
 
 
+def normalize_forbidden_surface_labels(
+    body: dict[str, Any],
+) -> tuple[dict[str, Any], list[ChapterPacketViolation]]:
+    """Project drafter-facing scene-seed scaffolding through the packet's `entity_bindings`, replacing each
+    bound forbidden canonical name with its surface label so the persisted seeds (and everything derived
+    from them — ScenePackets, Beat.beat_text, the drafter prompt) never carry the forbidden name into
+    reader-facing instructions. Internal fields (claims, author notes, canon_locks) are untouched — the
+    author brain may still know "Roth". Returns the normalized body plus at most one collapsed
+    `forbidden_surface_normalized` warning. No bindings, or nothing to rewrite → body returned unchanged."""
+    if not isinstance(body, dict):
+        return body, []
+    replacements = binding_replacements(body.get("entity_bindings"))
+    seeds = body.get("scene_seeds")
+    if not replacements or not isinstance(seeds, list):
+        return body, []
+
+    new_seeds: list[Any] = []
+    changed_scenes: list[str] = []
+    for seed in seeds:
+        if isinstance(seed, dict):
+            new_seed, changed = project_drafter_fields(seed, replacements, DRAFTER_TEXT_FIELDS)
+            if changed:
+                changed_scenes.append(str(seed.get("scene_no")))
+            new_seeds.append(new_seed)
+        else:
+            new_seeds.append(seed)
+    if not changed_scenes:
+        return body, []
+
+    labels = ", ".join(sorted({label for _term, label in replacements}))
+    detail = (
+        f"forbidden canonical name(s) in drafter-facing scene-seed fields were projected to surface "
+        f"label(s) [{labels}] in scene(s) {', '.join(changed_scenes)} — the canon name stays in internal "
+        "fields only, never in reader-facing scaffolding"
+    )
+    return {**body, "scene_seeds": new_seeds}, [
+        ChapterPacketViolation(kind="forbidden_surface_normalized", field="scene_seeds", detail=detail, severity="warn")
+    ]
+
+
 @dataclass(frozen=True)
 class ChapterPacketValidationResult:
     """The outcome of evaluating one authored ChapterPacket body: the server-normalized body the packet
@@ -282,15 +292,19 @@ class ChapterPacketValidationResult:
         return not self.draft_blockers
 
 
-def evaluate_chapter_packet(body: dict[str, Any]) -> ChapterPacketValidationResult:
-    """Collapse the redundant roster overlaps into `normalized_body` AND run the deterministic roster
-    checks, in one place. The caller persists `normalized_body` and blocks on `draft_blockers`.
+def evaluate_chapter_packet_internal(body: dict[str, Any]) -> ChapterPacketValidationResult:
+    """Internal-only validation for raw AuthorPacketInternal / ChapterPacket body.
 
-    Validation runs on the ORIGINAL body, not the normalized one: normalization drops names out of
-    `characters_absent`/`characters_mentioned_only`, and validating the post-normalization body could let a
-    genuine `present ∩ absent` contradiction (a name triple-bucketed as present+absent+mentioned_only) be
-    silently normalized away instead of blocking. Only true contradictions and forbidden-name bleed end up
-    as blockers; each dominance collapse is surfaced as an advisory `roster_normalized` warning."""
+    Performs:
+      - structural sanity (JSON object)
+      - roster true-contradiction detection (present∩absent etc)
+      - roster redundant normalization (warns only)
+
+    IMPORTANT:
+    - Does NOT scan raw scene seeds or internal fields for forbidden surface leakage.
+    - Surface leakage (DRAFTER_SURFACE etc) is the job of build_surface_contract + validate_surface_contract.
+    - Raw packet may contain hidden canonical truth in INTERNAL_PLANNING / AUTHOR_ONLY_CANON scopes.
+    """
     if not isinstance(body, dict):
         return ChapterPacketValidationResult(
             normalized_body={},
@@ -298,8 +312,22 @@ def evaluate_chapter_packet(body: dict[str, Any]) -> ChapterPacketValidationResu
                 ChapterPacketViolation("invalid_body", None, "chapter packet body is not a JSON object", "block")
             ],
         )
-    normalized, warnings = normalize_chapter_packet_roster(body)
+    normalized, roster_warnings = normalize_chapter_packet_roster(body)
+    # NOTE: We intentionally no longer call the old normalize_forbidden_surface_labels here for the
+    # internal path. The generic SurfaceContractBuilder now owns projection for all surface_terms +
+    # characters_forbidden. Legacy normalize is kept only for back-compat in beats/derive paths
+    # that have not yet been fully migrated.
     return ChapterPacketValidationResult(
         normalized_body=normalized,
-        violations=[*warnings, *validate_chapter_packet_contract(body)],
+        violations=[*roster_warnings, *validate_chapter_packet_contract(body)],
     )
+
+
+# Backwards-compatible alias. Current callers in packet/__init__.py will be updated to the two-stage
+# internal + surface flow. Tests may continue to call evaluate_chapter_packet for the internal gate.
+def evaluate_chapter_packet(body: dict[str, Any]) -> ChapterPacketValidationResult:
+    """Legacy name for evaluate_chapter_packet_internal (roster + structure only).
+
+    New code should prefer the explicit internal + surface pipeline.
+    """
+    return evaluate_chapter_packet_internal(body)
