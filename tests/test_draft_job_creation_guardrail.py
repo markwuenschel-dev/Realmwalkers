@@ -11,6 +11,7 @@ ALLOWED_SUFFIXES = {
     "workers/job_routing.py",
     "workers/draft_queue.py",
     "workers/enqueue.py",
+    "workers/legacy/enqueue.py",
 }
 
 

@@ -20,7 +20,7 @@ from dominion.shared.enums import RuleProposalStatus
 from dominion.shared.models import PovProfile, RuleProposal
 from dominion.shared.schemas import RuleProposalDecisionIn, RuleProposalOut
 from dominion.workers.budget import TokenBudget
-from dominion.workers.learning import distill
+from dominion.workers.legacy.learning import distill
 
 router = APIRouter(tags=["learning"])
 

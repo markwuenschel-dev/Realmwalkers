@@ -30,9 +30,10 @@ from dominion.shared.models import (
     Summary,
 )
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
-from dominion.workers import enqueue, llm, worker
+from dominion.workers import llm, worker
 from dominion.workers.budget import Usage
 from dominion.workers.job_scheduler import schedule_next_after_approval
+from dominion.workers.legacy import enqueue
 from dominion.workers.memory import canon_rag, ledger, summaries
 from dominion.workers.specialists import drafter as drafter_mod
 from tests.conftest import seed_scene_packet

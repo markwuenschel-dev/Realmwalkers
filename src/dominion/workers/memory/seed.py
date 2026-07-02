@@ -8,7 +8,7 @@ into the rolling summaries, and (re)builds the canon RAG index from `series/cano
 makes the system continuation-ready.
 
 Idempotent: re-running upserts the same (chapter, scene) seed rows rather than duplicating them, and
-the canon index is rebuilt in place. Voice specs are a separate concern (`set_voice.py`); hard stats
+the canon index is rebuilt in place. Voice specs are a separate concern (see legacy/set_voice.py); hard stats
 are declared via beats going forward — this importer never invents `CharacterState` from prose.
 
     uv run python -m dominion.workers.memory.seed --book "Dominion Realm"

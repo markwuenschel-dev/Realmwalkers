@@ -22,9 +22,11 @@ from typing import Any
 
 from dominion.shared.config import settings
 from dominion.shared.enums import DraftStage, LengthStatus, Severity
+from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
-from dominion.workers.length import compress as _compress_mod
-from dominion.workers.length import expand as _expand_mod
+
+# Inlined from the former length/compress.py + length/expand.py (thin internal impl, not public boundaries).
+# Kept here to shrink file count without changing any call sites or behavior.
 
 _WORD_RE = re.compile(r"\b[\w'-]+\b")
 
@@ -73,8 +75,8 @@ async def apply_length_guard(
     if not word_budget:
         return GuardResult(prose=prose, word_count=wc, length_status=LengthStatus.WITHIN_BUDGET)
 
-    compress = compress or _compress_mod.compress
-    expand = expand or _expand_mod.expand
+    compress = compress or _compress
+    expand = expand or _expand
     minimum = int(word_budget.get("min") or 0)
     maximum = int(word_budget.get("max") or 0)
     hard_max = int(word_budget.get("hard_max") or 0)
@@ -149,3 +151,134 @@ async def apply_length_guard(
         )
 
     return GuardResult(prose=prose, word_count=wc, length_status=LengthStatus.WITHIN_BUDGET)
+
+
+# --- inlined length/compress + length/expand (private to guard) ---------------------------------
+# (Previously separate files; only ever imported internally by guard. Merged for contraction.)
+
+
+def _section(label: str, items: list[str]) -> str:
+    items = [str(i).strip() for i in items if str(i).strip()]
+    if not items:
+        return ""
+    return f"{label}:\n" + "\n".join(f"- {i}" for i in items) + "\n\n"
+
+
+_COMPRESS_SYSTEM = (
+    "You are a line editor compressing an existing scene to fit a word budget. You do NOT rewrite "
+    "the story. Compress without changing canon, reveals, POV knowledge, scene outcome, or voice. "
+    "Do not add new facts. Do not remove required beats. Do not explain hidden canon. "
+    "Output the revised prose only — no preamble, no notes."
+)
+
+
+def _build_compress_prompt(
+    prose: str,
+    *,
+    target: int,
+    hard_max: int,
+    required_beats: list[str],
+    forbidden_beats: list[str],
+    exit_state: str | None,
+    compression_priority: list[str],
+    must_not_spend_words_on: list[str],
+) -> str:
+    parts = [
+        f"Compress this scene to about {target} words (never exceed {hard_max}).\n\n",
+        _section("Required beats (must remain)", required_beats),
+        _section("Forbidden beats (must stay absent)", forbidden_beats),
+        f"Exit state (must hold): {exit_state}\n\n" if exit_state else "",
+        _section("Compression priorities (cut in this order)", compression_priority),
+        _section("Must not spend words on", must_not_spend_words_on),
+        "PROSE:\n",
+        prose,
+    ]
+    return "".join(parts)
+
+
+async def _compress(
+    prose: str,
+    *,
+    word_budget: dict[str, Any],
+    scene_contract: dict[str, Any] | None = None,
+    budget: TokenBudget,
+    max_tokens: int = 8000,
+) -> str:
+    """Inlined compression (was length.compress.compress)."""
+    contract = scene_contract or {}
+    user = _build_compress_prompt(
+        prose,
+        target=int(word_budget.get("target") or word_budget.get("max") or 0),
+        hard_max=int(word_budget.get("hard_max") or word_budget.get("max") or 0),
+        required_beats=contract.get("required_beats") or [],
+        forbidden_beats=contract.get("forbidden_beats") or [],
+        exit_state=contract.get("exit_state"),
+        compression_priority=word_budget.get("compression_priority") or [],
+        must_not_spend_words_on=word_budget.get("must_not_spend_words_on") or [],
+    )
+    text, _usage = await llm.complete(
+        model=settings.length_compress_model,
+        system=_COMPRESS_SYSTEM,
+        user=user,
+        max_tokens=max_tokens,
+        budget=budget,
+        expect_cache=False,
+    )
+    return text.strip() or prose
+
+
+_EXPAND_SYSTEM = (
+    "You are a line editor expanding an existing scene that is too short. Expand ONLY through physical "
+    "grounding, reaction beats, and clarity around the required beats. Do not add new plot events. "
+    "Do not add new lore. Do not reveal hidden facts. Keep the POV's voice. "
+    "Output the revised prose only — no preamble, no notes."
+)
+
+
+def _build_expand_prompt(
+    prose: str,
+    *,
+    target: int,
+    max_words: int,
+    required_beats: list[str],
+    exit_state: str | None,
+    expansion_priority: list[str],
+) -> str:
+    parts = [
+        f"Expand this scene to about {target} words (do not exceed {max_words}).\n\n",
+        _section("Required beats (ground these)", required_beats),
+        f"Exit state (must hold): {exit_state}\n\n" if exit_state else "",
+        _section("Expansion priorities", expansion_priority),
+        "PROSE:\n",
+        prose,
+    ]
+    return "".join(parts)
+
+
+async def _expand(
+    prose: str,
+    *,
+    word_budget: dict[str, Any],
+    scene_contract: dict[str, Any] | None = None,
+    budget: TokenBudget,
+    max_tokens: int = 8000,
+) -> str:
+    """Inlined expansion (was length.expand.expand)."""
+    contract = scene_contract or {}
+    user = _build_expand_prompt(
+        prose,
+        target=int(word_budget.get("target") or word_budget.get("min") or 0),
+        max_words=int(word_budget.get("max") or word_budget.get("hard_max") or 0),
+        required_beats=contract.get("required_beats") or [],
+        exit_state=contract.get("exit_state"),
+        expansion_priority=word_budget.get("expansion_priority") or [],
+    )
+    text, _usage = await llm.complete(
+        model=settings.length_expand_model,
+        system=_EXPAND_SYSTEM,
+        user=user,
+        max_tokens=max_tokens,
+        budget=budget,
+        expect_cache=False,
+    )
+    return text.strip() or prose

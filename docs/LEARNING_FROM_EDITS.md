@@ -36,11 +36,11 @@ quietly improves the next draft, cheapest mechanism first, with fine-tuning as a
 **The once-cut wire is now connected (Tier 2).** `PovProfile.exemplar_scene_ids` is stored and the
 drafter *consumes* `ctx.exemplars`; `context.assemble_context` now loads those scene ids' prose into
 `ctx.exemplars` (`_load_exemplars`, capped by `settings.exemplar_max_count` / `exemplar_max_chars`,
-author order preserved, the revised scene excluded). `set_exemplars.py` authors the list from the
+author order preserved, the revised scene excluded). `legacy/set_exemplars.py` authors the list from the
 terminal (the eventual in-editor button writes the same field).
 
 **Per-draft, read-fresh knobs** that take effect on the *next* scene with no redeploy:
-- `PovProfile.voice_spec` (set via `set_voice.py`).
+- `PovProfile.voice_spec` (set via `legacy/set_voice.py`).
 - `series/style/dialogue_rules.md` (re-read every draft; scoped to characters present).
 
 ---
@@ -80,7 +80,7 @@ faithful pair, instead of diffing against the marker-form `agent_original`.
 - [x] **Cut wire fixed:** `assemble_context` loads `PovProfile.exemplar_scene_ids` → those scenes'
   prose → `ctx.exemplars` (`_load_exemplars`): capped by count/length to protect the token budget,
   author order preserved, the scene being revised excluded.
-- [x] **Authoring path:** `set_exemplars.py` (mirrors `set_voice`) upserts the list from the terminal;
+- [x] **Authoring path:** `legacy/set_exemplars.py` (mirrors `set_voice`) upserts the list from the terminal;
   `set_voice` still leaves exemplars untouched, so the two are independent.
 - [ ] **In-editor "use as voice exemplar" action** (and/or auto-suggest heavily-edited scenes) — still
   to do; it writes the same `exemplar_scene_ids` field the CLI does.
@@ -93,7 +93,7 @@ and **proposes** durable voice/dialogue rules, e.g. *"trims filter verbs (saw/fe
 tags stay 'said'/'asked'."* The author approves/edits/rejects before anything is written; accepted
 rules land on the next scene because `voice_spec` is read fresh per draft. Best lever for **dialogue**
 and durable **style/structure** preferences.
-- [x] **Distiller** — `workers/learning/distill.py`: `load_recent_pairs` (the POV's most-recent
+- [x] **Distiller** — `workers/legacy/learning/distill.py`: `load_recent_pairs` (the POV's most-recent
   `EditPair`s, joined through scene→chapter; no-op/empty pairs dropped), `candidate_povs`, and
   `propose_rules` (one bounded `review_model` call, tolerant JSON parse via `reviewers/base.py`, a
   `TimeoutError`→504 on a hung call, mirroring the planner). Capped by `settings.distill_max_pairs` /
@@ -153,8 +153,8 @@ justify it. In-context tiers should carry the project a long way first.
 
 *Cross-refs: `docs/DESIGN.md` §11 (training label), `src/dominion/workers/specialists/drafter.py`
 (`_voice_system`, exemplars), `src/dominion/workers/context.py` (`assemble_context`, `_load_exemplars`),
-`src/dominion/workers/set_voice.py` + `set_exemplars.py` (authoring CLIs),
+`src/dominion/workers/legacy/set_voice.py` + `legacy/set_exemplars.py` (authoring CLIs),
 `src/dominion/api/routers/reviews.py` (`decide`, `_capture_edit_pair`), `EditPair` +
-`RuleProposal` in `src/dominion/shared/models.py`, `src/dominion/workers/learning/distill.py` +
+`RuleProposal` in `src/dominion/shared/models.py`, `src/dominion/workers/legacy/learning/distill.py` +
 `src/dominion/api/routers/learning.py` (Tier 3), `frontend/src/desk/screens/LedgerScreen.tsx`
 (Voice rules surface), `series/style/dialogue_rules.md`.*
