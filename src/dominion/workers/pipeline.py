@@ -153,16 +153,17 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     # so that the next scene in sequence receives fresh exit_state / spent_beats / reader state.
     # IMPORTANT: failure here must block the production run (do not queue N+1) even though
     # the prose itself is kept.
-    if getattr(job, "production_run_id", None):
+    production_run_id = getattr(job, "production_run_id", None)
+    if production_run_id is not None:
         try:
             from dominion.workers import production as prod
 
-            await prod.update_timeline_after_scene(session, job.production_run_id, scene)
+            await prod.update_timeline_after_scene(session, production_run_id, scene)
         except Exception as exc:
             try:
                 from dominion.workers import production as prod
 
-                await prod._block_production_on_timeline_failure(session, job.production_run_id, str(exc))
+                await prod._block_production_on_timeline_failure(session, production_run_id, str(exc))
             except Exception:
                 # last resort - do not let timeline bug destroy the draft
                 pass

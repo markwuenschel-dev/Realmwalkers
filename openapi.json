@@ -3048,6 +3048,50 @@
         }
       }
     },
+    "/production-runs/{run_id}/draft-missing-scenes": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Draft Missing Scenes",
+        "description": "Queue draft jobs for any ChapterSequence scenes that lack prose but have approved contracts.\n\nThis lets the production run drive generation of the full chapter rather than only reacting to\npre-existing scenes and escalating missing ones.",
+        "operationId": "draft_missing_scenes_production_runs__run_id__draft_missing_scenes_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionRunActionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/production-runs/{run_id}/repair-tasks": {
       "get": {
         "tags": [

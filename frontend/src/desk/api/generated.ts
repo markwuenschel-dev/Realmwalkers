@@ -720,6 +720,591 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/production-runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Start Production Run */
+    post: operations["start_production_run_production_runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/production-runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Production Runs */
+    get: operations["list_production_runs_chapters__chapter_id__production_runs_get"];
+    put?: never;
+    /** Start Chapter Production Run */
+    post: operations["start_chapter_production_run_chapters__chapter_id__production_runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Production Run */
+    get: operations["get_production_run_production_runs__run_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Production Run Events */
+    get: operations["get_production_run_events_production_runs__run_id__events_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancel Production Run */
+    post: operations["cancel_production_run_production_runs__run_id__cancel_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/resume": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Resume Production Run */
+    post: operations["resume_production_run_production_runs__run_id__resume_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/artifacts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Production Run Artifacts */
+    get: operations["get_production_run_artifacts_production_runs__run_id__artifacts_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/artifacts/{artifact_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Artifact */
+    get: operations["get_artifact_artifacts__artifact_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/artifacts/{artifact_id}/dependencies": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Artifact Dependencies */
+    get: operations["get_artifact_dependencies_artifacts__artifact_id__dependencies_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/issues": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Production Run Issues */
+    get: operations["get_production_run_issues_production_runs__run_id__issues_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/accept": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Accept Issue */
+    post: operations["accept_issue_issues__issue_id__accept_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/reject": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reject Issue */
+    post: operations["reject_issue_issues__issue_id__reject_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/merge": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Merge Issue */
+    post: operations["merge_issue_issues__issue_id__merge_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/escalate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Escalate Issue */
+    post: operations["escalate_issue_issues__issue_id__escalate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/mark-false-positive": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark Issue False Positive */
+    post: operations["mark_issue_false_positive_issues__issue_id__mark_false_positive_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/triage": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Triage Production Run */
+    post: operations["triage_production_run_production_runs__run_id__triage_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/assemble": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Assemble Production Run */
+    post: operations["assemble_production_run_production_runs__run_id__assemble_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/draft-missing-scenes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Draft Missing Scenes
+     * @description Queue draft jobs for any ChapterSequence scenes that lack prose but have approved contracts.
+     *
+     *     This lets the production run drive generation of the full chapter rather than only reacting to
+     *     pre-existing scenes and escalating missing ones.
+     */
+    post: operations["draft_missing_scenes_production_runs__run_id__draft_missing_scenes_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/repair-tasks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Production Run Repair Tasks */
+    get: operations["get_production_run_repair_tasks_production_runs__run_id__repair_tasks_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/repair-tasks/{task_id}/apply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Apply Repair Task */
+    post: operations["apply_repair_task_repair_tasks__task_id__apply_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/repair-tasks/{task_id}/run": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run Repair Task */
+    post: operations["run_repair_task_repair_tasks__task_id__run_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/repair-tasks/{task_id}/verify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify Repair Task */
+    post: operations["verify_repair_task_repair_tasks__task_id__verify_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/repair-tasks/{task_id}/reject": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reject Repair Task */
+    post: operations["reject_repair_task_repair_tasks__task_id__reject_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/repair-tasks/{task_id}/rollback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Rollback Repair Task */
+    post: operations["rollback_repair_task_repair_tasks__task_id__rollback_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/repair-tasks/{task_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Repair Task */
+    get: operations["get_repair_task_repair_tasks__task_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/chapter-sequence": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Chapter Sequence */
+    get: operations["get_chapter_sequence_chapters__chapter_id__chapter_sequence_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/chapter-sequence/derive": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Derive Chapter Sequence */
+    post: operations["derive_chapter_sequence_chapters__chapter_id__chapter_sequence_derive_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapter-sequences/{sequence_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update Chapter Sequence */
+    put: operations["update_chapter_sequence_chapter_sequences__sequence_id__put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapter-sequences/{sequence_id}/qa": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Qa Chapter Sequence */
+    post: operations["qa_chapter_sequence_chapter_sequences__sequence_id__qa_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapter-sequences/{sequence_id}/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Approve Chapter Sequence */
+    post: operations["approve_chapter_sequence_chapter_sequences__sequence_id__approve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapter-sequences/{sequence_id}/revise": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Revise Chapter Sequence */
+    post: operations["revise_chapter_sequence_chapter_sequences__sequence_id__revise_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/final-chapter": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Final Chapter */
+    get: operations["get_final_chapter_production_runs__run_id__final_chapter_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/final-qa": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run Final Qa */
+    post: operations["run_final_qa_production_runs__run_id__final_qa_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/production-runs/{run_id}/approve-final": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Approve Final Chapter */
+    post: operations["approve_final_chapter_production_runs__run_id__approve_final_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/telemetry": {
     parameters: {
       query?: never;
@@ -1606,6 +2191,36 @@ export interface components {
       /** Estimated Latency Sec Per Chapter */
       estimated_latency_sec_per_chapter?: number | null;
     };
+    /** AgentEventOut */
+    AgentEventOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Production Run Id
+       * Format: uuid
+       */
+      production_run_id: string;
+      /** Agent Run Id */
+      agent_run_id?: string | null;
+      /** Event Type */
+      event_type: string;
+      /** Stage */
+      stage?: string | null;
+      /** Message */
+      message?: string | null;
+      /** Payload Json */
+      payload_json?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
     /** AgentGlobalsOut */
     AgentGlobalsOut: {
       /** Scene Token Budget */
@@ -1795,6 +2410,62 @@ export interface components {
        */
       is_custom: boolean;
     };
+    /** AgentRunOut */
+    AgentRunOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Production Run Id
+       * Format: uuid
+       */
+      production_run_id: string;
+      /** Agent Name */
+      agent_name: string;
+      /** Agent Role */
+      agent_role: string;
+      /** Model */
+      model?: string | null;
+      /** Status */
+      status: string;
+      /** Stage */
+      stage: string;
+      /** Input Artifact Ids */
+      input_artifact_ids: string[];
+      /** Output Artifact Ids */
+      output_artifact_ids?: string[] | null;
+      /** Prompt Hash */
+      prompt_hash?: string | null;
+      /** Input Hash */
+      input_hash?: string | null;
+      /** Output Hash */
+      output_hash?: string | null;
+      /** Token Input */
+      token_input?: number | null;
+      /** Token Output */
+      token_output?: number | null;
+      /** Cost Estimate */
+      cost_estimate?: number | null;
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /** Error */
+      error?: string | null;
+      /** Payload Json */
+      payload_json?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Started At */
+      started_at?: string | null;
+      /** Completed At */
+      completed_at?: string | null;
+    };
     /** AgentStatsListOut */
     AgentStatsListOut: {
       /** Agents */
@@ -1868,6 +2539,66 @@ export interface components {
     ApproveBeatsIn: {
       /** Beat Ids */
       beat_ids?: string[] | null;
+    };
+    /** ArtifactDependencyOut */
+    ArtifactDependencyOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Artifact Id
+       * Format: uuid
+       */
+      artifact_id: string;
+      /**
+       * Depends On Artifact Id
+       * Format: uuid
+       */
+      depends_on_artifact_id: string;
+      /** Dependency Kind */
+      dependency_kind: string;
+      /** Dependency Hash */
+      dependency_hash?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** ArtifactOut */
+    ArtifactOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Production Run Id */
+      production_run_id?: string | null;
+      /** Artifact Type */
+      artifact_type: string;
+      /** Domain Table */
+      domain_table?: string | null;
+      /** Domain Id */
+      domain_id?: string | null;
+      /** Version */
+      version: number;
+      /** Status */
+      status: string;
+      /** Body */
+      body: {
+        [key: string]: unknown;
+      };
+      /** Content Hash */
+      content_hash: string;
+      /** Created By Agent Run Id */
+      created_by_agent_run_id?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /**
      * BatchChapterResultOut
@@ -2286,6 +3017,90 @@ export interface components {
       chapter_no?: number | null;
       /** Title */
       title?: string | null;
+    };
+    /** ChapterSequenceOut */
+    ChapterSequenceOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /**
+       * Chapter Packet Id
+       * Format: uuid
+       */
+      chapter_packet_id: string;
+      /** Status */
+      status: string;
+      /** Target Words */
+      target_words?: number | null;
+      /** Max Words */
+      max_words?: number | null;
+      /** Hard Max Words */
+      hard_max_words?: number | null;
+      /** Target Scene Count */
+      target_scene_count?: number | null;
+      /** Hard Max Scene Count */
+      hard_max_scene_count?: number | null;
+      /** Body */
+      body: {
+        [key: string]: unknown;
+      };
+      /** Qa Verdict */
+      qa_verdict?: string | null;
+      /** Qa Warnings */
+      qa_warnings?: {
+        [key: string]: unknown;
+      } | null;
+      /** Source Hash */
+      source_hash?: string | null;
+      /** Stale Reason */
+      stale_reason?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** ChapterSequenceQaOut */
+    ChapterSequenceQaOut: {
+      /** Verdict */
+      verdict: string;
+      /** Warnings */
+      warnings?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Required Actions
+       * @default []
+       */
+      required_actions: {
+        [key: string]: unknown;
+      }[];
+    };
+    /** ChapterSequenceUpdateIn */
+    ChapterSequenceUpdateIn: {
+      /** Body */
+      body: {
+        [key: string]: unknown;
+      };
+      /** Reason */
+      reason?: string | null;
     };
     /**
      * ChapterTelemetryOut
@@ -2744,6 +3559,101 @@ export interface components {
       scene_no: number;
       /** Prose */
       prose: string;
+    };
+    /** IssueDecisionIn */
+    IssueDecisionIn: {
+      /** Reason */
+      reason?: string | null;
+      /** Merged Into Issue Id */
+      merged_into_issue_id?: string | null;
+    };
+    /** IssueDecisionOut */
+    IssueDecisionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Issue Id
+       * Format: uuid
+       */
+      issue_id: string;
+      /** Decided By */
+      decided_by: string;
+      /** Decision */
+      decision: string;
+      /** Reason */
+      reason?: string | null;
+      /** Agent Run Id */
+      agent_run_id?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** IssueOut */
+    IssueOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Production Run Id
+       * Format: uuid
+       */
+      production_run_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Artifact Type */
+      artifact_type: string;
+      /**
+       * Artifact Id
+       * Format: uuid
+       */
+      artifact_id: string;
+      /** Scene Id */
+      scene_id?: string | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Validator */
+      validator: string;
+      /** Issue Kind */
+      issue_kind: string;
+      /** Severity */
+      severity: string;
+      /** Quote */
+      quote?: string | null;
+      /** Span Start */
+      span_start?: number | null;
+      /** Span End */
+      span_end?: number | null;
+      /** Claim */
+      claim: string;
+      /** Contract Reference */
+      contract_reference?: string | null;
+      /** Recommended Action */
+      recommended_action: string;
+      /** Confidence */
+      confidence?: number | null;
+      /** Auto Repair Allowed */
+      auto_repair_allowed: boolean;
+      /** Status */
+      status: string;
+      /** Payload Json */
+      payload_json?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /**
      * JobsStatusOut
@@ -3216,6 +4126,158 @@ export interface components {
        */
       stage: string;
     };
+    /** ProductionRunActionOut */
+    ProductionRunActionOut: {
+      run: components["schemas"]["ProductionRunOut"];
+      /**
+       * Issue Count
+       * @default 0
+       */
+      issue_count: number;
+      /**
+       * Repair Task Count
+       * @default 0
+       */
+      repair_task_count: number;
+      latest_verification?: components["schemas"]["RepairVerificationOut"] | null;
+    };
+    /** ProductionRunCreateIn */
+    ProductionRunCreateIn: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /**
+       * Mode
+       * @default full_chapter
+       */
+      mode: string;
+      /** Target Words */
+      target_words?: number | null;
+      /** Hard Max Words */
+      hard_max_words?: number | null;
+      /**
+       * Auto Triage
+       * @default true
+       */
+      auto_triage: boolean;
+    };
+    /** ProductionRunDetailOut */
+    ProductionRunDetailOut: {
+      run: components["schemas"]["ProductionRunOut"];
+      chapter_sequence?: components["schemas"]["ChapterSequenceOut"] | null;
+      /**
+       * Artifacts
+       * @default []
+       */
+      artifacts: components["schemas"]["ArtifactOut"][];
+      /**
+       * Dependencies
+       * @default []
+       */
+      dependencies: components["schemas"]["ArtifactDependencyOut"][];
+      /**
+       * Agent Runs
+       * @default []
+       */
+      agent_runs: components["schemas"]["AgentRunOut"][];
+      /**
+       * Events
+       * @default []
+       */
+      events: components["schemas"]["AgentEventOut"][];
+      /**
+       * Issues
+       * @default []
+       */
+      issues: components["schemas"]["IssueOut"][];
+      /**
+       * Issue Decisions
+       * @default []
+       */
+      issue_decisions: components["schemas"]["IssueDecisionOut"][];
+      /**
+       * Repair Tasks
+       * @default []
+       */
+      repair_tasks: components["schemas"]["RepairTaskOut"][];
+      /**
+       * Repair Attempts
+       * @default []
+       */
+      repair_attempts: components["schemas"]["RepairAttemptOut"][];
+      /**
+       * Repair Verifications
+       * @default []
+       */
+      repair_verifications: components["schemas"]["RepairVerificationOut"][];
+    };
+    /** ProductionRunOut */
+    ProductionRunOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Status */
+      status: string;
+      /** Mode */
+      mode: string;
+      /** Target Words */
+      target_words?: number | null;
+      /** Hard Max Words */
+      hard_max_words?: number | null;
+      /** Current Stage */
+      current_stage?: string | null;
+      /** Source Hash */
+      source_hash?: string | null;
+      /** Settings Json */
+      settings_json?: {
+        [key: string]: unknown;
+      } | null;
+      /** Summary Json */
+      summary_json?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** ProductionRunStartIn */
+    ProductionRunStartIn: {
+      /**
+       * Mode
+       * @default full_chapter
+       */
+      mode: string;
+      /** Target Words */
+      target_words?: number | null;
+      /** Hard Max Words */
+      hard_max_words?: number | null;
+      /**
+       * Auto Triage
+       * @default true
+       */
+      auto_triage: boolean;
+    };
     /**
      * RedraftIn
      * @description POST body to re-draft existing scenes: re-queue a draft for each (supersedes the current version).
@@ -3223,6 +4285,158 @@ export interface components {
     RedraftIn: {
       /** Scene Ids */
       scene_ids: string[];
+    };
+    /** RepairAttemptOut */
+    RepairAttemptOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Repair Task Id
+       * Format: uuid
+       */
+      repair_task_id: string;
+      /** Agent Run Id */
+      agent_run_id?: string | null;
+      /** Attempt No */
+      attempt_no: number;
+      /** Model */
+      model: string;
+      /** Patch Json */
+      patch_json?: {
+        [key: string]: unknown;
+      } | null;
+      /** Revised Text */
+      revised_text?: string | null;
+      /** Change Summary */
+      change_summary?: string | null;
+      /** Issues Addressed */
+      issues_addressed: string[];
+      /** New Risks */
+      new_risks: string[];
+      /** Word Count Before */
+      word_count_before?: number | null;
+      /** Word Count After */
+      word_count_after?: number | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** RepairTaskOut */
+    RepairTaskOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Production Run Id
+       * Format: uuid
+       */
+      production_run_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Scene Id */
+      scene_id?: string | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Repair Kind */
+      repair_kind: string;
+      /** Authority Level */
+      authority_level: string;
+      /** Status */
+      status: string;
+      /** Issue Ids */
+      issue_ids: string[];
+      /** Target Spans */
+      target_spans?: {
+        [key: string]: unknown;
+      } | null;
+      /** Instructions */
+      instructions: string;
+      /** Preserve */
+      preserve: string[];
+      /** Must Change */
+      must_change: string[];
+      /** Must Not Change */
+      must_not_change: string[];
+      /** Allowed Operations */
+      allowed_operations: string[];
+      /** Forbidden Operations */
+      forbidden_operations: string[];
+      /** Word Delta Target */
+      word_delta_target?: number | null;
+      /** Requires Human Approval */
+      requires_human_approval: boolean;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** RepairVerificationOut */
+    RepairVerificationOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Repair Attempt Id
+       * Format: uuid
+       */
+      repair_attempt_id: string;
+      /** Agent Run Id */
+      agent_run_id?: string | null;
+      /** Verdict */
+      verdict: string;
+      /** Resolved Issue Ids */
+      resolved_issue_ids: string[];
+      /** Remaining Issue Ids */
+      remaining_issue_ids: string[];
+      /** New Issues Json */
+      new_issues_json?:
+        | {
+            [key: string]: unknown;
+          }[]
+        | null;
+      /** Target Issue Resolved */
+      target_issue_resolved: boolean;
+      /** Canon Preserved */
+      canon_preserved: boolean;
+      /** Scene Outcome Preserved */
+      scene_outcome_preserved: boolean;
+      /** Voice Preserved */
+      voice_preserved: boolean;
+      /** Required Beats Preserved */
+      required_beats_preserved: boolean;
+      /** Reader State Preserved */
+      reader_state_preserved: boolean;
+      /** Regression Score */
+      regression_score: number;
+      /** Reason */
+      reason?: string | null;
+      /** Payload Json */
+      payload_json?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /**
      * RetryFailedOut
@@ -5771,6 +6985,1133 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ScenePacketOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_production_run_production_runs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProductionRunCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunActionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_production_runs_chapters__chapter_id__production_runs_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_chapter_production_run_chapters__chapter_id__production_runs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProductionRunStartIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunActionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_production_run_production_runs__run_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunDetailOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_production_run_events_production_runs__run_id__events_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentEventOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  cancel_production_run_production_runs__run_id__cancel_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  resume_production_run_production_runs__run_id__resume_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_production_run_artifacts_production_runs__run_id__artifacts_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_artifact_artifacts__artifact_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        artifact_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_artifact_dependencies_artifacts__artifact_id__dependencies_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        artifact_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactDependencyOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_production_run_issues_production_runs__run_id__issues_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  accept_issue_issues__issue_id__accept_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reject_issue_issues__issue_id__reject_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  merge_issue_issues__issue_id__merge_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  escalate_issue_issues__issue_id__escalate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  mark_issue_false_positive_issues__issue_id__mark_false_positive_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  triage_production_run_production_runs__run_id__triage_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunActionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  assemble_production_run_production_runs__run_id__assemble_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunActionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  draft_missing_scenes_production_runs__run_id__draft_missing_scenes_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunActionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_production_run_repair_tasks_production_runs__run_id__repair_tasks_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairTaskOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  apply_repair_task_repair_tasks__task_id__apply_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairTaskOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_repair_task_repair_tasks__task_id__run_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairTaskOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  verify_repair_task_repair_tasks__task_id__verify_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairVerificationOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reject_repair_task_repair_tasks__task_id__reject_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairTaskOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  rollback_repair_task_repair_tasks__task_id__rollback_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairTaskOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_repair_task_repair_tasks__task_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairTaskOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_chapter_sequence_chapters__chapter_id__chapter_sequence_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSequenceOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  derive_chapter_sequence_chapters__chapter_id__chapter_sequence_derive_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSequenceOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_chapter_sequence_chapter_sequences__sequence_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sequence_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterSequenceUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSequenceOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  qa_chapter_sequence_chapter_sequences__sequence_id__qa_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sequence_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSequenceQaOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_chapter_sequence_chapter_sequences__sequence_id__approve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sequence_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSequenceOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revise_chapter_sequence_chapter_sequences__sequence_id__revise_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sequence_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterSequenceUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSequenceOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_final_chapter_production_runs__run_id__final_chapter_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_final_qa_production_runs__run_id__final_qa_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_final_chapter_production_runs__run_id__approve_final_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionRunOut"];
         };
       };
       /** @description Validation Error */

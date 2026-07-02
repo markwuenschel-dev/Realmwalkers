@@ -34,7 +34,7 @@ vi.mock("../components/DraftActivity", () => ({
 }));
 
 vi.mock("../components/ProseBlocks", () => ({
-  ProseBlocks: ({ text }: { text: string }) => <div>{text}</div>,
+  default: ({ text }: { text: string }) => <div>{text}</div>,
 }));
 
 vi.mock("../api/client", () => ({
@@ -156,18 +156,25 @@ describe("ProductionScreen", () => {
   beforeEach(() => {
     vi.mocked(api.productionRuns).mockReset().mockResolvedValue([RUN]);
     vi.mocked(api.productionRun).mockReset().mockResolvedValue(DETAIL);
-    vi.mocked(api.startProductionRun)
-      .mockReset()
-      .mockResolvedValue({ run: RUN, issue_count: 1, repair_task_count: 1, latest_verification: null });
-    vi.mocked(api.triageProductionRun)
-      .mockReset()
-      .mockResolvedValue({ run: RUN, issue_count: 1, repair_task_count: 1, latest_verification: null });
-    vi.mocked(api.assembleProductionRun)
-      .mockReset()
-      .mockResolvedValue({ run: RUN, issue_count: 1, repair_task_count: 1, latest_verification: null });
-    vi.mocked(api.applyRepairTask)
-      .mockReset()
-      .mockResolvedValue(DETAIL.repair_tasks[0]);
+    vi.mocked(api.startProductionRun).mockReset().mockResolvedValue({
+      run: RUN,
+      issue_count: 1,
+      repair_task_count: 1,
+      latest_verification: null,
+    });
+    vi.mocked(api.triageProductionRun).mockReset().mockResolvedValue({
+      run: RUN,
+      issue_count: 1,
+      repair_task_count: 1,
+      latest_verification: null,
+    });
+    vi.mocked(api.assembleProductionRun).mockReset().mockResolvedValue({
+      run: RUN,
+      issue_count: 1,
+      repair_task_count: 1,
+      latest_verification: null,
+    });
+    vi.mocked(api.applyRepairTask).mockReset().mockResolvedValue(DETAIL.repair_tasks[0]);
     vi.mocked(api.verifyRepairTask)
       .mockReset()
       .mockResolvedValue({

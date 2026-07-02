@@ -13,12 +13,14 @@ import type {
 } from "../api/types";
 import { useDeskData } from "../api/data";
 import { css } from "../css";
-import { ProseBlocks } from "../components/ProseBlocks";
+import ProseBlocks from "../components/ProseBlocks";
 import { Spinner } from "../components/DraftActivity";
 import { useDesk } from "../state";
 
-const PANEL = "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px";
-const SMALL = "font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)";
+const PANEL =
+  "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px";
+const SMALL =
+  "font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)";
 
 function latestArtifact(artifacts: ArtifactOut[], type: string): ArtifactOut | null {
   return [...artifacts].reverse().find((artifact) => artifact.artifact_type === type) ?? null;
@@ -78,7 +80,9 @@ function EventFeed({ detail }: { detail: ProductionRunDetailOut }) {
             {event.stage ?? event.event_type}
           </div>
           <div>
-            <div style={css("font-size:13px;color:var(--ink)")}>{event.message ?? event.event_type}</div>
+            <div style={css("font-size:13px;color:var(--ink)")}>
+              {event.message ?? event.event_type}
+            </div>
             <div style={css("margin-top:4px;font-size:12px;color:var(--dim)")}>
               {new Date(event.created_at).toLocaleString()}
             </div>
@@ -115,28 +119,25 @@ export default function ProductionScreen() {
     setDetail(out);
   }, []);
 
-  const loadRuns = useCallback(
-    async (targetChapterId: string) => {
-      setLoading(true);
-      try {
-        const out = await api.productionRuns(targetChapterId);
-        setRuns(out);
-        setError(null);
-        setRunId((current) => {
-          if (current && out.some((run) => run.id === current)) return current;
-          return out[0]?.id ?? null;
-        });
-      } catch (e) {
-        setRuns([]);
-        setDetail(null);
-        setRunId(null);
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const loadRuns = useCallback(async (targetChapterId: string) => {
+    setLoading(true);
+    try {
+      const out = await api.productionRuns(targetChapterId);
+      setRuns(out);
+      setError(null);
+      setRunId((current) => {
+        if (current && out.some((run) => run.id === current)) return current;
+        return out[0]?.id ?? null;
+      });
+    } catch (e) {
+      setRuns([]);
+      setDetail(null);
+      setRunId(null);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const fromUrl = searchParams.get("chapter");
@@ -232,7 +233,8 @@ export default function ProductionScreen() {
             Editorial production
           </h1>
           <p style={css("margin:0;color:var(--dim);font-size:14px;max-width:760px")}>
-            Durable chapter production runs: issue capture, repair tasks, verification, and final chapter assembly.
+            Durable chapter production runs: issue capture, repair tasks, verification, and final
+            chapter assembly.
           </p>
         </div>
         <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
@@ -282,15 +284,27 @@ export default function ProductionScreen() {
         </div>
       )}
 
-      <div style={css("display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start")}>
+      <div
+        style={css(
+          "display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start",
+        )}
+      >
         <div style={css(`${PANEL};display:flex;flex-direction:column;gap:12px`)}>
           <div>
             <div style={css(SMALL)}>Chapter</div>
-            <div style={css("margin-top:6px;font-family:var(--display);font-size:20px;color:var(--ink)")}>
-              {chapter ? `Ch ${chapter.chapter_no}${chapter.title ? ` · ${chapter.title}` : ""}` : "No chapter selected"}
+            <div
+              style={css(
+                "margin-top:6px;font-family:var(--display);font-size:20px;color:var(--ink)",
+              )}
+            >
+              {chapter
+                ? `Ch ${chapter.chapter_no}${chapter.title ? ` · ${chapter.title}` : ""}`
+                : "No chapter selected"}
             </div>
             {chapter?.outline && (
-              <p style={css("margin:8px 0 0;color:var(--dim);font-size:13px;line-height:1.55")}>{chapter.outline}</p>
+              <p style={css("margin:8px 0 0;color:var(--dim);font-size:13px;line-height:1.55")}>
+                {chapter.outline}
+              </p>
             )}
           </div>
 
@@ -316,8 +330,14 @@ export default function ProductionScreen() {
                         `text-align:left;padding:10px 12px;border-radius:10px;border:1px solid ${active ? "var(--accent)" : "var(--line)"};background:${active ? "color-mix(in srgb,var(--accent) 8%,var(--bg3))" : "var(--bg3)"};color:var(--ink);cursor:pointer`,
                       )}
                     >
-                      <div style={css("display:flex;justify-content:space-between;gap:10px;align-items:center")}>
-                        <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                      <div
+                        style={css(
+                          "display:flex;justify-content:space-between;gap:10px;align-items:center",
+                        )}
+                      >
+                        <span
+                          style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
+                        >
                           {run.id.slice(0, 8)}
                         </span>
                         <span
@@ -345,7 +365,11 @@ export default function ProductionScreen() {
 
         <div style={css("display:flex;flex-direction:column;gap:18px")}>
           <div style={css("display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px")}>
-            <MetricCard label="Status" value={detail?.run.status ?? "—"} tone={statusTone(detail?.run.status ?? "")} />
+            <MetricCard
+              label="Status"
+              value={detail?.run.status ?? "—"}
+              tone={statusTone(detail?.run.status ?? "")}
+            />
             <MetricCard
               label="Issues"
               value={summaryCount(detail?.run.summary_json, "issue_count")}
@@ -399,11 +423,11 @@ export default function ProductionScreen() {
               <div style={css(SMALL)}>Issue inbox</div>
               <div style={css("display:flex;flex-direction:column;gap:10px;margin-top:12px")}>
                 {issues.length ? (
-                  issues.map((issue) => (
-                    <IssueRow key={issue.id} issue={issue} />
-                  ))
+                  issues.map((issue) => <IssueRow key={issue.id} issue={issue} />)
                 ) : (
-                  <div style={css("color:var(--dim);font-size:13px")}>No structured issues on this run.</div>
+                  <div style={css("color:var(--dim);font-size:13px")}>
+                    No structured issues on this run.
+                  </div>
                 )}
               </div>
             </div>
@@ -435,7 +459,9 @@ export default function ProductionScreen() {
                     />
                   ))
                 ) : (
-                  <div style={css("color:var(--dim);font-size:13px")}>No repair tasks queued yet.</div>
+                  <div style={css("color:var(--dim);font-size:13px")}>
+                    No repair tasks queued yet.
+                  </div>
                 )}
               </div>
             </div>
@@ -443,9 +469,7 @@ export default function ProductionScreen() {
 
           <div style={css(`${PANEL};display:grid;grid-template-columns:1.15fr .85fr;gap:18px`)}>
             <div>
-              <div style={css(SMALL)}>
-                {finalArtifact ? "Final chapter" : "Assembled chapter"}
-              </div>
+              <div style={css(SMALL)}>{finalArtifact ? "Final chapter" : "Assembled chapter"}</div>
               <div style={css("margin-top:14px")}>
                 {finalText ? (
                   <ProseBlocks text={finalText} proseSize="16px" />
@@ -471,7 +495,9 @@ export default function ProductionScreen() {
                             "padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg3)",
                           )}
                         >
-                          <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                          <div
+                            style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
+                          >
                             Scene {row.scene_no ?? "—"}
                           </div>
                           <div style={css("margin-top:4px;font-size:13px;color:var(--ink)")}>
@@ -503,7 +529,15 @@ export default function ProductionScreen() {
 
           <div style={css(PANEL)}>
             <div style={css(SMALL)}>Event trail</div>
-            <div style={css("margin-top:12px")}>{detail ? <EventFeed detail={detail} /> : <div style={css("color:var(--dim);font-size:13px")}>Pick a run to inspect its audit trail.</div>}</div>
+            <div style={css("margin-top:12px")}>
+              {detail ? (
+                <EventFeed detail={detail} />
+              ) : (
+                <div style={css("color:var(--dim);font-size:13px")}>
+                  Pick a run to inspect its audit trail.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -579,7 +613,9 @@ function RepairRow({
         <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
           {task.scene_no != null ? `Scene ${task.scene_no}` : "Chapter"}
         </span>
-        <span style={css(`font-family:var(--mono);font-size:11px;color:${statusTone(task.status)}`)}>
+        <span
+          style={css(`font-family:var(--mono);font-size:11px;color:${statusTone(task.status)}`)}
+        >
           {task.status}
         </span>
       </div>
