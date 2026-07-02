@@ -48,4 +48,4 @@ COPY --from=frontend /app/frontend/.next/static ./frontend/.next/static
 
 # Boot: provision schema (idempotent), start FastAPI on the internal port (8001), then the Next server
 # on the public $PORT. `wait -n` exits (so Railway's ON_FAILURE restart kicks in) if either proc dies.
-CMD ["bash", "-c", "python scripts/init_db.py && { uvicorn dominion.api.main:app --host 127.0.0.1 --port 8001 & (cd frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-3000} exec node server.js) & wait -n; }"]
+CMD ["bash", "-c", "python scripts/init_db.py && { hypercorn dominion.api.main:app --bind 127.0.0.1:8001 & (cd frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-3000} exec node server.js) & wait -n; }"]

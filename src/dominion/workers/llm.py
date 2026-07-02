@@ -106,7 +106,7 @@ _CACHE_TTL_WARN_S = 270  # 4.5 min — 30s of headroom before the 5-min cliff
 def _client() -> AsyncAnthropic:
     """Lazily constructed so importing this module never requires the key."""
     if not settings.anthropic_api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to .env at the repo root (or export it).")
+        raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
     return AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 
@@ -129,10 +129,10 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
     embedding provider's existing convention (workers.memory.embedding)."""
     if model.startswith("grok-"):
         if not settings.xai_api_key:
-            raise RuntimeError("XAI_API_KEY is not set — add it to .env at the repo root (or export it).")
+            raise RuntimeError("XAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
         return settings.xai_base_url, settings.xai_api_key
     if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY is not set — add it to .env at the repo root (or export it).")
+        raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
     return settings.openai_base_url, settings.openai_api_key
 
 
