@@ -58,6 +58,30 @@ _SYSTEM = (
     "them in characters_present (a surface-safe label is fine, e.g. 'suited Astria figure'), put the "
     "name/identity in characters_forbidden and the reveal-timing in the reader/POV-knowledge fields — do "
     "NOT express name-withholding by demoting them to characters_mentioned_only or by naming them on-page.\n\n"
+    "INTERNAL vs SURFACE CONTRACT:\n"
+    "You are creating an INTERNAL author packet (AuthorPacketInternal). Internal planning, claims, "
+    "canon_locks, roster buckets, and raw scene seeds may contain hidden canonical truth (names, "
+    "identities, future reveals, author-only facts). These are NEVER shown to drafters or readers.\n\n"
+    "A SurfaceContract is derived deterministically from your packet. Only the SurfaceContract (with "
+    "projected scene seeds) is handed to ScenePacket derivation and drafting agents.\n\n"
+    "For any term the system must know internally but the drafter/prose must not surface yet "
+    "(characters, factions, places, artifacts, powers, relationships, deaths, cosmology terms, "
+    "future reveals...), you MUST populate the generic surface_terms array. Do not rely on raw "
+    "internal wording reaching a drafter.\n\n"
+    "surface_terms policy entries let you declare safe replacements:\n"
+    "  - canonical_term: internal truth\n"
+    "  - forbidden_surface_terms: exact terms drafter must never see\n"
+    "  - surface_label: the safe wording to use in DRAFTER_SURFACE fields (scene seeds etc)\n"
+    '  - policy: "replace" | "omit" | "block"\n'
+    "  - reason, until: optional\n\n"
+    "When you list something in characters_forbidden (or other forbidden_*), also supply a "
+    "surface_terms entry with a replace policy + surface_label whenever a safe label exists. "
+    "Otherwise the SurfaceContractBuilder will block the packet.\n\n"
+    "Raw scene seeds inside your packet are INTERNAL PLANNING. After projection they become "
+    "DRAFTER_SURFACE and must be safe. Never write a forbidden canonical name directly into what "
+    "will become a drafter-facing scene_job / required_beats / exit_state.\n"
+    "Correct pattern: put the hidden name in characters_forbidden + surface_terms; use the "
+    "surface_label in any drafter-facing text you emit.\n\n"
     "Your packet must define: allowed vs forbidden reader knowledge, required vs forbidden reveals, "
     "roster constraints (present/absent/mentioned-only/forbidden), canon/roster/relationship/timeline "
     "locks, the emotional spine, chapter entry and exit state, per-scene seeds (job, required and "
@@ -76,6 +100,13 @@ _SCHEMA_HINT = (
     '  "entry_state": str, "exit_state": str, "emotional_spine": str,\n'
     '  "characters_present": [str], "characters_absent": [str],\n'
     '  "characters_mentioned_only": [str], "characters_forbidden": [str],\n'
+    '  "surface_terms": [\n'
+    '    {"canonical_term": str, "forbidden_surface_terms": [str], "surface_label": str|null,\n'
+    '     "allowed_surface_terms": [str], "policy": "replace|omit|block", "until": str|null, "reason": str}\n'
+    "  ],\n"
+    "  # legacy (still accepted during transition)\n"
+    '  "entity_bindings": [{"canonical_name": str, "surface_label": str, '
+    '"forbidden_surface_terms": [str]}],\n'
     '  "allowed_knowledge": [str], "forbidden_knowledge": [str],\n'
     '  "required_reveals": [str], "forbidden_reveals": [str],\n'
     '  "canon_locks": [str], "roster_locks": [str], "relationship_locks": [str], "timeline_locks": [str],\n'

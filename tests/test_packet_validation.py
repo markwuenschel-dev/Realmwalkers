@@ -212,32 +212,71 @@ def test_evaluate_still_blocks_true_presence_contradiction():
     assert any(v.kind == "roster_double_bucketed" for v in result.draft_blockers)
 
 
-def test_forbidden_name_in_required_beats_blocks():
+def test_forbidden_term_in_raw_internal_scene_seed_does_not_block_internal():
+    """Per new architecture: raw internal planning fields (scene seeds) may contain forbidden terms."""
     body = _body(
-        characters_forbidden=["The Broker (Soulkeepers' Exchange -- not yet introduced)"],
-        scene_seeds=[_seed(scene_no=2, required_beats=["The Broker arrives and delivers the offer"])],
+        characters_forbidden=["Hidden Canonical Name"],
+        scene_seeds=[_seed(scene_no=2, required_beats=["Hidden Canonical Name arrives."])],
     )
     v = validate_chapter_packet_contract(body)
-    blocked = [x for x in v if x.kind == "forbidden_name_in_scene_seed" and x.severity == "block"]
-    assert blocked and "scene_no=2" in blocked[0].field
+    # internal contract no longer emits forbidden_name_in_scene_seed
+    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in v)
 
 
-def test_forbidden_name_absent_from_scene_seeds_is_clean():
+# Legacy _roth_binding kept for any remaining compat references (now unused by new tests).
+def _roth_binding() -> dict[str, Any]:
+    return {
+        "canonical_name": "Roth",
+        "surface_label": "the suited Astria figure",
+        "forbidden_surface_terms": ["Roth"],
+    }
+
+
+def test_forbidden_name_allowed_in_internal_binding_legacy():
+    # Old entity_bindings path still accepted; internal validation does not block on raw seeds.
     body = _body(
-        characters_forbidden=["The Broker (not yet introduced)"],
-        scene_seeds=[_seed(required_beats=["Marcus flags the anomaly"])],
+        characters_forbidden=["Roth"],
+        entity_bindings=[_roth_binding()],
+        scene_seeds=[_seed(required_beats=["Introduce the suited Astria figure without naming him on-page."])],
     )
-    assert validate_chapter_packet_contract(body) == []
+    # internal contract never emits the old bleed kind
+    v = validate_chapter_packet_contract(body)
+    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in v)
 
 
-def test_forbidden_descriptive_entry_without_a_proper_noun_never_false_positives():
-    # A forbidden entry with no extractable proper-noun name (a descriptive category, not an identity)
-    # must not spuriously match unrelated scene-seed prose.
+def test_legacy_normalize_forbidden_surface_labels_still_works():
+    # The legacy normalize path (entity_bindings) still rewrites for back-compat modules (beats, derive fallbacks).
+    from dominion.workers.packet.validation import normalize_forbidden_surface_labels
+
     body = _body(
-        characters_forbidden=["Any named Astria executive or manager not established in prior canon"],
-        scene_seeds=[_seed(required_beats=["Astria's model flags the anomaly"])],
+        characters_forbidden=["Roth"],
+        entity_bindings=[_roth_binding()],
+        scene_seeds=[_seed(scene_no=3, required_beats=["Introduce Roth without naming Roth on-page."])],
     )
-    assert validate_chapter_packet_contract(body) == []
+    normalized, warns = normalize_forbidden_surface_labels(body)
+    beats = normalized["scene_seeds"][0]["required_beats"]
+    assert not any("Roth" in b for b in beats)
+    assert any("the suited Astria figure" in b for b in beats)
+
+
+def test_forbidden_name_in_raw_no_longer_blocks_internal_contract():
+    # Core architecture change: internal validation no longer hard-blocks forbidden names in raw seeds.
+    body = _body(
+        characters_forbidden=["Roth"],
+        scene_seeds=[_seed(scene_no=1, required_beats=["Roth enters and speaks"])],
+    )
+    v = validate_chapter_packet_contract(body)
+    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in v)
+
+
+def test_surface_label_in_beat_without_triggering_internal_block():
+    body = _body(
+        characters_forbidden=["Roth"],
+        entity_bindings=[_roth_binding()],
+        scene_seeds=[_seed(required_beats=["Introduce the suited Astria figure"])],
+    )
+    # internal does not block
+    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in validate_chapter_packet_contract(body))
 
 
 def test_non_dict_body_blocks():
@@ -247,3 +286,41 @@ def test_non_dict_body_blocks():
 
 def test_empty_body_has_no_violations():
     assert validate_chapter_packet_contract(_body()) == []
+
+
+# --- Invariant / generic surface contract tests (no story names, focus on scopes + policy) ---
+
+
+def test_forbidden_term_in_drafter_field_without_policy_blocks_at_surface():
+    from dominion.workers.packet.surface_contract import build_surface_contract
+
+    body = _body(
+        characters_forbidden=["Hidden Canonical Name"],
+        scene_seeds=[_seed(required_beats=["Introduce Hidden Canonical Name on page."])],
+    )
+    res = build_surface_contract(body)
+    assert res.blockers, "Surface must block when no replace/omit policy exists for drafter field"
+
+
+def test_surface_policy_replace_produces_clean_drafter_contract_and_carries_policies():
+    from dominion.workers.packet.surface_contract import build_surface_contract
+
+    body = _body(
+        characters_forbidden=["Hidden Canonical Name"],
+        surface_terms=[
+            {
+                "canonical_term": "Hidden Canonical Name",
+                "forbidden_surface_terms": ["Hidden Canonical Name"],
+                "surface_label": "the anonymous operative",
+                "policy": "replace",
+            }
+        ],
+        scene_seeds=[_seed(required_beats=["Hidden Canonical Name is introduced carefully."])],
+    )
+    res = build_surface_contract(body)
+    assert not res.blockers
+    seed0 = res.surface_body.get("scene_seeds", [{}])[0]
+    text = " ".join(seed0.get("required_beats", []))
+    assert "the anonymous operative" in text
+    assert "Hidden Canonical Name" not in text
+    assert any(p.canonical_term == "Hidden Canonical Name" and p.surface_label for p in res.policies)

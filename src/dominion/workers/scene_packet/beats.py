@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import BeatStatus, ScenePacketStatus
 from dominion.shared.models import Beat, ChapterPacket, Scene, ScenePacket
+from dominion.shared.text_match import binding_replacements, project_text
 
 _LANE_TAGS: tuple[str, ...] = ("combat", "dialogue", "sensory")
 
@@ -34,12 +35,17 @@ def _tags_for(body: dict[str, Any]) -> list[str]:
 
 
 def _beat_text(body: dict[str, Any]) -> str | None:
+    # beat_text is the drafter-facing string (drafter.py injects it verbatim), so it is the last chokepoint
+    # to scrub forbidden canonical names to their surface labels. derive already projects the scene body,
+    # but re-projecting here from the body's own entity_bindings guarantees beat_text is surface-safe even
+    # if the body was authored/edited outside that path. No bindings → an inert no-op.
+    reps = binding_replacements(body.get("entity_bindings"))
     parts: list[str] = []
-    if job := str(body.get("scene_job") or "").strip():
+    if job := project_text(str(body.get("scene_job") or "").strip(), reps):
         parts.append(job)
-    if required := _as_str_list(body.get("required_beats")):
+    if required := [project_text(b, reps) for b in _as_str_list(body.get("required_beats"))]:
         parts.append("Required beats:\n" + "\n".join(f"- {b}" for b in required))
-    if exit_state := str(body.get("exit_state") or "").strip():
+    if exit_state := project_text(str(body.get("exit_state") or "").strip(), reps):
         parts.append(f"Exit state: {exit_state}")
     return "\n\n".join(parts) or None
 
