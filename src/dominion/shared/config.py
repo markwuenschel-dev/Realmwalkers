@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     packet_qa_fallback_model: str = "claude-sonnet-5"
     # The packet author/QA calls run synchronously inside the propose-packet request; bound them so a
     # hung call surfaces as a clean failure instead of a spinning browser (mirrors plan_time_budget_s).
-    packet_time_budget_s: int = 180
+    packet_time_budget_s: int = 300
     # No auto-approve during early tuning: even a green packet needs a human fast-approve until we
     # have several chapters of observed packet quality. Flip True later to let green auto-proceed.
     packet_auto_approve_green: bool = False
