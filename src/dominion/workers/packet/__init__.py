@@ -347,12 +347,13 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     _resolve_provenance(packet, handles)
 
     # Deterministic roster-consistency check runs BEFORE QA: a character double-bucketed across
-    # present/absent/mentioned-only/forbidden in a TRUE-opposite way, or a forbidden name bled into the
-    # chapter's own scene seeds, is a decidable self-contradiction QA should not need to guess at. A hard
-    # blocker skips QA entirely (no point attacking a packet already known internally inconsistent). The
-    # evaluate step first normalizes the redundant absent∩mentioned_only overlap (mentioned_only implies
-    # absence) so we persist/QA/draft the cleaned roster — a name that is only "off-page but referenced"
-    # is not left in characters_absent to false-block a later on-page mention at the scene-packet layer.
+    # present/absent/mentioned-only/forbidden in a genuinely IMPOSSIBLE way, or a forbidden name bled into
+    # the chapter's own scene seeds, is a decidable self-contradiction QA should not need to guess at. A
+    # hard blocker skips QA entirely (no point attacking a packet already known internally inconsistent).
+    # The evaluate step first collapses the redundant overlaps with dominance rules (present wins over
+    # mentioned_only; mentioned_only, which implies absence, wins over absent) so we persist/QA/draft the
+    # cleaned roster — e.g. a present-but-masked character wrongly echoed in mentioned_only, or a name only
+    # "off-page but referenced" left in characters_absent to false-block a later on-page mention.
     result = evaluate_chapter_packet(packet)
     packet = result.normalized_body
     violations = result.violations

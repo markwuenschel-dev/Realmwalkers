@@ -60,10 +60,10 @@ def test_seb_present_and_sebs_brother_mentioned_only_is_not_a_false_positive():
     assert validate_chapter_packet_contract(body) == []
 
 
-def test_three_way_double_bucketing_reports_only_contradictory_pairs():
-    # Mathias in present + absent + mentioned_only. Only the TRUE-opposite pairs involving `present` are
-    # contradictions (present∩absent, present∩mentioned_only). The absent∩mentioned_only pair is NOT a
-    # contradiction (mentioned_only implies absence), so it must not appear as a block.
+def test_three_way_double_bucketing_reports_only_impossible_pairs():
+    # Mathias in present + absent + mentioned_only. Only present∩absent is genuinely impossible. Both
+    # present∩mentioned_only and absent∩mentioned_only are redundant overlaps a dominance rule collapses,
+    # so the raw validator flags exactly one block (present∩absent), never those two.
     body = _body(
         characters_present=["Mathias (present, has dialogue)"],
         characters_absent=["Mathias"],
@@ -71,12 +71,26 @@ def test_three_way_double_bucketing_reports_only_contradictory_pairs():
     )
     v = validate_chapter_packet_contract(body)
     blocks = [x for x in v if x.kind == "roster_double_bucketed" and x.severity == "block"]
-    assert len(blocks) == 2
+    assert len(blocks) == 1
     flagged_pairs = {frozenset(x.field.split(",")) for x in blocks}
-    assert frozenset({"characters_present", "characters_absent"}) in flagged_pairs
-    assert frozenset({"characters_present", "characters_mentioned_only"}) in flagged_pairs
-    # The compatible pair is never flagged.
-    assert frozenset({"characters_absent", "characters_mentioned_only"}) not in flagged_pairs
+    assert flagged_pairs == {frozenset({"characters_present", "characters_absent"})}
+
+
+def test_evaluate_triple_bucket_still_blocks_present_absent():
+    # Masking guard: normalization drops the name out of absent AND mentioned_only, but evaluate validates
+    # the ORIGINAL body, so the genuine present∩absent contradiction is NOT silently normalized away.
+    body = _body(
+        characters_present=["Mathias (present, has dialogue)"],
+        characters_absent=["Mathias"],
+        characters_mentioned_only=["Mathias (mentioned only)"],
+    )
+    result = evaluate_chapter_packet(body)
+    assert not result.draftable
+    assert any(
+        v.kind == "roster_double_bucketed"
+        and frozenset(v.field.split(",")) == frozenset({"characters_present", "characters_absent"})
+        for v in result.draft_blockers
+    )
 
 
 def test_absent_and_mentioned_only_is_not_a_contradiction():
@@ -100,14 +114,49 @@ def test_absent_and_forbidden_is_not_a_contradiction():
     assert validate_chapter_packet_contract(body) == []
 
 
-def test_present_and_mentioned_only_blocks():
-    # present (on-page, acting) contradicts mentioned_only (off-page, referenced only).
+def test_present_and_mentioned_only_normalizes_to_present():
+    # A physically present character redundantly echoed in mentioned_only (the masked / late-reveal
+    # mis-bucket) is NOT a contradiction: present dominates, so it is dropped from mentioned_only and the
+    # packet is not blocked. The raw validator must not flag it, and evaluate must normalize it.
     body = _body(
-        characters_present=["Mara (present, has dialogue)"],
-        characters_mentioned_only=["Mara"],
+        characters_present=["Serra Hawthorne (Dead Hand rogue, unrecognized until mid-duel)"],
+        characters_mentioned_only=["Serra Hawthorne"],
+    )
+    assert validate_chapter_packet_contract(body) == []
+    result = evaluate_chapter_packet(body)
+    assert result.draftable
+    assert not result.draft_blockers
+    assert result.normalized_body["characters_present"] == [
+        "Serra Hawthorne (Dead Hand rogue, unrecognized until mid-duel)"
+    ]
+    assert result.normalized_body["characters_mentioned_only"] == []
+    assert [w.kind for w in result.warnings] == ["roster_normalized"]
+
+
+def test_hidden_identity_present_not_mentioned_only():
+    # Serra is physically present under a hidden identity; she must resolve to characters_present only,
+    # never lingering in characters_mentioned_only after normalization.
+    body = _body(
+        characters_present=["Marcus Vye", "Serra Hawthorne"],
+        characters_mentioned_only=["Seb's brother", "Serra Hawthorne"],
+    )
+    result = evaluate_chapter_packet(body)
+    assert result.draftable
+    assert "Serra Hawthorne" in result.normalized_body["characters_present"]
+    mentioned_leads = {e.split(" (")[0] for e in result.normalized_body["characters_mentioned_only"]}
+    assert "Serra Hawthorne" not in mentioned_leads
+    assert "Seb's brother" in mentioned_leads  # a genuinely mentioned-only character is untouched
+
+
+def test_present_and_forbidden_blocks():
+    # present (on-page) cannot coexist with forbidden (must never be named/referenced on-page).
+    body = _body(
+        characters_present=["Mara Valeria (present, has dialogue)"],
+        characters_forbidden=["Mara Valeria"],
     )
     blocks = [x for x in validate_chapter_packet_contract(body) if x.severity == "block"]
     assert blocks and blocks[0].kind == "roster_double_bucketed"
+    assert frozenset(blocks[0].field.split(",")) == frozenset({"characters_present", "characters_forbidden"})
 
 
 def test_mentioned_only_and_forbidden_blocks():
