@@ -86,7 +86,7 @@ async def drain_queued_jobs() -> None:
 
     run_once already persists a failed job as FAILED and logs it; we swallow + keep draining so one
     bad scene doesn't strand the rest of the chapter. Imported lazily so the API process only loads
-    the LLM stack when it actually drafts (mirrors workers.enqueue)."""
+    the LLM stack when it actually drafts (mirrors legacy/enqueue)."""
     if _drain_lock.locked():
         return
     async with _drain_lock:

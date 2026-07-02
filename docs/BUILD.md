@@ -26,7 +26,7 @@ src/dominion/
   shared/     config, enums, async DB session, ORM schema (models.py), Pydantic DTOs (schemas.py)
   api/        FastAPI app + routers (health, scenes, reviews, runs, beats, chapters, books)
   workers/    worker.py (claim→draft→exit), pipeline.py, planner.py, router.py, context.py, oracle.py,
-              budget.py, llm.py, enqueue.py
+              budget.py, llm.py, (enqueue moved to legacy/enqueue.py)
               specialists/  drafter + combat/sensory/dialogue enrichment passes
               reviewers/    continuity (always) + pacing/voice/state-drift
               memory/       canon_rag, summaries, ledger, seed

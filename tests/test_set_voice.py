@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from dominion.shared.models import Book, PovProfile
-from dominion.workers.set_voice import set_voice
+from dominion.workers.legacy.set_voice import set_voice
 
 
 async def test_set_voice_creates_then_updates_one_row(db_factory):

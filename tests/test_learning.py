@@ -26,8 +26,8 @@ from dominion.shared.models import (
     Scene,
 )
 from dominion.shared.schemas import DecisionIn, ExemplarIn
-from dominion.workers import set_exemplars as set_exemplars_mod
 from dominion.workers.context import assemble_context
+from dominion.workers.legacy import set_exemplars as set_exemplars_mod
 from dominion.workers.memory import canon_rag, summaries
 from tests.conftest import seed_scene_packet
 

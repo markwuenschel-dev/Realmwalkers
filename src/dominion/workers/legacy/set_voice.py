@@ -8,7 +8,8 @@ create the book by title, idempotent upsert (re-running with new text updates th
 second one). Scope is `voice_spec` only; exemplars are left untouched.
 
 Runnable as:
-    uv run python -m dominion.workers.set_voice --book "..." --character Marcus --voice-file series/voice/marcus.md
+    uv run python -m dominion.workers.legacy.set_voice \
+        --book "..." --character Marcus --voice-file series/voice/marcus.md
 """
 
 from __future__ import annotations

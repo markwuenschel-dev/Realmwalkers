@@ -8,7 +8,7 @@ set_voice: find-or-create the book by title, idempotent upsert (re-running REPLA
 second profile row). Scope is `exemplar_scene_ids` only; `voice_spec` is left untouched.
 
 Runnable as:
-    uv run python -m dominion.workers.set_exemplars --book "..." --character Marcus \
+    uv run python -m dominion.workers.legacy.set_exemplars --book "..." --character Marcus \
         --scene-ids 1f2e... ,  9a8b...
 """
 
