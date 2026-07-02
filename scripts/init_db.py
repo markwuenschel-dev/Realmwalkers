@@ -23,7 +23,7 @@ async def init() -> None:
         await apply_lightweight_migrations(conn)
     # Close the connection pool inside the loop so the process exits cleanly. Without this, lingering
     # asyncpg connections tied to the now-closing loop can hang interpreter exit — which, when this runs
-    # as `init_db && uvicorn ...` at container boot, means the server never starts.
+    # as `init_db && hypercorn ...` at container boot, means the server never starts.
     await engine.dispose()
     print("db initialized: pgvector extension + all tables")
 

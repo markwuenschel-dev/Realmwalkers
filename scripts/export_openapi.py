@@ -1,7 +1,7 @@
 """Export the FastAPI OpenAPI schema to openapi.json at the repo root.
 
 Used by the frontend codegen pipeline (pnpm codegen) and CI drift checks.
-Does not start uvicorn or require a live database.
+Does not start the ASGI server or require a live database.
 
 Forces a stable API-only schema: the SPA static fallback route is omitted so
 local machines with frontend/dist checked in do not drift from CI.

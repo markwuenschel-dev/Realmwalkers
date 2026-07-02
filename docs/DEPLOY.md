@@ -21,6 +21,10 @@ no `localhost`. You get one Railway URL that just works.
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` — reference the Postgres service's **private** URL
      (no SSL needed inside Railway). The app converts `postgresql://` → `postgresql+asyncpg://`.
    - `ANTHROPIC_API_KEY` = your key.
+   - *(optional)* `OPENAI_API_KEY` / `XAI_API_KEY` — **required** to pick an OpenAI (`gpt-*`) or Grok
+     (`grok-*`) model in the Settings model picker. The deploy does **not** read a `.env` file (it isn't
+     in the image); env vars come from this tab. `OPENAI_API_KEY` also switches embeddings from the hash
+     fallback to real OpenAI vectors.
    - *(optional)* `DOMINION_DRAFT_MODEL`, `DOMINION_REVIEW_MODEL`, `DOMINION_ENRICH_MODEL` to override
      the defaults in `config.py`.
 4. **Deploy.** Railway builds the image, runs `init_db.py` (pgvector extension + tables), and serves on
