@@ -30,7 +30,7 @@ from dominion.workers.memory import canon_rag
 from dominion.workers.packet import approval_policy
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
-from dominion.workers.packet.validation import validate_chapter_packet_contract
+from dominion.workers.packet.validation import evaluate_chapter_packet
 
 log = structlog.get_logger()
 
@@ -347,11 +347,16 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     _resolve_provenance(packet, handles)
 
     # Deterministic roster-consistency check runs BEFORE QA: a character double-bucketed across
-    # present/absent/mentioned-only/forbidden, or a forbidden name bled into the chapter's own scene
-    # seeds, is a decidable self-contradiction QA should not need to guess at. A hard blocker skips QA
-    # entirely (no point attacking a packet already known internally inconsistent).
-    violations = validate_chapter_packet_contract(packet)
-    block_violations = [v for v in violations if v.severity == "block"]
+    # present/absent/mentioned-only/forbidden in a TRUE-opposite way, or a forbidden name bled into the
+    # chapter's own scene seeds, is a decidable self-contradiction QA should not need to guess at. A hard
+    # blocker skips QA entirely (no point attacking a packet already known internally inconsistent). The
+    # evaluate step first normalizes the redundant absent∩mentioned_only overlap (mentioned_only implies
+    # absence) so we persist/QA/draft the cleaned roster — a name that is only "off-page but referenced"
+    # is not left in characters_absent to false-block a later on-page mention at the scene-packet layer.
+    result = evaluate_chapter_packet(packet)
+    packet = result.normalized_body
+    violations = result.violations
+    block_violations = result.draft_blockers
     if block_violations:
         log.warning(
             "packet.validation_blocked",
