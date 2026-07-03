@@ -62,8 +62,14 @@ _VERDICTS = {v.value.upper(): v for v in PacketVerdict}
 
 
 def build_prompt(packet: dict[str, Any]) -> str:
+    """The attack payload. Derived `_`-prefixed sections (`_surface_contract`) are excluded — QA attacks
+    the authoritative content; projection safety is the deterministic surface validator's job, and the
+    embedded duplicate roughly doubled the prompt. Compact dump, not pretty-printed, for the same reason
+    (see scene_packet.qa._compact) — on a detailed chapter the indent-2 + duplicate version was ~26k
+    tokens PER ATTEMPT, which alone blew the shared propose token budget on any QA retry."""
+    attackable = {k: v for k, v in packet.items() if not str(k).startswith("_")}
     return "Attack this chapter knowledge packet and return your verdict.\n\nPACKET:\n" + json.dumps(
-        packet, ensure_ascii=False, indent=2
+        attackable, ensure_ascii=False, separators=(",", ":")
     )
 
 

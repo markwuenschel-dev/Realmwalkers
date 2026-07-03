@@ -91,3 +91,22 @@ def test_derive_takes_worst_of_author_and_verdict():
     packet = {"confidence": "red", "open_questions": []}
     conf, status = approval_policy.status_from_qa(packet, _qa(PacketVerdict.APPROVE))
     assert conf == PacketConfidence.RED and status == PacketStatus.PROPOSED
+
+
+# --- build_prompt: QA attacks authoritative content only, compactly -------------------------------
+
+
+def test_build_prompt_strips_derived_sections_and_is_compact():
+    # The derived _surface_contract duplicate + pretty-printing blew the shared propose token budget
+    # on QA retries (26k tokens/attempt on a detailed chapter). QA gets authoritative content only,
+    # compact — projection safety belongs to the deterministic surface validator.
+    packet = {
+        "chapter_no": 1,
+        "scene_seeds": [{"scene_no": 1, "scene_job": "open the scrim"}],
+        "_surface_contract": {"scene_seeds": [{"scene_no": 1, "scene_job": "projected copy"}]},
+    }
+    prompt = qa_mod.build_prompt(packet)
+    assert "_surface_contract" not in prompt
+    assert "projected copy" not in prompt
+    assert "open the scrim" in prompt
+    assert "\n  " not in prompt  # compact dump, not indent=2
