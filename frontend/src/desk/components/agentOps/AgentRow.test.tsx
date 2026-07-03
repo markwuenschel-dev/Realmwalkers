@@ -10,6 +10,7 @@ vi.mock("../../state", () => ({
 const PROVIDER_TIERS: Record<string, Record<string, string>> = {
   anthropic: { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-5", opus: "claude-opus-4-8" },
   openai: { haiku: "gpt-5.4-nano", sonnet: "gpt-5.4-mini", opus: "gpt-5.5" },
+  google: { sonnet: "gemini-3.5-flash", opus: "gemini-3.1-pro-preview" },
   xai: { opus: "grok-4.3" },
 };
 
@@ -91,7 +92,7 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
 }
 
 describe("AgentRow flat model picker", () => {
-  it("shows all 7 models in one row, in Haiku/Sonnet/Opus/GPT-Nano/GPT-Mini/GPT-5.5/Grok order", () => {
+  it("shows all 9 models in one row, including Gemini Flash and Gemini Pro beside the non-Anthropic models", () => {
     const { primary } = renderOpen();
     const buttons = primary
       .getAllByRole("button")
@@ -104,6 +105,8 @@ describe("AgentRow flat model picker", () => {
       "GPT 5.4 Nano",
       "GPT 5.4 Mini",
       "GPT 5.5",
+      "Gemini Flash",
+      "Gemini Pro",
       "Grok",
     ]);
   });
@@ -112,6 +115,18 @@ describe("AgentRow flat model picker", () => {
     const { onPickTier, primary } = renderOpen();
     fireEvent.click(primary.getByText("GPT 5.5"));
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "openai");
+  });
+
+  it("picking Gemini Flash calls onPickTier with google/sonnet", () => {
+    const { onPickTier, primary } = renderOpen();
+    fireEvent.click(primary.getByText("Gemini Flash"));
+    expect(onPickTier).toHaveBeenCalledWith("draft_model", "sonnet", "google");
+  });
+
+  it("picking Gemini Pro calls onPickTier with google/opus", () => {
+    const { onPickTier, primary } = renderOpen();
+    fireEvent.click(primary.getByText("Gemini Pro"));
+    expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "google");
   });
 
   it("picking Grok calls onPickTier with xai/opus", () => {
@@ -132,6 +147,14 @@ describe("AgentRow flat model picker", () => {
     });
     const btn = primary.getByText("GPT 5.4 Nano");
     expect(btn).toHaveStyle({ background: "#10A37F", color: "#FFFFFF" });
+  });
+
+  it("highlights an active Gemini primary with the Google brand color", () => {
+    const { primary } = renderOpen({
+      agent: agent({ provider: "google", tier: "sonnet", model: "gemini-3.5-flash" }),
+    });
+    const btn = primary.getByText("Gemini Flash");
+    expect(btn).toHaveStyle({ background: "#4796E3", color: "#FFFFFF" });
   });
 
   it("highlights an active Grok fallback with the xAI brand color", () => {

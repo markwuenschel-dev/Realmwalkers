@@ -144,12 +144,17 @@ class Settings(BaseSettings):
     embedding_time_budget_s: float = 30.0
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     # Multi-provider draft/QA models (workers.llm dispatches by model-id prefix: claude-* stays on the
-    # existing Anthropic path; everything else goes over the OpenAI-compatible chat completions shape —
-    # grok-* routes to xAI's OpenAI-compatible endpoint, anything else to OpenAI's). No new SDK
-    # dependency: both are plain httpx POSTs, matching the embedding provider's existing convention.
+    # existing Anthropic path; gpt-* / o*-* route to OpenAI, grok-* routes to xAI, gemini-* routes to
+    # Google's OpenAI-compatible Gemini endpoint). No new SDK dependency: all three are plain httpx
+    # POSTs, matching the embedding provider's existing convention.
+    google_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    )
     xai_api_key: str | None = Field(default=None, validation_alias="XAI_API_KEY")
     xai_base_url: str = "https://api.x.ai/v1"
     openai_base_url: str = "https://api.openai.com/v1"
+    google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     rag_semantic_k: int = 12
     rag_keyword_k: int = 12
     rag_final_k: int = 8

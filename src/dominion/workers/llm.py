@@ -115,7 +115,7 @@ def _client() -> AsyncAnthropic:
 # support and passes a plain model string never intended to select a new provider (tests even use bare
 # placeholders like "m"), so anything NOT explicitly one of these prefixes must keep behaving exactly as
 # it did before this feature existed.
-_OPENAI_COMPATIBLE_PREFIXES: tuple[str, ...] = ("gpt-", "o1-", "o3-", "o4-", "grok-")
+_OPENAI_COMPATIBLE_PREFIXES: tuple[str, ...] = ("gpt-", "o1-", "o3-", "o4-", "grok-", "gemini-")
 
 
 def _is_anthropic_model(model: str) -> bool:
@@ -133,9 +133,9 @@ def _is_openai_reasoning_model(model: str) -> bool:
 
 
 def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
-    """(base_url, api_key) for a non-Anthropic model. xAI's chat API is OpenAI-request-shape compatible
-    (same /chat/completions body/response), reached by swapping base_url + key — routed by the model-id
-    prefix (`grok-*`), not a separate code path. No new SDK dependency: a plain httpx POST, matching the
+    """(base_url, api_key) for a non-Anthropic model. xAI and Gemini both expose OpenAI-compatible
+    chat-completions endpoints, reached by swapping base_url + key — routed by the model-id prefix
+    (`grok-*`, `gemini-*`), not a separate SDK path. No new dependency: a plain httpx POST, matching the
     embedding provider's existing convention (workers.memory.embedding)."""
     # .strip() the key: a value pasted into Railway with a trailing newline/space would otherwise be
     # sent as `Bearer <key>\n` (or a lone space slips past a truthiness check as `Bearer `), which the
@@ -145,6 +145,13 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
         if not key:
             raise RuntimeError("XAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
         return settings.xai_base_url, key
+    if model.startswith("gemini-"):
+        key = (settings.google_api_key or "").strip()
+        if not key:
+            raise RuntimeError(
+                "GEMINI_API_KEY / GOOGLE_API_KEY is not set — add it to the deploy environment (Railway → Variables)."
+            )
+        return settings.google_base_url, key
     key = (settings.openai_api_key or "").strip()
     if not key:
         raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
@@ -360,15 +367,18 @@ async def complete(
             "prompt_cache_key": _prompt_cache_key(system, blocks),
         }
         # Output-length param diverges by provider: OpenAI's current models (gpt-5 / o-series) REQUIRE
-        # `max_completion_tokens` and 400 on the old `max_tokens`; xAI's Grok still takes `max_tokens`.
-        if model.startswith("grok-"):
+        # `max_completion_tokens` and 400 on the old `max_tokens`; xAI's Grok and Gemini's OpenAI-
+        # compatible endpoint keep the classic `max_tokens` parameter.
+        if model.startswith(("grok-", "gemini-")):
             create_kwargs["max_tokens"] = max_tokens
         else:
             create_kwargs["max_completion_tokens"] = max_tokens
         # OpenAI's reasoning models only accept the default temperature (they 400 on any explicit value),
-        # so omit it for them; other OpenAI models and Grok take it freely.
+        # so omit it for them; other OpenAI-compatible models take it freely.
         if temperature is not None and not _is_openai_reasoning_model(model):
             create_kwargs["temperature"] = temperature
+        if effort is not None and model.startswith("gemini-"):
+            create_kwargs["reasoning_effort"] = effort
 
     preflight_input_tokens: int | None = None
     preflight_total: int | None = None
