@@ -1,9 +1,10 @@
 """Hybrid canon retrieval (RAG upgrade).
 
 Combines, in order: forced owner-file snippets (deterministic precedence), keyword/lexical scoring,
-and semantic vector search; then merges/dedupes and reranks by source priority, owner topic, query
-overlap, and status. Returns provenance-rich snippets so the Packet Author and ScenePacket Builder can
-cite real source handles, not unsourced assertions.
+and semantic vector search; then merges/dedupes and reranks by source priority, owner topic, and query
+overlap. Every candidate pool is first gated to `active` canon (Workstream H) — stale/retired/superseded
+rows never enter context. Returns provenance-rich snippets so the Packet Author and ScenePacket Builder
+can cite real source handles, not unsourced assertions.
 
 Owner-file precedence is structural: an owner-forced chunk gets `rag_owner_file_boost` added to its
 score, so it always outranks a semantic-only hit on the same topic. Vector search is supporting
@@ -25,6 +26,12 @@ from dominion.workers.memory.embedding import embed
 
 _TOKEN = re.compile(r"[a-z0-9']+")
 _STOP = {"the", "a", "an", "and", "or", "of", "to", "in", "is", "it", "this", "that", "on", "for"}
+
+
+def _active_only():
+    """Status-aware retrieval gate (Workstream H): stale/retired/superseded canon never enters agent
+    context. NULL is treated as active so rows written before the `status` column existed still surface."""
+    return or_(CanonEntity.status.is_(None), CanonEntity.status == "active")
 
 
 def _tokens(text: str | None) -> set[str]:
@@ -89,7 +96,11 @@ async def retrieve_hybrid(
         if owner_topics:
             conds.append(CanonEntity.owner_topic.in_(owner_topics))
         rows = (
-            (await session.execute(select(CanonEntity).where(CanonEntity.book_id == book_id, or_(*conds))))
+            (
+                await session.execute(
+                    select(CanonEntity).where(CanonEntity.book_id == book_id, _active_only(), or_(*conds))
+                )
+            )
             .scalars()
             .all()
         )
@@ -104,7 +115,12 @@ async def retrieve_hybrid(
             (
                 await session.execute(
                     select(CanonEntity)
-                    .where(CanonEntity.book_id == book_id, CanonEntity.body.isnot(None), or_(*like_conds))
+                    .where(
+                        CanonEntity.book_id == book_id,
+                        CanonEntity.body.isnot(None),
+                        _active_only(),
+                        or_(*like_conds),
+                    )
                     .limit(settings.rag_keyword_k * 3)
                 )
             )
@@ -127,6 +143,7 @@ async def retrieve_hybrid(
                         CanonEntity.book_id == book_id,
                         CanonEntity.body.isnot(None),
                         CanonEntity.embedding.isnot(None),
+                        _active_only(),
                     )
                     .order_by(CanonEntity.embedding.cosine_distance(qvec))
                     .limit(settings.rag_semantic_k)

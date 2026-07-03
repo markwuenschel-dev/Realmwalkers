@@ -46,6 +46,11 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS content_hash TEXT",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS embedding_model TEXT",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS embedding_version TEXT",
+    # Workstream H (stale canon/ledger cleanup): provenance + lifecycle on each canon row. Added
+    # WITHOUT a server DEFAULT so existing rows land NULL and are backfilled below by _BACKFILLS
+    # (source is doc_path-derived, so a blanket DEFAULT would wrongly stamp repo rows 'manual').
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS source TEXT",
+    "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS status TEXT",
     # Per-run telemetry scoping: group a derive's calls so the panels can show one run, not a total.
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS run_id UUID",
     # Per-scene POV override: optional, null/blank inherits the chapter POV (Beat.pov).
@@ -55,6 +60,18 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE agent_ops_state ADD COLUMN IF NOT EXISTS globals_json JSONB",
     # Production driver scoping: tie draft jobs (and therefore timeline updates) to a ProductionRun.
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS production_run_id UUID",
+)
+
+# One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
+# rows that predate the column and is a no-op on every boot thereafter (new rows carry the ORM default).
+_BACKFILLS: tuple[str, ...] = (
+    # Workstream H: infer provenance for pre-existing canon rows from the doc_path heuristic ingest used
+    # before a real `source` column existed (repo-ingested chunks carry a doc_path; hand-authored do not),
+    # and mark every legacy row `active` so status-aware retrieval keeps returning them.
+    """UPDATE canon_entities
+       SET source = CASE WHEN doc_path IS NOT NULL THEN 'repo_ingested' ELSE 'manual' END
+       WHERE source IS NULL""",
+    "UPDATE canon_entities SET status = 'active' WHERE status IS NULL",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
@@ -108,6 +125,8 @@ _EXTRA_DDL: tuple[str, ...] = (
 async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     """Run the idempotent column adds. Call inside an open (begin) connection."""
     for ddl in _COLUMN_ADDS:
+        await conn.execute(text(ddl))
+    for ddl in _BACKFILLS:
         await conn.execute(text(ddl))
     for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))

@@ -13,7 +13,7 @@ import re
 import uuid
 from pathlib import Path
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
@@ -24,6 +24,13 @@ from dominion.workers.memory.owner_router import _RULES
 
 _PASSAGE_KIND = "passage"
 _TARGET_CHARS = 1000
+
+
+def _active_only():
+    """Status-aware retrieval gate (Workstream H): only `active` canon reaches agent/prose context;
+    stale/retired/superseded rows are excluded. NULL is treated as active so legacy rows written
+    before the `status` column existed still surface."""
+    return or_(CanonEntity.status.is_(None), CanonEntity.status == "active")
 
 # Top-level folder under series/canon → the CanonEntity.kind ingested chunks get tagged with, so the
 # ledger groups them into real categories instead of one "passage" pile. `kind` is display/organization
@@ -146,6 +153,7 @@ async def retrieve(session: AsyncSession, *, book_id: uuid.UUID, query: str, k: 
             CanonEntity.book_id == book_id,
             CanonEntity.body.isnot(None),
             CanonEntity.embedding.isnot(None),
+            _active_only(),
         )
         .order_by(CanonEntity.embedding.cosine_distance(qvec))
         .limit(k)
@@ -168,6 +176,7 @@ async def retrieve_with_meta(
             CanonEntity.book_id == book_id,
             CanonEntity.body.isnot(None),
             CanonEntity.embedding.isnot(None),
+            _active_only(),
         )
         .order_by(CanonEntity.embedding.cosine_distance(qvec))
         .limit(k)
@@ -183,7 +192,17 @@ async def ingest_path(session: AsyncSession, *, book_id: uuid.UUID, root: str | 
         if not _is_ingestable(path):
             continue
         for chunk in _chunk(path.read_text(encoding="utf-8")):
-            session.add(CanonEntity(book_id=book_id, kind=kind, name=path.stem, body=chunk, embedding=embed(chunk)))
+            session.add(
+                CanonEntity(
+                    book_id=book_id,
+                    kind=kind,
+                    name=path.stem,
+                    body=chunk,
+                    embedding=embed(chunk),
+                    source="repo_ingested",
+                    status="active",
+                )
+            )
             count += 1
     await session.flush()
     return count
@@ -241,6 +260,8 @@ async def ingest_incremental(
                     name=path.stem,
                     body=chunk,
                     embedding=embed(chunk),
+                    source="repo_ingested",
+                    status="active",
                     doc_path=doc_path,
                     heading_path=heading_path or None,
                     owner_topic=owner_topic,
