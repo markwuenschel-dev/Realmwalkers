@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Single-service image: Next.js (public) + FastAPI (internal), one container. The browser loads the
 # desk from Next and calls same-origin /api/desk/*, which the Next BFF proxies to FastAPI on
 # 127.0.0.1:8000 — so there is still no separate API host, no CORS, and no "localhost" in the client.
@@ -6,12 +7,16 @@
 # Node 24 (current LTS). Keep this major in sync with .github/workflows/ci.yml (node-version "24").
 FROM node:24-slim AS frontend
 WORKDIR /app/frontend
+ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# pnpm store persists across deploys via a BuildKit cache mount, so unchanged deps aren't refetched.
+RUN --mount=type=cache,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
 COPY frontend/ ./
 # output: "standalone" => .next/standalone/server.js + traced node_modules; static assets separate.
-RUN pnpm build
+# .next/cache is not part of the standalone output; cache it across builds to avoid a cold recompile.
+RUN --mount=type=cache,target=/app/frontend/.next/cache pnpm build
 
 # --- 2) python + node runtime --------------------------------------------------------------------
 FROM python:3.14-slim AS app
@@ -34,7 +39,8 @@ COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+# uv cache persists across deploys via a BuildKit cache mount (UV_LINK_MODE=copy set above).
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY src/ ./src/

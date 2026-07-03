@@ -40,6 +40,26 @@ _KIND_BY_FOLDER: dict[str, str] = {
 }
 _DEFAULT_INGEST_KIND = "lore"
 
+# Extensions we treat as canon source text.
+_INGEST_SUFFIXES = {".md", ".markdown", ".txt"}
+
+
+def _is_ingestable(path: Path) -> bool:
+    """True if `path` is a canon source file we should embed.
+
+    Skips non-prose scaffolding that would otherwise be embedded and surface as retrievable
+    "canon": underscore-prefixed templates (``_CHARACTER_TEMPLATE.md``, ``_FACTION_TEMPLATE.md``,
+    ``_COHORT_TEMPLATE.md``) and the ``CHANGELOG``. Mirrors seed.py's convention so a rebuild
+    never pollutes context with template placeholders. Real index files (canon_index.md) are kept.
+    """
+    if not path.is_file() or path.suffix.lower() not in _INGEST_SUFFIXES:
+        return False
+    if path.name.startswith("_"):
+        return False
+    if path.stem.upper() == "CHANGELOG":
+        return False
+    return True
+
 
 def _kind_for(doc_path: str) -> str:
     """Map a chunk's relative doc_path to its display kind by top-level folder."""
@@ -160,7 +180,7 @@ async def ingest_path(session: AsyncSession, *, book_id: uuid.UUID, root: str | 
     await session.execute(delete(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.kind == kind))
     count = 0
     for path in sorted(Path(root).rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in {".md", ".markdown", ".txt"}:
+        if not _is_ingestable(path):
             continue
         for chunk in _chunk(path.read_text(encoding="utf-8")):
             session.add(CanonEntity(book_id=book_id, kind=kind, name=path.stem, body=chunk, embedding=embed(chunk)))
@@ -200,7 +220,7 @@ async def ingest_incremental(
 
     version = embedding_version()  # encodes the active embedding backend + model
     for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in {".md", ".markdown", ".txt"}:
+        if not _is_ingestable(path):
             continue
         doc_path = str(path.relative_to(root)).replace("\\", "/")
         row_kind = kind or _kind_for(doc_path)

@@ -24,4 +24,7 @@ logs/
 .claude/skills/
 # author's local working notes — scratch, never tracked
 author notes/
+# worker scratch output (e.g. tmp/packet_internal.json) and local MCP working dirs — never tracked
+tmp/
+mcps/
 *.json

@@ -28,6 +28,28 @@ def test_owner_router_silent_without_a_match():
     assert r.doc_paths == [] and r.owner_topics == []
 
 
+# --- ingestable filter (pure) — keeps template/CHANGELOG scaffolding out of retrievable canon ------
+
+
+def test_is_ingestable_skips_templates_and_changelog(tmp_path):
+    keep = tmp_path / "dominion_realm_story_bible.md"
+    keep.write_text("# Bible", encoding="utf-8")
+    index = tmp_path / "canon_index.md"
+    index.write_text("# Index", encoding="utf-8")
+    template = tmp_path / "_CHARACTER_TEMPLATE.md"
+    template.write_text("# Template", encoding="utf-8")
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text("# Changelog", encoding="utf-8")
+    not_prose = tmp_path / "diagram.png"
+    not_prose.write_text("x", encoding="utf-8")
+
+    assert canon_rag._is_ingestable(keep) is True
+    assert canon_rag._is_ingestable(index) is True  # real index content is kept
+    assert canon_rag._is_ingestable(template) is False  # underscore templates skipped
+    assert canon_rag._is_ingestable(changelog) is False
+    assert canon_rag._is_ingestable(not_prose) is False  # non-text suffix
+
+
 # --- incremental ingest ---------------------------------------------------------------------------
 
 
