@@ -331,9 +331,7 @@ def _is_protected(row: CanonEntity, explicit_ids: set[uuid.UUID]) -> bool:
 
 
 @router.post("/books/{book_id}/canon/cleanup-preview", response_model=CanonCleanupPreviewOut)
-async def cleanup_preview(
-    book_id: uuid.UUID, req: CanonCleanupIn, session: SessionDep
-) -> CanonCleanupPreviewOut:
+async def cleanup_preview(book_id: uuid.UUID, req: CanonCleanupIn, session: SessionDep) -> CanonCleanupPreviewOut:
     """Dry-run a retire/delete: report what the same selection would affect, mutating nothing.
 
     Manual-source rows are protected (counted in `protected_manual`, reason "protected …") unless their

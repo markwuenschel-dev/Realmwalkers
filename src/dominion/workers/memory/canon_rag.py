@@ -32,6 +32,7 @@ def _active_only():
     before the `status` column existed still surface."""
     return or_(CanonEntity.status.is_(None), CanonEntity.status == "active")
 
+
 # Top-level folder under series/canon → the CanonEntity.kind ingested chunks get tagged with, so the
 # ledger groups them into real categories instead of one "passage" pile. `kind` is display/organization
 # only — retrieval (retrieve/retrieve_hybrid) never filters on it. Character docs route to "cast" (a

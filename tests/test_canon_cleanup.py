@@ -28,8 +28,14 @@ def _canon(
 ) -> CanonEntity:
     """A retrievable canon row (body + embedding), with explicit provenance/lifecycle."""
     return CanonEntity(
-        book_id=book_id, kind="lore", name=name, body=body, embedding=canon_rag.embed(body),
-        status=status, source=source, **kw,
+        book_id=book_id,
+        kind="lore",
+        name=name,
+        body=body,
+        embedding=canon_rag.embed(body),
+        status=status,
+        source=source,
+        **kw,
     )
 
 
@@ -56,8 +62,14 @@ async def test_retrieve_and_meta_exclude_retired_rows(db_factory):
     async with db_factory() as s:
         book = await _book(s)
         s.add(_canon(book.id, name="live", body="Eriadne is a warded city of glass towers guarding the harbor."))
-        s.add(_canon(book.id, name="dead",
-                     body="Eriadne is a warded city of glass towers guarding the harbor SENTINEL.", status="retired"))
+        s.add(
+            _canon(
+                book.id,
+                name="dead",
+                body="Eriadne is a warded city of glass towers guarding the harbor SENTINEL.",
+                status="retired",
+            )
+        )
         await s.flush()
 
         hits = await canon_rag.retrieve(s, book_id=book.id, query=q, k=6)
@@ -73,8 +85,16 @@ async def test_retrieve_hybrid_excludes_retired_rows(db_factory):
     async with db_factory() as s:
         book = await _book(s)
         s.add(_canon(book.id, name="live", body="the hidden cohort plan alpha", doc_path="a.md", content_hash="a"))
-        s.add(_canon(book.id, name="dead", body="the hidden cohort plan SENTINEL", status="retired",
-                     doc_path="b.md", content_hash="b"))
+        s.add(
+            _canon(
+                book.id,
+                name="dead",
+                body="the hidden cohort plan SENTINEL",
+                status="retired",
+                doc_path="b.md",
+                content_hash="b",
+            )
+        )
         await s.flush()
         results = await retrieve_hybrid(s, book_id=book.id, query="hidden cohort plan")
         assert results  # the active row still surfaces (keyword + semantic)
@@ -108,8 +128,9 @@ async def test_retire_protects_manual_under_filter_but_honors_explicit_id(db_fac
     async with db_factory() as s:
         book = await _book(s)
         manual = _canon(book.id, name="hand", body="hand authored note", source="manual")
-        repo = _canon(book.id, name="repo", body="repo ingested chunk", source="repo_ingested",
-                      doc_path="r.md", content_hash="r")
+        repo = _canon(
+            book.id, name="repo", body="repo ingested chunk", source="repo_ingested", doc_path="r.md", content_hash="r"
+        )
         s.add(manual)
         s.add(repo)
         await s.flush()
@@ -191,8 +212,12 @@ async def test_rebuild_preserves_manual_rows(db_factory):
         assert survivor is not None and survivor.source == "manual" and survivor.status == "active"
         # any repo-ingested rows the rebuild produced carry the right provenance
         repo_rows = (
-            await s.execute(
-                select(CanonEntity).where(CanonEntity.book_id == book.id, CanonEntity.doc_path.isnot(None))
+            (
+                await s.execute(
+                    select(CanonEntity).where(CanonEntity.book_id == book.id, CanonEntity.doc_path.isnot(None))
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert all(r.source == "repo_ingested" and r.status == "active" for r in repo_rows)
