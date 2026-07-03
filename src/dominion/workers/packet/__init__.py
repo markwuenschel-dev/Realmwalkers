@@ -211,7 +211,14 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     """
     book_id = chapter.book_id
     outline = (chapter.outline or "").strip()
-    budget = TokenBudget(max_tokens=settings.scene_token_budget)
+    # Soft/hard budget split, same policy as the scene derive: crossing the soft target only warns
+    # (telemetry); only the hard ceiling fails closed. Without the split, a QA escalation retry on a
+    # detailed chapter crossed the single 60k ceiling and the raising charge DISCARDED the retry's
+    # already-produced verdict (the observed `token budget exceeded: 74673 > 60000` block).
+    budget = TokenBudget(
+        max_tokens=settings.scene_token_budget,
+        hard_max_tokens=settings.scene_token_hard_budget,
+    )
 
     # Telemetry: the Packet Author + QA calls roll up under one run row (one propose = one run) so the
     # chapter-packet stage shows in the Desk telemetry like the scene-packet derive. Persisted on EVERY
