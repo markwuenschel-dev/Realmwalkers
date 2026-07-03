@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dominion.realmwalkers/schemas/chapter_master_packet.schema.json",
+  "title": "chapter_master_packet",
+  "description": "The ONE canonical chapter planning artifact persisted at ChapterPacket.body (schema_version 1). Produced/normalized exclusively by dominion.workers.packet.master.to_master_packet — a tolerant reader that also accepts the legacy AuthorPacketInternal shape (no hard migration; existing JSONB rows normalize on read). The flat legacy fields (four roster arrays, chapter_job/one_sentence_spine/entry_state/exit_state/emotional_spine, the lock arrays, the open_questions string list) remain present as COMPAT MIRRORS regenerated from the structured sections on every normalize; they double as the human editing surface, so on disagreement the mirrors win and the structured sections are rebuilt (per-name cast extras preserved). scene_seeds is the canonical scenes[] array (established key name kept) and exists exactly once as authoritative RAW planning data; the drafter-safe projection lives ONLY under the derived _surface_contract key. The ChapterPacket.open_questions column is a derived sync of chapter_contract.open_questions.",
+  "type": "object",
+  "required": ["schema_version", "chapter_contract", "cast", "scene_seeds", "qa"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "book_id": { "type": ["string", "null"], "description": "Stamped by writers when known; identity of the owning book." },
+    "chapter_id": { "type": ["string", "null"] },
+    "chapter_no": { "type": ["integer", "null"] },
+    "pov": { "type": ["string", "null"] },
+    "status": {
+      "type": ["string", "null"],
+      "description": "Lifecycle mirror of the ChapterPacket.status column (proposed|approved|blocked), stamped by the same writers; the column stays the operational gate."
+    },
+    "source_inputs": {
+      "type": "object",
+      "description": "What the packet was authored from (outline size, canon handles, prior exit state / omniscient summary presence). Audit-only."
+    },
+    "chapter_contract": {
+      "type": "object",
+      "required": ["job", "locks", "claims", "open_questions"],
+      "properties": {
+        "job": { "type": ["string", "null"], "description": "Mirror source: chapter_job." },
+        "spine": { "type": ["string", "null"], "description": "Mirror source: one_sentence_spine." },
+        "entry_state": { "type": ["string", "null"] },
+        "exit_state": { "type": ["string", "null"] },
+        "emotional_spine": { "type": ["string", "null"] },
+        "locks": {
+          "type": "object",
+          "properties": {
+            "canon_locks": { "type": "array", "items": { "type": "string" } },
+            "roster_locks": { "type": "array", "items": { "type": "string" } },
+            "relationship_locks": { "type": "array", "items": { "type": "string" } },
+            "timeline_locks": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "claims": {
+          "type": "array",
+          "description": "Provenance-carrying claims: {claim, source_strength, source_id, source_title_or_file, excerpt?, confidence}.",
+          "items": { "type": "object" }
+        },
+        "open_questions": {
+          "type": "object",
+          "description": "IN-BODY source of truth for open questions. items = unresolved (each blocks approval until adjudicated); resolved = author rulings ({q, a}-shaped entries) that downstream QA must treat as settled fact.",
+          "required": ["items"],
+          "properties": {
+            "items": { "type": "array", "items": { "type": "string" } },
+            "resolved": { "type": "array" }
+          }
+        }
+      }
+    },
+    "cast": {
+      "type": "array",
+      "description": "Structured roster replacing the four flat arrays (which remain as derived compat mirrors). One entry per authored roster entry; contradictory double-bucketing is preserved for validation to flag as a repair task.",
+      "items": {
+        "type": "object",
+        "required": ["name", "presence"],
+        "properties": {
+          "name": { "type": "string" },
+          "presence": { "enum": ["present", "absent", "mentioned_only", "forbidden"] },
+          "reader_must_notice": { "type": "boolean" },
+          "minimum_visible_evidence": {
+            "type": ["string", "null"],
+            "description": "The least on-page evidence (dialogue/action/description/thought/named reference) that satisfies reader_must_notice."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "The full authored roster entry with annotations (e.g. 'Brent (404 guild member)'); mirrors regenerate from this when it still leads with the name."
+          }
+        }
+      }
+    },
+    "scene_seeds": {
+      "type": "array",
+      "description": "The canonical scenes[] array — authoritative RAW planning data (may contain hidden canonical truth; INTERNAL_PLANNING scope). Exists exactly once: the drafter-safe projection of these seeds lives only under _surface_contract.scene_seeds.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "seed_id": { "type": "string", "description": "Server-minted stable id — the sync key for scene-packet derivation." },
+          "scene_no": { "type": "integer" },
+          "scene_job": { "type": "string" },
+          "scene_type": { "type": "string" },
+          "required_beats": { "type": "array", "items": { "type": "string" } },
+          "forbidden_beats": { "type": "array", "items": { "type": "string" } },
+          "exit_state": { "type": "string" },
+          "word_budget": { "type": "object" },
+          "visible_character_evidence": {
+            "type": "array",
+            "description": "Per-scene evidence plan for present/reader_must_notice cast members; consumed by the draft-time PRESENT_CHARACTER_NOT_VISIBLE check.",
+            "items": {}
+          }
+        }
+      }
+    },
+    "qa": {
+      "type": "object",
+      "description": "Latest QA outcome folded into the artifact. Issue lists use the machine-readable severity shape ({kind, field, detail, severity, blocks_drafting, blocks_human_review, blocks_final_export}). LLM QA is advisory: its issues are capped at repair severity and never gate drafting.",
+      "properties": {
+        "verdict": { "type": ["string", "null"] },
+        "blocking_issues": { "type": "array", "items": { "type": "object" } },
+        "warnings": { "type": "array", "items": { "type": "object" } },
+        "repair_tasks": { "type": "array", "items": { "type": "object" } },
+        "graded_by": { "type": ["string", "null"] },
+        "last_checked_at": { "type": ["string", "null"] }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "description": "Where this body came from (packet_author propose, human edit, or normalization of a legacy AuthorPacketInternal row)."
+    },
+    "_surface_contract": {
+      "type": "object",
+      "description": "DERIVED, never authoritative: the drafter-safe projection (surface_contract.build_surface_contract) rebuilt by writers on every propose/body edit. Scene-packet derivation and any drafter-facing consumer read this view (master.drafter_view), never the raw top-level seeds."
+    },
+    "characters_present": { "type": "array", "items": { "type": "string" }, "description": "DERIVED compat mirror of cast[presence=present]; also the Desk editing surface." },
+    "characters_absent": { "type": "array", "items": { "type": "string" }, "description": "DERIVED compat mirror of cast[presence=absent]." },
+    "characters_mentioned_only": { "type": "array", "items": { "type": "string" }, "description": "DERIVED compat mirror of cast[presence=mentioned_only]." },
+    "characters_forbidden": { "type": "array", "items": { "type": "string" }, "description": "DERIVED compat mirror of cast[presence=forbidden]." },
+    "chapter_job": { "type": ["string", "null"], "description": "DERIVED compat mirror of chapter_contract.job." },
+    "one_sentence_spine": { "type": ["string", "null"], "description": "DERIVED compat mirror of chapter_contract.spine." },
+    "entry_state": { "type": ["string", "null"], "description": "DERIVED compat mirror of chapter_contract.entry_state." },
+    "exit_state": { "type": ["string", "null"], "description": "DERIVED compat mirror of chapter_contract.exit_state." },
+    "emotional_spine": { "type": ["string", "null"], "description": "DERIVED compat mirror of chapter_contract.emotional_spine." },
+    "open_questions": { "type": "array", "items": { "type": "string" }, "description": "DERIVED compat mirror of chapter_contract.open_questions.items (legacy author-shape list)." },
+    "claims": { "type": "array", "description": "Top-level claims list (same objects as chapter_contract.claims)." },
+    "confidence": { "type": ["string", "null"], "description": "Author self-assessment (green|yellow|red); advisory." }
+  },
+  "additionalProperties": true
+}
