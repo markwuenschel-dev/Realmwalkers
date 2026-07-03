@@ -338,6 +338,13 @@ class CanonEntity(Base):
     kind: Mapped[str | None] = mapped_column(Text, nullable=True)  # character|location|faction|lore|item
     name: Mapped[str | None] = mapped_column(Text, nullable=True)
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Provenance + lifecycle (Workstream H — stale canon/ledger cleanup). Enum-as-Text (like
+    # KnowledgeFact.status): how this row got here, and whether it should still reach agent context.
+    # Retrieval EXCLUDES any row whose status is not `active` (NULL treated as active for safety).
+    source: Mapped[str] = mapped_column(
+        Text, default="manual"
+    )  # manual | repo_ingested | packet_derived | draft_derived | legacy
+    status: Mapped[str] = mapped_column(Text, default="active")  # active | stale | retired | superseded
     published: Mapped[bool] = mapped_column(Boolean, default=False)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
     doc_path: Mapped[str | None] = mapped_column(Text, nullable=True)
