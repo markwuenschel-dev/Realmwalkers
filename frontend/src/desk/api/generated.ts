@@ -541,8 +541,10 @@ export interface paths {
     put?: never;
     /**
      * Approve Packet
-     * @description Approve the packet so drafting may proceed. Refused when blocked, red-confidence, or open
-     *     questions remain (no auto-approve during tuning — even a green packet needs this human action).
+     * @description Approve the packet so drafting may proceed. Refused only when the packet is blocked or open
+     *     questions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves
+     *     (approve-with-repairs — repairs still gate final export). No auto-approve during tuning: even a
+     *     green packet needs this human action.
      */
     post: operations["approve_packet_chapters__chapter_id__packet_approve_post"];
     delete?: never;

@@ -176,8 +176,10 @@ async def delete_packet(chapter_id: uuid.UUID, session: SessionDep) -> DeleteCha
 
 @router.post("/{chapter_id}/packet/approve", response_model=PacketOut)
 async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOut:
-    """Approve the packet so drafting may proceed. Refused when blocked, red-confidence, or open
-    questions remain (no auto-approve during tuning — even a green packet needs this human action)."""
+    """Approve the packet so drafting may proceed. Refused only when the packet is blocked or open
+    questions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves
+    (approve-with-repairs — repairs still gate final export). No auto-approve during tuning: even a
+    green packet needs this human action."""
     row = await _latest(session, chapter_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no packet for this chapter yet")
