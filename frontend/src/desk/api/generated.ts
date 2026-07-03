@@ -648,8 +648,8 @@ export interface paths {
     put?: never;
     /**
      * Qa Scene Packet
-     * @description Re-run QA against the current body. A BLOCK_DRAFTING verdict blocks the packet; a malformed
-     *     response fails closed (also blocks).
+     * @description Re-run QA against the current body. QA is advisory: any usable verdict leaves status alone
+     *     (and releases a legacy QA-held block); only a malformed response fails closed (blocks).
      */
     post: operations["qa_scene_packet_scene_packets__scene_packet_id__qa_post"];
     delete?: never;
