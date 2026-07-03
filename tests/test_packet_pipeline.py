@@ -187,13 +187,13 @@ async def test_clean_green_packet_approves(db_factory, monkeypatch):
 # --- a failed re-propose must not wipe an approved packet -----------------------------------------
 
 
-# --- deterministic roster-consistency validation (blocks before QA) -------------------------------
+# --- deterministic roster-consistency validation (repair tasks, drafting stays reachable) ----------
 
 
-async def test_double_bucketed_roster_blocks_before_qa(db_factory, monkeypatch):
-    """Regression: a character listed in both characters_present and characters_absent is a decidable
-    self-contradiction -- it must block the packet WITHOUT ever calling QA (no point attacking a packet
-    already known internally inconsistent), and the block must be attributed to validation, not QA."""
+async def test_double_bucketed_roster_is_repair_task_not_block(db_factory, monkeypatch):
+    """A character listed in both characters_present and characters_absent is a fixable data-entry
+    contradiction: the packet stays PROPOSED (drafting reachable), QA still runs, and the violation is
+    persisted as a machine-readable repair task that gates final export only."""
     packet = {
         **_packet(),
         "characters_present": ["Mara (present, unidentified until Ch2)"],
@@ -204,21 +204,22 @@ async def test_double_bucketed_roster_blocks_before_qa(db_factory, monkeypatch):
     async def author_ok(**kwargs):
         return packet
 
-    async def qa_should_not_run(_packet, **kwargs):
+    async def qa_runs(_packet, **kwargs):
         nonlocal qa_called
         qa_called = True
         return _qa()
 
     monkeypatch.setattr(author_mod, "author_packet", author_ok)
-    monkeypatch.setattr(qa_mod, "qa_packet", qa_should_not_run)
+    monkeypatch.setattr(qa_mod, "qa_packet", qa_runs)
     async with db_factory() as s:
         ch = await _seed_chapter(s)
         row = await packet_pipeline.propose_packet(s, chapter=ch)
-        assert row.status == PacketStatus.BLOCKED
-        assert row.qa_verdict is None or row.qa_verdict == PacketVerdict.BLOCK_DRAFTING
-        assert row.qa_warnings.get("blocker_source") == "validation"
-        assert any(v["kind"] == "roster_double_bucketed" for v in row.qa_warnings.get("violations", []))
-        assert qa_called is False
+        assert row.status == PacketStatus.PROPOSED
+        assert qa_called is True
+        repairs = [v for v in row.qa_warnings.get("violations", []) if v["kind"] == "roster_double_bucketed"]
+        assert repairs and repairs[0]["severity"] == "repair"
+        assert repairs[0]["blocks_drafting"] is False
+        assert repairs[0]["blocks_final_export"] is True
 
 
 async def test_clean_roster_still_runs_qa_and_proposes(db_factory, monkeypatch):

@@ -50,15 +50,19 @@ _SYSTEM = (
     "OPEN QUESTION is supplied, a packet that stays silent on it (does not invent an answer) is CORRECT — "
     "do not block or flag a packet merely for not resolving something genuinely still open.\n\n"
     "Return exactly one verdict: APPROVE, APPROVE_WARN, REVISE_REQUIRED, BLOCK_DRAFTING. "
-    "BLOCK_DRAFTING means no prose may be written from this scene packet.\n\n"
+    "BLOCK_DRAFTING means you judge the packet unsafe to draft from — it is routed to the packet "
+    "author as urgent repair work.\n\n"
     "For each issue, set `field` to the dotted path of the offending scene-packet field when one applies "
     '(e.g. "known_before_scene.reader", "learned_during_scene.reader_must_learn", "must_remain_hidden.pov", '
     '"required_beats", "exit_state"), or null for a whole-packet problem. The exact key names matter — '
-    "they let the editor point the human straight at the field to fix instead of making them hunt.\n\n"
+    "they let the editor point the human straight at the field to fix instead of making them hunt. "
+    "Set `severity`: 'repair' means it must be fixed before the chapter can ship (a leak, a wrong "
+    "bucket, a contradiction you found); 'warn' means the writer should watch for it; 'info' is "
+    "context.\n\n"
     "Reply with ONE JSON object only — no prose, no code fences — of shape:\n"
     '{"verdict": "APPROVE|APPROVE_WARN|REVISE_REQUIRED|BLOCK_DRAFTING", '
     '"residual_risks": [str], '
-    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|block"}]}'
+    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|repair"}]}'
 )
 
 

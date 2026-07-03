@@ -3,35 +3,36 @@
 QA is an LLM attacker — good at semantic risk, unreliable at hard facts. This module is the
 deterministic gate that runs BEFORE QA and decides the facts a checker should never guess at.
 
-WRITER-FIRST POLICY: the product is drafting, so this gate hard-BLOCKS only true draft-safety failures
-— a malformed body, a model-overridden word budget that can't be recovered, an absent character placed
-ON-PAGE (acting in a scene they're not in) OR leaked into a READER/POV-KNOWLEDGE field (the reader/POV
-already effectively "knows" someone declared absent from the roster — the same collapse as being on-page,
-just via knowledge instead of action), a scene-number contradiction. Everything that is optional
-provenance hygiene is normalized or WARNED, never blocked: an invalid `claim_sources.source_id` (an
-outline label, a UUID, an out-of-range/fabricated handle) is rewritten to null by `normalize_provenance`
-and surfaced as a single collapsed warning. Naming an absent character in an author-only/protective field
+WRITER-FIRST POLICY: the product is drafting, so this gate hard-BLOCKS only true blockers — a malformed
+body, an unrecoverable word budget or scene number, a scene-number contradiction with the seed. Every
+FIXABLE contract defect is a REPAIR task instead: a model-overridden word budget, an absent character
+placed ON-PAGE (acting in a scene they're not in) or leaked into a READER/POV-KNOWLEDGE field (the
+reader/POV already effectively "knows" someone declared absent from the roster) are real defects the
+author agent (or human) can fix — they block final export, never drafting or human review. Optional
+provenance hygiene is normalized or WARNED: an invalid `claim_sources.source_id` (an outline label, a
+UUID, an out-of-range/fabricated handle) is rewritten to null by `normalize_provenance` and surfaced as
+a single collapsed warning. Naming an absent character in an author-only/protective field
 (`known_before_scene.omniscient_author`, `must_remain_hidden.*`, `intentional_mysteries`,
 `forbidden_beats`) is CORRECT layering — hidden truth may exist author-side as long as it stays out of
 reader/POV/surface-prose fields — so it only warns, informationally. The orchestrator is
 `evaluate_scene_packet`, which returns a `ScenePacketValidationResult` whose `draftable` reflects only the
-hard blockers.
+hard blockers and whose `repair_tasks`/`export_blockers` carry the fix-it queue.
 
 Pure and import-light (no DB, no models): inputs are plain dicts, output is a result object / list of
-violations the derive persists on the packet. `block` severity stops drafting; `warn` is surfaced but
-advisory. Absence checks use exact, case-insensitive, whole-word name matching ONLY — deliberately NOT a
-general NER system (DESIGN: do not overreach into fuzzy NLP without tests).
+violations the derive persists on the packet. `block` severity stops drafting; `repair` blocks final
+export only; `warn` is surfaced but advisory. Absence checks use exact, case-insensitive, whole-word name
+matching ONLY — deliberately NOT a general NER system (DESIGN: do not overreach into fuzzy NLP without
+tests).
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
-from typing import Any, Literal
+from typing import Any
 
+from dominion.shared.severity import Severity, issue_gates
 from dominion.shared.text_match import as_str_list, collect_strings, get_dotted, names_present
-
-Severity = Literal["warn", "block"]
 
 # Meta "sources" the model reaches for when it has no real snippet handle: the outline, the packet
 # it was localizing, the seed, the budget, or a bare "inference/canon" label. These are NOT retrieved
@@ -83,8 +84,8 @@ _AUTHOR_ONLY_REFERENCE_FIELDS: tuple[str, ...] = ("intentional_mysteries", "forb
 @dataclass(frozen=True)
 class ScenePacketViolation:
     """One deterministic contract breach. `field` is the dotted body path when one applies (else None),
-    so the editor can point the human straight at it. `block` fails the packet closed; `warn` is shown
-    but does not block."""
+    so the editor can point the human straight at it. `block` fails the packet closed; `repair` is a
+    machine-readable fix-it task (blocks final export only); `warn` is shown but blocks nothing."""
 
     kind: str
     field: str | None
@@ -92,7 +93,13 @@ class ScenePacketViolation:
     severity: Severity
 
     def as_dict(self) -> dict[str, Any]:
-        return {"kind": self.kind, "field": self.field, "detail": self.detail, "severity": self.severity}
+        return {
+            "kind": self.kind,
+            "field": self.field,
+            "detail": self.detail,
+            "severity": self.severity,
+            **issue_gates(self.severity),
+        }
 
 
 def _beat_represented(seed_beat: str, body_beats: list[str]) -> bool:
@@ -157,14 +164,17 @@ def validate_scene_packet_contract(
                     )
                 )
 
-    # 2. Word-budget authority: the model must not override the deterministic planner's budget.
+    # 2. Word-budget authority: the model must not override the deterministic planner's budget. A
+    # mis-bucketed echo is fixable (re-stamp from the planner), so it is a repair task, not a hard
+    # block — `evaluate_scene_packet` normally stamps the budget server-side before this check runs,
+    # making this a defensive fallback for direct callers.
     if body.get("word_budget") != word_budget:
         violations.append(
             ScenePacketViolation(
                 kind="word_budget_override",
                 field="word_budget",
                 detail="word_budget does not match the deterministic planner's budget — the model must not override it",
-                severity="block",
+                severity="repair",
             )
         )
 
@@ -198,12 +208,13 @@ def validate_scene_packet_contract(
                 )
 
     # 5/6. Roster / absence: an absent character placed in an on-page field is acting in a scene they are
-    # not in → block. One named in a reader/POV-knowledge field means the reader/POV already effectively
-    # knows them despite being declared absent → also block (the reader/POV-knowledge collapse this
+    # not in → repair. One named in a reader/POV-knowledge field means the reader/POV already effectively
+    # knows them despite being declared absent → also repair (the reader/POV-knowledge collapse this
     # contract exists to prevent — a hidden reveal leaked early is not "plausible off-page color", it is
-    # the exact failure mode). One referenced only in an author-only/protective field (declaring what must
-    # stay hidden, an intentional mystery, a forbidden beat) is CORRECT layering → warn only, informational.
-    # Known absent names only, whole-word, case-insensitive.
+    # a real defect). Both are fixable roster/beat mis-buckets the author agent can repair, so they gate
+    # final export, never drafting. One referenced only in an author-only/protective field (declaring what
+    # must stay hidden, an intentional mystery, a forbidden beat) is CORRECT layering → warn only,
+    # informational. Known absent names only, whole-word, case-insensitive.
     absent = as_str_list(chapter_packet_body.get("characters_absent")) if isinstance(chapter_packet_body, dict) else []
     if absent:
         for field_name in _ON_PAGE_FIELDS:
@@ -213,7 +224,7 @@ def validate_scene_packet_contract(
                         kind="absent_character_on_page",
                         field=field_name,
                         detail=f"absent character {name!r} appears in on-page field {field_name!r}",
-                        severity="block",
+                        severity="repair",
                     )
                 )
         pov_perms = body.get("pov_permissions")
@@ -225,7 +236,7 @@ def validate_scene_packet_contract(
                             kind="absent_character_on_page",
                             field=f"pov_permissions.{sub}",
                             detail=f"absent character {name!r} is marked perceivable in pov_permissions.{sub}",
-                            severity="block",
+                            severity="repair",
                         )
                     )
         for dotted in _READER_POV_KNOWLEDGE_PATHS:
@@ -239,7 +250,7 @@ def validate_scene_packet_contract(
                             "this asserts the reader or POV already knows them despite being declared absent "
                             "from this chapter's roster"
                         ),
-                        severity="block",
+                        severity="repair",
                     )
                 )
         for dotted in _AUTHOR_ONLY_REFERENCE_PATHS:
@@ -344,8 +355,9 @@ def normalize_provenance(
 class ScenePacketValidationResult:
     """The outcome of evaluating one authored ScenePacket body: the server-normalized body the packet
     should persist/draft from, plus every violation found. `draftable` is true when nothing hard-blocks —
-    warnings do not affect it. This is the single object the derive/policy layer reads instead of
-    re-deriving block-vs-warn from a flat list."""
+    repair tasks and warnings do not affect it (repairs gate final export via `export_blockers`, never
+    drafting). This is the single object the derive/policy layer reads instead of re-deriving
+    severity buckets from a flat list."""
 
     normalized_body: dict[str, Any]
     violations: list[ScenePacketViolation]
@@ -353,6 +365,14 @@ class ScenePacketValidationResult:
     @property
     def draft_blockers(self) -> list[ScenePacketViolation]:
         return [v for v in self.violations if v.severity == "block"]
+
+    @property
+    def repair_tasks(self) -> list[ScenePacketViolation]:
+        return [v for v in self.violations if v.severity == "repair"]
+
+    @property
+    def export_blockers(self) -> list[ScenePacketViolation]:
+        return [v for v in self.violations if v.severity in ("block", "repair")]
 
     @property
     def warnings(self) -> list[ScenePacketViolation]:
@@ -419,7 +439,7 @@ def evaluate_scene_packet(
 
     # Contract checks run on the normalized body: provenance is already nulled (so invalid_source_handle
     # is quiet here) and word_budget/scene_no already match (so those checks are quiet too) — what remains
-    # that can fire is the genuine draft-safety set (absent-character-on-page, etc.) plus warn advisories.
+    # that can fire is the repair-task set (absent-character-on-page, etc.) plus warn advisories.
     violations.extend(
         validate_scene_packet_contract(
             body=normalized,

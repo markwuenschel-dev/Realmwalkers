@@ -189,3 +189,55 @@ async def test_chapter_sequence_qa_blocks_duplicate_ownership_and_duplicate_func
         assert qa.warnings["duplicate_beat_ownership"]
         assert qa.warnings["duplicate_scene_functions"]
         assert any(action["kind"] == "merge_scenes" for action in qa.required_actions)
+
+
+# --- run_chapter_draft_qa (pure, no DB): PRESENT_CHARACTER_NOT_VISIBLE + severity facts ------------
+
+
+def _draft_rows(*prose: str) -> list[dict]:
+    return [
+        {"scene_no": i, "prose": p, "word_count": len(p.split()), "scene_function": f"fn{i}"}
+        for i, p in enumerate(prose, start=1)
+    ]
+
+
+def test_present_character_not_visible_is_repair_finding():
+    from dominion.workers.production import run_chapter_draft_qa
+
+    packet_body = {"characters_present": ["Marcus Vye (POV)", "Serra Hawthorne (masked)", "The Broker"]}
+    prose = "Marcus circled the scrim. Across the sand, Serra kept her visor down. Nobody mentioned brokers' guilds."
+    qa = run_chapter_draft_qa(None, _draft_rows(prose), prose, packet_body=packet_body)
+
+    missing = [f for f in qa["findings"] if f["kind"] == "PRESENT_CHARACTER_NOT_VISIBLE"]
+    # Marcus and Serra are visible via first-name whole-word references; "The Broker" never appears
+    # ("brokers'" is not a whole-word match on "Broker").
+    assert [f["character"] for f in missing] == ["The Broker"]
+    f = missing[0]
+    assert f["severity"] == "repair"
+    assert f["blocks_drafting"] is False and f["blocks_human_review"] is False
+    assert f["blocks_final_export"] is True
+    # Repair findings escalate the verdict to at most "warn" — never "block" (human review proceeds).
+    assert qa["verdict"] == "warn"
+
+
+def test_all_present_characters_visible_passes():
+    from dominion.workers.production import run_chapter_draft_qa
+
+    packet_body = {"characters_present": ["Marcus Vye"]}
+    prose = "Marcus won."
+    qa = run_chapter_draft_qa(None, _draft_rows(prose), prose, packet_body=packet_body)
+    assert not [f for f in qa["findings"] if f["kind"] == "PRESENT_CHARACTER_NOT_VISIBLE"]
+    assert qa["verdict"] == "pass"
+
+
+def test_draft_qa_block_findings_carry_block_facts():
+    from dominion.workers.production import run_chapter_draft_qa
+
+    rows = [
+        {"scene_no": 1, "prose": "One.", "word_count": 1, "scene_function": "dup"},
+        {"scene_no": 2, "prose": "Two.", "word_count": 1, "scene_function": "dup"},
+    ]
+    qa = run_chapter_draft_qa(None, rows, "One.\n\nTwo.")
+    dup = [f for f in qa["findings"] if f["kind"] == "duplicate_scene_function"]
+    assert dup and dup[0]["severity"] == "block" and dup[0]["blocks_drafting"] is True
+    assert qa["verdict"] == "block"

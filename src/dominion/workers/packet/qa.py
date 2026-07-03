@@ -14,6 +14,7 @@ from dominion.shared.agent_policy import get_runtime_policy
 from dominion.shared.config import settings
 from dominion.shared.enums import PacketVerdict
 from dominion.shared.risk_scorer import qa_result_preferred, score_qa_result, should_semantic_escalate
+from dominion.shared.severity import normalize_llm_issue
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
 from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
@@ -35,12 +36,17 @@ _SYSTEM = (
     "chapter whatsoever, not merely 'minor' or 'background' — a character with even one line or beat "
     "belongs in characters_present instead.\n\n"
     "Return exactly one of these verdicts: APPROVE, APPROVE_WARN, REVISE_REQUIRED, BLOCK_DRAFTING. "
-    "BLOCK_DRAFTING means the packet is unsafe and no prose may be written from it. If the packet "
-    "passes, list the top five risks the writer must still avoid.\n\n"
+    "BLOCK_DRAFTING means you judge the packet unsafe to draft from — it is routed to the packet "
+    "author as urgent repair work. If the packet passes, list the top five risks the writer must "
+    "still avoid.\n\n"
+    "For each issue set `severity`: 'repair' means it must be fixed before the chapter can ship "
+    "(a wrong roster bucket, a leak, a contradiction you found); 'warn' means the writer should "
+    "watch for it; 'info' is context. Set `field` to the packet field the issue points at when one "
+    "applies (else null).\n\n"
     "Reply with ONE JSON object only — no prose, no code fences — of shape:\n"
     '{"verdict": "APPROVE|APPROVE_WARN|REVISE_REQUIRED|BLOCK_DRAFTING", '
     '"residual_risks": [str], '
-    '"issues": [{"kind": str, "detail": str}]}'
+    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|repair"}]}'
 )
 
 _VERDICTS = {v.value.upper(): v for v in PacketVerdict}
@@ -55,7 +61,9 @@ def build_prompt(packet: dict[str, Any]) -> str:
 def parse_qa(raw: str) -> dict[str, Any] | None:
     """Parse the QA response into {verdict, residual_risks, issues}, or None if unusable (fail
     closed). A recognizable object with an UNKNOWN verdict is treated as None — we never guess a
-    verdict for a gate."""
+    verdict. Issues are normalized to the machine-readable shape (guaranteed `severity`, capped at
+    `repair`, plus derived `blocks_*` facts) — an LLM issue can never carry a drafting-blocking
+    severity."""
     obj = extract_object(raw)
     if obj is None:
         return None
@@ -66,7 +74,7 @@ def parse_qa(raw: str) -> dict[str, Any] | None:
     return {
         "verdict": verdict,
         "residual_risks": str_list(obj.get("residual_risks")),
-        "issues": issues if isinstance(issues, list) else [],
+        "issues": [normalize_llm_issue(i) for i in issues if isinstance(i, dict)] if isinstance(issues, list) else [],
     }
 
 

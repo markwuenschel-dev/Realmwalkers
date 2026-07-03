@@ -64,7 +64,7 @@ _ESCALATION_DESCRIPTIONS: dict[str, str] = {
     "truncated": "Escalates when output is cut off at max_tokens",
     "unparseable": "Escalates when the response cannot be parsed",
     "canon_conflict": "Escalates when QA finds canon/timeline conflicts",
-    "high_qa_risk": "Escalates on REVISE_REQUIRED or multiple block-severity issues",
+    "high_qa_risk": "Escalates on REVISE_REQUIRED or multiple repair-severity issues",
     "reviewer_hard_flags": "Escalates when reviewers emit HARD severity flags",
 }
 

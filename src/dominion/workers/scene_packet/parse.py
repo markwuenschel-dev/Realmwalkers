@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from dominion.shared.enums import ScenePacketVerdict
+from dominion.shared.severity import normalize_llm_issue
 from dominion.workers.packet.parse import extract_object, str_list  # shared tolerant extractor
 
 __all__ = ["extract_object", "str_list", "parse_scene_qa", "valid_scene_packet_body"]
@@ -22,7 +23,9 @@ _REQUIRED_BODY_KEYS = ("known_before_scene", "learned_during_scene", "word_budge
 
 def parse_scene_qa(raw: str) -> dict[str, Any] | None:
     """Parse a ScenePacket QA response into {verdict, residual_risks, issues}, or None (fail closed).
-    An unknown verdict yields None — a gate never guesses."""
+    An unknown verdict yields None — a gate never guesses. Issues are normalized to the machine-readable
+    shape (guaranteed `severity`, capped at `repair`, plus derived `blocks_*` facts) — an LLM issue can
+    never carry a drafting-blocking severity."""
     obj = extract_object(raw)
     if obj is None:
         return None
@@ -33,7 +36,7 @@ def parse_scene_qa(raw: str) -> dict[str, Any] | None:
     return {
         "verdict": verdict,
         "residual_risks": str_list(obj.get("residual_risks")),
-        "issues": [i for i in issues if isinstance(i, dict)] if isinstance(issues, list) else [],
+        "issues": [normalize_llm_issue(i) for i in issues if isinstance(i, dict)] if isinstance(issues, list) else [],
     }
 
 

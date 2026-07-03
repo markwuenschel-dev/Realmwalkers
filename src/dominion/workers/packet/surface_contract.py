@@ -5,8 +5,9 @@ Raw internal ChapterPacket (AuthorPacketInternal) -> projected safe SurfaceContr
 - build_surface_contract: produces drafter-safe body + policies + violations.
 - Projection is deterministic, exact whole-word only. No fuzzy NER, no per-book aliases.
 - Scene seeds are projected field-by-field into DRAFTER_SURFACE equivalents.
-- Only when a forbidden term reaches a DRAFTER_SURFACE (or READER/POV) scope with no safe policy
-  do we emit a blocker.
+- When a forbidden term reaches a DRAFTER_SURFACE (or READER/POV) scope with no safe policy we emit
+  a REPAIR task (fixable by adjusting surface terms / projection policies — it blocks final export,
+  never drafting). Only a structurally unusable body hard-blocks.
 
 Downstream (ScenePacket derivation) MUST consume the surface_body scene_seeds.
 """
@@ -46,6 +47,11 @@ def _mk_warn(path: str, kind: str, detail: str):
     return CPV(kind=kind, field=path, detail=detail, severity="warn")
 
 
+def _mk_repair(path: str, kind: str, detail: str):
+    CPV = _get_violation_cls()
+    return CPV(kind=kind, field=path, detail=detail, severity="repair")
+
+
 def _mk_block(path: str, kind: str, detail: str):
     CPV = _get_violation_cls()
     return CPV(kind=kind, field=path, detail=detail, severity="block")
@@ -67,6 +73,10 @@ class SurfaceContractResult:
     @property
     def blockers(self) -> list[Any]:
         return [v for v in self.violations if getattr(v, "severity", None) == "block"]
+
+    @property
+    def repair_tasks(self) -> list[Any]:
+        return [v for v in self.violations if getattr(v, "severity", None) == "repair"]
 
     @property
     def warnings(self) -> list[Any]:
@@ -108,9 +118,10 @@ def _project_text_for_surface(
             projected = omit_sentences_containing_terms(projected, policy.forbidden_surface_terms)
             violations.append(_mk_warn(path, "surface_term_omitted", f"omitted content containing {hits!r} at {path}"))
             continue
-        # block
+        # No safe policy: a repair task (fix the surface_terms / add a replace|omit policy), never a
+        # hard block — drafting stays reachable, final export waits on the fix.
         violations.append(
-            _mk_block(
+            _mk_repair(
                 path,
                 "forbidden_surface_term_unprojectable",
                 f"forbidden term(s) {hits!r} at {path} have no safe replace/omit policy",
@@ -157,7 +168,8 @@ def build_surface_contract(body: dict[str, Any]) -> SurfaceContractResult:
     2. Project top-level drafter-relevant fields (entry/exit etc.) when they are classified DRAFTER_SURFACE.
     3. Project every scene seed's drafter fields.
     4. Preserve original internal structure for audit (we return a new surface_body, not mutate).
-    5. Block only on unprojectable leaks into DRAFTER_SURFACE (and similar reader scopes).
+    5. Unprojectable leaks into DRAFTER_SURFACE (and similar reader scopes) become repair tasks; only
+       a structurally unusable body hard-blocks.
     """
     if not isinstance(body, dict):
         return SurfaceContractResult(
@@ -220,9 +232,9 @@ def build_surface_contract(body: dict[str, Any]) -> SurfaceContractResult:
         for p in policies
     ]
 
-    # If any blocker-level violation from projection, they are already in violations.
+    # If any repair-level violation from projection, they are already in violations.
     # Hard rule per spec: if a characters_forbidden term would reach DRAFTER_SURFACE and no replace/omit
-    # policy rescued it, we already emitted a block.
+    # policy rescued it, we already emitted a repair task.
 
     # Also run a post-projection surface scan (defense in depth).
     surf_viols = validate_surface_contract(surface, policies)
@@ -237,7 +249,7 @@ def validate_surface_contract(
 ) -> list[Any]:
     """Scan only DRAFTER_SURFACE (and applicable READER/POV) fields for any remaining forbidden terms.
 
-    Must not scan internal/audit fields. Returns blockers when a term that should be forbidden
+    Must not scan internal/audit fields. Returns repair tasks when a term that should be forbidden
     is still present after projection.
     """
     violations: list[Any] = []
@@ -256,7 +268,7 @@ def validate_surface_contract(
             hits = names_present([val], [ft for ft, _ in active_forbidden])
             for h in hits:
                 violations.append(
-                    _mk_block(
+                    _mk_repair(
                         path,
                         "forbidden_surface_leak",
                         f"forbidden surface term {h!r} remains in drafter surface at {path}",

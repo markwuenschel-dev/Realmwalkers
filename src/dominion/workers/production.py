@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -54,10 +55,13 @@ from dominion.shared.models import (
     Scene,
     ScenePacket,
 )
-from dominion.shared.text_match import as_str_list
+from dominion.shared.severity import issue_gates
+from dominion.shared.text_match import as_str_list, names_present
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.job_scheduler import schedule_revision
 from dominion.workers.length import planner as length_planner
+from dominion.workers.packet import latest_approved as latest_approved_chapter_packet
+from dominion.workers.packet.validation import leading_roster_name
 from dominion.workers.scene_packet import inputs as scene_packet_inputs
 
 
@@ -569,16 +573,34 @@ def _int_or_none(value: Any) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
+# Articles/particles that would make a whole-word visibility match meaningless ("The Broker" must
+# match on "Broker", never on "The").
+_ROSTER_NAME_STOPWORDS: frozenset[str] = frozenset({"the", "a", "an", "of"})
+
+
+def _roster_name_tokens(entry: str) -> list[str]:
+    """Substantive name tokens of a roster entry's leading identifier — the whole-word candidates a
+    prose visibility check may match on. "Serra Hawthorne (Dead Hand rogue)" -> ["Serra", "Hawthorne"];
+    "The Broker" -> ["Broker"]. A match on ANY token counts as a named reference."""
+    lead = leading_roster_name(entry)
+    return [t for t in re.findall(r"\w+", lead) if len(t) >= 3 and t.lower() not in _ROSTER_NAME_STOPWORDS]
+
+
 def run_chapter_draft_qa(
     sequence_body: dict[str, Any] | None,
     scene_rows: list[dict[str, Any]],
     full_prose: str,
+    packet_body: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Structural ChapterDraftQA performed after chapter assembly.
 
     Checks for one timeline, duplicate functions/starts, entry/exit continuity,
     repeated onboarding signals, required beats presence (via sequence), forbidden reveals,
-    and chapter word budget. This is the gate that can block final_chapter status.
+    chapter word budget, and (when the chapter packet is supplied) that every characters_present
+    roster entry is actually visible in the prose. This is the gate that can block final_chapter
+    status. Findings carry `severity` + the derived `blocks_*` facts: "block" gates the final
+    chapter, "repair" gates final export only (drafting and human review proceed), "warn" is
+    advisory.
     """
     findings: list[dict[str, Any]] = []
     verdict = "pass"
@@ -591,7 +613,15 @@ def run_chapter_draft_qa(
             func_count[fn].append(int(row.get("scene_no") or 0))
     for fn, nos in func_count.items():
         if len(nos) > 1:
-            findings.append({"kind": "duplicate_scene_function", "scene_nos": sorted(set(nos)), "function": fn})
+            findings.append(
+                {
+                    "kind": "duplicate_scene_function",
+                    "scene_nos": sorted(set(nos)),
+                    "function": fn,
+                    "severity": "block",
+                    **issue_gates("block"),
+                }
+            )
             verdict = "block"
 
     # Entry/exit continuity (re-check at assembly time)
@@ -605,6 +635,8 @@ def run_chapter_draft_qa(
                     "kind": "entry_exit_mismatch",
                     "from_scene": ordered[i - 1].get("scene_no"),
                     "to_scene": ordered[i].get("scene_no"),
+                    "severity": "warn",
+                    **issue_gates("warn"),
                 }
             )
             if verdict != "block":
@@ -614,15 +646,58 @@ def run_chapter_draft_qa(
     total_words = sum(int(r.get("word_count") or 0) for r in scene_rows)
     hard_max = (sequence_body or {}).get("hard_max_words")
     if isinstance(hard_max, int) and hard_max > 0 and total_words > hard_max:
-        findings.append({"kind": "word_budget_exceeded", "total": total_words, "hard_max": hard_max})
+        findings.append(
+            {
+                "kind": "word_budget_exceeded",
+                "total": total_words,
+                "hard_max": hard_max,
+                "severity": "block",
+                **issue_gates("block"),
+            }
+        )
         verdict = "block"
 
     # Very rough duplicate start / repeated onboarding detection (string level)
     starts = [((r.get("prose") or "")[:120].strip().lower()) for r in scene_rows if (r.get("prose") or "").strip()]
     if len(starts) != len(set(starts)) and len(starts) > 1:
-        findings.append({"kind": "similar_scene_openings", "count": len(starts)})
+        findings.append(
+            {
+                "kind": "similar_scene_openings",
+                "count": len(starts),
+                "severity": "warn",
+                **issue_gates("warn"),
+            }
+        )
         if verdict == "pass":
             verdict = "warn"
+
+    # PRESENT_CHARACTER_NOT_VISIBLE (draft-time positive check): the chapter contract lists a character
+    # as present, but the assembled prose never names them — no visible evidence the reader can see.
+    # Deterministic proxy for evidence: an exact whole-word reference to any substantive token of the
+    # roster entry's leading name (no fuzzy NER). Repair-level: the fix is routed back to the drafter,
+    # so it gates final export only — the verdict escalates at most to "warn", never "block".
+    present = as_str_list((packet_body or {}).get("characters_present"))
+    if present and full_prose.strip():
+        for entry in present:
+            display = leading_roster_name(entry) or entry
+            tokens = _roster_name_tokens(entry)
+            if not tokens or names_present([full_prose], tokens):
+                continue
+            findings.append(
+                {
+                    "kind": "PRESENT_CHARACTER_NOT_VISIBLE",
+                    "character": display,
+                    "detail": (
+                        f"{display!r} is listed in characters_present but never visibly appears in the "
+                        "assembled prose (no named reference found) — add visible evidence or move them "
+                        "out of characters_present"
+                    ),
+                    "severity": "repair",
+                    **issue_gates("repair"),
+                }
+            )
+            if verdict == "pass":
+                verdict = "warn"
 
     # Placeholder: required beats / forbidden would require deeper analysis of prose vs contracts
     # For this landing we rely on sequence required and prior issue set.
@@ -1225,7 +1300,14 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
     if sequence is not None:
         await ensure_draft_run_timeline(session, run)
 
-    chapter_draft_qa = run_chapter_draft_qa(sequence.body if sequence else None, scene_rows, chapter_text)
+    approved_packet = await latest_approved_chapter_packet(session, run.chapter_id)
+    packet_body = approved_packet.body if approved_packet is not None else None
+    chapter_draft_qa = run_chapter_draft_qa(
+        sequence.body if sequence else None,
+        scene_rows,
+        chapter_text,
+        packet_body=packet_body if isinstance(packet_body, dict) else None,
+    )
 
     issues = (
         (await session.execute(select(Issue).where(Issue.production_run_id == run.id).order_by(Issue.created_at)))
