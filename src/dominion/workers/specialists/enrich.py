@@ -98,3 +98,47 @@ async def run_enrichment(
             f"({len(out)} chars from {len(source)} — scene content lost)"
         )
     return out
+
+
+# --- Enrichment lane singletons (DESIGN §5-6) -----------------------------------------------------
+# The three passes are one shape (`run_enrichment`) differing only in the dimension they deepen — and
+# dialogue's authoritative rules. router.py imports these singletons directly; each stays tag-gated.
+
+_COMBAT_DIMENSION = (
+    "Sharpen the fight choreography. Make every exchange spatially clear — who is where, what moves, "
+    "what connects and what misses, the order of blows, how the space and bodies shift — and keep it "
+    "consistent with the combatants' established stats, skills, and abilities. Preserve the beat's "
+    "outcome (who prevails, who is hurt, what is won or lost); only make the action legible and physical."
+)
+
+_DIALOGUE_DIMENSION = (
+    "Deepen the dialogue — voice and subtext. Make each speaker sound distinct and let what goes unsaid "
+    "carry weight: sharpen rhythm, implication, and the friction between what is said and what is meant. "
+    "Keep every line's intent and the information each exchange conveys; add no new plot or revelations."
+)
+
+_SENSORY_DIMENSION = (
+    "Replace abstraction with concrete, grounded sensory detail. Where the prose tells or generalizes a "
+    "perception, render it through specific things the POV actually sees, hears, smells, tastes, or "
+    "feels in this place. Ground the scene in physical specifics — add no new events, characters, or lore."
+)
+
+
+class _EnrichmentPass:
+    """One tag-gated enrichment lane: deepen exactly one `dimension`, leave everything else untouched."""
+
+    def __init__(self, name: str, dimension: str, *, use_dialogue_rules: bool = False) -> None:
+        self.name = name
+        self._dimension = dimension
+        self._use_dialogue_rules = use_dialogue_rules
+
+    async def run(self, prose: str | None, ctx: SceneContext) -> str:
+        return await run_enrichment(
+            prose, ctx, name=self.name, dimension=self._dimension, use_dialogue_rules=self._use_dialogue_rules
+        )
+
+
+combat_pass = _EnrichmentPass("combat", _COMBAT_DIMENSION)
+sensory_pass = _EnrichmentPass("sensory", _SENSORY_DIMENSION)
+# Dialogue rules are authoritative for how dialogue is written/formatted (see drafter._voice_system).
+dialogue_pass = _EnrichmentPass("dialogue", _DIALOGUE_DIMENSION, use_dialogue_rules=True)

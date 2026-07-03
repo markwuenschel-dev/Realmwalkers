@@ -3,7 +3,6 @@ revise pipeline, continuity resolution. LLM calls (drafter/summaries) are mocked
 
 from __future__ import annotations
 
-import pytest
 from fastapi import BackgroundTasks
 from sqlalchemy import select
 
@@ -33,7 +32,6 @@ from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
 from dominion.workers import llm, worker
 from dominion.workers.budget import Usage
 from dominion.workers.job_scheduler import schedule_next_after_approval
-from dominion.workers.legacy import enqueue
 from dominion.workers.memory import canon_rag, ledger, summaries
 from dominion.workers.specialists import drafter as drafter_mod
 from tests.conftest import seed_scene_packet
@@ -295,15 +293,6 @@ async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
         job = (await s.execute(select(Job).where(Job.kind == JobKind.REVISE_FULL))).scalar_one()
         assert job.target_scene_id == sc.id
         assert (await s.execute(select(Critique))).scalar_one_or_none() is None  # flag cleared
-
-
-def test_enqueue_parses_expected_state_changes():
-    assert enqueue._parse_esc(None) is None
-    assert enqueue._parse_esc('{"Marcus": {"level": "+1", "hp": 100}}') == {"Marcus": {"level": "+1", "hp": 100}}
-    with pytest.raises(SystemExit):
-        enqueue._parse_esc("not json")
-    with pytest.raises(SystemExit):
-        enqueue._parse_esc("[1, 2, 3]")  # must be an object, not an array
 
 
 async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):

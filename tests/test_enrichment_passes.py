@@ -16,9 +16,7 @@ from dominion.workers import llm
 from dominion.workers.budget import BudgetExceeded, TokenBudget, Usage
 from dominion.workers.context import SceneContext
 from dominion.workers.specialists.base import PassError
-from dominion.workers.specialists.combat import combat_pass
-from dominion.workers.specialists.dialogue import dialogue_pass
-from dominion.workers.specialists.sensory import sensory_pass
+from dominion.workers.specialists.enrich import combat_pass, dialogue_pass, sensory_pass
 
 _ALL_PASSES = [combat_pass, dialogue_pass, sensory_pass]
 _STAT_BLOCK = "```stat\nLEVEL UP\nPerception: 15\n```"

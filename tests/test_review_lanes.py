@@ -12,9 +12,7 @@ from dominion.shared.enums import Severity
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget, Usage
 from dominion.workers.context import SceneContext
-from dominion.workers.reviewers.combat import combat_reviewer
-from dominion.workers.reviewers.dialogue import dialogue_reviewer
-from dominion.workers.reviewers.sensory import sensory_reviewer
+from dominion.workers.reviewers.lane import combat_reviewer, dialogue_reviewer, sensory_reviewer
 
 _LANES = [
     pytest.param(combat_reviewer, "combat", id="combat"),

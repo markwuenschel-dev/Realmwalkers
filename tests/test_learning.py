@@ -7,8 +7,6 @@ ctx.exemplars — the wire the drafter already consumes but nothing fed. LLM/emb
 
 from __future__ import annotations
 
-import uuid
-
 from fastapi import BackgroundTasks
 from sqlalchemy import select
 
@@ -27,7 +25,6 @@ from dominion.shared.models import (
 )
 from dominion.shared.schemas import DecisionIn, ExemplarIn
 from dominion.workers.context import assemble_context
-from dominion.workers.legacy import set_exemplars as set_exemplars_mod
 from dominion.workers.memory import canon_rag, summaries
 from tests.conftest import seed_scene_packet
 
@@ -254,43 +251,6 @@ async def test_duplicate_beats_do_not_crash_drafting(db_factory, monkeypatch):
 
         ctx = await assemble_context(s, job)  # must not raise on the duplicate
         assert ctx.beat_text == "Marcus presses on."  # the approved beat wins
-
-
-# --- set_exemplars authoring CLI ------------------------------------------------------------------
-
-
-async def test_set_exemplars_upserts_and_preserves_voice_spec(db_factory):
-    async with db_factory() as s:
-        book = await _book(s, title="Exemplar Book")
-        ch = await _chapter(s, book)
-        sc = await _scene(s, ch, 1, status=SceneStatus.APPROVED)
-        # Seed a voice_spec the exemplar upsert must NOT clobber.
-        s.add(PovProfile(book_id=book.id, character="Marcus", voice_spec="terse, wry"))
-        await s.commit()
-
-        await set_exemplars_mod.set_exemplars(s, book_title="Exemplar Book", character="Marcus", scene_ids=[sc.id])
-        await s.commit()
-        row = (await s.execute(select(PovProfile).where(PovProfile.character == "Marcus"))).scalar_one()
-        assert row.exemplar_scene_ids == [str(sc.id)]
-        assert row.voice_spec == "terse, wry"  # untouched
-
-    async with db_factory() as s:
-        # Re-run with an empty list clears the exemplars in place (same single row).
-        await set_exemplars_mod.set_exemplars(s, book_title="Exemplar Book", character="Marcus", scene_ids=[])
-        await s.commit()
-        rows = (await s.execute(select(PovProfile).where(PovProfile.character == "Marcus"))).scalars().all()
-        assert len(rows) == 1
-        assert rows[0].exemplar_scene_ids is None
-        assert rows[0].voice_spec == "terse, wry"
-
-
-def test_parse_ids_rejects_garbage():
-    import pytest
-
-    good = uuid.uuid4()
-    assert set_exemplars_mod._parse_ids(f"{good}, {good}") == [good, good]
-    with pytest.raises(SystemExit):
-        set_exemplars_mod._parse_ids("not-a-uuid")
 
 
 # --- exemplar toggle endpoint (the in-editor button's backend) ------------------------------------
