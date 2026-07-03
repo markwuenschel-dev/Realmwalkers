@@ -20,3 +20,17 @@ frontend/out
 .env.*
 tests
 docs
+# not needed to build or run the image (keeps the context uploaded to the builder small).
+# NB: series/ and book1/ markdown ARE copied in (runtime canon) — do not add a broad *.md here.
+book2/
+author notes/
+mcps/
+tmp/
+openapi.json
+package.json
+pnpm-lock.yaml
+skills-lock.json
+README.md
+LICENSE.md
+AGENTS.md
+justfile

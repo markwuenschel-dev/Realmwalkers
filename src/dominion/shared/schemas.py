@@ -743,6 +743,10 @@ class CanonEntityOut(_ORM):
     kind: str | None = None
     name: str | None = None
     body: str | None = None
+    # Provenance + lifecycle (Workstream H). `source`: manual | repo_ingested | packet_derived |
+    # draft_derived | legacy. `status`: active | stale | retired | superseded (only `active` reaches RAG).
+    source: str = "manual"
+    status: str = "active"
 
 
 class CanonEntityIn(BaseModel):
@@ -783,6 +787,58 @@ class CanonIngestOut(BaseModel):
     skipped: int = 0
     retired: int = 0
     total: int | None = None
+
+
+class CanonCleanupIn(BaseModel):
+    """Select canon rows for a cleanup action (preview / retire / bulk delete) — Workstream H.
+
+    Rows are chosen by explicit `ids` OR by (`source_filter`, `status_filter`); with neither, nothing
+    matches (fail-safe — no accidental mass purge). Manual-source rows are PROTECTED: a filter never
+    retires/deletes them; you must list their id explicitly. `dry_run` is honoured by the preview route
+    (always a dry run) and ignored by retire/delete (which always mutate).
+    """
+
+    ids: list[uuid.UUID] | None = None
+    source_filter: str | None = None  # manual | repo_ingested | packet_derived | draft_derived | legacy | all
+    status_filter: str | None = None  # active | stale | retired | superseded | all
+    dry_run: bool = True
+
+
+class CanonCleanupItemOut(BaseModel):
+    """One row in a cleanup preview, with why it is (or isn't) actionable."""
+
+    id: uuid.UUID
+    kind: str | None = None
+    name: str | None = None
+    source: str = "manual"
+    status: str = "active"
+    summary: str | None = None  # first ~120 chars of the body, for the confirm dialog
+    reason: str  # "eligible" | "protected: manual source (list id to override)" | "already retired"
+
+
+class CanonCleanupPreviewOut(BaseModel):
+    """Dry-run report of what a retire/delete over the selection would do (mutates nothing)."""
+
+    dry_run: bool = True
+    matched: int = 0  # rows the selection matched
+    would_retire: int = 0  # actionable rows not already retired (soft retire target)
+    would_delete: int = 0  # actionable rows (hard delete target)
+    protected_manual: int = 0  # matched manual rows skipped because their id wasn't listed
+    items: list[CanonCleanupItemOut] = []
+
+
+class CanonRetireOut(BaseModel):
+    """Result of a soft retire (status -> 'retired'); retired rows drop out of RAG + `?status=active`."""
+
+    retired: int = 0
+    protected_manual: int = 0
+
+
+class CanonBulkDeleteOut(BaseModel):
+    """Result of a hard bulk delete of canon rows."""
+
+    deleted: int = 0
+    protected_manual: int = 0
 
 
 class KnowledgeFactOut(_ORM):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -9,13 +9,52 @@ import { statValue } from "../lib/format";
 import { useSelection } from "../lib/useSelection";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import type {
+  CanonCleanupPreviewOut,
   CanonEntityOut,
-  CanonIngestOut,
   CharacterStateOut,
   RuleProposalOut,
   ThreadBeatIn,
   ThreadIn,
 } from "../api/types";
+
+// Canon provenance/lifecycle filter option lists (Workstream H). `status` defaults to "active" so the
+// Ledger hides retired/stale rows until you ask for them; `all` shows everything.
+const STATUS_OPTIONS = ["active", "stale", "retired", "all"] as const;
+const SOURCE_OPTIONS = [
+  "all",
+  "repo_ingested",
+  "manual",
+  "packet_derived",
+  "draft_derived",
+  "legacy",
+] as const;
+
+// A small provenance/lifecycle badge. Color hints the meaning without a legend.
+const STATUS_COLOR: Record<string, string> = {
+  active: "var(--good)",
+  stale: "var(--warn)",
+  retired: "var(--dim)",
+  superseded: "var(--bad)",
+};
+const SOURCE_COLOR: Record<string, string> = {
+  manual: "var(--accent)",
+  repo_ingested: "var(--info)",
+  packet_derived: "var(--dim)",
+  draft_derived: "var(--dim)",
+  legacy: "var(--dim)",
+};
+
+function Badge({ label, color }: { label: string; color: string }) {
+  return (
+    <span
+      style={css(
+        `font-family:var(--mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:${color};background:color-mix(in srgb,${color} 14%,transparent);border-radius:999px;padding:2px 7px;white-space:nowrap`,
+      )}
+    >
+      {label}
+    </span>
+  );
+}
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -41,6 +80,8 @@ const input =
   "width:100%;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-size:13px;font-family:var(--ui)";
 const fieldLabel =
   "display:block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:4px";
+const filterSelect =
+  "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:var(--ui);cursor:pointer";
 
 type CanonEdit = { mode: "new"; kind?: string } | { mode: "edit"; entity: CanonEntityOut } | null;
 
@@ -48,6 +89,7 @@ export default function LedgerScreen() {
   const { t, ledgerCat, selectedThread, setLedgerCat, selectThread } = useDesk();
   const data = useDeskData();
 
+  const bookId = data.bookId;
   const [charEdit, setCharEdit] = useState<CharacterStateOut | "new" | null>(null);
   const [canonEdit, setCanonEdit] = useState<CanonEdit>(null);
   const [ingesting, setIngesting] = useState(false);
@@ -55,7 +97,34 @@ export default function LedgerScreen() {
   const [threadAdding, setThreadAdding] = useState(false); // inline new-thread form open
   const [beatFor, setBeatFor] = useState<string | null>(null); // thread id whose add-beat form is open
 
-  const canonKinds = [...new Set(data.canon.map((c) => c.kind ?? "other"))].filter(
+  // Stale-canon cleanup (Workstream H). The canon view reads its own filtered rows (server-side
+  // status/source filters surface retired/stale canon that data.canon — active-only — omits); `query`
+  // is a client-side text filter over name/summary. `cleanup` holds the preview awaiting confirmation.
+  const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [query, setQuery] = useState("");
+  const [canonRows, setCanonRows] = useState<CanonEntityOut[]>([]);
+  const [cleanup, setCleanup] = useState<{
+    action: "retire" | "delete";
+    ids: string[];
+    preview: CanonCleanupPreviewOut;
+  } | null>(null);
+  const [cleanupBusy, setCleanupBusy] = useState(false);
+
+  const reloadCanon = useCallback(async () => {
+    if (!bookId) return;
+    try {
+      const rows = await api.listCanon(bookId, { status: statusFilter, source: sourceFilter });
+      setCanonRows(rows);
+    } catch {
+      /* leave the prior rows in place; a fetch blip shouldn't blank the ledger */
+    }
+  }, [bookId, statusFilter, sourceFilter]);
+  useEffect(() => {
+    void reloadCanon();
+  }, [reloadCanon]);
+
+  const canonKinds = [...new Set(canonRows.map((c) => c.kind ?? "other"))].filter(
     (k) => k !== "character",
   );
   const pendingRules = data.ruleProposals.filter((r) => r.status === "pending");
@@ -66,7 +135,7 @@ export default function LedgerScreen() {
     ...canonKinds.map((k) => ({
       id: `canon:${k}`,
       label: cap(k),
-      count: data.canon.filter((c) => (c.kind ?? "other") === k).length,
+      count: canonRows.filter((c) => (c.kind ?? "other") === k).length,
     })),
   ];
 
@@ -78,19 +147,21 @@ export default function LedgerScreen() {
   };
 
   const rebuildIndex = async () => {
+    if (!bookId) return;
     setIngesting(true);
     setNotice(null);
-    const out = await data.ingestCanon();
-    setIngesting(false);
-    if (out == null) {
-      setNotice("Rebuild failed — check the API logs.");
-    } else {
-      const o = out as CanonIngestOut;
+    try {
+      const o = await api.rebuildCanon(bookId);
       const tot = o.total ?? o.indexed;
       const ret = o.retired ?? 0;
       setNotice(
         `Clean rebuild complete: ${tot} live repo passage(s), ${ret} stale indexed row(s) purged.`,
       );
+      await reloadCanon();
+    } catch {
+      setNotice("Rebuild failed — check the API logs.");
+    } finally {
+      setIngesting(false);
     }
   };
 
@@ -102,25 +173,73 @@ export default function LedgerScreen() {
   // Bulk-delete selection. One picker, reset when you switch category (the ids/meaning change: a
   // character is keyed by name, threads + canon by id), so a stale tick can't delete the wrong thing.
   const bulk = useSelection();
+  // Reset the tick set when the category OR the canon filters change — the visible ids (and their
+  // meaning) shift, so a stale tick must never carry over into a retire/delete.
   useEffect(() => {
     bulk.clear();
-  }, [ledgerCat, bulk.clear]);
-  const canonHere = canonKind ? data.canon.filter((c) => (c.kind ?? "other") === canonKind) : [];
+  }, [ledgerCat, statusFilter, sourceFilter, bulk.clear]);
+
+  // Client-side text filter over the loaded canon rows (name + body/summary).
+  const matchesQuery = (c: CanonEntityOut): boolean => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return `${c.name ?? ""} ${c.body ?? ""}`.toLowerCase().includes(q);
+  };
+  const canonHere = canonKind
+    ? canonRows.filter((c) => (c.kind ?? "other") === canonKind).filter(matchesQuery)
+    : [];
   const selectableIds = isChars
     ? data.characters.map((c) => c.character)
     : isThreads
       ? data.threads.map((th) => th.id)
       : canonHere.map((c) => c.id);
+
+  // Chars/threads keep the plain confirm+delete; canon routes through the preview-before-destroy flow.
   const bulkDelete = () => {
-    const what = isChars ? "character" : isThreads ? "thread" : "entry";
+    const what = isChars ? "character" : "thread";
     if (!confirm(`Delete ${bulk.count} ${what}${bulk.count === 1 ? "" : "s"}?`)) return;
     const fn = isChars
-      ? (name: string) => api.deleteCharacter(data.bookId ?? "", name)
-      : isThreads
-        ? (id: string) => api.deleteThread(id)
-        : (id: string) => api.deleteCanon(id);
+      ? (name: string) => api.deleteCharacter(bookId ?? "", name)
+      : (id: string) => api.deleteThread(id);
     void data.runBulk(bulk.ids, fn);
     bulk.clear();
+  };
+
+  // Preview-before-destroy: dry-run the selection, show what would be retired/deleted (and which manual
+  // rows are protected), and only fire the real retire/delete once the author confirms in the dialog.
+  const openCleanup = async (action: "retire" | "delete") => {
+    if (!bookId || bulk.count === 0) return;
+    const ids = bulk.ids;
+    try {
+      const preview = await api.canonCleanupPreview(bookId, { ids, dry_run: true });
+      setCleanup({ action, ids, preview });
+    } catch {
+      setNotice("Preview failed — check the API logs.");
+    }
+  };
+  const confirmCleanup = async () => {
+    if (!bookId || !cleanup) return;
+    setCleanupBusy(true);
+    try {
+      if (cleanup.action === "retire") {
+        const out = await api.retireCanon(bookId, { ids: cleanup.ids, dry_run: false });
+        setNotice(
+          `Retired ${out.retired} row(s)${out.protected_manual ? ` · ${out.protected_manual} manual protected` : ""}.`,
+        );
+      } else {
+        const out = await api.bulkDeleteCanon(bookId, { ids: cleanup.ids, dry_run: false });
+        setNotice(
+          `Deleted ${out.deleted} row(s)${out.protected_manual ? ` · ${out.protected_manual} manual protected` : ""}.`,
+        );
+      }
+      setCleanup(null);
+      bulk.clear();
+      await reloadCanon();
+    } catch {
+      setNotice("Action failed — check the API logs.");
+    } finally {
+      setCleanupBusy(false);
+    }
   };
 
   return (
@@ -212,6 +331,7 @@ export default function LedgerScreen() {
                 else await data.createCanon(body);
                 setCanonEdit(null);
                 if (body.kind && body.kind !== "character") setLedgerCat(`canon:${body.kind}`);
+                await reloadCanon();
               }}
             />
           )}
@@ -506,9 +626,15 @@ export default function LedgerScreen() {
 
           {canonKind && (
             <div style={css("display:flex;flex-direction:column;gap:12px")}>
-              <div style={css("display:flex;align-items:center;justify-content:space-between")}>
+              <div
+                style={css(
+                  "display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap",
+                )}
+              >
                 <p style={css("margin:0;font-size:13px;color:var(--dim)")}>
-                  {cap(canonKind)} the drafter & planner can retrieve.
+                  {cap(canonKind)} the drafter & planner can retrieve. Only{" "}
+                  <strong style={css("color:var(--ink);font-weight:600")}>active</strong> canon
+                  reaches the drafter — retire or delete stale rows below.
                 </p>
                 <button
                   onClick={() => {
@@ -520,68 +646,130 @@ export default function LedgerScreen() {
                   + Add to {canonKind}
                 </button>
               </div>
-              {data.canon.filter((c) => (c.kind ?? "other") === canonKind).length === 0 && (
-                <Empty>Nothing in this section yet.</Empty>
-              )}
-              {data.canon
-                .filter((c) => (c.kind ?? "other") === canonKind)
-                .map((e) => (
+
+              {/* status / source / search filters (Workstream H) */}
+              <div
+                style={css(
+                  "display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:9px",
+                )}
+              >
+                <label style={css("display:flex;flex-direction:column;gap:3px")}>
+                  <span style={css(fieldLabel + ";margin-bottom:0")}>Status</span>
+                  <select
+                    aria-label="status filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={css(filterSelect)}
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={css("display:flex;flex-direction:column;gap:3px")}>
+                  <span style={css(fieldLabel + ";margin-bottom:0")}>Source</span>
+                  <select
+                    aria-label="source filter"
+                    value={sourceFilter}
+                    onChange={(e) => setSourceFilter(e.target.value)}
+                    style={css(filterSelect)}
+                  >
+                    {SOURCE_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={css("display:flex;flex-direction:column;gap:3px;flex:1 1 180px")}>
+                  <span style={css(fieldLabel + ";margin-bottom:0")}>Search</span>
+                  <input
+                    aria-label="search canon"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="name or text…"
+                    style={css(input)}
+                  />
+                </label>
+              </div>
+
+              {canonHere.length === 0 && <Empty>Nothing in this section yet.</Empty>}
+              {canonHere.map((e) => (
+                <div
+                  key={e.id}
+                  style={css(
+                    "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:15px 18px",
+                  )}
+                >
                   <div
-                    key={e.id}
                     style={css(
-                      "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:15px 18px",
+                      "display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px",
                     )}
                   >
                     <div
                       style={css(
-                        "display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px",
+                        "display:flex;align-items:center;gap:9px;min-width:0;flex-wrap:wrap",
                       )}
                     >
-                      <div
+                      <span
                         style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}
                       >
                         {e.name ?? "—"}
-                      </div>
-                      <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
-                        <input
-                          type="checkbox"
-                          checked={bulk.has(e.id)}
-                          onChange={() => bulk.toggle(e.id)}
-                          title="select"
-                          style={css(
-                            "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px",
-                          )}
-                        />
-                        <button
-                          onClick={() => {
-                            setCanonEdit({ mode: "edit", entity: e });
-                            setCharEdit(null);
-                          }}
-                          style={css(ghost)}
-                        >
-                          edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete "${e.name ?? "entry"}"?`)) data.deleteCanon(e.id);
-                          }}
-                          style={css(ghost)}
-                        >
-                          ×
-                        </button>
-                      </div>
+                      </span>
+                      <Badge
+                        label={e.status ?? "active"}
+                        color={STATUS_COLOR[e.status ?? "active"] ?? "var(--dim)"}
+                      />
+                      <Badge
+                        label={e.source ?? "manual"}
+                        color={SOURCE_COLOR[e.source ?? "manual"] ?? "var(--dim)"}
+                      />
                     </div>
-                    {e.body && (
-                      <p
+                    <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
+                      <input
+                        type="checkbox"
+                        checked={bulk.has(e.id)}
+                        onChange={() => bulk.toggle(e.id)}
+                        title="select"
                         style={css(
-                          "margin:0;font-size:13px;color:var(--dim);line-height:1.55;white-space:pre-wrap",
+                          "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px",
                         )}
+                      />
+                      <button
+                        onClick={() => {
+                          setCanonEdit({ mode: "edit", entity: e });
+                          setCharEdit(null);
+                        }}
+                        style={css(ghost)}
                       >
-                        {e.body}
-                      </p>
-                    )}
+                        edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Delete "${e.name ?? "entry"}"?`)) {
+                            await data.deleteCanon(e.id);
+                            await reloadCanon();
+                          }
+                        }}
+                        style={css(ghost)}
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
-                ))}
+                  {e.body && (
+                    <p
+                      style={css(
+                        "margin:0;font-size:13px;color:var(--dim);line-height:1.55;white-space:pre-wrap",
+                      )}
+                    >
+                      {e.body}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -597,10 +785,29 @@ export default function LedgerScreen() {
             Select all {selectableIds.length}
           </BulkButton>
         )}
-        <BulkButton tone="bad" onClick={bulkDelete}>
-          Delete selected
-        </BulkButton>
+        {canonKind ? (
+          <>
+            <BulkButton onClick={() => void openCleanup("retire")}>Retire selected</BulkButton>
+            <BulkButton tone="bad" onClick={() => void openCleanup("delete")}>
+              Delete selected
+            </BulkButton>
+          </>
+        ) : (
+          <BulkButton tone="bad" onClick={bulkDelete}>
+            Delete selected
+          </BulkButton>
+        )}
       </BulkBar>
+
+      {cleanup && (
+        <CleanupDialog
+          action={cleanup.action}
+          preview={cleanup.preview}
+          busy={cleanupBusy}
+          onCancel={() => setCleanup(null)}
+          onConfirm={() => void confirmCleanup()}
+        />
+      )}
     </div>
   );
 }
@@ -1108,6 +1315,131 @@ function RuleCard({ rule }: { rule: RuleProposalOut }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// Preview-before-destroy confirmation. Shows the dry-run counts + the affected rows, spells out that
+// manual-source canon is protected, and only fires the real retire/delete when the author confirms.
+function CleanupDialog({
+  action,
+  preview,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  action: "retire" | "delete";
+  preview: CanonCleanupPreviewOut;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const isDelete = action === "delete";
+  const count = isDelete ? preview.would_delete : preview.would_retire;
+  const stat =
+    "display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg3);min-width:96px";
+  const statNum = "font-family:var(--display);font-size:20px;color:var(--ink)";
+  const statLbl =
+    "font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--dim)";
+  return (
+    <div
+      role="dialog"
+      aria-label={isDelete ? "confirm delete canon" : "confirm retire canon"}
+      style={css(
+        "position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55)",
+      )}
+    >
+      <div
+        style={css(
+          "background:var(--bg2);border:1px solid var(--accentLine);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.5);width:min(560px,94vw);max-height:86vh;display:flex;flex-direction:column;overflow:hidden",
+        )}
+      >
+        <div style={css("padding:18px 20px 12px")}>
+          <div style={css("font-family:var(--display);font-size:19px;color:var(--ink)")}>
+            {isDelete ? "Delete canon rows?" : "Retire canon rows?"}
+          </div>
+          <p style={css("margin:6px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5")}>
+            {isDelete
+              ? "Hard delete is permanent."
+              : "Retire is a soft, reversible hide — retired rows drop out of retrieval and the active view."}{" "}
+            Manual-source rows are protected — they are skipped unless you selected them
+            individually.
+          </p>
+          <div style={css("display:flex;gap:10px;flex-wrap:wrap;margin-top:14px")}>
+            <div style={css(stat)}>
+              <span style={css(statNum)}>{preview.matched}</span>
+              <span style={css(statLbl)}>matched</span>
+            </div>
+            <div style={css(stat)}>
+              <span style={css(statNum)}>{preview.would_retire}</span>
+              <span style={css(statLbl)}>would retire</span>
+            </div>
+            <div style={css(stat)}>
+              <span style={css(statNum)}>{preview.would_delete}</span>
+              <span style={css(statLbl)}>would delete</span>
+            </div>
+            <div style={css(stat)}>
+              <span style={css(statNum + ";color:var(--accent)")}>{preview.protected_manual}</span>
+              <span style={css(statLbl)}>manual protected</span>
+            </div>
+          </div>
+        </div>
+        <div style={css("overflow:auto;padding:0 20px;flex:1")}>
+          {preview.items.length === 0 ? (
+            <Empty>Nothing matched this selection.</Empty>
+          ) : (
+            <div style={css("display:flex;flex-direction:column;gap:6px;padding-bottom:6px")}>
+              {preview.items.map((it) => (
+                <div
+                  key={it.id}
+                  style={css(
+                    "display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--hairline);border-radius:8px;background:var(--bg3)",
+                  )}
+                >
+                  <span style={css("font-size:13px;color:var(--ink)")}>{it.name ?? "—"}</span>
+                  <Badge
+                    label={it.status ?? "active"}
+                    color={STATUS_COLOR[it.status ?? "active"] ?? "var(--dim)"}
+                  />
+                  <Badge
+                    label={it.source ?? "manual"}
+                    color={SOURCE_COLOR[it.source ?? "manual"] ?? "var(--dim)"}
+                  />
+                  <span
+                    style={css(
+                      "margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim)",
+                    )}
+                  >
+                    {it.reason}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div
+          style={css(
+            "display:flex;gap:9px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line)",
+          )}
+        >
+          <button onClick={onCancel} disabled={busy} style={css(ghost)}>
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={busy || count === 0}
+            style={css(
+              `padding:8px 15px;border-radius:8px;border:1px solid color-mix(in srgb,var(${isDelete ? "--bad" : "--accent"}) 45%,var(--line));background:color-mix(in srgb,var(${isDelete ? "--bad" : "--accent"}) 15%,var(--bg3));color:var(${isDelete ? "--bad" : "--accent"});font-family:var(--ui);font-size:12.5px;cursor:${busy || count === 0 ? "default" : "pointer"};opacity:${busy || count === 0 ? 0.6 : 1}`,
+            )}
+          >
+            {busy
+              ? "Working…"
+              : isDelete
+                ? `Delete ${preview.would_delete} row(s)`
+                : `Retire ${preview.would_retire} row(s)`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

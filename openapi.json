@@ -5074,7 +5074,7 @@
           "world"
         ],
         "summary": "List Canon",
-        "description": "The story bible: characters, locations, factions, items, lore. Filter by `kind` if given.",
+        "description": "The story bible: characters, locations, factions, items, lore.\n\nFilters (all optional): `kind`; `status` (active|stale|retired|superseded|all, default `active` so\nthe Ledger hides retired/stale canon by default \u2014 pass `all` to see everything); `source`\n(manual|repo_ingested|packet_derived|draft_derived|legacy|all).",
         "operationId": "list_canon_books__book_id__canon_get",
         "parameters": [
           {
@@ -5101,6 +5101,32 @@
                 }
               ],
               "title": "Kind"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
             }
           }
         ],
@@ -5167,6 +5193,58 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CanonEntityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "world"
+        ],
+        "summary": "Bulk Delete Canon",
+        "description": "Hard-delete matched canon rows (bulk). Manual-source rows are protected unless their id is listed\nexplicitly. The single-row DELETE /canon/{canon_id} is unaffected (no protection there).",
+        "operationId": "bulk_delete_canon_books__book_id__canon_delete",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanonCleanupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonBulkDeleteOut"
                 }
               }
             }
@@ -5291,6 +5369,158 @@
         "summary": "Ingest Canon",
         "description": "Rebuild the retrieval index from the on-disk canon docs (series/canon) \u2014 the bridge from the\nread-only Canon tab into the RAG the drafter/planner actually query.\n\nLedger \u201cClean rebuild from docs\u201d deletes stale repo-ingested canon chunks (doc_path IS NOT NULL)\nand rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL).\nDelegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).",
         "operationId": "ingest_canon_books__book_id__canon_ingest_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonIngestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/canon/cleanup-preview": {
+      "post": {
+        "tags": [
+          "world"
+        ],
+        "summary": "Cleanup Preview",
+        "description": "Dry-run a retire/delete: report what the same selection would affect, mutating nothing.\n\nManual-source rows are protected (counted in `protected_manual`, reason \"protected \u2026\") unless their\nid is listed explicitly. `would_retire` counts actionable rows not already retired; `would_delete`\ncounts all actionable rows.",
+        "operationId": "cleanup_preview_books__book_id__canon_cleanup_preview_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanonCleanupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonCleanupPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/canon/retire": {
+      "post": {
+        "tags": [
+          "world"
+        ],
+        "summary": "Retire Canon",
+        "description": "Soft-retire matched canon rows: set status='retired' so they drop out of RAG + `?status=active`\n(reversible via PUT). Manual-source rows are protected unless their id is listed explicitly.",
+        "operationId": "retire_canon_books__book_id__canon_retire_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanonCleanupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonRetireOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/canon/rebuild": {
+      "post": {
+        "tags": [
+          "world"
+        ],
+        "summary": "Rebuild Canon",
+        "description": "Clean rebuild of repo-ingested canon from on-disk docs (series/canon) \u2014 the named alias of\nPOST .../canon/ingest, delegating to the same ingest_rebuild. Deletes/re-ingests only repo rows\n(doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched.",
+        "operationId": "rebuild_canon_books__book_id__canon_rebuild_post",
         "parameters": [
           {
             "name": "book_id",
@@ -8504,6 +8734,175 @@
         "title": "BookTelemetryOut",
         "description": "Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,\nand models \u2014 the cross-chapter/scene view the global Telemetry tab renders."
       },
+      "CanonBulkDeleteOut": {
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted",
+            "default": 0
+          },
+          "protected_manual": {
+            "type": "integer",
+            "title": "Protected Manual",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "CanonBulkDeleteOut",
+        "description": "Result of a hard bulk delete of canon rows."
+      },
+      "CanonCleanupIn": {
+        "properties": {
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids"
+          },
+          "source_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Filter"
+          },
+          "status_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Filter"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "CanonCleanupIn",
+        "description": "Select canon rows for a cleanup action (preview / retire / bulk delete) \u2014 Workstream H.\n\nRows are chosen by explicit `ids` OR by (`source_filter`, `status_filter`); with neither, nothing\nmatches (fail-safe \u2014 no accidental mass purge). Manual-source rows are PROTECTED: a filter never\nretires/deletes them; you must list their id explicitly. `dry_run` is honoured by the preview route\n(always a dry run) and ignored by retire/delete (which always mutate)."
+      },
+      "CanonCleanupItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "manual"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "active"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reason"
+        ],
+        "title": "CanonCleanupItemOut",
+        "description": "One row in a cleanup preview, with why it is (or isn't) actionable."
+      },
+      "CanonCleanupPreviewOut": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": true
+          },
+          "matched": {
+            "type": "integer",
+            "title": "Matched",
+            "default": 0
+          },
+          "would_retire": {
+            "type": "integer",
+            "title": "Would Retire",
+            "default": 0
+          },
+          "would_delete": {
+            "type": "integer",
+            "title": "Would Delete",
+            "default": 0
+          },
+          "protected_manual": {
+            "type": "integer",
+            "title": "Protected Manual",
+            "default": 0
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CanonCleanupItemOut"
+            },
+            "type": "array",
+            "title": "Items",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "CanonCleanupPreviewOut",
+        "description": "Dry-run report of what a retire/delete over the selection would do (mutates nothing)."
+      },
       "CanonEntityIn": {
         "properties": {
           "kind": {
@@ -8583,6 +8982,16 @@
               }
             ],
             "title": "Body"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "manual"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "active"
           }
         },
         "type": "object",
@@ -8665,6 +9074,23 @@
         ],
         "title": "CanonIngestOut",
         "description": "Result of a canon ingest/rebuild from on-disk docs (series/canon).\n\nFor the Ledger \"Clean rebuild from docs\" (hard path): repo-ingested rows\n(doc_path IS NOT NULL) are deleted first, then re-ingested from current files.\n`retired` counts prior repo rows removed. `indexed` is the fresh count.\n`total` is the resulting live repo-ingested corpus size."
+      },
+      "CanonRetireOut": {
+        "properties": {
+          "retired": {
+            "type": "integer",
+            "title": "Retired",
+            "default": 0
+          },
+          "protected_manual": {
+            "type": "integer",
+            "title": "Protected Manual",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "CanonRetireOut",
+        "description": "Result of a soft retire (status -> 'retired'); retired rows drop out of RAG + `?status=active`."
       },
       "ChapterCreateIn": {
         "properties": {

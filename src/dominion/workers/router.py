@@ -7,17 +7,13 @@ executes instantly for zero tokens and cannot spiral.
 from __future__ import annotations
 
 from dominion.workers.reviewers.base import Reviewer
-from dominion.workers.reviewers.combat import combat_reviewer
 from dominion.workers.reviewers.continuity import continuity_reviewer
-from dominion.workers.reviewers.dialogue import dialogue_reviewer
+from dominion.workers.reviewers.lane import combat_reviewer, dialogue_reviewer, sensory_reviewer
 from dominion.workers.reviewers.pacing import pacing_reviewer
-from dominion.workers.reviewers.sensory import sensory_reviewer
 from dominion.workers.reviewers.state_drift import state_drift_reviewer
 from dominion.workers.reviewers.voice import voice_reviewer
 from dominion.workers.specialists.base import Specialist
-from dominion.workers.specialists.combat import combat_pass
-from dominion.workers.specialists.dialogue import dialogue_pass
-from dominion.workers.specialists.sensory import sensory_pass
+from dominion.workers.specialists.enrich import combat_pass, dialogue_pass, sensory_pass
 
 # Enrichment passes fire only when tagged, and always in this fixed order (determinism).
 _PASS_ORDER: list[str] = ["combat", "physical_description", "dialogue"]

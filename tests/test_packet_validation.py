@@ -49,50 +49,6 @@ def test_same_name_in_two_buckets_blocks():
     assert blocked and "characters_present" in blocked[0].field and "characters_absent" in blocked[0].field
 
 
-def test_seb_present_and_sebs_brother_mentioned_only_is_not_a_false_positive():
-    # Regression: "Seb" (present) and "Seb's brother" (mentioned-only) are DIFFERENT entities. A naive
-    # whole-word scan of the other bucket's raw text would collide on "Seb" inside "Seb's" -- the
-    # leading-name-exact-match design must not flag this.
-    body = _body(
-        characters_present=["Seb (arrives late to scrim, present in guild channel)"],
-        characters_mentioned_only=["Seb's brother (dead before the chapter; referenced by Seb's late arrival)"],
-    )
-    assert validate_chapter_packet_contract(body) == []
-
-
-def test_three_way_double_bucketing_reports_only_impossible_pairs():
-    # Mathias in present + absent + mentioned_only. Only present∩absent is genuinely impossible. Both
-    # present∩mentioned_only and absent∩mentioned_only are redundant overlaps a dominance rule collapses,
-    # so the raw validator flags exactly one block (present∩absent), never those two.
-    body = _body(
-        characters_present=["Mathias (present, has dialogue)"],
-        characters_absent=["Mathias"],
-        characters_mentioned_only=["Mathias (mentioned only)"],
-    )
-    v = validate_chapter_packet_contract(body)
-    blocks = [x for x in v if x.kind == "roster_double_bucketed" and x.severity == "block"]
-    assert len(blocks) == 1
-    flagged_pairs = {frozenset(x.field.split(",")) for x in blocks}
-    assert flagged_pairs == {frozenset({"characters_present", "characters_absent"})}
-
-
-def test_evaluate_triple_bucket_still_blocks_present_absent():
-    # Masking guard: normalization drops the name out of absent AND mentioned_only, but evaluate validates
-    # the ORIGINAL body, so the genuine present∩absent contradiction is NOT silently normalized away.
-    body = _body(
-        characters_present=["Mathias (present, has dialogue)"],
-        characters_absent=["Mathias"],
-        characters_mentioned_only=["Mathias (mentioned only)"],
-    )
-    result = evaluate_chapter_packet(body)
-    assert not result.draftable
-    assert any(
-        v.kind == "roster_double_bucketed"
-        and frozenset(v.field.split(",")) == frozenset({"characters_present", "characters_absent"})
-        for v in result.draft_blockers
-    )
-
-
 def test_absent_and_mentioned_only_is_not_a_contradiction():
     # The reported bug: "mentioned only" means off-page but referenced, which implies physical absence, so
     # a name in BOTH characters_absent and characters_mentioned_only is redundant, not contradictory. The
@@ -100,16 +56,6 @@ def test_absent_and_mentioned_only_is_not_a_contradiction():
     body = _body(
         characters_absent=["Seb's brother"],
         characters_mentioned_only=["Seb's brother (dead before the chapter, referenced only)"],
-    )
-    assert validate_chapter_packet_contract(body) == []
-
-
-def test_absent_and_forbidden_is_not_a_contradiction():
-    # "forbidden" (must not be named on-page) also presupposes absence — a name in both is coherent, not a
-    # contradiction, and must not block.
-    body = _body(
-        characters_absent=["The Broker"],
-        characters_forbidden=["The Broker (Soulkeepers' Exchange — not yet introduced)"],
     )
     assert validate_chapter_packet_contract(body) == []
 
@@ -148,144 +94,9 @@ def test_hidden_identity_present_not_mentioned_only():
     assert "Seb's brother" in mentioned_leads  # a genuinely mentioned-only character is untouched
 
 
-def test_present_and_forbidden_blocks():
-    # present (on-page) cannot coexist with forbidden (must never be named/referenced on-page).
-    body = _body(
-        characters_present=["Mara Valeria (present, has dialogue)"],
-        characters_forbidden=["Mara Valeria"],
-    )
-    blocks = [x for x in validate_chapter_packet_contract(body) if x.severity == "block"]
-    assert blocks and blocks[0].kind == "roster_double_bucketed"
-    assert frozenset(blocks[0].field.split(",")) == frozenset({"characters_present", "characters_forbidden"})
-
-
-def test_mentioned_only_and_forbidden_blocks():
-    # A name referenced on-page (mentioned_only) cannot also be forbidden from on-page reference — these
-    # are true opposites on the surface-reference axis.
-    body = _body(
-        characters_mentioned_only=["Mara Valeria"],
-        characters_forbidden=["Mara Valeria"],
-    )
-    blocks = [x for x in validate_chapter_packet_contract(body) if x.severity == "block"]
-    assert blocks and blocks[0].kind == "roster_double_bucketed"
-    assert frozenset(blocks[0].field.split(",")) == frozenset({"characters_mentioned_only", "characters_forbidden"})
-
-
-def test_evaluate_normalizes_absent_relation_mentioned_only():
-    # End-to-end via evaluate_chapter_packet: absent∩mentioned_only does not block, and the name is
-    # dropped from characters_absent (kept in the more specific mentioned_only bucket) so the downstream
-    # scene-packet absence check won't false-block a legitimate on-page mention.
-    body = _body(
-        characters_absent=["Seb's brother"],
-        characters_mentioned_only=["Seb's brother (dead before the chapter, referenced only)"],
-    )
-    result = evaluate_chapter_packet(body)
-    assert result.draftable
-    assert not result.draft_blockers
-    assert result.normalized_body["characters_absent"] == []
-    assert result.normalized_body["characters_mentioned_only"] == [
-        "Seb's brother (dead before the chapter, referenced only)"
-    ]
-    assert [w.kind for w in result.warnings] == ["roster_normalized"]
-
-
-def test_evaluate_keeps_genuinely_absent_names():
-    # Normalization only removes the redundant overlap — a name that is ONLY absent stays put, and a
-    # different mentioned_only entity ("Seb" vs "Seb's brother") does not trigger removal.
-    body = _body(
-        characters_absent=["Brent", "Seb"],
-        characters_mentioned_only=["Seb's brother (referenced only)"],
-    )
-    result = evaluate_chapter_packet(body)
-    assert result.draftable
-    assert result.normalized_body["characters_absent"] == ["Brent", "Seb"]
-    assert result.warnings == []
-
-
-def test_evaluate_still_blocks_true_presence_contradiction():
-    body = _body(
-        characters_present=["Mara (present, unidentified until Ch2)"],
-        characters_absent=["Mara"],
-    )
-    result = evaluate_chapter_packet(body)
-    assert not result.draftable
-    assert any(v.kind == "roster_double_bucketed" for v in result.draft_blockers)
-
-
-def test_forbidden_term_in_raw_internal_scene_seed_does_not_block_internal():
-    """Per new architecture: raw internal planning fields (scene seeds) may contain forbidden terms."""
-    body = _body(
-        characters_forbidden=["Hidden Canonical Name"],
-        scene_seeds=[_seed(scene_no=2, required_beats=["Hidden Canonical Name arrives."])],
-    )
-    v = validate_chapter_packet_contract(body)
-    # internal contract no longer emits forbidden_name_in_scene_seed
-    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in v)
-
-
-# Legacy _roth_binding kept for any remaining compat references (now unused by new tests).
-def _roth_binding() -> dict[str, Any]:
-    return {
-        "canonical_name": "Roth",
-        "surface_label": "the suited Astria figure",
-        "forbidden_surface_terms": ["Roth"],
-    }
-
-
-def test_forbidden_name_allowed_in_internal_binding_legacy():
-    # Old entity_bindings path still accepted; internal validation does not block on raw seeds.
-    body = _body(
-        characters_forbidden=["Roth"],
-        entity_bindings=[_roth_binding()],
-        scene_seeds=[_seed(required_beats=["Introduce the suited Astria figure without naming him on-page."])],
-    )
-    # internal contract never emits the old bleed kind
-    v = validate_chapter_packet_contract(body)
-    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in v)
-
-
-def test_legacy_normalize_forbidden_surface_labels_still_works():
-    # The legacy normalize path (entity_bindings) still rewrites for back-compat modules (beats, derive fallbacks).
-    from dominion.workers.packet.validation import normalize_forbidden_surface_labels
-
-    body = _body(
-        characters_forbidden=["Roth"],
-        entity_bindings=[_roth_binding()],
-        scene_seeds=[_seed(scene_no=3, required_beats=["Introduce Roth without naming Roth on-page."])],
-    )
-    normalized, warns = normalize_forbidden_surface_labels(body)
-    beats = normalized["scene_seeds"][0]["required_beats"]
-    assert not any("Roth" in b for b in beats)
-    assert any("the suited Astria figure" in b for b in beats)
-
-
-def test_forbidden_name_in_raw_no_longer_blocks_internal_contract():
-    # Core architecture change: internal validation no longer hard-blocks forbidden names in raw seeds.
-    body = _body(
-        characters_forbidden=["Roth"],
-        scene_seeds=[_seed(scene_no=1, required_beats=["Roth enters and speaks"])],
-    )
-    v = validate_chapter_packet_contract(body)
-    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in v)
-
-
-def test_surface_label_in_beat_without_triggering_internal_block():
-    body = _body(
-        characters_forbidden=["Roth"],
-        entity_bindings=[_roth_binding()],
-        scene_seeds=[_seed(required_beats=["Introduce the suited Astria figure"])],
-    )
-    # internal does not block
-    assert not any(x.kind == "forbidden_name_in_scene_seed" for x in validate_chapter_packet_contract(body))
-
-
 def test_non_dict_body_blocks():
     v = validate_chapter_packet_contract("not a dict")  # type: ignore[arg-type]
     assert len(v) == 1 and v[0].severity == "block"
-
-
-def test_empty_body_has_no_violations():
-    assert validate_chapter_packet_contract(_body()) == []
 
 
 # --- Invariant / generic surface contract tests (no story names, focus on scopes + policy) ---

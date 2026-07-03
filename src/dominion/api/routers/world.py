@@ -11,15 +11,20 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, delete, func, or_, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState, KnowledgeFact
 from dominion.shared.schemas import (
+    CanonBulkDeleteOut,
+    CanonCleanupIn,
+    CanonCleanupItemOut,
+    CanonCleanupPreviewOut,
     CanonEntityIn,
     CanonEntityOut,
     CanonEntityUpdateIn,
     CanonIngestOut,
+    CanonRetireOut,
     CharacterStateIn,
     CharacterStateOut,
     KnowledgeFactOut,
@@ -188,15 +193,38 @@ async def list_knowledge(book_id: uuid.UUID, session: SessionDep) -> list[Knowle
     return list(rows)
 
 
+def _status_match(status: str) -> ColumnElement[bool]:
+    """SQL predicate for a canon `status` filter. `active` also admits legacy NULL rows (rows written
+    before the status column existed are treated as active), matching status-aware retrieval."""
+    if status == "active":
+        return or_(CanonEntity.status.is_(None), CanonEntity.status == "active")
+    return CanonEntity.status == status
+
+
 @router.get("/books/{book_id}/canon", response_model=list[CanonEntityOut])
-async def list_canon(book_id: uuid.UUID, session: SessionDep, kind: str | None = None) -> list[CanonEntity]:
-    """The story bible: characters, locations, factions, items, lore. Filter by `kind` if given."""
+async def list_canon(
+    book_id: uuid.UUID,
+    session: SessionDep,
+    kind: str | None = None,
+    status: str = "active",
+    source: str | None = None,
+) -> list[CanonEntity]:
+    """The story bible: characters, locations, factions, items, lore.
+
+    Filters (all optional): `kind`; `status` (active|stale|retired|superseded|all, default `active` so
+    the Ledger hides retired/stale canon by default — pass `all` to see everything); `source`
+    (manual|repo_ingested|packet_derived|draft_derived|legacy|all).
+    """
     book = await session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="book not found")
     stmt = select(CanonEntity).where(CanonEntity.book_id == book_id)
     if kind:
         stmt = stmt.where(CanonEntity.kind == kind)
+    if status and status != "all":
+        stmt = stmt.where(_status_match(status))
+    if source and source != "all":
+        stmt = stmt.where(CanonEntity.source == source)
     rows = (await session.execute(stmt.order_by(CanonEntity.kind, CanonEntity.name))).scalars().all()
     return list(rows)
 
@@ -266,3 +294,125 @@ async def ingest_canon(book_id: uuid.UUID, session: SessionDep) -> CanonIngestOu
         retired=out["retired"],
         total=out["indexed"] + out["skipped"],
     )
+
+
+# --- Canon cleanup: status-aware retire / bulk-delete / rebuild (Workstream H) ---------------------
+
+
+async def _cleanup_candidates(
+    book_id: uuid.UUID, req: CanonCleanupIn, session: SessionDep
+) -> tuple[list[CanonEntity], set[uuid.UUID]]:
+    """Rows a cleanup selection matches, plus the set of explicitly-listed ids.
+
+    Selection is by explicit `ids` OR by (`source_filter`, `status_filter`); with neither, nothing is
+    matched (fail-safe against an accidental mass purge). The returned id set is what overrides
+    manual-source protection downstream (a manual row acts only when its id was named explicitly).
+    """
+    explicit_ids = set(req.ids or [])
+    stmt = select(CanonEntity).where(CanonEntity.book_id == book_id)
+    if explicit_ids:
+        stmt = stmt.where(CanonEntity.id.in_(explicit_ids))
+    else:
+        has_source = bool(req.source_filter and req.source_filter != "all")
+        has_status = bool(req.status_filter and req.status_filter != "all")
+        if not (has_source or has_status):
+            return [], explicit_ids
+        if has_source:
+            stmt = stmt.where(CanonEntity.source == req.source_filter)
+        if has_status:
+            stmt = stmt.where(_status_match(req.status_filter or ""))
+    rows = (await session.execute(stmt.order_by(CanonEntity.kind, CanonEntity.name))).scalars().all()
+    return list(rows), explicit_ids
+
+
+def _is_protected(row: CanonEntity, explicit_ids: set[uuid.UUID]) -> bool:
+    """Manual-source canon is never auto-retired/deleted by a filter — only when named by id."""
+    return (row.source or "manual") == "manual" and row.id not in explicit_ids
+
+
+@router.post("/books/{book_id}/canon/cleanup-preview", response_model=CanonCleanupPreviewOut)
+async def cleanup_preview(book_id: uuid.UUID, req: CanonCleanupIn, session: SessionDep) -> CanonCleanupPreviewOut:
+    """Dry-run a retire/delete: report what the same selection would affect, mutating nothing.
+
+    Manual-source rows are protected (counted in `protected_manual`, reason "protected …") unless their
+    id is listed explicitly. `would_retire` counts actionable rows not already retired; `would_delete`
+    counts all actionable rows.
+    """
+    await _require_book(book_id, session)
+    rows, explicit_ids = await _cleanup_candidates(book_id, req, session)
+
+    items: list[CanonCleanupItemOut] = []
+    protected = would_retire = would_delete = 0
+    for row in rows:
+        body = row.body or ""
+        summary = body[:120] + ("…" if len(body) > 120 else "") if body else None
+        if _is_protected(row, explicit_ids):
+            protected += 1
+            reason = "protected: manual source (list id to override)"
+        elif (row.status or "active") == "retired":
+            would_delete += 1
+            reason = "already retired"
+        else:
+            would_retire += 1
+            would_delete += 1
+            reason = "eligible"
+        items.append(
+            CanonCleanupItemOut(
+                id=row.id,
+                kind=row.kind,
+                name=row.name,
+                source=row.source or "manual",
+                status=row.status or "active",
+                summary=summary,
+                reason=reason,
+            )
+        )
+
+    return CanonCleanupPreviewOut(
+        dry_run=True,
+        matched=len(rows),
+        would_retire=would_retire,
+        would_delete=would_delete,
+        protected_manual=protected,
+        items=items,
+    )
+
+
+@router.post("/books/{book_id}/canon/retire", response_model=CanonRetireOut)
+async def retire_canon(book_id: uuid.UUID, req: CanonCleanupIn, session: SessionDep) -> CanonRetireOut:
+    """Soft-retire matched canon rows: set status='retired' so they drop out of RAG + `?status=active`
+    (reversible via PUT). Manual-source rows are protected unless their id is listed explicitly."""
+    await _require_book(book_id, session)
+    rows, explicit_ids = await _cleanup_candidates(book_id, req, session)
+    retired = protected = 0
+    for row in rows:
+        if _is_protected(row, explicit_ids):
+            protected += 1
+            continue
+        if (row.status or "active") != "retired":
+            row.status = "retired"
+            retired += 1
+    await session.commit()
+    return CanonRetireOut(retired=retired, protected_manual=protected)
+
+
+@router.delete("/books/{book_id}/canon", response_model=CanonBulkDeleteOut)
+async def bulk_delete_canon(book_id: uuid.UUID, req: CanonCleanupIn, session: SessionDep) -> CanonBulkDeleteOut:
+    """Hard-delete matched canon rows (bulk). Manual-source rows are protected unless their id is listed
+    explicitly. The single-row DELETE /canon/{canon_id} is unaffected (no protection there)."""
+    await _require_book(book_id, session)
+    rows, explicit_ids = await _cleanup_candidates(book_id, req, session)
+    doomed = [row.id for row in rows if not _is_protected(row, explicit_ids)]
+    protected = len(rows) - len(doomed)
+    if doomed:
+        await session.execute(delete(CanonEntity).where(CanonEntity.id.in_(doomed)))
+        await session.commit()
+    return CanonBulkDeleteOut(deleted=len(doomed), protected_manual=protected)
+
+
+@router.post("/books/{book_id}/canon/rebuild", response_model=CanonIngestOut)
+async def rebuild_canon(book_id: uuid.UUID, session: SessionDep) -> CanonIngestOut:
+    """Clean rebuild of repo-ingested canon from on-disk docs (series/canon) — the named alias of
+    POST .../canon/ingest, delegating to the same ingest_rebuild. Deletes/re-ingests only repo rows
+    (doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched."""
+    return await ingest_canon(book_id, session)

@@ -1,13 +1,19 @@
 name: CI
 
-# Mirrors the local gates (justfile: lint / typecheck / test + frontend build). The one thing CI adds
-# over a laptop run is a real Postgres+pgvector, so the DB-backed tests actually execute instead of
-# self-skipping (see tests/conftest.py + DOMINION_REQUIRE_DB below).
+# Path-aware, layered CI. A `changes` gate (dorny/paths-filter) decides which jobs run so a
+# frontend-only or docs-only PR doesn't pay for the full Postgres pytest + Playwright e2e.
+#   - backend job (lint+types, tests)  -> runs on src/tests/pyproject/uv.lock/scripts changes
+#   - frontend job (codegen/typecheck/lint/test) -> runs on frontend or API-contract changes
+#   - Playwright e2e -> only on the "full" tier (main push, manual dispatch, `full-ci` label,
+#     or shared-core changes), keeping branch PRs fast while main stays fully validated.
+# The one thing CI adds over a laptop run is a real Postgres+pgvector, so DB-backed tests actually
+# execute instead of self-skipping (see tests/conftest.py + DOMINION_REQUIRE_DB below).
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # A new push to a branch cancels the previous in-flight run for that branch — don't burn minutes on
 # stale commits. Each main push still runs to completion (ref is unique per push group).
@@ -17,11 +23,67 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  # ---- change detection: decides which downstream jobs run. -------------------------------------
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.decide.outputs.backend }}
+      frontend: ${{ steps.decide.outputs.frontend }}
+      api_contract: ${{ steps.decide.outputs.api_contract }}
+      full: ${{ steps.decide.outputs.full }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          filters: |
+            backend:
+              - 'src/dominion/**'
+              - 'tests/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'scripts/**'
+            frontend:
+              - 'frontend/**'
+            api_contract:
+              - 'openapi.json'
+              - 'src/dominion/api/**'
+              - 'src/dominion/shared/**'
+              - 'frontend/src/desk/api/**'
+            shared_core:
+              - 'src/dominion/shared/**'
+              - 'src/dominion/workers/pipeline.py'
+              - 'src/dominion/workers/worker.py'
+              - 'src/dominion/workers/router.py'
+              - 'src/dominion/workers/context/**'
+      - id: decide
+        # Non-PR events (main push, manual dispatch) run everything ("full"). On a PR, run the full
+        # tier when a shared contract/pipeline-core file changed or the `full-ci` label is present;
+        # otherwise gate each job on its path filter.
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ] \
+             || [ "${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}" = "true" ] \
+             || [ "${{ steps.filter.outputs.shared_core }}" = "true" ]; then
+            { echo "full=true"; echo "backend=true"; echo "frontend=true"; echo "api_contract=true"; } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "full=false"
+              echo "backend=${{ steps.filter.outputs.backend }}"
+              echo "frontend=${{ steps.filter.outputs.frontend }}"
+              echo "api_contract=${{ steps.filter.outputs.api_contract }}"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
   # ---- static analysis: ruff + pyright (changed files). No DB, no network. Python 3.14. ----
   static:
     name: lint + types
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     env:
       UV_PYTHON: "3.14"   # pin every uv command (sync AND run) to one interpreter
@@ -47,6 +109,8 @@ jobs:
   # ---- tests: real Postgres+pgvector on Python 3.14. --------------------------------------------
   tests:
     name: tests
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -84,9 +148,11 @@ jobs:
         # DOMINION_REQUIRE_DB forbids.
         run: uv run --no-sync pytest -q -rs
 
-  # ---- frontend: OpenAPI codegen drift + typecheck + lint + format + unit + e2e. One pnpm install. ----
+  # ---- frontend: OpenAPI codegen drift + typecheck + lint + format + unit. e2e is full-tier only. ----
   frontend:
     name: frontend
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.api_contract == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -114,12 +180,35 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm test
-      - uses: actions/cache@v4
+      # ---- Playwright e2e is heavy (Chromium download + full run); only on the full-ci tier. ----
+      - if: ${{ needs.changes.outputs.full == 'true' }}
+        uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
           restore-keys: playwright-${{ runner.os }}-
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm e2e
+      - if: ${{ needs.changes.outputs.full == 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - if: ${{ needs.changes.outputs.full == 'true' }}
+        run: pnpm e2e
         env:
           CI: "true"
+
+  # ---- aggregator: a single stable required check for branch protection. Passes when no needed job
+  # failed (skipped path-gated jobs are fine). Set this as the required status check, not the others.
+  ci-passed:
+    name: CI passed
+    if: ${{ always() }}
+    needs: [changes, static, tests, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no required job failed
+        run: |
+          for r in "${{ needs.static.result }}" "${{ needs.tests.result }}" "${{ needs.frontend.result }}"; do
+            echo "job result: $r"
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::A required CI job failed ($r)."
+              exit 1
+            fi
+          done
+          echo "All required jobs passed or were skipped."

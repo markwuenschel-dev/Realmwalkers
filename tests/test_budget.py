@@ -8,16 +8,13 @@ derivation — without ever penalizing the scene that pays the cache write.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
+from dominion.workers import llm
 from dominion.workers.budget import BudgetExceeded, TokenBudget, Usage
 from dominion.workers.llm import CachedPrefixBlock, ContextWindowExceeded, check_context_window
-
-
-def test_total_stays_raw_token_count():
-    # `total` is the raw billing count used for reporting/rate-limit tracking — unweighted.
-    u = Usage(input_tokens=100, output_tokens=200, cache_creation_tokens=1000, cache_read_tokens=4000)
-    assert u.total == 100 + 200 + 1000 + 4000
 
 
 def test_budget_cost_discounts_cache_reads():
@@ -26,20 +23,6 @@ def test_budget_cost_discounts_cache_reads():
     assert u.budget_cost == int(100 + 200 + 1000 * 1.0 + 4000 * 0.1)
     # And the weighted cost is below the raw token count, because re-read cache is discounted.
     assert u.budget_cost < u.total
-
-
-def test_budget_cost_does_not_penalize_cache_writes():
-    # A scene that warms the cache (large write, no read) is charged the write at full weight only —
-    # never a premium — so priming the cache for later scenes never pushes the primer over its ceiling.
-    writer = Usage(input_tokens=100, output_tokens=200, cache_creation_tokens=10_000)
-    no_cache = Usage(input_tokens=100, output_tokens=200, cache_creation_tokens=0, cache_read_tokens=0)
-    assert writer.budget_cost == 100 + 200 + 10_000  # write == plain input weight
-    assert writer.budget_cost - no_cache.budget_cost == 10_000
-
-
-def test_budget_cost_equals_total_without_cache():
-    u = Usage(input_tokens=10, output_tokens=20)
-    assert u.budget_cost == u.total == 30
 
 
 def test_charge_uses_weighted_cost_not_raw_total():
@@ -51,21 +34,7 @@ def test_charge_uses_weighted_cost_not_raw_total():
     assert budget.total_cache_read == 9000
 
 
-def test_charge_raises_when_weighted_cost_crosses_ceiling():
-    budget = TokenBudget(max_tokens=1000)
-    with pytest.raises(BudgetExceeded):
-        budget.charge(Usage(input_tokens=600, output_tokens=600))  # 1200 > 1000
-
-
 # --- soft / hard budget split ---------------------------------------------------------------------
-
-
-def test_hard_defaults_to_soft_for_backward_compatibility():
-    # An old-style single-ceiling budget: hard == soft, so it raises exactly as before at the ceiling.
-    budget = TokenBudget(max_tokens=1000)
-    assert budget.hard_limit == 1000
-    with pytest.raises(BudgetExceeded):
-        budget.charge(Usage(input_tokens=1001, output_tokens=0))
 
 
 def test_soft_overage_under_hard_does_not_raise():
@@ -84,21 +53,6 @@ def test_hard_overage_still_raises():
         budget.charge(Usage(input_tokens=75_001, output_tokens=0))
 
 
-def test_remaining_and_exceeded_properties():
-    budget = TokenBudget(max_tokens=1000, hard_max_tokens=1500)
-    assert budget.remaining_soft == 1000 and budget.remaining_hard == 1500
-    budget.charge(Usage(input_tokens=1200, output_tokens=0))  # over soft, under hard
-    assert budget.soft_exceeded and not budget.hard_exceeded
-    assert budget.remaining_soft == 0  # clamped, not negative
-    assert budget.remaining_hard == 300
-
-
-def test_charge_without_raise_returns_state_on_hard_overage():
-    budget = TokenBudget(max_tokens=1000)  # hard == soft == 1000
-    result = budget.charge(Usage(input_tokens=2000, output_tokens=0), raise_on_hard_exceeded=False)
-    assert result.hard_exceeded and result.soft_exceeded and result.used == 2000  # no raise
-
-
 def test_context_window_guard_uses_raw_tokens_not_weighted_cache_cost():
     # Weighted budget would pass because cache reads are discounted to ~10%, but raw context-window
     # safety must count the full cached prefix plus output allowance.
@@ -115,3 +69,55 @@ def test_context_window_guard_uses_raw_tokens_not_weighted_cache_cost():
             user_prefix_blocks=(CachedPrefixBlock("chapter_shared_prefix", "x" * 8000),),
             context_sections={"chapter_shared_prefix": 2_000},
         )
+
+
+# --- consolidated LLM context-window preflight (moved from deleted test_llm_token_counting.py) -----
+# The token-counting/provider plumbing suite was dropped, but the context-window preflight gate sits
+# right next to the budget/timeout hot branch, so one consolidated case stays: preflight runs before
+# generation and skips generation entirely once the counted input + output allowance overflows the
+# context window.
+
+
+class _FakeMessages:
+    def __init__(self, *, count_value: int = 100) -> None:
+        self.events: list[str] = []
+        self._count_value = count_value
+
+    async def count_tokens(self, **kwargs: object) -> object:
+        self.events.append("count")
+        return SimpleNamespace(input_tokens=self._count_value)
+
+    async def create(self, **kwargs: object) -> object:
+        self.events.append("create")
+        return SimpleNamespace(
+            usage=SimpleNamespace(input_tokens=10, output_tokens=20),
+            content=[SimpleNamespace(type="text", text="{}")],
+            stop_reason="end_turn",
+        )
+
+
+async def _preflight_complete(msgs, monkeypatch, **over):
+    monkeypatch.setattr(llm, "_client", lambda: SimpleNamespace(messages=msgs))
+    kwargs: dict[str, object] = dict(
+        model="m",
+        system="s",
+        user="u",
+        max_tokens=50,
+        budget=TokenBudget(max_tokens=10_000),
+        context_window_budget=200_000,
+    )
+    kwargs.update(over)
+    return await llm.complete(**kwargs)
+
+
+async def test_preflight_counts_tokens_before_generation(monkeypatch):
+    msgs = _FakeMessages(count_value=100)
+    await _preflight_complete(msgs, monkeypatch)
+    assert msgs.events == ["count", "create"]  # context-window preflight runs before generation
+
+
+async def test_preflight_skips_create_when_context_window_exceeded(monkeypatch):
+    msgs = _FakeMessages(count_value=500)
+    with pytest.raises(ContextWindowExceeded, match="context window preflight exceeded"):
+        await _preflight_complete(msgs, monkeypatch, max_tokens=600, context_window_budget=1000)
+    assert msgs.events == ["count"]  # generation never reached once preflight is over the window

@@ -13,7 +13,7 @@ import re
 import uuid
 from pathlib import Path
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
@@ -24,6 +24,14 @@ from dominion.workers.memory.owner_router import _RULES
 
 _PASSAGE_KIND = "passage"
 _TARGET_CHARS = 1000
+
+
+def _active_only():
+    """Status-aware retrieval gate (Workstream H): only `active` canon reaches agent/prose context;
+    stale/retired/superseded rows are excluded. NULL is treated as active so legacy rows written
+    before the `status` column existed still surface."""
+    return or_(CanonEntity.status.is_(None), CanonEntity.status == "active")
+
 
 # Top-level folder under series/canon → the CanonEntity.kind ingested chunks get tagged with, so the
 # ledger groups them into real categories instead of one "passage" pile. `kind` is display/organization
@@ -39,6 +47,26 @@ _KIND_BY_FOLDER: dict[str, str] = {
     "continuity": "continuity",
 }
 _DEFAULT_INGEST_KIND = "lore"
+
+# Extensions we treat as canon source text.
+_INGEST_SUFFIXES = {".md", ".markdown", ".txt"}
+
+
+def _is_ingestable(path: Path) -> bool:
+    """True if `path` is a canon source file we should embed.
+
+    Skips non-prose scaffolding that would otherwise be embedded and surface as retrievable
+    "canon": underscore-prefixed templates (``_CHARACTER_TEMPLATE.md``, ``_FACTION_TEMPLATE.md``,
+    ``_COHORT_TEMPLATE.md``) and the ``CHANGELOG``. Mirrors seed.py's convention so a rebuild
+    never pollutes context with template placeholders. Real index files (canon_index.md) are kept.
+    """
+    if not path.is_file() or path.suffix.lower() not in _INGEST_SUFFIXES:
+        return False
+    if path.name.startswith("_"):
+        return False
+    if path.stem.upper() == "CHANGELOG":
+        return False
+    return True
 
 
 def _kind_for(doc_path: str) -> str:
@@ -126,6 +154,7 @@ async def retrieve(session: AsyncSession, *, book_id: uuid.UUID, query: str, k: 
             CanonEntity.book_id == book_id,
             CanonEntity.body.isnot(None),
             CanonEntity.embedding.isnot(None),
+            _active_only(),
         )
         .order_by(CanonEntity.embedding.cosine_distance(qvec))
         .limit(k)
@@ -148,6 +177,7 @@ async def retrieve_with_meta(
             CanonEntity.book_id == book_id,
             CanonEntity.body.isnot(None),
             CanonEntity.embedding.isnot(None),
+            _active_only(),
         )
         .order_by(CanonEntity.embedding.cosine_distance(qvec))
         .limit(k)
@@ -160,10 +190,20 @@ async def ingest_path(session: AsyncSession, *, book_id: uuid.UUID, root: str | 
     await session.execute(delete(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.kind == kind))
     count = 0
     for path in sorted(Path(root).rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in {".md", ".markdown", ".txt"}:
+        if not _is_ingestable(path):
             continue
         for chunk in _chunk(path.read_text(encoding="utf-8")):
-            session.add(CanonEntity(book_id=book_id, kind=kind, name=path.stem, body=chunk, embedding=embed(chunk)))
+            session.add(
+                CanonEntity(
+                    book_id=book_id,
+                    kind=kind,
+                    name=path.stem,
+                    body=chunk,
+                    embedding=embed(chunk),
+                    source="repo_ingested",
+                    status="active",
+                )
+            )
             count += 1
     await session.flush()
     return count
@@ -200,7 +240,7 @@ async def ingest_incremental(
 
     version = embedding_version()  # encodes the active embedding backend + model
     for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in {".md", ".markdown", ".txt"}:
+        if not _is_ingestable(path):
             continue
         doc_path = str(path.relative_to(root)).replace("\\", "/")
         row_kind = kind or _kind_for(doc_path)
@@ -221,6 +261,8 @@ async def ingest_incremental(
                     name=path.stem,
                     body=chunk,
                     embedding=embed(chunk),
+                    source="repo_ingested",
+                    status="active",
                     doc_path=doc_path,
                     heading_path=heading_path or None,
                     owner_topic=owner_topic,
