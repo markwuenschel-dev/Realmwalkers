@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { css } from "../css";
 import { useDesk } from "../state";
@@ -15,6 +15,7 @@ import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import type {
   ScenePacketBody,
   ScenePacketOut,
+  ScenePacketSummaryOut,
   DraftReadinessOut,
   QaIssue,
   SceneOut,
@@ -33,6 +34,8 @@ const STATUS_VAR: Record<string, string> = {
   blocked: "--bad",
   stale: "--warn",
   proposed: "--info",
+  // Transient provider refusal (429 past retries) — infrastructure, not a contract failure.
+  rate_limited: "--warn",
 };
 
 const BLOCKER_SOURCE_LABEL: Record<string, string> = {
@@ -40,10 +43,27 @@ const BLOCKER_SOURCE_LABEL: Record<string, string> = {
   derive: "derive",
   qa: "QA",
   validation: "deterministic validation",
+  rate_limit: "provider rate limit",
   unknown: "gate",
 };
 
 const SEVERITY_VAR: Record<string, string> = { block: "--bad", warn: "--warn", info: "--dim" };
+
+// Advisory QA verdict tone — the verdict colors itself, never the packet's non-QA blocks.
+const QA_VERDICT_VAR: Record<string, string> = {
+  approve: "--good",
+  approve_warn: "--warn",
+  revise_required: "--warn",
+  block_drafting: "--bad",
+};
+
+// Prose is its own status axis (contract approval ≠ QA opinion ≠ drafted prose).
+const PROSE_VAR: Record<string, string> = {
+  drafted: "--good",
+  drafting: "--info",
+  failed: "--bad",
+  missing: "--dim",
+};
 
 // Every editable field path the editor anchors an issue to. A QA issue whose `field` matches one of
 // these renders inline under that control; anything else (null, parent-level, or an unknown key) falls
@@ -86,16 +106,15 @@ function issuesFor(issues: QaIssue[], path: string): QaIssue[] {
   return issues.filter((it) => (it.field ?? "") === path);
 }
 
-function validScenePacketBody(body: ScenePacketBody | undefined | null): boolean {
-  if (!body) return false;
-  return !!(body.known_before_scene && body.learned_during_scene && body.word_budget);
-}
-
 export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const { t } = useDesk();
   const desk = useDeskData();
   const drawer = useTelemetryDrawer();
-  const [packets, setPackets] = useState<ScenePacketOut[]>([]);
+  // The LIST renders from slim summaries (statuses/counters — no bodies), so switching to this tab
+  // fetches kilobytes, not the full contract JSON of every scene. Full packets load lazily per card
+  // (expand/edit) into this cache, which is invalidated on every list reload.
+  const [packets, setPackets] = useState<ScenePacketSummaryOut[]>([]);
+  const [fullPackets, setFullPackets] = useState<Record<string, ScenePacketOut>>({});
   const [loading, setLoading] = useState(false);
   const [deriving, setDeriving] = useState(false);
   const [elapsed, setElapsed] = useState<number | null>(null);
@@ -132,7 +151,9 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPackets(await api.scenePackets(chapterId));
+      setPackets(await api.scenePacketSummaries(chapterId));
+      // Statuses/bodies may have changed server-side — drop the per-card cache so open cards refetch.
+      setFullPackets({});
       setTelemetryKey((k) => k + 1);
       await loadReadiness();
     } catch (e) {
@@ -141,6 +162,15 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
       setLoading(false);
     }
   }, [chapterId, loadReadiness]);
+
+  const loadFull = useCallback(async (packetId: string) => {
+    try {
+      const full = await api.scenePacket(packetId);
+      setFullPackets((m) => ({ ...m, [packetId]: full }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
 
   // On chapter change: load the list + rejoin any in-flight derive (it runs server-side).
   useEffect(() => {
@@ -215,8 +245,12 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const chapterMeta = desk.chapters.find((c) => c.id === chapterId);
   // The drafted scene for each scene packet, if any exists yet — keyed by scene_no so each card can
   // offer to export its own scene once it's been drafted (a scene packet has no prose of its own).
-  const sceneByNo = new Map(
-    desk.latestScenes.filter((s) => s.chapter_id === chapterId).map((s) => [s.scene_no, s]),
+  const sceneByNo = useMemo(
+    () =>
+      new Map(
+        desk.latestScenes.filter((s) => s.chapter_id === chapterId).map((s) => [s.scene_no, s]),
+      ),
+    [desk.latestScenes, chapterId],
   );
   const exportScene = async (packetId: string, scene: SceneOut, kind: ExportKind) => {
     setExportingScene({ packetId, kind });
@@ -369,32 +403,70 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
 
       {approvedCount > 0 && (
         <div style={css("margin-bottom:14px")}>
+          {/* The headline claim and the button obey the SAME server gate (readiness.draftable) — the
+              page must never say "ready to draft" while the button below it is disabled. */}
           <div
             style={css(
-              "font-family:var(--mono);font-size:11.5px;color:var(--good);margin-bottom:10px",
+              `font-family:var(--mono);font-size:11.5px;color:var(${readiness?.draftable ? "--good" : "--warn"});margin-bottom:10px`,
             )}
           >
-            {approvedCount} approved · beats derived · ready to draft.
+            {approvedCount} approved ·{" "}
+            {readiness?.draftable
+              ? "ready to draft scenes."
+              : readiness
+                ? "not ready to draft — see the gate below."
+                : "checking draft readiness…"}
           </div>
           {readiness && (
             <div
               style={css(
                 "border:1px solid var(--line);border-radius:9px;background:var(--bg2b);padding:12px 13px;margin-bottom:10px;font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.6",
               )}
+              data-testid="draft-gate-diagnostics"
             >
               <div>
-                Chapter packet: {readiness.chapter_packet_approved ? "approved" : "missing"}
+                chapter_packet_approved: {readiness.chapter_packet_approved ? "true" : "false"}
               </div>
-              <div>Scene packets: {(readiness.scene_packets.approved as number) ?? 0} approved</div>
               <div>
-                Beats linked: {(readiness.beats.linked as number) ?? 0}/
+                scene_packets_approved: {(readiness.scene_packets.approved as number) ?? 0}/
+                {(readiness.scene_packets.expected as number) ?? "?"}
+              </div>
+              {((readiness.scene_packets.stale as number) ?? 0) > 0 && (
+                <div>scene_packets_stale: {readiness.scene_packets.stale as number}</div>
+              )}
+              {((readiness.scene_packets.rate_limited as number) ?? 0) > 0 && (
+                <div style={css("color:var(--warn)")}>
+                  scene_packets_rate_limited: {readiness.scene_packets.rate_limited as number} ·
+                  transient provider 429 — re-derive to retry
+                </div>
+              )}
+              <div>
+                beats_linked: {(readiness.beats.linked as number) ?? 0}/
                 {(readiness.beats.approved as number) ?? 0}
               </div>
-              <div>Active draft jobs: {(readiness.jobs.active as number) ?? 0}</div>
+              <div>active_draft_jobs: {(readiness.jobs.active as number) ?? 0}</div>
+              <div>
+                prose_drafts: {(readiness.prose?.scenes_with_prose as number) ?? 0}/
+                {(readiness.prose?.expected_scenes as number) ?? "?"}
+                {(readiness.prose?.missing_scene_numbers?.length ?? 0) > 0
+                  ? ` (missing: ${readiness.prose!.missing_scene_numbers!.join(", ")})`
+                  : ""}
+              </div>
+              <div>can_draft: {readiness.draftable ? "true" : "false"}</div>
+              {!readiness.draftable && readiness.disabled_reason && (
+                <div style={css("color:var(--warn)")}>
+                  disabled_reason: {readiness.disabled_reason}
+                </div>
+              )}
             </div>
           )}
           <button
             disabled={drafting || !readiness?.draftable}
+            title={
+              readiness?.draftable
+                ? "Queue prose drafting jobs for every approved, undrafted scene"
+                : (readiness?.disabled_reason ?? "Checking draft readiness…")
+            }
             onClick={async () => {
               setDrafting(true);
               setError(null);
@@ -410,7 +482,7 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
             }}
             style={btn(!drafting && !!readiness?.draftable, t.accent, t.onAccent)}
           >
-            {drafting ? "Queuing…" : "Draft chapter"}
+            {drafting ? "Queuing…" : "Draft scenes"}
           </button>
           {readiness && !readiness.draftable && readiness.blockers.length > 0 && (
             <div style={css("margin-top:8px;font-size:11.5px;color:var(--warn);line-height:1.45")}>
@@ -439,7 +511,9 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
           {packets.map((p) => (
             <ScenePacketCard
               key={p.id}
-              packet={p}
+              summary={p}
+              full={fullPackets[p.id] ?? null}
+              onLoadFull={() => void loadFull(p.id)}
               busy={busy}
               scene={sceneByNo.get(p.scene_no) ?? null}
               exportingKind={exportingScene?.packetId === p.id ? exportingScene.kind : null}
@@ -475,7 +549,9 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
 }
 
 function ScenePacketCard({
-  packet,
+  summary,
+  full,
+  onLoadFull,
   busy,
   scene,
   exportingKind,
@@ -485,7 +561,9 @@ function ScenePacketCard({
   onSave,
   onDelete,
 }: {
-  packet: ScenePacketOut;
+  summary: ScenePacketSummaryOut;
+  full: ScenePacketOut | null;
+  onLoadFull: () => void;
   busy: string | null;
   scene: SceneOut | null;
   exportingKind: ExportKind | null;
@@ -497,36 +575,43 @@ function ScenePacketCard({
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const b: ScenePacketBody = packet.body ?? {};
+  // The collapsed row renders entirely from the slim summary; the full contract (body, QA report,
+  // sources) loads lazily on first expand/edit and is cached panel-side until the list reloads.
+  useEffect(() => {
+    if ((open || editing) && !full) onLoadFull();
+  }, [open, editing, full, onLoadFull]);
+
+  const b: ScenePacketBody = full?.body ?? {};
   const wb = b.word_budget ?? {};
   const known = b.known_before_scene ?? {};
   const learned = b.learned_during_scene ?? {};
   const hidden = b.must_remain_hidden ?? {};
-  const statusVar = STATUS_VAR[packet.status] ?? "--dim";
-  const isBlocked = packet.status === "blocked";
+  const statusVar = STATUS_VAR[summary.status] ?? "--dim";
+  const isBlocked = summary.status === "blocked";
+  const isRateLimited = summary.status === "rate_limited";
   const blockedReason =
-    packet.blocked_reason ??
-    packet.qa_warnings?.blocked_reason ??
-    b.blocked_reason ??
-    packet.approval_blockers?.[0] ??
+    summary.blocked_reason ??
+    summary.approval_blockers?.[0] ??
     "Blocked, but no reason was recorded. Re-run derive or inspect telemetry.";
-  const blockerLabel = packet.blocker_source
-    ? (BLOCKER_SOURCE_LABEL[packet.blocker_source] ?? packet.blocker_source)
+  const blockerLabel = summary.blocker_source
+    ? (BLOCKER_SOURCE_LABEL[summary.blocker_source] ?? summary.blocker_source)
     : null;
-  const qaApprovedWhileBlocked = isBlocked && packet.qa_verdict === "approve";
-  const bodyValid = validScenePacketBody(b);
-  const residual = packet.qa_warnings?.residual_risks ?? [];
-  const issues = packet.qa_warnings?.issues ?? [];
+  const qaApprovedWhileBlocked = isBlocked && summary.qa_verdict === "approve";
+  // Server-computed: the collapsed row has no body to test locally, and the gate must match the
+  // backend's own valid_scene_packet_body decision anyway.
+  const bodyValid = summary.body_valid;
+  const residual = full?.qa_warnings?.residual_risks ?? [];
+  const issues = full?.qa_warnings?.issues ?? [];
   // Deterministic-validation channel (distinct from QA `issues`). The backend collapses invalid
   // provenance into a single warn violation, so this is normally short and advisory.
-  const violations = packet.qa_warnings?.violations ?? [];
-  const reasons = packet.approval_blockers;
-  const canApprove = packet.can_approve;
-  const showBlockers = reasons.length > 0 && (packet.status === "proposed" || isBlocked);
+  const violations = full?.qa_warnings?.violations ?? [];
+  const reasons = summary.approval_blockers ?? [];
+  const canApprove = summary.can_approve;
+  const showBlockers = reasons.length > 0 && (summary.status === "proposed" || isBlocked);
 
   // Per-action busy flags (the panel keys busy as "<action>:<id>"). cardBusy disables every action on
   // this card while any one of them is in flight.
-  const mine = (action: string) => busy === `${action}:${packet.id}`;
+  const mine = (action: string) => busy === `${action}:${summary.id}`;
   const cardBusy = mine("approve") || mine("qa") || mine("save") || mine("delete");
 
   return (
@@ -540,7 +625,7 @@ function ScenePacketCard({
         onClick={() => setOpen((v) => !v)}
       >
         <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>
-          Scene {packet.scene_no}
+          Scene {summary.scene_no}
           {b.scene_type ? (
             <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
               {" "}
@@ -548,13 +633,18 @@ function ScenePacketCard({
             </span>
           ) : null}
         </span>
-        <Chip label={packet.status} colorVar={statusVar} />
-        {packet.qa_verdict && (
-          <Chip
-            label={`QA: ${packet.qa_verdict.replace(/_/g, " ")}`}
-            colorVar={isBlocked || packet.approval_blockers.length > 0 ? "--bad" : "--info"}
-          />
-        )}
+        {/* Three independent status axes, never merged: contract lifecycle, advisory QA verdict,
+            prose-draft state. "approved + QA: revise required" is a legitimate combination (QA never
+            gates approval) and must read as two facts, not one contradiction. */}
+        <Chip label={`contract: ${summary.status.replace(/_/g, " ")}`} colorVar={statusVar} />
+        <Chip
+          label={`QA: ${summary.qa_verdict ? summary.qa_verdict.replace(/_/g, " ") : "not run"}`}
+          colorVar={summary.qa_verdict ? (QA_VERDICT_VAR[summary.qa_verdict] ?? "--info") : "--dim"}
+        />
+        <Chip
+          label={`prose: ${summary.prose_state}`}
+          colorVar={PROSE_VAR[summary.prose_state] ?? "--dim"}
+        />
         {wb.target ? (
           <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
             ~{wb.target}w{wb.min || wb.max ? ` (${wb.min ?? "?"}–${wb.max ?? "?"})` : ""}
@@ -574,7 +664,7 @@ function ScenePacketCard({
               {mine("approve") ? "Approving…" : "Approve"}
             </button>
           )}
-          {!editing && packet.status !== "approved" && (
+          {!editing && summary.status !== "approved" && (
             <button
               disabled={cardBusy || !bodyValid}
               onClick={(e) => {
@@ -584,14 +674,18 @@ function ScenePacketCard({
               style={btn(!cardBusy && bodyValid, "var(--bg3)", "var(--ink)")}
               title={
                 bodyValid
-                  ? undefined
-                  : "Cannot rerun QA: this packet failed during author/derive and has no valid scene contract. Re-run derive instead."
+                  ? isRateLimited
+                    ? "The contract body is valid — re-running QA clears the transient rate-limit hold."
+                    : undefined
+                  : isRateLimited
+                    ? "Rate limited by provider; retry pending. Re-run derive to retry this scene — the contract was never generated."
+                    : "Cannot rerun QA: this packet failed during author/derive and has no valid scene contract. Re-run derive instead."
               }
             >
               {mine("qa") ? "Re-running QA…" : "Re-run QA"}
             </button>
           )}
-          {!editing && packet.status !== "approved" && (
+          {!editing && summary.status !== "approved" && (
             <button
               disabled={cardBusy}
               onClick={(e) => {
@@ -622,15 +716,32 @@ function ScenePacketCard({
         </span>
       </div>
 
-      {packet.status === "stale" && packet.stale_reason && (
+      {summary.status === "stale" && summary.stale_reason && (
         <div style={css("font-family:var(--mono);font-size:11px;color:var(--warn);margin-top:7px")}>
-          stale: {packet.stale_reason} — re-derive or re-approve before drafting.
+          stale: {summary.stale_reason} — re-derive or re-approve before drafting.
         </div>
       )}
-      {!editing && !bodyValid && packet.status !== "approved" && (
+      {!editing && !bodyValid && !isRateLimited && summary.status !== "approved" && (
         <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:7px")}>
           Cannot rerun QA: this packet failed during author/derive and has no valid scene contract.
           Re-run derive instead.
+        </div>
+      )}
+      {isRateLimited && (
+        <div
+          style={css(
+            "margin-top:9px;border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 7%,var(--bg2));border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:4px",
+          )}
+        >
+          <div style={css("font-family:var(--mono);font-size:11px;color:var(--warn)")}>
+            Rate limited by provider — transient infrastructure failure, not an author/QA failure:
+          </div>
+          <div style={css("font-size:12px;color:var(--ink);line-height:1.4")}>{blockedReason}</div>
+          <div style={css("font-size:12px;color:var(--dim);line-height:1.4")}>
+            {bodyValid
+              ? "The scene contract is valid — Re-run QA to clear this hold."
+              : "Re-derive to retry this scene (approved scenes are skipped automatically)."}
+          </div>
         </div>
       )}
       {isBlocked && (
@@ -660,9 +771,9 @@ function ScenePacketCard({
           )}
         >
           <div style={css("font-family:var(--mono);font-size:11px;color:var(--bad)")}>
-            {packet.blocker_source === "validation"
+            {summary.blocker_source === "validation"
               ? "Deterministic validation blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
-              : packet.blocker_source == null || packet.blocker_source === "qa"
+              : summary.blocker_source == null || summary.blocker_source === "qa"
                 ? "QA blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
                 : "Approval blocked — fix the contract below (Edit) and Re-run QA, or Re-derive:"}
           </div>
@@ -675,19 +786,30 @@ function ScenePacketCard({
       )}
 
       {editing ? (
-        <ScenePacketEditor
-          body={b}
-          issues={issues}
-          sources={packet.sources}
-          busy={mine("save")}
-          onSave={(body) => {
-            onSave(body);
-            setEditing(false);
-          }}
-          onCancel={() => setEditing(false)}
-        />
+        full ? (
+          <ScenePacketEditor
+            body={b}
+            issues={issues}
+            sources={full.sources}
+            busy={mine("save")}
+            onSave={(body) => {
+              onSave(body);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          <div style={css("margin-top:12px")}>
+            <Muted text="Loading contract…" />
+          </div>
+        )
       ) : (
-        open && (
+        open &&
+        (full == null ? (
+          <div style={css("margin-top:12px")}>
+            <Muted text="Loading contract…" />
+          </div>
+        ) : (
           <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px")}>
             {b.scene_job && (
               <div style={css("font-size:13px;color:var(--ink);line-height:1.45")}>
@@ -794,7 +916,7 @@ function ScenePacketCard({
             {/* Same three exports the Manuscript tab offers, once this scene has actually been
                 drafted — a scene packet is pre-prose planning JSON, so there's nothing to export
                 until drafting produces prose for it. */}
-            {packet.status === "approved" && (
+            {summary.status === "approved" && (
               <div
                 style={css(
                   "margin-top:4px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px",
@@ -832,9 +954,9 @@ function ScenePacketCard({
               </div>
             )}
 
-            <SourcesPanel sources={packet.sources} />
+            <SourcesPanel sources={full.sources} />
           </div>
-        )
+        ))
       )}
     </div>
   );

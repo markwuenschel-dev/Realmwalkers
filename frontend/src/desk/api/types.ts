@@ -76,15 +76,27 @@ export type DraftScheduleOut = {
   repaired_beats: number;
 };
 
+export type DraftReadinessProse = {
+  scenes_with_prose?: number;
+  expected_scenes?: number;
+  missing_scene_numbers?: number[];
+  assembly_ready?: boolean;
+};
+
 export type DraftReadinessOut = {
   chapter_id: string;
   chapter_packet_approved: boolean;
   scene_packets: Record<string, unknown>;
   beats: Record<string, unknown>;
   jobs: Record<string, unknown>;
+  prose?: DraftReadinessProse;
   draftable: boolean;
+  // Plain-language name of the FIRST failing draft gate; null when draftable.
+  disabled_reason?: string | null;
   blockers: DraftQueueBlockerOut[];
 };
+
+export type ScenePacketSummaryOut = S["ScenePacketSummaryOut"];
 export type CharacterStateOut = S["CharacterStateOut"];
 export type CanonEntityOut = S["CanonEntityOut"];
 export type CanonEntityIn = S["CanonEntityIn"];

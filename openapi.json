@@ -1811,6 +1811,54 @@
         }
       }
     },
+    "/chapters/{chapter_id}/scene-packets/summary": {
+      "get": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "List Scene Packet Summaries",
+        "description": "Slim list rows for the Desk (statuses/counters only \u2014 no bodies, QA reports, or sources), so the\nscene-packet list renders from a small payload; full packets load per-card via GET\n/scene-packets/{id}. Includes each scene's prose state (missing/drafting/drafted/failed) so the UI\ncan show contract, QA, and prose as the separate axes they are.",
+        "operationId": "list_scene_packet_summaries_chapters__chapter_id__scene_packets_summary_get",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScenePacketSummaryOut"
+                  },
+                  "title": "Response List Scene Packet Summaries Chapters  Chapter Id  Scene Packets Summary Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scene-packets/{scene_packet_id}": {
       "get": {
         "tags": [
@@ -10189,10 +10237,27 @@
             "title": "Jobs",
             "default": {}
           },
+          "prose": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Prose",
+            "default": {}
+          },
           "draftable": {
             "type": "boolean",
             "title": "Draftable",
             "default": false
+          },
+          "disabled_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled Reason"
           },
           "blockers": {
             "items": {
@@ -10207,7 +10272,8 @@
         "required": [
           "chapter_id"
         ],
-        "title": "DraftReadinessOut"
+        "title": "DraftReadinessOut",
+        "description": "Contract-first drafting gate diagnostics. `draftable` is the single gate the Draft button obeys;\n`disabled_reason` names the FIRST failing condition in plain language so the UI never shows a\ndisabled button (or a \"ready to draft\" claim) without an explanation. `prose` reports scene prose\ncoverage \u2014 `assembly_ready` is the production-assembly gate (all expected scenes have prose)."
       },
       "DraftScheduleOut": {
         "properties": {
@@ -13276,6 +13342,11 @@
             "title": "Stale",
             "default": 0
           },
+          "rate_limited": {
+            "type": "integer",
+            "title": "Rate Limited",
+            "default": 0
+          },
           "packets": {
             "items": {
               "$ref": "#/components/schemas/ScenePacketOut"
@@ -13552,6 +13623,129 @@
         ],
         "title": "ScenePacketQaOut",
         "description": "Result of running QA against one scene packet."
+      },
+      "ScenePacketSummaryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "scene_no": {
+            "type": "integer",
+            "title": "Scene No"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "qa_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qa Verdict"
+          },
+          "stale_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stale Reason"
+          },
+          "can_approve": {
+            "type": "boolean",
+            "title": "Can Approve",
+            "default": false
+          },
+          "approval_blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Approval Blockers",
+            "default": []
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "blocker_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocker Source"
+          },
+          "body_valid": {
+            "type": "boolean",
+            "title": "Body Valid",
+            "default": false
+          },
+          "violation_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Violation Counts",
+            "default": {}
+          },
+          "issue_count": {
+            "type": "integer",
+            "title": "Issue Count",
+            "default": 0
+          },
+          "prose_state": {
+            "type": "string",
+            "title": "Prose State",
+            "default": "missing"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "chapter_id",
+          "scene_no",
+          "status"
+        ],
+        "title": "ScenePacketSummaryOut",
+        "description": "Slim list row for the Desk scene-packet list: statuses and counters only \u2014 never the contract\nbody, QA report, or sources (those load per-packet via GET /scene-packets/{id} when a card opens).\nKeeps the list fetch small enough that tab switches render from a summary payload. The three\nstatus axes are DELIBERATELY separate: `status` is contract lifecycle, `qa_verdict` is the advisory\nQA opinion, `prose_state` is whether drafted prose exists \u2014 the UI must not merge them."
       },
       "ScenePacketUpdateIn": {
         "properties": {

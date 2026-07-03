@@ -331,6 +331,33 @@ class ScenePacketOut(_ORM):
     blocker_source: str | None = None  # author | qa | derive | unknown
 
 
+class ScenePacketSummaryOut(BaseModel):
+    """Slim list row for the Desk scene-packet list: statuses and counters only — never the contract
+    body, QA report, or sources (those load per-packet via GET /scene-packets/{id} when a card opens).
+    Keeps the list fetch small enough that tab switches render from a summary payload. The three
+    status axes are DELIBERATELY separate: `status` is contract lifecycle, `qa_verdict` is the advisory
+    QA opinion, `prose_state` is whether drafted prose exists — the UI must not merge them."""
+
+    id: uuid.UUID
+    chapter_id: uuid.UUID
+    scene_no: int
+    status: str  # proposed | approved | blocked | stale | rate_limited
+    qa_verdict: str | None = None
+    stale_reason: str | None = None
+    can_approve: bool = False
+    approval_blockers: list[str] = []
+    blocked_reason: str | None = None
+    blocker_source: str | None = None  # author | validation | qa | derive | rate_limit | unknown
+    # True when the persisted body is a usable scene contract (drives "re-run QA" availability
+    # without shipping the body itself).
+    body_valid: bool = False
+    # {"block": n, "repair": n, "warn": n} from persisted deterministic violations.
+    violation_counts: dict[str, int] = {}
+    issue_count: int = 0
+    prose_state: str = "missing"  # missing | drafting | drafted | failed
+    updated_at: datetime | None = None
+
+
 class ScenePacketUpdateIn(BaseModel):
     """PUT body to edit/adjudicate a scene packet. Editing the body after approval returns it to
     proposed unless status is explicitly set back to approved in the same call."""
@@ -346,6 +373,9 @@ class ScenePacketDeriveOut(BaseModel):
     updated: int = 0
     blocked: int = 0
     stale: int = 0
+    # Scenes whose author/QA call was refused by the provider (429 past retries) — transient
+    # infrastructure, retriable; NOT counted as blocked.
+    rate_limited: int = 0
     packets: list[ScenePacketOut] = []
     context_budget_report: dict[str, Any] | None = None
 
@@ -707,12 +737,19 @@ class DraftScheduleOut(BaseModel):
 
 
 class DraftReadinessOut(BaseModel):
+    """Contract-first drafting gate diagnostics. `draftable` is the single gate the Draft button obeys;
+    `disabled_reason` names the FIRST failing condition in plain language so the UI never shows a
+    disabled button (or a "ready to draft" claim) without an explanation. `prose` reports scene prose
+    coverage — `assembly_ready` is the production-assembly gate (all expected scenes have prose)."""
+
     chapter_id: uuid.UUID
     chapter_packet_approved: bool = False
     scene_packets: dict[str, object] = {}
     beats: dict[str, object] = {}
     jobs: dict[str, object] = {}
+    prose: dict[str, object] = {}
     draftable: bool = False
+    disabled_reason: str | None = None
     blockers: list[DraftQueueBlockerOut] = []
 
 

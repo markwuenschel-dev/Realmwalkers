@@ -617,6 +617,29 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/chapters/{chapter_id}/scene-packets/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Scene Packet Summaries
+     * @description Slim list rows for the Desk (statuses/counters only — no bodies, QA reports, or sources), so the
+     *     scene-packet list renders from a small payload; full packets load per-card via GET
+     *     /scene-packets/{id}. Includes each scene's prose state (missing/drafting/drafted/failed) so the UI
+     *     can show contract, QA, and prose as the separate axes they are.
+     */
+    get: operations["list_scene_packet_summaries_chapters__chapter_id__scene_packets_summary_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/scene-packets/{scene_packet_id}": {
     parameters: {
       query?: never;
@@ -3660,7 +3683,13 @@ export interface components {
       /** Required Action */
       required_action: string;
     };
-    /** DraftReadinessOut */
+    /**
+     * DraftReadinessOut
+     * @description Contract-first drafting gate diagnostics. `draftable` is the single gate the Draft button obeys;
+     *     `disabled_reason` names the FIRST failing condition in plain language so the UI never shows a
+     *     disabled button (or a "ready to draft" claim) without an explanation. `prose` reports scene prose
+     *     coverage — `assembly_ready` is the production-assembly gate (all expected scenes have prose).
+     */
     DraftReadinessOut: {
       /**
        * Chapter Id
@@ -3694,10 +3723,19 @@ export interface components {
         [key: string]: unknown;
       };
       /**
+       * Prose
+       * @default {}
+       */
+      prose: {
+        [key: string]: unknown;
+      };
+      /**
        * Draftable
        * @default false
        */
       draftable: boolean;
+      /** Disabled Reason */
+      disabled_reason?: string | null;
       /**
        * Blockers
        * @default []
@@ -5071,6 +5109,11 @@ export interface components {
        */
       stale: number;
       /**
+       * Rate Limited
+       * @default 0
+       */
+      rate_limited: number;
+      /**
        * Packets
        * @default []
        */
@@ -5189,6 +5232,72 @@ export interface components {
       warnings?: {
         [key: string]: unknown;
       } | null;
+    };
+    /**
+     * ScenePacketSummaryOut
+     * @description Slim list row for the Desk scene-packet list: statuses and counters only — never the contract
+     *     body, QA report, or sources (those load per-packet via GET /scene-packets/{id} when a card opens).
+     *     Keeps the list fetch small enough that tab switches render from a summary payload. The three
+     *     status axes are DELIBERATELY separate: `status` is contract lifecycle, `qa_verdict` is the advisory
+     *     QA opinion, `prose_state` is whether drafted prose exists — the UI must not merge them.
+     */
+    ScenePacketSummaryOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Scene No */
+      scene_no: number;
+      /** Status */
+      status: string;
+      /** Qa Verdict */
+      qa_verdict?: string | null;
+      /** Stale Reason */
+      stale_reason?: string | null;
+      /**
+       * Can Approve
+       * @default false
+       */
+      can_approve: boolean;
+      /**
+       * Approval Blockers
+       * @default []
+       */
+      approval_blockers: string[];
+      /** Blocked Reason */
+      blocked_reason?: string | null;
+      /** Blocker Source */
+      blocker_source?: string | null;
+      /**
+       * Body Valid
+       * @default false
+       */
+      body_valid: boolean;
+      /**
+       * Violation Counts
+       * @default {}
+       */
+      violation_counts: {
+        [key: string]: number;
+      };
+      /**
+       * Issue Count
+       * @default 0
+       */
+      issue_count: number;
+      /**
+       * Prose State
+       * @default missing
+       */
+      prose_state: string;
+      /** Updated At */
+      updated_at?: string | null;
     };
     /**
      * ScenePacketUpdateIn
@@ -6982,6 +7091,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DeleteScenePacketsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_scene_packet_summaries_chapters__chapter_id__scene_packets_summary_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketSummaryOut"][];
         };
       };
       /** @description Validation Error */

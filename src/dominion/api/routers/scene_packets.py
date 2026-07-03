@@ -25,8 +25,8 @@ from dominion.api.deps import SessionDep
 from dominion.api.packet_delete import hard_delete_scene_packet, hard_delete_scene_packets_for_chapter
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import ScenePacketStatus
-from dominion.shared.models import ChapterPacket, ScenePacket
+from dominion.shared.enums import JobKind, JobStatus, ScenePacketStatus
+from dominion.shared.models import ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.schemas import (
     DeleteScenePacketOut,
     DeleteScenePacketsOut,
@@ -35,11 +35,13 @@ from dominion.shared.schemas import (
     ScenePacketDeriveStatusOut,
     ScenePacketOut,
     ScenePacketQaOut,
+    ScenePacketSummaryOut,
     ScenePacketUpdateIn,
 )
 from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.budget import TokenBudget
+from dominion.workers.llm import LlmRateLimited
 from dominion.workers.packet import approval_policy as packet_approval
 from dominion.workers.scene_packet import approval_policy as sp_approval
 from dominion.workers.scene_packet import beats as beats_mod
@@ -133,6 +135,7 @@ async def derive_status(chapter_id: uuid.UUID, session: SessionDep) -> ScenePack
             updated=counts["updated"],
             blocked=counts["blocked"],
             stale=counts["stale"],
+            rate_limited=counts.get("rate_limited", 0),
             packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
             context_budget_report=counts.get("context_budget_report"),
         )
@@ -161,6 +164,7 @@ async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePac
         updated=counts["updated"],
         blocked=counts["blocked"],
         stale=counts["stale"],
+        rate_limited=counts.get("rate_limited", 0),
         packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
         context_budget_report=counts.get("context_budget_report"),
     )
@@ -178,6 +182,89 @@ async def list_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> list
         .all()
     )
     return [sp_approval.enrich_scene_packet_out(r) for r in rows]
+
+
+@router.get("/chapters/{chapter_id}/scene-packets/summary", response_model=list[ScenePacketSummaryOut])
+async def list_scene_packet_summaries(chapter_id: uuid.UUID, session: SessionDep) -> list[ScenePacketSummaryOut]:
+    """Slim list rows for the Desk (statuses/counters only — no bodies, QA reports, or sources), so the
+    scene-packet list renders from a small payload; full packets load per-card via GET
+    /scene-packets/{id}. Includes each scene's prose state (missing/drafting/drafted/failed) so the UI
+    can show contract, QA, and prose as the separate axes they are."""
+    rows = (
+        (
+            await session.execute(
+                select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    scene_rows = (
+        await session.execute(
+            select(Scene.scene_no, Scene.prose)
+            .where(Scene.chapter_id == chapter_id)
+            .order_by(Scene.scene_no, Scene.created_at)
+        )
+    ).all()
+    latest_prose: dict[int, str] = {}
+    for scene_no, prose in scene_rows:  # ordered by created_at — latest row per scene_no wins
+        latest_prose[scene_no] = prose or ""
+
+    job_rows = (
+        await session.execute(
+            select(Job.scene_packet_id, Job.status).where(
+                Job.chapter_id == chapter_id,
+                Job.kind == JobKind.DRAFT,
+                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
+            )
+        )
+    ).all()
+    active_jobs = {sp_id for sp_id, status in job_rows if sp_id and status in (JobStatus.QUEUED, JobStatus.RUNNING)}
+    failed_jobs = {sp_id for sp_id, status in job_rows if sp_id and status == JobStatus.FAILED}
+
+    def _prose_state(row: ScenePacket) -> str:
+        if latest_prose.get(row.scene_no, "").strip():
+            return "drafted"
+        if row.id in active_jobs:
+            return "drafting"
+        if row.id in failed_jobs:
+            return "failed"
+        return "missing"
+
+    out: list[ScenePacketSummaryOut] = []
+    for row in rows:
+        enriched = sp_approval.enrich_scene_packet_out(row)
+        warnings = row.qa_warnings if isinstance(row.qa_warnings, dict) else {}
+        raw_violations = warnings.get("violations")
+        violations = raw_violations if isinstance(raw_violations, list) else []
+        violation_counts: dict[str, int] = {}
+        for v in violations:
+            if isinstance(v, dict):
+                sev = str(v.get("severity") or "warn")
+                violation_counts[sev] = violation_counts.get(sev, 0) + 1
+        raw_issues = warnings.get("issues")
+        issues = raw_issues if isinstance(raw_issues, list) else []
+        out.append(
+            ScenePacketSummaryOut(
+                id=row.id,
+                chapter_id=row.chapter_id,
+                scene_no=row.scene_no,
+                status=str(row.status),
+                qa_verdict=str(row.qa_verdict) if row.qa_verdict else None,
+                stale_reason=row.stale_reason,
+                can_approve=enriched.can_approve,
+                approval_blockers=enriched.approval_blockers,
+                blocked_reason=enriched.blocked_reason,
+                blocker_source=enriched.blocker_source,
+                body_valid=valid_scene_packet_body(row.body),
+                violation_counts=violation_counts,
+                issue_count=len(issues),
+                prose_state=_prose_state(row),
+                updated_at=row.updated_at,
+            )
+        )
+    return out
 
 
 @router.get("/scene-packets/{scene_packet_id}", response_model=ScenePacketOut)
@@ -202,7 +289,9 @@ async def update_scene_packet(
         try:
             row.status = ScenePacketStatus(explicit_status)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail="status must be proposed|approved|blocked|stale") from exc
+            raise HTTPException(
+                status_code=422, detail="status must be proposed|approved|blocked|stale|rate_limited"
+            ) from exc
     await session.commit()
     await session.refresh(row)
     return sp_approval.enrich_scene_packet_out(row)
@@ -222,14 +311,22 @@ async def qa_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> Sc
     cp = await session.get(ChapterPacket, row.chapter_packet_id)
     if cp is not None:
         cp_body = cp.body
-    result = await qa_mod.qa_scene_packet(
-        row.body or {},
-        chapter_packet_body=cp_body,
-        budget=TokenBudget(
-            max_tokens=settings.scene_packet_manual_qa_token_budget,
-            hard_max_tokens=settings.scene_packet_manual_qa_hard_token_budget,
-        ),
-    )
+    try:
+        result = await qa_mod.qa_scene_packet(
+            row.body or {},
+            chapter_packet_body=cp_body,
+            budget=TokenBudget(
+                max_tokens=settings.scene_packet_manual_qa_token_budget,
+                hard_max_tokens=settings.scene_packet_manual_qa_hard_token_budget,
+            ),
+        )
+    except LlmRateLimited as exc:
+        # Transient provider refusal — do NOT fail the packet closed (apply_qa_rerun(None) would
+        # block it as "no usable verdict"). The packet is untouched; the human just retries.
+        raise HTTPException(
+            status_code=429,
+            detail=f"Provider rate limited the QA call — try again shortly. ({exc})",
+        ) from exc
     sp_approval.apply_qa_rerun(row, result)
     await session.commit()
     return ScenePacketQaOut(packet_id=row.id, verdict=str(row.qa_verdict), warnings=row.qa_warnings)

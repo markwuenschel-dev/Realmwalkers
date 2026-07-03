@@ -236,6 +236,11 @@ export const api = {
   // --- scene packets (scene-local contract; derive runs Author+QA per scene in the background) -----
   scenePackets: (chapterId: string) =>
     http<ScenePacketOut[]>(`/chapters/${chapterId}/scene-packets`),
+  // Slim list rows (statuses/counters only, no bodies) — the list view fetches these; full packets
+  // load per-card via scenePacket(id) when expanded, keeping tab switches off the heavy payload.
+  scenePacketSummaries: (chapterId: string) =>
+    http<import("./types").ScenePacketSummaryOut[]>(`/chapters/${chapterId}/scene-packets/summary`),
+  scenePacket: (id: string) => http<ScenePacketOut>(`/scene-packets/${id}`),
   deriveScenePackets: (chapterId: string) =>
     http<ScenePacketDeriveStatusOut>(`/chapters/${chapterId}/scene-packets/derive`, {
       method: "POST",

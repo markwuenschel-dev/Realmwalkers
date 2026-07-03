@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "../api/client";
 import type {
   ArtifactOut,
+  DraftReadinessOut,
   IssueOut,
   PacketOut,
   ProductionRunActionOut,
@@ -18,9 +19,12 @@ import ProseBlocks from "../components/ProseBlocks";
 import { Spinner } from "../components/DraftActivity";
 import {
   isNoApprovedPacketError,
+  packetAdvisories,
   packetBlockedGuidance,
   packetDraftBlockers,
   packetRepairTasks,
+  packetSurfaceAudit,
+  surfaceAuditSummary,
 } from "../lib/packetBlockers";
 import type { PacketViolation } from "../lib/packetBlockers";
 import { useDesk } from "../state";
@@ -124,6 +128,9 @@ export default function ProductionScreen() {
   const [startBlocked, setStartBlocked] = useState(false);
   const [gatePacket, setGatePacket] = useState<PacketOut | null>(null);
   const [gatePacketLoaded, setGatePacketLoaded] = useState(false);
+  // Prose coverage for the assembly gate: a run only concatenates EXISTING scene prose, so starting
+  // one with missing scenes just manufactures missing_scene issues. Disable until coverage is full.
+  const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
 
   const loadDetail = useCallback(async (targetRunId: string | null) => {
     if (!targetRunId) {
@@ -168,6 +175,25 @@ export default function ProductionScreen() {
     if (!chapterId) return;
     void loadRuns(chapterId);
   }, [chapterId, loadRuns]);
+
+  useEffect(() => {
+    if (!chapterId) {
+      setReadiness(null);
+      return;
+    }
+    let alive = true;
+    api
+      .draftReadiness(chapterId)
+      .then((out) => {
+        if (alive) setReadiness(out);
+      })
+      .catch(() => {
+        if (alive) setReadiness(null); // unknown coverage: don't dead-lock the button on a fetch blip
+      });
+    return () => {
+      alive = false;
+    };
+  }, [chapterId, runs]); // re-check after run refreshes so newly drafted scenes unlock the button
 
   useEffect(() => {
     if (!runId) {
@@ -264,6 +290,13 @@ export default function ProductionScreen() {
     ? detail?.chapter_sequence?.body?.scenes
     : [];
 
+  // Assembly gate: "Assemble chapter" concatenates EXISTING prose only (it never drafts scenes), so
+  // it stays disabled until every expected scene has prose. When readiness is unknown (fetch blip)
+  // the button stays usable — the backend still fails safe with missing_scene issues.
+  const prose = readiness?.prose;
+  const missingProse = prose?.missing_scene_numbers ?? [];
+  const assemblyBlocked = prose != null && prose.assembly_ready !== true;
+
   return (
     <div style={css("display:flex;flex-direction:column;gap:18px")}>
       <div
@@ -301,13 +334,18 @@ export default function ProductionScreen() {
             ))}
           </select>
           <button
-            disabled={!chapterId || busy === "start"}
+            disabled={!chapterId || busy === "start" || assemblyBlocked}
+            title={
+              assemblyBlocked
+                ? `Draft scenes first — ${missingProse.length} scene(s) have no prose draft yet`
+                : "Assemble existing scene prose into a chapter draft and run chapter QA"
+            }
             onClick={() => void startRun()}
             style={css(
-              `height:34px;padding:0 14px;border:none;border-radius:9px;background:${t.accent};color:${t.onAccent};font-family:var(--ui);font-size:12.5px;cursor:${!chapterId || busy === "start" ? "default" : "pointer"}`,
+              `height:34px;padding:0 14px;border:none;border-radius:9px;background:${t.accent};color:${t.onAccent};font-family:var(--ui);font-size:12.5px;opacity:${assemblyBlocked ? "0.55" : "1"};cursor:${!chapterId || busy === "start" || assemblyBlocked ? "default" : "pointer"}`,
             )}
           >
-            {busy === "start" ? "Starting…" : "Start run"}
+            {busy === "start" ? "Assembling…" : "Assemble chapter"}
           </button>
           <button
             disabled={!chapterId || loading}
@@ -328,6 +366,34 @@ export default function ProductionScreen() {
           )}
         >
           {error}
+        </div>
+      )}
+
+      {assemblyBlocked && (
+        <div
+          style={css(
+            "border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg2));border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px",
+          )}
+          data-testid="assembly-gate"
+        >
+          <div style={css("font-size:13px;color:var(--ink)")}>
+            Draft scenes first — assembly only stitches existing scene prose.{" "}
+            {prose?.scenes_with_prose ?? 0}/{prose?.expected_scenes ?? 0} scenes have prose
+            {missingProse.length > 0 ? ` (missing: ${missingProse.join(", ")})` : ""}.
+          </div>
+          <div style={css("display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
+            <button
+              onClick={() => router.push(chapterId ? `/packets?chapter=${chapterId}` : "/packets")}
+              style={css(
+                `height:30px;padding:0 14px;border:none;border-radius:9px;background:${t.accent};color:${t.onAccent};font-family:var(--ui);font-size:12.5px;cursor:pointer`,
+              )}
+            >
+              Draft scenes
+            </button>
+            <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+              opens the scene packets panel — draft the missing scenes, then assemble
+            </span>
+          </div>
         </div>
       )}
 
@@ -674,6 +740,9 @@ function ProductionGatePanel({
   const guidance = packet?.status === "blocked" ? packetBlockedGuidance(packet) : null;
   const blockers = packet ? packetDraftBlockers(packet.qa_warnings) : [];
   const repairs = packet ? packetRepairTasks(packet.qa_warnings) : [];
+  const advisories = packet ? packetAdvisories(packet.qa_warnings) : [];
+  const audit = packet ? packetSurfaceAudit(packet.qa_warnings) : [];
+  const [auditOpen, setAuditOpen] = useState(false);
 
   let lead: string;
   if (!packetLoaded) {
@@ -741,6 +810,42 @@ function ProductionGatePanel({
             Repair tasks never block approval or drafting — approve the packet and drafting can
             proceed. Final export waits until they are resolved.
           </div>
+        </div>
+      )}
+
+      {advisories.length > 0 && (
+        <div>
+          <div style={css(SMALL)}>Advisory · {advisories.length}</div>
+          <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
+            {advisories.map((v, i) => (
+              <ViolationRow key={i} violation={v} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {audit.length > 0 && (
+        <div>
+          <button
+            onClick={() => setAuditOpen((v) => !v)}
+            style={css(
+              "display:flex;align-items:center;gap:8px;background:none;border:none;padding:0;cursor:pointer;text-align:left",
+            )}
+          >
+            <span style={css(SMALL)}>
+              {auditOpen ? "▾" : "▸"} Surface projection audit · {audit.length}
+            </span>
+          </button>
+          <div style={css("margin-top:4px;font-size:12.5px;color:var(--dim)")}>
+            {surfaceAuditSummary(audit)}
+          </div>
+          {auditOpen && (
+            <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
+              {audit.map((v, i) => (
+                <ViolationRow key={i} violation={v} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

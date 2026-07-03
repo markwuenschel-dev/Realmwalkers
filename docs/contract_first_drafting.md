@@ -9,8 +9,12 @@ Canonical design for draft job queueing. Every path that creates, requeues, or r
 3. Derive ScenePackets
 4. Approve ScenePackets
 5. Beats derive from approved ScenePackets (`derive_beats`)
-6. **Draft Chapter** queues jobs stamped with `scene_packet_id`
+6. **Draft scenes** (Desk button on the Scene Packets panel; `POST /chapters/{id}/draft`) queues jobs stamped with `scene_packet_id`
 7. Draft worker assembles context from approved ScenePacket
+
+Production's **Assemble chapter** (`POST /production-runs`) is downstream of all of this: it only
+stitches EXISTING scene prose into a chapter draft + QA. It never drafts scenes, so the Desk
+disables it until every expected scene has prose (`draft/readiness` → `prose.assembly_ready`).
 
 Beats are downstream artifacts, not the author-facing drafting gate.
 
