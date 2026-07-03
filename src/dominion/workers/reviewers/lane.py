@@ -99,3 +99,39 @@ async def lane_review(scene_prose: str, ctx: SceneContext, *, name: str, focus: 
             )
         )
     return flags
+
+
+# --- Review lane singletons (DESIGN §6, OPEN-8) ---------------------------------------------------
+# The combat / sensory / dialogue lanes are one shape (`lane_review`) differing only in their focus.
+# router.py imports these singletons directly; each fires only when the beat carries its tag.
+
+_COMBAT_FOCUS = (
+    "the fight choreography — confusing spatial geography (who is where, what moves), blows that do not "
+    "connect or land logically, and action that contradicts the combatants' established stats or abilities"
+)
+
+_DIALOGUE_FOCUS = (
+    "the dialogue — flat or interchangeable voices, on-the-nose lines that state what should be subtext, "
+    "and exchanges that do not land or carry the weight the moment needs"
+)
+
+_SENSORY_FOCUS = (
+    "the concreteness of sensory grounding — passages that stay abstract, generic, or told where specific "
+    "physical sense detail (sight, sound, smell, taste, touch) is called for"
+)
+
+
+class _LaneReviewer:
+    """One tag-gated advisory review lane assessing a single `focus` dimension (never blocks, never HARD)."""
+
+    def __init__(self, name: str, focus: str) -> None:
+        self.name = name
+        self._focus = focus
+
+    async def review(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
+        return await lane_review(scene_prose, ctx, name=self.name, focus=self._focus)
+
+
+combat_reviewer = _LaneReviewer("combat", _COMBAT_FOCUS)
+dialogue_reviewer = _LaneReviewer("dialogue", _DIALOGUE_FOCUS)
+sensory_reviewer = _LaneReviewer("sensory", _SENSORY_FOCUS)
