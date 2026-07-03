@@ -10,46 +10,46 @@ Success metric, the only one tracked: **scenes you've approved.** Not PRs, not g
 
 ---
 
-## 1. Topology — two independent systems
+## 1. Topology — one deployable system
 
 ```
-NOVEL SYSTEM  (one repo, several processes, one Postgres)
-┌───────────────────────────────────────────────────────────────┐
-│  React (Vite) review app ──HTTPS──► FastAPI ──────► Postgres    │
-│    • inbox (pending scenes)          (thin layer)   (+ pgvector)│
-│    • scene view + advisory flags     read queue     SOURCE OF   │
-│    • continuity panel (resolve)      write decisions  TRUTH     │
-│    • hand-edit prose                 enqueue jobs               │
-│    • start-run controls (scope+gate)                           │
-│    • beat-approval surface (gate 1)                            │
-└──────────────────────────────────────────────┬────────────────┘
-                                                │ claim job / write scene
-                                      ┌─────────▼──────────┐
-                                      │  Python worker(s)   │
-                                      │  one scene → EXIT   │
-                                      │  router + specialists│
-                                      └─────────────────────┘
-
-SHOWCASE SITE  (fully separate — the decoupling IS the fix)
-┌──────────────────────────────────────────────┐
-│  Astro (own repo) → GH Pages + Netlify         │
-│    hand-authored: about / story / characters   │
-│    [someday: read-only published-canon endpoint]│
-└──────────────────────────────────────────────┘
+NOVEL SYSTEM  (one repo, ONE Railway container, one Postgres)
+┌──────────────────────────────────────────────────────────────────┐
+│  Next.js Writers' Desk ──/api/desk/*──► FastAPI ────► Postgres   │
+│   (BFF, same-origin proxy)             (thin layer)  (+pgvector) │
+│    • inbox (pending scenes)             read queue    SOURCE OF  │
+│    • scene view + advisory flags        write decisions  TRUTH   │
+│    • continuity panel (resolve)         queue draft jobs         │
+│    • hand-edit prose                                             │
+│    • packet approval surfaces (gates 1a/1b)                      │
+└──────────────────────────────────────────────┬───────────────────┘
+                                               │ claim job / write scene
+                                     ┌─────────▼────────────┐
+                                     │  draft worker        │
+                                     │  (single-flight      │
+                                     │   background task)   │
+                                     │  one scene → done    │
+                                     │  router + specialists│
+                                     └──────────────────────┘
 ```
 
-The ~20-min generation **never** runs in FastAPI or any request handler. FastAPI is a thin DB-facing API; the worker is a separate persistent process that generates exactly one scene and exits. "Many workers" = N identical copies of that one worker for throughput/resilience, **not** N bespoke services.
+Everything ships as a **single container** on Railway: the Dockerfile builds the Next.js frontend
+(standalone output) and runs it alongside FastAPI — Next serves the public port and proxies
+same-origin `/api/desk/*` to FastAPI on an internal port, so there is no separate API host and no
+CORS (see [`DEPLOY.md`](DEPLOY.md)). The ~20-min generation **never** runs in a request handler.
+FastAPI is a thin DB-facing API; drafting runs as a browser-triggered, single-flight background
+task (`POST /jobs/draft-next` drains the queue) that generates exactly one scene at a time and
+stops — no separate worker service, and nothing resident between approvals.
 
 ---
 
-## 2. Repos & deployment
+## 2. Repo & deployment
 
 | Repo | Contents | Deploy |
 |---|---|---|
-| `dominion-novel` | `frontend/` (React+Vite), `api/` (FastAPI), `workers/` (Python), `shared/` (schema + Pydantic models used by both api and workers) | frontend → static host; api+workers → persistent box (Fly/Render/VPS); Postgres → managed |
-| `dominion-showcase` | Astro site, MDX content | GH Pages **+** Netlify |
+| `Realmwalkers` (this monorepo) | `frontend/` (Next.js BFF + Writers' Desk), `src/dominion/` (`api/` FastAPI, `workers/` Python, `shared/` schema + Pydantic models used by both), `series/` + `book1/` (authored canon) | one Railway service built from the `Dockerfile` (Next standalone + FastAPI in a single container); Postgres → Railway managed (pgvector, persistent volume) |
 
-`api/` and `workers/` co-locate deliberately: they share one Postgres schema and one set of Python models, so there's nothing to keep in sync across languages. The showcase is its own repo, never nested in the book — that's the specific mess from last time, fixed by total separation.
+`api/` and `workers/` co-locate deliberately: they share one Postgres schema and one set of Python models, so there's nothing to keep in sync across languages. There is no separate frontend host and no separate worker box — one container, one URL (see [`DEPLOY.md`](DEPLOY.md)).
 
 ---
 
@@ -208,20 +208,25 @@ create table approvals (
 START RUN: "draft chapter 4"
    │
    ▼
-┌─ GATE 1: BEATS ─────────────────────────────────────────────┐
+┌─ GATE 1: CONTRACTS (chapter packet → scene packets) ────────┐
 │ you write the chapter outline (+ assign its POV)             │
-│   → plan-call PROPOSES per-scene beats, each carrying its     │
-│     declared expected_state_changes and any knowledge_inject  │
-│   → beats land for YOUR approval; you edit/approve            │
-│   → only then are scene-draft jobs enqueued                   │
-│ (single bounded call; not a resident planner)                 │
+│   → a bounded call PROPOSES the ChapterPacket (the chapter's │
+│     knowledge contract); agents QA it; YOU edit/approve      │
+│   → ScenePackets are derived per scene (reader/POV/reveal/   │
+│     word contracts) and QA'd; YOU edit/approve each          │
+│   → beats (expected_state_changes, knowledge_injections)     │
+│     derive from the approved ScenePackets; only then does    │
+│     Draft Chapter queue scene jobs, each stamped with its    │
+│     scene_packet_id — see contract_first_drafting.md         │
+│ (bounded calls per request; not a resident planner)          │
 └───────────────────────────────────────────────────────────┘
    │
    ▼  per scene (in pause_each or draft_ahead)
 ┌─ GENERATE ONE SCENE ────────────────────────────────────────┐
 │ load context (POV-scoped):                                    │
 │   POV voice_spec + exemplars · POV rolling summary ·          │
-│   beat (tags, declared deltas, chars) · beat-scoped canon ·   │
+│   approved ScenePacket contract + its derived beat            │
+│   (tags, declared deltas, chars) · beat-scoped canon ·        │
 │   current ledger (Oracle read) · prior scene tail (in-chapter)│
 │ Drafter writes the whole scene  ── one continuous spine       │
 │   → if 'combat':               Combat pass sharpens fight     │
@@ -289,7 +294,7 @@ def generate_one_scene(job, beat, ctx):
     return                                           # process exits
 ```
 
-The only LLM that touches the *plan* is the gate-1 plan-call that proposes beats from your chapter outline. It runs once per run and is gone. It is not a standing process.
+The only LLMs that touch the *plan* are the bounded gate-1 packet calls — ChapterPacket author/QA, then ScenePacket author/QA (beats are derived deterministically from the approved ScenePackets; see [`contract_first_drafting.md`](contract_first_drafting.md)). Each runs per request and is gone. None is a standing process.
 
 ---
 
@@ -355,7 +360,7 @@ The inbox scene view offers:
 
 ```powershell
 # run worker for one cycle (one queued scene, then exits)
-python -m dominion.worker --once
+python -m dominion.workers.worker --once
 # kill a hung generation
 Get-Process python | Where-Object { $_.CommandLine -like '*dominion*' } | Stop-Process
 # tail structured logs
@@ -389,7 +394,7 @@ The Desk `/settings` screen is an **agent operations panel**, not a bare model p
 
 ## 13. Showcase site
 
-Astro, own repo, GH Pages + Netlify, hand-authored MDX (about / story / characters / art). Fully decoupled. Optional someday: pull `published = true` canon/scenes through a read-only endpoint so it stays in sync. `published` is distinct from `approved` (approving for the manuscript ≠ clearing spoilers for the public); the flag exists in the schema now, unused until Phase 4.
+Not built — and no longer a separate system. The original plan (Astro, own repo, GH Pages + Netlify) was dropped; the only deployment is the single Railway container (§1/§2). If a public showcase ever happens, it pulls `published = true` canon/scenes through a read-only endpoint. `published` is distinct from `approved` (approving for the manuscript ≠ clearing spoilers for the public); the flag exists in the schema now, unused.
 
 ---
 
