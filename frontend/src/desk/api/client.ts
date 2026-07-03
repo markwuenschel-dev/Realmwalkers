@@ -13,10 +13,14 @@ import type {
   BookOut,
   BookTelemetryOut,
   ChapterTelemetryOut,
+  CanonBulkDeleteOut,
+  CanonCleanupIn,
+  CanonCleanupPreviewOut,
   CanonEntityIn,
   CanonEntityOut,
   CanonEntityUpdateIn,
   CanonIngestOut,
+  CanonRetireOut,
   ChapterCreateIn,
   ChapterOut,
   ChapterUpdateIn,
@@ -424,6 +428,12 @@ export const api = {
     }),
   canon: (bookId: string, kind?: string) =>
     http<CanonEntityOut[]>(`/books/${bookId}/canon${qs({ kind })}`),
+  // Filtered canon list for the Ledger cleanup UI. `status` defaults to active server-side; pass
+  // stale|retired|all to surface hidden rows, and `source` to scope by provenance.
+  listCanon: (bookId: string, opts?: { status?: string; source?: string; kind?: string }) =>
+    http<CanonEntityOut[]>(
+      `/books/${bookId}/canon${qs({ status: opts?.status, source: opts?.source, kind: opts?.kind })}`,
+    ),
   createCanon: (bookId: string, body: CanonEntityIn) =>
     http<CanonEntityOut>(`/books/${bookId}/canon`, { method: "POST", body: JSON.stringify(body) }),
   updateCanon: (id: string, body: CanonEntityUpdateIn) =>
@@ -431,6 +441,29 @@ export const api = {
   deleteCanon: (id: string) => http<{ deleted: string }>(`/canon/${id}`, { method: "DELETE" }),
   ingestCanon: (bookId: string) =>
     http<CanonIngestOut>(`/books/${bookId}/canon/ingest`, { method: "POST" }),
+  // --- stale-canon cleanup (Workstream H): preview -> soft retire / hard bulk delete / rebuild -----
+  // Dry-run: report what the same selection would retire/delete (manual rows protected). Mutates nothing.
+  canonCleanupPreview: (bookId: string, req: CanonCleanupIn) =>
+    http<CanonCleanupPreviewOut>(`/books/${bookId}/canon/cleanup-preview`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
+  // Soft retire (status -> 'retired'; reversible). Manual-source rows protected unless their id is listed.
+  retireCanon: (bookId: string, req: CanonCleanupIn) =>
+    http<CanonRetireOut>(`/books/${bookId}/canon/retire`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
+  // Hard bulk delete. Manual-source rows protected unless their id is listed (single DELETE /canon/{id}
+  // has no protection).
+  bulkDeleteCanon: (bookId: string, req: CanonCleanupIn) =>
+    http<CanonBulkDeleteOut>(`/books/${bookId}/canon`, {
+      method: "DELETE",
+      body: JSON.stringify(req),
+    }),
+  // Clean rebuild of repo-ingested canon from on-disk docs (hand-authored / manual rows untouched).
+  rebuildCanon: (bookId: string) =>
+    http<CanonIngestOut>(`/books/${bookId}/canon/rebuild`, { method: "POST" }),
 
   // --- world threads (curated) --------------------------------------------------------------------
   threads: (bookId: string) => http<ThreadOut[]>(`/books/${bookId}/threads`),
