@@ -1596,7 +1596,7 @@
           "packets"
         ],
         "summary": "Approve Packet",
-        "description": "Approve the packet so drafting may proceed. Refused when blocked, red-confidence, or open\nquestions remain (no auto-approve during tuning \u2014 even a green packet needs this human action).",
+        "description": "Approve the packet so drafting may proceed. Refused only when the packet is blocked or open\nquestions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves\n(approve-with-repairs \u2014 repairs still gate final export). No auto-approve during tuning: even a\ngreen packet needs this human action.",
         "operationId": "approve_packet_chapters__chapter_id__packet_approve_post",
         "parameters": [
           {
