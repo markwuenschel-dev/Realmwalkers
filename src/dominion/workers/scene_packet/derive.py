@@ -92,10 +92,11 @@ async def _author_then_qa(
     mislabeling a deterministic block as a QA block.
 
     Deterministic evaluation runs BEFORE QA and is WRITER-FIRST: it normalizes optional provenance (an
-    invalid claim source_id is nulled + warned, never blocked) and hard-blocks only true draft-safety
-    failures — a malformed body, an unrecoverable budget/scene_no, an absent character on-page. Only a
-    hard blocker skips QA (no point attacking a packet that can't be drafted); a warning-only packet still
-    runs QA and stays PROPOSED.
+    invalid claim source_id is nulled + warned, never blocked) and hard-blocks only true blockers — a
+    malformed body, an unrecoverable budget/scene_no. Fixable defects (an absent character on-page, a
+    reader/POV leak) become repair tasks that ride along in the persisted violations and gate final
+    export only. Only a hard blocker skips QA (no point attacking a packet that can't be drafted); a
+    repair/warn-only packet still runs QA and stays PROPOSED.
 
     Each call runs inside a telemetry `call_context` tagged with this scene's dimensions, so its cache/
     usage/truncation lands in the shared `sink` (persisted later) under the right stage + scene."""
@@ -147,9 +148,10 @@ async def _author_then_qa(
     if isinstance(scene_body, dict) and valid_scene_packet_body(scene_body):
         # Writer-first deterministic evaluation: stamp the facts the planner/seed own (word_budget,
         # scene_no) server-side, normalize optional provenance (invalid source ids -> null + one warning),
-        # then run the contract checks — all in one place. Only a true draft-safety failure hard-blocks;
-        # a warning-only packet still runs QA and stays PROPOSED. `normalized_body` is what we persist and
-        # QA attacks, so a sloppy model echo of a deterministic field can never block on its own.
+        # then run the contract checks — all in one place. Only a true blocker hard-blocks; a repair/
+        # warn-only packet still runs QA and stays PROPOSED (repairs gate final export, not drafting).
+        # `normalized_body` is what we persist and QA attacks, so a sloppy model echo of a deterministic
+        # field can never block on its own.
         result = evaluate_scene_packet(
             body=scene_body,
             chapter_packet_body=chapter_packet_body,
@@ -605,14 +607,14 @@ async def derive_scene_packets(
         )
         if status == ScenePacketStatus.BLOCKED and blocked_reason:
             qa_warnings = {**qa_warnings, "blocked_reason": blocked_reason}
-        # Surface deterministic contract violations (block + warn) on the packet so the editor sees the
-        # concrete failure ("absent character on-page") or advisory ("12 source ids normalized") instead
-        # of only a generic verdict.
+        # Surface deterministic contract violations (block + repair + warn) on the packet so the editor
+        # sees the concrete repair task ("absent character on-page") or advisory ("12 source ids
+        # normalized") instead of only a generic verdict.
         if violations:
             qa_warnings = {**qa_warnings, "violations": violations}
         # Persist WHICH gate blocked (author | validation | qa) so the UI stops mislabeling a deterministic
-        # block as a QA block. A blocked packet with no attributed source (QA returned a block-drafting
-        # verdict, so _author_then_qa left it None) is a genuine QA block.
+        # block as a QA block. QA verdicts are advisory now, so the only "qa" blocks left are QA calls
+        # that failed to return a usable verdict (fail closed on infrastructure).
         if status == ScenePacketStatus.BLOCKED:
             qa_warnings = {**qa_warnings, "blocker_source": blocker_source or "qa"}
 

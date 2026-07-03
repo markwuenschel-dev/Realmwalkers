@@ -262,10 +262,11 @@ async def _proposed_scene_packet(s, book, ch, cp, *, verdict, warnings) -> Scene
     return sp
 
 
-async def test_proposed_packet_with_blocking_qa_cannot_be_approved(db_factory):
-    """The gap that produced the silent 409: a packet that is PROPOSED (not BLOCKED) but whose QA gates
-    drafting. `_has_blocking_qa` must refuse it for a revise_required verdict AND for a block-severity
-    issue even under a non-blocking verdict (approve_warn). Mirrors the frontend's blockingQa()."""
+async def test_proposed_packet_with_advisory_qa_is_approvable(db_factory, monkeypatch):
+    """QA is advisory: a PROPOSED packet with a revise_required verdict — or a legacy block-severity
+    issue under approve_warn — is approvable (approve-with-repairs; repairs gate final export, not
+    approval). Only a BLOCKED packet still 409s."""
+    _patch_scene_agents(monkeypatch, _scene_body())  # approval derives the beat
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
         cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
@@ -278,13 +279,12 @@ async def test_proposed_packet_with_blocking_qa_cannot_be_approved(db_factory):
             verdict=ScenePacketVerdict.REVISE_REQUIRED,
             warnings={"residual_risks": [], "issues": []},
         )
-        with pytest.raises(HTTPException) as exc:
-            await sp_router.approve_scene_packet(revise.id, s)
-        assert exc.value.status_code == 409
+        await sp_router.approve_scene_packet(revise.id, s)
+        assert (await s.get(ScenePacket, revise.id)).status == ScenePacketStatus.APPROVED
 
-        # approve_warn verdict, but an issue is severity:"block" -> still gated (the trap that read as
-        # an enabled Approve button on the old frontend).
-        warn_but_blocked = await _proposed_scene_packet(
+        # approve_warn verdict with a legacy block-severity issue (persisted before the LLM cap) — the
+        # issue is repair-level under the new policy, so approval proceeds.
+        warn_with_legacy_block_issue = await _proposed_scene_packet(
             s,
             book,
             ch,
@@ -292,8 +292,27 @@ async def test_proposed_packet_with_blocking_qa_cannot_be_approved(db_factory):
             verdict=ScenePacketVerdict.APPROVE_WARN,
             warnings={"residual_risks": [], "issues": [{"kind": "leak", "detail": "x", "severity": "block"}]},
         )
+        await sp_router.approve_scene_packet(warn_with_legacy_block_issue.id, s)
+        assert (await s.get(ScenePacket, warn_with_legacy_block_issue.id)).status == ScenePacketStatus.APPROVED
+
+
+async def test_blocked_packet_cannot_be_approved(db_factory):
+    """Behavior-freeze: a BLOCKED scene packet (deterministic/author/infrastructure gate) still 409s."""
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        blocked = await _proposed_scene_packet(
+            s,
+            book,
+            ch,
+            cp,
+            verdict=ScenePacketVerdict.BLOCK_DRAFTING,
+            warnings={"residual_risks": [], "blocked_reason": "author returned thin body", "blocker_source": "author"},
+        )
+        blocked.status = ScenePacketStatus.BLOCKED
+        await s.flush()
         with pytest.raises(HTTPException) as exc:
-            await sp_router.approve_scene_packet(warn_but_blocked.id, s)
+            await sp_router.approve_scene_packet(blocked.id, s)
         assert exc.value.status_code == 409
 
 

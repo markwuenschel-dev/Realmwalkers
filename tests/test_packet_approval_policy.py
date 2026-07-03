@@ -43,6 +43,22 @@ def test_can_approve_clean_proposed():
     assert approval_policy.can_approve(_packet()) is None
 
 
+def test_red_confidence_is_advisory_not_a_gate():
+    # Confidence comes from LLM signals (author self-assessment / QA verdict floor). It is shown to the
+    # human, never a gate: a red, repair-laden packet is approvable (approve-with-repairs).
+    p = _packet(
+        confidence=PacketConfidence.RED,
+        qa_warnings={
+            "residual_risks": [],
+            "issues": [{"kind": "leak", "detail": "x", "severity": "repair", "blocks_drafting": False}],
+            "violations": [{"kind": "roster_double_bucketed", "severity": "repair", "blocks_drafting": False}],
+        },
+    )
+    assert approval_policy.can_approve(p) is None
+    out = approval_policy.enrich_packet_out(p)
+    assert out.can_approve is True
+
+
 def test_can_derive_scene_packets_requires_approved():
     p = _packet(status=PacketStatus.PROPOSED)
     refusal = approval_policy.can_derive_scene_packets(p)

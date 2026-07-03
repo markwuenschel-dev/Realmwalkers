@@ -446,32 +446,13 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
             },
         )
 
+    # QA is advisory: even a BLOCK_DRAFTING verdict yields a proposed packet (red confidence, issues
+    # persisted as repair tasks). Only the deterministic fail-closed paths above may block.
     confidence, status = approval_policy.status_from_qa(packet, qa)
     qa_warnings: dict[str, Any] = {"residual_risks": qa["residual_risks"], "issues": qa["issues"]}
-    if qa["verdict"] == PacketVerdict.BLOCK_DRAFTING:
-        blocking_detail = "Packet QA blocked drafting."
-        issues = qa.get("issues")
-        if isinstance(issues, list):
-            for issue in issues:
-                if isinstance(issue, dict) and issue.get("severity") == "block":
-                    blocking_detail = str(issue.get("detail") or blocking_detail)
-                    break
-        qa_warnings.update(
-            {
-                "blocked_reason": blocking_detail,
-                "blocker_source": "qa",
-                "blocker_kind": "block_drafting",
-                "recovery_actions": _QA_FAILURE_ACTIONS,
-                "blocker_diagnostics": {
-                    "stage": "packet_qa",
-                    "model": settings.packet_qa_model,
-                    "verdict": str(qa["verdict"]),
-                },
-            }
-        )
     if violations:
-        # Only warn-severity violations reach here (any block already returned above), surfaced
-        # alongside QA's own findings so the editor sees both channels.
+        # Only repair- and warn-severity violations reach here (any block already returned above),
+        # surfaced alongside QA's own findings so the editor sees both channels.
         qa_warnings["violations"] = [v.as_dict() for v in violations]
     row = ChapterPacket(
         book_id=book_id,

@@ -55,11 +55,32 @@ def test_invalid_source_handle_warns_not_blocks():
     assert not any(x.severity == "block" for x in v)
 
 
-def test_absent_character_on_page_blocks_required_beat():
+def test_absent_character_on_page_is_repair_task():
+    # A fixable roster/beat mis-bucket: a repair task routed to the author (gates final export), never
+    # a drafting block.
     body = _body(required_beats=["Eriadne strikes first"])
     v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    blocked = [x for x in v if x.kind == "absent_character_on_page" and x.severity == "block"]
-    assert {x.field for x in blocked} >= {"required_beats"}
+    repairs = [x for x in v if x.kind == "absent_character_on_page" and x.severity == "repair"]
+    assert {x.field for x in repairs} >= {"required_beats"}
+    assert not any(x.severity == "block" for x in v)
+    d = repairs[0].as_dict()
+    assert d["blocks_drafting"] is False and d["blocks_final_export"] is True
+
+
+def test_scene_no_mismatch_still_blocks():
+    # Behavior-freeze: a scene-number contradiction with the seed is a TRUE blocker.
+    body = _body(scene_no=3)
+    v = _run(body, seed=_seed(scene_no=1))
+    assert any(x.kind == "scene_no_mismatch" and x.severity == "block" for x in v)
+
+
+def test_word_budget_override_is_repair_task():
+    # A model-echoed budget is fixable (the planner re-stamps it) — repair, not block. The evaluate
+    # path stamps server-side first, so this only fires for direct contract-check callers.
+    body = _body(word_budget={"target": 999})
+    v = _run(body)
+    assert any(x.kind == "word_budget_override" and x.severity == "repair" for x in v)
+    assert not any(x.severity == "block" for x in v)
 
 
 def test_absent_character_in_intentional_mystery_warns_only():
@@ -74,13 +95,15 @@ def test_absent_character_in_intentional_mystery_warns_only():
     assert not any(x.severity == "block" for x in v)
 
 
-def test_absent_character_leaked_into_known_before_scene_reader_blocks():
-    # The reader/POV-knowledge collapse bug: a hidden reveal leaked into reader-known facts must BLOCK,
-    # not just warn — the reader is not supposed to know this character exists yet.
+def test_absent_character_leaked_into_known_before_scene_reader_is_repair():
+    # The reader/POV-knowledge collapse: a hidden reveal leaked into reader-known facts is a real
+    # defect, distinct from a mere warn — but it is fixable (delete the leaked line), so it is a
+    # repair task that gates final export rather than a drafting block.
     body = _body(known_before_scene={"reader": ["Eriadne betrayed the cohort"], "pov": [], "omniscient_author": []})
     v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    blocked = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "block"]
-    assert any(b.field == "known_before_scene.reader" for b in blocked)
+    repairs = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "repair"]
+    assert any(r.field == "known_before_scene.reader" for r in repairs)
+    assert not any(x.severity == "block" for x in v)
 
 
 # --- normalize_provenance -------------------------------------------------------------------------
@@ -144,12 +167,23 @@ def test_evaluate_provenance_only_is_draftable():
     assert len(prov) == 1
 
 
-def test_evaluate_reader_known_leak_blocks():
-    # The Mara/Roth regression class: a hidden reveal leaked into reader-known facts must block, even
-    # though the character is correctly absent from the on-page cast.
+def test_evaluate_reader_known_leak_is_repairable_not_blocking():
+    # The Mara/Roth regression class: a hidden reveal leaked into reader-known facts. Under the repair
+    # tier the packet STAYS DRAFTABLE — the leak becomes a machine-readable repair task that gates
+    # final export, so the pipeline routes a fix instead of dead-ending.
     result = _evaluate(
         _body(known_before_scene={"reader": ["Mara left earlier"], "pov": [], "omniscient_author": []}),
         chapter=_chapter(absent=["Mara"]),
     )
+    assert result.draftable is True
+    assert result.draft_blockers == []
+    assert any(r.kind == "absent_character_reader_pov_leak" for r in result.repair_tasks)
+    assert any(r.kind == "absent_character_reader_pov_leak" for r in result.export_blockers)
+
+
+def test_evaluate_unrecoverable_budget_still_blocks():
+    # Behavior-freeze: a missing required contract fact (no word budget from the planner) is a TRUE
+    # blocker — drafting from a packet with no budget is unsafe and no repair agent can invent one.
+    result = _evaluate(_body(), word_budget={})
     assert result.draftable is False
-    assert any(b.kind == "absent_character_reader_pov_leak" for b in result.draft_blockers)
+    assert any(b.kind == "word_budget_unrecoverable" for b in result.draft_blockers)

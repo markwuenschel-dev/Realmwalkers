@@ -59,7 +59,8 @@ def score_qa_result(qa: dict[str, Any]) -> RiskLevel:
                 continue
             kind = str(item.get("kind", "")).lower()
             sev = str(item.get("severity", "")).lower()
-            if sev == "block" or kind in CANON_CONFLICT_KINDS:
+            # "repair" is the capped form of an LLM-claimed block (parse demotes it) — same risk weight.
+            if sev in ("block", "repair") or kind in CANON_CONFLICT_KINDS:
                 block_count += 1
                 if kind in CANON_CONFLICT_KINDS:
                     canon_count += 1

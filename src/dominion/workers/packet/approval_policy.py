@@ -87,10 +87,12 @@ def resolve_blocker_diagnostics(packet: ChapterPacket) -> dict[str, Any] | None:
 
 
 def can_approve(packet: ChapterPacket) -> GateRefusal | None:
+    """Refuse approval only on true blockers: a BLOCKED packet (deterministic block-severity failure or
+    a failed agent call) or unresolved open questions (an explicit human decision point). Confidence and
+    QA verdicts are LLM signals — advisory, shown to the human, never a gate. A packet carrying only
+    repair/warn issues is approvable (approve-with-repairs; the repairs still gate final export)."""
     if packet.status == PacketStatus.BLOCKED:
         return GateRefusal(resolve_blocked_reason(packet) or "packet is blocked")
-    if packet.confidence == PacketConfidence.RED:
-        return GateRefusal("red-confidence packet — resolve before approving")
     if open_question_items(packet):
         return GateRefusal("resolve the packet's open questions first")
     return None
@@ -107,14 +109,16 @@ def can_derive_scene_packets(chapter_packet: ChapterPacket | None) -> GateRefusa
 
 
 def status_from_qa(packet_body: dict[str, Any], qa: dict[str, Any]) -> tuple[PacketConfidence, PacketStatus]:
-    """Confidence + status from author self-assessment and QA verdict (propose path)."""
+    """Confidence + status from author self-assessment and QA verdict (propose path). QA is an LLM
+    attacker — its verdict shapes CONFIDENCE (a signal for the human), never status: only deterministic
+    validation may block drafting, so even BLOCK_DRAFTING yields a proposed, red-confidence packet whose
+    issues ride along as repair tasks."""
     verdict: PacketVerdict = qa["verdict"]
     conf = _worst(_as_confidence(packet_body.get("confidence")), _VERDICT_FLOOR[verdict])
     has_flags = bool(_author_open_questions(packet_body)) or bool(qa.get("issues"))
     if conf == PacketConfidence.GREEN and has_flags:
         conf = PacketConfidence.YELLOW
-    status = PacketStatus.BLOCKED if verdict == PacketVerdict.BLOCK_DRAFTING else PacketStatus.PROPOSED
-    return conf, status
+    return conf, PacketStatus.PROPOSED
 
 
 def enrich_packet_out(row: ChapterPacket) -> PacketOut:

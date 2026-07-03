@@ -1,8 +1,10 @@
 """Scene-packet approval, QA, derive-status, and drafting gates.
 
-REVISE_REQUIRED asymmetry (intentional):
-  * After derive / QA re-run: packet stays `proposed` so the human can fix the contract.
-  * Human approve: REVISE_REQUIRED blocks approval (same as BLOCK_DRAFTING for approval gate).
+QA is advisory (writer-first): an LLM verdict — even BLOCK_DRAFTING — never blocks drafting, human
+review, or approval. LLM issues are capped at `repair` severity at parse time and ride along as
+machine-readable repair tasks that gate final export only. The only hard gates left are deterministic:
+a thin/unusable author body, a block-severity contract violation, or QA failing to return a usable
+verdict at all (fail closed on infrastructure, never on judgment).
 """
 
 from __future__ import annotations
@@ -16,8 +18,6 @@ from dominion.workers.context.types import ScenePacketRequiredError
 from dominion.workers.gates import GateRefusal
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
 
-_BLOCKING_VERDICTS = {ScenePacketVerdict.BLOCK_DRAFTING, ScenePacketVerdict.REVISE_REQUIRED}
-
 BlockerSource = Literal["author", "validation", "qa", "derive", "unknown"]
 
 # Blocker sources the derive persists on `qa_warnings["blocker_source"]`. "validation" is a deterministic
@@ -25,21 +25,14 @@ BlockerSource = Literal["author", "validation", "qa", "derive", "unknown"]
 _PERSISTED_BLOCKER_SOURCES: frozenset[str] = frozenset({"author", "validation", "qa", "derive"})
 
 _STALE_GATE_RECONCILIATION = (
-    "QA now approves, but the packet remains blocked from an earlier gate. Re-run derive or edit/reconcile the packet."
+    "QA re-ran, but the packet remains blocked from an earlier gate. Re-run derive or edit/reconcile the packet."
 )
 _NO_BLOCKED_REASON = "Scene packet is blocked but no blocked_reason was recorded"
 
 
-def has_blocking_qa(packet: ScenePacket) -> bool:
-    if packet.qa_verdict in {v.value for v in _BLOCKING_VERDICTS}:
-        return True
-    issues = (packet.qa_warnings or {}).get("issues") if isinstance(packet.qa_warnings, dict) else None
-    if isinstance(issues, list):
-        return any(isinstance(i, dict) and i.get("severity") == "block" for i in issues)
-    return False
-
-
 def blocking_qa_reasons(packet: ScenePacket) -> list[str]:
+    """Human-readable reasons from a LEGACY QA-held block (rows persisted before QA became advisory).
+    Only used to explain an already-BLOCKED row — never to gate anything."""
     reasons: list[str] = []
     v = packet.qa_verdict
     if v == ScenePacketVerdict.BLOCK_DRAFTING.value:
@@ -54,18 +47,6 @@ def blocking_qa_reasons(packet: ScenePacket) -> list[str]:
                 detail = i.get("detail") or "unspecified"
                 reasons.append(f"Blocking issue{f' ({kind})' if kind else ''}: {detail}")
     return reasons
-
-
-def first_blocking_qa_reason_or_default(result: dict[str, Any]) -> str:
-    """First block-severity issue detail from a QA result, or the default QA block message."""
-    issues = result.get("issues")
-    if isinstance(issues, list):
-        for i in issues:
-            if isinstance(i, dict) and i.get("severity") == "block":
-                kind = i.get("kind")
-                detail = i.get("detail") or "unspecified"
-                return f"Blocking issue{f' ({kind})' if kind else ''}: {detail}"
-    return "scene packet QA blocked drafting"
 
 
 def resolve_blocked_reason(packet: ScenePacket) -> str | None:
@@ -110,19 +91,18 @@ def infer_blocker_source(packet: ScenePacket, reason: str | None) -> BlockerSour
 
 
 def can_approve(packet: ScenePacket) -> GateRefusal | None:
+    """Refuse approval only on a BLOCKED packet (deterministic block-severity failure or a failed agent
+    call). QA verdicts and repair/warn issues are advisory — a repair-laden packet is approvable
+    (approve-with-repairs; the repairs still gate final export)."""
     if packet.status == ScenePacketStatus.BLOCKED:
         return GateRefusal("scene packet is blocked — re-derive or edit first")
-    if has_blocking_qa(packet):
-        return GateRefusal("scene packet QA blocks drafting — resolve first")
     return None
 
 
 def approval_blockers(packet: ScenePacket) -> list[str]:
     if packet.status == ScenePacketStatus.BLOCKED:
         return [resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"]
-    if packet.status != ScenePacketStatus.PROPOSED:
-        return []
-    return blocking_qa_reasons(packet)
+    return []
 
 
 def is_approvable_for_batch(packet: ScenePacket) -> bool:
@@ -134,20 +114,24 @@ def status_after_author_qa(
     qa: dict[str, Any] | None,
     error_detail: str | None = None,
 ) -> tuple[str, str | None]:
-    """(status, blocked_reason). Fail closed on thin body or unusable QA."""
+    """(status, blocked_reason). Fail closed on a thin body or unusable QA (infrastructure failures).
+    A usable QA verdict — including BLOCK_DRAFTING — is advisory and leaves the packet proposed; its
+    issues ride along as repair tasks."""
     if not valid_scene_packet_body(body):
         return ScenePacketStatus.BLOCKED, (error_detail or "scene packet author returned an incomplete body")
     if qa is None:
         return ScenePacketStatus.BLOCKED, (error_detail or "scene packet QA returned no usable verdict")
-    if qa["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
-        return ScenePacketStatus.BLOCKED, "scene packet QA blocked drafting"
     return ScenePacketStatus.PROPOSED, None
 
 
 def apply_qa_rerun(row: ScenePacket, result: dict[str, Any] | None) -> None:
-    """Mutate row after a manual QA re-run (router endpoint). REVISE_REQUIRED stays proposed."""
+    """Mutate row after a manual QA re-run (router endpoint). QA is advisory: any usable verdict —
+    including BLOCK_DRAFTING — leaves the row's status alone except that a LEGACY QA-held block (rows
+    blocked back when a QA verdict could block) is released to proposed, since QA can no longer hold
+    one. A block from a non-QA gate (author/validation/derive) is never released here. Only an unusable
+    QA response still fails closed."""
     # Deterministic contract violations are independent of QA — carry them forward so a re-run never
-    # erases the advisory/blocking findings the editor is looking at.
+    # erases the advisory/repair/blocking findings the editor is looking at.
     prior = row.qa_warnings if isinstance(row.qa_warnings, dict) else {}
     prior_violations = prior.get("violations")
 
@@ -174,16 +158,15 @@ def apply_qa_rerun(row: ScenePacket, result: dict[str, Any] | None) -> None:
     }
     if prior_violations:
         qa_warnings["violations"] = prior_violations
-    if result["verdict"] == ScenePacketVerdict.BLOCK_DRAFTING:
-        row.status = ScenePacketStatus.BLOCKED
-        qa_warnings["blocked_reason"] = first_blocking_qa_reason_or_default(result)
-        qa_warnings["blocker_source"] = "qa"
-    elif row.status == ScenePacketStatus.BLOCKED:
-        # QA now clears, but an earlier non-QA gate still holds the packet — keep that reason AND its
-        # source so enrichment doesn't degrade a "validation"/"author" block into a guessed "derive".
+    if row.status == ScenePacketStatus.BLOCKED:
         if existing_source in {"author", "validation", "derive"} and existing_reason:
+            # An earlier non-QA gate still holds the packet — keep that reason AND its source so
+            # enrichment doesn't degrade a "validation"/"author" block into a guessed "derive".
             qa_warnings["blocked_reason"] = existing_reason
             qa_warnings["blocker_source"] = existing_source
+        elif existing_source == "qa":
+            # Legacy QA-held block: QA verdicts no longer gate, so the re-run releases it.
+            row.status = ScenePacketStatus.PROPOSED
         else:
             qa_warnings["blocked_reason"] = _STALE_GATE_RECONCILIATION
     row.qa_warnings = qa_warnings

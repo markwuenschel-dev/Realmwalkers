@@ -210,8 +210,8 @@ async def update_scene_packet(
 
 @router.post("/scene-packets/{scene_packet_id}/qa", response_model=ScenePacketQaOut)
 async def qa_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacketQaOut:
-    """Re-run QA against the current body. A BLOCK_DRAFTING verdict blocks the packet; a malformed
-    response fails closed (also blocks)."""
+    """Re-run QA against the current body. QA is advisory: any usable verdict leaves status alone
+    (and releases a legacy QA-held block); only a malformed response fails closed (blocks)."""
     row = await _get(session, scene_packet_id)
     if not valid_scene_packet_body(row.body):
         raise HTTPException(

@@ -6,7 +6,9 @@ Per the scope-aware contract architecture:
 - Raw scene seeds and internal planning fields MAY contain hidden canonical terms.
 - Surface leakage / forbidden surface terms are detected ONLY after SurfaceContractBuilder projection.
 - No validator here scans raw scene seeds for characters_forbidden (that was the old design error).
-- Roster matrix rules remain: present∩absent etc block; redundant overlaps are normalized (warn only).
+- Roster matrix rules remain: present∩absent etc are REPAIR tasks (fixable data-entry contradictions
+  — they block final export, never drafting); redundant overlaps are normalized (warn only). Only a
+  structurally unusable body (not a JSON object) hard-blocks.
 
 Field scope lives in scopes.py. A term may be forbidden from the reader without being forbidden from
 the system.
@@ -18,16 +20,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
+from dominion.shared.severity import Severity, issue_gates
 from dominion.shared.text_match import (
     DRAFTER_TEXT_FIELDS,
     as_str_list,
     binding_replacements,
     project_drafter_fields,
 )
-
-Severity = Literal["warn", "block"]
 
 _ROSTER_FIELDS: tuple[str, ...] = (
     "characters_present",
@@ -41,11 +42,13 @@ _ROSTER_FIELDS: tuple[str, ...] = (
 # that cannot BOTH be resolved to a single coherent state contradict — and a redundant overlap that a
 # server-side dominance rule can safely collapse is NOT one of them (see `normalize_chapter_packet_roster`).
 #
-# BLOCK (impossible — no dominance rule can pick a winner without discarding a hard claim):
+# REPAIR (impossible as data — no dominance rule can pick a winner without discarding a hard claim, but
+# it is a fixable data-entry contradiction, not a canon contradiction: route it back to the packet
+# author as a repair task; drafting stays reachable, final export waits on the fix):
 #   present ∩ absent      — physically here and physically not here
 #   present ∩ forbidden    — on-page yet must never be named/referenced on-page
 #   mentioned_only ∩ forbidden — referenced on-page yet must never be referenced on-page
-# NORMALIZE (redundant — a dominance rule collapses it, never blocks):
+# NORMALIZE (redundant — a dominance rule collapses it, never flags):
 #   absent ∩ mentioned_only  — mentioned_only implies absence, so mentioned_only wins (drop from absent)
 #   present ∩ mentioned_only — a physically present character is not "merely mentioned", so present wins
 #                              (drop from mentioned_only); this is the common masked/late-reveal mis-bucket
@@ -66,7 +69,7 @@ _CONTRADICTORY_ROSTER_PAIRS: frozenset[frozenset[str]] = frozenset(
 _LEADING_NAME_RE = re.compile(r"^[^(,;—-]+")
 
 
-def _leading_name(entry: str) -> str:
+def leading_roster_name(entry: str) -> str:
     """The candidate identifier from a free-text roster entry: everything before the first
     parenthetical/comma/semicolon/em-dash/hyphen, trimmed. "Brent (404 guild member, ...)" -> "Brent"."""
     m = _LEADING_NAME_RE.match(entry.strip())
@@ -76,8 +79,8 @@ def _leading_name(entry: str) -> str:
 @dataclass(frozen=True)
 class ChapterPacketViolation:
     """One deterministic roster contradiction. `field` is the roster field(s) involved, so the editor
-    can point the human straight at it. `block` fails the packet closed; `warn` is shown but does not
-    block."""
+    can point the human straight at it. `block` fails the packet closed; `repair` is a machine-readable
+    fix-it task (blocks final export only); `warn` is shown but blocks nothing."""
 
     kind: str
     field: str | None
@@ -85,28 +88,38 @@ class ChapterPacketViolation:
     severity: Severity
 
     def as_dict(self) -> dict[str, Any]:
-        return {"kind": self.kind, "field": self.field, "detail": self.detail, "severity": self.severity}
+        return {
+            "kind": self.kind,
+            "field": self.field,
+            "detail": self.detail,
+            "severity": self.severity,
+            **issue_gates(self.severity),
+        }
 
 
 def validate_chapter_packet_contract(body: dict[str, Any]) -> list[ChapterPacketViolation]:
     """Deterministic checks on an authored ChapterPacket body. Returns every violation found (block +
-    warn); the caller blocks the packet when any is `block`. Decidable facts only — never semantic
-    judgement about whether a roster assignment is actually right for the story (that is QA's job, or
-    ultimately the human's)."""
+    repair + warn); the caller blocks the packet only when one is `block`. Decidable facts only — never
+    semantic judgement about whether a roster assignment is actually right for the story (that is QA's
+    job, or ultimately the human's)."""
     if not isinstance(body, dict):
         return [ChapterPacketViolation("invalid_body", None, "chapter packet body is not a JSON object", "block")]
 
     violations: list[ChapterPacketViolation] = []
 
-    # 1. Roster double-bucketing: the same character identifier appearing in two roster fields blocks ONLY
-    # when the pair is a true opposite (see `_CONTRADICTORY_ROSTER_PAIRS`). "present + absent" can't both
-    # be true; "mentioned_only + forbidden" can't both be true. But "absent + mentioned_only" and
-    # "absent + forbidden" are compatible (both surface states presuppose absence) and never block — that
-    # overlap is normalized upstream by `normalize_chapter_packet_roster`, not flagged here. Compare the
-    # extracted leading identifier for EXACT (case-insensitive) equality across bucket pairs, never a
+    # 1. Roster double-bucketing: the same character identifier appearing in two roster fields is flagged
+    # ONLY when the pair is a true opposite (see `_CONTRADICTORY_ROSTER_PAIRS`). "present + absent" can't
+    # both be true; "mentioned_only + forbidden" can't both be true. It is a REPAIR task, not a hard
+    # block: a name in two buckets is a fixable data-entry contradiction the packet author can resolve,
+    # not a canon contradiction — drafting stays reachable, final export waits on the fix. "absent +
+    # mentioned_only" and "absent + forbidden" are compatible (both surface states presuppose absence)
+    # and never flag — that overlap is normalized upstream by `normalize_chapter_packet_roster`. Compare
+    # the extracted leading identifier for EXACT (case-insensitive) equality across bucket pairs, never a
     # substring/whole-word scan of another bucket's full prose.
     names_by_field: dict[str, list[str]] = {
-        field_name: [_leading_name(entry) for entry in as_str_list(body.get(field_name)) if _leading_name(entry)]
+        field_name: [
+            leading_roster_name(entry) for entry in as_str_list(body.get(field_name)) if leading_roster_name(entry)
+        ]
         for field_name in _ROSTER_FIELDS
     }
 
@@ -130,7 +143,7 @@ def validate_chapter_packet_contract(body: dict[str, Any]) -> list[ChapterPacket
                             f"{display!r} appears in both {fields[i]!r} and {fields[j]!r} — these are "
                             "mutually exclusive roster states; resolve which one is correct"
                         ),
-                        severity="block",
+                        severity="repair",
                     )
                 )
 
@@ -146,7 +159,7 @@ def validate_chapter_packet_contract(body: dict[str, Any]) -> list[ChapterPacket
 
 def _leading_name_set(entries: list[str]) -> set[str]:
     """Lower-cased leading identifiers of a roster bucket (empties dropped)."""
-    return {name for entry in entries if (name := _leading_name(entry).lower())}
+    return {name for entry in entries if (name := leading_roster_name(entry).lower())}
 
 
 def _partition_by_names(entries: list[str], drop_names: set[str]) -> tuple[list[str], list[str]]:
@@ -154,8 +167,8 @@ def _partition_by_names(entries: list[str], drop_names: set[str]) -> tuple[list[
     kept: list[str] = []
     removed: list[str] = []
     for entry in entries:
-        if _leading_name(entry).lower() in drop_names:
-            removed.append(_leading_name(entry) or entry)
+        if leading_roster_name(entry).lower() in drop_names:
+            removed.append(leading_roster_name(entry) or entry)
         else:
             kept.append(entry)
     return kept, removed
@@ -273,8 +286,8 @@ def normalize_forbidden_surface_labels(
 class ChapterPacketValidationResult:
     """The outcome of evaluating one authored ChapterPacket body: the server-normalized body the packet
     should persist/QA/draft from, plus every violation found. `draftable` is true when nothing hard-blocks —
-    warnings do not affect it. Mirrors `ScenePacketValidationResult` so the two packet layers read the
-    same way."""
+    repair tasks and warnings do not affect it (repairs gate final export via `export_blockers`, never
+    drafting). Mirrors `ScenePacketValidationResult` so the two packet layers read the same way."""
 
     normalized_body: dict[str, Any]
     violations: list[ChapterPacketViolation]
@@ -282,6 +295,14 @@ class ChapterPacketValidationResult:
     @property
     def draft_blockers(self) -> list[ChapterPacketViolation]:
         return [v for v in self.violations if v.severity == "block"]
+
+    @property
+    def repair_tasks(self) -> list[ChapterPacketViolation]:
+        return [v for v in self.violations if v.severity == "repair"]
+
+    @property
+    def export_blockers(self) -> list[ChapterPacketViolation]:
+        return [v for v in self.violations if v.severity in ("block", "repair")]
 
     @property
     def warnings(self) -> list[ChapterPacketViolation]:
@@ -296,8 +317,8 @@ def evaluate_chapter_packet_internal(body: dict[str, Any]) -> ChapterPacketValid
     """Internal-only validation for raw AuthorPacketInternal / ChapterPacket body.
 
     Performs:
-      - structural sanity (JSON object)
-      - roster true-contradiction detection (present∩absent etc)
+      - structural sanity (JSON object) — the only hard block at this layer
+      - roster true-contradiction detection (present∩absent etc) — repair tasks
       - roster redundant normalization (warns only)
 
     IMPORTANT:
