@@ -59,10 +59,18 @@ _SYSTEM = (
     "Set `severity`: 'repair' means it must be fixed before the chapter can ship (a leak, a wrong "
     "bucket, a contradiction you found); 'warn' means the writer should watch for it; 'info' is "
     "context.\n\n"
+    "Also grade the packet in `score` with integer scores 0-100 per dimension: overall, "
+    "canon_consistency (agrees with the chapter packet and locked canon), reader_clarity (the "
+    "reader/POV knowledge layering is coherent), scene_utility (the scene has a clear draftable job), "
+    "specificity (concrete, checkable constraints — not vague vibes), non_contradiction (internally "
+    "consistent), actionability (a drafting agent could execute it without guessing). Scores are "
+    "advisory calibration signals for the human — they never gate anything.\n\n"
     "Reply with ONE JSON object only — no prose, no code fences — of shape:\n"
     '{"verdict": "APPROVE|APPROVE_WARN|REVISE_REQUIRED|BLOCK_DRAFTING", '
     '"residual_risks": [str], '
-    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|repair"}]}'
+    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|repair"}], '
+    '"score": {"overall": int, "canon_consistency": int, "reader_clarity": int, "scene_utility": int, '
+    '"specificity": int, "non_contradiction": int, "actionability": int}}'
 )
 
 

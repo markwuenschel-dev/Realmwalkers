@@ -28,3 +28,6 @@ author notes/
 tmp/
 mcps/
 *.json
+# JSON is ignored by default (worker scratch output), but schema files under src/ are code
+# artifacts that ship in the wheel (e.g. chapter_master_packet.schema.json) — keep them tracked.
+!src/**/*.schema.json

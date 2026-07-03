@@ -23,12 +23,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from dominion.shared.severity import Severity, issue_gates
-from dominion.shared.text_match import (
-    DRAFTER_TEXT_FIELDS,
-    as_str_list,
-    binding_replacements,
-    project_drafter_fields,
-)
+from dominion.shared.text_match import as_str_list
 
 _ROSTER_FIELDS: tuple[str, ...] = (
     "characters_present",
@@ -242,46 +237,6 @@ def normalize_chapter_packet_roster(
     return (normalized, warnings) if warnings else (body, [])
 
 
-def normalize_forbidden_surface_labels(
-    body: dict[str, Any],
-) -> tuple[dict[str, Any], list[ChapterPacketViolation]]:
-    """Project drafter-facing scene-seed scaffolding through the packet's `entity_bindings`, replacing each
-    bound forbidden canonical name with its surface label so the persisted seeds (and everything derived
-    from them — ScenePackets, Beat.beat_text, the drafter prompt) never carry the forbidden name into
-    reader-facing instructions. Internal fields (claims, author notes, canon_locks) are untouched — the
-    author brain may still know "Roth". Returns the normalized body plus at most one collapsed
-    `forbidden_surface_normalized` warning. No bindings, or nothing to rewrite → body returned unchanged."""
-    if not isinstance(body, dict):
-        return body, []
-    replacements = binding_replacements(body.get("entity_bindings"))
-    seeds = body.get("scene_seeds")
-    if not replacements or not isinstance(seeds, list):
-        return body, []
-
-    new_seeds: list[Any] = []
-    changed_scenes: list[str] = []
-    for seed in seeds:
-        if isinstance(seed, dict):
-            new_seed, changed = project_drafter_fields(seed, replacements, DRAFTER_TEXT_FIELDS)
-            if changed:
-                changed_scenes.append(str(seed.get("scene_no")))
-            new_seeds.append(new_seed)
-        else:
-            new_seeds.append(seed)
-    if not changed_scenes:
-        return body, []
-
-    labels = ", ".join(sorted({label for _term, label in replacements}))
-    detail = (
-        f"forbidden canonical name(s) in drafter-facing scene-seed fields were projected to surface "
-        f"label(s) [{labels}] in scene(s) {', '.join(changed_scenes)} — the canon name stays in internal "
-        "fields only, never in reader-facing scaffolding"
-    )
-    return {**body, "scene_seeds": new_seeds}, [
-        ChapterPacketViolation(kind="forbidden_surface_normalized", field="scene_seeds", detail=detail, severity="warn")
-    ]
-
-
 @dataclass(frozen=True)
 class ChapterPacketValidationResult:
     """The outcome of evaluating one authored ChapterPacket body: the server-normalized body the packet
@@ -334,10 +289,8 @@ def evaluate_chapter_packet_internal(body: dict[str, Any]) -> ChapterPacketValid
             ],
         )
     normalized, roster_warnings = normalize_chapter_packet_roster(body)
-    # NOTE: We intentionally no longer call the old normalize_forbidden_surface_labels here for the
-    # internal path. The generic SurfaceContractBuilder now owns projection for all surface_terms +
-    # characters_forbidden. Legacy normalize is kept only for back-compat in beats/derive paths
-    # that have not yet been fully migrated.
+    # Surface projection (surface_terms + characters_forbidden) is owned entirely by the generic
+    # SurfaceContractBuilder (surface_contract.py); no seed-label rewriting happens at this layer.
     return ChapterPacketValidationResult(
         normalized_body=normalized,
         violations=[*roster_warnings, *validate_chapter_packet_contract(body)],

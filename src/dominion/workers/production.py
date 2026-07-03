@@ -61,6 +61,7 @@ from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.job_scheduler import schedule_revision
 from dominion.workers.length import planner as length_planner
 from dominion.workers.packet import latest_approved as latest_approved_chapter_packet
+from dominion.workers.packet import master as packet_master
 from dominion.workers.packet.validation import leading_roster_name
 from dominion.workers.scene_packet import inputs as scene_packet_inputs
 
@@ -849,7 +850,10 @@ def evaluate_chapter_sequence(body: dict[str, Any]) -> dict[str, Any]:
 
 
 async def ensure_chapter_sequence(session: AsyncSession, packet: ChapterPacket) -> ChapterSequence:
-    body = derive_chapter_sequence(packet.body or {})
+    # The sequence's scene text feeds draft jobs, so it must come from the DERIVED drafter-safe view
+    # (`_surface_contract`), never the raw top-level seeds — those are authoritative internal planning
+    # data and may carry hidden canonical truth (master packet rule; legacy rows fall back to the body).
+    body = derive_chapter_sequence(packet_master.drafter_view(packet.body or {}))
     source_hash = _hash_payload({"chapter_packet_id": str(packet.id), "body": body})
     latest = await latest_chapter_sequence(session, packet.chapter_id)
     evaluation = evaluate_chapter_sequence(body)

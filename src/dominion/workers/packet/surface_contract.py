@@ -9,7 +9,10 @@ Raw internal ChapterPacket (AuthorPacketInternal) -> projected safe SurfaceContr
   a REPAIR task (fixable by adjusting surface terms / projection policies — it blocks final export,
   never drafting). Only a structurally unusable body hard-blocks.
 
-Downstream (ScenePacket derivation) MUST consume the surface_body scene_seeds.
+The surface body is persisted at ChapterPacket.body["_surface_contract"] as a DERIVED view of the
+canonical chapter_master_packet (see packet/master.py) — never authoritative, rebuilt by the writers
+(propose / body edit) from the raw top-level seeds. Downstream (ScenePacket derivation, sequence
+derivation, any drafter-facing consumer) MUST consume it via master.drafter_view, never the raw seeds.
 """
 
 from __future__ import annotations

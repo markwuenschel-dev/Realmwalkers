@@ -26,6 +26,22 @@ def test_parse_qa_unknown_verdict_is_none():
     assert qa_mod.parse_qa('{"verdict": "MAYBE_OK"}') is None
 
 
+def test_parse_qa_scores_are_tolerant_and_never_required():
+    # Workstream G: the same single QA call may carry per-dimension scores. They parse tolerantly —
+    # a missing/garbled score is None and can never fail the parse (the grade is advisory).
+    without = qa_mod.parse_qa('{"verdict": "APPROVE", "residual_risks": [], "issues": []}')
+    assert without is not None and all(v is None for v in without["score"].values())
+    with_scores = qa_mod.parse_qa(
+        '{"verdict": "APPROVE", "residual_risks": [], "issues": [], '
+        '"score": {"overall": 91, "canon_consistency": "88", "reader_clarity": 250, "specificity": "high"}}'
+    )
+    assert with_scores is not None
+    assert with_scores["score"]["overall"] == 91
+    assert with_scores["score"]["canon_consistency"] == 88
+    assert with_scores["score"]["reader_clarity"] == 100  # clamped
+    assert with_scores["score"]["specificity"] is None  # non-numeric -> None, never a gate
+
+
 def test_parse_qa_normalizes_issue_severity_capped_at_repair():
     # LLM issues become machine-readable: guaranteed severity + blocks_* facts. An LLM-claimed "block"
     # is demoted to repair (no LLM-driven control path); a missing severity degrades to warn.

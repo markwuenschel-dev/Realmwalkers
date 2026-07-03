@@ -482,7 +482,11 @@ export interface paths {
     /**
      * Update Packet
      * @description Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after
-     *     reviewing flags. A blocked packet can be edited but stays blocked until re-proposed.
+     *     reviewing flags. An edited body is normalized to the canonical chapter_master_packet shape and its
+     *     derived `_surface_contract` projection is rebuilt from the edited seeds (so scene-packet derivation
+     *     never reads a stale projection); open questions live in the body's chapter_contract with the
+     *     sibling column written as a derived sync. A blocked packet can be edited but stays blocked until
+     *     re-proposed.
      */
     put: operations["update_packet_chapters__chapter_id__packet_put"];
     /**

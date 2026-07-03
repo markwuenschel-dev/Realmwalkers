@@ -13,6 +13,7 @@ from typing import Any
 from dominion.shared.agent_policy import get_runtime_policy
 from dominion.shared.config import settings
 from dominion.shared.enums import PacketVerdict
+from dominion.shared.grading import parse_score
 from dominion.shared.risk_scorer import qa_result_preferred, score_qa_result, should_semantic_escalate
 from dominion.shared.severity import normalize_llm_issue
 from dominion.workers import llm
@@ -43,10 +44,18 @@ _SYSTEM = (
     "(a wrong roster bucket, a leak, a contradiction you found); 'warn' means the writer should "
     "watch for it; 'info' is context. Set `field` to the packet field the issue points at when one "
     "applies (else null).\n\n"
+    "Also grade the packet in `score` with integer scores 0-100 per dimension: overall, "
+    "canon_consistency (agrees with locked canon), reader_clarity (a reader could follow what this "
+    "chapter establishes), scene_utility (each scene seed has a clear draftable job), specificity "
+    "(concrete, checkable constraints — not vague vibes), non_contradiction (internally consistent), "
+    "actionability (a drafting agent could execute it without guessing). Scores are advisory "
+    "calibration signals for the human — they never gate anything.\n\n"
     "Reply with ONE JSON object only — no prose, no code fences — of shape:\n"
     '{"verdict": "APPROVE|APPROVE_WARN|REVISE_REQUIRED|BLOCK_DRAFTING", '
     '"residual_risks": [str], '
-    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|repair"}]}'
+    '"issues": [{"kind": str, "field": str|null, "detail": str, "severity": "info|warn|repair"}], '
+    '"score": {"overall": int, "canon_consistency": int, "reader_clarity": int, "scene_utility": int, '
+    '"specificity": int, "non_contradiction": int, "actionability": int}}'
 )
 
 _VERDICTS = {v.value.upper(): v for v in PacketVerdict}
@@ -59,11 +68,12 @@ def build_prompt(packet: dict[str, Any]) -> str:
 
 
 def parse_qa(raw: str) -> dict[str, Any] | None:
-    """Parse the QA response into {verdict, residual_risks, issues}, or None if unusable (fail
+    """Parse the QA response into {verdict, residual_risks, issues, score}, or None if unusable (fail
     closed). A recognizable object with an UNKNOWN verdict is treated as None — we never guess a
     verdict. Issues are normalized to the machine-readable shape (guaranteed `severity`, capped at
     `repair`, plus derived `blocks_*` facts) — an LLM issue can never carry a drafting-blocking
-    severity."""
+    severity. `score` is the tolerantly-parsed per-dimension grade (missing scores -> None, never a
+    gate — the Workstream-G object is advisory)."""
     obj = extract_object(raw)
     if obj is None:
         return None
@@ -75,6 +85,7 @@ def parse_qa(raw: str) -> dict[str, Any] | None:
         "verdict": verdict,
         "residual_risks": str_list(obj.get("residual_risks")),
         "issues": [normalize_llm_issue(i) for i in issues if isinstance(i, dict)] if isinstance(issues, list) else [],
+        "score": parse_score(obj.get("score")),
     }
 
 
