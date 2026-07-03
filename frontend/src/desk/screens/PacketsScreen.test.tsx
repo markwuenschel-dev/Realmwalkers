@@ -79,10 +79,60 @@ vi.mock("../api/client", () => ({
     updatePacket: vi.fn(),
     approvePacket: vi.fn(),
     deletePacket: vi.fn(),
+    // Called by ScenePacketsPanel, which mounts once a packet is approved.
+    scenePackets: vi.fn(),
+    deriveStatus: vi.fn(),
+    draftReadiness: vi.fn(),
+    chapterTelemetry: vi.fn(),
   },
 }));
 
+// jsdom has no URL.createObjectURL — assert the download call instead of a real browser download.
+vi.mock("../lib/download", () => ({
+  downloadBlob: vi.fn(),
+  copyToClipboard: vi.fn(),
+}));
+
 import { api } from "../api/client";
+import { downloadBlob } from "../lib/download";
+
+// A structurally valid proposed packet whose only findings are repair/warn — the backend says it is
+// approvable (approve-with-repairs), so the UI must offer approval and label the outstanding repairs.
+const REPAIR_PACKET = {
+  id: "p1",
+  book_id: "b1",
+  chapter_id: "c1",
+  status: "proposed",
+  confidence: "yellow",
+  qa_verdict: "approve_with_warnings",
+  body: { one_sentence_spine: "Soren chooses the fire over the flood." },
+  qa_warnings: {
+    issues: [
+      {
+        kind: "leaked_reveal",
+        field: "allowed_knowledge",
+        detail: "Reader learns the warden's name too early.",
+        severity: "repair",
+        blocks_drafting: false,
+        blocks_human_review: false,
+        blocks_final_export: true,
+      },
+      { kind: "tone_drift", detail: "voice risk", severity: "warn" },
+    ],
+    violations: [
+      {
+        kind: "roster_double_bucketed",
+        field: "characters_present",
+        detail: "Mara is both present and absent.",
+        severity: "repair",
+      },
+    ],
+  },
+  open_questions: { items: [] },
+  created_at: "2026-07-02T10:00:00Z",
+  can_approve: true,
+  approval_blockers: [],
+};
 
 describe("PacketsScreen batch generate", () => {
   beforeEach(() => {
@@ -196,5 +246,81 @@ describe("PacketsScreen exports", () => {
     };
     render(<PacketsScreen />);
     expect(await screen.findByRole("button", { name: "Export Markdown" })).toBeDisabled();
+  });
+});
+
+describe("PacketsScreen approve with repairs", () => {
+  beforeEach(() => {
+    vi.mocked(api.packet).mockReset().mockResolvedValue(REPAIR_PACKET);
+    vi.mocked(api.packetStatus).mockReset().mockResolvedValue({ running: false });
+    vi.mocked(api.approvePacket)
+      .mockReset()
+      .mockResolvedValue({ ...REPAIR_PACKET, status: "approved" });
+    // Approval mounts ScenePacketsPanel — give its mount-time fetches quiet defaults.
+    vi.mocked(api.scenePackets).mockReset().mockResolvedValue([]);
+    vi.mocked(api.deriveStatus).mockReset().mockResolvedValue({ running: false });
+    vi.mocked(api.draftReadiness).mockReset().mockResolvedValue({
+      chapter_id: "c1",
+      chapter_packet_approved: true,
+      scene_packets: {},
+      beats: {},
+      jobs: {},
+      draftable: false,
+      blockers: [],
+    });
+    vi.mocked(api.chapterTelemetry).mockReset().mockRejectedValue(new Error("404"));
+  });
+
+  it("keeps approval available for a repair-laden packet and labels the outstanding repairs", async () => {
+    render(<PacketsScreen />);
+
+    // 2 repair-severity findings (1 violation + 1 issue); the warn issue is advisory, not a repair.
+    const approve = await screen.findByRole("button", {
+      name: "Approve (2 repair tasks outstanding)",
+    });
+    expect(approve).not.toBeDisabled();
+    expect(screen.getByText(/repair tasks gate final export, not drafting/)).toBeInTheDocument();
+
+    fireEvent.click(approve);
+    await waitFor(() => expect(api.approvePacket).toHaveBeenCalledWith("c1"));
+  });
+
+  it("marks the repair-tier violation as export-gating in the validation panel", async () => {
+    render(<PacketsScreen />);
+    await screen.findByText(/Deterministic validation/);
+    expect(screen.getByText(/blocks final export only/)).toBeInTheDocument();
+  });
+});
+
+describe("PacketsScreen raw packet JSON", () => {
+  beforeEach(() => {
+    vi.mocked(api.packet).mockReset().mockResolvedValue(REPAIR_PACKET);
+    vi.mocked(api.packetStatus).mockReset().mockResolvedValue({ running: false });
+    vi.mocked(downloadBlob).mockReset();
+  });
+
+  it("toggles a pretty-printed canonical JSON view of the packet body", async () => {
+    render(<PacketsScreen />);
+    expect(screen.queryByTestId("packet-json")).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Packet JSON" }));
+    const pre = await screen.findByTestId("packet-json");
+    expect(pre.textContent).toContain('"one_sentence_spine"');
+    expect(pre.textContent).toContain("Soren chooses the fire over the flood.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide JSON" }));
+    expect(screen.queryByTestId("packet-json")).not.toBeInTheDocument();
+  });
+
+  it("downloads the packet body as chapter_<no>_packet.json", async () => {
+    render(<PacketsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Packet JSON" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Download JSON" }));
+
+    expect(downloadBlob).toHaveBeenCalledTimes(1);
+    const [filename, content, mime] = vi.mocked(downloadBlob).mock.calls[0];
+    expect(filename).toBe("chapter_1_packet.json");
+    expect(JSON.parse(content)).toEqual(REPAIR_PACKET.body);
+    expect(mime).toBe("application/json");
   });
 });

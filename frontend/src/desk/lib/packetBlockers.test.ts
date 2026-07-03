@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { packetBlockedGuidance } from "./packetBlockers";
+import {
+  isNoApprovedPacketError,
+  normalizePacketViolation,
+  packetBlockedGuidance,
+  packetDraftBlockers,
+  packetQaFindings,
+  packetRepairTasks,
+} from "./packetBlockers";
 import type { PacketOut } from "../api/types";
 
 const basePacket = {
@@ -53,5 +60,112 @@ describe("packetBlockedGuidance", () => {
 
     expect(guidance.title).toBe("Blocked by deterministic validation");
     expect(guidance.actions.join(" ")).toContain("Fix the roster fields");
+  });
+});
+
+describe("normalizePacketViolation", () => {
+  it("keeps persisted blocks_* booleans when present (new rows)", () => {
+    const v = normalizePacketViolation({
+      kind: "word_budget_override",
+      field: "word_budget",
+      detail: "the model must not override the planner's budget",
+      severity: "repair",
+      blocks_drafting: false,
+      blocks_human_review: false,
+      blocks_final_export: true,
+    });
+    expect(v).toMatchObject({
+      kind: "word_budget_override",
+      field: "word_budget",
+      severity: "repair",
+      blocks_drafting: false,
+      blocks_human_review: false,
+      blocks_final_export: true,
+    });
+  });
+
+  it("derives block gates from severity for old rows without blocks_* booleans", () => {
+    const v = normalizePacketViolation({
+      kind: "invalid_body",
+      field: null,
+      detail: "chapter packet body is not a JSON object",
+      severity: "block",
+    });
+    expect(v.blocks_drafting).toBe(true);
+    expect(v.blocks_human_review).toBe(true);
+    expect(v.blocks_final_export).toBe(true);
+  });
+
+  it("derives repair gates (export only) from severity for old rows", () => {
+    const v = normalizePacketViolation({
+      kind: "roster_double_bucketed",
+      detail: "Mara is present and absent",
+      severity: "repair",
+    });
+    expect(v.blocks_drafting).toBe(false);
+    expect(v.blocks_human_review).toBe(false);
+    expect(v.blocks_final_export).toBe(true);
+  });
+
+  it("treats warn/info and unknown severities as advisory (blocks nothing)", () => {
+    for (const severity of ["warn", "info", "banana", undefined]) {
+      const v = normalizePacketViolation({ kind: "x", detail: "d", severity });
+      expect(v.blocks_drafting).toBe(false);
+      expect(v.blocks_final_export).toBe(false);
+    }
+    expect(normalizePacketViolation({ kind: "x", detail: "d", severity: "banana" }).severity).toBe(
+      "warn",
+    );
+    expect(normalizePacketViolation(null).kind).toBe("issue");
+  });
+});
+
+describe("packet finding partitions", () => {
+  const warnings = {
+    violations: [
+      { kind: "invalid_body", detail: "unusable body", severity: "block" },
+      { kind: "roster_double_bucketed", detail: "present and absent", severity: "repair" },
+    ],
+    issues: [
+      { kind: "tone_drift", detail: "voice risk", severity: "warn" },
+      { kind: "leaked_reveal", detail: "reader learns too early", severity: "repair" },
+    ],
+  };
+
+  it("merges violations + issues into one normalized list", () => {
+    expect(packetQaFindings(warnings)).toHaveLength(4);
+    expect(packetQaFindings(null)).toEqual([]);
+  });
+
+  it("splits true blockers from repair tasks", () => {
+    expect(packetDraftBlockers(warnings).map((v) => v.kind)).toEqual(["invalid_body"]);
+    expect(packetRepairTasks(warnings).map((v) => v.kind)).toEqual([
+      "roster_double_bucketed",
+      "leaked_reveal",
+    ]);
+  });
+});
+
+describe("isNoApprovedPacketError", () => {
+  it("matches the ApiError shape via parsed data.detail", () => {
+    const e = Object.assign(new Error("409 Conflict"), {
+      status: 409,
+      data: { detail: "no approved chapter packet for this chapter" },
+    });
+    expect(isNoApprovedPacketError(e)).toBe(true);
+  });
+
+  it("matches on the message when no structured detail rode along", () => {
+    expect(
+      isNoApprovedPacketError(
+        new Error('409 Conflict — {"detail":"no approved chapter packet for this chapter"}'),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects unrelated errors and non-objects", () => {
+    expect(isNoApprovedPacketError(new Error("500 Internal Server Error"))).toBe(false);
+    expect(isNoApprovedPacketError("no approved chapter packet")).toBe(false);
+    expect(isNoApprovedPacketError(null)).toBe(false);
   });
 });

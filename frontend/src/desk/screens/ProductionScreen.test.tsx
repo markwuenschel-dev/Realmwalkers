@@ -1,9 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProductionScreen from "./ProductionScreen";
 
+const routerPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: routerPush }),
 }));
 
 vi.mock("../state", () => ({
@@ -47,6 +49,7 @@ vi.mock("../api/client", () => ({
     applyRepairTask: vi.fn(),
     verifyRepairTask: vi.fn(),
     repairTask: vi.fn(),
+    packet: vi.fn(),
   },
 }));
 
@@ -152,6 +155,68 @@ const DETAIL = {
   repair_verifications: [],
 };
 
+// A proposed (not yet approved) chapter packet carrying only repair/warn findings — approvable, but
+// production refuses to start until it IS approved. Second violation predates the blocks_* booleans
+// to exercise the severity-derived fallback.
+const GATE_PACKET = {
+  id: "packet-1",
+  book_id: "book-1",
+  chapter_id: "chapter-1",
+  status: "proposed",
+  confidence: "yellow",
+  qa_verdict: "approve_with_warnings",
+  body: {},
+  qa_warnings: {
+    issues: [
+      {
+        kind: "leaked_reveal",
+        field: "allowed_knowledge",
+        detail: "Reader learns the warden's name too early.",
+        severity: "repair",
+        blocks_drafting: false,
+        blocks_human_review: false,
+        blocks_final_export: true,
+      },
+    ],
+    violations: [
+      {
+        kind: "roster_double_bucketed",
+        field: "characters_present",
+        detail: "Mara is both present and absent.",
+        severity: "repair",
+      },
+    ],
+  },
+  open_questions: { items: [] },
+  created_at: "2026-07-02T10:00:00Z",
+  can_approve: true,
+  approval_blockers: [],
+};
+
+const BLOCKED_PACKET = {
+  ...GATE_PACKET,
+  status: "blocked",
+  confidence: "red",
+  qa_verdict: "block_drafting",
+  can_approve: false,
+  blocked_reason: "deterministic validation failed: packet body is not a JSON object",
+  blocker_source: "validation",
+  blocker_kind: "contract_validation",
+  qa_warnings: {
+    violations: [
+      {
+        kind: "invalid_body",
+        field: null,
+        detail: "chapter packet body is not a JSON object",
+        severity: "block",
+        blocks_drafting: true,
+        blocks_human_review: true,
+        blocks_final_export: true,
+      },
+    ],
+  },
+};
+
 describe("ProductionScreen", () => {
   beforeEach(() => {
     vi.mocked(api.productionRuns).mockReset().mockResolvedValue([RUN]);
@@ -193,6 +258,8 @@ describe("ProductionScreen", () => {
         created_at: "2026-07-02T10:00:00Z",
       });
     vi.mocked(api.repairTask).mockReset().mockResolvedValue(DETAIL.repair_tasks[0]);
+    vi.mocked(api.packet).mockReset().mockRejectedValue(new Error("404 Not Found"));
+    routerPush.mockReset();
   });
 
   it("loads the latest run detail and renders issues, tasks, and final chapter prose", async () => {
@@ -223,5 +290,59 @@ describe("ProductionScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verify" }));
     await waitFor(() => expect(api.verifyRepairTask).toHaveBeenCalledWith("task-1"));
     expect(api.repairTask).toHaveBeenCalledWith("task-1");
+  });
+
+  it("renders structured remediation instead of the raw error when no packet is approved", async () => {
+    vi.mocked(api.startProductionRun).mockRejectedValue(
+      Object.assign(
+        new Error('409 Conflict — {"detail":"no approved chapter packet for this chapter"}'),
+        { status: 409, data: { detail: "no approved chapter packet for this chapter" } },
+      ),
+    );
+    vi.mocked(api.packet).mockResolvedValue(GATE_PACKET);
+
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Start run" }));
+
+    const gate = await screen.findByTestId("production-gate");
+    expect(api.packet).toHaveBeenCalledWith("chapter-1");
+    // Says exactly why: a packet exists but is not approved yet. (findBy: the panel shows a
+    // "checking the packet" placeholder until the packet fetch resolves.)
+    expect(await within(gate).findByText(/not approved yet/)).toBeInTheDocument();
+    // Repair tasks as actionable items: kind/field/detail with a severity badge, both for a new row
+    // (persisted blocks_*) and an old row (severity-derived fallback).
+    expect(within(gate).getByText(/Mara is both present and absent/)).toBeInTheDocument();
+    expect(within(gate).getByText(/Reader learns the warden's name too early/)).toBeInTheDocument();
+    expect(
+      within(gate).getByText(/roster_double_bucketed · characters_present/),
+    ).toBeInTheDocument();
+    expect(within(gate).getAllByText("repair")).toHaveLength(2);
+    // Repair ≠ blocked: the copy says drafting can proceed while export waits.
+    expect(within(gate).getByText(/never block approval or drafting/)).toBeInTheDocument();
+    // Never the raw exception dump.
+    expect(screen.queryByText(/409 Conflict/)).not.toBeInTheDocument();
+
+    fireEvent.click(within(gate).getByRole("button", { name: "Go to Packets" }));
+    expect(routerPush).toHaveBeenCalledWith("/packets?chapter=chapter-1");
+  });
+
+  it("renders remediation for a blocked run from the packet's machine-readable blockers", async () => {
+    const blockedRun = { ...RUN, status: "blocked", current_stage: "packet_gate" };
+    vi.mocked(api.productionRuns).mockResolvedValue([blockedRun]);
+    vi.mocked(api.productionRun).mockResolvedValue({ ...DETAIL, run: blockedRun });
+    vi.mocked(api.packet).mockResolvedValue(BLOCKED_PACKET);
+
+    render(<ProductionScreen />);
+
+    const gate = await screen.findByTestId("production-gate");
+    expect(
+      await within(gate).findByText("Blocked by deterministic validation"),
+    ).toBeInTheDocument();
+    expect(within(gate).getByText(/deterministic validation failed/)).toBeInTheDocument();
+    expect(within(gate).getByText(/chapter packet body is not a JSON object/)).toBeInTheDocument();
+    expect(within(gate).getByText("block")).toBeInTheDocument();
+    expect(within(gate).getByRole("button", { name: "Go to Packets" })).toBeInTheDocument();
   });
 });

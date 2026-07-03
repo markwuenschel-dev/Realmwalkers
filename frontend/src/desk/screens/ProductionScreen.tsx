@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "../api/client";
 import type {
   ArtifactOut,
   IssueOut,
+  PacketOut,
   ProductionRunActionOut,
   ProductionRunDetailOut,
   ProductionRunOut,
@@ -15,6 +16,13 @@ import { useDeskData } from "../api/data";
 import { css } from "../css";
 import ProseBlocks from "../components/ProseBlocks";
 import { Spinner } from "../components/DraftActivity";
+import {
+  isNoApprovedPacketError,
+  packetBlockedGuidance,
+  packetDraftBlockers,
+  packetRepairTasks,
+} from "../lib/packetBlockers";
+import type { PacketViolation } from "../lib/packetBlockers";
 import { useDesk } from "../state";
 
 const PANEL =
@@ -96,6 +104,7 @@ function EventFeed({ detail }: { detail: ProductionRunDetailOut }) {
 export default function ProductionScreen() {
   const { t } = useDesk();
   const { chapters } = useDeskData();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const orderedChapters = useMemo(
     () => [...chapters].sort((a, b) => a.chapter_no - b.chapter_no),
@@ -109,6 +118,12 @@ export default function ProductionScreen() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Structured blocked state (never a raw exception dump): set when the start precondition fails —
+  // the API refused because this chapter has no approved chapter packet. A blocked selected run is
+  // derived from `detail` below; both render the same remediation panel.
+  const [startBlocked, setStartBlocked] = useState(false);
+  const [gatePacket, setGatePacket] = useState<PacketOut | null>(null);
+  const [gatePacketLoaded, setGatePacketLoaded] = useState(false);
 
   const loadDetail = useCallback(async (targetRunId: string | null) => {
     if (!targetRunId) {
@@ -121,6 +136,7 @@ export default function ProductionScreen() {
 
   const loadRuns = useCallback(async (targetChapterId: string) => {
     setLoading(true);
+    setStartBlocked(false); // re-evaluated on every refresh / chapter switch
     try {
       const out = await api.productionRuns(targetChapterId);
       setRuns(out);
@@ -205,11 +221,42 @@ export default function ProductionScreen() {
       setRunId(out.run.id);
       await loadDetail(out.run.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (isNoApprovedPacketError(e)) {
+        // Known precondition, not an error: production drafts FROM the approved chapter packet.
+        // Render the structured remediation panel instead of dumping the exception.
+        setError(null);
+        setStartBlocked(true);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     } finally {
       setBusy(null);
     }
   };
+
+  // The remediation panel shows for a failed start precondition or a blocked selected run; it needs
+  // the chapter packet (404 = none yet) to say WHY and list its blockers / repair tasks.
+  const blockedRun = detail?.run.status === "blocked";
+  const showGate = startBlocked || blockedRun;
+  useEffect(() => {
+    if (!showGate || !chapterId) return;
+    let alive = true;
+    setGatePacketLoaded(false);
+    api
+      .packet(chapterId)
+      .then((pkt) => {
+        if (alive) setGatePacket(pkt);
+      })
+      .catch(() => {
+        if (alive) setGatePacket(null); // 404: no chapter packet exists yet
+      })
+      .finally(() => {
+        if (alive) setGatePacketLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [showGate, chapterId]);
 
   const issues = detail?.issues ?? [];
   const repairTasks = detail?.repair_tasks ?? [];
@@ -282,6 +329,21 @@ export default function ProductionScreen() {
         >
           {error}
         </div>
+      )}
+
+      {showGate && (
+        <ProductionGatePanel
+          title={
+            startBlocked ? "Blocked — no approved chapter packet" : "This production run is blocked"
+          }
+          packet={gatePacket}
+          packetLoaded={gatePacketLoaded}
+          accent={t.accent}
+          onAccent={t.onAccent}
+          onGoToPackets={() =>
+            router.push(chapterId ? `/packets?chapter=${chapterId}` : "/packets")
+          }
+        />
       )}
 
       <div
@@ -551,6 +613,149 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
       <div style={css(SMALL)}>{label}</div>
       <div style={css(`margin-top:8px;font-family:var(--display);font-size:24px;color:${tone}`)}>
         {value}
+      </div>
+    </div>
+  );
+}
+
+// --- structured blocked state (Workstream I) --------------------------------------------------------
+// Production drafts FROM the approved chapter packet, so every precondition failure resolves in the
+// Packets tab. This panel says WHY (the packet's machine-readable blockers / repair tasks) and offers
+// the direct path there — never a raw exception string.
+
+function violationTone(v: PacketViolation): string {
+  if (v.blocks_drafting) return "var(--bad)";
+  if (v.blocks_final_export) return "var(--warn)";
+  return "var(--dim)";
+}
+
+function ViolationRow({ violation }: { violation: PacketViolation }) {
+  return (
+    <div
+      style={css(
+        "display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg3)",
+      )}
+    >
+      <span
+        style={css(
+          `flex:none;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:${violationTone(violation)};border:1px solid color-mix(in srgb,${violationTone(violation)} 40%,var(--line));border-radius:5px;padding:2px 6px;margin-top:1px`,
+        )}
+      >
+        {violation.severity}
+      </span>
+      <div style={css("min-width:0;flex:1")}>
+        <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+          {violation.kind}
+          {violation.field ? ` · ${violation.field}` : ""}
+        </div>
+        <div style={css("margin-top:2px;font-size:12.5px;color:var(--ink);line-height:1.4")}>
+          {violation.detail}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductionGatePanel({
+  title,
+  packet,
+  packetLoaded,
+  accent,
+  onAccent,
+  onGoToPackets,
+}: {
+  title: string;
+  packet: PacketOut | null;
+  packetLoaded: boolean;
+  accent: string;
+  onAccent: string;
+  onGoToPackets: () => void;
+}) {
+  const guidance = packet?.status === "blocked" ? packetBlockedGuidance(packet) : null;
+  const blockers = packet ? packetDraftBlockers(packet.qa_warnings) : [];
+  const repairs = packet ? packetRepairTasks(packet.qa_warnings) : [];
+
+  let lead: string;
+  if (!packetLoaded) {
+    lead = "Checking this chapter's packet…";
+  } else if (!packet) {
+    lead =
+      "This chapter has no chapter packet yet. Production drafts from an approved chapter packet — create, QA, and approve one in the Packets tab first.";
+  } else if (packet.status === "blocked") {
+    lead =
+      guidance?.reason ??
+      "The chapter packet is blocked, so production cannot start until the blocking gate is resolved.";
+  } else if (packet.status === "approved") {
+    lead =
+      "The chapter packet is approved. If this run was blocked by an earlier packet, refresh and start a new run.";
+  } else {
+    lead = `A chapter packet exists but is not approved yet (status: ${packet.status}). ${
+      packet.approval_blockers[0] ?? "Review and approve it in the Packets tab."
+    }`;
+  }
+
+  return (
+    <div
+      style={css(
+        `${PANEL};border-left:3px solid var(--bad);display:flex;flex-direction:column;gap:12px`,
+      )}
+      data-testid="production-gate"
+    >
+      <div>
+        <div style={css(SMALL)}>{guidance ? guidance.title : title}</div>
+        <div style={css("margin-top:8px;font-size:13.5px;color:var(--ink);line-height:1.5")}>
+          {lead}
+        </div>
+      </div>
+
+      {guidance && guidance.actions.length > 0 && (
+        <div style={css("display:flex;flex-direction:column;gap:4px")}>
+          {guidance.actions.map((action, i) => (
+            <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
+              · {action}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {blockers.length > 0 && (
+        <div>
+          <div style={css(SMALL)}>Blocking · {blockers.length}</div>
+          <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
+            {blockers.map((v, i) => (
+              <ViolationRow key={i} violation={v} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {repairs.length > 0 && (
+        <div>
+          <div style={css(SMALL)}>Repair tasks · {repairs.length} · fixable, not blocking</div>
+          <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
+            {repairs.map((v, i) => (
+              <ViolationRow key={i} violation={v} />
+            ))}
+          </div>
+          <div style={css("margin-top:8px;font-size:12px;color:var(--dim);line-height:1.45")}>
+            Repair tasks never block approval or drafting — approve the packet and drafting can
+            proceed. Final export waits until they are resolved.
+          </div>
+        </div>
+      )}
+
+      <div style={css("display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
+        <button
+          onClick={onGoToPackets}
+          style={css(
+            `height:32px;padding:0 14px;border:none;border-radius:9px;background:${accent};color:${onAccent};font-family:var(--ui);font-size:12.5px;cursor:pointer`,
+          )}
+        >
+          Go to Packets
+        </button>
+        <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+          create / repair / QA / approve the chapter packet, then start the run again
+        </span>
       </div>
     </div>
   );

@@ -299,10 +299,20 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
           {packets.length > 0 && (
             <button
               disabled={busy != null || deriving}
+              title="Soft retire: mark every scene packet stale (kept for audit; re-derive or re-approve before drafting) instead of deleting them."
+              onClick={() => void run("retire-soft", () => api.markScenePacketsStale(chapterId))}
+              style={btn(busy == null && !deriving, "var(--bg3)", "var(--warn)")}
+            >
+              {busy === "retire-soft" ? "Retiring…" : "Retire (soft)"}
+            </button>
+          )}
+          {packets.length > 0 && (
+            <button
+              disabled={busy != null || deriving}
               onClick={() => {
                 if (
                   !confirm(
-                    `Clear all ${packets.length} scene packet${packets.length === 1 ? "" : "s"} for this chapter? Re-derive before drafting.`,
+                    `Clear all ${packets.length} scene packet${packets.length === 1 ? "" : "s"} for this chapter? This hard-deletes them — Retire (soft) keeps them as stale instead. Re-derive before drafting.`,
                   )
                 )
                   return;
