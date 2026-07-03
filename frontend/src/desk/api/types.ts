@@ -269,7 +269,14 @@ export interface QaIssue {
   // for a whole-packet problem. The editor uses this to render the issue inline next to its control.
   field?: string | null;
   detail?: string;
-  severity?: "info" | "warn" | "block" | string;
+  // `repair` = fixable: never blocks drafting/approval, does block final export. `block` = true
+  // blocker (deterministic checks only — LLM issues are capped at repair).
+  severity?: "info" | "warn" | "repair" | "block" | string;
+  // Persisted gate facts (new rows). Old rows omit them — normalizePacketViolation() in
+  // lib/packetBlockers.ts derives the fallback from severity.
+  blocks_drafting?: boolean;
+  blocks_human_review?: boolean;
+  blocks_final_export?: boolean;
 }
 
 export interface PacketWarnings {

@@ -11,7 +11,12 @@ import { Spinner, formatElapsed } from "../components/DraftActivity";
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
 import ClearFailedPanel from "../components/ClearFailedPanel";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
-import { packetBlockedGuidance } from "../lib/packetBlockers";
+import { downloadBlob } from "../lib/download";
+import {
+  normalizePacketViolation,
+  packetBlockedGuidance,
+  packetRepairTasks,
+} from "../lib/packetBlockers";
 import type {
   PacketBody,
   PacketClaim,
@@ -45,6 +50,8 @@ export default function PacketsScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // Collapsible raw canonical JSON view of the chapter packet body (client-side pretty-print).
+  const [jsonOpen, setJsonOpen] = useState(false);
   // Background-proposal state. `proposing` drives the poll loop; phase/elapsed are the live status the
   // author+QA report from the server, so the work survives tab switches (it runs in the API process)
   // and any tab can rejoin it.
@@ -90,6 +97,7 @@ export default function PacketsScreen() {
     setError(null);
     setPacket(null);
     setEditing(false);
+    setJsonOpen(false);
     Promise.allSettled([api.packet(chapterId), api.packetStatus(chapterId)])
       .then(([pkt, st]) => {
         if (!alive) return;
@@ -211,7 +219,20 @@ export default function PacketsScreen() {
 
   const openItems = (packet?.open_questions?.items ?? []).filter(Boolean);
   const resolvedItems = packet?.open_questions?.resolved ?? [];
+  // Approval is the SERVER's gate: repair/warn issues never disable it locally (approve-with-repairs
+  // — the repairs still gate final export). Only `blocked` packets refuse approval.
   const canApprove = packet?.can_approve ?? false;
+  const repairCount = packet ? packetRepairTasks(packet.qa_warnings).length : 0;
+
+  // Raw canonical JSON of the chapter packet body — the exact contract the drafting agents receive.
+  const packetJson = useMemo(
+    () => (packet ? JSON.stringify(packet.body ?? {}, null, 2) : ""),
+    [packet],
+  );
+  const downloadPacketJson = () => {
+    if (!packet || !chapter) return;
+    downloadBlob(`chapter_${chapter.chapter_no}_packet.json`, packetJson, "application/json");
+  };
 
   // Resolve a question WITH the human's ruling: drop it from `items`, append it to `resolved` so the
   // adjudication is recorded (not just cleared). Both lists are sent together — the server replaces the
@@ -361,6 +382,15 @@ export default function PacketsScreen() {
           {packet && !editing && !proposing && (
             <button onClick={() => setEditing(true)} style={btn(true, "var(--bg3)", "var(--ink)")}>
               Edit packet
+            </button>
+          )}
+          {packet && !editing && (
+            <button
+              onClick={() => setJsonOpen((o) => !o)}
+              title="Raw canonical JSON of the chapter packet body — view or download it"
+              style={btn(true, "var(--bg3)", "var(--ink)")}
+            >
+              {jsonOpen ? "Hide JSON" : "Packet JSON"}
             </button>
           )}
           {packet && !editing && !proposing && (
@@ -557,6 +587,30 @@ export default function PacketsScreen() {
         </div>
       )}
 
+      {!loading && packet && !editing && jsonOpen && (
+        <div style={css("margin-bottom:16px")}>
+          <Panel title="Canonical packet JSON">
+            <div style={css("display:flex;align-items:center;gap:12px;margin-bottom:10px")}>
+              <button onClick={downloadPacketJson} style={btn(true, "var(--bg3)", "var(--ink)")}>
+                Download JSON
+              </button>
+              <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                chapter_{chapter?.chapter_no}_packet.json — the exact body the drafting agents
+                receive.
+              </span>
+            </div>
+            <pre
+              data-testid="packet-json"
+              style={css(
+                "margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:9px;background:var(--bg3);font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--ink);white-space:pre;overflow-x:auto;max-height:420px;overflow-y:auto",
+              )}
+            >
+              {packetJson}
+            </pre>
+          </Panel>
+        </div>
+      )}
+
       {!loading && packet && editing && (
         <PacketEditor
           packet={packet}
@@ -588,8 +642,16 @@ export default function PacketsScreen() {
               ? "Approving…"
               : packet.status === "approved"
                 ? "Approved ✓"
-                : "Approve packet"}
+                : repairCount > 0
+                  ? `Approve (${repairCount} repair task${repairCount === 1 ? "" : "s"} outstanding)`
+                  : "Approve packet"}
           </button>
+          {canApprove && packet.status !== "approved" && repairCount > 0 && (
+            <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
+              repair tasks gate final export, not drafting — approving proceeds with them
+              outstanding
+            </span>
+          )}
           {!canApprove && packet.status !== "approved" && packet.approval_blockers.length > 0 && (
             <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
               {packet.approval_blockers[0]}
@@ -659,7 +721,8 @@ function PacketView({
   const issues = packet.qa_warnings?.issues ?? [];
   // Deterministic-validation channel (distinct from QA `issues`): decidable roster contradictions
   // (double-bucketed character, forbidden name in a scene seed) caught before QA ever runs.
-  const violations = packet.qa_warnings?.violations ?? [];
+  // Normalized so old rows without persisted blocks_* booleans still get the severity-derived gates.
+  const violations = (packet.qa_warnings?.violations ?? []).map(normalizePacketViolation);
 
   return (
     <div style={css("display:flex;flex-direction:column;gap:16px")}>
@@ -708,9 +771,17 @@ function PacketView({
           <div style={css("display:flex;flex-direction:column;gap:6px")}>
             {violations.map((v, i) => (
               <div key={i} style={css("font-size:12.5px;color:var(--ink)")}>
-                <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-                  {v.severity ?? "warn"} · {v.kind || "issue"}
-                  {v.field ? ` · ${v.field}` : ""}:{" "}
+                <span
+                  style={css(
+                    `font-family:var(--mono);font-size:11px;color:var(${
+                      v.blocks_drafting ? "--bad" : v.blocks_final_export ? "--warn" : "--dim"
+                    })`,
+                  )}
+                >
+                  {v.severity} · {v.kind}
+                  {v.field ? ` · ${v.field}` : ""}
+                  {v.blocks_final_export && !v.blocks_drafting ? " · blocks final export only" : ""}
+                  :{" "}
                 </span>
                 {v.detail}
               </div>

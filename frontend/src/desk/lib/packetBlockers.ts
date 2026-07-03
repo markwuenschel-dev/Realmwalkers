@@ -1,10 +1,102 @@
-import type { PacketBody, PacketOut } from "../api/types";
+import type { PacketBody, PacketOut, PacketWarnings, QaIssue } from "../api/types";
 
 export interface PacketBlockedGuidance {
   title: string;
   reason: string | null;
   detail: string;
   actions: string[];
+}
+
+// --- machine-readable QA findings (repair severity tier) -------------------------------------------
+// Deterministic violations (`qa_warnings.violations`) and LLM QA issues (`qa_warnings.issues`) both
+// carry {kind, field, detail, severity, blocks_*}. Severity policy: `block` = true blocker (drafting,
+// review, and export all stop; deterministic checks only), `repair` = fixable (drafting/approval
+// proceed; final export waits), `warn`/`info` = advisory. Old rows may predate the persisted
+// `blocks_*` booleans, so normalization derives them from severity as a fallback.
+
+export type PacketViolationSeverity = "info" | "warn" | "repair" | "block";
+
+export interface PacketViolation {
+  kind: string;
+  field: string | null;
+  detail: string;
+  severity: PacketViolationSeverity;
+  blocks_drafting: boolean;
+  blocks_human_review: boolean;
+  blocks_final_export: boolean;
+}
+
+const KNOWN_SEVERITIES: ReadonlySet<string> = new Set(["info", "warn", "repair", "block"]);
+
+/** Gate facts derived from severity — the fallback for rows without persisted `blocks_*` booleans. */
+function gatesFromSeverity(severity: PacketViolationSeverity) {
+  const blocks = severity === "block";
+  return {
+    blocks_drafting: blocks,
+    blocks_human_review: blocks,
+    blocks_final_export: blocks || severity === "repair",
+  };
+}
+
+/** Normalize one raw violation/issue to the guaranteed machine-readable shape. Persisted `blocks_*`
+ *  booleans win; missing ones derive from severity; unknown severity degrades to `warn`. */
+export function normalizePacketViolation(raw: QaIssue | null | undefined): PacketViolation {
+  const rawSeverity = String(raw?.severity ?? "")
+    .trim()
+    .toLowerCase();
+  const severity = (
+    KNOWN_SEVERITIES.has(rawSeverity) ? rawSeverity : "warn"
+  ) as PacketViolationSeverity;
+  const fallback = gatesFromSeverity(severity);
+  const r = (raw ?? {}) as Record<string, unknown>;
+  return {
+    kind: typeof raw?.kind === "string" && raw.kind ? raw.kind : "issue",
+    field: typeof raw?.field === "string" && raw.field ? raw.field : null,
+    detail: typeof raw?.detail === "string" ? raw.detail : "",
+    severity,
+    blocks_drafting:
+      typeof r.blocks_drafting === "boolean" ? r.blocks_drafting : fallback.blocks_drafting,
+    blocks_human_review:
+      typeof r.blocks_human_review === "boolean"
+        ? r.blocks_human_review
+        : fallback.blocks_human_review,
+    blocks_final_export:
+      typeof r.blocks_final_export === "boolean"
+        ? r.blocks_final_export
+        : fallback.blocks_final_export,
+  };
+}
+
+/** Every deterministic violation + LLM QA issue on a packet's qa_warnings, normalized. */
+export function packetQaFindings(warnings: PacketWarnings | null | undefined): PacketViolation[] {
+  return [...(warnings?.violations ?? []), ...(warnings?.issues ?? [])].map(
+    normalizePacketViolation,
+  );
+}
+
+/** True blockers: findings that stop drafting (packet status will be `blocked`). */
+export function packetDraftBlockers(
+  warnings: PacketWarnings | null | undefined,
+): PacketViolation[] {
+  return packetQaFindings(warnings).filter((v) => v.blocks_drafting);
+}
+
+/** Outstanding repair tasks: fixable findings that gate final export but never drafting/approval. */
+export function packetRepairTasks(warnings: PacketWarnings | null | undefined): PacketViolation[] {
+  return packetQaFindings(warnings).filter((v) => v.blocks_final_export && !v.blocks_drafting);
+}
+
+/** Duck-typed match for the Production-run precondition refusal ("no approved chapter packet for
+ *  this chapter"): checks the ApiError's parsed `data.detail` first, then the message string, never
+ *  exception identity — so it recognizes the failure across the BFF proxy and in tests alike. */
+export function isNoApprovedPacketError(e: unknown): boolean {
+  if (!e || typeof e !== "object") return false;
+  const data = (e as { data?: unknown }).data;
+  const detail =
+    data && typeof data === "object" ? (data as { detail?: unknown }).detail : undefined;
+  const text =
+    typeof detail === "string" ? detail : e instanceof Error && e.message ? e.message : "";
+  return /no approved chapter packet/i.test(text);
 }
 
 const DEFAULT_DETAIL =
