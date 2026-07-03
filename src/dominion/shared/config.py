@@ -199,9 +199,26 @@ class Settings(BaseSettings):
     plan_time_budget_s: int = 90
 
     # LLM transient-error retry (DESIGN §10): retry rate-limit / 5xx / overloaded / connection errors
-    # with exponential backoff (base * 2**attempt). Non-transient errors (auth, 400/403/404) never retry.
+    # with exponential backoff + full jitter (base * 2**attempt, scattered so throttled calls don't
+    # re-fire in lockstep), floored at the provider's Retry-After hint when one is sent. Non-transient
+    # errors (auth, 400/403/404) never retry. A 429 that survives every retry raises LlmRateLimited —
+    # a classified infrastructure failure, never an author/QA failure.
     llm_max_retries: int = 3
     llm_retry_base_delay_s: float = 1.0
+    # Ceiling on any single backoff sleep (a provider Retry-After above this still only waits this long).
+    llm_retry_max_delay_s: float = 30.0
+    # Per-provider ceiling on concurrently in-flight LLM calls in this process (0 = uncapped). The
+    # OpenAI-compatible path (gpt-*/o*-*/grok-*/gemini-*) defaults to 1: gpt-5.4-mini's TPM window is
+    # small enough that a concurrent scene author+QA swarm self-inflicts 429s — serialize those calls
+    # until real cross-call token budgeting exists (raise to 2 only with verified TPM headroom).
+    # Anthropic stays uncapped here; scene_packet_max_inflight_llm already bounds its fan-out.
+    llm_openai_concurrency: int = 1
+    llm_anthropic_concurrency: int = 0
+    # Hard per-stage INPUT budgets (estimated tokens) for scene-packet author/QA prompts. A prompt over
+    # its budget fails locally with PromptBudgetExceeded ("prompt_budget_exceeded") BEFORE any provider
+    # call — an oversized context must never burn TPM just to get refused mid-generation.
+    scene_packet_author_prompt_budget: int = 32_000
+    scene_packet_qa_prompt_budget: int = 24_000
 
     # Context-window preflight via Anthropic's real token counter (messages.count_tokens). When enabled,
     # llm.complete counts the exact request (model+system+messages) BEFORE messages.create and blocks if

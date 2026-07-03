@@ -1,15 +1,24 @@
 """Anthropic client wrapper with usage tracking + transient-error retry (DESIGN §10).
 
 One scene makes many model calls; a single transient blip (rate limit, 5xx, overload, dropped
-connection) should not fail the whole job. `complete` retries those with exponential backoff and
-re-raises anything non-transient (auth, 400/403/404) immediately. The budget is charged only on a
-successful response, so a retried failure never spends tokens.
+connection) should not fail the whole job. `complete` retries those with exponential backoff (full
+jitter, floored at the provider's Retry-After hint) and re-raises anything non-transient (auth,
+400/403/404) immediately. A 429 that survives every retry raises `LlmRateLimited` so orchestrators
+classify it as transient infrastructure, never an author/QA failure. Per-provider semaphores bound
+in-flight calls (OpenAI-compatible defaults to 1 — gpt-mini TPM windows are small enough that a
+concurrent swarm self-inflicts 429s). Failed calls are telemetry-recorded with retry counts and
+rate-limit headers; `input_budget` fails an oversized prompt locally (`PromptBudgetExceeded`)
+before any provider traffic. The budget is charged only on a successful response, so a retried
+failure never spends tokens.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
+import random
+import re
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -42,6 +51,24 @@ class CachedPrefixBlock:
 
 class ContextWindowExceeded(Exception):
     """Raised before an LLM call when raw prompt + output allowance exceeds the configured window."""
+
+
+class PromptBudgetExceeded(Exception):
+    """Raised locally, BEFORE any provider call, when the estimated prompt input exceeds the caller's
+    hard `input_budget`. Message starts with "prompt_budget_exceeded" so the failure is classifiable
+    downstream. Distinct from ContextWindowExceeded: that guards the model's context window; this
+    guards a per-stage cost/TPM policy ceiling."""
+
+
+class LlmRateLimited(Exception):
+    """A provider 429 that survived every automatic retry. The request was valid — the provider
+    refused it for rate limiting, so this is transient infrastructure, never an author/QA quality
+    failure. Callers classify on this type instead of string-matching provider messages."""
+
+    def __init__(self, message: str, *, retry_after_s: float | None = None, attempts: int = 0) -> None:
+        super().__init__(message)
+        self.retry_after_s = retry_after_s
+        self.attempts = attempts
 
 
 def estimate_tokens(text: str) -> int:
@@ -212,21 +239,134 @@ def _is_transient_http(exc: BaseException) -> bool:
     return False
 
 
-async def _call_with_retries(make_coro: Any, *, what: str, is_transient: Any = _is_transient) -> Any:
-    """Await `make_coro()`, retrying transient errors with the same exponential backoff used for
-    message creation. Non-transient errors (and exhausted retries) propagate. Shared by both
-    messages.create and messages.count_tokens (and the OpenAI-compatible path, via `is_transient`
-    override) so a transient blip never one-offs any of them."""
+def _is_rate_limit(exc: BaseException) -> bool:
+    """True for a provider 429 on either path (Anthropic SDK or httpx OpenAI-compatible)."""
+    if isinstance(exc, anthropic.RateLimitError):
+        return True
+    if isinstance(exc, anthropic.APIStatusError) and exc.status_code == 429:
+        return True
+    return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
+
+
+def _response_of(exc: BaseException) -> httpx.Response | None:
+    """The underlying httpx.Response when the exception carries one (both the Anthropic SDK and the
+    httpx path attach it), so retry hints and rate-limit headers survive classification."""
+    resp = getattr(exc, "response", None)
+    return resp if isinstance(resp, httpx.Response) else None
+
+
+# OpenAI reset headers use duration strings like "12ms" / "1.234s" / "6m0s" — parse the leading unit.
+_RESET_DURATION_RE = re.compile(r"^(\d+(?:\.\d+)?)(ms|s|m|h)?")
+
+# Rate-limit response headers worth persisting in telemetry (OpenAI x-ratelimit-* and Anthropic
+# anthropic-ratelimit-*), so a 429 postmortem can see remaining/reset without re-reproducing it.
+_RATE_LIMIT_HEADER_KEYS: tuple[str, ...] = (
+    "retry-after",
+    "x-ratelimit-limit-requests",
+    "x-ratelimit-limit-tokens",
+    "x-ratelimit-remaining-requests",
+    "x-ratelimit-remaining-tokens",
+    "x-ratelimit-reset-requests",
+    "x-ratelimit-reset-tokens",
+    "anthropic-ratelimit-requests-remaining",
+    "anthropic-ratelimit-tokens-remaining",
+    "anthropic-ratelimit-tokens-reset",
+)
+
+
+def rate_limit_headers(resp: httpx.Response | None) -> dict[str, str]:
+    if resp is None:
+        return {}
+    return {k: v for k in _RATE_LIMIT_HEADER_KEYS if (v := resp.headers.get(k)) is not None}
+
+
+def _retry_after_seconds(exc: BaseException) -> float | None:
+    """The provider's own wait hint, in seconds: Retry-After when sent, else OpenAI's
+    x-ratelimit-reset-tokens duration. None when the exception carries neither."""
+    resp = _response_of(exc)
+    if resp is None:
+        return None
+    ra = resp.headers.get("retry-after")
+    if ra:
+        try:
+            return max(0.0, float(ra))
+        except ValueError:
+            pass  # HTTP-date form — not sent by these providers; fall through to reset headers
+    reset = resp.headers.get("x-ratelimit-reset-tokens") or resp.headers.get("x-ratelimit-reset-requests")
+    if reset and (m := _RESET_DURATION_RE.match(reset.strip())):
+        value, unit = float(m.group(1)), m.group(2) or "s"
+        return value / 1000 if unit == "ms" else value * 60 if unit == "m" else value * 3600 if unit == "h" else value
+    return None
+
+
+async def _call_with_retries(
+    make_coro: Any, *, what: str, is_transient: Any = _is_transient, stats: dict[str, Any] | None = None
+) -> Any:
+    """Await `make_coro()`, retrying transient errors with exponential backoff + full jitter, floored
+    at the provider's Retry-After hint and capped at llm_retry_max_delay_s. Non-transient errors (and
+    exhausted retries) propagate — except a 429, which raises LlmRateLimited so callers classify it as
+    infrastructure instead of an author/QA failure. Shared by both messages.create and
+    messages.count_tokens (and the OpenAI-compatible path, via `is_transient` override) so a transient
+    blip never one-offs any of them. `stats` (when given) receives retry diagnostics for telemetry:
+    retries, last_error, rate_limit_headers."""
     attempt = 0
     while True:
         try:
-            return await make_coro()
+            result = await make_coro()
+            if stats is not None:
+                stats["retries"] = attempt
+            return result
         except Exception as exc:
+            rate_limited = _is_rate_limit(exc)
+            if stats is not None:
+                stats["retries"] = attempt
+                stats["last_error"] = f"{type(exc).__name__}: {exc}"
+                if headers := rate_limit_headers(_response_of(exc)):
+                    stats["rate_limit_headers"] = headers
             if not is_transient(exc) or attempt >= settings.llm_max_retries:
+                if rate_limited:
+                    raise LlmRateLimited(
+                        f"provider rate limit (429) persisted after {attempt} automatic retr"
+                        f"{'y' if attempt == 1 else 'ies'}: {exc}",
+                        retry_after_s=_retry_after_seconds(exc),
+                        attempts=attempt + 1,
+                    ) from exc
                 raise
-            log.warning("llm.retry", what=what, attempt=attempt + 1, error=type(exc).__name__)
-            await asyncio.sleep(settings.llm_retry_base_delay_s * 2**attempt)
+            delay = min(settings.llm_retry_max_delay_s, settings.llm_retry_base_delay_s * 2**attempt)
+            delay *= 0.5 + random.random()  # full jitter: throttled peers must not re-fire in lockstep
+            if (hint := _retry_after_seconds(exc)) is not None:
+                delay = min(max(delay, hint), settings.llm_retry_max_delay_s)
+            log.warning(
+                "llm.retry",
+                what=what,
+                attempt=attempt + 1,
+                delay_s=round(delay, 2),
+                rate_limited=rate_limited,
+                error=type(exc).__name__,
+            )
+            await asyncio.sleep(delay)
             attempt += 1
+
+
+# One semaphore per (event loop, provider path), sized from settings on first use in that loop —
+# mirrors author_sections._inflight_sem. Held across the WHOLE retry loop on purpose: when the
+# provider is telling us to slow down, freeing the slot mid-backoff would just let the next call
+# burn the same TPM window and 429 too.
+_provider_sems: dict[tuple[int, str], asyncio.Semaphore] = {}
+
+
+def _provider_slot(model: str) -> Any:
+    """Async context manager bounding in-flight calls to this model's provider path (0 = uncapped)."""
+    is_a = _is_anthropic_model(model)
+    limit = settings.llm_anthropic_concurrency if is_a else settings.llm_openai_concurrency
+    if limit <= 0:
+        return contextlib.nullcontext()
+    key = (id(asyncio.get_running_loop()), "anthropic" if is_a else "openai_compatible")
+    sem = _provider_sems.get(key)
+    if sem is None:
+        sem = asyncio.Semaphore(limit)
+        _provider_sems[key] = sem
+    return sem
 
 
 async def count_input_tokens(
@@ -268,9 +408,15 @@ async def complete(
     context_sections: Mapping[str, int] | None = None,
     temperature: float | None = None,
     effort: str | None = None,
+    input_budget: int | None = None,
 ) -> tuple[str, Usage]:
     """One LLM call. Retries transient errors with exponential backoff; charges the budget from the
     response usage on success (raises BudgetExceeded if over). Non-transient errors raise at once.
+    A 429 that survives every retry raises LlmRateLimited (classified infrastructure failure).
+
+    input_budget: hard per-stage ceiling on ESTIMATED input tokens. Exceeding it raises
+    PromptBudgetExceeded locally, before any provider traffic — a policy gate on prompt size,
+    tighter than (and independent of) the model-context-window preflight.
 
     user_prefix: when given, sent as a cached content block before `user`. Use for stable context
     (canon, summaries, prior-scene tail) that doesn't change across calls within a job, so subsequent
@@ -310,6 +456,19 @@ async def complete(
         context_sections=context_sections,
     )
     raw_context_total = sum(sections.values())
+    estimated_input_tokens = max(0, raw_context_total - max_tokens)  # sections includes output_allowance
+
+    # ---- Prompt-budget gate: fail locally before ANY provider traffic (including token counting).
+    # An oversized prompt should cost zero TPM — it gets a clear, classifiable local failure instead
+    # of burning the rate-limit window just to be refused (or to overpay) mid-generation.
+    if input_budget is not None and estimated_input_tokens > input_budget:
+        largest = sorted(sections.items(), key=lambda kv: kv[1], reverse=True)[:6]
+        detail = ", ".join(f"{name}={tokens}" for name, tokens in largest)
+        raise PromptBudgetExceeded(
+            "prompt_budget_exceeded: "
+            f"estimated_input_tokens={estimated_input_tokens} > input_budget={input_budget} "
+            f"model={model}; largest sections: {detail}"
+        )
 
     # ---- Context-window preflight: count the exact request BEFORE creating it, so an oversized prompt
     # fails cleanly here instead of erroring mid-generation. The real count (input only) plus the output
@@ -385,7 +544,7 @@ async def complete(
     token_count_method = "disabled"
     token_count_error: str | None = None
     if context_window_budget is not None:
-        local_input_estimate = max(0, raw_context_total - max_tokens)  # sections includes output_allowance
+        local_input_estimate = estimated_input_tokens
         if is_anthropic and settings.llm_token_counting_enabled:
             try:
                 preflight_input_tokens = await count_input_tokens(
@@ -427,9 +586,66 @@ async def complete(
             )
 
     call_started = time.time()
-    if is_anthropic:
-        resp = await _call_with_retries(lambda: _client().messages.create(**create_kwargs), what="create")
+    retry_stats: dict[str, Any] = {}
+    provider_headers: dict[str, str] = {}
+    resp: Any = None
+    http_resp: httpx.Response | None = None
+    try:
+        if is_anthropic:
+            async with _provider_slot(model):
+                resp = await _call_with_retries(
+                    lambda: _client().messages.create(**create_kwargs), what="create", stats=retry_stats
+                )
+        else:
+            base_url, api_key = _openai_compatible_endpoint(model)
+            client = _openai_compatible_client(base_url, api_key)
 
+            async def _make() -> httpx.Response:
+                r = await client.post("/chat/completions", json=create_kwargs)
+                if r.is_error:
+                    # Surface the provider's error body (e.g. OpenAI's "missing bearer authentication",
+                    # "model not found", "max_tokens is not supported") — raise_for_status alone drops it,
+                    # leaving only a bare status code that hides the actionable reason.
+                    raise httpx.HTTPStatusError(
+                        f"{r.status_code} from {r.request.url}: {r.text[:600]}",
+                        request=r.request,
+                        response=r,
+                    )
+                return r
+
+            async with _provider_slot(model):
+                http_resp = await _call_with_retries(
+                    _make, what="create", is_transient=_is_transient_http, stats=retry_stats
+                )
+            provider_headers = rate_limit_headers(http_resp)
+    except Exception as exc:
+        # A failed call must still be observable: without this record, a retry-exhausted 429 (or any
+        # terminal provider error) vanished from llm_calls entirely and the run's telemetry read as if
+        # the call never happened. Zero token measures — the provider did no billable work for us.
+        telemetry.record(
+            model=model,
+            input_tokens=0,
+            output_tokens=0,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            truncated=False,
+            latency_ms=int((time.time() - call_started) * 1000),
+            error=f"{type(exc).__name__}: {exc}",
+            metadata={
+                "max_tokens": max_tokens,
+                "estimated_input_tokens": estimated_input_tokens,
+                "requested_tokens": estimated_input_tokens + max_tokens,
+                "retries": retry_stats.get("retries", 0),
+                "rate_limited": isinstance(exc, LlmRateLimited),
+                "retry_after_s": getattr(exc, "retry_after_s", None),
+                "rate_limit_headers": retry_stats.get("rate_limit_headers"),
+                "context_sections": dict(sections),
+            },
+        )
+        raise
+
+    if is_anthropic:
+        assert resp is not None  # set in the try block above for the Anthropic branch
         # Truncation is silent at the API level: the response just stops mid-output. Surface it so
         # callers that parse JSON (packet author/QA, reviewers) can see *why* their parse failed instead
         # of only a generic "no usable result". The text is still returned — the caller decides whether
@@ -446,23 +662,7 @@ async def complete(
         )
         text = "".join(block.text for block in resp.content if block.type == "text")
     else:
-        base_url, api_key = _openai_compatible_endpoint(model)
-        client = _openai_compatible_client(base_url, api_key)
-
-        async def _make() -> httpx.Response:
-            r = await client.post("/chat/completions", json=create_kwargs)
-            if r.is_error:
-                # Surface the provider's error body (e.g. OpenAI's "missing bearer authentication",
-                # "model not found", "max_tokens is not supported") — raise_for_status alone drops it,
-                # leaving only a bare status code that hides the actionable reason.
-                raise httpx.HTTPStatusError(
-                    f"{r.status_code} from {r.request.url}: {r.text[:600]}",
-                    request=r.request,
-                    response=r,
-                )
-            return r
-
-        http_resp = await _call_with_retries(_make, what="create", is_transient=_is_transient_http)
+        assert http_resp is not None  # set in the try block above for the OpenAI-compatible branch
         body = http_resp.json()
         choice = body["choices"][0]
         stop_reason = choice.get("finish_reason")
@@ -540,6 +740,15 @@ async def complete(
         metadata={
             "max_tokens": max_tokens,
             "stop_reason": stop_reason,
+            # Per-call token accounting requested vs. actual: the estimate is what we ASKED the
+            # provider to admit (input estimate + output allowance); the Usage fields above are what
+            # it actually metered. `retries` + rate-limit headers make a 429-adjacent call diagnosable
+            # from telemetry alone.
+            "estimated_input_tokens": estimated_input_tokens,
+            "requested_tokens": estimated_input_tokens + max_tokens,
+            "input_budget": input_budget,
+            "retries": retry_stats.get("retries", 0),
+            "rate_limit_headers": provider_headers or None,
             "context_sections": dict(sections),
             "context_window_budget": context_window_budget,
             # `raw_context_total` kept for existing readers; `_estimate` is the clearer alias (this is the

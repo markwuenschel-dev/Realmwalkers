@@ -278,6 +278,7 @@ async def author_scene_packet(
             user=user,
             max_tokens=max_tokens,
             budget=budget,
+            input_budget=settings.scene_packet_author_prompt_budget,
         )
         return extract_object(raw), usage
 

@@ -152,12 +152,15 @@ class ClaimSource(StrEnum):
 
 class ScenePacketStatus(StrEnum):
     """A scene packet's lifecycle. STALE means an upstream input changed (chapter packet, prior
-    scene, owner file, word budget) and the packet must be re-derived or re-approved before drafting."""
+    scene, owner file, word budget) and the packet must be re-derived or re-approved before drafting.
+    RATE_LIMITED means the provider 429'd the author/QA call past its automatic retries — transient
+    infrastructure, NOT an invalid contract: retry derive (or re-run QA when the body survived)."""
 
     PROPOSED = "proposed"
     APPROVED = "approved"
     BLOCKED = "blocked"
     STALE = "stale"
+    RATE_LIMITED = "rate_limited"
 
 
 class ScenePacketVerdict(StrEnum):

@@ -32,7 +32,7 @@ from dominion.shared.text_match import as_str_list, binding_replacements, projec
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
-from dominion.workers.llm import estimate_tokens
+from dominion.workers.llm import LlmRateLimited, PromptBudgetExceeded, estimate_tokens
 from dominion.workers.memory import owner_router, retrieval
 from dominion.workers.packet import master
 from dominion.workers.pov import effective_pov
@@ -140,6 +140,24 @@ async def _author_then_qa(
                 canon_snippets=item.canon_snippets or None,
                 budget=item.budget,
             )
+    except LlmRateLimited as exc:
+        # NOT an author failure: the provider refused the call (429/TPM) past its automatic retries.
+        # The scene contract is not invalid — it was never produced. Lands as RATE_LIMITED so the UI
+        # offers a retry instead of blaming the author stage.
+        log.warning("scene_packet.author_rate_limited", seed=str(item.seed_id), error=str(exc))
+        scene_body = None
+        error_detail = (
+            f"Rate limited by provider during scene author ({exc}). "
+            "Transient infrastructure failure — retry derive for this scene."
+        )
+        blocker_source = "rate_limit"
+    except PromptBudgetExceeded as exc:
+        # Local policy gate, no provider call was made — a deterministic validation failure, not an
+        # author quality failure. Trim the packet/context or raise the stage budget.
+        log.warning("scene_packet.author_prompt_budget", seed=str(item.seed_id), error=str(exc))
+        scene_body = None
+        error_detail = str(exc)
+        blocker_source = "validation"
     except Exception as exc:  # noqa: BLE001 — any author failure fails this scene closed
         log.error("scene_packet.author_failed", seed=str(item.seed_id), error=str(exc))
         scene_body = None
@@ -184,6 +202,17 @@ async def _author_then_qa(
                         chapter_open_questions=chapter_open_questions,
                         budget=item.budget,
                     )
+            except LlmRateLimited as exc:
+                # The author's contract body is VALID — only the QA call was refused by the provider.
+                # Persist the body and land as RATE_LIMITED so "re-run QA" stays available; never
+                # report this as a missing/invalid scene contract.
+                log.warning("scene_packet.qa_rate_limited", seed=str(item.seed_id), error=str(exc))
+                qa = None
+                error_detail = (
+                    f"Rate limited by provider during scene QA ({exc}). "
+                    "The scene contract is valid — re-run QA once the limit resets."
+                )
+                blocker_source = "rate_limit"
             except Exception as exc:  # noqa: BLE001
                 log.error("scene_packet.qa_failed", seed=str(item.seed_id), error=str(exc))
                 qa = None
@@ -409,7 +438,7 @@ async def derive_scene_packets(
     # are derived views of the chapter master packet, not an independent source of chapter truth.
     effective_body: dict[str, Any] = master.drafter_view(body)
     seeds = [s for s in (effective_body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
-    counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0}
+    counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0, "rate_limited": 0}
     if not seeds:
         return counts
 
@@ -599,7 +628,9 @@ async def derive_scene_packets(
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
     for item, (scene_body, qa, error_detail, violations, blocker_source) in zip(work, results, strict=True):
-        status, blocked_reason = approval_policy.status_after_author_qa(scene_body, qa, error_detail)
+        status, blocked_reason = approval_policy.status_after_author_qa(
+            scene_body, qa, error_detail, blocker_source=blocker_source
+        )
         persisted_body = scene_body if isinstance(scene_body, dict) else {"blocked_reason": blocked_reason}
         if chapter_bindings and isinstance(persisted_body, dict):
             persisted_body = {**persisted_body, "entity_bindings": chapter_bindings}
@@ -609,17 +640,18 @@ async def derive_scene_packets(
             if qa
             else {"residual_risks": [], "blocked_reason": blocked_reason}
         )
-        if status == ScenePacketStatus.BLOCKED and blocked_reason:
+        held = status in (ScenePacketStatus.BLOCKED, ScenePacketStatus.RATE_LIMITED)
+        if held and blocked_reason:
             qa_warnings = {**qa_warnings, "blocked_reason": blocked_reason}
         # Surface deterministic contract violations (block + repair + warn) on the packet so the editor
         # sees the concrete repair task ("absent character on-page") or advisory ("12 source ids
         # normalized") instead of only a generic verdict.
         if violations:
             qa_warnings = {**qa_warnings, "violations": violations}
-        # Persist WHICH gate blocked (author | validation | qa) so the UI stops mislabeling a deterministic
-        # block as a QA block. QA verdicts are advisory now, so the only "qa" blocks left are QA calls
-        # that failed to return a usable verdict (fail closed on infrastructure).
-        if status == ScenePacketStatus.BLOCKED:
+        # Persist WHICH gate blocked (author | validation | qa | rate_limit) so the UI stops mislabeling
+        # a deterministic block as a QA block. QA verdicts are advisory now, so the only "qa" blocks left
+        # are QA calls that failed to return a usable verdict (fail closed on infrastructure).
+        if held:
             qa_warnings = {**qa_warnings, "blocker_source": blocker_source or "qa"}
 
         row = item.row
@@ -665,6 +697,8 @@ async def derive_scene_packets(
         row.stale_reason = None
         if status == ScenePacketStatus.BLOCKED:
             counts["blocked"] += 1
+        elif status == ScenePacketStatus.RATE_LIMITED:
+            counts["rate_limited"] += 1
 
     # One run_id for every call this derive made, so the Desk can isolate this run (Packets panel) and
     # build a per-run history (Telemetry tab) instead of reading one ever-growing cumulative total.

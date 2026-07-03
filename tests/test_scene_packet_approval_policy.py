@@ -100,6 +100,70 @@ def test_apply_qa_rerun_releases_legacy_qa_block_but_not_validation_block():
     assert validation_blocked.qa_warnings["blocked_reason"] == "deterministic validation failed: no scene_no"
 
 
+def test_rate_limited_author_lands_as_rate_limited_not_blocked():
+    # A provider 429 past retries is transient infrastructure, never an author-quality failure: the
+    # scene lands RATE_LIMITED (retriable), not BLOCKED, and never reads as an invalid contract.
+    status, reason = approval_policy.status_after_author_qa(
+        None, None, "Rate limited by provider during scene author (429).", blocker_source="rate_limit"
+    )
+    assert status == ScenePacketStatus.RATE_LIMITED
+    assert reason is not None and "Rate limited" in reason
+
+
+def test_rate_limited_qa_with_valid_body_lands_as_rate_limited():
+    valid_body = {"known_before_scene": {}, "learned_during_scene": {}, "word_budget": {"target": 900}}
+    status, reason = approval_policy.status_after_author_qa(
+        valid_body, None, "Rate limited by provider during scene QA (429).", blocker_source="rate_limit"
+    )
+    assert status == ScenePacketStatus.RATE_LIMITED
+    assert reason is not None and "Rate limited" in reason
+    # Without the rate-limit classification the same inputs still fail closed as BLOCKED (qa=None).
+    status2, _ = approval_policy.status_after_author_qa(valid_body, None, "QA exploded")
+    assert status2 == ScenePacketStatus.BLOCKED
+
+
+def test_rate_limit_never_downgrades_a_successful_result():
+    # Safety: a usable body+verdict stays PROPOSED even if a stray rate_limit source is passed.
+    valid_body = {"known_before_scene": {}, "learned_during_scene": {}, "word_budget": {"target": 900}}
+    qa = {"verdict": ScenePacketVerdict.APPROVE.value, "residual_risks": [], "issues": []}
+    status, reason = approval_policy.status_after_author_qa(valid_body, qa, None, blocker_source="rate_limit")
+    assert status == ScenePacketStatus.PROPOSED and reason is None
+
+
+def test_rate_limited_packet_cannot_approve_and_enriches_with_source():
+    sp = _sp(
+        status=ScenePacketStatus.RATE_LIMITED,
+        qa_verdict=None,
+        qa_warnings={
+            "residual_risks": [],
+            "blocked_reason": "Rate limited by provider during scene author (429).",
+            "blocker_source": "rate_limit",
+        },
+    )
+    refusal = approval_policy.can_approve(sp)
+    assert refusal is not None and "rate limited" in refusal.detail
+    out = approval_policy.enrich_scene_packet_out(sp)
+    assert out.can_approve is False
+    assert out.blocker_source == "rate_limit"
+    assert out.blocked_reason is not None and "Rate limited" in out.blocked_reason
+
+
+def test_apply_qa_rerun_releases_rate_limited_hold():
+    # A RATE_LIMITED row's only problem was transient infrastructure; a usable verdict clears it.
+    sp = _sp(
+        status=ScenePacketStatus.RATE_LIMITED,
+        qa_verdict=None,
+        qa_warnings={
+            "residual_risks": [],
+            "blocked_reason": "Rate limited by provider during scene QA (429).",
+            "blocker_source": "rate_limit",
+        },
+    )
+    approval_policy.apply_qa_rerun(sp, {"verdict": ScenePacketVerdict.APPROVE, "residual_risks": [], "issues": []})
+    assert sp.status == ScenePacketStatus.PROPOSED
+    assert sp.qa_verdict == ScenePacketVerdict.APPROVE
+
+
 def test_assert_draft_ready_stale():
     sp = _sp(status=ScenePacketStatus.STALE, stale_reason="upstream changed")
     with pytest.raises(ScenePacketRequiredError, match="stale"):
