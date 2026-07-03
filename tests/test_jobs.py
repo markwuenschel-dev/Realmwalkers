@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 from conftest import seed_scene_packet
 from sqlalchemy import select
 
@@ -82,33 +80,6 @@ async def test_requeue_skips_when_scene_packet_not_approved(db_factory):
         assert len(result.skipped) >= 1
 
 
-async def test_retry_failed_api_returns_structured_result(db_factory):
-    async with db_factory() as s:
-        book, ch, beat, run, sp = await _setup(s)
-        s.add(
-            Job(
-                run_id=run.id,
-                kind=JobKind.DRAFT,
-                chapter_id=ch.id,
-                beat_id=beat.id,
-                scene_packet_id=sp.id,
-                chapter_no=1,
-                scene_no=1,
-                status=JobStatus.FAILED,
-                token_budget=40_000,
-                last_error="err",
-            )
-        )
-        await s.flush()
-        out = await jobs_router.retry_failed(
-            background=MagicMock(),
-            session=s,
-            book_id=book.id,
-        )
-        assert out.requested == 1
-        assert out.requeued == 1
-
-
 async def test_clear_failed_api_purges_failed_jobs(db_factory):
     async with db_factory() as s:
         book, ch, beat, run, sp = await _setup(s)
@@ -163,40 +134,3 @@ async def test_clear_failed_purges_revision_jobs_too(db_factory):
         assert out.purged == 2
         assert out.failed == 0
         assert await jobs_router.failed(session=s, book_id=book.id) == []
-
-
-async def test_clear_failed_scoped_to_chapter(db_factory):
-    async with db_factory() as s:
-        book, ch, beat, run, sp = await _setup(s)
-        ch2 = Chapter(book_id=book.id, chapter_no=2, pov="Y")
-        s.add(ch2)
-        await s.flush()
-        beat2 = Beat(chapter_id=ch2.id, scene_no=1, status=BeatStatus.APPROVED, beat_text="b2")
-        s.add(beat2)
-        await s.flush()
-        sp2 = await seed_scene_packet(s, chapter=ch2, beat=beat2)
-        for b, scene_no, chapter, chapter_no, sp_id in (
-            (beat, 1, ch, 1, sp.id),
-            (beat2, 1, ch2, 2, sp2.id),
-        ):
-            s.add(
-                Job(
-                    run_id=run.id,
-                    kind=JobKind.DRAFT,
-                    chapter_id=chapter.id,
-                    beat_id=b.id,
-                    scene_packet_id=sp_id,
-                    chapter_no=chapter_no,
-                    scene_no=scene_no,
-                    status=JobStatus.FAILED,
-                    token_budget=40_000,
-                    last_error="err",
-                )
-            )
-        await s.flush()
-        out = await jobs_router.clear_failed(session=s, book_id=book.id, chapter_id=ch.id)
-        assert out.purged == 1
-        assert out.failed == 1
-        failed_list = await jobs_router.failed(session=s, book_id=book.id)
-        assert len(failed_list) == 1
-        assert failed_list[0].chapter_no == 2

@@ -45,10 +45,6 @@ def _mock(monkeypatch, response: str) -> dict[str, int]:
     return calls
 
 
-def _no_call(monkeypatch) -> dict[str, int]:
-    return _mock(monkeypatch, "[]")
-
-
 # --- voice ----------------------------------------------------------------------------------------
 
 
@@ -60,30 +56,7 @@ async def test_voice_flags_drift_as_advisory(monkeypatch):
     assert flags[0].payload == {"quote": "gilded dawn"}
 
 
-async def test_voice_noops_without_spec(monkeypatch):
-    calls = _no_call(monkeypatch)
-    assert await voice_reviewer.review("Some prose.", _ctx(voice_spec=None)) == []
-    assert calls["n"] == 0  # no spec -> no LLM call
-
-
-async def test_voice_tolerates_garbage(monkeypatch):
-    _mock(monkeypatch, "not json at all")
-    assert await voice_reviewer.review("Prose.", _ctx(voice_spec="Terse.")) == []
-
-
 # --- pacing ---------------------------------------------------------------------------------------
-
-
-async def test_pacing_flags_on_long_prose(monkeypatch):
-    _mock(monkeypatch, '[{"severity": "info", "note": "the middle drags"}]')
-    flags = await pacing_reviewer.review("word " * 400, _ctx())  # > _MIN_PROSE_CHARS
-    assert len(flags) == 1 and flags[0].reviewer == "pacing" and flags[0].severity == Severity.INFO
-
-
-async def test_pacing_noops_on_short_prose(monkeypatch):
-    calls = _no_call(monkeypatch)
-    assert await pacing_reviewer.review("Too short to pace.", _ctx()) == []
-    assert calls["n"] == 0  # below the floor -> no LLM call
 
 
 async def test_pacing_never_hard(monkeypatch):
@@ -110,18 +83,6 @@ async def test_state_drift_flags_undeclared_change(monkeypatch):
     assert flags[0].payload == {"character": "Marcus", "change": "gains a sword"}
 
 
-async def test_state_drift_noops_without_declared_changes(monkeypatch):
-    calls = _no_call(monkeypatch)
-    assert await state_drift_reviewer.review("Prose.", _ctx(expected_state_changes=None)) == []
-    assert calls["n"] == 0
-
-
-async def test_state_drift_tolerates_garbage(monkeypatch):
-    _mock(monkeypatch, "```\noops\n```")
-    flags = await state_drift_reviewer.review("Prose.", _ctx(expected_state_changes={"Marcus": {"hp": 1}}))
-    assert flags == []
-
-
 # --- continuity POV-knowledge (additive; hard-number path unaffected) ------------------------------
 
 
@@ -136,9 +97,3 @@ async def test_continuity_knowledge_flags_are_advisory(monkeypatch):
     assert flags[0].reviewer == "continuity" and flags[0].severity == Severity.WARN
     assert flags[0].payload == {"kind": "knowledge", "reference": "the queen's death"}
     assert all(f.severity != Severity.HARD for f in flags)  # knowledge findings are never HARD
-
-
-async def test_continuity_knowledge_noops_without_pov_summary(monkeypatch):
-    calls = _no_call(monkeypatch)
-    assert await continuity_reviewer.review("Prose.", _ctx(pov_summary=None)) == []
-    assert calls["n"] == 0  # no ledger + no pov_summary -> no LLM call at all

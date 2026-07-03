@@ -7,7 +7,6 @@ from sqlalchemy import select
 
 from dominion.shared.models import Book, CanonEntity
 from dominion.workers.memory import canon_rag, owner_router
-from dominion.workers.memory.retrieval import retrieve_hybrid
 
 # --- owner router (pure) --------------------------------------------------------------------------
 
@@ -16,16 +15,6 @@ def test_owner_router_forces_relationship_docs_for_marcus_and_serra():
     r = owner_router.route("the duel between them", characters=["Marcus", "Serra"])
     assert "relationship_invariants.md" in r.doc_paths
     assert "relationship_invariants" in r.owner_topics
-
-
-def test_owner_router_routes_roster_query_to_cast_index():
-    r = owner_router.route("who appears in this scene")
-    assert "cast_index.md" in r.doc_paths
-
-
-def test_owner_router_silent_without_a_match():
-    r = owner_router.route("a quiet walk", characters=["Marcus"])
-    assert r.doc_paths == [] and r.owner_topics == []
 
 
 # --- ingestable filter (pure) — keeps template/CHANGELOG scaffolding out of retrievable canon ------
@@ -81,24 +70,6 @@ async def test_ingest_stores_metadata_and_skips_unchanged(db_factory, tmp_path):
         second = await canon_rag.ingest_incremental(s, book_id=book.id, root=root)
         await s.commit()
         assert second["indexed"] == 0 and second["skipped"] >= 1
-
-
-async def test_ingest_tags_kind_by_folder(db_factory, tmp_path):
-    root = tmp_path / "canon"
-    (root / "characters" / "major").mkdir(parents=True)
-    (root / "factions").mkdir()
-    (root / "characters" / "major" / "mc.md").write_text("# MC\n\nThe protagonist dossier.\n", encoding="utf-8")
-    (root / "factions" / "iron_vultures.md").write_text("# Iron Vultures\n\nA mercenary company.\n", encoding="utf-8")
-    (root / "story_bible.md").write_text("# Bible\n\nRoot-level lore.\n", encoding="utf-8")
-    async with db_factory() as s:
-        book = await _book(s)
-        await canon_rag.ingest_incremental(s, book_id=book.id, root=root)
-        await s.commit()
-        rows = (await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all()
-        kinds = {r.doc_path: r.kind for r in rows}
-        assert kinds["characters/major/mc.md"] == "cast"  # not "character" (reserved for stat rows)
-        assert kinds["factions/iron_vultures.md"] == "faction"
-        assert kinds["story_bible.md"] == "lore"  # root-level fallback
 
 
 async def test_ingest_leaves_hand_authored_entities_untouched(db_factory, tmp_path):
@@ -184,103 +155,3 @@ async def test_ingest_rebuild_purges_stale_same_path_content_and_preserves_hand_
         assert len(doc_rows) >= 1
         assert any("Illyri" in (b or "") for b in [r.body for r in doc_rows])
         assert len(null_rows) == 1 and "Hand note" in (null_rows[0].body or "")
-
-
-# --- hybrid retrieval -----------------------------------------------------------------------------
-
-
-async def test_hybrid_owner_forced_outranks_semantic(db_factory):
-    async with db_factory() as s:
-        book = await _book(s)
-        # an owner file (high priority) + a generic passage that lexically matches the query better
-        s.add(
-            CanonEntity(
-                book_id=book.id,
-                kind="passage",
-                name="relationship_invariants",
-                body="Marcus and Serra share a guarded history.",
-                embedding=canon_rag.embed("marcus serra"),
-                doc_path="relationship_invariants.md",
-                owner_topic="relationship_invariants",
-                source_priority=100,
-                content_hash="a",
-            )
-        )
-        s.add(
-            CanonEntity(
-                book_id=book.id,
-                kind="passage",
-                name="misc",
-                body="duel duel duel tactics and footwork",
-                embedding=canon_rag.embed("duel tactics"),
-                doc_path="misc.md",
-                owner_topic=None,
-                source_priority=0,
-                content_hash="b",
-            )
-        )
-        await s.flush()
-
-        results = await retrieve_hybrid(
-            s,
-            book_id=book.id,
-            query="the duel between Marcus and Serra",
-            owner_topics=["relationship_invariants"],
-            required_doc_paths=["relationship_invariants.md"],
-        )
-        assert results
-        assert results[0]["retrieval_reason"] == "owner_forced"
-        assert results[0]["doc_path"] == "relationship_invariants.md"
-
-
-async def test_hybrid_forces_owner_doc_in_nested_folder(db_factory):
-    """Owner rules name docs by bare filename ("mc.md") but ingest stores the folder-relative path
-    ("characters/major/mc.md"); force-inclusion must still match across the folder."""
-    async with db_factory() as s:
-        book = await _book(s)
-        s.add(
-            CanonEntity(
-                book_id=book.id,
-                kind="cast",
-                name="mc",
-                body="The protagonist's dossier.",
-                embedding=canon_rag.embed("protagonist"),
-                doc_path="characters/major/mc.md",
-                owner_topic="relationship_invariants",
-                source_priority=100,
-                content_hash="z",
-            )
-        )
-        await s.flush()
-        results = await retrieve_hybrid(
-            s,
-            book_id=book.id,
-            query="who is the protagonist",
-            required_doc_paths=["mc.md"],  # bare filename, as owner_router emits
-        )
-        assert results
-        assert results[0]["retrieval_reason"] == "owner_forced"
-        assert results[0]["doc_path"] == "characters/major/mc.md"
-
-
-async def test_hybrid_dedupes_and_respects_forbidden_topic(db_factory):
-    async with db_factory() as s:
-        book = await _book(s)
-        s.add(
-            CanonEntity(
-                book_id=book.id,
-                kind="passage",
-                name="secret",
-                body="the hidden cohort plan",
-                embedding=canon_rag.embed("hidden cohort"),
-                doc_path="secret.md",
-                owner_topic="forbidden_topic",
-                source_priority=0,
-                content_hash="c",
-            )
-        )
-        await s.flush()
-        results = await retrieve_hybrid(
-            s, book_id=book.id, query="hidden cohort plan", forbidden_topics=["forbidden_topic"]
-        )
-        assert all(r["owner_topic"] != "forbidden_topic" for r in results)

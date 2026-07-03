@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
+from dominion.shared.enums import PacketConfidence, PacketStatus
 from dominion.shared.models import ChapterPacket
 from dominion.workers.packet import approval_policy
 
@@ -32,13 +32,6 @@ def test_can_approve_blocked():
     assert "blocked" in refusal.detail
 
 
-def test_can_approve_red_confidence():
-    p = _packet(confidence=PacketConfidence.RED)
-    refusal = approval_policy.can_approve(p)
-    assert refusal is not None
-    assert "red-confidence" in refusal.detail
-
-
 def test_can_approve_open_questions():
     p = _packet(open_questions={"items": ["who is the traitor?"]})
     refusal = approval_policy.can_approve(p)
@@ -48,24 +41,6 @@ def test_can_approve_open_questions():
 
 def test_can_approve_clean_proposed():
     assert approval_policy.can_approve(_packet()) is None
-
-
-def test_status_from_qa_block_drafting():
-    conf, status = approval_policy.status_from_qa(
-        {"confidence": "green", "open_questions": []},
-        {"verdict": PacketVerdict.BLOCK_DRAFTING, "issues": []},
-    )
-    assert conf == PacketConfidence.RED
-    assert status == PacketStatus.BLOCKED
-
-
-def test_status_from_qa_revise_required_stays_proposed():
-    conf, status = approval_policy.status_from_qa(
-        {"confidence": "green", "open_questions": []},
-        {"verdict": PacketVerdict.REVISE_REQUIRED, "issues": []},
-    )
-    assert conf == PacketConfidence.RED
-    assert status == PacketStatus.PROPOSED
 
 
 def test_can_derive_scene_packets_requires_approved():

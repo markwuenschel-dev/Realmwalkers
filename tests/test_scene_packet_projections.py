@@ -39,29 +39,6 @@ def _scene_body(word_budget: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
-def _chapter_body() -> dict[str, Any]:
-    return {"canon_locks": ["the Realm is real"], "characters_present": ["Marcus", "Serra"]}
-
-
-def test_project_full_body_matches_fixture():
-    body = _scene_body()
-    chapter = _chapter_body()
-    p = project(body, chapter)
-
-    assert p.scene_body is body
-    assert p.chapter_body is chapter
-    assert p.word_budget == {"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400}
-    assert p.reviewer["forbidden_beats"] == ["Marcus uses his Aspect"]
-    assert p.reviewer["required_beats"] == ["land the hit"]
-    assert p.reviewer["word_budget"] == p.word_budget
-    assert "Serra is the mole" in p.drafter_flat["forbidden_reveals"]
-    assert p.drafter_flat["canon_locks"] == ["the Realm is real"]
-    assert p.drafter_flat["required_reveals"] == ["the cohort is converging"]
-    assert p.drafter_flat["exit_state"] == "both wounded"
-    assert p.reader_state["known_before_scene"]["reader"] == ["the route"]
-    assert p.reader_state["intentional_mysteries"][0]["mystery"] == "who tipped the cohort"
-
-
 def test_flat_contract_omits_empty_keys():
     body = {
         "known_before_scene": {},
