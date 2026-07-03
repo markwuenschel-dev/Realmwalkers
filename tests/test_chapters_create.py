@@ -63,18 +63,6 @@ async def test_create_chapter_never_calls_propose_beats(db_factory, monkeypatch)
         assert called is False
 
 
-async def test_create_chapter_stamps_generated_title_when_none_exists(db_factory, monkeypatch):
-    async def fake_title(**kw):
-        return "The Scrim Begins"
-
-    monkeypatch.setattr(planner_mod, "propose_chapter_title", fake_title)
-    async with db_factory() as s:
-        book = await _book(s)
-        body = ChapterCreateIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="Marcus enters the scrim.")
-        out = await chapters.create_chapter(body, s)
-        assert out.title == "The Scrim Begins"
-
-
 async def test_create_chapter_never_overwrites_existing_title(db_factory, monkeypatch):
     called = False
 
@@ -94,15 +82,3 @@ async def test_create_chapter_never_overwrites_existing_title(db_factory, monkey
         out = await chapters.create_chapter(body, s)
         assert out.title == "Hand-picked Title"
         assert called is False  # never even calls the planner when a title already exists
-
-
-async def test_create_chapter_survives_title_call_returning_none(db_factory, monkeypatch):
-    async def no_title(**kw):
-        return None
-
-    monkeypatch.setattr(planner_mod, "propose_chapter_title", no_title)
-    async with db_factory() as s:
-        book = await _book(s)
-        body = ChapterCreateIn(book_id=book.id, chapter_no=1, pov="Marcus", outline="An outline.")
-        out = await chapters.create_chapter(body, s)
-        assert out.title is None

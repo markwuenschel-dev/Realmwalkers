@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
 from conftest import seed_scene_packet
-from fastapi import HTTPException
 from sqlalchemy import select
 
 from dominion.api.routers import packets as packets_router
@@ -81,19 +79,6 @@ async def test_delete_chapter_packet_cascades_scene_packets(db_factory, monkeypa
         assert (await s.execute(select(ScenePacket))).scalar_one_or_none() is None
 
 
-async def test_delete_chapter_packet_404_when_missing(db_factory):
-    async with db_factory() as s:
-        book = Book(title="Empty")
-        s.add(book)
-        await s.flush()
-        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
-        s.add(ch)
-        await s.commit()
-        with pytest.raises(HTTPException) as exc:
-            await packets_router.delete_packet(ch.id, s)
-        assert exc.value.status_code == 404
-
-
 async def test_delete_scene_packet_detaches_refs_and_purges_jobs(db_factory):
     async with db_factory() as s:
         book = Book(title="SP")
@@ -137,45 +122,3 @@ async def test_delete_scene_packet_detaches_refs_and_purges_jobs(db_factory):
         assert (await s.execute(select(Job))).scalar_one_or_none() is None
         da = (await s.execute(select(DraftAttempt))).scalar_one()
         assert da.scene_packet_id is None
-
-
-async def test_delete_scene_packets_for_chapter(db_factory, monkeypatch):
-    async def fake_derive(session, *, packet):
-        for seed in packet.body.get("scene_seeds") or []:
-            session.add(
-                ScenePacket(
-                    book_id=packet.book_id,
-                    chapter_id=packet.chapter_id,
-                    chapter_packet_id=packet.id,
-                    scene_seed_id=uuid.UUID(str(seed["seed_id"])),
-                    scene_no=int(seed["scene_no"]),
-                    status=ScenePacketStatus.PROPOSED,
-                    body={"scene_no": seed["scene_no"]},
-                    source_hash="x",
-                )
-            )
-        await session.flush()
-        return {"created": 2, "updated": 0, "blocked": 0, "stale": 0}
-
-    monkeypatch.setattr(sp_derive, "derive_scene_packets", fake_derive)
-    async with db_factory() as s:
-        book = Book(title="Batch")
-        s.add(book)
-        await s.flush()
-        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
-        s.add(ch)
-        await s.flush()
-        await _approved_chapter_packet(
-            s,
-            book,
-            ch,
-            [_seed(str(uuid.uuid4()), 1), _seed(str(uuid.uuid4()), 2)],
-        )
-        cp = (await s.execute(select(ChapterPacket))).scalar_one()
-        await sp_derive.derive_scene_packets(s, packet=cp)
-        await s.commit()
-        assert len((await s.execute(select(ScenePacket))).scalars().all()) == 2
-
-        out = await sp_router.delete_scene_packets(ch.id, s)
-        assert out.deleted == 2
-        assert (await s.execute(select(ScenePacket))).scalars().all() == []

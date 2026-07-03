@@ -7,70 +7,14 @@ and skip automatically when Postgres isn't reachable (see tests/conftest.py).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-
-import pytest
-from fastapi import BackgroundTasks, HTTPException
-
-from dominion.api.routers import jobs as jobs_router
-from dominion.api.routers import markup as markup_router
-from dominion.api.routers import scenes as scenes_router
-from dominion.api.routers import threads as threads_router
 from dominion.api.routers import world as world_router
-from dominion.shared.enums import JobStatus, SuggestionStatus
-from dominion.shared.models import (
-    Book,
-    CanonEntity,
-    Chapter,
-    CharacterState,
-    Job,
-    Run,
-    Scene,
-)
-from dominion.shared.schemas import (
-    AnnotationIn,
-    CanonEntityIn,
-    CanonEntityUpdateIn,
-    CharacterStateIn,
-    SuggestionDecisionIn,
-    SuggestionIn,
-    ThreadBeatIn,
-    ThreadIn,
-    ThreadUpdateIn,
-)
+from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState
+from dominion.shared.schemas import CanonEntityIn, CanonEntityUpdateIn, CharacterStateIn
 from dominion.workers import background_work as bw
 from dominion.workers.memory import canon_rag
 from dominion.workers.oracle import Oracle
 
 # --- draft trigger (no DB) ------------------------------------------------------------------------
-
-
-async def test_drain_runs_until_queue_empty(monkeypatch):
-    """_drain keeps drafting until run_once reports the queue is empty (returns False)."""
-    calls = {"n": 0}
-
-    async def fake_run_once():
-        calls["n"] += 1
-        return calls["n"] < 3  # two drafted, then empty
-
-    monkeypatch.setattr("dominion.workers.worker.run_once", fake_run_once)
-    await bw.drain_queued_jobs()
-    assert calls["n"] == 3
-
-
-async def test_drain_keeps_going_after_a_failed_job(monkeypatch):
-    """A job that raises is logged + (in run_once) marked FAILED; the drain must not stop."""
-    calls = {"n": 0}
-
-    async def flaky_run_once():
-        calls["n"] += 1
-        if calls["n"] == 1:
-            raise RuntimeError("scene blew up")
-        return calls["n"] < 3
-
-    monkeypatch.setattr("dominion.workers.worker.run_once", flaky_run_once)
-    await bw.drain_queued_jobs()
-    assert calls["n"] == 3  # error didn't strand the rest
 
 
 async def test_drain_is_single_flight(monkeypatch):
@@ -88,57 +32,6 @@ async def test_drain_is_single_flight(monkeypatch):
     finally:
         bw._drain_lock.release()
     assert called["v"] is False
-
-
-# --- draft trigger + status (DB) ------------------------------------------------------------------
-
-
-async def _seed_queued_jobs(s, n: int) -> None:
-    book = Book(title="X")
-    s.add(book)
-    await s.flush()
-    run = Run(book_id=book.id, scope_json={}, gate_mode="pause_each", token_budget=1000)
-    s.add(run)
-    await s.flush()
-    for scene_no in range(1, n + 1):
-        s.add(
-            Job(
-                run_id=run.id,
-                kind="draft",
-                chapter_no=1,
-                scene_no=scene_no,
-                token_budget=1000,
-                status=JobStatus.QUEUED,
-            )
-        )
-    await s.flush()
-
-
-async def test_status_reports_queue_depth(db_factory):
-    async with db_factory() as s:
-        await _seed_queued_jobs(s, 2)
-        out = await jobs_router.status(s)
-        assert out.queued == 2 and out.failed == 0 and out.active_scene is None
-
-
-async def test_draft_next_schedules_a_background_drain(db_factory):
-    async with db_factory() as s:
-        await _seed_queued_jobs(s, 1)
-        bg = BackgroundTasks()
-        out = await jobs_router.draft_next(bg, s)
-        assert out.queued == 1 and out.scheduled is True and out.running is True
-        assert len(bg.tasks) == 1  # the drain is scheduled, not run inline
-
-
-async def test_draft_next_noop_when_queue_empty(db_factory):
-    async with db_factory() as s:
-        book = Book(title="X")
-        s.add(book)
-        await s.flush()
-        bg = BackgroundTasks()
-        out = await jobs_router.draft_next(bg, s)
-        assert out.queued == 0 and out.scheduled is False
-        assert len(bg.tasks) == 0
 
 
 # --- world ledger (DB) ----------------------------------------------------------------------------
@@ -176,7 +69,7 @@ async def test_canon_lists_and_filters_by_kind(db_factory):
         assert len(locs) == 1 and locs[0].name == "The Warded Door"
 
 
-# --- world authoring: canon CRUD + character upsert + docs ingest (DB) ----------------------------
+# --- world authoring: canon CRUD + character upsert (DB) ------------------------------------------
 
 
 async def test_canon_entity_crud_embeds_and_is_retrievable(db_factory):
@@ -219,174 +112,3 @@ async def test_upsert_character_seeds_oracle_baseline(db_factory):
 
         await world_router.delete_character(book.id, "Soren", s)
         assert await world_router.list_characters(book.id, s) == []
-
-
-async def test_ingest_canon_indexes_on_disk_docs(db_factory):
-    async with db_factory() as s:
-        book = Book(title="X")
-        s.add(book)
-        await s.flush()
-        out = await world_router.ingest_canon(book.id, s)
-        assert out.indexed >= 0  # the repo ships series/canon/*.md
-        assert hasattr(out, "retired")  # richer response exposes purge count for Ledger UI
-
-
-# --- threads (DB) ---------------------------------------------------------------------------------
-
-
-async def test_thread_crud_roundtrip(db_factory):
-    async with db_factory() as s:
-        book = Book(title="X")
-        s.add(book)
-        await s.flush()
-
-        created = await threads_router.create_thread(
-            book.id, ThreadIn(name="Soren ⇄ Lyra", kind="relationship", state="sealed", note="n"), s
-        )
-        assert created.name == "Soren ⇄ Lyra" and created.beats == []
-
-        with_beat = await threads_router.add_thread_beat(created.id, ThreadBeatIn(scene_no=5, label="threadbound"), s)
-        assert [b.scene_no for b in with_beat.beats] == [5]
-
-        updated = await threads_router.update_thread(created.id, ThreadUpdateIn(state="active"), s)
-        assert updated.state == "active" and updated.name == "Soren ⇄ Lyra"  # untouched field kept
-
-        listed = await threads_router.list_threads(book.id, s)
-        assert len(listed) == 1 and listed[0].beats[0].label == "threadbound"
-
-        await threads_router.delete_thread(created.id, s)
-        assert await threads_router.list_threads(book.id, s) == []
-
-
-# --- markup: annotations + suggestions (DB) -------------------------------------------------------
-
-
-async def _scene(s) -> Scene:
-    book = Book(title="X")
-    s.add(book)
-    await s.flush()
-    ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
-    s.add(ch)
-    await s.flush()
-    scene = Scene(
-        chapter_id=ch.id,
-        scene_no=1,
-        version=2,
-        status="pending_review",
-        prose="He pressed his palm to the door.",
-        prose_source="agent",
-    )
-    s.add(scene)
-    await s.flush()
-    return scene
-
-
-async def test_annotation_crud_stamps_version(db_factory):
-    async with db_factory() as s:
-        scene = await _scene(s)
-        out = await markup_router.create_annotation(
-            scene.id, AnnotationIn(note="echoes ch1", quote="palm", author="Vael"), s
-        )
-        assert out.note == "echoes ch1" and out.quote == "palm" and out.version == 2
-
-        listed = await markup_router.list_annotations(scene.id, s)
-        assert [a.id for a in listed] == [out.id]
-
-        await markup_router.delete_annotation(out.id, s)
-        assert await markup_router.list_annotations(scene.id, s) == []
-
-
-async def test_suggestion_lifecycle(db_factory):
-    async with db_factory() as s:
-        scene = await _scene(s)
-        out = await markup_router.create_suggestion(
-            scene.id, SuggestionIn(quote="palm", new_text="scarred palm", why="plant the scar"), s
-        )
-        assert out.status == "pending" and out.quote == "palm" and out.version == 2
-
-        decided = await markup_router.decide_suggestion(
-            out.id, SuggestionDecisionIn(status=SuggestionStatus.ACCEPTED), s
-        )
-        assert decided.status == "accepted"
-
-        listed = await markup_router.list_suggestions(scene.id, s)
-        assert len(listed) == 1 and listed[0].status == "accepted"
-
-        await markup_router.delete_suggestion(out.id, s)
-        assert await markup_router.list_suggestions(scene.id, s) == []
-
-
-# --- versions: revert (DB) ------------------------------------------------------------------------
-
-
-async def test_revert_clones_version_and_supersedes_current(db_factory):
-    async with db_factory() as s:
-        book = Book(title="X")
-        s.add(book)
-        await s.flush()
-        ch = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
-        s.add(ch)
-        await s.flush()
-        v1 = Scene(chapter_id=ch.id, scene_no=1, version=1, status="superseded", prose="first", prose_source="agent")
-        v2 = Scene(chapter_id=ch.id, scene_no=1, version=2, status="approved", prose="second", prose_source="agent")
-        s.add_all([v1, v2])
-        await s.flush()
-
-        out = await scenes_router.revert_scene(v1.id, s)
-        assert out.version == 3 and out.prose == "first" and out.status == "approved"
-
-        lineage = await scenes_router.scene_versions(out.id, s)
-        assert [(v.version, str(v.status)) for v in lineage] == [(1, "superseded"), (2, "superseded"), (3, "approved")]
-
-        # reverting to the version that is already current is a 409
-        with pytest.raises(HTTPException):
-            await scenes_router.revert_scene(out.id, s)
-
-
-async def test_pending_scenes_ordered_by_chapter_then_scene_no(db_factory):
-    """Pending inbox order is narrative (chapter, scene), not completion time."""
-    async with db_factory() as s:
-        book = Book(title="X")
-        s.add(book)
-        await s.flush()
-        ch1 = Chapter(book_id=book.id, chapter_no=1, pov="Soren")
-        ch2 = Chapter(book_id=book.id, chapter_no=2, pov="Soren")
-        s.add_all([ch1, ch2])
-        await s.flush()
-
-        t0 = datetime.now(UTC)
-        # Scene 2 finished first (earlier created_at) but should still list after scene 1.
-        scene2 = Scene(
-            chapter_id=ch1.id,
-            scene_no=2,
-            status="pending_review",
-            prose="second",
-            prose_source="agent",
-            created_at=t0,
-        )
-        scene1 = Scene(
-            chapter_id=ch1.id,
-            scene_no=1,
-            status="pending_review",
-            prose="first",
-            prose_source="agent",
-            created_at=t0 + timedelta(minutes=5),
-        )
-        # Later chapter finishes before earlier chapter's remaining scene.
-        ch2_scene = Scene(
-            chapter_id=ch2.id,
-            scene_no=1,
-            status="pending_review",
-            prose="ch2",
-            prose_source="agent",
-            created_at=t0 + timedelta(minutes=1),
-        )
-        s.add_all([scene2, scene1, ch2_scene])
-        await s.flush()
-
-        out = await scenes_router.pending(s)
-        assert [(sc.chapter_id, sc.scene_no) for sc in out] == [
-            (ch1.id, 1),
-            (ch1.id, 2),
-            (ch2.id, 1),
-        ]

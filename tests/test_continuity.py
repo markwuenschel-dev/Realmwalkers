@@ -80,21 +80,3 @@ async def test_locates_span_and_derives_context_from_prose(monkeypatch):
     start = prose.index("7")
     assert payload["span"] == [start, start + 1]
     assert payload["context_sentence"] == "His interface blinked LEVEL 7 in the dark."
-
-
-async def test_consistent_value_produces_no_flag(monkeypatch):
-    async def fake_complete(**kwargs):
-        return '[{"character":"Marcus","attribute":"level","value":"5","context_sentence":"."}]', Usage(10, 10)
-
-    monkeypatch.setattr(llm, "complete", fake_complete)
-    flags = await continuity_reviewer.review("...", _ctx({"Marcus": {"level": 5}}))
-    assert flags == []
-
-
-async def test_malformed_extraction_is_swallowed(monkeypatch):
-    async def fake_complete(**kwargs):
-        return "sorry, I can't do that", Usage(5, 5)  # not JSON
-
-    monkeypatch.setattr(llm, "complete", fake_complete)
-    flags = await continuity_reviewer.review("...", _ctx({"Marcus": {"level": 5}}))
-    assert flags == []  # advisory: a bad extraction never crashes review

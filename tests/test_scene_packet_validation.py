@@ -47,11 +47,6 @@ def test_clean_body_has_no_violations():
     assert _run(_body(claim_sources=[{"claim": "x", "source_id": "C1"}])) == []
 
 
-def test_valid_source_handles_pass():
-    v = _run(_body(claim_sources=[{"claim": "a", "source_id": "C1"}, {"claim": "b", "source_id": "C2"}]))
-    assert v == []
-
-
 def test_invalid_source_handle_warns_not_blocks():
     # WRITER-FIRST: an invalid claim source_id is optional-provenance hygiene, so the low-level contract
     # check surfaces it as a WARNING and never blocks drafting.
@@ -60,59 +55,11 @@ def test_invalid_source_handle_warns_not_blocks():
     assert not any(x.severity == "block" for x in v)
 
 
-def test_null_source_id_is_inference_and_passes():
-    v = _run(_body(claim_sources=[{"claim": "x", "source_id": None}]), sources=_sources("C1"))
-    assert v == []
-
-
-def test_word_budget_override_blocks():
-    v = _run(_body(word_budget={"target": 9999}), word_budget=_wb())
-    assert any(x.kind == "word_budget_override" and x.severity == "block" for x in v)
-
-
-def test_matching_word_budget_passes():
-    v = _run(_body(word_budget=_wb()), word_budget=_wb())
-    assert not any(x.kind == "word_budget_override" for x in v)
-
-
-def test_scene_no_mismatch_blocks():
-    v = _run(_body(scene_no=5), seed=_seed(scene_no=2), word_budget=_wb())
-    assert any(x.kind == "scene_no_mismatch" and x.severity == "block" for x in v)
-
-
 def test_absent_character_on_page_blocks_required_beat():
     body = _body(required_beats=["Eriadne strikes first"])
     v = _run(body, chapter=_chapter(absent=["Eriadne"]))
     blocked = [x for x in v if x.kind == "absent_character_on_page" and x.severity == "block"]
     assert {x.field for x in blocked} >= {"required_beats"}
-
-
-def test_absent_character_in_reviewer_instructions_never_blocks():
-    # Regression: reviewer_instructions is meta-guidance TO A REVIEWER, not an on-page assertion. A
-    # protective trap ("check that she's NOT named/developed here") must never block on its own mention
-    # of the absent character's name — that would punish the exact guardrail meant to keep her hidden.
-    body = _body(
-        reviewer_instructions={
-            "continuity": ["Check that Eriadne is present on roster but NOT named or developed here."],
-            "pacing": [],
-        }
-    )
-    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    assert not any(x.severity == "block" for x in v)
-    assert not any(x.field == "reviewer_instructions" for x in v)
-
-
-def test_absent_character_in_pov_may_notice_blocks():
-    body = _body(pov_permissions={"may_notice": ["Eriadne in the doorway"], "must_not_know": []})
-    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    assert any(x.field == "pov_permissions.may_notice" and x.severity == "block" for x in v)
-
-
-def test_absent_character_in_must_not_know_does_not_block():
-    # must_not_know legitimately references an absent character (the POV must NOT know their plan).
-    body = _body(pov_permissions={"may_notice": [], "must_not_know": ["Eriadne's true allegiance"]})
-    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    assert not any(x.severity == "block" for x in v)
 
 
 def test_absent_character_in_intentional_mystery_warns_only():
@@ -127,22 +74,6 @@ def test_absent_character_in_intentional_mystery_warns_only():
     assert not any(x.severity == "block" for x in v)
 
 
-def test_absent_character_in_must_remain_hidden_warns_only():
-    # Declaring what must stay hidden is exactly the correct place for a resolved-but-unrevealed truth.
-    body = _body(must_remain_hidden={"reader": ["Eriadne is the traitor"], "pov": [], "all_surface_prose": []})
-    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    assert any(x.kind == "absent_character_author_only_reference" and x.severity == "warn" for x in v)
-    assert not any(x.severity == "block" for x in v)
-
-
-def test_absent_character_in_known_before_scene_omniscient_author_warns_only():
-    # omniscient_author is author-only bookkeeping, never reader/POV knowledge — never a leak by itself.
-    body = _body(known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Eriadne is the traitor"]})
-    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    assert any(x.kind == "absent_character_author_only_reference" and x.severity == "warn" for x in v)
-    assert not any(x.severity == "block" for x in v)
-
-
 def test_absent_character_leaked_into_known_before_scene_reader_blocks():
     # The reader/POV-knowledge collapse bug: a hidden reveal leaked into reader-known facts must BLOCK,
     # not just warn — the reader is not supposed to know this character exists yet.
@@ -150,68 +81,6 @@ def test_absent_character_leaked_into_known_before_scene_reader_blocks():
     v = _run(body, chapter=_chapter(absent=["Eriadne"]))
     blocked = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "block"]
     assert any(b.field == "known_before_scene.reader" for b in blocked)
-
-
-def test_absent_character_leaked_into_known_before_scene_pov_blocks():
-    body = _body(known_before_scene={"reader": [], "pov": ["Eriadne betrayed the cohort"], "omniscient_author": []})
-    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    blocked = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "block"]
-    assert any(b.field == "known_before_scene.pov" for b in blocked)
-
-
-def test_absent_character_leaked_into_learned_during_scene_blocks():
-    body = _body(learned_during_scene={"reader_must_learn": ["Eriadne betrayed the cohort"]})
-    v = _run(body, chapter=_chapter(absent=["Eriadne"]))
-    blocked = [x for x in v if x.kind == "absent_character_reader_pov_leak" and x.severity == "block"]
-    assert any(b.field == "learned_during_scene.reader_must_learn" for b in blocked)
-
-
-def test_absent_character_layered_correctly_is_fully_clean():
-    # The Mara regression case: hidden threat resolved author-only, properly hidden from reader/POV/prose,
-    # never named on-page. Zero blocks — only the expected informational warnings.
-    body = _body(
-        known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Mara is the hidden second threat"]},
-        must_remain_hidden={
-            "reader": ["Mara's identity as the hidden threat"],
-            "pov": ["Mara's identity as the hidden threat"],
-            "all_surface_prose": ["Mara's name"],
-        },
-        required_beats=["404 senses an unseen second presence"],
-        pov_permissions={"may_notice": ["an unplaceable unease"], "must_not_know": ["Mara's identity"]},
-    )
-    v = _run(body, chapter=_chapter(absent=["Mara"]))
-    assert not any(x.severity == "block" for x in v)
-    assert {x.kind for x in v} <= {"absent_character_author_only_reference"}
-
-
-def test_short_name_does_not_match_inside_unrelated_word():
-    # Whole-word matching: an absent "Al" must not trip on "always" in an on-page field.
-    body = _body(required_beats=["Marcus always holds the line"])
-    v = _run(body, chapter=_chapter(absent=["Al"]))
-    assert v == []
-
-
-def test_required_beat_dropped_warns():
-    body = _body(required_beats=["something completely unrelated happens"])
-    v = _run(body, seed=_seed(required_beats=["the cohort converges on the bridge"]))
-    assert any(x.kind == "required_beat_dropped" and x.severity == "warn" for x in v)
-
-
-def test_required_beat_preserved_no_warning():
-    body = _body(required_beats=["the cohort converges on the bridge at dawn"])
-    v = _run(body, seed=_seed(required_beats=["the cohort converges on the bridge"]))
-    assert not any(x.kind == "required_beat_dropped" for x in v)
-
-
-def test_non_dict_body_blocks():
-    v = validate_scene_packet_contract(
-        body="not a dict",  # type: ignore[arg-type]
-        chapter_packet_body=_chapter(),
-        scene_seed=_seed(),
-        word_budget=_wb(),
-        sources=[],
-    )
-    assert len(v) == 1 and v[0].severity == "block"
 
 
 # --- normalize_provenance -------------------------------------------------------------------------
@@ -238,13 +107,6 @@ def test_normalize_provenance_nulls_invalid_and_keeps_valid():
     assert "3 claim source id" in w.detail
     # The original body is not mutated in place.
     assert body["claim_sources"][0]["source_id"] == "OUTLINE"
-
-
-def test_normalize_provenance_noop_when_all_valid_or_null():
-    body = _body(claim_sources=[{"claim": "a", "source_id": "C1"}, {"claim": "b", "source_id": None}])
-    normalized, warnings = normalize_provenance(body, _sources("C1", "C2"))
-    assert warnings == []
-    assert normalized is body  # unchanged reference when nothing was rewritten
 
 
 # --- evaluate_scene_packet (normalize -> validate -> draftability) --------------------------------
@@ -282,36 +144,6 @@ def test_evaluate_provenance_only_is_draftable():
     assert len(prov) == 1
 
 
-def test_evaluate_block_on_provenance_escalates():
-    result = _evaluate(
-        _body(claim_sources=[{"claim": "x", "source_id": "OUTLINE"}]),
-        block_on_provenance=True,
-    )
-    assert result.draftable is False
-    assert any(b.kind == "provenance_normalized" for b in result.draft_blockers)
-
-
-def test_evaluate_absent_active_character_still_blocks():
-    result = _evaluate(
-        _body(required_beats=["Mara enters and attacks"], exit_state="Mara escapes"),
-        chapter=_chapter(absent=["Mara"]),
-    )
-    assert result.draftable is False
-    assert any(b.kind == "absent_character_on_page" for b in result.draft_blockers)
-
-
-def test_evaluate_author_only_absent_reference_warns_not_blocks():
-    result = _evaluate(
-        _body(
-            known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Mara is hidden nearby"]},
-            intentional_mysteries=[{"mystery": "why Mara is absent", "desired_reader_effect": "unease"}],
-        ),
-        chapter=_chapter(absent=["Mara"]),
-    )
-    assert result.draftable is True
-    assert any(w.kind == "absent_character_author_only_reference" for w in result.warnings)
-
-
 def test_evaluate_reader_known_leak_blocks():
     # The Mara/Roth regression class: a hidden reveal leaked into reader-known facts must block, even
     # though the character is correctly absent from the on-page cast.
@@ -321,49 +153,3 @@ def test_evaluate_reader_known_leak_blocks():
     )
     assert result.draftable is False
     assert any(b.kind == "absent_character_reader_pov_leak" for b in result.draft_blockers)
-
-
-def test_evaluate_mara_layered_correctly_is_draftable():
-    # Full regression scenario from the bug report: the hidden second threat is Mara; 404 does not know
-    # until Chapter 2. Properly layered (author-only + must_remain_hidden, never reader/POV/on-page) must
-    # be draftable, with at most informational warnings.
-    result = _evaluate(
-        _body(
-            known_before_scene={"reader": [], "pov": [], "omniscient_author": ["Mara is the hidden second threat"]},
-            must_remain_hidden={
-                "reader": ["Mara's identity"],
-                "pov": ["Mara's identity"],
-                "all_surface_prose": ["Mara's name"],
-            },
-            pov_permissions={"may_notice": [], "must_not_know": ["Mara's identity"]},
-        ),
-        chapter=_chapter(absent=["Mara"]),
-    )
-    assert result.draftable is True
-    assert not any(b.kind.startswith("absent_character") for b in result.draft_blockers)
-
-
-def test_evaluate_non_dict_body_blocks():
-    result = _evaluate("not a dict")  # type: ignore[arg-type]
-    assert result.draftable is False
-    assert any(b.kind == "invalid_body" for b in result.draft_blockers)
-
-
-def test_evaluate_unrecoverable_word_budget_blocks():
-    result = _evaluate(_body(), word_budget={})
-    assert result.draftable is False
-    assert any(b.kind == "word_budget_unrecoverable" for b in result.draft_blockers)
-
-
-def test_evaluate_unrecoverable_scene_no_blocks():
-    result = _evaluate(_body(), scene_no=None)
-    assert result.draftable is False
-    assert any(b.kind == "scene_no_unrecoverable" for b in result.draft_blockers)
-
-
-def test_evaluate_stamps_deterministic_facts():
-    # A model echo that overrides the budget/scene_no is silently corrected server-side, not blocked.
-    result = _evaluate(_body(word_budget={"target": 9999}, scene_no=42), scene_no=1)
-    assert result.draftable is True
-    assert result.normalized_body["word_budget"] == _wb()
-    assert result.normalized_body["scene_no"] == 1

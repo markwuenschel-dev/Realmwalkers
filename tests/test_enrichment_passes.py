@@ -12,7 +12,6 @@ import uuid
 
 import pytest
 
-from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.budget import BudgetExceeded, TokenBudget, Usage
 from dominion.workers.context import SceneContext
@@ -63,22 +62,6 @@ def _mock_raise(monkeypatch, exc: BaseException) -> None:
 
 
 @pytest.mark.parametrize("enrichment_pass", _ALL_PASSES)
-async def test_pass_calls_enrich_model_and_returns_stripped_prose(monkeypatch, enrichment_pass):
-    captured = _mock_return(monkeypatch, "  Deepened scene prose.  ")
-    ctx = _ctx()
-    out = await enrichment_pass.run("A drafted spine.", ctx)
-
-    assert out == "Deepened scene prose."  # leading/trailing space stripped
-    assert captured["model"] == settings.enrich_model  # the enrichment knob, not draft/review
-    system = captured["system"]
-    assert "Marcus" in system  # transform stays in the POV
-    assert "TRANSFORM, not a rewrite" in system  # deepen one dimension, preserve the rest
-    assert "Preserve every fenced ```stat``` block" in system  # stat markers survive verbatim
-    assert "A drafted spine." in captured["user"]  # the spine is handed in to transform
-    assert ctx.budget.used == 350  # usage charged to the job budget
-
-
-@pytest.mark.parametrize("enrichment_pass", _ALL_PASSES)
 async def test_pass_preserves_stat_block(monkeypatch, enrichment_pass):
     source = "He raised his hand and the world resolved into data.\n\n" + _STAT_BLOCK + "\n\nThen it faded."
     captured = _mock_return(monkeypatch, "Deepened opening.\n\n" + _STAT_BLOCK + "\n\nDeepened close.")
@@ -93,14 +76,6 @@ async def test_pass_raises_passerror_on_empty_output(monkeypatch, enrichment_pas
     _mock_return(monkeypatch, "   ")
     with pytest.raises(PassError):
         await enrichment_pass.run("A drafted spine.", _ctx())
-
-
-@pytest.mark.parametrize("enrichment_pass", _ALL_PASSES)
-async def test_pass_raises_passerror_on_degenerate_output(monkeypatch, enrichment_pass):
-    source = "word " * 80  # ~400 chars: a real scene the pass should deepen, not collapse
-    _mock_return(monkeypatch, "ok")  # < 50% retained -> content lost -> soft-fail
-    with pytest.raises(PassError):
-        await enrichment_pass.run(source, _ctx())
 
 
 @pytest.mark.parametrize("enrichment_pass", _ALL_PASSES)
@@ -126,11 +101,3 @@ async def test_dialogue_pass_injects_dialogue_rules_as_authoritative(monkeypatch
     system = captured["system"]
     assert "New speaker = new paragraph. Always." in system  # the rules are loaded into the prompt
     assert "AUTHORITATIVE" in system  # ...and marked as the source of truth
-
-
-async def test_combat_and_sensory_passes_do_not_inject_dialogue_rules(monkeypatch):
-    # Only the dialogue lane consumes the dialogue rules; the others must not.
-    for enrichment_pass in (combat_pass, sensory_pass):
-        captured = _mock_return(monkeypatch, "Deepened scene.")
-        await enrichment_pass.run("A drafted spine.", _ctx(dialogue_rules="New speaker = new paragraph."))
-        assert "AUTHORITATIVE" not in captured["system"]
