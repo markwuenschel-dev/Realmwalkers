@@ -91,6 +91,12 @@ export type CanonEntityIn = S["CanonEntityIn"];
 export type CanonEntityUpdateIn = S["CanonEntityUpdateIn"];
 export type CharacterStateIn = S["CharacterStateIn"];
 export type CanonIngestOut = S["CanonIngestOut"];
+// Stale-canon cleanup (Workstream H): status-aware select -> preview -> soft retire / hard delete.
+export type CanonCleanupIn = S["CanonCleanupIn"];
+export type CanonCleanupItemOut = S["CanonCleanupItemOut"];
+export type CanonCleanupPreviewOut = S["CanonCleanupPreviewOut"];
+export type CanonRetireOut = S["CanonRetireOut"];
+export type CanonBulkDeleteOut = S["CanonBulkDeleteOut"];
 export type ThreadBeatOut = S["ThreadBeatOut"];
 export type ThreadOut = S["ThreadOut"];
 export type ThreadIn = S["ThreadIn"];

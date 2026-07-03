@@ -1655,7 +1655,11 @@ export interface paths {
     };
     /**
      * List Canon
-     * @description The story bible: characters, locations, factions, items, lore. Filter by `kind` if given.
+     * @description The story bible: characters, locations, factions, items, lore.
+     *
+     *     Filters (all optional): `kind`; `status` (active|stale|retired|superseded|all, default `active` so
+     *     the Ledger hides retired/stale canon by default — pass `all` to see everything); `source`
+     *     (manual|repo_ingested|packet_derived|draft_derived|legacy|all).
      */
     get: operations["list_canon_books__book_id__canon_get"];
     put?: never;
@@ -1665,7 +1669,12 @@ export interface paths {
      *     immediately retrievable by the drafter/planner RAG (DESIGN §7).
      */
     post: operations["create_canon_books__book_id__canon_post"];
-    delete?: never;
+    /**
+     * Bulk Delete Canon
+     * @description Hard-delete matched canon rows (bulk). Manual-source rows are protected unless their id is listed
+     *     explicitly. The single-row DELETE /canon/{canon_id} is unaffected (no protection there).
+     */
+    delete: operations["bulk_delete_canon_books__book_id__canon_delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -1711,6 +1720,73 @@ export interface paths {
      *     Delegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).
      */
     post: operations["ingest_canon_books__book_id__canon_ingest_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/canon/cleanup-preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cleanup Preview
+     * @description Dry-run a retire/delete: report what the same selection would affect, mutating nothing.
+     *
+     *     Manual-source rows are protected (counted in `protected_manual`, reason "protected …") unless their
+     *     id is listed explicitly. `would_retire` counts actionable rows not already retired; `would_delete`
+     *     counts all actionable rows.
+     */
+    post: operations["cleanup_preview_books__book_id__canon_cleanup_preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/canon/retire": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Retire Canon
+     * @description Soft-retire matched canon rows: set status='retired' so they drop out of RAG + `?status=active`
+     *     (reversible via PUT). Manual-source rows are protected unless their id is listed explicitly.
+     */
+    post: operations["retire_canon_books__book_id__canon_retire_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/canon/rebuild": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rebuild Canon
+     * @description Clean rebuild of repo-ingested canon from on-disk docs (series/canon) — the named alias of
+     *     POST .../canon/ingest, delegating to the same ingest_rebuild. Deletes/re-ingests only repo rows
+     *     (doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched.
+     */
+    post: operations["rebuild_canon_books__book_id__canon_rebuild_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2838,6 +2914,109 @@ export interface components {
       by_model: components["schemas"]["TelemetryGroupOut"][];
     };
     /**
+     * CanonBulkDeleteOut
+     * @description Result of a hard bulk delete of canon rows.
+     */
+    CanonBulkDeleteOut: {
+      /**
+       * Deleted
+       * @default 0
+       */
+      deleted: number;
+      /**
+       * Protected Manual
+       * @default 0
+       */
+      protected_manual: number;
+    };
+    /**
+     * CanonCleanupIn
+     * @description Select canon rows for a cleanup action (preview / retire / bulk delete) — Workstream H.
+     *
+     *     Rows are chosen by explicit `ids` OR by (`source_filter`, `status_filter`); with neither, nothing
+     *     matches (fail-safe — no accidental mass purge). Manual-source rows are PROTECTED: a filter never
+     *     retires/deletes them; you must list their id explicitly. `dry_run` is honoured by the preview route
+     *     (always a dry run) and ignored by retire/delete (which always mutate).
+     */
+    CanonCleanupIn: {
+      /** Ids */
+      ids?: string[] | null;
+      /** Source Filter */
+      source_filter?: string | null;
+      /** Status Filter */
+      status_filter?: string | null;
+      /**
+       * Dry Run
+       * @default true
+       */
+      dry_run: boolean;
+    };
+    /**
+     * CanonCleanupItemOut
+     * @description One row in a cleanup preview, with why it is (or isn't) actionable.
+     */
+    CanonCleanupItemOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Kind */
+      kind?: string | null;
+      /** Name */
+      name?: string | null;
+      /**
+       * Source
+       * @default manual
+       */
+      source: string;
+      /**
+       * Status
+       * @default active
+       */
+      status: string;
+      /** Summary */
+      summary?: string | null;
+      /** Reason */
+      reason: string;
+    };
+    /**
+     * CanonCleanupPreviewOut
+     * @description Dry-run report of what a retire/delete over the selection would do (mutates nothing).
+     */
+    CanonCleanupPreviewOut: {
+      /**
+       * Dry Run
+       * @default true
+       */
+      dry_run: boolean;
+      /**
+       * Matched
+       * @default 0
+       */
+      matched: number;
+      /**
+       * Would Retire
+       * @default 0
+       */
+      would_retire: number;
+      /**
+       * Would Delete
+       * @default 0
+       */
+      would_delete: number;
+      /**
+       * Protected Manual
+       * @default 0
+       */
+      protected_manual: number;
+      /**
+       * Items
+       * @default []
+       */
+      items: components["schemas"]["CanonCleanupItemOut"][];
+    };
+    /**
      * CanonEntityIn
      * @description Create a canon entity (location/faction/item/lore/…). Re-embedded on write for retrieval.
      */
@@ -2862,6 +3041,16 @@ export interface components {
       name?: string | null;
       /** Body */
       body?: string | null;
+      /**
+       * Source
+       * @default manual
+       */
+      source: string;
+      /**
+       * Status
+       * @default active
+       */
+      status: string;
     };
     /**
      * CanonEntityUpdateIn
@@ -2899,6 +3088,22 @@ export interface components {
       retired: number;
       /** Total */
       total?: number | null;
+    };
+    /**
+     * CanonRetireOut
+     * @description Result of a soft retire (status -> 'retired'); retired rows drop out of RAG + `?status=active`.
+     */
+    CanonRetireOut: {
+      /**
+       * Retired
+       * @default 0
+       */
+      retired: number;
+      /**
+       * Protected Manual
+       * @default 0
+       */
+      protected_manual: number;
     };
     /**
      * ChapterCreateIn
@@ -8767,6 +8972,8 @@ export interface operations {
     parameters: {
       query?: {
         kind?: string | null;
+        status?: string;
+        source?: string | null;
       };
       header?: never;
       path: {
@@ -8818,6 +9025,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["CanonEntityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  bulk_delete_canon_books__book_id__canon_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanonCleanupIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonBulkDeleteOut"];
         };
       };
       /** @description Validation Error */
@@ -8900,6 +9142,107 @@ export interface operations {
     };
   };
   ingest_canon_books__book_id__canon_ingest_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonIngestOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  cleanup_preview_books__book_id__canon_cleanup_preview_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanonCleanupIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonCleanupPreviewOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  retire_canon_books__book_id__canon_retire_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanonCleanupIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CanonRetireOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  rebuild_canon_books__book_id__canon_rebuild_post: {
     parameters: {
       query?: never;
       header?: never;
