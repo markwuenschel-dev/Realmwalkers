@@ -9,8 +9,8 @@ writes it to Postgres as `pending_review`, and exits. Nothing runs between appro
 ## Architecture
 
 ```
-React (Vite) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Python worker (drafts scenes)
-  review inbox          thin boundary   source of truth        the ~minutes of real work
+Next.js (BFF) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Python worker (drafts scenes)
+ Writers' Desk          thin boundary   source of truth        the ~minutes of real work
 ```
 
 - **Coordination is deterministic code** (`workers/router.py`): a lookup table + a loop decide which
@@ -24,16 +24,22 @@ React (Vite) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Pyth
 ```
 src/dominion/
   shared/     config, enums, async DB session, ORM schema (models.py), Pydantic DTOs (schemas.py)
-  api/        FastAPI app + routers (health, scenes, reviews, runs, beats, chapters, books)
-  workers/    worker.py (claim→draft→exit), pipeline.py, planner.py, router.py, context.py, oracle.py,
-              budget.py, llm.py, (enqueue moved to legacy/enqueue.py)
-              specialists/  drafter + combat/sensory/dialogue enrichment passes
-              reviewers/    continuity (always) + pacing/voice/state-drift
-              memory/       canon_rag, summaries, ledger, seed
-frontend/     Vite + React + TS review app (Inbox → Scene → continuity panel)
-scripts/      init_db.py
-tests/        deterministic router tests + import smoke
-docs/         DESIGN.md (spec), BUILD.md (this file)
+  api/        FastAPI app + routers (health, scenes, reviews, runs, beats, chapters, books,
+              packets + scene_packets [contract-first gates], jobs, production, world, threads,
+              markup, telemetry, settings, learning)
+  workers/    worker.py (claim→draft→exit), pipeline.py, planner.py, router.py, draft_queue.py
+              (contract-first scheduler + requeue), oracle.py, budget.py, llm.py, production.py
+              packet/       ChapterPacket author + QA + approval policy
+              scene_packet/ ScenePacket derive/author/QA, staleness, beat derivation
+              context/      POV-scoped context assembly    length/  length planner + guard
+              specialists/  drafter + enrichment passes
+              reviewers/    continuity (always) + pacing/voice/state-drift + tag-gated lanes
+              memory/       canon_rag, summaries, ledger, seed    learning/  edit distillation
+frontend/     Next.js (App Router) + TS — the Writers' Desk (Inbox → Scene → continuity panel, plus
+              Packets, Chapters, Manuscript, Ledger, Production, Telemetry, Settings)
+scripts/      init_db.py, export_openapi.py, verify.sh, ci_pyright_changed.sh
+tests/        pytest suite (router, packets, draft queue, API)
+docs/         DESIGN.md (spec), contract_first_drafting.md (drafting contract), BUILD.md (this file)
 ```
 
 ## Running it
@@ -42,12 +48,15 @@ The app ships as a **single container** (Next.js standalone + FastAPI) deployed 
 [`DEPLOY.md`](DEPLOY.md). There is no separate local run target: the browser loads the desk from Next
 and calls same-origin `/api/desk/*`, which the BFF proxies to FastAPI (no separate API host, no CORS).
 
-> Drafting one scene works end to end: enqueue a beat
-> (`python -m dominion.workers.enqueue --book "Dominion Realm" --chapter 1 --scene 1`) then
-> `python -m dominion.workers.worker --once`. The combat/sensory/dialogue enrichment passes and their
-> review lanes are live; a pass that fails still fails *soft* (`PassError`) — the drafted spine lands in
-> the inbox, flagged, rather than hard-failing the job. The only remaining worker stub is Phase 4
-> (`draft_ahead` + parallelism).
+> Drafting is **contract-first** (see [`contract_first_drafting.md`](contract_first_drafting.md)):
+> propose + approve the **ChapterPacket**, derive + approve **ScenePackets** (beats derive from them),
+> then **Draft Chapter** (`POST /chapters/{id}/draft`) queues one job per scene stamped with its
+> `scene_packet_id`, and the single-flight background drain (`POST /jobs/draft-next`) drafts them.
+> Beat-first drafting (approve beats → queue) is disabled and the legacy `workers/enqueue` CLI was
+> removed; `python -m dominion.workers.worker --once` still drains one already-queued job for
+> scripting. The enrichment passes and their review lanes are live; a pass that fails still fails
+> *soft* (`PassError`) — the drafted spine lands in the inbox, flagged, rather than hard-failing the
+> job. The only remaining worker stub is Phase 4 (`draft_ahead` + parallelism).
 
 ## State: what's real vs. scaffolded
 
@@ -70,12 +79,12 @@ parallelism, deferred until throughput hurts); a failed enrichment pass still fa
 | Oracle read-authority over `character_state` | |
 | FastAPI: health, scenes, reviews (decision + continuity-resolve), runs, beats, chapters, books | |
 | Approve/deny/revise + hand-edit; ledger + summary hooks; `pause_each` auto-advance | |
-| React inbox, scene review, continuity panel, history, manuscript, plan | |
+| Writers' Desk (Next.js): inbox, scene review, continuity panel, packets, manuscript, ledger | |
 
 ## Build phases (DESIGN §14)
 
-The concrete, checkable execution plan for the current effort (finish Phase 3, then wire the Writers'
-Desk to the live API) lives in [`ROADMAP.md`](ROADMAP.md).
+The phases below shipped. The concrete, checkable plan for the current effort (the post-scrub
+drafting unblock on the contract-first packet flow) lives in [`ROADMAP.md`](ROADMAP.md).
 
 1. **One approved scene, end to end** — implement the Drafter + continuity reviewer; draft a scene
    from a hand-written beat, review it in the inbox, approve it.
@@ -88,9 +97,11 @@ Desk to the live API) lives in [`ROADMAP.md`](ROADMAP.md).
 ## Checks (all currently clean)
 
 ```bash
-uv run pytest -q       # tests
-uv run ruff check src tests   # lint
-uv run mypy src        # strict type check
+just verify                          # all backend gates, matching CI (see scripts/verify.sh)
+uv run pytest -q                     # tests
+uv run ruff check src tests          # lint
+uv run ruff format --check src tests # formatting
+bash scripts/ci_pyright_changed.sh   # types — pyright over changed files, same as the CI static job
 ```
 
 DB-backed tests get a real database from the `db_factory` fixture (`tests/conftest.py`), which forces
@@ -100,13 +111,16 @@ at a Postgres+pgvector instance to exercise them. Tests that don't need a DB run
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request, in three parallel jobs:
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request. It is **path-aware**:
+a `changes` gate (dorny/paths-filter) decides which jobs a PR pays for, so a frontend-only or
+docs-only PR skips the full Postgres pytest; a single `ci-passed` aggregator job is the stable
+required check for branch protection.
 
 | Job | What runs | Notes |
 |---|---|---|
-| **lint + types** | `ruff check src tests`, `mypy src` (strict) | Python 3.14 via uv |
-| **tests** | `pytest -q` against a real `pgvector/pgvector:pg16` service | Python 3.14 via uv |
-| **frontend** | OpenAPI codegen drift, typecheck, lint, format, unit tests, Playwright e2e | Node 24 + pnpm (`pnpm-lock.yaml`) |
+| **lint + types** | `ruff check src tests`, `ruff format --check`, pyright over changed files (`scripts/ci_pyright_changed.sh`) | Python 3.14 via uv |
+| **tests** | full `pytest -q` against a real `pgvector/pgvector:pg16` service | Python 3.14 via uv |
+| **frontend** | OpenAPI codegen drift, typecheck, lint, format, unit tests; Playwright e2e only on the full tier (main push, manual dispatch, `full-ci` label, or shared-core changes) | Node 24 + pnpm (`pnpm-lock.yaml`) |
 
 Installs are reproducible: backend via `uv sync --frozen` (honours `uv.lock`), frontend via `pnpm install --frozen-lockfile`.
 The CI sets **`DOMINION_REQUIRE_DB=1`**, which flips the conftest "Postgres unreachable → skip" into a

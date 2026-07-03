@@ -1,8 +1,29 @@
-# Roadmap — Phase 3 + Writers' Desk live wiring
+# Roadmap
 
-Execution roadmap for the current effort. The spec is [`DESIGN.md`](DESIGN.md) (esp. §14 phased build,
-§15 decisions log); the dev guide is [`BUILD.md`](BUILD.md). This file is the forward-looking plan and
-the place to check work off — it does not redefine the architecture.
+Execution roadmap. The spec is [`DESIGN.md`](DESIGN.md) (esp. §14 phased build, §15 decisions log);
+the dev guide is [`BUILD.md`](BUILD.md). This file is the forward-looking plan and the place to check
+work off — it does not redefine the architecture.
+
+> **Note (2026-07-03):** the plan archived below predates contract-first drafting. Drafting now runs
+> chapter packets → scene packets → derived beats → draft, and beat-first drafting is disabled — the
+> authoritative contract is [`contract_first_drafting.md`](contract_first_drafting.md).
+
+## Current effort — repo scrub + drafting unblock
+
+- [x] **Phase 1 — repo scrub (PR #138, merged):** path-aware CI (`changes` gate + `ci-passed`
+  aggregator, cached builds), test suite trimmed 579 → 215, worker modules 91 → 81 (`learning`
+  promoted, legacy CLIs like `workers/enqueue` removed), stale-canon cleanup UI/API on the Ledger.
+- [ ] **Phase 2 — drafting unblock (in progress):** a repair-severity tier so *repairable* packet
+  issues become repair tasks instead of hard drafting blocks; one canonical packet artifact (instead
+  of parallel packet representations); production-tab remediation UX so blockers are fixable from
+  the Desk.
+
+---
+
+## Archived — Phase 3 + Writers' Desk live wiring (shipped)
+
+The plan below is kept as a record; both workstreams landed. It predates the contract-first packet
+flow, so its beat-first framing (approve beats → draft) no longer describes the shipped path.
 
 Two workstreams, **sequenced Phase 3 first**, then **full-parity** wiring of the Writers' Desk to the
 live API (no desk feature left on fixtures).
