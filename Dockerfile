@@ -11,12 +11,12 @@ ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 # pnpm store persists across deploys via a BuildKit cache mount, so unchanged deps aren't refetched.
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+RUN --mount=type=cache,id=cacheKey-pnpm-store,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
 COPY frontend/ ./
 # output: "standalone" => .next/standalone/server.js + traced node_modules; static assets separate.
 # .next/cache is not part of the standalone output; cache it across builds to avoid a cold recompile.
-RUN --mount=type=cache,id=next-cache,target=/app/frontend/.next/cache pnpm build
+RUN --mount=type=cache,id=cacheKey-next-cache,target=/app/frontend/.next/cache pnpm build
 
 # --- 2) python + node runtime --------------------------------------------------------------------
 FROM python:3.14-slim AS app
@@ -40,7 +40,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock ./
 # uv cache persists across deploys via a BuildKit cache mount (UV_LINK_MODE=copy set above).
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=cache,id=cacheKey-uv-cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY src/ ./src/
