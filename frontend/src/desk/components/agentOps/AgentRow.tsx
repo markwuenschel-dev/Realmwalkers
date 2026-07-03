@@ -24,12 +24,15 @@ const QUALITY_LABEL: Record<string, string> = {
 const PROVIDER_COLOR: Record<string, string> = {
   anthropic: "#E67E51",
   openai: "#10A37F",
+  google: "#4796E3",
   xai: "#0A0A0A",
 };
 const MODEL_LABEL: Record<string, string> = {
   "gpt-5.4-nano": "GPT 5.4 Nano",
   "gpt-5.4-mini": "GPT 5.4 Mini",
   "gpt-5.5": "GPT 5.5",
+  "gemini-3.5-flash": "Gemini Flash",
+  "gemini-3.1-pro-preview": "Gemini Pro",
   "grok-4.3": "Grok",
 };
 
@@ -43,7 +46,13 @@ interface ModelOption {
 
 function modelCatalog(providerTiers: Record<string, Record<string, string>>): ModelOption[] {
   const options: ModelOption[] = [];
-  for (const [provider, tiers] of Object.entries(providerTiers)) {
+  const providerOrder = ["anthropic", "openai", "google", "xai"];
+  const orderedProviders = [
+    ...providerOrder.filter((provider) => provider in providerTiers),
+    ...Object.keys(providerTiers).filter((provider) => !providerOrder.includes(provider)),
+  ];
+  for (const provider of orderedProviders) {
+    const tiers = providerTiers[provider] ?? {};
     for (const tier of ["haiku", "sonnet", "opus"]) {
       const model = tiers[tier];
       if (!model) continue;

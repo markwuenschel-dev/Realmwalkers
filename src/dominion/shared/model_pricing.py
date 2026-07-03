@@ -39,6 +39,11 @@ _MODEL_PRICING: dict[str, ModelPricing] = {
     "claude-sonnet-5": ModelPricing(input=3.0, output=15.0, cache_write=3.75, cache_read=0.30),
     "claude-sonnet-4": ModelPricing(input=3.0, output=15.0, cache_write=3.75, cache_read=0.30),
     "claude-haiku-4": ModelPricing(input=0.80, output=4.0, cache_write=1.0, cache_read=0.08),
+    # Gemini 3.5 Flash / 3.1 Pro Preview standard paid-tier text pricing from Google's Gemini Developer API pricing
+    # page. The panel's chapter estimates only consume input/output today, but cache fields are filled so
+    # the model table stays internally complete.
+    "gemini-3.5-flash": ModelPricing(input=0.30, output=2.50, cache_write=0.03, cache_read=0.03),
+    "gemini-3.1-pro-preview": ModelPricing(input=1.25, output=10.0, cache_write=0.25, cache_read=0.25),
 }
 
 

@@ -12,7 +12,7 @@ from typing import Any, Literal
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
 
 Tier = Literal["haiku", "sonnet", "opus"]
-Provider = Literal["anthropic", "openai", "xai"]
+Provider = Literal["anthropic", "openai", "google", "xai"]
 CostBand = Literal["low", "medium", "high"]
 SpeedBand = Literal["fast", "medium", "slow"]
 
@@ -31,6 +31,10 @@ PROVIDER_TIERS: dict[str, dict[str, str]] = {
         "sonnet": "gpt-5.4-mini",
         "opus": "gpt-5.5",
     },
+    "google": {
+        "sonnet": "gemini-3.5-flash",
+        "opus": "gemini-3.1-pro-preview",
+    },
     "xai": {
         "opus": "grok-4.3",
     },
@@ -39,6 +43,7 @@ PROVIDER_TIERS: dict[str, dict[str, str]] = {
 PROVIDER_LABELS: dict[Provider, str] = {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
+    "google": "Google",
     "xai": "xAI",
 }
 
