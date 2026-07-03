@@ -167,6 +167,19 @@ async def test_derive_creates_one_scene_packet_per_seed(db_factory, monkeypatch)
         assert row.source_hash  # staleness anchor recorded
         assert row.body["word_budget"]["target"] == 1500  # planner budget folded in
         assert "known_before_scene" in row.body
+        # Workstream-G advisory grade rides along with the QA output — never a gate.
+        grade = (row.qa_warnings or {}).get("grade")
+        assert grade and grade["artifact_type"] == "scene_packet" and grade["artifact_id"] == str(row.id)
+        assert grade["blocking_issues"] == [] and grade["approved_for_next_stage"] is True
+        assert set(grade["score"]) == {
+            "overall",
+            "canon_consistency",
+            "reader_clarity",
+            "scene_utility",
+            "specificity",
+            "non_contradiction",
+            "actionability",
+        }
 
 
 async def test_derive_blocks_on_thin_body(db_factory, monkeypatch):

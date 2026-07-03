@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.enums import ScenePacketStatus
+from dominion.shared.grading import build_grade
 from dominion.shared.models import Beat, Chapter, ChapterPacket, Scene, ScenePacket, Summary
 from dominion.shared.text_match import as_str_list, binding_replacements, project_drafter_fields
 from dominion.workers import telemetry, telemetry_db
@@ -33,6 +34,7 @@ from dominion.workers.budget import TokenBudget
 from dominion.workers.length import planner as length_planner
 from dominion.workers.llm import estimate_tokens
 from dominion.workers.memory import owner_router, retrieval
+from dominion.workers.packet import master
 from dominion.workers.pov import effective_pov
 from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet import author as author_mod
@@ -402,10 +404,10 @@ async def derive_scene_packets(
     """
     body: dict[str, Any] = packet.body or {}
     # Prefer the SurfaceContract (drafter-safe projected seeds + fields) when present.
-    # This is the contract-first rule: ScenePacket derivation consumes SurfaceContract, never raw
-    # internal ChapterPacket scene seeds.
-    surface = body.get("_surface_contract") if isinstance(body.get("_surface_contract"), dict) else None
-    effective_body: dict[str, Any] = surface if surface is not None else body
+    # This is the contract-first rule: ScenePacket derivation consumes the DERIVED drafter view of the
+    # master packet (`_surface_contract`), never the raw internal top-level scene seeds. Scene packets
+    # are derived views of the chapter master packet, not an independent source of chapter truth.
+    effective_body: dict[str, Any] = master.drafter_view(body)
     seeds = [s for s in (effective_body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
     counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0}
     if not seeds:
@@ -444,7 +446,9 @@ async def derive_scene_packets(
     chapter = await session.get(Chapter, packet.chapter_id)
     target_chapter_no = chapter.chapter_no if chapter is not None else None
     omniscient = await _omniscient_summary(session, packet.book_id, before_chapter_no=target_chapter_no)
-    chapter_open_questions = packet.open_questions
+    # Canonical read: chapter_contract.open_questions with the sibling column folded in (the column is
+    # the adjudicated state for legacy rows; writers keep it in sync for canonical rows).
+    chapter_open_questions = master.master_open_questions(body, packet.open_questions)
     beats_by_scene: dict[int, Beat] = {}
     for b in (await session.execute(select(Beat).where(Beat.chapter_id == packet.chapter_id))).scalars():
         prev = beats_by_scene.get(b.scene_no)
@@ -621,6 +625,7 @@ async def derive_scene_packets(
         row = item.row
         if row is None:
             row = ScenePacket(
+                id=uuid.uuid4(),  # minted here so the grade below can self-reference the artifact
                 book_id=packet.book_id,
                 chapter_id=packet.chapter_id,
                 chapter_packet_id=packet.id,
@@ -631,6 +636,19 @@ async def derive_scene_packets(
             counts["created"] += 1
         else:
             counts["updated"] += 1
+        if qa is not None:
+            # Workstream-G advisory grade: LLM per-dimension scores + deterministic repair/warn
+            # violations in one machine-readable object. It never gates drafting or approval.
+            qa_warnings = {
+                **qa_warnings,
+                "grade": build_grade(
+                    artifact_id=row.id,
+                    artifact_type="scene_packet",
+                    grader=settings.scene_packet_qa_model,
+                    qa=qa,
+                    violations=violations,
+                ),
+            }
         row.chapter_packet_id = packet.id
         row.scene_no = item.scene_no
         row.status = status

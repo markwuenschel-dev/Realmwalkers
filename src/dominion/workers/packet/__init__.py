@@ -5,6 +5,12 @@ persists a ChapterPacket. It is FAIL-CLOSED: any malformed/empty/timed-out agent
 `blocked` packet rather than partial drafting constraints — a weak packet must never quietly become
 the gate. A failed re-propose never wipes an already-approved packet (mirrors the beats path).
 
+The persisted body of a successful proposal is the canonical `chapter_master_packet` (see
+`packet/master.py` + `chapter_master_packet.schema.json`): raw internal truth stays authoritative at
+the top level (scene_seeds exist exactly ONCE, un-projected), the drafter-safe projection lives only
+under the derived `_surface_contract` key, and the chapter's open questions live in
+`chapter_contract.open_questions` (the sibling column is written as a derived sync for API back-compat).
+
 Two safety jobs live here, not in the agents:
   * provenance — claim `source_id` handles (C1, C2, …) are resolved back to real canon ids + titles;
   * stable ids — every scene seed gets a server-minted `seed_id` (the sync key for later phases),
@@ -15,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -23,11 +30,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
+from dominion.shared.grading import build_grade
 from dominion.shared.models import Chapter, ChapterPacket, Summary
 from dominion.workers import progress, telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.memory import canon_rag
-from dominion.workers.packet import approval_policy
+from dominion.workers.packet import approval_policy, master
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
 from dominion.workers.packet.surface_contract import build_surface_contract
@@ -404,17 +412,59 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
             },
         )
 
-    # Choose what to persist as the primary body: internal truth (audit + provenance) remains authoritative.
-    # Downstream derive will read surface seeds via the _surface_contract key or explicit surface handoff.
-    # For the ChapterPacket row we persist the internal (with surface attached for easy access).
-    packet = dict(packet_internal)
-    packet["_surface_contract"] = packet_surface  # min-viable without schema change
-    # Also keep the projected seeds at top level for immediate compatibility during transition
-    # (scene seeds in surface are the safe ones).
-    if "scene_seeds" in packet_surface:
-        packet["scene_seeds"] = packet_surface.get("scene_seeds", packet.get("scene_seeds"))
+    # === One canonical artifact (chapter_master_packet, schema_version 1) ===
+    # Internal truth remains authoritative at the top level: scene_seeds exist exactly ONCE as raw
+    # planning data (the old double-write that overwrote them with the projected copy is gone) and the
+    # drafter-safe projection lives ONLY under the derived `_surface_contract` key — scene-packet
+    # derivation and other drafter-facing consumers read it via `master.drafter_view`.
+    packet_id = uuid.uuid4()
+    packet = master.to_master_packet(
+        packet_internal,
+        book_id=book_id,
+        chapter_id=chapter.id,
+        chapter_no=chapter.chapter_no,
+        pov=chapter.pov,
+        status=PacketStatus.PROPOSED,
+    )
+    packet["source_inputs"] = {
+        "outline_chars": len(outline),
+        "prior_exit_state": bool(prior_exit),
+        "omniscient_summary": bool(omniscient),
+        "canon_handles": [
+            {"handle": handle, "id": str(meta.get("id")), "name": meta.get("name")} for handle, meta in handles.items()
+        ],
+    }
+    packet["lineage"] = {"source": "packet_author", "packet_id": str(packet_id)}
+    packet["_surface_contract"] = packet_surface  # DERIVED projection, never authoritative
 
-    # All blockers (internal + surface) have already been checked. Warnings may remain.
+    # Structural canary on the canonical body. Blockers here are the true-blocker list only (e.g. no
+    # scene seed carries a usable scene_job); fixable gaps ride along as repair tasks.
+    master_violations = master.validate_master_packet(packet)
+    master_blockers = [v for v in master_violations if v["severity"] == "block"]
+    if master_blockers:
+        log.warning(
+            "packet.validation_blocked",
+            chapter=str(chapter.id),
+            count=len(master_blockers),
+            kinds=sorted({v["kind"] for v in master_blockers}),
+            stage="master",
+        )
+        return await fail_closed(
+            "canonical packet validation failed: " + "; ".join(v["detail"] for v in master_blockers),
+            body=packet,
+            violations=[*(v.as_dict() for v in violations), *master_violations],
+            open_questions=packet["chapter_contract"]["open_questions"],
+            blocker_source="validation",
+            blocker_kind="contract_validation",
+            recovery_actions=_VALIDATION_ACTIONS,
+            blocker_diagnostics={
+                "stage": "master_validation",
+                "violation_count": len(master_blockers),
+                "violation_kinds": sorted({v["kind"] for v in master_blockers}),
+            },
+        )
+
+    # All blockers (internal + surface + master) have already been checked. Repairs/warnings may remain.
 
     progress.set_phase(progress_key, "qa")
     try:
@@ -449,12 +499,31 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
     # QA is advisory: even a BLOCK_DRAFTING verdict yields a proposed packet (red confidence, issues
     # persisted as repair tasks). Only the deterministic fail-closed paths above may block.
     confidence, status = approval_policy.status_from_qa(packet, qa)
-    qa_warnings: dict[str, Any] = {"residual_risks": qa["residual_risks"], "issues": qa["issues"]}
-    if violations:
+    violation_dicts = [*(v.as_dict() for v in violations), *master_violations]
+    # The Workstream-G grade: one advisory score object folding the LLM's per-dimension scores with the
+    # deterministic repair/warn violations. It NEVER gates drafting (persisted for humans + agents).
+    grade = build_grade(
+        artifact_id=packet_id,
+        artifact_type="chapter_packet",
+        grader=settings.packet_qa_model,
+        qa=qa,
+        violations=violation_dicts,
+    )
+    packet["qa"] = {
+        "verdict": str(getattr(qa["verdict"], "value", qa["verdict"])),
+        "blocking_issues": grade["blocking_issues"],
+        "warnings": grade["warnings"],
+        "repair_tasks": grade["repair_tasks"],
+        "graded_by": settings.packet_qa_model,
+        "last_checked_at": datetime.now(UTC).isoformat(),
+    }
+    qa_warnings: dict[str, Any] = {"residual_risks": qa["residual_risks"], "issues": qa["issues"], "grade": grade}
+    if violation_dicts:
         # Only repair- and warn-severity violations reach here (any block already returned above),
         # surfaced alongside QA's own findings so the editor sees both channels.
-        qa_warnings["violations"] = [v.as_dict() for v in violations]
+        qa_warnings["violations"] = violation_dicts
     row = ChapterPacket(
+        id=packet_id,
         book_id=book_id,
         chapter_id=chapter.id,
         status=status,
@@ -462,7 +531,9 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         qa_verdict=qa["verdict"],
         qa_warnings=qa_warnings,
         body=packet,
-        open_questions={"items": _open_questions(packet)},
+        # Derived sync of body.chapter_contract.open_questions — kept for API/UI back-compat; the body
+        # section is the source of truth.
+        open_questions=packet["chapter_contract"]["open_questions"],
     )
     log.info(
         "packet.proposed",

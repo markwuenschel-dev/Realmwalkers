@@ -34,6 +34,7 @@ async def _seed_chapter(s, outline: str = "Marcus intercepts the rogue.") -> Cha
 def _packet(confidence: str = "green", open_q: list[str] | None = None) -> dict:
     return {
         "confidence": confidence,
+        "chapter_job": "Marcus intercepts the rogue courier",
         "exit_state": "the duel begins",
         "scene_seeds": [{"scene_no": 1, "scene_job": "Marcus reads the route and intercepts."}],
         "claims": [{"claim": "Realm is real", "source_strength": "LOCKED_CANON", "source_id": "C1"}],
@@ -71,6 +72,72 @@ async def test_propose_persists_proposed_packet_with_seed_ids(db_factory, monkey
         # exactly one current packet for the chapter
         n = len((await s.execute(select(ChapterPacket).where(ChapterPacket.chapter_id == ch.id))).scalars().all())
         assert n == 1
+
+
+async def test_propose_persists_canonical_master_packet(db_factory, monkeypatch):
+    """The persisted body IS the canonical chapter_master_packet: schema_version + cast + contract +
+    qa sections present, ids stamped, scene_seeds existing exactly once as raw planning data with the
+    drafter-safe projection only under the derived _surface_contract key, open questions folded into
+    the body with the sibling column written as a derived sync, and the advisory Workstream-G grade
+    persisted at qa_warnings.grade."""
+    packet = {
+        **_packet(open_q=["who hired the courier?"]),
+        "characters_present": ["Marcus (POV)"],
+        "characters_forbidden": ["The Broker (not yet introduced)"],
+    }
+    _patch(monkeypatch, packet, _qa())
+    async with db_factory() as s:
+        ch = await _seed_chapter(s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
+        body = row.body
+        assert body["schema_version"] == 1
+        assert body["chapter_id"] == str(ch.id) and body["book_id"] == str(ch.book_id)
+        assert body["chapter_no"] == ch.chapter_no and body["pov"] == "Marcus"
+        assert body["status"] == "proposed"
+        # cast[] replaces the flat roster (which remains as a derived compat mirror, in sync)
+        by_name = {e["name"]: e["presence"] for e in body["cast"]}
+        assert by_name == {"Marcus": "present", "The Broker": "forbidden"}
+        assert body["characters_present"] == ["Marcus (POV)"]
+        # contract section groups job/locks/claims/open_questions; the sibling column is the derived sync
+        assert body["chapter_contract"]["job"] == "Marcus intercepts the rogue courier"
+        assert body["chapter_contract"]["open_questions"]["items"] == ["who hired the courier?"]
+        assert row.open_questions == body["chapter_contract"]["open_questions"]
+        # scene_seeds exist exactly once (raw); the projection lives only under _surface_contract
+        assert isinstance(body["_surface_contract"], dict)
+        assert body["scene_seeds"][0]["visible_character_evidence"] == []
+        # qa section + advisory grade
+        assert body["qa"]["verdict"] == "approve" and body["qa"]["graded_by"]
+        grade = (row.qa_warnings or {}).get("grade")
+        assert grade and grade["artifact_type"] == "chapter_packet" and grade["schema_version"] == 1
+        assert grade["artifact_id"] == str(row.id)
+        assert grade["blocking_issues"] == [] and grade["approved_for_next_stage"] is True
+
+
+async def test_propose_no_longer_double_writes_scene_seeds(db_factory, monkeypatch):
+    """The old propose overwrote top-level scene_seeds with the surface projection (the same data
+    existed twice in one row). Now the top-level seeds keep the RAW internal text and the projected
+    (surface-labeled) copy exists only under the derived _surface_contract key."""
+    packet = {
+        **_packet(),
+        "scene_seeds": [{"scene_no": 1, "scene_job": "Hidden Name strikes from the catwalk."}],
+        "characters_forbidden": ["Hidden Name"],
+        "surface_terms": [
+            {
+                "canonical_term": "Hidden Name",
+                "forbidden_surface_terms": ["Hidden Name"],
+                "surface_label": "the masked figure",
+                "policy": "replace",
+            }
+        ],
+    }
+    _patch(monkeypatch, packet, _qa())
+    async with db_factory() as s:
+        ch = await _seed_chapter(s)
+        row = await packet_pipeline.propose_packet(s, chapter=ch)
+        assert row.status == PacketStatus.PROPOSED
+        assert "Hidden Name" in row.body["scene_seeds"][0]["scene_job"]  # raw internal truth kept
+        surface_job = row.body["_surface_contract"]["scene_seeds"][0]["scene_job"]
+        assert "Hidden Name" not in surface_job and "the masked figure" in surface_job  # projected view
 
 
 # --- fail closed ----------------------------------------------------------------------------------

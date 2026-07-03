@@ -77,6 +77,22 @@ CHAPTER_PACKET_FIELD_SCOPES: dict[str, ContractScope] = {
     "surface_terms": ContractScope.INTERNAL_PLANNING,
     # Legacy transition key (entity_bindings) treated as internal planning.
     "entity_bindings": ContractScope.INTERNAL_PLANNING,
+    # Canonical chapter_master_packet sections (see packet/master.py). The structured planning sections
+    # may carry hidden canonical truth; identity/qa/lineage stamps are audit-only; _surface_contract is
+    # the one DERIVED drafter-safe projection.
+    "schema_version": ContractScope.AUDIT,
+    "book_id": ContractScope.AUDIT,
+    "chapter_id": ContractScope.AUDIT,
+    "chapter_no": ContractScope.AUDIT,
+    "pov": ContractScope.INTERNAL_PLANNING,
+    "status": ContractScope.AUDIT,
+    "source_inputs": ContractScope.AUDIT,
+    "cast": ContractScope.INTERNAL_PLANNING,
+    "chapter_contract": ContractScope.INTERNAL_PLANNING,
+    "qa": ContractScope.AUDIT,
+    "lineage": ContractScope.AUDIT,
+    "confidence": ContractScope.INTERNAL_PLANNING,
+    "_surface_contract": ContractScope.DRAFTER_SURFACE,
 }
 
 # Scene seed fields as they arrive in the RAW ChapterPacket.scene_seeds[].
