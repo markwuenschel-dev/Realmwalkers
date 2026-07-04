@@ -15,17 +15,20 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, or_, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
-from dominion.shared.models import Job, Run
+from dominion.shared.models import Job, Run, Scene
 from dominion.shared.schemas import (
     ActiveScene,
     ClearFailedOut,
     DraftNextOut,
     FailedJobOut,
     JobsStatusOut,
+    QueuedJobOut,
+    RecentJobOut,
+    RecentJobsOut,
     RetryFailedOut,
 )
 from dominion.workers import background_work, progress
@@ -161,6 +164,75 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
         last_cache_read_tokens=last["total_cache_read_tokens"] if last else None,
         last_cache_creation_tokens=last["total_cache_creation_tokens"] if last else None,
         last_cache_tokens_saved=last["cache_tokens_saved"] if last else None,
+    )
+
+
+def _scope_to_book(stmt: Select, book_id: uuid.UUID | None) -> Select:
+    """Book scoping that catches both routing generations: new jobs carry book_id directly;
+    legacy jobs are reachable only through their run."""
+    if book_id is None:
+        return stmt
+    return stmt.where(or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id))))
+
+
+@router.get("/recent", response_model=RecentJobsOut)
+async def recent(session: SessionDep, book_id: uuid.UUID | None = None, limit: int = 15) -> RecentJobsOut:
+    """Queue positions + the last N terminal jobs, for the Activity drawer. The LIVE job is not
+    here — /jobs/status already carries it with phase/elapsed at the fast poll. Two slim queries."""
+    limit = max(1, min(limit, 50))
+    queued_rows = (
+        await session.execute(
+            _scope_to_book(
+                select(Job.id, Job.kind, Job.chapter_no, Job.scene_no, Job.created_at).where(
+                    Job.status == JobStatus.QUEUED
+                ),
+                book_id,
+            ).order_by(Job.created_at)
+        )
+    ).all()
+    recent_rows = (
+        await session.execute(
+            _scope_to_book(
+                select(
+                    Job.id,
+                    Job.kind,
+                    Job.status,
+                    Job.chapter_no,
+                    Job.scene_no,
+                    Job.last_error,
+                    Job.claimed_at,
+                    Job.finished_at,
+                    Scene.word_count,
+                )
+                .join(Scene, Scene.id == Job.target_scene_id, isouter=True)
+                .where(Job.status.in_([JobStatus.DONE, JobStatus.FAILED])),
+                book_id,
+            )
+            .order_by(Job.finished_at.desc().nulls_last(), Job.created_at.desc())
+            .limit(limit)
+        )
+    ).all()
+    return RecentJobsOut(
+        queued=[
+            QueuedJobOut(id=jid, kind=kind, chapter_no=ch, scene_no=sc, created_at=created)
+            for jid, kind, ch, sc, created in queued_rows
+        ],
+        recent=[
+            RecentJobOut(
+                id=jid,
+                kind=kind,
+                status=status,
+                chapter_no=ch,
+                scene_no=sc,
+                last_error=err,
+                claimed_at=claimed,
+                finished_at=finished,
+                # Null-safe: rows that finished before the finished_at column existed show no duration.
+                duration_s=int((finished - claimed).total_seconds()) if finished and claimed else None,
+                word_count=wc,
+            )
+            for jid, kind, status, ch, sc, err, claimed, finished, wc in recent_rows
+        ],
     )
 
 

@@ -788,6 +788,40 @@ class FailedJobOut(BaseModel):
     last_error: str | None = None
 
 
+class QueuedJobOut(BaseModel):
+    """A QUEUED job awaiting the drain — list order is queue position (created_at asc)."""
+
+    id: uuid.UUID
+    kind: str
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    created_at: datetime
+
+
+class RecentJobOut(BaseModel):
+    """A terminal (done/failed) job for the Activity drawer's 'recently finished' feed.
+    duration_s/word_count stay None for rows predating finished_at / target_scene_id stamping."""
+
+    id: uuid.UUID
+    kind: str
+    status: str
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    last_error: str | None = None
+    claimed_at: datetime | None = None
+    finished_at: datetime | None = None
+    duration_s: int | None = None
+    word_count: int | None = None
+
+
+class RecentJobsOut(BaseModel):
+    """Queue positions + recent terminal jobs behind the Activity drawer. The LIVE job is not
+    duplicated here — /jobs/status already carries it (with phase/elapsed) at the fast poll."""
+
+    queued: list[QueuedJobOut]
+    recent: list[RecentJobOut]
+
+
 # --- World ledger + in-prose entity cards (DESIGN §5, §7) -----------------------------------------
 
 

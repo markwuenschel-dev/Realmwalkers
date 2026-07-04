@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Literal
 
 import structlog
@@ -486,6 +487,7 @@ async def reconcile_and_requeue_failed_draft_jobs(
         dedupe_key = (chapter_id, scene_no, old.target_scene_id)
         if dedupe_key in seen_scenes:
             old.status = JobStatus.FAILED
+            old.finished_at = datetime.now(UTC)
             old.last_error = (old.last_error or "") + " [superseded by requeue dedupe]"
             continue
         seen_scenes.add(dedupe_key)
@@ -538,6 +540,7 @@ async def reconcile_and_requeue_failed_draft_jobs(
         await session.flush()
 
         old.status = JobStatus.FAILED
+        old.finished_at = datetime.now(UTC)
         old.last_error = (old.last_error or "") + f" [superseded by requeue → {job.id}]"
         result.queued += 1
         log.info(

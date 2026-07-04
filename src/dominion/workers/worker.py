@@ -90,6 +90,11 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         try:
             scene = await asyncio.wait_for(generate_one_scene(session, job), timeout=settings.scene_time_budget_s)
             job.status = JobStatus.DONE
+            job.finished_at = datetime.now(UTC)
+            # Stamp the produced scene so /jobs/recent can join word counts for draft jobs too
+            # (fresh drafts otherwise never carry target_scene_id — only revisions do).
+            if job.target_scene_id is None:
+                job.target_scene_id = scene.id
             await session.commit()
             log.info("scene.drafted", job=str(job_id), scene=str(scene.id), tokens=scene.token_count)
             return True
@@ -104,7 +109,9 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
             loc = f" @ {os.path.basename(frame.filename)}:{frame.lineno}" if frame else ""
             last_error, error_kind = classify_job_failure(exc, loc)
             await session.execute(
-                update(Job).where(Job.id == job_id).values(status=JobStatus.FAILED, last_error=last_error)
+                update(Job)
+                .where(Job.id == job_id)
+                .values(status=JobStatus.FAILED, last_error=last_error, finished_at=datetime.now(UTC))
             )
             if error_kind == INFRA_RATE_LIMIT and production_run_id is not None:
                 # The run is not broken and neither is the contract — the provider refused the call.
