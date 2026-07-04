@@ -299,8 +299,7 @@ export const api = {
   productionRunIssues: (runId: string) => http<IssueOut[]>(`/production-runs/${runId}/issues`),
   productionRunRepairTasks: (runId: string) =>
     http<RepairTaskOut[]>(`/production-runs/${runId}/repair-tasks`),
-  productionRunEvents: (runId: string) =>
-    http<AgentEventOut[]>(`/production-runs/${runId}/events`),
+  productionRunEvents: (runId: string) => http<AgentEventOut[]>(`/production-runs/${runId}/events`),
   triageProductionRun: (runId: string) =>
     http<ProductionRunActionOut>(`/production-runs/${runId}/triage`, { method: "POST" }),
   assembleProductionRun: (runId: string) =>

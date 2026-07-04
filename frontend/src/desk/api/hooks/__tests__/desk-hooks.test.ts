@@ -496,9 +496,7 @@ describe("useDeskCollections", () => {
     const setError = vi.fn();
     const setLoading = vi.fn();
     const onBookChange = vi.fn();
-    return renderHook(() =>
-      useDeskCollections("book-1", fail, setError, setLoading, onBookChange),
-    );
+    return renderHook(() => useDeskCollections("book-1", fail, setError, setLoading, onBookChange));
   }
 
   it("downloads full canon bodies once per book per session across repeated loads", async () => {

@@ -321,7 +321,10 @@ export default function ProductionScreen() {
         setError(null);
         const freshRuns = opts?.reloadRuns && chapterId ? await loadRuns(chapterId) : null;
         if (opts?.refresh === "slim") {
-          await refreshDetailSlim(runId, freshRuns?.find((r) => r.id === runId));
+          await refreshDetailSlim(
+            runId,
+            freshRuns?.find((r) => r.id === runId),
+          );
         } else {
           await loadDetail(runId);
         }
