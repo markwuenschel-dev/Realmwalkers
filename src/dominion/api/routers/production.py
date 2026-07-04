@@ -347,6 +347,19 @@ async def update_chapter_sequence(
     return ChapterSequenceOut.model_validate(sequence)
 
 
+@router.post("/chapter-sequences/{sequence_id}/align-scene-count", response_model=ChapterSequenceOut)
+async def align_sequence_scene_count(sequence_id: uuid.UUID, session: SessionDep) -> ChapterSequenceOut:
+    """One-click fix for the sequence_scene_count_mismatch draft blocker: align the sequence's
+    planning target to the packet's actual seeded scenes (server derives the count)."""
+    try:
+        sequence = await production.align_sequence_scene_count(session, sequence_id)
+    except ValueError as exc:
+        raise _raise_for_value_error(exc) from exc
+    await session.commit()
+    await session.refresh(sequence)  # commit expires ORM attrs; refresh before serializing
+    return ChapterSequenceOut.model_validate(sequence)
+
+
 @router.post("/chapter-sequences/{sequence_id}/qa", response_model=ChapterSequenceQaOut)
 async def qa_chapter_sequence(sequence_id: uuid.UUID, session: SessionDep) -> ChapterSequenceQaOut:
     try:

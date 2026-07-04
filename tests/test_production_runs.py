@@ -247,3 +247,43 @@ def test_draft_qa_block_findings_carry_block_facts():
     dup = [f for f in qa["findings"] if f["kind"] == "duplicate_scene_function"]
     assert dup and dup[0]["severity"] == "block" and dup[0]["blocks_drafting"] is True
     assert qa["verdict"] == "block"
+
+
+# --- align_sequence_scene_count (Desk Control Round P2) --------------------------------------------
+
+
+async def test_align_scene_count_sets_target_to_seed_count(db_factory):
+    import pytest as _pytest
+    from fastapi import HTTPException
+
+    async with db_factory() as s:
+        book, chapter, _scene, _sp = await _seed_chapter(s, seed_count=2, add_critique=False)
+        packet = (await s.execute(select(ChapterPacket))).scalars().one()
+        # The packet DECLARES a 6-scene plan while authoring only 2 seeds — the ch1 shape.
+        packet.body = {**packet.body, "target_scene_count": 6}
+        await s.flush()
+
+        sequence = await production_router.derive_chapter_sequence(chapter.id, s)
+        assert sequence.target_scene_count == 6  # derived target echoes the packet policy
+
+        aligned = await production_router.align_sequence_scene_count(sequence.id, s)
+        assert aligned.target_scene_count == 2
+        assert (aligned.hard_max_scene_count or 0) >= 2
+        assert "aligned target_scene_count to 2" in (aligned.stale_reason or "")
+
+        # The readiness blocker arithmetic now agrees.
+        from dominion.workers.draft_readiness import sequence_budget_blockers
+
+        out = sequence_budget_blockers(
+            seed_count=2,
+            sequence_scene_count=aligned.target_scene_count,
+            sequence_hard_max_words=None,
+            scene_hard_max_total=None,
+            sequence_id=sequence.id,
+        )
+        assert out == []
+
+        # Unknown sequence -> 404 via the shared ValueError mapping.
+        with _pytest.raises(HTTPException) as e404:
+            await production_router.align_sequence_scene_count(uuid.uuid4(), s)
+        assert e404.value.status_code == 404

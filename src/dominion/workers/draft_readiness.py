@@ -64,19 +64,29 @@ def sequence_budget_blockers(
     sequence_scene_count: int | None,
     sequence_hard_max_words: int | None,
     scene_hard_max_total: int | None,
+    sequence_id: uuid.UUID | None = None,
 ) -> list[StructuralBlockerOut]:
-    """`sequence_budget_mismatch`: the approved sequence plan and the scene contracts disagree on
-    arithmetic that no LLM call can fix (Ch1 failure §3: scene hard_max summed to 10,400 against a
-    7,200-word chapter hard max — the overrun was guaranteed before drafting started)."""
+    """Two deterministic contract-arithmetic gates:
+
+    `sequence_scene_count_mismatch` — the sequence's PLANNING TARGET disagrees with the packet's
+    authored seed list. The sequence's scenes[] is always one-per-seed, so this is target-vs-actual
+    only; the blocker carries sequence_id/seed_count so the Desk can offer the one-click
+    "Align plan to N seeded scenes" fix (re-derive just reproduces the same estimate).
+
+    `sequence_budget_mismatch` — word arithmetic no LLM call can fix (Ch1 failure §3: scene
+    hard_max summed to 10,400 against a 7,200-word chapter hard max)."""
     out: list[StructuralBlockerOut] = []
     if sequence_scene_count is not None and seed_count and sequence_scene_count != seed_count:
         out.append(
             StructuralBlockerOut(
-                kind="sequence_budget_mismatch",
+                kind="sequence_scene_count_mismatch",
                 message=(
                     f"The chapter sequence plans {sequence_scene_count} scenes but the chapter packet seeds "
-                    f"{seed_count} — re-derive the sequence or fix the packet's scene seeds before drafting."
+                    f"{seed_count} — align the plan to the seeded scenes, or fix the packet's scene seeds."
                 ),
+                sequence_id=sequence_id,
+                planned_scene_count=sequence_scene_count,
+                seed_count=seed_count,
             )
         )
     if (
@@ -482,6 +492,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
         sequence_scene_count=sequence.target_scene_count if sequence else None,
         sequence_hard_max_words=sequence.hard_max_words if sequence else None,
         scene_hard_max_total=scene_hard_max_total,
+        sequence_id=sequence.id if sequence else None,
     )
     structural += scene_scope_bleed_blockers(
         [

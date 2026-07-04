@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import uuid
 from pathlib import Path
 
 from dominion.shared.schemas import StructuralBlockerOut
@@ -209,9 +210,16 @@ def test_sequence_budget_mismatch_on_the_real_ch1_numbers():
         sequence_scene_count=seq["target_scene_count"],
         sequence_hard_max_words=seq["hard_max_words"],
         scene_hard_max_total=total,
+        sequence_id=uuid.UUID(seq["id"]),
     )
     assert len(out) == 2
-    assert all(b.kind == "sequence_budget_mismatch" for b in out)
+    # Deliberate kind split (Desk Control Round): the scene-count arm is its own kind and carries
+    # the machine fields the one-click "Align plan to N seeded scenes" action needs; the word-budget
+    # arm keeps the original recovery-era kind.
+    assert out[0].kind == "sequence_scene_count_mismatch"
+    assert out[0].sequence_id == uuid.UUID(seq["id"])
+    assert out[0].planned_scene_count == 6 and out[0].seed_count == 4
+    assert out[1].kind == "sequence_budget_mismatch"
     assert "6 scenes" in out[0].message and "4" in out[0].message
     assert "10400" in out[1].message and "7200" in out[1].message
 

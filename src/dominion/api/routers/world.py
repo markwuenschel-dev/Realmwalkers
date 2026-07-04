@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import ColumnElement, delete, func, null, or_, select
 
 from dominion.api.deps import SessionDep
+from dominion.shared.config import settings
 from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState, KnowledgeFact
 from dominion.shared.schemas import (
     CanonBulkDeleteOut,
@@ -30,7 +31,7 @@ from dominion.shared.schemas import (
     KnowledgeFactOut,
 )
 from dominion.workers.memory import canon_rag
-from dominion.workers.memory.embedding import embed_async
+from dominion.workers.memory.embedding import embed_async, embedding_version
 
 router = APIRouter(tags=["world"])
 
@@ -154,6 +155,8 @@ async def upsert_character(
             session.add(canon)
         canon.body = text
         canon.embedding = (await embed_async(text)) if text else None
+        canon.embedding_version = embedding_version() if text else None
+        canon.embedding_model = settings.embedding_model if text else None
 
     await session.commit()
     return await _character_out(book_id, row, session)
@@ -236,6 +239,11 @@ async def list_canon(
         body_col,
         CanonEntity.source,
         CanonEntity.status,
+        CanonEntity.doc_path,
+        CanonEntity.heading_path,
+        CanonEntity.owner_topic,
+        CanonEntity.source_priority,
+        CanonEntity.embedding_version,
     ).where(CanonEntity.book_id == book_id)
     if kind:
         stmt = stmt.where(CanonEntity.kind == kind)
@@ -244,8 +252,25 @@ async def list_canon(
     if source and source != "all":
         stmt = stmt.where(CanonEntity.source == source)
     rows = (await session.execute(stmt.order_by(CanonEntity.kind, CanonEntity.name))).all()
+    # Staleness = the row's recorded embedding backend differs from the active one. Rows with no
+    # recorded version (hand-authored, pre-versioning) make no staleness claim.
+    current_version = embedding_version()
     return [
-        CanonEntityOut(id=r.id, kind=r.kind, name=r.name, body=r.body, source=r.source, status=r.status) for r in rows
+        CanonEntityOut(
+            id=r.id,
+            kind=r.kind,
+            name=r.name,
+            body=r.body,
+            source=r.source,
+            status=r.status,
+            doc_path=r.doc_path,
+            heading_path=r.heading_path,
+            owner_topic=r.owner_topic,
+            source_priority=r.source_priority,
+            embedding_version=r.embedding_version,
+            embedding_stale=r.embedding_version is not None and r.embedding_version != current_version,
+        )
+        for r in rows
     ]
 
 
@@ -261,6 +286,8 @@ async def create_canon(book_id: uuid.UUID, body: CanonEntityIn, session: Session
         name=(body.name or "").strip() or None,
         body=text,
         embedding=(await embed_async(text)) if text else None,
+        embedding_version=embedding_version() if text else None,
+        embedding_model=settings.embedding_model if text else None,
     )
     session.add(entity)
     await session.commit()
@@ -282,6 +309,8 @@ async def update_canon(canon_id: uuid.UUID, body: CanonEntityUpdateIn, session: 
         text = (data["body"] or "").strip() or None
         entity.body = text
         entity.embedding = (await embed_async(text)) if text else None
+        entity.embedding_version = embedding_version() if text else None
+        entity.embedding_model = settings.embedding_model if text else None
     await session.commit()
     return entity
 

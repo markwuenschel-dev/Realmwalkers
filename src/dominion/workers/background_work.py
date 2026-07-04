@@ -30,6 +30,41 @@ _derive_results: dict[str, dict[str, Any]] = {}
 # At most one drain loop per process. FastAPI background tasks share the API event loop.
 _drain_lock = asyncio.Lock()
 
+# Queue pause (Desk Control Round): a human-set switch that stops the drain from claiming new jobs
+# (the in-flight scene always finishes). Persisted as a ModelOverride row keyed "queue_paused" —
+# inert to the model loader (apply_model_overrides filters on ROLE_KEYS) and survives redeploys
+# without a migration. The module global is the fast path; load_queue_paused refreshes it from the
+# DB so terminal workers and fresh containers agree.
+QUEUE_PAUSED_KEY = "queue_paused"
+_queue_paused = False
+
+
+def queue_paused() -> bool:
+    return _queue_paused
+
+
+async def set_queue_paused(session: Any, paused: bool) -> None:
+    """Flip the switch: update the process-global AND upsert the persisted row."""
+    global _queue_paused
+    from dominion.shared.models import ModelOverride
+
+    _queue_paused = paused
+    row = await session.get(ModelOverride, QUEUE_PAUSED_KEY)
+    if row is None:
+        session.add(ModelOverride(setting_name=QUEUE_PAUSED_KEY, model="1" if paused else "0"))
+    else:
+        row.model = "1" if paused else "0"
+
+
+async def load_queue_paused(session: Any) -> bool:
+    """Read the persisted switch into the process-global (boot, and each worker poll)."""
+    global _queue_paused
+    from dominion.shared.models import ModelOverride
+
+    row = await session.get(ModelOverride, QUEUE_PAUSED_KEY)
+    _queue_paused = row is not None and row.model == "1"
+    return _queue_paused
+
 
 def try_begin(key: str) -> bool:
     """Add key if absent. Return True when the caller should start work."""
@@ -93,6 +128,9 @@ async def drain_queued_jobs() -> None:
         from dominion.workers.worker import run_once
 
         while True:
+            if _queue_paused:
+                log.info("draft.drain_paused", note="queue paused by human; drain stops between jobs")
+                break
             try:
                 did = await run_once()
             except Exception as exc:  # noqa: BLE001 — already marked FAILED + logged in run_once
