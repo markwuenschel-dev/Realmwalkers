@@ -57,6 +57,7 @@ from dominion.shared.models import (
 )
 from dominion.shared.severity import issue_gates
 from dominion.shared.text_match import as_str_list, names_present
+from dominion.workers import repair_triage
 from dominion.workers.canon_guards import scan_packet_prose
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.job_scheduler import schedule_revision
@@ -1170,7 +1171,7 @@ async def _apply_real_span_patch(
     }
 
 
-def _highest_authority(issues: list[Issue]) -> str:
+def _highest_authority(issues: list[Issue]) -> RepairAuthorityLevel:
     authorities = [_infer_authority(issue) for issue in issues]
     return max(authorities, key=lambda authority: _AUTHORITY_RANK.get(authority, -1))
 
@@ -1181,15 +1182,19 @@ async def _queue_repair_task_from_issues(
     run: ProductionRun,
     issues: list[Issue],
     agent_run_id: uuid.UUID | None = None,
+    repair_kind: str | None = None,
+    authority_level: RepairAuthorityLevel | None = None,
+    chapter_scoped: bool = False,
+    instruction_preamble: str | None = None,
 ) -> tuple[RepairTask, Artifact]:
     first = issues[0]
-    repair_kind = _infer_repair_kind(first)
-    authority_level = _highest_authority(issues)
+    repair_kind = repair_kind or _infer_repair_kind(first)
+    authority_level = authority_level or _highest_authority(issues)
     task = RepairTask(
         production_run_id=run.id,
         chapter_id=run.chapter_id,
-        scene_id=first.scene_id,
-        scene_no=first.scene_no,
+        scene_id=None if chapter_scoped else first.scene_id,
+        scene_no=None if chapter_scoped else first.scene_no,
         repair_kind=repair_kind,
         authority_level=authority_level,
         status=RepairTaskStatus.WAITING_FOR_HUMAN
@@ -1211,13 +1216,14 @@ async def _queue_repair_task_from_issues(
         else None,
         instructions="\n".join(
             [
+                *([instruction_preamble] if instruction_preamble else []),
                 f"Repair kind: {repair_kind}. Authority: {authority_level}.",
                 *[f"- {issue.recommended_action} Claim: {issue.claim}" for issue in issues],
             ]
         ),
         preserve=[
             f"Preserve scene outcome for scene {first.scene_no}."
-            if first.scene_no is not None
+            if first.scene_no is not None and not chapter_scoped
             else "Preserve chapter outcome."
         ],
         must_change=[issue.claim for issue in issues],
@@ -2215,7 +2221,7 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
     run = await session.get(ProductionRun, run_id)
     if run is None:
         raise ValueError("production run not found")
-    issues = (
+    proposed = (
         (
             await session.execute(
                 select(Issue)
@@ -2226,7 +2232,21 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         .scalars()
         .all()
     )
-    if not issues:
+    # Issues accepted by an earlier triage but left untasked (deferred prose_polish
+    # or infra_rate_limit retry state). Re-planned so a re-triage after structural
+    # repairs resolve can release the deferred prose work.
+    deferred = (
+        (
+            await session.execute(
+                select(Issue)
+                .where(Issue.production_run_id == run_id, Issue.status == IssueStatus.ACCEPTED)
+                .order_by(Issue.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not proposed and not deferred:
         await _update_run_summary(session, run)
         return run
 
@@ -2239,10 +2259,10 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         stage="issue_triage",
         input_artifact_ids=[],
     )
-    grouped: dict[tuple[uuid.UUID | None, int | None, str, str], list[Issue]] = defaultdict(list)
     created_tasks: list[RepairTask] = []
     created_artifacts: list[Artifact] = []
-    for issue in issues:
+    accepted_new: list[Issue] = []
+    for issue in proposed:
         if issue.issue_kind == "missing_scene":
             decision = IssueDecisionKind.ESCALATE
             issue.status = IssueStatus.ESCALATED
@@ -2254,8 +2274,17 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         else:
             decision = IssueDecisionKind.ACCEPT
             issue.status = IssueStatus.ACCEPTED
-            reason = "Accepted for repair task generation."
-            grouped[(issue.scene_id, issue.scene_no, _infer_repair_kind(issue), _infer_authority(issue))].append(issue)
+            accepted_new.append(issue)
+            root_cause = repair_triage.infer_root_cause(issue)
+            if root_cause == repair_triage.ROOT_CAUSE_INFRA_RATE_LIMIT:
+                reason = "Accepted as infra_rate_limit retry state; provider rate limits never create repair tasks."
+            elif root_cause in repair_triage.STRUCTURAL_AUTHORITY:
+                reason = (
+                    f"Accepted into root-cause cluster '{root_cause}'; "
+                    "one chapter-scoped structural repair task covers all member issues."
+                )
+            else:
+                reason = "Accepted as prose_polish for repair task generation."
         session.add(
             IssueDecision(
                 issue_id=issue.id,
@@ -2281,15 +2310,94 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
             agent_run_id=triage.id,
         )
 
-    for _, grouped_issues in grouped.items():
+    # Root-cause clustering: one chapter-scoped repair task per structural cluster
+    # (sequence_entry_state | scene_scope_bleed | budget_mismatch | canon_contract_leak),
+    # never a per-scene scatter of symptom repairs.
+    plan = repair_triage.plan_repair_tasks([*accepted_new, *deferred])
+    for root_cause in repair_triage.STRUCTURAL_ROOT_CAUSES:
+        cluster = plan.structural_clusters.get(root_cause)
+        if not cluster:
+            continue
         task, artifact = await _queue_repair_task_from_issues(
             session,
             run=run,
-            issues=grouped_issues,
+            issues=cluster,
             agent_run_id=triage.id,
+            repair_kind=root_cause,
+            authority_level=repair_triage.STRUCTURAL_AUTHORITY[root_cause],
+            chapter_scoped=True,
+            instruction_preamble=repair_triage.ROOT_CAUSE_INSTRUCTIONS[root_cause],
         )
         created_tasks.append(task)
         created_artifacts.append(artifact)
+
+    # Prose polish stays gated while ANY structural root repair is unresolved —
+    # either a cluster planned just now, or a structural task still open in the DB.
+    unresolved_structural = (
+        (
+            await session.execute(
+                select(RepairTask).where(
+                    RepairTask.production_run_id == run_id,
+                    RepairTask.repair_kind.in_(repair_triage.STRUCTURAL_ROOT_CAUSES),
+                    RepairTask.status.in_(
+                        [
+                            RepairTaskStatus.QUEUED,
+                            RepairTaskStatus.RUNNING,
+                            RepairTaskStatus.WAITING_FOR_HUMAN,
+                            RepairTaskStatus.FAILED,
+                        ]
+                    ),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    defer_prose = plan.defer_prose or bool(unresolved_structural)
+    if plan.prose_issues and not defer_prose:
+        grouped: dict[tuple[uuid.UUID | None, int | None, str, str], list[Issue]] = defaultdict(list)
+        for issue in plan.prose_issues:
+            grouped[(issue.scene_id, issue.scene_no, _infer_repair_kind(issue), _infer_authority(issue))].append(issue)
+        for _, grouped_issues in grouped.items():
+            task, artifact = await _queue_repair_task_from_issues(
+                session,
+                run=run,
+                issues=grouped_issues,
+                agent_run_id=triage.id,
+            )
+            created_tasks.append(task)
+            created_artifacts.append(artifact)
+    elif plan.prose_issues:
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="repair_deferred",
+            stage="issue_triage",
+            message=(
+                f"{len(plan.prose_issues)} prose_polish issue(s) deferred until structural root-cause repairs resolve."
+            ),
+            payload={
+                "issue_ids": [str(issue.id) for issue in plan.prose_issues],
+                "deferred_behind": sorted(
+                    {task.repair_kind for task in [*created_tasks, *unresolved_structural]}
+                    & set(repair_triage.STRUCTURAL_ROOT_CAUSES)
+                ),
+            },
+            agent_run_id=triage.id,
+        )
+    if plan.rate_limit_issues:
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="rate_limit_retry_state",
+            stage="issue_triage",
+            message=(
+                f"{len(plan.rate_limit_issues)} infra_rate_limit issue(s) recorded as retry state; "
+                "no repair tasks created."
+            ),
+            payload={"issue_ids": [str(issue.id) for issue in plan.rate_limit_issues]},
+            agent_run_id=triage.id,
+        )
 
     _finish_agent_run(
         triage,
