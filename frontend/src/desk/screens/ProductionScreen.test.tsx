@@ -39,6 +39,11 @@ vi.mock("../components/ProseBlocks", () => ({
   default: ({ text }: { text: string }) => <div>{text}</div>,
 }));
 
+// jsdom has no URL.createObjectURL — assert the download call instead of a real browser download.
+vi.mock("../lib/download", () => ({
+  downloadBlob: vi.fn(),
+}));
+
 vi.mock("../api/client", () => ({
   api: {
     productionRuns: vi.fn(),
@@ -55,6 +60,7 @@ vi.mock("../api/client", () => ({
 }));
 
 import { api } from "../api/client";
+import { downloadBlob } from "../lib/download";
 
 const RUN = {
   id: "run-1",
@@ -311,6 +317,28 @@ describe("ProductionScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verify" }));
     await waitFor(() => expect(api.verifyRepairTask).toHaveBeenCalledWith("task-1"));
     expect(api.repairTask).toHaveBeenCalledWith("task-1");
+  });
+
+  it("exposes the full run state as viewable + downloadable JSON after each step", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    // Toggle the inline inspector: the raw ProductionRunDetailOut, not a summary.
+    fireEvent.click(screen.getByRole("button", { name: "Run JSON" }));
+    const panel = await screen.findByTestId("run-json");
+    expect(panel.textContent).toContain('"event_type": "repair_task_created"');
+    expect(panel.textContent).toContain('"repair_kind": "dialogue"');
+
+    // Download carries the run id + current stage so per-step downloads sort meaningfully.
+    fireEvent.click(screen.getByRole("button", { name: "Download JSON" }));
+    expect(downloadBlob).toHaveBeenCalledWith(
+      "production_run_run-1_repair_queue.json",
+      expect.stringContaining('"status": "repairing"'),
+      "application/json",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide run JSON" }));
+    expect(screen.queryByTestId("run-json")).not.toBeInTheDocument();
   });
 
   it("renders structured remediation instead of the raw error when no packet is approved", async () => {
