@@ -17,6 +17,7 @@ import { useDeskData } from "../api/data";
 import { css } from "../css";
 import ProseBlocks from "../components/ProseBlocks";
 import { Spinner } from "../components/DraftActivity";
+import { downloadBlob } from "../lib/download";
 import {
   isNoApprovedPacketError,
   packetAdvisories,
@@ -131,6 +132,10 @@ export default function ProductionScreen() {
   // Prose coverage for the assembly gate: a run only concatenates EXISTING scene prose, so starting
   // one with missing scenes just manufactures missing_scene issues. Disable until coverage is full.
   const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
+  // Raw run JSON inspector: `detail` is refetched after every action (start/triage/assemble/apply/
+  // verify), so this is the full machine-readable state of the run after each step — issues, repair
+  // tasks, artifacts, events — viewable inline or downloadable for offline diffing between steps.
+  const [jsonOpen, setJsonOpen] = useState(false);
 
   const loadDetail = useCallback(async (targetRunId: string | null) => {
     if (!targetRunId) {
@@ -204,6 +209,17 @@ export default function ProductionScreen() {
       setError(e instanceof Error ? e.message : String(e));
     });
   }, [loadDetail, runId]);
+
+  const runJson = useMemo(() => (detail ? JSON.stringify(detail, null, 2) : ""), [detail]);
+  const downloadRunJson = () => {
+    if (!detail) return;
+    // Status + stage in the filename so successive downloads (one per step) sort meaningfully.
+    downloadBlob(
+      `production_run_${detail.run.id.slice(0, 8)}_${detail.run.current_stage ?? detail.run.status}.json`,
+      runJson,
+      "application/json",
+    );
+  };
 
   const chapter = orderedChapters.find((row) => row.id === chapterId) ?? null;
   const finalArtifact = detail ? latestArtifact(detail.artifacts, "final_chapter") : null;
@@ -543,6 +559,38 @@ export default function ProductionScreen() {
               >
                 {busy === "assemble" ? "Assembling…" : "Refresh assembly"}
               </button>
+              <button
+                onClick={() => setJsonOpen((v) => !v)}
+                style={css(
+                  "height:32px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
+                )}
+              >
+                {jsonOpen ? "Hide run JSON" : "Run JSON"}
+              </button>
+              <button
+                onClick={downloadRunJson}
+                title="Download the full run state (issues, repair tasks, artifacts, events) as JSON"
+                style={css(
+                  "height:32px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
+                )}
+              >
+                Download JSON
+              </button>
+            </div>
+          )}
+
+          {detail && jsonOpen && (
+            <div style={css(PANEL)} data-testid="run-json">
+              <div style={css(SMALL)}>
+                Run JSON · full state after the latest step · {detail.run.current_stage ?? "queued"}
+              </div>
+              <pre
+                style={css(
+                  "margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg3);font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--ink);max-height:440px;overflow:auto",
+                )}
+              >
+                {runJson}
+              </pre>
             </div>
           )}
 
