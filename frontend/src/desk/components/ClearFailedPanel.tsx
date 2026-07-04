@@ -27,6 +27,11 @@ export default function ClearFailedPanel({
   if (failedCount <= 0) return null;
 
   const scope = scopeLabel ? ` (${scopeLabel})` : "";
+  // Stale-packet failures have a known remedy that Retry alone will never fix — retrying just fails
+  // again in milliseconds on the same gate. Say the remedy instead of burying it in the error string.
+  const staleFailure = failedJobs.some(
+    (f) => f.last_error != null && /ScenePacketRequiredError.*stale/s.test(f.last_error),
+  );
 
   return (
     <div
@@ -70,6 +75,19 @@ export default function ClearFailedPanel({
               …and {failedJobs.length - 6} more
             </div>
           )}
+        </div>
+      )}
+      {staleFailure && !compact && (
+        <div
+          data-testid="stale-packet-hint"
+          style={css(
+            "border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg3));border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:12px;color:var(--ink);line-height:1.45",
+          )}
+        >
+          Stale scene packet: upstream inputs changed after derivation, so drafting refuses the old
+          contract. Fix it in the <strong>Packets</strong> tab first — <strong>Re-approve</strong>{" "}
+          the packet (fast, keeps it as-is) or <strong>re-derive</strong> it — then Retry here.
+          Retrying without that fails again instantly.
         </div>
       )}
       <div style={css("display:flex;flex-direction:column;gap:8px")}>

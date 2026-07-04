@@ -85,10 +85,16 @@ def build_prefix(
     *,
     chapter_open_questions: dict[str, Any] | None = None,
 ) -> str | None:
-    """The chapter packet is identical across every scene's QA, so it rides ahead as a cached block."""
+    """The chapter packet is identical across every scene's QA, so it rides ahead as a cached block.
+
+    Derived `_`-prefixed sections (`_surface_contract`) and the embedded `qa` audit blob are excluded —
+    same rule as packet.qa.build_prompt: QA judges against the authoritative content, and on a mature
+    chapter the derived duplicate + audit trail more than doubled the prefix (observed: a 167KB body
+    whose prefix alone hit ~35k tokens and blew the QA input budget outright)."""
     if not chapter_packet_body:
         return None
-    parts = ["CHAPTER PACKET (the macro authority it must not contradict):\n" + _compact(chapter_packet_body)]
+    authoritative = {k: v for k, v in chapter_packet_body.items() if not str(k).startswith("_") and k != "qa"}
+    parts = ["CHAPTER PACKET (the macro authority it must not contradict):\n" + _compact(authoritative)]
     rulings = format_chapter_rulings(chapter_open_questions)
     if rulings:
         parts.append(rulings)

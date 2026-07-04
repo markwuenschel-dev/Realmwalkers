@@ -43,7 +43,7 @@ from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.budget import TokenBudget
 from dominion.workers.draft_readiness import compute_draft_readiness
-from dominion.workers.llm import LlmRateLimited
+from dominion.workers.llm import LlmRateLimited, PromptBudgetExceeded
 from dominion.workers.packet import approval_policy as packet_approval
 from dominion.workers.scene_packet import approval_policy as sp_approval
 from dominion.workers.scene_packet import beats as beats_mod
@@ -339,6 +339,14 @@ async def qa_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> Sc
         raise HTTPException(
             status_code=429,
             detail=f"Provider rate limited the QA call — try again shortly. ({exc})",
+        ) from exc
+    except PromptBudgetExceeded as exc:
+        # Preflight refusal, not a provider error: the chapter packet + scene body exceed the QA
+        # input guard. The packet is untouched. Surface the numbers instead of a raw 500 so the
+        # human can slim the chapter packet or raise DOMINION_SCENE_PACKET_QA_PROMPT_BUDGET.
+        raise HTTPException(
+            status_code=422,
+            detail=f"QA prompt exceeds the input budget — the chapter packet is too large. ({exc})",
         ) from exc
     sp_approval.apply_qa_rerun(row, result)
     await session.commit()

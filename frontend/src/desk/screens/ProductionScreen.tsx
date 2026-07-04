@@ -136,6 +136,9 @@ export default function ProductionScreen() {
   // verify), so this is the full machine-readable state of the run after each step — issues, repair
   // tasks, artifacts, events — viewable inline or downloadable for offline diffing between steps.
   const [jsonOpen, setJsonOpen] = useState(false);
+  // Info-toned outcome line (never an error): triage is a deterministic no-op when no issue is still
+  // `proposed`, which used to read as "the button did nothing". Cleared on any run/chapter switch.
+  const [notice, setNotice] = useState<string | null>(null);
 
   const loadDetail = useCallback(async (targetRunId: string | null) => {
     if (!targetRunId) {
@@ -205,6 +208,7 @@ export default function ProductionScreen() {
       setDetail(null);
       return;
     }
+    setNotice(null);
     void loadDetail(runId).catch((e: unknown) => {
       setError(e instanceof Error ? e.message : String(e));
     });
@@ -237,15 +241,17 @@ export default function ProductionScreen() {
       label: string,
       fn: () => Promise<ProductionRunActionOut | RepairTaskOut>,
       opts?: { reloadRuns?: boolean; reloadDetail?: boolean },
-    ) => {
+    ): Promise<boolean> => {
       setBusy(label);
       try {
         await fn();
         setError(null);
         if (opts?.reloadRuns && chapterId) await loadRuns(chapterId);
         if (opts?.reloadDetail !== false) await loadDetail(runId);
+        return true;
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
+        return false;
       } finally {
         setBusy(null);
       }
@@ -382,6 +388,25 @@ export default function ProductionScreen() {
           )}
         >
           {error}
+        </div>
+      )}
+
+      {notice && (
+        <div
+          data-testid="production-notice"
+          style={css(
+            "border:1px solid color-mix(in srgb,var(--info) 40%,var(--line));background:color-mix(in srgb,var(--info) 8%,var(--bg2));border-radius:10px;padding:12px 14px;color:var(--ink);font-size:13px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px",
+          )}
+        >
+          <span>{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            style={css(
+              "background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;font-family:var(--ui);padding:0",
+            )}
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -535,11 +560,28 @@ export default function ProductionScreen() {
             <div style={css("display:flex;gap:8px;flex-wrap:wrap")}>
               <button
                 disabled={busy === "triage"}
-                onClick={() =>
+                onClick={() => {
+                  // Triage only converts `proposed` issues into repair tasks; with none left it is a
+                  // deterministic no-op that used to look like a dead button. Say so instead.
+                  const proposed = issues.filter((i) => i.status === "proposed").length;
+                  if (!proposed) {
+                    setNotice(
+                      issues.length
+                        ? `Nothing to triage — all ${issues.length} issue${issues.length === 1 ? " is" : "s are"} already triaged (${repairTasks.length} repair task${repairTasks.length === 1 ? "" : "s"} queued). Work the Apply / Verify buttons on the repair tasks instead.`
+                        : "Nothing to triage — this run has no captured issues. Assemble first if you expected some.",
+                    );
+                    return;
+                  }
+                  setNotice(null);
                   void runAction("triage", () => api.triageProductionRun(detail.run.id), {
                     reloadRuns: true,
-                  })
-                }
+                  }).then((ok) => {
+                    if (ok)
+                      setNotice(
+                        `Triaged ${proposed} proposed issue${proposed === 1 ? "" : "s"} — statuses and repair tasks updated below.`,
+                      );
+                  });
+                }}
                 style={css(
                   "height:32px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
                 )}

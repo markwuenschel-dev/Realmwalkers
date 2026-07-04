@@ -520,3 +520,22 @@ async def test_chapter_packet_edit_marks_scene_packets_stale(db_factory, monkeyp
         new_body["canon_locks"] = ["the Realm is real", "a NEW lock"]
         await packets_router.update_packet(ch.id, PacketUpdateIn(body=new_body), s)
         assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.STALE
+
+
+def test_qa_prefix_excludes_derived_and_audit_sections():
+    # Pure function, no DB. The QA prefix is the chapter packet as "macro authority" — the derived
+    # `_surface_contract` projection and the embedded `qa` audit blob are NOT authority and roughly
+    # double the prefix (observed: a 167KB body → ~35k prefix tokens, an outright PromptBudgetExceeded
+    # on every manual QA re-run). Same exclusion rule as packet.qa.build_prompt.
+    body = {
+        "chapter_contract": {"spine": "the real thing"},
+        "canon_locks": ["lock A"],
+        "_surface_contract": {"huge": "derived duplicate"},
+        "qa": {"grade": {"verdict": "fail"}},
+    }
+    prefix = sp_qa.build_prefix(body)
+    assert prefix is not None
+    assert "the real thing" in prefix
+    assert "lock A" in prefix
+    assert "derived duplicate" not in prefix
+    assert '"grade"' not in prefix

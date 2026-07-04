@@ -218,7 +218,10 @@ class Settings(BaseSettings):
     # its budget fails locally with PromptBudgetExceeded ("prompt_budget_exceeded") BEFORE any provider
     # call — an oversized context must never burn TPM just to get refused mid-generation.
     scene_packet_author_prompt_budget: int = 32_000
-    scene_packet_qa_prompt_budget: int = 24_000
+    # QA parity with the author: its prefix is the chapter packet (minus derived/audit sections — see
+    # scene_packet.qa.build_prefix), and a legitimately rich chapter packet plus the scene body was
+    # observed to overflow the old 24k guard even after the prefix slimming.
+    scene_packet_qa_prompt_budget: int = 32_000
 
     # Context-window preflight via Anthropic's real token counter (messages.count_tokens). When enabled,
     # llm.complete counts the exact request (model+system+messages) BEFORE messages.create and blocks if
