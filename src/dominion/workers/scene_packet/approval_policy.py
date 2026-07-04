@@ -214,7 +214,11 @@ def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
     out = ScenePacketOut.model_validate(row)
     return out.model_copy(
         update={
-            "can_approve": row.status == ScenePacketStatus.PROPOSED and not blockers,
+            # Mirrors the real gate (can_approve() refuses only BLOCKED/RATE_LIMITED): STALE is
+            # re-approvable — assert_draft_ready's own remedy says "re-derive or re-approve" — so the
+            # UI must offer the button, not just the error message.
+            "can_approve": row.status in (ScenePacketStatus.PROPOSED, ScenePacketStatus.STALE)
+            and not blockers,
             "approval_blockers": blockers,
             "blocked_reason": reason,
             "blocker_source": source,

@@ -724,8 +724,17 @@ function ScenePacketCard({
                 onApprove();
               }}
               style={btn(!cardBusy, "var(--good)", "var(--bg)")}
+              title={
+                summary.status === "stale"
+                  ? "Re-assert this contract as-is despite the upstream change (free); re-derive instead if the upstream change was meaningful"
+                  : undefined
+              }
             >
-              {mine("approve") ? "Approving…" : "Approve"}
+              {mine("approve")
+                ? "Approving…"
+                : summary.status === "stale"
+                  ? "Re-approve"
+                  : "Approve"}
             </button>
           )}
           {!editing && summary.status !== "approved" && (

@@ -176,6 +176,18 @@ def test_assert_draft_ready_unapproved():
         approval_policy.assert_draft_ready(sp)
 
 
+def test_enrich_stale_packet_is_reapprovable():
+    # A STALE packet passes the real approval gate (can_approve refuses only BLOCKED/RATE_LIMITED),
+    # and assert_draft_ready's own remedy says "re-derive or re-approve" — so the UI hint must offer
+    # the button. Regression: the hint used to be PROPOSED-only, leaving stale packets with an
+    # advertised remedy and no way to click it.
+    sp = _sp(status=ScenePacketStatus.STALE, stale_reason="upstream inputs changed since derivation")
+    assert approval_policy.can_approve(sp) is None
+    out = approval_policy.enrich_scene_packet_out(sp)
+    assert out.can_approve is True
+    assert out.approval_blockers == []
+
+
 def test_enrich_scene_packet_out():
     sp = _sp()
     out = approval_policy.enrich_scene_packet_out(sp)

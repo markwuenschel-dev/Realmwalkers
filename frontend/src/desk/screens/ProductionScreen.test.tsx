@@ -319,6 +319,21 @@ describe("ProductionScreen", () => {
     expect(api.repairTask).toHaveBeenCalledWith("task-1");
   });
 
+  it("explains the triage no-op instead of silently doing nothing", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    // The fixture's only issue is already repair_queued — nothing left in `proposed`, so triage
+    // would be a deterministic server-side no-op. The button must say so, not silently succeed.
+    fireEvent.click(screen.getByRole("button", { name: "Auto-triage" }));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("Nothing to triage");
+    expect(api.triageProductionRun).not.toHaveBeenCalled();
+
+    fireEvent.click(within(notice).getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByTestId("production-notice")).not.toBeInTheDocument();
+  });
+
   it("exposes the full run state as viewable + downloadable JSON after each step", async () => {
     render(<ProductionScreen />);
     await screen.findByText("Final chapter prose.");
