@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from dominion.api.deps import SessionDep
 from dominion.shared.models import RepairTask
@@ -28,7 +28,7 @@ from dominion.shared.schemas import (
     RepairTaskOut,
     RepairVerificationOut,
 )
-from dominion.workers import production
+from dominion.workers import background_work, production
 
 router = APIRouter(tags=["production"])
 
@@ -260,18 +260,23 @@ async def get_production_run_repair_tasks(run_id: uuid.UUID, session: SessionDep
 
 
 @router.post("/repair-tasks/{task_id}/apply", response_model=RepairTaskOut)
-async def apply_repair_task(task_id: uuid.UUID, session: SessionDep) -> RepairTaskOut:
+async def apply_repair_task(task_id: uuid.UUID, session: SessionDep, background: BackgroundTasks) -> RepairTaskOut:
     try:
         task = await production.apply_repair_task(session, task_id)
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    # An instruction-based repair queues a scene revision Job; nothing else drains it here (same
+    # pattern as /jobs/draft-next). Without this kick the job sits QUEUED and Verify 409s ("no
+    # revised scene") forever — which read as "Apply did nothing". No-op when already draining or
+    # for span-only patches (the drain loop just finds an empty queue and exits).
+    background.add_task(background_work.drain_queued_jobs)
     return RepairTaskOut.model_validate(task)
 
 
 @router.post("/repair-tasks/{task_id}/run", response_model=RepairTaskOut)
-async def run_repair_task(task_id: uuid.UUID, session: SessionDep) -> RepairTaskOut:
-    return await apply_repair_task(task_id, session)
+async def run_repair_task(task_id: uuid.UUID, session: SessionDep, background: BackgroundTasks) -> RepairTaskOut:
+    return await apply_repair_task(task_id, session, background)
 
 
 @router.post("/repair-tasks/{task_id}/verify", response_model=RepairVerificationOut)
