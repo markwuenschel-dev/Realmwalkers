@@ -67,9 +67,10 @@ describe("useDeskJobs", () => {
     vi.mocked(api.jobsStatus).mockResolvedValue(EMPTY_JOBS);
     const setJobs = vi.fn();
     const loadCollections = vi.fn().mockResolvedValue(undefined);
+    const refreshScenes = vi.fn().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
-      useDeskJobs("book-1", EMPTY_JOBS, setJobs, loadCollections),
+      useDeskJobs("book-1", EMPTY_JOBS, setJobs, loadCollections, refreshScenes),
     );
 
     expect(result.current.failedJobs).toEqual([]);
@@ -80,9 +81,10 @@ describe("useDeskJobs", () => {
     vi.mocked(api.jobsStatus).mockRejectedValue(new Error("down"));
     const setJobs = vi.fn();
     const loadCollections = vi.fn();
+    const refreshScenes = vi.fn();
 
     const { result } = renderHook(() =>
-      useDeskJobs("book-1", EMPTY_JOBS, setJobs, loadCollections),
+      useDeskJobs("book-1", EMPTY_JOBS, setJobs, loadCollections, refreshScenes),
     );
 
     await act(async () => {
@@ -91,6 +93,89 @@ describe("useDeskJobs", () => {
     });
 
     expect(result.current.jobsUnreachable).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("clears the unreachable banner only after consecutive successful polls (hysteresis)", async () => {
+    // Regression: one lucky success amid timeouts used to clear the banner instantly, so
+    // intermittent slowness flapped the full-width banner on/off every few seconds.
+    vi.mocked(api.jobsStatus).mockRejectedValue(new Error("down"));
+    const setJobs = vi.fn();
+    const loadCollections = vi.fn();
+    const refreshScenes = vi.fn();
+
+    const { result } = renderHook(() =>
+      useDeskJobs("book-1", EMPTY_JOBS, setJobs, loadCollections, refreshScenes),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500); // fail 1
+      await vi.advanceTimersByTimeAsync(4000); // fail 2 -> banner on
+    });
+    expect(result.current.jobsUnreachable).toBe(true);
+
+    vi.mocked(api.jobsStatus).mockResolvedValue(EMPTY_JOBS);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000); // success 1 -> banner must stay on
+    });
+    expect(result.current.jobsUnreachable).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000); // success 2 -> banner clears
+    });
+    expect(result.current.jobsUnreachable).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("refreshes slim scenes only on drafting progress, full collections only when the queue clears", async () => {
+    // Regression: the busy poll used to run the FULL loadCollections (N+1 chapter-scene fetches +
+    // a megabytes-scale canon upgrade) every 1.5s while drafting, saturating the single-worker
+    // backend. Now: slim refreshScenes on real progress only; loadCollections once on queue-clear;
+    // a phase change within the same scene is NOT progress.
+    const busy = {
+      ...EMPTY_JOBS,
+      running: true,
+      queued: 1,
+      active_scene: { chapter_no: 1, scene_no: 2, phase: "draft" },
+    };
+    const busyLaterPhase = {
+      ...busy,
+      active_scene: { chapter_no: 1, scene_no: 2, phase: "review" },
+    };
+    const setJobs = vi.fn();
+    const loadCollections = vi.fn().mockResolvedValue(undefined);
+    const refreshScenes = vi.fn().mockResolvedValue(undefined);
+
+    const { rerender } = renderHook(
+      ({ jobs }) => useDeskJobs("book-1", jobs, setJobs, loadCollections, refreshScenes),
+      { initialProps: { jobs: EMPTY_JOBS } },
+    );
+
+    // tick 1: idle -> busy = progress -> slim refresh
+    vi.mocked(api.jobsStatus).mockResolvedValue(busy);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(refreshScenes).toHaveBeenCalledTimes(1);
+    expect(loadCollections).not.toHaveBeenCalled();
+    rerender({ jobs: busy }); // context caught up
+
+    // tick 2 (busy cadence 1500ms): same scene, phase changed -> NOT progress -> no refetch
+    vi.mocked(api.jobsStatus).mockResolvedValue(busyLaterPhase);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(refreshScenes).toHaveBeenCalledTimes(1);
+    expect(loadCollections).not.toHaveBeenCalled();
+    rerender({ jobs: busyLaterPhase });
+
+    // tick 3: queue cleared -> one full reload, no extra slim refresh
+    vi.mocked(api.jobsStatus).mockResolvedValue(EMPTY_JOBS);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(loadCollections).toHaveBeenCalledTimes(1);
+    expect(refreshScenes).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
 });

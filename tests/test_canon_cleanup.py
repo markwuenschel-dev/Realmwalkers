@@ -13,6 +13,7 @@ from dominion.api.routers import world as world_router
 from dominion.shared.models import Book, CanonEntity
 from dominion.shared.schemas import CanonCleanupIn
 from dominion.workers.memory import canon_rag
+from dominion.workers.memory.embedding import embed
 from dominion.workers.memory.retrieval import retrieve_hybrid
 
 
@@ -32,7 +33,7 @@ def _canon(
         kind="lore",
         name=name,
         body=body,
-        embedding=canon_rag.embed(body),
+        embedding=embed(body),
         status=status,
         source=source,
         **kw,

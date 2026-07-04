@@ -162,6 +162,7 @@ export function useDeskDataState(): DeskData {
     collections.jobs,
     collections.setJobs,
     collections.loadCollections,
+    collections.refreshScenes,
   );
 
   const world = useDeskWorld(

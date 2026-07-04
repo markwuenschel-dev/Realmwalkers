@@ -18,6 +18,15 @@ export const ACTIVITY_MAX = 14;
 /** Consecutive failed polls before we call the backend unreachable. */
 export const UNREACHABLE_AFTER = 2;
 
+/** Consecutive successful polls before the "unreachable" banner clears. Symmetric hysteresis: one
+ *  lucky success used to clear it instantly, so intermittent slowness flapped the full-width banner
+ *  on/off (reflowing the whole page each time). */
+export const REACHABLE_AFTER = 2;
+
+/** Abort a status poll that hasn't answered in this long. Without it a stalled request blocks the
+ *  self-rescheduling poll loop for the browser's default socket timeout (often minutes). */
+export const POLL_TIMEOUT_MS = 8000;
+
 /** One line for the live activity feed from the current job status. */
 export function activityLabel(js: JobsStatusOut): string | null {
   if (js.running && js.active_scene) {

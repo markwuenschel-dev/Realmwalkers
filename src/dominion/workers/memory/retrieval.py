@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.models import CanonEntity
-from dominion.workers.memory.embedding import embed
+from dominion.workers.memory.embedding import embed_async
 
 _TOKEN = re.compile(r"[a-z0-9']+")
 _STOP = {"the", "a", "an", "and", "or", "of", "to", "in", "is", "it", "this", "that", "on", "for"}
@@ -134,7 +134,7 @@ async def retrieve_hybrid(
 
     # 3) semantic vector search --------------------------------------------------------------------
     if query.strip():
-        qvec = embed(query)
+        qvec = await embed_async(query)
         sem = (
             (
                 await session.execute(
