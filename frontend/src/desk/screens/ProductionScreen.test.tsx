@@ -319,6 +319,30 @@ describe("ProductionScreen", () => {
     expect(api.repairTask).toHaveBeenCalledWith("task-1");
   });
 
+  it("reports what Apply did instead of silently mutating the task", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(api.applyRepairTask).toHaveBeenCalledTimes(1));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("Repair applied for Scene 1");
+  });
+
+  it("disables every action while one is in flight (double-submit guard)", async () => {
+    // Regression: `busy` is a single slot, so per-label disabling let a second click flip it and
+    // re-enable the first button while its request was still in flight.
+    vi.mocked(api.applyRepairTask).mockImplementation(() => new Promise<never>(() => {}));
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Applying…" })).toBeDisabled());
+    expect(screen.getByRole("button", { name: "Verify" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Auto-triage" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Refresh assembly" })).toBeDisabled();
+  });
+
   it("explains the triage no-op instead of silently doing nothing", async () => {
     render(<ProductionScreen />);
     await screen.findByText("Final chapter prose.");

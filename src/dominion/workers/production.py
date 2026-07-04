@@ -2369,23 +2369,8 @@ async def apply_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repair
         payload={"repair_task_id": str(task.id), "target_pass": target_pass},
     )
     job_id = await schedule_revision(session, scene, target_pass=target_pass, production_run_id=task.production_run_id)
-    latest_attempt_no = await session.scalar(
-        select(func.max(RepairAttempt.attempt_no)).where(RepairAttempt.repair_task_id == task.id)
-    )
-    attempt = RepairAttempt(
-        repair_task_id=task.id,
-        agent_run_id=repair_agent.id,
-        attempt_no=int(latest_attempt_no or 0) + 1,
-        model=target_pass or "revision",
-        patch_json=patch_json,
-        revised_text=None,
-        change_summary="Queued a revision job from the repair task instructions.",
-        issues_addressed=list(task.issue_ids),
-        new_risks=[],
-        word_count_before=scene.word_count,
-        word_count_after=None,
-    )
-    # Normal (non-span) path continuation: create attempt + schedule
+    # Create the attempt record for the queued revision; the verify step fills in the after-state
+    # once the revision job has drafted the new scene version.
     latest_attempt_no = await session.scalar(
         select(func.max(RepairAttempt.attempt_no)).where(RepairAttempt.repair_task_id == task.id)
     )
@@ -2486,7 +2471,10 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         .first()
     )
     if revised is None:
-        raise ValueError("no revised scene exists for this repair task yet")
+        raise ValueError(
+            "no revised scene exists for this repair task yet — the queued revision job may still be "
+            "drafting (watch the queue indicator); verify again once the revised scene lands"
+        )
     attempt.revised_text = revised.prose
     attempt.word_count_after = revised.word_count
 

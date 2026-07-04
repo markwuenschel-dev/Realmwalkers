@@ -8,7 +8,6 @@ import type {
   DraftReadinessOut,
   IssueOut,
   PacketOut,
-  ProductionRunActionOut,
   ProductionRunDetailOut,
   ProductionRunOut,
   RepairTaskOut,
@@ -236,22 +235,24 @@ export default function ProductionScreen() {
         ? draftArtifact.body.prose
         : "";
 
+  // Returns the action's result on success (so callers can report what happened) or null on failure
+  // (the error banner already carries the message).
   const runAction = useCallback(
-    async (
+    async <T,>(
       label: string,
-      fn: () => Promise<ProductionRunActionOut | RepairTaskOut>,
+      fn: () => Promise<T>,
       opts?: { reloadRuns?: boolean; reloadDetail?: boolean },
-    ): Promise<boolean> => {
+    ): Promise<T | null> => {
       setBusy(label);
       try {
-        await fn();
+        const out = await fn();
         setError(null);
         if (opts?.reloadRuns && chapterId) await loadRuns(chapterId);
         if (opts?.reloadDetail !== false) await loadDetail(runId);
-        return true;
+        return out;
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
-        return false;
+        return null;
       } finally {
         setBusy(null);
       }
@@ -559,7 +560,7 @@ export default function ProductionScreen() {
           {detail && (
             <div style={css("display:flex;gap:8px;flex-wrap:wrap")}>
               <button
-                disabled={busy === "triage"}
+                disabled={busy != null}
                 onClick={() => {
                   // Triage only converts `proposed` issues into repair tasks; with none left it is a
                   // deterministic no-op that used to look like a dead button. Say so instead.
@@ -589,7 +590,7 @@ export default function ProductionScreen() {
                 {busy === "triage" ? "Triaging…" : "Auto-triage"}
               </button>
               <button
-                disabled={busy === "assemble"}
+                disabled={busy != null}
                 onClick={() =>
                   void runAction("assemble", () => api.assembleProductionRun(detail.run.id), {
                     reloadRuns: true,
@@ -662,6 +663,15 @@ export default function ProductionScreen() {
                       onApply={() =>
                         void runAction(`apply:${task.id}`, () => api.applyRepairTask(task.id), {
                           reloadRuns: true,
+                        }).then((updated) => {
+                          if (!updated) return;
+                          const where =
+                            task.scene_no != null ? `Scene ${task.scene_no}` : "chapter";
+                          setNotice(
+                            updated.status === "waiting_for_human"
+                              ? `Repair task for ${where} is held for human review — it requires approval or conflicts with another repair on the same span.`
+                              : `Repair applied for ${where} (status: ${updated.status}). Span patches land immediately; instruction repairs queue a scene revision that drafts in the background — watch the queue indicator, then Verify.`,
+                          );
                         })
                       }
                       onVerify={() =>
@@ -672,7 +682,12 @@ export default function ProductionScreen() {
                             return api.repairTask(task.id);
                           },
                           { reloadRuns: true },
-                        )
+                        ).then((updated) => {
+                          if (updated)
+                            setNotice(
+                              `Verification recorded for ${task.scene_no != null ? `Scene ${task.scene_no}` : "the chapter"} — task status: ${updated.status}.`,
+                            );
+                        })
                       }
                     />
                   ))
@@ -1025,9 +1040,12 @@ function RepairRow({
       <div style={css("margin-top:6px;font-size:12px;color:var(--dim);white-space:pre-wrap")}>
         {task.instructions}
       </div>
+      {/* Disabled while ANY action runs (busy != null), not just this task's own: `busy` is a single
+          slot, so per-label disabling let a second click flip it and re-enable the first button while
+          its request was still in flight — a double-submit race. */}
       <div style={css("display:flex;gap:8px;margin-top:10px;flex-wrap:wrap")}>
         <button
-          disabled={task.requires_human_approval || busy === `apply:${task.id}`}
+          disabled={task.requires_human_approval || busy != null}
           onClick={onApply}
           style={css(
             "height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px",
@@ -1036,7 +1054,7 @@ function RepairRow({
           {busy === `apply:${task.id}` ? "Applying…" : "Apply"}
         </button>
         <button
-          disabled={busy === `verify:${task.id}`}
+          disabled={busy != null}
           onClick={onVerify}
           style={css(
             "height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px",
