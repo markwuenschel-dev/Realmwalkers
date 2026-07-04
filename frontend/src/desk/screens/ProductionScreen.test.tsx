@@ -444,9 +444,7 @@ describe("ProductionScreen", () => {
 
     fireEvent.click(within(gate).getByRole("button", { name: /Why is this disabled\?/ }));
     expect(within(gate).getByText(/2\/4 scenes have prose · missing: 3, 4/)).toBeInTheDocument();
-    expect(
-      within(gate).getByText(/1 active — scenes may still be arriving/),
-    ).toBeInTheDocument();
+    expect(within(gate).getByText(/1 active — scenes may still be arriving/)).toBeInTheDocument();
     expect(within(gate).getAllByText("fail").length).toBeGreaterThanOrEqual(2);
   });
 

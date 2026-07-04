@@ -648,8 +648,7 @@ function DraftGateDiagnostics({
     {
       label: "Draft jobs",
       pass: readiness.active_draft_jobs === 0,
-      detail:
-        readiness.active_draft_jobs === 0 ? "idle" : `${readiness.active_draft_jobs} active`,
+      detail: readiness.active_draft_jobs === 0 ? "idle" : `${readiness.active_draft_jobs} active`,
     },
     {
       label: "Prose drafts · prose",

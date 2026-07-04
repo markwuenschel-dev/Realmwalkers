@@ -704,8 +704,7 @@ function ChapterDetail({
             "border:1px solid color-mix(in srgb,var(--warn, #e8a020) 40%,var(--line));border-radius:8px;padding:10px 12px;font-size:12px;color:var(--warn, #e8a020)",
           )}
         >
-          Draft not ready —{" "}
-          {readiness.disabled_reason ?? `${readiness.blockers.length} blocker(s)`}
+          Draft not ready — {readiness.disabled_reason ?? `${readiness.blockers.length} blocker(s)`}
           {readiness.blockers.slice(0, 3).map((b, i) => (
             <div
               key={i}

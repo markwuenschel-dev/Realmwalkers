@@ -10320,6 +10320,47 @@
             "type": "array",
             "title": "Blockers",
             "default": []
+          },
+          "scene_packets_stale": {
+            "type": "integer",
+            "title": "Scene Packets Stale",
+            "default": 0
+          },
+          "scene_packet_qa_blocking": {
+            "type": "integer",
+            "title": "Scene Packet Qa Blocking",
+            "default": 0
+          },
+          "active_draft_jobs": {
+            "type": "integer",
+            "title": "Active Draft Jobs",
+            "default": 0
+          },
+          "missing_scene_drafts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Missing Scene Drafts",
+            "default": []
+          },
+          "structural_blockers": {
+            "items": {
+              "$ref": "#/components/schemas/StructuralBlockerOut"
+            },
+            "type": "array",
+            "title": "Structural Blockers",
+            "default": []
+          },
+          "provider_rate_limited": {
+            "type": "boolean",
+            "title": "Provider Rate Limited",
+            "default": false
+          },
+          "can_draft": {
+            "type": "boolean",
+            "title": "Can Draft",
+            "default": false
           }
         },
         "type": "object",
@@ -10327,7 +10368,7 @@
           "chapter_id"
         ],
         "title": "DraftReadinessOut",
-        "description": "Contract-first drafting gate diagnostics. `draftable` is the single gate the Draft button obeys;\n`disabled_reason` names the FIRST failing condition in plain language so the UI never shows a\ndisabled button (or a \"ready to draft\" claim) without an explanation. `prose` reports scene prose\ncoverage \u2014 `assembly_ready` is the production-assembly gate (all expected scenes have prose)."
+        "description": "Contract-first drafting gate diagnostics. `can_draft` is the authoritative gate the Draft\nbutton (and every \"ready\" badge) obeys; when it is False, `disabled_reason` names the FIRST\nfailing gate in pipeline order (packet \u2192 sequence/budget \u2192 scene packets (stale/QA) \u2192 beats \u2192\njobs \u2192 prose coverage \u2192 rate limit) in one human sentence \u2014 the UI never shows a disabled button\n(or a \"ready to draft\" claim) without an explanation. `draftable` is the legacy queueability\nflag (kept for compatibility; `can_draft` implies `draftable` but is stricter). `prose` reports\nscene prose coverage \u2014 `assembly_ready` is the production-assembly gate (all expected scenes\nhave prose)."
       },
       "DraftScheduleOut": {
         "properties": {
@@ -14285,6 +14326,25 @@
           "stage"
         ],
         "title": "StageDeltaOut"
+      },
+      "StructuralBlockerOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "message"
+        ],
+        "title": "StructuralBlockerOut",
+        "description": "A deterministic chapter-structure fault detected from the approved contracts alone (no prose,\nno LLM): `kind` is one of sequence_budget_mismatch | scene_scope_bleed | duplicate_irreversible_beat\n| canon_contract_leak; `message` is one human sentence naming the fault and the fix."
       },
       "SuggestionDecisionIn": {
         "properties": {
