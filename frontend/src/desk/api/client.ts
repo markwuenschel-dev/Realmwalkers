@@ -165,6 +165,15 @@ export const api = {
     http<import("./types").RecentJobsOut>(
       `/jobs/recent${qs({ book_id: bookId, limit: limit != null ? String(limit) : undefined })}`,
     ),
+  // Queue control (Desk Control Round): cancel one QUEUED job (409 if it's already running) and
+  // the persisted human pause switch (resume kicks the drain server-side).
+  cancelJob: (jobId: string) =>
+    http<import("./types").CancelJobOut>(`/jobs/${jobId}`, { method: "DELETE" }),
+  pauseQueue: (paused: boolean, bookId?: string) =>
+    http<import("./types").JobsPauseOut>(`/jobs/pause${qs({ book_id: bookId })}`, {
+      method: "POST",
+      body: JSON.stringify({ paused }),
+    }),
   draftNext: (bookId?: string) =>
     http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),
   retryFailed: (bookId?: string) =>
@@ -299,6 +308,15 @@ export const api = {
   productionRuns: (chapterId: string) =>
     http<ProductionRunOut[]>(`/chapters/${chapterId}/production-runs`),
   productionRun: (runId: string) => http<ProductionRunDetailOut>(`/production-runs/${runId}`),
+  // One-click fix for the sequence_scene_count_mismatch draft blocker: server aligns the plan's
+  // target to the packet's actual seeded scenes and re-runs chaining + sequence QA.
+  alignSequenceSceneCount: (sequenceId: string) =>
+    http<import("./types").ChapterSequenceOut>(
+      `/chapter-sequences/${sequenceId}/align-scene-count`,
+      {
+        method: "POST",
+      },
+    ),
   // Slim sub-resources for post-action reconciliation. The full detail above inlines every
   // artifact's prose (~670KB observed); actions that only move issues/tasks (triage, verify) refetch
   // just these instead and keep the cached artifacts.

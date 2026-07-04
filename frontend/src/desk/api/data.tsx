@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { ApiError, api } from "./client";
 import { useDeskActiveScene } from "./hooks/useDeskActiveScene";
 import { useDeskBooks } from "./hooks/useDeskBooks";
 import { useDeskChapterCreate } from "./hooks/useDeskChapterCreate";
@@ -72,9 +73,13 @@ export interface DeskData {
   activity: ActivityEntry[];
   // Activity drawer + completion toasts (Atelier). recentJobs is null until first gated poll.
   recentJobs: import("./types").RecentJobsOut | null;
+  refreshRecentJobs: () => Promise<void>;
   toasts: import("../components/ui/Toast").ToastItem[];
   pushToast: (toast: Omit<import("../components/ui/Toast").ToastItem, "id">) => void;
   dismissToast: (id: string) => void;
+  // Queue control (Desk Control Round): cancel one queued job; flip the persisted pause switch.
+  cancelJob: (jobId: string) => Promise<void>;
+  setQueuePaused: (paused: boolean) => Promise<void>;
 
   detail: SceneDetail | null;
   versions: SceneVersionOut[];
@@ -180,10 +185,57 @@ export function useDeskDataState(activityOpen = false): DeskData {
     pushToast,
   );
   // Drawer feed — gated: polls only while the drawer is open or the queue is busy.
-  const recentJobs = useDeskRecentJobs(
+  const { recentJobs, refreshRecentJobs } = useDeskRecentJobs(
     bookId,
     activityOpen,
     collections.jobs.running || collections.jobs.queued > 0,
+  );
+
+  // Queue control (Desk Control Round). Cancel repaints the drawer + queue count immediately;
+  // pause flips optimistically off the authoritative response.
+  const cancelJob = useCallback(
+    async (jobId: string) => {
+      try {
+        const out = await api.cancelJob(jobId);
+        pushToast({
+          tone: "info",
+          message: `Cancelled ${out.chapter_no != null ? `Ch ${out.chapter_no} · ` : ""}Scene ${out.scene_no ?? "?"}`,
+        });
+        collections.setJobs((j) => ({ ...j, queued: out.queued }));
+        await refreshRecentJobs();
+      } catch (e) {
+        pushToast({
+          tone: "error",
+          message:
+            e instanceof ApiError && e.status === 409
+              ? "That job is already running — it can't be cancelled"
+              : "Cancel failed",
+        });
+      }
+    },
+    [pushToast, collections.setJobs, refreshRecentJobs],
+  );
+  const setQueuePaused = useCallback(
+    async (paused: boolean) => {
+      try {
+        const out = await api.pauseQueue(paused, bookId ?? undefined);
+        collections.setJobs((j) => ({ ...j, queue_paused: out.queue_paused }));
+        pushToast(
+          paused
+            ? {
+                tone: "warn",
+                message: "Queue paused — the current scene will finish; nothing new starts",
+              }
+            : {
+                tone: "success",
+                message: out.scheduled ? "Queue resumed — drafting restarted" : "Queue resumed",
+              },
+        );
+      } catch {
+        pushToast({ tone: "error", message: "Couldn't change the queue state" });
+      }
+    },
+    [bookId, pushToast, collections.setJobs],
   );
 
   const world = useDeskWorld(
@@ -277,9 +329,12 @@ export function useDeskDataState(activityOpen = false): DeskData {
       jobsUnreachable: jobs.jobsUnreachable,
       activity: jobs.activity,
       recentJobs,
+      refreshRecentJobs,
       toasts,
       pushToast,
       dismissToast,
+      cancelJob,
+      setQueuePaused,
       detail: scene.detail,
       versions: scene.versions,
       activeBeat: scene.activeBeat,
@@ -333,9 +388,12 @@ export function useDeskDataState(activityOpen = false): DeskData {
       collections,
       jobs,
       recentJobs,
+      refreshRecentJobs,
       toasts,
       pushToast,
       dismissToast,
+      cancelJob,
+      setQueuePaused,
       scene,
       refreshAll,
       refreshManuscript,

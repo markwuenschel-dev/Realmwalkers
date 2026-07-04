@@ -96,6 +96,9 @@ export default function SettingsScreen() {
   const setAutoRun = (setting: string, enabled: boolean) =>
     void patchPolicy(setting, { permissions: { auto_run: enabled } });
 
+  const setNeverFallback = (setting: string, tiers: string[]) =>
+    void patchPolicy(setting, { never_fallback: tiers });
+
   const applyPreset = async (presetId: string) => {
     setPresetBusy(true);
     setError(null);
@@ -234,6 +237,7 @@ export default function SettingsScreen() {
                 onSetQuality={setQuality}
                 onSetSemanticEscalation={setSemanticEscalation}
                 onSetAutoRun={setAutoRun}
+                onSetNeverFallback={setNeverFallback}
               />
             ))}
           </div>

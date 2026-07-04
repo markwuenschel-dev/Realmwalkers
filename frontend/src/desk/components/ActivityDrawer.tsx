@@ -53,10 +53,25 @@ function DoneTick() {
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({
+  label,
+  actions,
+  children,
+}: {
+  label: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <Eyebrow style="margin-bottom:8px">{label}</Eyebrow>
+      <div
+        style={css(
+          "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px",
+        )}
+      >
+        <Eyebrow>{label}</Eyebrow>
+        {actions}
+      </div>
       {children}
     </div>
   );
@@ -110,7 +125,8 @@ function RecentRow({ job }: { job: RecentJobOut }) {
 
 export default function ActivityDrawer() {
   const { activityOpen, closeActivity } = useDesk();
-  const { jobs, recentJobs, failedJobs, retryFailed, clearFailed } = useDeskData();
+  const { jobs, recentJobs, failedJobs, retryFailed, clearFailed, cancelJob, setQueuePaused } =
+    useDeskData();
   if (!activityOpen) return null;
 
   const active = jobs.active_scene;
@@ -192,7 +208,26 @@ export default function ActivityDrawer() {
             )}
           </Section>
 
-          <Section label={`Queued · ${queued.length}`}>
+          <Section
+            label={`Queued · ${queued.length}`}
+            actions={
+              <span style={css("display:flex;align-items:center;gap:8px")}>
+                {jobs.queue_paused && <Chip label="paused" size="sm" tone="warn" />}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void setQueuePaused(!jobs.queue_paused)}
+                  title={
+                    jobs.queue_paused
+                      ? "Resume — the drain picks the queue back up"
+                      : "Pause — the current scene finishes, nothing new starts (survives redeploys)"
+                  }
+                >
+                  {jobs.queue_paused ? "Resume" : "Pause queue"}
+                </Button>
+              </span>
+            }
+          >
             {queued.length ? (
               <div style={css("display:flex;flex-direction:column;gap:6px")}>
                 {queued.map((q, i) => (
@@ -208,11 +243,24 @@ export default function ActivityDrawer() {
                     {q.kind !== "draft" && (
                       <Chip label={q.kind.replace(/_/g, " ")} size="sm" tone="info" />
                     )}
+                    <button
+                      className="dk-btn"
+                      onClick={() => void cancelJob(q.id)}
+                      aria-label={`Cancel ${jobPlace(q)}`}
+                      title={`Cancel ${jobPlace(q)}`}
+                      style={css(
+                        "flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center",
+                      )}
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div style={css(`${MONO};padding:2px 1px`)}>queue clear</div>
+              <div style={css(`${MONO};padding:2px 1px`)}>
+                {jobs.queue_paused ? "queue paused" : "queue clear"}
+              </div>
             )}
           </Section>
 

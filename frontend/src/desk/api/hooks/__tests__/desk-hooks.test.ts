@@ -464,6 +464,7 @@ describe("useDeskCollections", () => {
     body: null,
     source: "manual",
     status: "active",
+    embedding_stale: false,
   };
   const CANON_SLIM = [MARA];
   const CANON_FULL = [{ ...MARA, body: "full body text" }];

@@ -461,6 +461,25 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
               readiness={readiness}
               busy={busy != null}
               relinkBusy={busy === "relink-beats"}
+              alignBusy={busy === "align-scene-count"}
+              onAlign={(sequenceId) =>
+                void (async () => {
+                  setBusy("align-scene-count");
+                  setError(null);
+                  try {
+                    await api.alignSequenceSceneCount(sequenceId);
+                    setReadiness(await api.draftReadiness(chapterId));
+                    desk.pushToast({
+                      tone: "success",
+                      message: "Sequence plan aligned to the seeded scenes — readiness re-checked",
+                    });
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setBusy(null);
+                  }
+                })()
+              }
               onRelink={() =>
                 void (async () => {
                   setBusy("relink-beats");
@@ -580,12 +599,16 @@ function DraftGateDiagnostics({
   readiness,
   busy,
   relinkBusy,
+  alignBusy,
   onRelink,
+  onAlign,
 }: {
   readiness: DraftReadinessOut;
   busy: boolean;
   relinkBusy: boolean;
+  alignBusy: boolean;
   onRelink: () => void;
+  onAlign: (sequenceId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const sp = readiness.scene_packets;
@@ -713,6 +736,22 @@ function DraftGateDiagnostics({
               {structural.slice(0, 4).map((b, i) => (
                 <div key={i} style={css("font-size:11.5px;color:var(--warn);line-height:1.4")}>
                   · [{b.kind.replace(/_/g, " ")}] {b.message}
+                  {/* One-click reconcile: the scene-count mismatch is target-vs-actual only (the
+                      sequence's scenes[] already matches the seeds), so aligning the plan number
+                      is a safe, reversible human call — no re-derive round trip. */}
+                  {b.kind === "sequence_scene_count_mismatch" && b.sequence_id != null && (
+                    <span style={css("margin-left:8px")}>
+                      <Button
+                        size="sm"
+                        disabled={busy || alignBusy}
+                        onClick={() => onAlign(String(b.sequence_id))}
+                      >
+                        {alignBusy
+                          ? "Aligning…"
+                          : `Align plan to ${b.seed_count ?? "the"} seeded scenes`}
+                      </Button>
+                    </span>
+                  )}
                 </div>
               ))}
               {structural.length > 4 && (

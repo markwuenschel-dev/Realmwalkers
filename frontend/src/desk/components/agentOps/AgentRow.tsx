@@ -78,6 +78,7 @@ interface AgentRowProps {
   onSetQuality: (setting: string, level: string) => void;
   onSetSemanticEscalation: (setting: string, enabled: boolean) => void;
   onSetAutoRun: (setting: string, enabled: boolean) => void;
+  onSetNeverFallback: (setting: string, tiers: string[]) => void;
 }
 
 export function AgentRow({
@@ -90,6 +91,7 @@ export function AgentRow({
   onSetQuality,
   onSetSemanticEscalation,
   onSetAutoRun,
+  onSetNeverFallback,
 }: AgentRowProps) {
   const [open, setOpen] = useState(false);
   const a = agent;
@@ -180,24 +182,94 @@ export function AgentRow({
                 onPickEmpty={() => onSetFallback(a.setting, "", "")}
                 onPick={(opt) => onSetFallback(a.setting, opt.tier, opt.provider)}
               />
+              <div style={css("font-size:11px;color:var(--dim);margin-top:4px")}>
+                {a.controls.fallback_mode === "rate_limit_only"
+                  ? "retried on provider rate limit only"
+                  : "escalates on parse failure / truncation"}
+              </div>
+              <Eyebrow style="margin:10px 0 6px">never fall back to</Eyebrow>
+              <div data-testid="never-fallback-group" style={css("display:flex;gap:6px")}>
+                {["haiku", "sonnet", "opus"].map((tier) => {
+                  const banned = a.policy.never_fallback.includes(tier);
+                  return (
+                    <Chip
+                      key={tier}
+                      size="sm"
+                      label={tier}
+                      tone={banned ? "accent" : "neutral"}
+                      title={
+                        banned
+                          ? `fallback to ${tier} is blocked — click to allow`
+                          : `click to block fallback to ${tier}`
+                      }
+                      onClick={() => {
+                        if (busy) return;
+                        onSetNeverFallback(
+                          a.setting,
+                          banned
+                            ? a.policy.never_fallback.filter((t) => t !== tier)
+                            : [...a.policy.never_fallback, tier],
+                        );
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
             <div>
               <Eyebrow style="margin-bottom:6px">Quality / temperature</Eyebrow>
-              <TierButtons
-                active={a.policy.quality_level}
-                disabled={busy}
-                onPick={(level) => onSetQuality(a.setting, level)}
-                labels={QUALITY_LABEL}
-                order={[...QUALITY_ORDER]}
-              />
-              <div style={css("font-size:11px;color:var(--dim);margin-top:4px")}>
-                temp {a.contract.temperature?.toFixed(1) ?? "—"}
-              </div>
+              {a.controls.quality_live ? (
+                <>
+                  <TierButtons
+                    active={a.policy.quality_level}
+                    disabled={busy}
+                    onPick={(level) => onSetQuality(a.setting, level)}
+                    labels={QUALITY_LABEL}
+                    order={[...QUALITY_ORDER]}
+                  />
+                  <div style={css("font-size:11px;color:var(--dim);margin-top:4px")}>
+                    temp {a.contract.temperature?.toFixed(1) ?? "—"}
+                  </div>
+                  <div style={css("font-size:10.5px;color:var(--dim);margin-top:2px")}>
+                    applies as temperature, or effort on flagship models
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={css(
+                    "font-family:var(--mono);font-size:10.5px;color:var(--dim);max-width:220px;line-height:1.5",
+                  )}
+                >
+                  sampling: provider default — quality knob not wired for this agent
+                </div>
+              )}
             </div>
           </div>
 
           <div style={css("display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px")}>
-            <div>
+            {a.controls.semantic_escalation_live && (
+              <div>
+                <label
+                  style={css(
+                    "display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={a.policy.semantic_escalation}
+                    disabled={busy}
+                    onChange={(e) => onSetSemanticEscalation(a.setting, e.target.checked)}
+                  />
+                  Semantic escalation (canon conflict / high QA risk)
+                </label>
+                <div
+                  style={css("font-size:11px;color:var(--dim);margin-top:4px;padding-left:24px")}
+                >
+                  Default on for QA/review agents; presets may override.
+                </div>
+              </div>
+            )}
+            {a.controls.auto_run_live ? (
               <label
                 style={css(
                   "display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)",
@@ -205,27 +277,21 @@ export function AgentRow({
               >
                 <input
                   type="checkbox"
-                  checked={a.policy.semantic_escalation}
+                  checked={a.permissions.auto_run}
                   disabled={busy}
-                  onChange={(e) => onSetSemanticEscalation(a.setting, e.target.checked)}
+                  onChange={(e) => onSetAutoRun(a.setting, e.target.checked)}
                 />
-                Semantic escalation (canon conflict / high QA risk)
+                Auto-run in pipeline
               </label>
-              <div style={css("font-size:11px;color:var(--dim);margin-top:4px;padding-left:24px")}>
-                Default on for QA/review agents; presets may override.
-              </div>
-            </div>
-            <label
-              style={css("display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)")}
-            >
-              <input
-                type="checkbox"
-                checked={a.permissions.auto_run}
-                disabled={busy}
-                onChange={(e) => onSetAutoRun(a.setting, e.target.checked)}
-              />
-              Auto-run in pipeline
-            </label>
+            ) : (
+              <span
+                style={css(
+                  "display:flex;align-items:center;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
+                )}
+              >
+                always runs — pipeline stage
+              </span>
+            )}
           </div>
 
           <div style={css("font-size:13px;color:var(--dim);line-height:1.5")}>
@@ -248,6 +314,10 @@ export function AgentRow({
             </div>
             <div style={css("margin-top:8px")}>
               <strong style={{ color: "var(--ink)" }}>Permissions:</strong>{" "}
+              <span style={css("font-style:italic")}>
+                Advisory — descriptive, not enforced at runtime
+              </span>{" "}
+              ·{" "}
               {[
                 a.permissions.can_modify_packet && "can propose packet",
                 a.permissions.can_block_downstream && "can block",

@@ -66,6 +66,13 @@ const ROW = {
   body: "A ruined keep on the ridge.",
   source: "repo_ingested",
   status: "active",
+  // Provenance + embedding lifecycle (Desk Control Round, Phase 9).
+  doc_path: "series/canon/locations.md",
+  heading_path: "Keeps › Old Keep",
+  owner_topic: "locations",
+  source_priority: 2,
+  embedding_version: "voyage-3",
+  embedding_stale: false,
 };
 
 const PREVIEW = {
@@ -108,6 +115,38 @@ describe("LedgerScreen canon cleanup", () => {
     const header = within(name.parentElement as HTMLElement);
     expect(header.getByText("repo_ingested")).toBeInTheDocument();
     expect(header.getByText("active")).toBeInTheDocument();
+  });
+
+  it("renders the provenance line (doc › heading, full value in the tooltip) and owner/prio chips", async () => {
+    render(<LedgerScreen />);
+    await screen.findByText("Old Keep");
+    const prov = screen.getByText("series/canon/locations.md › Keeps › Old Keep");
+    expect(prov).toHaveAttribute("title", "series/canon/locations.md › Keeps › Old Keep");
+    expect(screen.getByText("locations")).toBeInTheDocument();
+    expect(screen.getByText("prio 2")).toBeInTheDocument();
+  });
+
+  it("shows the embedding-stale chip only when the row's embedding is stale", async () => {
+    const fresh = render(<LedgerScreen />);
+    await screen.findByText("Old Keep");
+    expect(screen.queryByText("embedding stale")).not.toBeInTheDocument();
+    fresh.unmount();
+
+    vi.mocked(api.listCanon).mockResolvedValue([{ ...ROW, embedding_stale: true }]);
+    render(<LedgerScreen />);
+    await screen.findByText("Old Keep");
+    const chip = screen.getByText("embedding stale");
+    expect(chip).toHaveAttribute("title", expect.stringContaining("re-embed"));
+  });
+
+  it("offers superseded in the status filter, before all", async () => {
+    render(<LedgerScreen />);
+    await screen.findByText("Old Keep");
+    const select = screen.getByLabelText("status filter");
+    const options = within(select)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(options).toEqual(["active", "stale", "retired", "superseded", "all"]);
   });
 
   it("previews before retiring: cleanup-preview fires before retireCanon", async () => {
