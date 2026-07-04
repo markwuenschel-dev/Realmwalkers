@@ -57,6 +57,7 @@ from dominion.shared.models import (
 )
 from dominion.shared.severity import issue_gates
 from dominion.shared.text_match import as_str_list, names_present
+from dominion.workers.canon_guards import scan_packet_prose
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.job_scheduler import schedule_revision
 from dominion.workers.length import planner as length_planner
@@ -592,13 +593,16 @@ def run_chapter_draft_qa(
     scene_rows: list[dict[str, Any]],
     full_prose: str,
     packet_body: dict[str, Any] | None = None,
+    open_questions: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Structural ChapterDraftQA performed after chapter assembly.
 
     Checks for one timeline, duplicate functions/starts, entry/exit continuity,
     repeated onboarding signals, required beats presence (via sequence), forbidden reveals,
-    chapter word budget, and (when the chapter packet is supplied) that every characters_present
-    roster entry is actually visible in the prose. This is the gate that can block final_chapter
+    chapter word budget, (when the chapter packet is supplied) that every characters_present
+    roster entry is actually visible in the prose, and canon_contract_leak — prohibited on-page
+    terms derived from the packet's prohibition fields and resolved rulings appearing in the
+    assembled prose (see workers.canon_guards). This is the gate that can block final_chapter
     status. Findings carry `severity` + the derived `blocks_*` facts: "block" gates the final
     chapter, "repair" gates final export only (drafting and human review proceed), "warn" is
     advisory.
@@ -700,8 +704,19 @@ def run_chapter_draft_qa(
             if verdict == "pass":
                 verdict = "warn"
 
-    # Placeholder: required beats / forbidden would require deeper analysis of prose vs contracts
-    # For this landing we rely on sequence required and prior issue set.
+    # CANON_CONTRACT_LEAK (deterministic): scan the assembled prose against on-page prohibitions
+    # derived from the chapter packet's OWN contract fields (forbidden_surface_terms / forbidden_*
+    # prohibition sentences) and resolved author rulings in `open_questions`. This is the check the
+    # Ch1 bad run lacked: the "No Eyes notification in Chapter 1" ruling lived only in free text
+    # while surface_terms listed "Neurochromatic Eyes" as the ALLOWED name, so no layer ever
+    # compared prose to the prohibition. Deterministic, so "block" findings may gate final_chapter.
+    if full_prose.strip():
+        for leak in scan_packet_prose(full_prose, packet_body, open_questions):
+            findings.append(leak)
+            if leak.get("severity") == "block":
+                verdict = "block"
+            elif verdict == "pass":
+                verdict = "warn"
 
     return {
         "verdict": verdict,
@@ -1311,6 +1326,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         scene_rows,
         chapter_text,
         packet_body=packet_body if isinstance(packet_body, dict) else None,
+        open_questions=approved_packet.open_questions if approved_packet is not None else None,
     )
 
     issues = (
