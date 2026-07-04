@@ -257,6 +257,64 @@ async def test_approve_scene_packet_derives_beat(db_factory, monkeypatch):
         assert "must_remain_hidden" not in (beat.beat_text or "")
 
 
+async def test_derive_beats_prunes_legacy_unlinked_beats(db_factory, monkeypatch):
+    # Legacy beat-first rows (scene_packet_id IS NULL) can never draft — the path is disabled — but
+    # they counted as approved-yet-unlinked in draft readiness and held the Draft gate closed forever
+    # (the observed 'beats_linked 4/8' dead-end). derive_beats must prune them, detaching historical
+    # jobs, while sparing a legacy beat still referenced by an ACTIVE job.
+    from dominion.shared.enums import JobKind, JobStatus
+    from dominion.workers.scene_packet import beats as beats_mod
+
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        sid = str(uuid.uuid4())
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(sid, scene_type="combat")])
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        sp = (await s.execute(select(ScenePacket))).scalars().one()
+        await sp_router.approve_scene_packet(sp.id, s)
+
+        # Three legacy orphans: plain, one with a FAILED historical job, one held by a QUEUED job.
+        plain = Beat(chapter_id=ch.id, scene_no=5, status="approved")
+        with_failed_job = Beat(chapter_id=ch.id, scene_no=6, status="approved")
+        with_active_job = Beat(chapter_id=ch.id, scene_no=7, status="approved")
+        s.add_all([plain, with_failed_job, with_active_job])
+        await s.flush()
+        s.add_all(
+            [
+                Job(
+                    kind=JobKind.DRAFT,
+                    chapter_id=ch.id,
+                    beat_id=with_failed_job.id,
+                    scene_no=6,
+                    token_budget=1000,
+                    status=JobStatus.FAILED,
+                ),
+                Job(
+                    kind=JobKind.DRAFT,
+                    chapter_id=ch.id,
+                    beat_id=with_active_job.id,
+                    scene_no=7,
+                    token_budget=1000,
+                    status=JobStatus.QUEUED,
+                ),
+            ]
+        )
+        await s.commit()
+
+        await beats_mod.derive_beats(s, chapter_id=ch.id)
+        await s.commit()
+
+        remaining = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        by_link = {b.scene_packet_id for b in remaining}
+        assert sp.id in by_link  # the packet-linked beat survives
+        legacy_left = [b for b in remaining if b.scene_packet_id is None]
+        assert [b.scene_no for b in legacy_left] == [7]  # only the active-job holder survives
+        # The historical FAILED job was detached, not deleted.
+        failed_job = (await s.execute(select(Job).where(Job.status == JobStatus.FAILED))).scalars().one()
+        assert failed_job.beat_id is None
+
+
 async def _proposed_scene_packet(s, book, ch, cp, *, verdict, warnings) -> ScenePacket:
     sp = ScenePacket(
         book_id=book.id,

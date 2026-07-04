@@ -190,6 +190,60 @@ async def resolve_approved_scene_packet_for_beat(
     return packet
 
 
+def resolve_approved_scene_packet_for_beat_prefetched(
+    beat: Beat,
+    *,
+    packet_by_id: dict[uuid.UUID, ScenePacket],
+    packets_by_scene_no: dict[int, list[ScenePacket]],
+) -> ScenePacket | DraftQueueBlocker:
+    """Read-only twin of `resolve_approved_scene_packet_for_beat(repair=False)` over prefetched rows.
+
+    Same decision tree, no DB access and never a repair — so a caller resolving N beats (readiness)
+    issues TWO queries total instead of ~3 per beat. That N+1 made GET /draft/readiness take multiple
+    seconds against a networked Postgres. `packets_by_scene_no` must contain only this chapter's
+    packets; a dangling cross-chapter `beat.scene_packet_id` simply misses `packet_by_id` and falls
+    through to the scene_no lookup, exactly like the DB twin's mismatch validation would."""
+    if beat.scene_no is None:
+        return _blocker(
+            chapter_id=beat.chapter_id,
+            scene_no=None,
+            beat_id=beat.id,
+            scene_packet_id=beat.scene_packet_id,
+            reason="missing_scene_no",
+            message="Beat has no scene number.",
+            required_action="Fix beat metadata or re-derive from ScenePackets.",
+        )
+
+    if beat.scene_packet_id is not None:
+        packet = packet_by_id.get(beat.scene_packet_id)
+        if packet is not None and _validate_packet_for_beat(beat, packet) is None:
+            return packet
+
+    matches = packets_by_scene_no.get(beat.scene_no, [])
+    non_stale = [p for p in matches if p.status == ScenePacketStatus.APPROVED and not p.stale_reason]
+    if len(non_stale) == 0:
+        return _blocker(
+            chapter_id=beat.chapter_id,
+            scene_no=beat.scene_no,
+            beat_id=beat.id,
+            scene_packet_id=None,
+            reason="no_approved_scene_packet",
+            message=f"Ch{beat.chapter_id} sc{beat.scene_no} has no approved ScenePacket.",
+            required_action="Derive and approve ScenePackets, then draft.",
+        )
+    if len(non_stale) > 1:
+        return _blocker(
+            chapter_id=beat.chapter_id,
+            scene_no=beat.scene_no,
+            beat_id=beat.id,
+            scene_packet_id=None,
+            reason="duplicate_approved_scene_packets",
+            message=f"Ch{beat.chapter_id} sc{beat.scene_no} has {len(non_stale)} approved ScenePackets.",
+            required_action="Resolve duplicate approved ScenePackets before drafting.",
+        )
+    return non_stale[0]
+
+
 async def has_active_draft_job_for_scene_packet(
     session: AsyncSession,
     *,

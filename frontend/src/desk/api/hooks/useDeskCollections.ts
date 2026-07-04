@@ -65,12 +65,15 @@ export function useDeskCollections(
 
   const loadCollections = useCallback(async (id: string): Promise<void> => {
     const chs = await api.chapters(id);
+    // Canon: first paint gets the slim index (id/kind/name — no bodies). The full corpus is
+    // megabytes and was the single largest payload on EVERY page load; only command-palette body
+    // search needs the bodies, so they upgrade in the background after render, never blocking it.
     const [sceneLists, pend, ms, chars, can, thr, rules, js] = await Promise.all([
       Promise.all(chs.map((c) => api.chapterScenes(c.id))),
       api.pending(),
       api.manuscript(id).catch(() => null),
       api.characters(id).catch(() => []),
-      api.canon(id).catch(() => []),
+      api.canon(id, undefined, { includeBodies: false }).catch(() => []),
       api.threads(id).catch(() => []),
       api.ruleProposals(id).catch(() => []),
       api.jobsStatus(id).catch(() => EMPTY_JOBS),
@@ -85,6 +88,10 @@ export function useDeskCollections(
     setThreads(thr);
     setRuleProposals(rules);
     setJobs(js);
+    void api
+      .canon(id)
+      .then((full) => setCanon(full))
+      .catch(() => {}); // slim index stays if the upgrade fails — palette just searches names/kinds
   }, []);
 
   const refreshAll = useCallback(

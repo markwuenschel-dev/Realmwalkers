@@ -438,7 +438,7 @@ async def derive_scene_packets(
     # are derived views of the chapter master packet, not an independent source of chapter truth.
     effective_body: dict[str, Any] = master.drafter_view(body)
     seeds = [s for s in (effective_body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
-    counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0, "rate_limited": 0}
+    counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0, "rate_limited": 0, "skipped": 0}
     if not seeds:
         return counts
 
@@ -538,8 +538,10 @@ async def derive_scene_packets(
         )
 
         row = existing.get(seed_id)
-        # An approved packet whose inputs are unchanged needs no rebuild.
+        # An approved packet whose inputs are unchanged needs no rebuild. Counted so the Desk can say
+        # "4 skipped (approved, unchanged)" instead of a re-derive that looks like it did nothing.
         if row is not None and row.status == ScenePacketStatus.APPROVED and row.source_hash == src_hash:
+            counts["skipped"] += 1
             continue
 
         # That POV's rolling summary, fetched once per DISTINCT effective POV (cache by pov string); most
