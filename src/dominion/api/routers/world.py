@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import ColumnElement, delete, func, or_, select
+from sqlalchemy import ColumnElement, delete, func, null, or_, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState, KnowledgeFact
@@ -219,21 +219,34 @@ async def list_canon(
     include_bodies=false returns the slim index (id/kind/name/source/status, body=null): the full
     corpus is megabytes and the Desk's global provider only needs the index for first paint — bodies
     upgrade in the background (command-palette search) or load on the Ledger screen itself.
+
+    Column-targeted on purpose: `select(CanonEntity)` dragged the 1536-dim `embedding` vector for
+    EVERY row (tens of MB of DB transfer + decode per call, multi-second queries). Concurrent canon
+    fetches then hogged the whole connection pool and unrelated cheap endpoints queued for seconds
+    behind them. The API never returns the vector, so it must never be fetched here.
     """
     book = await session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="book not found")
-    stmt = select(CanonEntity).where(CanonEntity.book_id == book_id)
+    body_col = CanonEntity.body if include_bodies else null().label("body")
+    stmt = select(
+        CanonEntity.id,
+        CanonEntity.kind,
+        CanonEntity.name,
+        body_col,
+        CanonEntity.source,
+        CanonEntity.status,
+    ).where(CanonEntity.book_id == book_id)
     if kind:
         stmt = stmt.where(CanonEntity.kind == kind)
     if status and status != "all":
         stmt = stmt.where(_status_match(status))
     if source and source != "all":
         stmt = stmt.where(CanonEntity.source == source)
-    rows = (await session.execute(stmt.order_by(CanonEntity.kind, CanonEntity.name))).scalars().all()
-    if include_bodies:
-        return list(rows)
-    return [CanonEntityOut.model_validate(r).model_copy(update={"body": None}) for r in rows]
+    rows = (await session.execute(stmt.order_by(CanonEntity.kind, CanonEntity.name))).all()
+    return [
+        CanonEntityOut(id=r.id, kind=r.kind, name=r.name, body=r.body, source=r.source, status=r.status) for r in rows
+    ]
 
 
 @router.post("/books/{book_id}/canon", response_model=CanonEntityOut)

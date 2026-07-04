@@ -20,10 +20,31 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from dominion.shared.agent_registry import model_for_tier, provider_and_tier_of, provider_of
 from dominion.shared.config import settings
 from dominion.shared.enums import DraftStage, LengthStatus, Severity
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
+
+
+def _length_model(configured: str) -> str:
+    """The length-rewrite model, co-located on the DRAFTER's provider.
+
+    Compress/expand are targeted edits on the just-drafted prose, but `length_compress_model` /
+    `length_expand_model` are NOT in the Settings-screen agent registry, so a user who moved every
+    drafting agent to (say) OpenAI still had these two pinned to their Anthropic default — a scene
+    that tripped the length guard then hit Anthropic and 400'd ("credit balance too low") even though
+    the account is provider-only elsewhere. Follow the drafter: keep the configured model's TIER
+    (cheap/haiku by design) but on `draft_model`'s provider. Same provider, or an unknown mapping →
+    the configured model is returned unchanged, so this only ever redirects a cross-provider mismatch.
+    """
+    draft_provider = provider_of(settings.draft_model)
+    if provider_of(configured) == draft_provider:
+        return configured
+    hit = provider_and_tier_of(configured)
+    tier = hit[1] if hit else "haiku"
+    return model_for_tier(tier, draft_provider) or configured
+
 
 # Inlined from the former length/compress.py + length/expand.py (thin internal impl, not public boundaries).
 # Kept here to shrink file count without changing any call sites or behavior.
@@ -85,7 +106,7 @@ async def apply_length_guard(
     if hard_max and wc > hard_max:
         new = await compress(prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget)
         new_wc = count_words(new)
-        stage = StageRecord(DraftStage.LENGTH_COMPRESSION, new, new_wc, settings.length_compress_model)
+        stage = StageRecord(DraftStage.LENGTH_COMPRESSION, new, new_wc, _length_model(settings.length_compress_model))
         if new_wc > hard_max and settings.length_hard_fail_over_hard_max:
             return GuardResult(
                 prose=new,
@@ -112,7 +133,9 @@ async def apply_length_guard(
         if settings.length_auto_compress_over_max:
             new = await compress(prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget)
             new_wc = count_words(new)
-            stage = StageRecord(DraftStage.LENGTH_COMPRESSION, new, new_wc, settings.length_compress_model)
+            stage = StageRecord(
+                DraftStage.LENGTH_COMPRESSION, new, new_wc, _length_model(settings.length_compress_model)
+            )
             status = LengthStatus.WITHIN_BUDGET if new_wc <= maximum else LengthStatus.OVER_MAX
             return GuardResult(
                 prose=new,
@@ -134,7 +157,7 @@ async def apply_length_guard(
         if settings.length_auto_expand_under_min or skeletal:
             new = await expand(prose, word_budget=word_budget, scene_contract=scene_contract, budget=budget)
             new_wc = count_words(new)
-            stage = StageRecord(DraftStage.LENGTH_EXPANSION, new, new_wc, settings.length_expand_model)
+            stage = StageRecord(DraftStage.LENGTH_EXPANSION, new, new_wc, _length_model(settings.length_expand_model))
             status = LengthStatus.WITHIN_BUDGET if new_wc >= minimum else LengthStatus.UNDER_MIN
             return GuardResult(
                 prose=new,
@@ -217,7 +240,7 @@ async def _compress(
         must_not_spend_words_on=word_budget.get("must_not_spend_words_on") or [],
     )
     text, _usage = await llm.complete(
-        model=settings.length_compress_model,
+        model=_length_model(settings.length_compress_model),
         system=_COMPRESS_SYSTEM,
         user=user,
         max_tokens=max_tokens,
@@ -274,7 +297,7 @@ async def _expand(
         expansion_priority=word_budget.get("expansion_priority") or [],
     )
     text, _usage = await llm.complete(
-        model=settings.length_expand_model,
+        model=_length_model(settings.length_expand_model),
         system=_EXPAND_SYSTEM,
         user=user,
         max_tokens=max_tokens,
