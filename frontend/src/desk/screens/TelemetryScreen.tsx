@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
-import { Spinner } from "../components/DraftActivity";
+import { Button, Eyebrow, Panel, Skeleton } from "../components/ui";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import { TotalsStrip, TotalsTable, fmtTokens } from "../components/Telemetry";
 import { ProblemsPanel } from "../components/telemetry/ProblemsPanel";
@@ -231,9 +231,10 @@ export default function TelemetryScreen() {
         )}
       >
         <div>
+          <Eyebrow style="margin-bottom:6px">Operations · LLM calls</Eyebrow>
           <h1
             style={css(
-              "margin:0 0 4px;font-family:var(--display);font-weight:600;font-size:26px;color:var(--ink)",
+              "margin:0 0 6px;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)",
             )}
           >
             Telemetry
@@ -242,19 +243,13 @@ export default function TelemetryScreen() {
             Operations console for LLM calls — drill into runs, scenes, and individual calls. Click
             any row to inspect; click two runs to compare.
             {compareMode && (
-              <span style={css("color:var(--warn, #e8a020)")}> Select two runs to compare…</span>
+              <span style={css("color:var(--warn)")}> Select two runs to compare…</span>
             )}
           </p>
         </div>
-        <button
-          disabled={loading}
-          onClick={() => void load()}
-          style={css(
-            `height:30px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px;cursor:${loading ? "default" : "pointer"}`,
-          )}
-        >
+        <Button size="sm" disabled={loading} onClick={() => void load()}>
           {loading ? "Refreshing…" : "Refresh"}
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -268,23 +263,26 @@ export default function TelemetryScreen() {
       )}
 
       {!data && loading ? (
-        <div
-          style={css(
-            "display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;color:var(--dim)",
-          )}
-        >
-          <Spinner /> loading telemetry…
+        <div style={css("display:flex;flex-direction:column;gap:14px")}>
+          <Skeleton height="72px" />
+          <Skeleton lines={8} />
         </div>
       ) : empty ? (
-        <div
-          style={css(
-            "border:1px dashed var(--line);border-radius:11px;padding:24px;text-align:center;color:var(--dim);font-size:13px",
-          )}
-        >
-          No model calls recorded yet. Derive scene packets for a chapter and they'll show up here.
+        <div style={css("text-align:center;padding:90px 24px")}>
+          <div aria-hidden style={css("font-size:20px;color:var(--accent);margin-bottom:16px")}>
+            ✦
+          </div>
+          <p
+            style={css(
+              "margin:0;font-family:var(--display);font-style:italic;font-size:18px;line-height:1.6;color:var(--dim)",
+            )}
+          >
+            No model calls recorded yet. Derive scene packets for a chapter and they'll show up
+            here.
+          </p>
         </div>
       ) : data && bookId ? (
-        <div style={css("display:flex;flex-direction:column;gap:8px")}>
+        <div style={css("display:flex;flex-direction:column;gap:14px")}>
           <TelemetryFiltersBar
             bookId={bookId}
             chapters={chapters}
@@ -301,7 +299,7 @@ export default function TelemetryScreen() {
           <TotalsStrip t={data.totals} />
 
           {latestRun && latestRun.scenes.length > 0 && (
-            <Section label={`By scene · latest run`}>
+            <Panel inset pad="14px 16px" eyebrow="By scene · latest run">
               <TotalsTable<SceneTelemetryOut>
                 label="Scene"
                 rows={latestRun.scenes}
@@ -311,7 +309,7 @@ export default function TelemetryScreen() {
                     Sc{r.scene_no ?? "—"}{" "}
                     <span
                       style={css(
-                        `color:${r.status === "error" ? "var(--bad)" : r.status === "warn" ? "var(--warn, #e8a020)" : "var(--ok)"}`,
+                        `color:${r.status === "error" ? "var(--bad)" : r.status === "warn" ? "var(--warn)" : "var(--ok)"}`,
                       )}
                     >
                       ({r.status})
@@ -323,10 +321,10 @@ export default function TelemetryScreen() {
                     openView({ kind: "scene", runId: latestRun.run_id, sceneNo: r.scene_no });
                 }}
               />
-            </Section>
+            </Panel>
           )}
 
-          <Section label="By chapter">
+          <Panel inset pad="14px 16px" eyebrow="By chapter">
             <TotalsTable<ChapterRollupOut>
               label="Chapter"
               rows={data.by_chapter}
@@ -345,9 +343,9 @@ export default function TelemetryScreen() {
                 })
               }
             />
-          </Section>
+          </Panel>
 
-          <Section label="By run (newest first)">
+          <Panel inset pad="14px 16px" eyebrow="By run (newest first)">
             <TotalsTable<RunRollupOut>
               label="Run"
               rows={runs}
@@ -356,56 +354,47 @@ export default function TelemetryScreen() {
               emptyText="No derive runs recorded yet."
               onRowClick={(r) => r.run_id && onRunClick(r)}
             />
-            <div style={css("display:flex;gap:8px;margin-top:8px;flex-wrap:wrap")}>
-              <button
-                type="button"
+            <div style={css("display:flex;gap:8px;margin-top:10px;flex-wrap:wrap")}>
+              <Button
+                size="sm"
                 onClick={() => {
                   setCompareMode((m) => !m);
                   setCompareA(null);
                 }}
-                style={css(
-                  "height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:12px;cursor:pointer",
-                )}
               >
                 {compareMode ? "Cancel compare" : "Compare runs"}
-              </button>
+              </Button>
               {runs.length < data.run_total && (
-                <button
-                  disabled={loadingMore}
-                  onClick={() => void loadMore()}
-                  style={css(
-                    `height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:12px;cursor:${loadingMore ? "default" : "pointer"}`,
-                  )}
-                >
+                <Button size="sm" disabled={loadingMore} onClick={() => void loadMore()}>
                   {loadingMore
                     ? "Loading…"
                     : `Load older runs (${data.run_total - runs.length} more)`}
-                </button>
+                </Button>
               )}
             </div>
-          </Section>
+          </Panel>
 
           <div
             style={css(
               "display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px",
             )}
           >
-            <Section label="By model">
+            <Panel inset pad="14px 16px" eyebrow="By model">
               <TotalsTable<TelemetryGroupOut>
                 label="Model"
                 rows={data.by_model}
                 nameOf={(r) => r.key}
                 onRowClick={(r) => openView({ kind: "model", model: r.key, bookId })}
               />
-            </Section>
-            <Section label="By stage">
+            </Panel>
+            <Panel inset pad="14px 16px" eyebrow="By stage">
               <TotalsTable<TelemetryGroupOut>
                 label="Stage"
                 rows={data.by_stage}
                 nameOf={(r) => r.key.replace(/_/g, " ")}
                 onRowClick={(r) => openView({ kind: "stage", stage: r.key, bookId })}
               />
-            </Section>
+            </Panel>
           </div>
 
           <ProblemsPanel bookId={bookId} onOpen={openView} reloadKey={problemsReloadKey} />
@@ -424,21 +413,6 @@ export default function TelemetryScreen() {
       {drawer.isOpen && bookId && drawer.view && (
         <TelemetryDrawer nav={drawer.nav} bookId={bookId} />
       )}
-    </div>
-  );
-}
-
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:16px 0 7px",
-        )}
-      >
-        {label}
-      </div>
-      {children}
     </div>
   );
 }

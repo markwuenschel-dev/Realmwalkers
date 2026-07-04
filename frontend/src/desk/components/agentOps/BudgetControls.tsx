@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { css } from "../../css";
 import type { AgentGlobalsOut } from "../../api/types";
+import { Button, Panel } from "../ui";
 
 interface BudgetControlsProps {
   globals: AgentGlobalsOut;
@@ -24,16 +25,7 @@ export function BudgetControls({ globals, busy, onSave }: BudgetControlsProps) {
     Number(seconds) !== globals.scene_time_budget_s;
 
   return (
-    <div
-      style={css(
-        "background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px",
-      )}
-    >
-      <div
-        style={css("font-family:var(--display);font-size:14px;color:var(--dim);margin-bottom:10px")}
-      >
-        Global scene budgets
-      </div>
+    <Panel eyebrow="Global scene budgets" style="margin-bottom:18px" pad="16px 18px">
       <div style={css("display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end")}>
         <label style={css("font-size:13px;color:var(--dim)")}>
           Token budget
@@ -65,7 +57,8 @@ export function BudgetControls({ globals, busy, onSave }: BudgetControlsProps) {
             )}
           />
         </label>
-        <button
+        <Button
+          size="sm"
           disabled={busy || !dirty}
           onClick={() =>
             onSave({
@@ -73,16 +66,13 @@ export function BudgetControls({ globals, busy, onSave }: BudgetControlsProps) {
               scene_time_budget_s: Number(seconds),
             })
           }
-          style={css(
-            `padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:12.5px;cursor:${busy || !dirty ? "default" : "pointer"};opacity:${busy || !dirty ? ".6" : "1"}`,
-          )}
         >
           Save budgets
-        </button>
+        </Button>
       </div>
       <div style={css("margin-top:8px;font-size:11.5px;color:var(--dim)")}>
         Applied to new scene jobs and worker timeouts. Existing queued jobs keep their run budget.
       </div>
-    </div>
+    </Panel>
   );
 }

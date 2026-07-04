@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { css } from "../../css";
-import { useDesk } from "../../state";
 import type { AgentOpsAgentOut, AgentStatsOut } from "../../api/types";
 import { AgentHealthStrip } from "./AgentHealthStrip";
+import { Chip, Eyebrow } from "../ui";
 
 const TIER_LABEL: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };
 const TIER_HINT: Record<string, string> = {
@@ -91,7 +91,6 @@ export function AgentRow({
   onSetSemanticEscalation,
   onSetAutoRun,
 }: AgentRowProps) {
-  const { t } = useDesk();
   const [open, setOpen] = useState(false);
   const a = agent;
   const catalog = modelCatalog(providerTiers);
@@ -109,7 +108,7 @@ export function AgentRow({
   return (
     <div
       style={css(
-        "background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:16px 18px",
+        "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px",
       )}
     >
       <button
@@ -120,7 +119,11 @@ export function AgentRow({
         )}
       >
         <div style={css("flex:1 1 auto;min-width:0")}>
-          <div style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}>
+          <div
+            style={css(
+              "font-family:var(--display);font-weight:500;font-size:16px;color:var(--ink)",
+            )}
+          >
             {a.label}
           </div>
           <div style={css("font-size:13px;color:var(--dim);margin-top:3px;line-height:1.45")}>
@@ -132,32 +135,23 @@ export function AgentRow({
             <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
               {a.model}
             </span>
-            {a.policy.fallback_tier && (
-              <span
-                style={css(
-                  "font-size:11px;padding:2px 8px;border-radius:6px;background:var(--bg3);color:var(--dim)",
-                )}
-              >
-                fallback: {fbLabel}
-              </span>
-            )}
+            {a.policy.fallback_tier && <Chip size="sm" label={`fallback: ${fbLabel}`} />}
             <span style={css("font-size:11px;color:var(--dim)")}>
               ~${a.estimate.estimated_usd_per_chapter?.toFixed(2) ?? "—"}/ch ·{" "}
               {a.estimate.cost_band} · {a.contract.context_load}
             </span>
-            {!a.permissions.auto_run && (
-              <span style={css(`font-size:11px;color:${t.warn}`)}>manual only</span>
-            )}
-          </div>
-          <div style={css("margin-top:6px")}>
-            <AgentHealthStrip stats={stats} />
+            {!a.permissions.auto_run && <Chip size="sm" tone="warn" label="manual only" />}
           </div>
         </div>
         <span style={css("color:var(--dim);font-size:12px")}>{open ? "▲" : "▼"}</span>
       </button>
 
+      <div style={css("margin-top:10px")}>
+        <AgentHealthStrip stats={stats} />
+      </div>
+
       {a.warnings.length > 0 && (
-        <div style={css(`margin-top:10px;font-size:12px;color:${t.warn}`)}>
+        <div style={css("margin-top:10px;font-size:12px;color:var(--warn)")}>
           {a.warnings.map((w) => (
             <div key={w}>⚠ {w}</div>
           ))}
@@ -168,9 +162,7 @@ export function AgentRow({
         <div style={css("margin-top:16px;border-top:1px solid var(--line);padding-top:16px")}>
           <div style={css("display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px")}>
             <div data-testid="primary-model-picker">
-              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>
-                Primary model
-              </div>
+              <Eyebrow style="margin-bottom:6px">Primary model</Eyebrow>
               <ModelButtons
                 options={catalog}
                 active={{ provider: a.provider, tier: a.tier }}
@@ -179,7 +171,7 @@ export function AgentRow({
               />
             </div>
             <div data-testid="fallback-model-picker">
-              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>Fallback</div>
+              <Eyebrow style="margin-bottom:6px">Fallback</Eyebrow>
               <ModelButtons
                 options={catalog}
                 active={{ provider: a.policy.fallback_provider, tier: a.policy.fallback_tier }}
@@ -190,9 +182,7 @@ export function AgentRow({
               />
             </div>
             <div>
-              <div style={css("font-size:12px;color:var(--dim);margin-bottom:6px")}>
-                Quality / temperature
-              </div>
+              <Eyebrow style="margin-bottom:6px">Quality / temperature</Eyebrow>
               <TierButtons
                 active={a.policy.quality_level}
                 disabled={busy}
@@ -272,7 +262,7 @@ export function AgentRow({
           {stats && stats.calls > 0 && (
             <div
               style={css(
-                "margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--dim)",
+                "margin-top:12px;padding:10px 12px;background:var(--boxbg);border:1px solid var(--line);border-radius:var(--r);font-family:var(--mono);font-size:11px;color:var(--dim)",
               )}
             >
               Last window: {stats.calls} calls · err {((stats.error_rate ?? 0) * 100).toFixed(0)}% ·
@@ -283,7 +273,10 @@ export function AgentRow({
 
           <a
             href="/telemetry"
-            style={css("display:inline-block;margin-top:10px;font-size:12px;color:var(--accent)")}
+            className="dk-navlink"
+            style={css(
+              "display:inline-block;margin-top:10px;padding:2px 6px;margin-left:-6px;border-radius:6px;font-size:12px;color:var(--accent)",
+            )}
           >
             Full telemetry →
           </a>

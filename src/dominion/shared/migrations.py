@@ -26,6 +26,8 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS epigraph TEXT",
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS scene_seed_id UUID",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_error TEXT",
+    # Activity drawer (Atelier redesign): terminal timestamp for per-job durations + recent feed.
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS finished_at TIMESTAMPTZ",
     # Scene-packet contract system: new nullable links + per-scene fields. New tables
     # (scene_packets, draft_attempts) are provisioned by create_all.
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS scene_packet_id UUID",

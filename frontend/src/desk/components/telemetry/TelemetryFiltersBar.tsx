@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { css } from "../../css";
 import { api } from "../../api/client";
+import { Button, Chip, Eyebrow } from "../ui";
 import type { BookTelemetryOut, ChapterOut, RunRollupOut } from "../../api/types";
 import {
   buildFiltersFromForm,
@@ -16,10 +17,6 @@ import {
 
 const inputStyle = css(
   "height:28px;padding:0 8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--mono);font-size:11px;min-width:0",
-);
-
-const dangerBtn = css(
-  "height:28px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--bg3));color:var(--bad);font-size:12px;cursor:pointer",
 );
 
 const PRESETS: { id: FilterPresetId; label: string }[] = [
@@ -183,7 +180,7 @@ export function TelemetryFiltersBar({
   return (
     <div
       style={css(
-        "margin-bottom:14px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg2)",
+        "margin-bottom:14px;border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;background:var(--bg2)",
       )}
     >
       <div
@@ -197,15 +194,9 @@ export function TelemetryFiltersBar({
               "display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap",
             )}
           >
-            <span
-              style={css(
-                "font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)",
-              )}
-            >
-              Filters
-            </span>
+            <Eyebrow>Filters</Eyebrow>
             {hasActiveFilters(value) && (
-              <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--accentLine)")}>
+              <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--accent)")}>
                 {filtersLabel(value)}
               </span>
             )}
@@ -297,39 +288,18 @@ export function TelemetryFiltersBar({
 
           <div style={css("display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px")}>
             {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => applyPreset(p.id)}
-                style={css(
-                  "height:26px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10.5px;cursor:pointer",
-                )}
-              >
-                {p.label}
-              </button>
+              <Chip key={p.id} label={p.label} onClick={() => applyPreset(p.id)} />
             ))}
           </div>
 
           <div style={css("display:flex;gap:8px;flex-wrap:wrap")}>
-            <button
-              type="button"
-              onClick={applyForm}
-              style={css(
-                "height:28px;padding:0 14px;border-radius:8px;border:1px solid var(--accentLine);background:color-mix(in srgb,var(--accentLine) 12%,var(--bg3));color:var(--ink);font-size:12px;cursor:pointer",
-              )}
-            >
+            <Button size="sm" variant="primary" onClick={applyForm}>
               Apply · view calls
-            </button>
+            </Button>
             {hasActiveFilters(value) && (
-              <button
-                type="button"
-                onClick={onClear}
-                style={css(
-                  "height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:12px;cursor:pointer",
-                )}
-              >
+              <Button size="sm" variant="ghost" onClick={onClear}>
                 Clear filters
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -339,13 +309,7 @@ export function TelemetryFiltersBar({
             "border-left:1px solid var(--line);padding-left:16px;min-height:100%;display:flex;flex-direction:column;gap:10px",
           )}
         >
-          <span
-            style={css(
-              "font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)",
-            )}
-          >
-            Data management
-          </span>
+          <Eyebrow>Data management</Eyebrow>
           <div
             style={css(
               "font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.45",
@@ -361,33 +325,26 @@ export function TelemetryFiltersBar({
             )}
           </div>
           <div style={css("display:flex;flex-direction:column;gap:6px")}>
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="sm"
               disabled={!effectiveRunId || deleteBusy !== null}
               onClick={deleteThisRun}
-              style={css(
-                `${dangerBtn};opacity:${!effectiveRunId || deleteBusy ? "0.5" : "1"};cursor:${!effectiveRunId || deleteBusy ? "default" : "pointer"}`,
-              )}
             >
               {deleteBusy === "run" ? "Deleting…" : "Delete this run"}
-            </button>
-            <button
-              type="button"
-              disabled={deleteBusy !== null}
-              onClick={clearBook}
-              style={css(`${dangerBtn};cursor:${deleteBusy ? "default" : "pointer"}`)}
-            >
+            </Button>
+            <Button variant="danger" size="sm" disabled={deleteBusy !== null} onClick={clearBook}>
               {deleteBusy === "book" ? "Clearing…" : "Clear book telemetry"}
-            </button>
+            </Button>
             {!showGlobalConfirm ? (
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="sm"
                 disabled={deleteBusy !== null}
                 onClick={() => setShowGlobalConfirm(true)}
-                style={css(`${dangerBtn};cursor:${deleteBusy ? "default" : "pointer"}`)}
               >
                 Clear all telemetry…
-              </button>
+              </Button>
             ) : (
               <div style={css("display:flex;flex-direction:column;gap:6px")}>
                 <span style={css("font-size:11px;color:var(--dim)")}>
@@ -401,28 +358,26 @@ export function TelemetryFiltersBar({
                   style={inputStyle}
                 />
                 <div style={css("display:flex;gap:6px")}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="danger"
+                    size="sm"
                     disabled={
                       globalConfirmText.trim() !== GLOBAL_CONFIRM_PHRASE || deleteBusy !== null
                     }
                     onClick={clearAll}
-                    style={css(`${dangerBtn};cursor:pointer`)}
                   >
                     {deleteBusy === "global" ? "Clearing…" : "Confirm global wipe"}
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     onClick={() => {
                       setShowGlobalConfirm(false);
                       setGlobalConfirmText("");
                     }}
-                    style={css(
-                      "height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:12px;cursor:pointer",
-                    )}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -473,7 +428,7 @@ function Toggle({ label, on, set }: { label: string; on: boolean; set: (v: boole
       type="button"
       onClick={() => set(!on)}
       style={css(
-        `height:26px;padding:0 10px;border-radius:7px;border:1px solid ${on ? "var(--accentLine)" : "var(--line)"};background:${on ? "color-mix(in srgb,var(--accentLine) 14%,var(--bg3))" : "var(--bg3)"};color:${on ? "var(--ink)" : "var(--dim)"};font-family:var(--mono);font-size:10.5px;cursor:pointer`,
+        `height:26px;padding:0 10px;border-radius:7px;border:1px solid ${on ? "var(--accentLine)" : "var(--line)"};background:${on ? "var(--accentSoft)" : "var(--bg3)"};color:${on ? "var(--ink)" : "var(--dim)"};font-family:var(--mono);font-size:10.5px;cursor:pointer`,
       )}
     >
       {label}

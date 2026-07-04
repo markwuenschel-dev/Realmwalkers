@@ -2,7 +2,7 @@
 
 import { css } from "../../css";
 import type { SmokeTestOut } from "../../api/types";
-import { useDesk } from "../../state";
+import { Button, Chip, Eyebrow } from "../ui";
 
 interface SmokeTestModalProps {
   result: SmokeTestOut | null;
@@ -10,7 +10,6 @@ interface SmokeTestModalProps {
 }
 
 export function SmokeTestModal({ result, onClose }: SmokeTestModalProps) {
-  const { t } = useDesk();
   if (!result) return null;
 
   const live = result.mode === "live";
@@ -18,44 +17,50 @@ export function SmokeTestModal({ result, onClose }: SmokeTestModalProps) {
   return (
     <div
       style={css(
-        "position:fixed;inset:0;background:color-mix(in srgb,#000 45%,transparent);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px",
+        "position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;animation:scrimIn var(--dur) var(--ease)",
       )}
       onClick={onClose}
     >
       <div
         style={css(
-          "background:var(--bg2);border:1px solid var(--line);border-radius:12px;max-width:640px;width:100%;max-height:80vh;overflow:auto;padding:20px",
+          "background:var(--bg2);border:1px solid var(--line);border-radius:var(--rLg);box-shadow:var(--shadow);max-width:640px;width:100%;max-height:80vh;overflow:auto;padding:22px 24px;animation:fadeUp var(--dur) var(--ease-out)",
         )}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           style={css(
-            "display:flex;justify-content:space-between;align-items:center;margin-bottom:14px",
+            "display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px",
           )}
         >
-          <h2 style={css("margin:0;font-family:var(--display);font-size:18px")}>
-            Smoke test results ({result.mode})
-          </h2>
-          <button
-            onClick={onClose}
-            style={css("border:none;background:transparent;color:var(--dim);cursor:pointer")}
-          >
+          <div>
+            <Eyebrow>Smoke test · {result.mode}</Eyebrow>
+            <h2
+              style={css(
+                "margin:4px 0 0;font-family:var(--display);font-weight:500;font-size:21px;line-height:28px;color:var(--ink)",
+              )}
+            >
+              Smoke test results
+            </h2>
+          </div>
+          <Button size="sm" variant="ghost" onClick={onClose} title="Close">
             ✕
-          </button>
+          </Button>
         </div>
         {result.live_warning && (
-          <p style={css(`margin:0 0 10px;font-size:12.5px;color:${t.warn}`)}>
+          <p style={css("margin:0 0 10px;font-size:12.5px;color:var(--warn)")}>
             {result.live_warning}
           </p>
         )}
         {live && result.estimated_cost_usd != null && (
-          <p style={css("margin:0 0 10px;font-size:12px;color:var(--dim)")}>
+          <p style={css("margin:0 0 10px;font-family:var(--mono);font-size:11px;color:var(--dim)")}>
             Est. ${result.estimated_cost_usd.toFixed(4)}
             {result.actual_cost_usd != null && ` · actual ~$${result.actual_cost_usd.toFixed(4)}`}
           </p>
         )}
         <p
-          style={css(`margin:0 0 14px;font-size:13px;color:${result.all_passed ? t.good : t.bad}`)}
+          style={css(
+            `margin:0 0 14px;font-size:13px;color:${result.all_passed ? "var(--good)" : "var(--bad)"}`,
+          )}
         >
           {result.all_passed
             ? `All agents passed (${live ? "live API" : "offline fixtures"}).`
@@ -66,13 +71,22 @@ export function SmokeTestModal({ result, onClose }: SmokeTestModalProps) {
             <div
               key={r.setting}
               style={css(
-                `border:1px solid color-mix(in srgb,${r.passed ? t.good : t.bad} 35%,var(--line));border-radius:9px;padding:12px`,
+                `border:1px solid color-mix(in srgb,${r.passed ? "var(--good)" : "var(--bad)"} 35%,var(--line));border-radius:var(--r);padding:12px`,
               )}
             >
-              <div style={css("font-weight:600;font-size:14px;margin-bottom:6px")}>{r.label}</div>
+              <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:6px")}>
+                <span style={css("font-weight:600;font-size:14px;color:var(--ink)")}>
+                  {r.label}
+                </span>
+                <Chip
+                  size="sm"
+                  tone={r.passed ? "good" : "bad"}
+                  label={r.passed ? "pass" : "fail"}
+                />
+              </div>
               <ul style={css("margin:0;padding-left:18px;font-size:12.5px;color:var(--dim)")}>
                 {r.checks.map((c) => (
-                  <li key={c.name} style={{ color: c.ok ? "var(--dim)" : t.bad }}>
+                  <li key={c.name} style={{ color: c.ok ? "var(--dim)" : "var(--bad)" }}>
                     {c.name}: {c.ok ? "ok" : (c.detail ?? "failed")}
                   </li>
                 ))}

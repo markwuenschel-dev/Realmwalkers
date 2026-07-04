@@ -49,6 +49,9 @@ export type JobsStatusOut = Omit<S["JobsStatusOut"], "active_scene"> & {
   active_scene: ActiveScene | null;
 };
 export type FailedJobOut = S["FailedJobOut"];
+export type QueuedJobOut = S["QueuedJobOut"];
+export type RecentJobOut = S["RecentJobOut"];
+export type RecentJobsOut = S["RecentJobsOut"];
 export type DraftNextOut = S["DraftNextOut"];
 export type RetryFailedOut = S["RetryFailedOut"] & {
   requested?: number;

@@ -15,7 +15,8 @@ import type {
 import { useDeskData } from "../api/data";
 import { css } from "../css";
 import ProseBlocks from "../components/ProseBlocks";
-import { Spinner } from "../components/DraftActivity";
+import { Button, Chip, Eyebrow, MetricCard, Panel, Spinner, Stepper } from "../components/ui";
+import type { ChipTone, Step, StepState } from "../components/ui";
 import { downloadBlob } from "../lib/download";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import {
@@ -28,12 +29,10 @@ import {
   surfaceAuditSummary,
 } from "../lib/packetBlockers";
 import type { PacketViolation } from "../lib/packetBlockers";
-import { useDesk } from "../state";
 
-const PANEL =
-  "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px";
-const SMALL =
-  "font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)";
+// Atelier display-XL screen title (shared idiom with DocsScreen).
+const TITLE_XL =
+  "margin:0;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)";
 
 // Session cache of full run details — the heaviest Desk payload (~670KB observed: every artifact's
 // prose rides inline). Selecting a run serves the cached detail instantly; the run row's updated_at
@@ -52,14 +51,14 @@ function latestArtifact(artifacts: ArtifactOut[], type: string): ArtifactOut | n
   return [...artifacts].reverse().find((artifact) => artifact.artifact_type === type) ?? null;
 }
 
-function severityColor(severity: string): string {
+function severityChipTone(severity: string): ChipTone {
   switch (severity) {
     case "hard":
-      return "var(--bad)";
+      return "bad";
     case "warn":
-      return "var(--warn)";
+      return "warn";
     default:
-      return "var(--info)";
+      return "info";
   }
 }
 
@@ -83,9 +82,104 @@ function statusTone(status: string): string {
   }
 }
 
+function statusChipTone(status: string): ChipTone {
+  switch (status) {
+    case "completed":
+    case "verified":
+      return "good";
+    case "repairing":
+    case "running":
+      return "info";
+    case "waiting_for_human":
+    case "queued":
+      return "warn";
+    case "failed":
+    case "blocked":
+    case "rejected":
+      return "bad";
+    default:
+      return "neutral";
+  }
+}
+
 function summaryCount(summary: Record<string, unknown> | null | undefined, key: string): string {
   const value = summary?.[key];
   return typeof value === "number" ? value.toLocaleString() : "—";
+}
+
+// --- run-stage pipeline ------------------------------------------------------------------------
+// The pinned five-stage production pipeline. Every modern current_stage value maps 1:1; off-path
+// holds (structural repair / provider 429) render as a blocked step; legacy stage strings from the
+// pre-pipeline flow map to the nearest honest position rather than pretending they never existed.
+
+const PIPELINE: { id: string; label: string }[] = [
+  { id: "waiting_for_scene_drafts", label: "awaiting drafts" },
+  { id: "drafting_scenes", label: "drafting scenes" },
+  { id: "scene_qa", label: "scene QA" },
+  { id: "assembling_chapter", label: "assembling" },
+  { id: "chapter_qa", label: "chapter QA" },
+];
+
+// Legacy repair-funnel stages: chapter QA already ran and captured issues, so the funnel renders
+// as a trailing sixth step — the five pinned stages stay truthful (all done) instead of one of
+// them impersonating "repair".
+const LEGACY_REPAIR_NOTE: Record<string, string> = {
+  contract_classification: "classifying issues",
+  issue_triage: "issue triage",
+  repair_queue: "repair queued",
+  repair_execution: "repairing",
+};
+
+function runPipelineSteps(run: { current_stage?: string | null; status: string }): Step[] {
+  const stage = run.current_stage ?? null;
+  const halted = run.status === "failed" || run.status === "blocked" || run.status === "rejected";
+  const activeState: StepState = halted ? "blocked" : "active";
+
+  const at = (idx: number, note?: string): Step[] =>
+    PIPELINE.map((p, i) => ({
+      id: p.id,
+      label: p.label,
+      state: i < idx ? "done" : i === idx ? activeState : "pending",
+      note: i === idx ? note : undefined,
+    }));
+  const allDone = (): Step[] =>
+    PIPELINE.map((p) => ({ id: p.id, label: p.label, state: "done" as StepState }));
+
+  if (run.status === "completed" || run.status === "verified") return allDone();
+
+  // Off-path holds — the active step renders blocked with the reason.
+  if (stage === "structural_repair_required") {
+    // Structural issues are a chapter-QA finding: assembly happened, QA refused to pass it.
+    return PIPELINE.map((p, i) => ({
+      id: p.id,
+      label: p.label,
+      state: i < 4 ? "done" : "blocked",
+      note: i === 4 ? "structural repair required" : undefined,
+    }));
+  }
+  if (stage === "provider_rate_limited") {
+    // The 429 lands on the drafting stage's provider calls; the exact scene isn't recorded.
+    return PIPELINE.map((p, i) => ({
+      id: p.id,
+      label: p.label,
+      state: i < 1 ? "done" : i === 1 ? "blocked" : "pending",
+      note: i === 1 ? "provider rate limited — retryable" : undefined,
+    }));
+  }
+
+  if (stage && LEGACY_REPAIR_NOTE[stage]) {
+    return [
+      ...allDone(),
+      { id: "repair", label: "repair", state: activeState, note: LEGACY_REPAIR_NOTE[stage] },
+    ];
+  }
+  if (stage === "chapter_assembly") return at(3, halted ? run.status : undefined);
+
+  const idx = stage ? PIPELINE.findIndex((p) => p.id === stage) : -1;
+  if (idx >= 0) return at(idx, halted ? run.status : undefined);
+  // Unknown / pre-pipeline stage (packet_gate, null while queued): anchor at the first step and
+  // surface the raw stage string so nothing is hidden.
+  return at(0, stage ?? "queued");
 }
 
 function EventFeed({ detail }: { detail: ProductionRunDetailOut }) {
@@ -175,13 +269,7 @@ function AssemblyGateDiagnostics({ readiness }: { readiness: DraftReadinessOut }
             key={g.label}
             style={css("display:flex;align-items:baseline;gap:8px;flex-wrap:wrap")}
           >
-            <span
-              style={css(
-                `font-family:var(--mono);font-size:10.5px;color:var(--${g.pass ? "good" : "bad"});border:1px solid color-mix(in srgb,var(--${g.pass ? "good" : "bad"}) 35%,var(--line));border-radius:999px;padding:1px 8px`,
-              )}
-            >
-              {g.pass ? "pass" : "fail"}
-            </span>
+            <Chip label={g.pass ? "pass" : "fail"} tone={g.pass ? "good" : "bad"} size="sm" />
             <span style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
               {g.label}
             </span>
@@ -195,7 +283,6 @@ function AssemblyGateDiagnostics({ readiness }: { readiness: DraftReadinessOut }
 }
 
 export default function ProductionScreen() {
-  const { t } = useDesk();
   const { chapters } = useDeskData();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -483,14 +570,9 @@ export default function ProductionScreen() {
         )}
       >
         <div>
-          <h1
-            style={css(
-              "margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:30px;color:var(--ink)",
-            )}
-          >
-            Editorial production
-          </h1>
-          <p style={css("margin:0;color:var(--dim);font-size:14px;max-width:760px")}>
+          <Eyebrow style="margin-bottom:6px">Ops · production runs</Eyebrow>
+          <h1 style={css(TITLE_XL)}>Editorial production</h1>
+          <p style={css("margin:8px 0 0;color:var(--dim);font-size:14px;max-width:760px")}>
             Durable chapter production runs: issue capture, repair tasks, verification, and final
             chapter assembly.
           </p>
@@ -511,7 +593,8 @@ export default function ProductionScreen() {
               </option>
             ))}
           </select>
-          <button
+          <Button
+            variant="primary"
             disabled={!chapterId || busy === "start" || assemblyBlocked}
             title={
               assemblyBlocked
@@ -519,28 +602,22 @@ export default function ProductionScreen() {
                 : "Assemble existing scene prose into a chapter draft and run chapter QA"
             }
             onClick={() => void startRun()}
-            style={css(
-              `height:34px;padding:0 14px;border:none;border-radius:9px;background:${t.accent};color:${t.onAccent};font-family:var(--ui);font-size:12.5px;opacity:${assemblyBlocked ? "0.55" : "1"};cursor:${!chapterId || busy === "start" || assemblyBlocked ? "default" : "pointer"}`,
-            )}
           >
             {busy === "start" ? "Assembling…" : "Assemble chapter"}
-          </button>
-          <button
+          </Button>
+          <Button
             disabled={!chapterId || loading}
             onClick={() => chapterId && void loadRuns(chapterId)}
-            style={css(
-              "height:34px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
-            )}
           >
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
         <div
           style={css(
-            "border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--bg2));border-radius:10px;padding:12px 14px;color:var(--bad);font-size:13px",
+            "border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--bg2));border-radius:var(--r);padding:12px 14px;color:var(--bad);font-size:13px",
           )}
         >
           {error}
@@ -551,7 +628,7 @@ export default function ProductionScreen() {
         <div
           data-testid="production-notice"
           style={css(
-            "border:1px solid color-mix(in srgb,var(--info) 40%,var(--line));background:color-mix(in srgb,var(--info) 8%,var(--bg2));border-radius:10px;padding:12px 14px;color:var(--ink);font-size:13px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px",
+            "border:1px solid color-mix(in srgb,var(--info) 40%,var(--line));background:color-mix(in srgb,var(--info) 8%,var(--bg2));border-radius:var(--r);padding:12px 14px;color:var(--ink);font-size:13px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px",
           )}
         >
           <span>{notice}</span>
@@ -569,7 +646,7 @@ export default function ProductionScreen() {
       {assemblyBlocked && (
         <div
           style={css(
-            "border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg2));border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px",
+            "border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg2));border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px",
           )}
           data-testid="assembly-gate"
         >
@@ -580,14 +657,13 @@ export default function ProductionScreen() {
           </div>
           {readiness && <AssemblyGateDiagnostics readiness={readiness} />}
           <div style={css("display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => router.push(chapterId ? `/packets?chapter=${chapterId}` : "/packets")}
-              style={css(
-                `height:30px;padding:0 14px;border:none;border-radius:9px;background:${t.accent};color:${t.onAccent};font-family:var(--ui);font-size:12.5px;cursor:pointer`,
-              )}
             >
               Draft scenes
-            </button>
+            </Button>
             <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
               opens the scene packets panel — draft the missing scenes, then assemble
             </span>
@@ -602,8 +678,6 @@ export default function ProductionScreen() {
           }
           packet={gatePacket}
           packetLoaded={gatePacketLoaded}
-          accent={t.accent}
-          onAccent={t.onAccent}
           onGoToPackets={() =>
             router.push(chapterId ? `/packets?chapter=${chapterId}` : "/packets")
           }
@@ -615,12 +689,12 @@ export default function ProductionScreen() {
           "display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start",
         )}
       >
-        <div style={css(`${PANEL};display:flex;flex-direction:column;gap:12px`)}>
+        <Panel pad="18px 20px" style="display:flex;flex-direction:column;gap:16px">
           <div>
-            <div style={css(SMALL)}>Chapter</div>
+            <Eyebrow>Chapter</Eyebrow>
             <div
               style={css(
-                "margin-top:6px;font-family:var(--display);font-size:20px;color:var(--ink)",
+                "margin-top:6px;font-family:var(--display);font-weight:500;font-size:20px;color:var(--ink)",
               )}
             >
               {chapter
@@ -635,7 +709,7 @@ export default function ProductionScreen() {
           </div>
 
           <div>
-            <div style={css(SMALL)}>Runs</div>
+            <Eyebrow>Runs</Eyebrow>
             {loading ? (
               <div
                 style={css(
@@ -651,9 +725,10 @@ export default function ProductionScreen() {
                   return (
                     <button
                       key={run.id}
+                      className="dk-card"
                       onClick={() => setRunId(run.id)}
                       style={css(
-                        `text-align:left;padding:10px 12px;border-radius:10px;border:1px solid ${active ? "var(--accent)" : "var(--line)"};background:${active ? "color-mix(in srgb,var(--accent) 8%,var(--bg3))" : "var(--bg3)"};color:var(--ink);cursor:pointer`,
+                        `text-align:left;padding:10px 12px;border-radius:10px;border:1px solid ${active ? "var(--accent)" : "var(--line)"};background:${active ? "var(--accentSoft)" : "var(--bg3)"};color:var(--ink);cursor:pointer`,
                       )}
                     >
                       <div
@@ -666,13 +741,7 @@ export default function ProductionScreen() {
                         >
                           {run.id.slice(0, 8)}
                         </span>
-                        <span
-                          style={css(
-                            `font-family:var(--mono);font-size:11px;color:${statusTone(run.status)}`,
-                          )}
-                        >
-                          {run.status}
-                        </span>
+                        <Chip label={run.status} tone={statusChipTone(run.status)} size="sm" />
                       </div>
                       <div style={css("margin-top:6px;font-size:12.5px;color:var(--ink)")}>
                         {run.current_stage ?? "queued"}
@@ -687,9 +756,15 @@ export default function ProductionScreen() {
               </div>
             )}
           </div>
-        </div>
+        </Panel>
 
         <div style={css("display:flex;flex-direction:column;gap:18px")}>
+          {headerRun && (
+            <Panel eyebrow={`Run pipeline · ${headerRun.status}`} pad="18px 20px">
+              <Stepper steps={runPipelineSteps(headerRun)} />
+            </Panel>
+          )}
+
           <div style={css("display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px")}>
             <MetricCard
               label="Status"
@@ -715,7 +790,8 @@ export default function ProductionScreen() {
 
           {detail && (
             <div style={css("display:flex;gap:8px;flex-wrap:wrap")}>
-              <button
+              <Button
+                size="sm"
                 disabled={busy != null}
                 onClick={() => {
                   // Triage only converts `proposed` issues into repair tasks; with none left it is a
@@ -742,64 +818,54 @@ export default function ProductionScreen() {
                       );
                   });
                 }}
-                style={css(
-                  "height:32px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
-                )}
               >
                 {busy === "triage" ? "Triaging…" : "Auto-triage"}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
                 disabled={busy != null}
                 onClick={() =>
                   void runAction("assemble", () => api.assembleProductionRun(detail.run.id), {
                     reloadRuns: true,
                   })
                 }
-                style={css(
-                  "height:32px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
-                )}
               >
                 {busy === "assemble" ? "Assembling…" : "Refresh assembly"}
-              </button>
-              <button
-                onClick={() => setJsonOpen((v) => !v)}
-                style={css(
-                  "height:32px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
-                )}
-              >
+              </Button>
+              <Button size="sm" onClick={() => setJsonOpen((v) => !v)}>
                 {jsonOpen ? "Hide run JSON" : "Run JSON"}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
                 onClick={downloadRunJson}
                 title="Download the full run state (issues, repair tasks, artifacts, events) as JSON"
-                style={css(
-                  "height:32px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12.5px",
-                )}
               >
                 Download JSON
-              </button>
+              </Button>
             </div>
           )}
 
           {detail && jsonOpen && (
-            <div style={css(PANEL)} data-testid="run-json">
-              <div style={css(SMALL)}>
-                Run JSON · full state after the latest step · {detail.run.current_stage ?? "queued"}
-              </div>
-              <pre
-                style={css(
-                  "margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg3);font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--ink);max-height:440px;overflow:auto",
-                )}
+            <div data-testid="run-json">
+              <Panel
+                inset
+                eyebrow={`Run JSON · full state after the latest step · ${detail.run.current_stage ?? "queued"}`}
+                pad="14px 16px"
               >
-                {runJson}
-              </pre>
+                <pre
+                  style={css(
+                    "margin:0;font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--ink);max-height:440px;overflow:auto",
+                  )}
+                >
+                  {runJson}
+                </pre>
+              </Panel>
             </div>
           )}
 
-          <div style={css(`${PANEL};display:grid;grid-template-columns:1.1fr .9fr;gap:18px`)}>
-            <div>
-              <div style={css(SMALL)}>Issue inbox</div>
-              <div style={css("display:flex;flex-direction:column;gap:10px;margin-top:12px")}>
+          <div style={css("display:grid;grid-template-columns:1.1fr .9fr;gap:18px")}>
+            <Panel eyebrow="Issue inbox" pad="18px 20px">
+              <div style={css("display:flex;flex-direction:column;gap:10px")}>
                 {issues.length ? (
                   issues.map((issue) => <IssueRow key={issue.id} issue={issue} />)
                 ) : (
@@ -808,11 +874,10 @@ export default function ProductionScreen() {
                   </div>
                 )}
               </div>
-            </div>
+            </Panel>
 
-            <div>
-              <div style={css(SMALL)}>Repair tasks</div>
-              <div style={css("display:flex;flex-direction:column;gap:10px;margin-top:12px")}>
+            <Panel eyebrow="Repair tasks" pad="18px 20px">
+              <div style={css("display:flex;flex-direction:column;gap:10px")}>
                 {repairTasks.length ? (
                   repairTasks.map((task) => (
                     <RepairRow
@@ -858,93 +923,81 @@ export default function ProductionScreen() {
                   </div>
                 )}
               </div>
-            </div>
+            </Panel>
           </div>
 
-          <div style={css(`${PANEL};display:grid;grid-template-columns:1.15fr .85fr;gap:18px`)}>
-            <div>
-              <div style={css(SMALL)}>{finalArtifact ? "Final chapter" : "Assembled chapter"}</div>
-              <div style={css("margin-top:14px")}>
-                {finalText ? (
-                  <ProseBlocks text={finalText} proseSize="16px" />
-                ) : (
-                  <div style={css("color:var(--dim);font-size:13px")}>
-                    No assembled chapter prose is available on this run yet.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div style={css("display:flex;flex-direction:column;gap:18px")}>
+          <Panel pad="18px 20px">
+            <div style={css("display:grid;grid-template-columns:1.15fr .85fr;gap:18px")}>
               <div>
-                <div style={css(SMALL)}>Sequence</div>
-                <div style={css("display:flex;flex-direction:column;gap:8px;margin-top:12px")}>
-                  {sequenceScenes.length ? (
-                    sequenceScenes.map((scene) => {
-                      const row = scene as { scene_no?: number; scene_function?: string };
-                      return (
-                        <div
-                          key={row.scene_no}
-                          style={css(
-                            "padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg3)",
-                          )}
-                        >
-                          <div
-                            style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
-                          >
-                            Scene {row.scene_no ?? "—"}
-                          </div>
-                          <div style={css("margin-top:4px;font-size:13px;color:var(--ink)")}>
-                            {row.scene_function || "No scene function"}
-                          </div>
-                        </div>
-                      );
-                    })
+                <Eyebrow>{finalArtifact ? "Final chapter" : "Assembled chapter"}</Eyebrow>
+                <div style={css("margin-top:14px")}>
+                  {finalText ? (
+                    <ProseBlocks text={finalText} proseSize="16px" />
                   ) : (
                     <div style={css("color:var(--dim);font-size:13px")}>
-                      No chapter sequence is available yet.
+                      No assembled chapter prose is available on this run yet.
                     </div>
                   )}
                 </div>
               </div>
 
-              <div>
-                <div style={css(SMALL)}>Run QA</div>
-                <pre
-                  style={css(
-                    "margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg3);font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--ink)",
-                  )}
-                >
-                  {JSON.stringify(qaArtifact?.body ?? detail?.run.summary_json ?? {}, null, 2)}
-                </pre>
+              <div style={css("display:flex;flex-direction:column;gap:18px")}>
+                <div>
+                  <Eyebrow>Sequence</Eyebrow>
+                  <div style={css("display:flex;flex-direction:column;gap:8px;margin-top:12px")}>
+                    {sequenceScenes.length ? (
+                      sequenceScenes.map((scene) => {
+                        const row = scene as { scene_no?: number; scene_function?: string };
+                        return (
+                          <div
+                            key={row.scene_no}
+                            style={css(
+                              "padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg3)",
+                            )}
+                          >
+                            <div
+                              style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
+                            >
+                              Scene {row.scene_no ?? "—"}
+                            </div>
+                            <div style={css("margin-top:4px;font-size:13px;color:var(--ink)")}>
+                              {row.scene_function || "No scene function"}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={css("color:var(--dim);font-size:13px")}>
+                        No chapter sequence is available yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Eyebrow>Run QA</Eyebrow>
+                  <pre
+                    style={css(
+                      "margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--boxbg);font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--ink)",
+                    )}
+                  >
+                    {JSON.stringify(qaArtifact?.body ?? detail?.run.summary_json ?? {}, null, 2)}
+                  </pre>
+                </div>
               </div>
             </div>
-          </div>
+          </Panel>
 
-          <div style={css(PANEL)}>
-            <div style={css(SMALL)}>Event trail</div>
-            <div style={css("margin-top:12px")}>
-              {detail ? (
-                <EventFeed detail={detail} />
-              ) : (
-                <div style={css("color:var(--dim);font-size:13px")}>
-                  Pick a run to inspect its audit trail.
-                </div>
-              )}
-            </div>
-          </div>
+          <Panel eyebrow="Event trail" pad="18px 20px">
+            {detail ? (
+              <EventFeed detail={detail} />
+            ) : (
+              <div style={css("color:var(--dim);font-size:13px")}>
+                Pick a run to inspect its audit trail.
+              </div>
+            )}
+          </Panel>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return (
-    <div style={css(`${PANEL};padding:14px 16px`)}>
-      <div style={css(SMALL)}>{label}</div>
-      <div style={css(`margin-top:8px;font-family:var(--display);font-size:24px;color:${tone}`)}>
-        {value}
       </div>
     </div>
   );
@@ -955,10 +1008,10 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
 // Packets tab. This panel says WHY (the packet's machine-readable blockers / repair tasks) and offers
 // the direct path there — never a raw exception string.
 
-function violationTone(v: PacketViolation): string {
-  if (v.blocks_drafting) return "var(--bad)";
-  if (v.blocks_final_export) return "var(--warn)";
-  return "var(--dim)";
+function violationChipTone(v: PacketViolation): ChipTone {
+  if (v.blocks_drafting) return "bad";
+  if (v.blocks_final_export) return "warn";
+  return "neutral";
 }
 
 function ViolationRow({ violation }: { violation: PacketViolation }) {
@@ -968,13 +1021,7 @@ function ViolationRow({ violation }: { violation: PacketViolation }) {
         "display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg3)",
       )}
     >
-      <span
-        style={css(
-          `flex:none;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:${violationTone(violation)};border:1px solid color-mix(in srgb,${violationTone(violation)} 40%,var(--line));border-radius:5px;padding:2px 6px;margin-top:1px`,
-        )}
-      >
-        {violation.severity}
-      </span>
+      <Chip label={violation.severity} tone={violationChipTone(violation)} size="sm" />
       <div style={css("min-width:0;flex:1")}>
         <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
           {violation.kind}
@@ -992,15 +1039,11 @@ function ProductionGatePanel({
   title,
   packet,
   packetLoaded,
-  accent,
-  onAccent,
   onGoToPackets,
 }: {
   title: string;
   packet: PacketOut | null;
   packetLoaded: boolean;
-  accent: string;
-  onAccent: string;
   onGoToPackets: () => void;
 }) {
   const guidance = packet?.status === "blocked" ? packetBlockedGuidance(packet) : null;
@@ -1030,104 +1073,99 @@ function ProductionGatePanel({
   }
 
   return (
-    <div
-      style={css(
-        `${PANEL};border-left:3px solid var(--bad);display:flex;flex-direction:column;gap:12px`,
-      )}
-      data-testid="production-gate"
-    >
-      <div>
-        <div style={css(SMALL)}>{guidance ? guidance.title : title}</div>
-        <div style={css("margin-top:8px;font-size:13.5px;color:var(--ink);line-height:1.5")}>
-          {lead}
-        </div>
-      </div>
-
-      {guidance && guidance.actions.length > 0 && (
-        <div style={css("display:flex;flex-direction:column;gap:4px")}>
-          {guidance.actions.map((action, i) => (
-            <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
-              · {action}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {blockers.length > 0 && (
+    <div data-testid="production-gate">
+      <Panel
+        pad="18px 20px"
+        style="border-left:3px solid var(--bad);display:flex;flex-direction:column;gap:12px"
+      >
         <div>
-          <div style={css(SMALL)}>Blocking · {blockers.length}</div>
-          <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
-            {blockers.map((v, i) => (
-              <ViolationRow key={i} violation={v} />
+          <Eyebrow>{guidance ? guidance.title : title}</Eyebrow>
+          <div style={css("margin-top:8px;font-size:13.5px;color:var(--ink);line-height:1.5")}>
+            {lead}
+          </div>
+        </div>
+
+        {guidance && guidance.actions.length > 0 && (
+          <div style={css("display:flex;flex-direction:column;gap:4px")}>
+            {guidance.actions.map((action, i) => (
+              <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
+                · {action}
+              </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {repairs.length > 0 && (
-        <div>
-          <div style={css(SMALL)}>Repair tasks · {repairs.length} · fixable, not blocking</div>
-          <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
-            {repairs.map((v, i) => (
-              <ViolationRow key={i} violation={v} />
-            ))}
-          </div>
-          <div style={css("margin-top:8px;font-size:12px;color:var(--dim);line-height:1.45")}>
-            Repair tasks never block approval or drafting — approve the packet and drafting can
-            proceed. Final export waits until they are resolved.
-          </div>
-        </div>
-      )}
-
-      {advisories.length > 0 && (
-        <div>
-          <div style={css(SMALL)}>Advisory · {advisories.length}</div>
-          <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
-            {advisories.map((v, i) => (
-              <ViolationRow key={i} violation={v} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {audit.length > 0 && (
-        <div>
-          <button
-            onClick={() => setAuditOpen((v) => !v)}
-            style={css(
-              "display:flex;align-items:center;gap:8px;background:none;border:none;padding:0;cursor:pointer;text-align:left",
-            )}
-          >
-            <span style={css(SMALL)}>
-              {auditOpen ? "▾" : "▸"} Surface projection audit · {audit.length}
-            </span>
-          </button>
-          <div style={css("margin-top:4px;font-size:12.5px;color:var(--dim)")}>
-            {surfaceAuditSummary(audit)}
-          </div>
-          {auditOpen && (
+        {blockers.length > 0 && (
+          <div>
+            <Eyebrow>Blocking · {blockers.length}</Eyebrow>
             <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
-              {audit.map((v, i) => (
+              {blockers.map((v, i) => (
                 <ViolationRow key={i} violation={v} />
               ))}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      <div style={css("display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
-        <button
-          onClick={onGoToPackets}
-          style={css(
-            `height:32px;padding:0 14px;border:none;border-radius:9px;background:${accent};color:${onAccent};font-family:var(--ui);font-size:12.5px;cursor:pointer`,
-          )}
-        >
-          Go to Packets
-        </button>
-        <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-          create / repair / QA / approve the chapter packet, then start the run again
-        </span>
-      </div>
+        {repairs.length > 0 && (
+          <div>
+            <Eyebrow>Repair tasks · {repairs.length} · fixable, not blocking</Eyebrow>
+            <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
+              {repairs.map((v, i) => (
+                <ViolationRow key={i} violation={v} />
+              ))}
+            </div>
+            <div style={css("margin-top:8px;font-size:12px;color:var(--dim);line-height:1.45")}>
+              Repair tasks never block approval or drafting — approve the packet and drafting can
+              proceed. Final export waits until they are resolved.
+            </div>
+          </div>
+        )}
+
+        {advisories.length > 0 && (
+          <div>
+            <Eyebrow>Advisory · {advisories.length}</Eyebrow>
+            <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
+              {advisories.map((v, i) => (
+                <ViolationRow key={i} violation={v} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {audit.length > 0 && (
+          <div>
+            <button
+              onClick={() => setAuditOpen((v) => !v)}
+              style={css(
+                "display:flex;align-items:center;gap:8px;background:none;border:none;padding:0;cursor:pointer;text-align:left",
+              )}
+            >
+              <Eyebrow>
+                {auditOpen ? "▾" : "▸"} Surface projection audit · {audit.length}
+              </Eyebrow>
+            </button>
+            <div style={css("margin-top:4px;font-size:12.5px;color:var(--dim)")}>
+              {surfaceAuditSummary(audit)}
+            </div>
+            {auditOpen && (
+              <div style={css("display:flex;flex-direction:column;gap:6px;margin-top:8px")}>
+                {audit.map((v, i) => (
+                  <ViolationRow key={i} violation={v} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={css("display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
+          <Button variant="primary" size="sm" onClick={onGoToPackets}>
+            Go to Packets
+          </Button>
+          <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+            create / repair / QA / approve the chapter packet, then start the run again
+          </span>
+        </div>
+      </Panel>
     </div>
   );
 }
@@ -1143,12 +1181,9 @@ function IssueRow({ issue }: { issue: IssueOut }) {
         <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
           {issue.scene_no != null ? `Scene ${issue.scene_no}` : "Chapter"}
         </span>
-        <span
-          style={css(
-            `font-family:var(--mono);font-size:11px;color:${severityColor(issue.severity)}`,
-          )}
-        >
-          {issue.severity} · {issue.status}
+        <span style={css("display:inline-flex;gap:5px;align-items:center")}>
+          <Chip label={issue.severity} tone={severityChipTone(issue.severity)} size="sm" />
+          <Chip label={issue.status.replace(/_/g, " ")} tone="neutral" size="sm" />
         </span>
       </div>
       <div style={css("margin-top:6px;font-size:13px;color:var(--ink)")}>{issue.claim}</div>
@@ -1189,11 +1224,7 @@ function RepairRow({
         <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
           {task.scene_no != null ? `Scene ${task.scene_no}` : "Chapter"}
         </span>
-        <span
-          style={css(`font-family:var(--mono);font-size:11px;color:${statusTone(task.status)}`)}
-        >
-          {task.status}
-        </span>
+        <Chip label={task.status.replace(/_/g, " ")} tone={statusChipTone(task.status)} size="sm" />
       </div>
       <div style={css("margin-top:6px;font-size:13px;color:var(--ink)")}>
         {task.repair_kind} · {task.authority_level}
@@ -1205,24 +1236,12 @@ function RepairRow({
           slot, so per-label disabling let a second click flip it and re-enable the first button while
           its request was still in flight — a double-submit race. */}
       <div style={css("display:flex;gap:8px;margin-top:10px;flex-wrap:wrap")}>
-        <button
-          disabled={task.requires_human_approval || busy != null}
-          onClick={onApply}
-          style={css(
-            "height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px",
-          )}
-        >
+        <Button size="sm" disabled={task.requires_human_approval || busy != null} onClick={onApply}>
           {busy === `apply:${task.id}` ? "Applying…" : "Apply"}
-        </button>
-        <button
-          disabled={busy != null}
-          onClick={onVerify}
-          style={css(
-            "height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px",
-          )}
-        >
+        </Button>
+        <Button size="sm" disabled={busy != null} onClick={onVerify}>
           {busy === `verify:${task.id}` ? "Verifying…" : "Verify"}
-        </button>
+        </Button>
       </div>
     </div>
   );

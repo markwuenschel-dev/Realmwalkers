@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { css } from "../css";
-import { useDesk } from "../state";
 import { api } from "../api/client";
-import { Spinner, formatElapsed } from "./DraftActivity";
+import { formatElapsed } from "./DraftActivity";
+import { Button, Chip, Panel, Spinner, StatusPill } from "./ui";
 import ClearFailedPanel from "./ClearFailedPanel";
 import { ChapterTelemetryPanel } from "./Telemetry";
 import { TelemetryDrawer, useTelemetryDrawer } from "./telemetry/TelemetryDrawer";
@@ -50,21 +50,8 @@ const BLOCKER_SOURCE_LABEL: Record<string, string> = {
 
 const SEVERITY_VAR: Record<string, string> = { block: "--bad", warn: "--warn", info: "--dim" };
 
-// Advisory QA verdict tone — the verdict colors itself, never the packet's non-QA blocks.
-const QA_VERDICT_VAR: Record<string, string> = {
-  approve: "--good",
-  approve_warn: "--warn",
-  revise_required: "--warn",
-  block_drafting: "--bad",
-};
-
-// Prose is its own status axis (contract approval ≠ QA opinion ≠ drafted prose).
-const PROSE_VAR: Record<string, string> = {
-  drafted: "--good",
-  drafting: "--info",
-  failed: "--bad",
-  missing: "--dim",
-};
+// QA verdict and prose state render through the shared StatusPill (axis "qa" / "prose") — the three
+// status axes stay independent: contract approval ≠ QA opinion ≠ drafted prose.
 
 // Every editable field path the editor anchors an issue to. A QA issue whose `field` matches one of
 // these renders inline under that control; anything else (null, parent-level, or an unknown key) falls
@@ -108,7 +95,6 @@ function issuesFor(issues: QaIssue[], path: string): QaIssue[] {
 }
 
 export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
-  const { t } = useDesk();
   const desk = useDeskData();
   const drawer = useTelemetryDrawer();
   // The LIST renders from slim summaries (statuses/counters — no bodies), so switching to this tab
@@ -329,7 +315,7 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
         <div>
           <h2
             style={css(
-              "margin:0 0 4px;font-family:var(--display);font-weight:600;font-size:22px;color:var(--ink)",
+              "margin:0 0 4px;font-family:var(--display);font-weight:500;font-size:22px;line-height:28px;letter-spacing:-.01em;color:var(--ink)",
             )}
           >
             Scene packets
@@ -341,7 +327,7 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
           </p>
         </div>
         <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
-          <button
+          <Button
             title="Copy the readiness gate, per-scene statuses, and last derive counts as JSON — paste it when reporting a pipeline problem."
             onClick={() => {
               const diagnostics = {
@@ -356,23 +342,23 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
                 window.setTimeout(() => setCopied(false), 2000);
               });
             }}
-            style={btn(true, "var(--bg3)", "var(--ink)")}
           >
             {copied ? "Copied ✓" : "Copy diagnostics"}
-          </button>
+          </Button>
           {packets.length > 0 && (
-            <button
+            <Button
               disabled={busy != null || deriving}
+              style="color:var(--warn)"
               title="Soft retire: mark every scene packet stale (kept for audit; re-derive or re-approve before drafting) instead of deleting them."
               onClick={() => void run("retire-soft", () => api.markScenePacketsStale(chapterId))}
-              style={btn(busy == null && !deriving, "var(--bg3)", "var(--warn)")}
             >
               {busy === "retire-soft" ? "Retiring…" : "Retire (soft)"}
-            </button>
+            </Button>
           )}
           {packets.length > 0 && (
-            <button
+            <Button
               disabled={busy != null || deriving}
+              style="color:var(--warn)"
               onClick={() => {
                 if (
                   !confirm(
@@ -382,34 +368,34 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
                   return;
                 void run("clear-all", () => api.deleteScenePackets(chapterId));
               }}
-              style={btn(busy == null && !deriving, "var(--bg3)", "var(--warn)")}
             >
               {busy === "clear-all" ? "Clearing…" : "Clear scene packets"}
-            </button>
+            </Button>
           )}
           {approvable.length > 0 && (
-            <button
+            <Button
+              variant="primary"
+              style="background:var(--good);border-color:transparent"
               disabled={busy != null || deriving}
-              onClick={() => run("approve-all", () => api.approveScenePackets(chapterId))}
-              style={btn(busy == null && !deriving, "var(--good)", "var(--bg)")}
+              onClick={() => void run("approve-all", () => api.approveScenePackets(chapterId))}
             >
               {busy === "approve-all" ? "Approving…" : `Approve all (${approvable.length})`}
-            </button>
+            </Button>
           )}
-          <button disabled={deriving} onClick={derive} style={btn(!deriving, t.accent, t.onAccent)}>
+          <Button variant="primary" disabled={deriving} onClick={() => void derive()}>
             {deriving
               ? `Deriving…${formatElapsed(elapsed) ? ` ${formatElapsed(elapsed)}` : ""}`
               : packets.length
                 ? "Re-derive"
                 : "Derive scene packets"}
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
         <div
           style={css(
-            `margin-bottom:14px;border:1px solid color-mix(in srgb,${t.bad} 40%,var(--line));background:color-mix(in srgb,${t.bad} 8%,var(--bg2));border-radius:9px;padding:10px 12px;color:${t.bad};font-size:12.5px`,
+            "margin-bottom:14px;border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--bg2));border-radius:var(--r);padding:10px 12px;color:var(--bad);font-size:12.5px",
           )}
         >
           {error}
@@ -443,28 +429,38 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
 
       {approvedCount > 0 && (
         <div style={css("margin-bottom:14px")}>
-          {/* The headline claim and the button obey the SAME authoritative server gate
-              (readiness.can_draft) — the page must never say "ready to draft" while the button
+          {/* Readiness strip — the headline claim and the button obey the SAME authoritative server
+              gate (readiness.can_draft): the page must never say "ready to draft" while the button
               below it is disabled, and never disable it without naming the failing gate. */}
           <div
             style={css(
-              `font-family:var(--mono);font-size:11.5px;color:var(${readiness?.can_draft ? "--good" : "--warn"});margin-bottom:10px`,
+              "display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:10px",
             )}
           >
-            {approvedCount} approved ·{" "}
-            {readiness?.can_draft
-              ? "ready to draft scenes."
-              : readiness
-                ? "not ready to draft — see why below."
-                : "checking draft readiness…"}
+            <Chip
+              label={
+                readiness?.can_draft
+                  ? "ready to draft"
+                  : readiness
+                    ? "not ready to draft"
+                    : "checking readiness"
+              }
+              tone={readiness?.can_draft ? "good" : readiness ? "warn" : "neutral"}
+            />
+            <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
+              {approvedCount} approved
+            </span>
+            {readiness && !readiness.can_draft && readiness.disabled_reason && (
+              <span style={css("font-size:12.5px;color:var(--ink);line-height:1.4")}>
+                {readiness.disabled_reason}
+              </span>
+            )}
           </div>
           {readiness && !readiness.can_draft && (
             <DraftGateDiagnostics
               readiness={readiness}
               busy={busy != null}
               relinkBusy={busy === "relink-beats"}
-              accent={t.accent}
-              onAccent={t.onAccent}
               onRelink={() =>
                 void (async () => {
                   setBusy("relink-beats");
@@ -480,30 +476,32 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
               }
             />
           )}
-          <button
+          <Button
+            variant="primary"
             disabled={drafting || !readiness?.can_draft}
             title={
               readiness?.can_draft
                 ? "Queue prose drafting jobs for every approved, undrafted scene"
                 : (readiness?.disabled_reason ?? "Checking draft readiness…")
             }
-            onClick={async () => {
-              setDrafting(true);
-              setError(null);
-              try {
-                await api.draftChapter(chapterId);
-                await api.draftNext();
-                await load();
-              } catch (e) {
-                setError(e instanceof Error ? e.message : String(e));
-              } finally {
-                setDrafting(false);
-              }
+            onClick={() => {
+              void (async () => {
+                setDrafting(true);
+                setError(null);
+                try {
+                  await api.draftChapter(chapterId);
+                  await api.draftNext();
+                  await load();
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setDrafting(false);
+                }
+              })();
             }}
-            style={btn(!drafting && !!readiness?.can_draft, t.accent, t.onAccent)}
           >
             {drafting ? "Queuing…" : "Draft scenes"}
-          </button>
+          </Button>
           {readiness && !readiness.can_draft && readiness.blockers.length > 0 && (
             <div style={css("margin-top:8px;font-size:11.5px;color:var(--warn);line-height:1.45")}>
               {readiness.blockers.slice(0, 3).map((b, i) => (
@@ -521,10 +519,15 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
       ) : packets.length === 0 && !deriving ? (
         <div
           style={css(
-            "border:1px dashed var(--line);border-radius:11px;padding:22px;text-align:center;color:var(--dim);font-size:13px",
+            "border:1px dashed var(--line);border-radius:var(--rLg);padding:30px 22px;text-align:center;color:var(--dim)",
           )}
         >
-          No scene packets yet. Derive them from the approved chapter packet above.
+          <div aria-hidden style={css("font-size:16px;color:var(--accent);margin-bottom:8px")}>
+            ✦
+          </div>
+          <div style={css("font-family:var(--display);font-style:italic;font-size:15px")}>
+            No scene packets yet. Derive them from the approved chapter packet above.
+          </div>
         </div>
       ) : (
         <div style={css("display:flex;flex-direction:column;gap:12px")}>
@@ -577,15 +580,11 @@ function DraftGateDiagnostics({
   readiness,
   busy,
   relinkBusy,
-  accent,
-  onAccent,
   onRelink,
 }: {
   readiness: DraftReadinessOut;
   busy: boolean;
   relinkBusy: boolean;
-  accent: string;
-  onAccent: string;
   onRelink: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -670,12 +669,15 @@ function DraftGateDiagnostics({
   return (
     <div
       style={css(
-        "border:1px solid var(--line);border-radius:9px;background:var(--bg2b);padding:11px 13px;margin-bottom:10px",
+        "border:1px solid var(--line);border-radius:var(--r);background:var(--bg2b);padding:11px 13px;margin-bottom:10px",
       )}
       data-testid="draft-gate-diagnostics"
     >
       <div
-        style={css("display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;cursor:pointer")}
+        className="dk-row"
+        style={css(
+          "display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;cursor:pointer;border-radius:7px",
+        )}
         onClick={() => setOpen((v) => !v)}
       >
         <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--warn)")}>
@@ -697,7 +699,7 @@ function DraftGateDiagnostics({
               key={g.label}
               style={css("display:flex;align-items:baseline;gap:8px;flex-wrap:wrap")}
             >
-              <Chip label={g.pass ? "pass" : "fail"} colorVar={g.pass ? "--good" : "--bad"} />
+              <Chip label={g.pass ? "pass" : "fail"} tone={g.pass ? "good" : "bad"} />
               <span style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
                 {g.label}
               </span>
@@ -722,14 +724,14 @@ function DraftGateDiagnostics({
           )}
           {unlinkedCount > 0 && (
             <div style={css("margin-top:4px")}>
-              <button
+              <Button
+                variant="primary"
                 disabled={busy}
                 title="Reconcile beats with the current approved scene packets — prunes orphaned/legacy beats that hold the gate as 'unlinked'. Changes no approvals."
                 onClick={onRelink}
-                style={btn(!busy, accent, onAccent)}
               >
                 {relinkBusy ? "Re-linking…" : "Re-link beats"}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -805,11 +807,7 @@ function ScenePacketCard({
   const cardBusy = mine("approve") || mine("qa") || mine("save") || mine("delete");
 
   return (
-    <div
-      style={css(
-        `background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(${statusVar});border-radius:11px;padding:13px 15px`,
-      )}
-    >
+    <Panel pad="13px 15px" style={`border-left:3px solid var(${statusVar})`}>
       <div
         style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer")}
         onClick={() => setOpen((v) => !v)}
@@ -826,15 +824,9 @@ function ScenePacketCard({
         {/* Three independent status axes, never merged: contract lifecycle, advisory QA verdict,
             prose-draft state. "approved + QA: revise required" is a legitimate combination (QA never
             gates approval) and must read as two facts, not one contradiction. */}
-        <Chip label={`contract: ${summary.status.replace(/_/g, " ")}`} colorVar={statusVar} />
-        <Chip
-          label={`QA: ${summary.qa_verdict ? summary.qa_verdict.replace(/_/g, " ") : "not run"}`}
-          colorVar={summary.qa_verdict ? (QA_VERDICT_VAR[summary.qa_verdict] ?? "--info") : "--dim"}
-        />
-        <Chip
-          label={`prose: ${summary.prose_state}`}
-          colorVar={PROSE_VAR[summary.prose_state] ?? "--dim"}
-        />
+        <StatusPill axis="contract" state={summary.status} />
+        <StatusPill axis="qa" state={summary.qa_verdict} />
+        <StatusPill axis="prose" state={summary.prose_state} />
         {wb.target ? (
           <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
             ~{wb.target}w{wb.min || wb.max ? ` (${wb.min ?? "?"}–${wb.max ?? "?"})` : ""}
@@ -842,73 +834,67 @@ function ScenePacketCard({
           </span>
         ) : null}
         <span style={css("margin-left:auto;display:flex;align-items:center;gap:8px")}>
-          {!editing && canApprove && (
-            <button
-              disabled={cardBusy}
-              onClick={(e) => {
-                e.stopPropagation();
-                onApprove();
-              }}
-              style={btn(!cardBusy, "var(--good)", "var(--bg)")}
-              title={
-                summary.status === "stale"
-                  ? "Re-assert this contract as-is despite the upstream change (free); re-derive instead if the upstream change was meaningful"
-                  : undefined
-              }
-            >
-              {mine("approve")
-                ? "Approving…"
-                : summary.status === "stale"
-                  ? "Re-approve"
-                  : "Approve"}
-            </button>
-          )}
-          {!editing && summary.status !== "approved" && (
-            <button
-              disabled={cardBusy || !bodyValid}
-              onClick={(e) => {
-                e.stopPropagation();
-                onReQa();
-              }}
-              style={btn(!cardBusy && bodyValid, "var(--bg3)", "var(--ink)")}
-              title={
-                bodyValid
-                  ? isRateLimited
-                    ? "The contract body is valid — re-running QA clears the transient rate-limit hold."
+          {/* Action cluster — clicks here must not toggle the card open/closed. */}
+          <span
+            onClick={(e) => e.stopPropagation()}
+            style={css("display:flex;align-items:center;gap:8px")}
+          >
+            {!editing && canApprove && (
+              <Button
+                size="sm"
+                variant="primary"
+                style="background:var(--good);border-color:transparent"
+                disabled={cardBusy}
+                onClick={onApprove}
+                title={
+                  summary.status === "stale"
+                    ? "Re-assert this contract as-is despite the upstream change (free); re-derive instead if the upstream change was meaningful"
                     : undefined
-                  : isRateLimited
-                    ? "Rate limited by provider; retry pending. Re-run derive to retry this scene — the contract was never generated."
-                    : "Cannot rerun QA: this packet failed during author/derive and has no valid scene contract. Re-run derive instead."
-              }
-            >
-              {mine("qa") ? "Re-running QA…" : "Re-run QA"}
-            </button>
-          )}
-          {!editing && summary.status !== "approved" && (
-            <button
-              disabled={cardBusy}
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(true);
-                setEditing(true);
-              }}
-              style={btn(!cardBusy, "var(--bg3)", "var(--ink)")}
-            >
-              Edit
-            </button>
-          )}
-          {!editing && (
-            <button
-              disabled={cardBusy}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              style={btn(!cardBusy, "var(--bg3)", "var(--warn)")}
-            >
-              {mine("delete") ? "Deleting…" : "Delete"}
-            </button>
-          )}
+                }
+              >
+                {mine("approve")
+                  ? "Approving…"
+                  : summary.status === "stale"
+                    ? "Re-approve"
+                    : "Approve"}
+              </Button>
+            )}
+            {!editing && summary.status !== "approved" && (
+              <Button
+                size="sm"
+                disabled={cardBusy || !bodyValid}
+                onClick={onReQa}
+                title={
+                  bodyValid
+                    ? isRateLimited
+                      ? "The contract body is valid — re-running QA clears the transient rate-limit hold."
+                      : undefined
+                    : isRateLimited
+                      ? "Rate limited by provider; retry pending. Re-run derive to retry this scene — the contract was never generated."
+                      : "Cannot rerun QA: this packet failed during author/derive and has no valid scene contract. Re-run derive instead."
+                }
+              >
+                {mine("qa") ? "Re-running QA…" : "Re-run QA"}
+              </Button>
+            )}
+            {!editing && summary.status !== "approved" && (
+              <Button
+                size="sm"
+                disabled={cardBusy}
+                onClick={() => {
+                  setOpen(true);
+                  setEditing(true);
+                }}
+              >
+                Edit
+              </Button>
+            )}
+            {!editing && (
+              <Button size="sm" style="color:var(--warn)" disabled={cardBusy} onClick={onDelete}>
+                {mine("delete") ? "Deleting…" : "Delete"}
+              </Button>
+            )}
+          </span>
           <span style={css("font-family:var(--mono);font-size:14px;color:var(--dim)")}>
             {open ? "▾" : "▸"}
           </span>
@@ -1157,7 +1143,7 @@ function ScenePacketCard({
           </div>
         ))
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -1404,16 +1390,17 @@ function ScenePacketEditor({
       <SourcesPanel sources={sources} />
 
       <div style={css("display:flex;gap:9px")}>
-        <button
+        <Button
+          variant="primary"
+          style="background:var(--good);border-color:transparent"
           disabled={busy}
           onClick={() => onSave(draft)}
-          style={btn(!busy, "var(--good)", "var(--bg)")}
         >
           {busy ? "Saving…" : "Save"}
-        </button>
-        <button disabled={busy} onClick={onCancel} style={btn(!busy, "var(--bg3)", "var(--ink)")}>
+        </Button>
+        <Button disabled={busy} onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1610,16 +1597,16 @@ function MysteryEditor({
               style={inputStyle()}
             />
             <div>
-              <button onClick={() => remove(i)} style={btn(true, "var(--bg3)", "var(--warn)")}>
+              <Button size="sm" style="color:var(--warn)" onClick={() => remove(i)}>
                 Remove
-              </button>
+              </Button>
             </div>
           </div>
         ))}
         <div>
-          <button onClick={add} style={btn(true, "var(--bg3)", "var(--ink)")}>
+          <Button size="sm" onClick={add}>
             + Add mystery
-          </button>
+          </Button>
         </div>
       </div>
       <FieldIssues issues={issues} />
@@ -1695,29 +1682,11 @@ function ExportLink({
   );
 }
 
-function Chip({ label, colorVar }: { label: string; colorVar: string }) {
-  return (
-    <span
-      style={css(
-        `font-family:var(--mono);font-size:11px;color:var(${colorVar});background:color-mix(in srgb,var(${colorVar}) 12%,var(--bg2));border:1px solid color-mix(in srgb,var(${colorVar}) 35%,var(--line));border-radius:999px;padding:3px 10px`,
-      )}
-    >
-      {label}
-    </span>
-  );
-}
-
 function Muted({ text }: { text: string }) {
   return (
     <div style={css("font-family:var(--mono);font-size:12px;color:var(--dim);padding:14px 2px")}>
       {text}
     </div>
-  );
-}
-
-function btn(enabled: boolean, bg: string, fg: string): CSSProperties {
-  return css(
-    `height:30px;padding:0 13px;border-radius:8px;border:none;font-family:var(--ui);font-size:12.5px;font-weight:500;cursor:${enabled ? "pointer" : "default"};background:${enabled ? bg : "var(--bg3)"};color:${enabled ? fg : "var(--dim)"};opacity:${enabled ? 1 : 0.7}`,
   );
 }
 

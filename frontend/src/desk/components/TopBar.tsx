@@ -7,17 +7,48 @@ import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { DraftPill } from "./DraftActivity";
 import { DESK_ROUTES, activeRouteId } from "../routes";
-import type { ThemeId } from "../theme";
 import type { Screen } from "../types";
 
-const THEMES: { id: ThemeId; label: string; title: string }[] = [
-  { id: "grimoire", label: "Grimoire", title: "Dark fantasy — refined" },
-  { id: "manuscript", label: "Manuscript", title: "Light editorial" },
-  { id: "console", label: "Console", title: "Dense pro tool" },
-];
+// Atelier variant toggle — one identity, two moods. Ink (dark, night study) / Vellum (light,
+// parchment page). Inline SVGs so there is no icon dependency.
+function SunIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+    </svg>
+  );
+}
 
 export default function TopBar() {
-  const { themeId, setTheme, togglePalette } = useDesk();
+  const { isDark, setTheme, togglePalette } = useDesk();
   const { pending, books, bookId } = useDeskData();
   const pathname = usePathname();
   const activeId = activeRouteId(pathname);
@@ -86,27 +117,17 @@ export default function TopBar() {
         <DraftPill />
       </div>
       <div style={css("display:flex;align-items:center;gap:10px;flex:none")}>
-        <div
+        <button
+          className="dk-btn"
+          onClick={() => setTheme(isDark ? "light" : "dark")}
+          aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+          title={isDark ? "Vellum — parchment page" : "Ink — night study"}
           style={css(
-            "display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:999px",
+            "display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);cursor:pointer",
           )}
         >
-          {THEMES.map((th) => {
-            const active = themeId === th.id;
-            return (
-              <button
-                key={th.id}
-                onClick={() => setTheme(th.id)}
-                title={th.title}
-                style={css(
-                  `padding:5px 11px;border:none;border-radius:999px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${active ? "var(--accent)" : "transparent"};color:${active ? "var(--onAccent)" : "var(--dim)"};font-weight:${active ? "600" : "400"}`,
-                )}
-              >
-                {th.label}
-              </button>
-            );
-          })}
-        </div>
+          {isDark ? <SunIcon /> : <MoonIcon />}
+        </button>
         <button
           onClick={togglePalette}
           aria-label="Open command palette"

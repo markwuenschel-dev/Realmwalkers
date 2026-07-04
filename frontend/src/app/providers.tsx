@@ -10,7 +10,9 @@ import DeskShell from "../desk/components/DeskShell";
 export default function Providers({ children }: { children: ReactNode }) {
   const desk = useDeskState();
   return (
-    <DeskDataProvider>
+    // activityOpen is injected downward: the drawer flag lives in UI state (DeskProvider) but the
+    // gated recent-jobs poll lives in the data layer, which mounts above it.
+    <DeskDataProvider activityOpen={desk.activityOpen}>
       <DeskProvider value={desk}>
         <DeskShell>{children}</DeskShell>
       </DeskProvider>

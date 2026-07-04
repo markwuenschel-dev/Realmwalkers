@@ -15,11 +15,19 @@ import { applyAcceptedSuggestions, sceneLabel, statValue, wordCount } from "../l
 import { buildSceneMarkdown, downloadMarkdown, sceneMarkdownFilename } from "../lib/sceneMarkdown";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { api } from "../api/client";
+import { Button, Chip, Eyebrow, Panel } from "../components/ui";
+import type { ChipTone } from "../components/ui";
 import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus } from "../api/types";
 import type { ExportKind } from "../lib/docx";
 
-const KEEP_BTN =
-  "flex:1;padding:8px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:11.5px;cursor:pointer";
+// Scene review status → Chip tone (the review lifecycle, not the StatusPill axes).
+const SCENE_STATUS_TONE: Record<string, ChipTone> = {
+  approved: "good",
+  pending_review: "warn",
+  revision_requested: "bad",
+  draft: "info",
+  superseded: "neutral",
+};
 
 // Reading layouts for a single scene, mirroring the Manuscript screen: a comfortable measure beside
 // the review rail (Page), a full-width single measure (Wide), or a true two-column book spread.
@@ -42,7 +50,6 @@ const pstr = (c: CritiqueOut, key: string): string => {
 
 export default function SceneScreen() {
   const desk = useDesk();
-  const { t } = desk;
   const data = useDeskData();
   const router = useRouter();
   // /scene/[sceneId] focuses a specific scene; bare /scene shows the pending review queue.
@@ -264,7 +271,7 @@ export default function SceneScreen() {
       <div style={css("max-width:560px;margin:60px auto;text-align:center")}>
         <h1
           style={css(
-            "margin:0 0 10px;font-family:var(--display);font-weight:600;font-size:26px;color:var(--ink)",
+            "margin:0 0 10px;font-family:var(--display);font-weight:500;font-size:26px;letter-spacing:-.01em;color:var(--ink)",
           )}
         >
           Scene deleted or unavailable
@@ -272,14 +279,9 @@ export default function SceneScreen() {
         <p style={css("margin:0;color:var(--dim);font-size:14.5px;line-height:1.6")}>
           This scene was deleted or is no longer reachable.
         </p>
-        <button
-          onClick={() => router.push("/")}
-          style={css(
-            "margin-top:18px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer;font-family:var(--ui);font-size:13.5px",
-          )}
-        >
+        <Button style="margin-top:18px" onClick={() => router.push("/")}>
           Go to inbox
-        </button>
+        </Button>
       </div>
     );
   }
@@ -289,7 +291,7 @@ export default function SceneScreen() {
       <div style={css("max-width:560px;margin:60px auto;text-align:center")}>
         <h1
           style={css(
-            "margin:0 0 10px;font-family:var(--display);font-weight:600;font-size:26px;color:var(--ink)",
+            "margin:0 0 10px;font-family:var(--display);font-weight:500;font-size:26px;letter-spacing:-.01em;color:var(--ink)",
           )}
         >
           Nothing to review
@@ -301,14 +303,9 @@ export default function SceneScreen() {
               ? "A scene is drafting — it'll land here shortly."
               : "Plan a chapter from the Inbox and approve its beats; drafted scenes show up here for review."}
         </p>
-        <button
-          onClick={() => router.push("/inbox")}
-          style={css(
-            "margin-top:18px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer;font-family:var(--ui);font-size:13.5px",
-          )}
-        >
+        <Button style="margin-top:18px" onClick={() => router.push("/inbox")}>
           Go to inbox
-        </button>
+        </Button>
       </div>
     );
   }
@@ -461,7 +458,7 @@ export default function SceneScreen() {
 
   // Wide and two-column read full-width with the review rail beneath; page keeps the side-by-side rail.
   const wideRead = layout !== "page";
-  const proseFontSize = layout === "columns" ? "16.5px" : "18px";
+  const proseFontSize = layout === "columns" ? "16.5px" : "17px";
   const proseColStyle =
     layout === "page"
       ? "flex:1 1 380px;min-width:330px"
@@ -473,7 +470,7 @@ export default function SceneScreen() {
   let pkey = 0;
   const blocks = tokenizedParas.map(({ isLead, lead, tokens }, bi) => {
     const leadStyle = isLead
-      ? desk.isManu
+      ? desk.isLight
         ? "float:left;font-family:var(--display);font-size:60px;line-height:.74;padding:9px 12px 0 0;color:var(--accent)"
         : "font:inherit;color:inherit"
       : "";
@@ -482,7 +479,7 @@ export default function SceneScreen() {
       <p
         key={`b${bi}`}
         style={css(
-          `font-family:var(--prose);font-size:${proseFontSize};line-height:1.86;color:var(--ink);margin:0 0 1.05em;break-inside:avoid-column`,
+          `font-family:var(--prose);font-size:${proseFontSize};line-height:1.75;color:var(--ink);margin:0 0 1.2em;break-inside:avoid-column`,
         )}
       >
         {isLead && <span style={css(leadStyle)}>{lead}</span>}
@@ -519,7 +516,8 @@ export default function SceneScreen() {
         )
       : [];
 
-  const sevColor = (s: string) => (s === "hard" ? t.bad : s === "warn" ? t.warn : t.info);
+  const sevColor = (s: string) =>
+    s === "hard" ? "var(--bad)" : s === "warn" ? "var(--warn)" : "var(--info)";
 
   // Best-effort guard: hide/disable Restart while a job for this exact scene is the one actively
   // drafting right now, so a click can't queue a redundant concurrent redraft of the same original
@@ -605,18 +603,15 @@ export default function SceneScreen() {
           <div style={css("display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap")}>
             <h1
               style={css(
-                "margin:0;font-family:var(--display);font-weight:600;font-size:28px;letter-spacing:.01em;color:var(--ink)",
+                "margin:0;font-family:var(--display);font-weight:500;font-size:28px;line-height:36px;letter-spacing:-.01em;color:var(--ink)",
               )}
             >
               {sceneLabel(cur)}
             </h1>
-            <span
-              style={css(
-                `display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:${t.warn};background:color-mix(in srgb,${t.warn} 14%,transparent);border:1px solid color-mix(in srgb,${t.warn} 40%,transparent);border-radius:999px;padding:4px 11px`,
-              )}
-            >
-              ● {cur.status.replace(/_/g, " ")}
-            </span>
+            <Chip
+              label={cur.status.replace(/_/g, " ")}
+              tone={SCENE_STATUS_TONE[cur.status] ?? "neutral"}
+            />
             <LengthBadge status={cur.length_status} wordCount={cur.word_count} />
           </div>
         </div>
@@ -722,7 +717,7 @@ export default function SceneScreen() {
       {focused && cur.status !== "pending_review" && (
         <div
           style={css(
-            `display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;border-radius:9px;border:1px solid ${t.warn};background:color-mix(in srgb,${t.warn} 12%,transparent);font-size:13px;color:var(--ink);line-height:1.5`,
+            "display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;border-radius:9px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 12%,transparent);font-size:13px;color:var(--ink);line-height:1.5",
           )}
         >
           <span
@@ -745,7 +740,9 @@ export default function SceneScreen() {
             </span>
           )}
           {cur.status === "revision_requested" && (
-            <button
+            <Button
+              size="sm"
+              style="margin-left:auto;flex:none"
               disabled={restarting || restartBlockedByActiveJob}
               onClick={() => void handleRestart()}
               title={
@@ -753,12 +750,9 @@ export default function SceneScreen() {
                   ? "Already drafting — wait for it to finish"
                   : "Re-queue drafting for this scene now"
               }
-              style={css(
-                "margin-left:auto;flex:none;padding:6px 13px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px;cursor:pointer;font-family:var(--ui);white-space:nowrap",
-              )}
             >
               {restarting ? "Restarting…" : "Restart"}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -766,7 +760,7 @@ export default function SceneScreen() {
       {restored && (
         <div
           style={css(
-            `display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;border-radius:9px;border:1px solid ${t.info};background:color-mix(in srgb,${t.info} 12%,transparent);font-size:13px;color:var(--ink);line-height:1.5`,
+            "display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;border-radius:9px;border:1px solid color-mix(in srgb,var(--info) 45%,var(--line));background:color-mix(in srgb,var(--info) 12%,transparent);font-size:13px;color:var(--ink);line-height:1.5",
           )}
         >
           <span
@@ -780,14 +774,9 @@ export default function SceneScreen() {
             Restored unsaved edits to this scene from a previous session. <b>Approve</b> to keep
             them, or
           </span>
-          <button
-            onClick={discardDraft}
-            style={css(
-              "margin-left:auto;padding:5px 11px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-size:12px;cursor:pointer;font-family:var(--ui)",
-            )}
-          >
+          <Button size="sm" style="margin-left:auto" onClick={discardDraft}>
             Discard edits
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1106,33 +1095,30 @@ export default function SceneScreen() {
               )}
             />
             <div style={css("display:flex;gap:10px;align-items:center")}>
-              <button
+              <Button
+                variant="primary"
                 disabled={committing}
-                onClick={() => commit("approve")}
-                style={css(
-                  "flex:1;padding:12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--good) 50%,var(--line));background:color-mix(in srgb,var(--good) 13%,var(--bg3));color:var(--good);font-size:14px;font-weight:500;cursor:pointer",
-                )}
+                onClick={() => void commit("approve")}
+                style="flex:1;height:40px;font-size:13.5px"
               >
                 Approve
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
                 disabled={committing}
-                onClick={() => commit("revise")}
-                style={css(
-                  "flex:1;padding:12px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:14px;cursor:pointer",
-                )}
+                onClick={() => void commit("revise")}
+                style="flex:1;height:40px;font-size:13.5px;color:var(--accent2)"
               >
                 Request revision
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 disabled={committing}
-                onClick={() => commit("deny")}
-                style={css(
-                  "flex:none;padding:12px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:14px;cursor:pointer",
-                )}
+                onClick={() => void commit("deny")}
+                style="flex:none;height:40px;font-size:13.5px;padding:0 16px"
               >
                 Reject
-              </button>
+              </Button>
             </div>
           </div>
         </section>
@@ -1143,11 +1129,7 @@ export default function SceneScreen() {
             `${wideRead ? "" : "position:sticky;top:84px;"}display:flex;flex-direction:column;gap:16px${wideRead ? ";width:100%;max-width:760px;margin:0 auto" : ""}`,
           )}
         >
-          <div
-            style={css(
-              "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px",
-            )}
-          >
+          <Panel eyebrow="Provenance" pad="16px 18px">
             <div
               style={css(
                 "display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:2.1",
@@ -1165,13 +1147,7 @@ export default function SceneScreen() {
               <span style={css("color:var(--ink)")}>{cur.prose_source}</span>
             </div>
             <div style={css("height:1px;background:var(--line);margin:11px 0")} />
-            <div
-              style={css(
-                "font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:9px",
-              )}
-            >
-              Passes run
-            </div>
+            <Eyebrow style="margin-bottom:9px">Passes run</Eyebrow>
             <div style={css("display:flex;flex-wrap:wrap;gap:6px")}>
               {passes.length ? (
                 passes.map((p) => (
@@ -1202,7 +1178,7 @@ export default function SceneScreen() {
                 ? "★ Voice exemplar — drafts learn from this"
                 : "☆ Use as voice exemplar"}
             </button>
-          </div>
+          </Panel>
 
           <div
             style={css(
@@ -1223,7 +1199,7 @@ export default function SceneScreen() {
                   {tb.badge && (
                     <span
                       style={css(
-                        `margin-left:6px;font-family:var(--mono);font-size:10px;padding:0 5px;border-radius:999px;background:${t.bad};color:#fff`,
+                        "margin-left:6px;font-family:var(--mono);font-size:10px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff",
                       )}
                     >
                       {tb.badge}
@@ -1235,171 +1211,188 @@ export default function SceneScreen() {
           </div>
 
           {desk.tab === "continuity" && (
-            <div style={css("display:flex;flex-direction:column;gap:12px")}>
-              <p style={css("margin:0;font-size:12.5px;color:var(--dim);line-height:1.55")}>
-                Advisory — nothing is blocked. You decide which source is canon; resolving updates
-                the world ledger or queues a prose fix.
-              </p>
-              {conflicts.length === 0 && (
-                <p style={css("margin:0;font-family:var(--mono);font-size:12px;color:var(--good)")}>
-                  ✓ no continuity flags
+            <Panel eyebrow="Continuity" pad="16px 18px">
+              <div style={css("display:flex;flex-direction:column;gap:12px")}>
+                <p style={css("margin:0;font-size:12.5px;color:var(--dim);line-height:1.55")}>
+                  Advisory — nothing is blocked. You decide which source is canon; resolving updates
+                  the world ledger or queues a prose fix.
                 </p>
-              )}
-              {conflicts.map((c) => (
-                <div
-                  key={c.id}
-                  style={css(
-                    "background:var(--bg2);border:1px solid color-mix(in srgb,var(--bad) 32%,var(--line));border-radius:10px;padding:14px",
-                  )}
-                >
-                  <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:9px")}>
-                    <span
-                      style={css("width:6px;height:6px;border-radius:50%;background:var(--bad)")}
-                    />
-                    <span
-                      style={css(
-                        "font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--bad)",
-                      )}
-                    >
-                      {pstr(c, "attribute") || c.reviewer}
-                    </span>
-                  </div>
-                  {pstr(c, "context_sentence") && (
-                    <p
-                      style={css(
-                        "margin:0 0 11px;font-size:13.5px;font-style:italic;line-height:1.5;color:var(--ink)",
-                      )}
-                    >
-                      "{pstr(c, "context_sentence")}"
-                    </p>
-                  )}
-                  <div style={css("display:flex;gap:8px;margin-bottom:11px")}>
-                    <div
-                      style={css(
-                        "flex:1;padding:8px 10px;border-radius:7px;background:var(--bg3);border:1px solid var(--line)",
-                      )}
-                    >
-                      <div
+                {conflicts.length === 0 && (
+                  <p
+                    style={css("margin:0;font-family:var(--mono);font-size:12px;color:var(--good)")}
+                  >
+                    ✓ no continuity flags
+                  </p>
+                )}
+                {conflicts.map((c) => (
+                  <div
+                    key={c.id}
+                    style={css(
+                      "background:var(--bg2);border:1px solid color-mix(in srgb,var(--bad) 32%,var(--line));border-radius:10px;padding:14px",
+                    )}
+                  >
+                    <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:9px")}>
+                      <span
+                        style={css("width:6px;height:6px;border-radius:50%;background:var(--bad)")}
+                      />
+                      <span
                         style={css(
-                          "font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--dim);margin-bottom:3px",
+                          "font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--bad)",
                         )}
                       >
-                        Prose
-                      </div>
-                      <div style={css("font-family:var(--mono);font-size:13px;color:var(--ink)")}>
-                        {pstr(c, "prose_value")}
-                      </div>
+                        {pstr(c, "attribute") || c.reviewer}
+                      </span>
                     </div>
-                    <div
-                      style={css(
-                        "flex:1;padding:8px 10px;border-radius:7px;background:var(--bg3);border:1px solid var(--line)",
-                      )}
-                    >
-                      <div
+                    {pstr(c, "context_sentence") && (
+                      <p
                         style={css(
-                          "font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--dim);margin-bottom:3px",
+                          "margin:0 0 11px;font-size:13.5px;font-style:italic;line-height:1.5;color:var(--ink)",
                         )}
                       >
-                        Ledger
+                        "{pstr(c, "context_sentence")}"
+                      </p>
+                    )}
+                    <div style={css("display:flex;gap:8px;margin-bottom:11px")}>
+                      <div
+                        style={css(
+                          "flex:1;padding:8px 10px;border-radius:7px;background:var(--bg3);border:1px solid var(--line)",
+                        )}
+                      >
+                        <div
+                          style={css(
+                            "font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--dim);margin-bottom:3px",
+                          )}
+                        >
+                          Prose
+                        </div>
+                        <div style={css("font-family:var(--mono);font-size:13px;color:var(--ink)")}>
+                          {pstr(c, "prose_value")}
+                        </div>
                       </div>
-                      <div style={css("font-family:var(--mono);font-size:13px;color:var(--ink)")}>
-                        {pstr(c, "ledger_value")}
+                      <div
+                        style={css(
+                          "flex:1;padding:8px 10px;border-radius:7px;background:var(--bg3);border:1px solid var(--line)",
+                        )}
+                      >
+                        <div
+                          style={css(
+                            "font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--dim);margin-bottom:3px",
+                          )}
+                        >
+                          Ledger
+                        </div>
+                        <div style={css("font-family:var(--mono);font-size:13px;color:var(--ink)")}>
+                          {pstr(c, "ledger_value")}
+                        </div>
                       </div>
                     </div>
+                    <div style={css("display:flex;gap:7px")}>
+                      <Button
+                        size="sm"
+                        style="flex:1"
+                        onClick={() =>
+                          data.resolveContinuity(cur.id, { critique_id: c.id, choice: "use_prose" })
+                        }
+                      >
+                        Keep prose · fix ledger
+                      </Button>
+                      <Button
+                        size="sm"
+                        style="flex:1"
+                        onClick={() =>
+                          data.resolveContinuity(cur.id, {
+                            critique_id: c.id,
+                            choice: "use_ledger",
+                          })
+                        }
+                      >
+                        Keep ledger · fix prose
+                      </Button>
+                    </div>
                   </div>
-                  <div style={css("display:flex;gap:7px")}>
-                    <button
-                      onClick={() =>
-                        data.resolveContinuity(cur.id, { critique_id: c.id, choice: "use_prose" })
-                      }
-                      style={css(KEEP_BTN)}
-                    >
-                      Keep prose · fix ledger
-                    </button>
-                    <button
-                      onClick={() =>
-                        data.resolveContinuity(cur.id, { critique_id: c.id, choice: "use_ledger" })
-                      }
-                      style={css(KEEP_BTN)}
-                    >
-                      Keep ledger · fix prose
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </Panel>
           )}
 
           {desk.tab === "notes" && (
-            <div style={css("display:flex;flex-direction:column;gap:12px")}>
-              <p style={css("margin:0;font-size:12.5px;color:var(--dim);line-height:1.55")}>
-                Advisory flags from the review passes.
-              </p>
-              {notes.length === 0 && (
-                <p style={css("margin:0;font-family:var(--mono);font-size:12px;color:var(--dim)")}>
-                  no reviewer notes
+            <Panel eyebrow="Notes" pad="16px 18px">
+              <div style={css("display:flex;flex-direction:column;gap:12px")}>
+                <p style={css("margin:0;font-size:12.5px;color:var(--dim);line-height:1.55")}>
+                  Advisory flags from the review passes.
                 </p>
-              )}
-              {notes.map((n) => (
-                <div
-                  key={n.id}
-                  style={css(
-                    `border-left:2px solid ${sevColor(n.severity)};background:var(--bg2);border-radius:0 7px 7px 0;padding:10px 13px`,
-                  )}
-                >
-                  <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:5px")}>
-                    <span style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
-                      {n.reviewer}
-                    </span>
-                    <span
-                      style={css(
-                        `font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:${sevColor(n.severity)}`,
-                      )}
-                    >
-                      {n.severity}
-                    </span>
-                  </div>
-                  <p style={css("margin:0;font-size:13px;line-height:1.5;color:var(--dim)")}>
-                    {n.note}
+                {notes.length === 0 && (
+                  <p
+                    style={css("margin:0;font-family:var(--mono);font-size:12px;color:var(--dim)")}
+                  >
+                    no reviewer notes
                   </p>
-                </div>
-              ))}
-            </div>
+                )}
+                {notes.map((n) => (
+                  <div
+                    key={n.id}
+                    style={css(
+                      `border-left:2px solid ${sevColor(n.severity)};background:var(--bg2);border-radius:0 7px 7px 0;padding:10px 13px`,
+                    )}
+                  >
+                    <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:5px")}>
+                      <span style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
+                        {n.reviewer}
+                      </span>
+                      <span
+                        style={css(
+                          `font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:${sevColor(n.severity)}`,
+                        )}
+                      >
+                        {n.severity}
+                      </span>
+                    </div>
+                    <p style={css("margin:0;font-size:13px;line-height:1.5;color:var(--dim)")}>
+                      {n.note}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Panel>
           )}
 
           {desk.tab === "changes" && (
-            <div style={css("display:flex;flex-direction:column;gap:9px")}>
-              <p style={css("margin:0 0 3px;font-size:12.5px;color:var(--dim);line-height:1.55")}>
-                Ledger deltas this scene's beat declares, committed on approval.
-              </p>
-              {deltas.length === 0 && (
-                <p style={css("margin:0;font-family:var(--mono);font-size:12px;color:var(--dim)")}>
-                  no declared deltas
+            <Panel eyebrow="Changes" pad="16px 18px">
+              <div style={css("display:flex;flex-direction:column;gap:9px")}>
+                <p style={css("margin:0 0 3px;font-size:12.5px;color:var(--dim);line-height:1.55")}>
+                  Ledger deltas this scene's beat declares, committed on approval.
                 </p>
-              )}
-              {deltas.map((ch) => (
-                <div
-                  key={ch.label}
-                  style={css(
-                    "display:flex;align-items:center;gap:11px;padding:11px 13px;background:var(--bg2);border:1px solid var(--line);border-radius:8px",
-                  )}
-                >
-                  <span style={css(`font-family:var(--mono);font-size:15px;color:${t.good}`)}>
-                    ▲
-                  </span>
-                  <div style={css("min-width:0")}>
-                    <div style={css("font-size:13px;color:var(--ink)")}>{ch.label}</div>
-                    <div
-                      style={css(
-                        "font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:2px",
-                      )}
-                    >
-                      {ch.detail}
+                {deltas.length === 0 && (
+                  <p
+                    style={css("margin:0;font-family:var(--mono);font-size:12px;color:var(--dim)")}
+                  >
+                    no declared deltas
+                  </p>
+                )}
+                {deltas.map((ch) => (
+                  <div
+                    key={ch.label}
+                    style={css(
+                      "display:flex;align-items:center;gap:11px;padding:11px 13px;background:var(--bg2);border:1px solid var(--line);border-radius:8px",
+                    )}
+                  >
+                    <span style={css("font-family:var(--mono);font-size:15px;color:var(--good)")}>
+                      ▲
+                    </span>
+                    <div style={css("min-width:0")}>
+                      <div style={css("font-size:13px;color:var(--ink)")}>{ch.label}</div>
+                      <div
+                        style={css(
+                          "font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:2px",
+                        )}
+                      >
+                        {ch.detail}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </Panel>
           )}
         </aside>
       </div>
@@ -1585,15 +1578,11 @@ function LengthBadge({
   if (!status) return null;
   const meta = LENGTH_META[status] ?? { label: String(status).replace(/_/g, " "), tone: "--dim" };
   return (
-    <span
-      style={css(
-        `display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(${meta.tone});background:color-mix(in srgb,var(${meta.tone}) 12%,transparent);border:1px solid color-mix(in srgb,var(${meta.tone}) 38%,transparent);border-radius:999px;padding:4px 11px`,
-      )}
+    <Chip
+      label={`${meta.label}${wc != null ? ` · ${wc}w` : ""}`}
+      colorVar={meta.tone}
       title="How the draft's length landed against its ScenePacket word budget"
-    >
-      {meta.label}
-      {wc != null ? ` · ${wc}w` : ""}
-    </span>
+    />
   );
 }
 
@@ -1617,18 +1606,7 @@ function StagesPanel({ sceneId }: { sceneId: string }) {
   }, [sceneId]);
 
   return (
-    <div
-      style={css(
-        "margin-bottom:16px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 14px",
-      )}
-    >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:9px",
-        )}
-      >
-        Draft stages · provenance
-      </div>
+    <Panel eyebrow="Draft stages · provenance" pad="12px 14px" style="margin-bottom:16px">
       {error && <div style={css("font-size:12px;color:var(--bad)")}>{error}</div>}
       {!stages && !error && (
         <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>loading…</div>
@@ -1658,6 +1636,6 @@ function StagesPanel({ sceneId }: { sceneId: string }) {
           ))}
         </div>
       )}
-    </div>
+    </Panel>
   );
 }

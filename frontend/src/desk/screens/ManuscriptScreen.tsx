@@ -7,6 +7,7 @@ import { wordCount } from "../lib/format";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import ProseBlocks from "../components/ProseBlocks";
+import { Button, Chip } from "../components/ui";
 import type { ManuscriptOut } from "../api/types";
 
 // Shunn standard manuscript format counts ~250 words to a page.
@@ -162,12 +163,7 @@ export default function ManuscriptScreen() {
       >
         <div style={css("display:flex;align-items:center;gap:12px")}>
           {/* compile source — approved canon vs. a full working draft (all scenes, read-only) */}
-          <div
-            style={css(
-              "display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px",
-            )}
-            title="What to compile"
-          >
+          <div style={css("display:flex;gap:5px")} title="What to compile">
             {(
               [
                 ["approved", "Approved"],
@@ -176,15 +172,14 @@ export default function ManuscriptScreen() {
             ).map(([id, label]) => {
               const on = source === id;
               return (
-                <button
+                <Button
                   key={id}
+                  size="sm"
+                  variant={on ? "primary" : "ghost"}
                   onClick={() => setSource(id)}
-                  style={css(
-                    `padding:5px 12px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${on ? "var(--accent)" : "transparent"};color:${on ? "var(--onAccent)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
-                  )}
                 >
                   {label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -197,7 +192,8 @@ export default function ManuscriptScreen() {
           )}
           {isDraft && (
             <>
-              <button
+              <Button
+                size="sm"
                 disabled={clearFailedBusy || clearDraftBusy || jobs.failed <= 0}
                 onClick={async () => {
                   setClearFailedBusy(true);
@@ -208,13 +204,12 @@ export default function ManuscriptScreen() {
                   }
                 }}
                 title="Remove failed draft jobs for this book"
-                style={css(
-                  `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${jobs.failed > 0 ? "var(--dim)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${jobs.failed > 0 && !clearFailedBusy ? "pointer" : "default"};opacity:${jobs.failed > 0 ? 1 : 0.45}`,
-                )}
               >
                 {clearFailedBusy ? "Clearing…" : "Clear failed jobs"}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
+                style="color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,var(--line))"
                 disabled={clearFailedBusy || clearDraftBusy}
                 onClick={async () => {
                   const n = draftExtra;
@@ -234,53 +229,38 @@ export default function ManuscriptScreen() {
                   }
                 }}
                 title="Delete all non-approved scenes so the draft compile resets"
-                style={css(
-                  `padding:5px 12px;border-radius:7px;border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg2));color:var(--warn);font-family:var(--ui);font-size:12px;cursor:${clearDraftBusy ? "default" : "pointer"}`,
-                )}
               >
                 {clearDraftBusy ? "Clearing…" : "Clear draft scenes"}
-              </button>
+              </Button>
             </>
           )}
           {isDraft && draftExtra > 0 && (
-            <span
-              style={css(
-                "font-family:var(--mono);font-size:11px;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border:1px solid color-mix(in srgb,var(--warn) 38%,transparent);border-radius:999px;padding:2px 9px",
-              )}
-            >
-              incl. {draftExtra} unapproved
-            </span>
+            <Chip label={`incl. ${draftExtra} unapproved`} tone="warn" />
           )}
-          <button
-            onClick={exportMarkdown}
+          <Button
+            size="sm"
+            onClick={() => void exportMarkdown()}
             disabled={!hasProse}
             title="Semantic Markdown — YAML front matter, preserved @interface blocks for agents"
-            style={css(
-              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
-            )}
           >
             Export Markdown
-          </button>
-          <button
-            onClick={exportDocx}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => void exportDocx()}
             disabled={!hasProse}
             title="Reader DOCX — styled book format with LitRPG interface panels"
-            style={css(
-              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
-            )}
           >
             Export Reader DOCX
-          </button>
-          <button
-            onClick={exportShunn}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => void exportShunn()}
             disabled={!hasProse}
             title="Shunn DOCX — plain submission format for agents/editors"
-            style={css(
-              `padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:${hasProse ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:12px;cursor:${hasProse ? "pointer" : "default"}`,
-            )}
           >
             Export Shunn DOCX
-          </button>
+          </Button>
           <input
             value={author}
             onChange={(e) => saveAuthor(e.target.value)}
@@ -291,23 +271,18 @@ export default function ManuscriptScreen() {
             )}
           />
         </div>
-        <div
-          style={css(
-            "display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px",
-          )}
-        >
+        <div style={css("display:flex;gap:5px")} title="Reading layout">
           {LAYOUTS.map((l) => {
             const active = layout === l.id;
             return (
-              <button
+              <Button
                 key={l.id}
+                size="sm"
+                variant={active ? "primary" : "ghost"}
                 onClick={() => setLayout(l.id)}
-                style={css(
-                  `padding:5px 13px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12px;background:${active ? "var(--accent)" : "transparent"};color:${active ? "var(--onAccent)" : "var(--dim)"};font-weight:${active ? "600" : "400"}`,
-                )}
               >
                 {l.label}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -332,14 +307,14 @@ export default function ManuscriptScreen() {
           </div>
           <h1
             style={css(
-              "margin:0 0 14px;font-family:var(--display);font-weight:600;font-size:46px;letter-spacing:.01em;color:var(--ink)",
+              "margin:0 0 18px;font-family:var(--display);font-weight:500;font-size:46px;letter-spacing:-.01em;color:var(--ink)",
             )}
           >
             {manuscript?.title ?? "—"}
           </h1>
           <div
             style={css(
-              "font-family:var(--prose);font-style:italic;font-size:16px;color:var(--dim)",
+              "display:inline-block;border-top:1px solid var(--accentLine);padding-top:14px;font-family:var(--prose);font-style:italic;font-size:16px;color:var(--dim)",
             )}
           >
             {isDraft
@@ -367,7 +342,7 @@ export default function ManuscriptScreen() {
               <div style={css("text-align:center;margin-bottom:30px")}>
                 <div
                   style={css(
-                    "font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:9px",
+                    "font-family:var(--display);font-variant:small-caps;font-size:16px;letter-spacing:.14em;color:var(--accent);margin-bottom:9px",
                   )}
                 >
                   {chapterLabel(ch)}

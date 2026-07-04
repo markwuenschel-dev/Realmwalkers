@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { css } from "../css";
-import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
-import { Spinner, formatElapsed } from "../components/DraftActivity";
+import { formatElapsed } from "../components/DraftActivity";
+import { Button, Chip, Eyebrow, Panel as UiPanel, Spinner, StatusPill } from "../components/ui";
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
 import { ViolationGroups } from "../components/ViolationGroups";
 import ClearFailedPanel from "../components/ClearFailedPanel";
@@ -37,7 +37,6 @@ import type { ExportKind } from "../lib/docx";
 const CONFIDENCE_VAR: Record<string, string> = { green: "--good", yellow: "--warn", red: "--bad" };
 
 export default function PacketsScreen() {
-  const { t } = useDesk();
   const data = useDeskData();
   const searchParams = useSearchParams();
   const chapters = useMemo(
@@ -313,9 +312,10 @@ export default function PacketsScreen() {
         )}
       >
         <div>
+          <Eyebrow style="margin-bottom:6px">Contracts</Eyebrow>
           <h1
             style={css(
-              "margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:30px;color:var(--ink)",
+              "margin:0 0 6px;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)",
             )}
           >
             Chapter packets
@@ -344,7 +344,7 @@ export default function PacketsScreen() {
           </select>
           {/* Same three exports the Manuscript tab offers, scoped to this chapter's approved scenes
               (data.manuscript is already the approved compile) — a packet has no prose of its own. */}
-          <button
+          <Button
             disabled={!chapterHasProse || exportingChapter != null}
             title={
               chapterHasProse
@@ -352,11 +352,10 @@ export default function PacketsScreen() {
                 : "This chapter has no approved prose yet"
             }
             onClick={() => void exportChapterAs("md")}
-            style={btn(chapterHasProse && exportingChapter == null, "var(--bg3)", "var(--ink)")}
           >
             {exportingChapter === "md" ? "Exporting…" : "Export Markdown"}
-          </button>
-          <button
+          </Button>
+          <Button
             disabled={!chapterHasProse || exportingChapter != null}
             title={
               chapterHasProse
@@ -364,11 +363,10 @@ export default function PacketsScreen() {
                 : "This chapter has no approved prose yet"
             }
             onClick={() => void exportChapterAs("docx")}
-            style={btn(chapterHasProse && exportingChapter == null, "var(--bg3)", "var(--ink)")}
           >
             {exportingChapter === "docx" ? "Exporting…" : "Export Reader DOCX"}
-          </button>
-          <button
+          </Button>
+          <Button
             disabled={!chapterHasProse || exportingChapter != null}
             title={
               chapterHasProse
@@ -376,159 +374,154 @@ export default function PacketsScreen() {
                 : "This chapter has no approved prose yet"
             }
             onClick={() => void exportChapterAs("shunn")}
-            style={btn(chapterHasProse && exportingChapter == null, "var(--bg3)", "var(--ink)")}
           >
             {exportingChapter === "shunn" ? "Exporting…" : "Export Shunn DOCX"}
-          </button>
+          </Button>
           {packet && !editing && !proposing && (
-            <button onClick={() => setEditing(true)} style={btn(true, "var(--bg3)", "var(--ink)")}>
-              Edit packet
-            </button>
+            <Button onClick={() => setEditing(true)}>Edit packet</Button>
           )}
           {packet && !editing && (
-            <button
+            <Button
               onClick={() => setJsonOpen((o) => !o)}
               title="Raw canonical JSON of the chapter packet body — view or download it"
-              style={btn(true, "var(--bg3)", "var(--ink)")}
             >
               {jsonOpen ? "Hide JSON" : "Packet JSON"}
-            </button>
+            </Button>
           )}
           {packet && !editing && !proposing && (
-            <button
+            <Button
               disabled={busy === "clear"}
-              onClick={async () => {
-                if (!chapterId) return;
-                if (
-                  !confirm(
-                    "Clear this chapter packet and all derived scene packets? You will need to re-propose and re-derive before drafting.",
+              style="color:var(--warn)"
+              onClick={() => {
+                void (async () => {
+                  if (!chapterId) return;
+                  if (
+                    !confirm(
+                      "Clear this chapter packet and all derived scene packets? You will need to re-propose and re-derive before drafting.",
+                    )
                   )
-                )
-                  return;
-                setBusy("clear");
-                setError(null);
-                try {
-                  await api.deletePacket(chapterId);
-                  setPacket(null);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : String(e));
-                } finally {
-                  setBusy(null);
-                }
+                    return;
+                  setBusy("clear");
+                  setError(null);
+                  try {
+                    await api.deletePacket(chapterId);
+                    setPacket(null);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setBusy(null);
+                  }
+                })();
               }}
-              style={btn(busy !== "clear", "var(--bg3)", "var(--warn)")}
             >
               {busy === "clear" ? "Clearing…" : "Clear packet"}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="primary"
             disabled={!chapterId || !hasOutline || proposing || editing}
             title={hasOutline ? undefined : "Outline this chapter first (Inbox → plan a chapter)"}
             onClick={startPropose}
-            style={btn(!!chapterId && hasOutline && !proposing && !editing, t.accent, t.onAccent)}
           >
             {proposing
               ? `${phase === "qa" ? "QA reviewing" : "Authoring"}…${formatElapsed(elapsed) ? ` ${formatElapsed(elapsed)}` : ""}`
               : packet
                 ? "Re-propose"
                 : "Propose packet"}
-          </button>
+          </Button>
         </div>
       </div>
 
       <div style={css("margin-bottom:18px")}>
-        <button
-          onClick={() => setBatchOpen((o) => !o)}
-          style={css(
-            "padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:12.5px;cursor:pointer;font-family:var(--ui);white-space:nowrap",
-          )}
-        >
+        <Button variant="ghost" size="sm" onClick={() => setBatchOpen((o) => !o)}>
           {batchOpen ? "Hide batch generate" : "Batch · generate packets for multiple chapters"}
-        </button>
+        </Button>
 
         {batchOpen && (
-          <div
-            data-testid="batch-panel"
-            style={css(
-              "margin-top:12px;border:1px solid var(--line);border-radius:11px;background:var(--bg2);padding:14px 16px;display:flex;flex-direction:column;gap:12px",
-            )}
-          >
-            <p style={css("margin:0;color:var(--dim);font-size:12.5px;line-height:1.55")}>
-              Pick several chapters that already have an outline and generate a chapter packet for
-              each — every chapter authors concurrently in the background, same as a single propose.
-              Selecting a chapter that already has a packet re-proposes it.
-            </p>
+          <div data-testid="batch-panel" style={css("margin-top:12px")}>
+            <UiPanel eyebrow="Batch generate" pad="14px 16px">
+              <div style={css("display:flex;flex-direction:column;gap:12px")}>
+                <p style={css("margin:0;color:var(--dim);font-size:12.5px;line-height:1.55")}>
+                  Pick several chapters that already have an outline and generate a chapter packet
+                  for each — every chapter authors concurrently in the background, same as a single
+                  propose. Selecting a chapter that already has a packet re-proposes it.
+                </p>
 
-            {batchEligible.length === 0 ? (
-              <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
-                No chapters have an outline yet — plan chapters from the Inbox first.
-              </div>
-            ) : (
-              <div
-                style={css(
-                  "display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto",
-                )}
-              >
-                {batchEligible.map((c) => (
-                  <label
-                    key={c.id}
-                    style={css(
-                      "display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;background:var(--bg3);font-size:13px;color:var(--ink);cursor:pointer",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={batchSelected.has(c.id)}
-                      onChange={() => toggleBatchSelected(c.id)}
-                    />
-                    <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-                      Ch {c.chapter_no}
-                    </span>
-                    <span>
-                      {c.title || "(untitled)"} · {c.pov}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <div style={css("display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
-              <button
-                disabled={batchBusy || batchSelected.size === 0}
-                onClick={runBatchGenerate}
-                style={btn(!batchBusy && batchSelected.size > 0, "var(--good)", "var(--bg)")}
-              >
-                {batchBusy
-                  ? "Generating…"
-                  : `Generate ${batchSelected.size || ""} packet${batchSelected.size === 1 ? "" : "s"}`}
-              </button>
-            </div>
-
-            {batchResults && (
-              <div style={css("display:flex;flex-direction:column;gap:6px")}>
-                {batchResults.map((r) => (
-                  <div
-                    key={r.chapterId}
-                    style={css(
-                      `display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;background:var(--bg3);padding:8px 11px;font-family:var(--mono);font-size:11.5px;color:${r.ok ? "var(--ink)" : "var(--bad)"}`,
-                    )}
-                  >
-                    <span style={css("color:var(--accent)")}>Ch {r.chapterNo}</span>
-                    <span>{r.ok ? "authoring started" : `failed: ${r.error}`}</span>
-                    {r.ok && (
-                      <button
-                        style={css(
-                          "padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui)",
-                        )}
-                        onClick={() => viewBatchChapter(r.chapterId)}
-                      >
-                        View →
-                      </button>
-                    )}
+                {batchEligible.length === 0 ? (
+                  <div style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
+                    No chapters have an outline yet — plan chapters from the Inbox first.
                   </div>
-                ))}
+                ) : (
+                  <div
+                    style={css(
+                      "display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto",
+                    )}
+                  >
+                    {batchEligible.map((c) => (
+                      <label
+                        key={c.id}
+                        className="dk-row"
+                        style={css(
+                          "display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;background:var(--bg3);font-size:13px;color:var(--ink);cursor:pointer",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={batchSelected.has(c.id)}
+                          onChange={() => toggleBatchSelected(c.id)}
+                        />
+                        <span
+                          style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
+                        >
+                          Ch {c.chapter_no}
+                        </span>
+                        <span>
+                          {c.title || "(untitled)"} · {c.pov}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                <div style={css("display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
+                  <Button
+                    variant="primary"
+                    style="background:var(--good);border-color:transparent"
+                    disabled={batchBusy || batchSelected.size === 0}
+                    onClick={() => void runBatchGenerate()}
+                  >
+                    {batchBusy
+                      ? "Generating…"
+                      : `Generate ${batchSelected.size || ""} packet${batchSelected.size === 1 ? "" : "s"}`}
+                  </Button>
+                </div>
+
+                {batchResults && (
+                  <div style={css("display:flex;flex-direction:column;gap:6px")}>
+                    {batchResults.map((r) => (
+                      <div
+                        key={r.chapterId}
+                        style={css(
+                          `display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;background:var(--boxbg);padding:8px 11px;font-family:var(--mono);font-size:11.5px;color:${r.ok ? "var(--ink)" : "var(--bad)"}`,
+                        )}
+                      >
+                        <span style={css("color:var(--accent)")}>Ch {r.chapterNo}</span>
+                        <span>{r.ok ? "authoring started" : `failed: ${r.error}`}</span>
+                        {r.ok && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => viewBatchChapter(r.chapterId)}
+                          >
+                            View →
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </UiPanel>
           </div>
         )}
       </div>
@@ -536,7 +529,7 @@ export default function PacketsScreen() {
       {error && (
         <div
           style={css(
-            `margin-bottom:16px;border:1px solid color-mix(in srgb,${t.bad} 40%,var(--line));background:color-mix(in srgb,${t.bad} 8%,var(--bg2));border-radius:9px;padding:11px 13px;color:${t.bad};font-size:13px`,
+            "margin-bottom:16px;border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--bg2));border-radius:var(--r);padding:11px 13px;color:var(--bad);font-size:13px",
           )}
         >
           {error}
@@ -570,17 +563,20 @@ export default function PacketsScreen() {
       {!loading && !packet && (
         <div
           style={css(
-            "border:1px dashed var(--line);border-radius:12px;padding:30px;text-align:center;color:var(--dim)",
+            "border:1px dashed var(--line);border-radius:var(--rLg);padding:40px 30px;text-align:center;color:var(--dim)",
           )}
         >
+          <div aria-hidden style={css("font-size:18px;color:var(--accent);margin-bottom:10px")}>
+            ✦
+          </div>
           <div
             style={css(
-              "font-family:var(--display);font-size:17px;color:var(--ink);margin-bottom:6px",
+              "font-family:var(--display);font-size:18px;font-style:italic;color:var(--ink);margin-bottom:6px",
             )}
           >
             No packet yet
           </div>
-          <div style={css("font-size:13.5px;max-width:420px;margin:0 auto")}>
+          <div style={css("font-size:13.5px;max-width:420px;margin:0 auto;line-height:1.55")}>
             {hasOutline
               ? "Propose a packet to have the Packet Author + QA agents draft this chapter's drafting contract."
               : "This chapter has no outline yet. Plan it from the Inbox first, then return here to author its packet."}
@@ -590,11 +586,11 @@ export default function PacketsScreen() {
 
       {!loading && packet && !editing && jsonOpen && (
         <div style={css("margin-bottom:16px")}>
-          <Panel title="Canonical packet JSON">
-            <div style={css("display:flex;align-items:center;gap:12px;margin-bottom:10px")}>
-              <button onClick={downloadPacketJson} style={btn(true, "var(--bg3)", "var(--ink)")}>
-                Download JSON
-              </button>
+          <UiPanel
+            eyebrow="Canonical packet JSON"
+            actions={<Button onClick={downloadPacketJson}>Download JSON</Button>}
+          >
+            <div style={css("margin-bottom:10px")}>
               <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
                 chapter_{chapter?.chapter_no}_packet.json — the exact body the drafting agents
                 receive.
@@ -603,12 +599,12 @@ export default function PacketsScreen() {
             <pre
               data-testid="packet-json"
               style={css(
-                "margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:9px;background:var(--bg3);font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--ink);white-space:pre;overflow-x:auto;max-height:420px;overflow-y:auto",
+                "margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--boxbg);font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--ink);white-space:pre;overflow-x:auto;max-height:420px;overflow-y:auto",
               )}
             >
               {packetJson}
             </pre>
-          </Panel>
+          </UiPanel>
         </div>
       )}
 
@@ -634,10 +630,13 @@ export default function PacketsScreen() {
 
       {!loading && packet && !editing && (
         <div style={css("display:flex;align-items:center;gap:14px;margin-top:22px;flex-wrap:wrap")}>
-          <button
+          <Button
+            variant="primary"
+            style="background:var(--good);border-color:transparent"
             disabled={!canApprove || busy === "approve"}
-            onClick={() => chapterId && run("approve", () => api.approvePacket(chapterId))}
-            style={btn(canApprove && busy !== "approve", t.good, t.onAccent)}
+            onClick={() => {
+              if (chapterId) void run("approve", () => api.approvePacket(chapterId));
+            }}
           >
             {busy === "approve"
               ? "Approving…"
@@ -646,7 +645,7 @@ export default function PacketsScreen() {
                 : repairCount > 0
                   ? `Approve (${repairCount} repair task${repairCount === 1 ? "" : "s"} outstanding)`
                   : "Approve packet"}
-          </button>
+          </Button>
           {canApprove && packet.status !== "approved" && repairCount > 0 && (
             <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
               repair tasks gate final export, not drafting — approving proceeds with them
@@ -727,24 +726,13 @@ function PacketView({
 
   return (
     <div style={css("display:flex;flex-direction:column;gap:16px")}>
-      {/* status / confidence / verdict */}
+      {/* status / confidence / verdict — status and QA are independent axes, never merged */}
       <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
-        <Chip
-          label={`status: ${packet.status}`}
-          colorVar={
-            packet.status === "approved"
-              ? "--good"
-              : packet.status === "blocked"
-                ? "--bad"
-                : "--warn"
-          }
-        />
+        <StatusPill axis="contract" state={packet.status} />
         {packet.confidence && (
           <Chip label={`confidence: ${packet.confidence}`} colorVar={confVar} />
         )}
-        {packet.qa_verdict && (
-          <Chip label={`QA: ${packet.qa_verdict.replace(/_/g, " ")}`} colorVar="--info" />
-        )}
+        {packet.qa_verdict && <StatusPill axis="qa" state={packet.qa_verdict} />}
       </div>
 
       {blockedGuidance && (
@@ -818,9 +806,9 @@ function PacketView({
                     )}
                   </div>
                 </div>
-                <button onClick={() => onUnresolve(i)} disabled={resolving} style={miniBtn()}>
+                <Button size="sm" onClick={() => onUnresolve(i)} disabled={resolving}>
                   Unresolve
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -1077,13 +1065,14 @@ function QuestionResolver({
           rows={2}
           style={inputStyle()}
         />
-        <button
+        <Button
+          variant="primary"
+          style="background:var(--good);border-color:transparent"
           onClick={() => onResolve(text)}
           disabled={disabled}
-          style={btn(!disabled, "var(--good)", "var(--bg)")}
         >
           Resolve
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1299,16 +1288,17 @@ function PacketEditor({
       )}
 
       <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
-        <button
+        <Button
+          variant="primary"
+          style="background:var(--good);border-color:transparent"
           disabled={busy}
           onClick={() => onSave(draft)}
-          style={btn(!busy, "var(--good)", "var(--bg)")}
         >
           {busy ? "Saving…" : "Save changes"}
-        </button>
-        <button disabled={busy} onClick={onCancel} style={btn(!busy, "var(--bg3)", "var(--ink)")}>
+        </Button>
+        <Button disabled={busy} onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1316,6 +1306,7 @@ function PacketEditor({
 
 // --- small presentational + editor helpers --------------------------------------------------------
 
+// Section panel — the shared Atelier Panel with an optional severity edge (left border accent).
 function Panel({
   title,
   children,
@@ -1326,20 +1317,13 @@ function Panel({
   accentVar?: string;
 }) {
   return (
-    <div
-      style={css(
-        `background:var(--bg2);border:1px solid var(--line);${accentVar ? `border-left:3px solid var(${accentVar});` : ""}border-radius:11px;padding:15px 17px`,
-      )}
+    <UiPanel
+      eyebrow={title}
+      pad="15px 17px"
+      style={accentVar ? `border-left:3px solid var(${accentVar})` : ""}
     >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:11px",
-        )}
-      >
-        {title}
-      </div>
       {children}
-    </div>
+    </UiPanel>
   );
 }
 
@@ -1491,18 +1475,6 @@ function PillList({
   );
 }
 
-function Chip({ label, colorVar }: { label: string; colorVar: string }) {
-  return (
-    <span
-      style={css(
-        `font-family:var(--mono);font-size:11px;color:var(${colorVar});background:color-mix(in srgb,var(${colorVar}) 12%,var(--bg2));border:1px solid color-mix(in srgb,var(${colorVar}) 35%,var(--line));border-radius:999px;padding:3px 10px`,
-      )}
-    >
-      {label}
-    </span>
-  );
-}
-
 function SourceBadge({ strength }: { strength: string }) {
   const s = (strength || "").toUpperCase();
   const v =
@@ -1544,16 +1516,4 @@ const inputBase =
 
 function inputStyle(): CSSProperties {
   return css(`${inputBase};width:100%;resize:vertical`);
-}
-
-function btn(enabled: boolean, bg: string, fg: string): CSSProperties {
-  return css(
-    `height:34px;padding:0 16px;border-radius:8px;border:none;font-family:var(--ui);font-size:13px;font-weight:500;cursor:${enabled ? "pointer" : "default"};background:${enabled ? bg : "var(--bg3)"};color:${enabled ? fg : "var(--dim)"};opacity:${enabled ? 1 : 0.7}`,
-  );
-}
-
-function miniBtn(): CSSProperties {
-  return css(
-    "flex:none;height:26px;padding:0 11px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-family:var(--ui);font-size:12px;cursor:pointer",
-  );
 }

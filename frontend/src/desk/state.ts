@@ -19,6 +19,7 @@ export interface DeskValue {
   tab: Tab;
   mode: Mode;
   paletteOpen: boolean;
+  activityOpen: boolean;
   feedback: string;
   decision: DecisionKind | null;
   resolved: Resolved;
@@ -32,14 +33,15 @@ export interface DeskValue {
   rawProse: string;
   // theme
   t: ThemeTokens;
-  isManu: boolean;
-  isConsole: boolean;
-  isGrim: boolean;
+  isDark: boolean;
+  isLight: boolean;
   // actions
   setTheme: (id: ThemeId) => void;
   setTab: (t: Tab) => void;
   togglePalette: () => void;
   closePalette: () => void;
+  toggleActivity: () => void;
+  closeActivity: () => void;
   setMode: (m: Mode) => void;
   acceptSugg: (id: string) => void;
   rejectSugg: (id: string) => void;
@@ -63,12 +65,28 @@ export interface DeskValue {
   setProse: (v: string) => void;
 }
 
+// localStorage key for the persisted variant choice. Loaded in an effect after mount — one frame
+// of the default variant on a hard reload is the accepted trade for staying SSR-safe (theming is
+// CSS vars on a div, not an html class, so there's no flash-of-wrong-page, just of wrong palette).
+const THEME_STORAGE_KEY = "desk.theme";
+
 export function useDeskState(): DeskValue {
   const router = useRouter();
-  const [themeId, setThemeId] = useState<ThemeId>("manuscript");
+  const [themeId, setThemeId] = useState<ThemeId>("dark");
   const [tab, setTabState] = useState<Tab>("continuity");
   const [mode, setMode] = useState<Mode>("reading");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+
+  // Restore the saved variant (or follow the OS preference on first visit).
+  useEffect(() => {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === "dark" || saved === "light") {
+      setThemeId(saved);
+    } else if (window.matchMedia?.("(prefers-color-scheme: light)").matches) {
+      setThemeId("light");
+    }
+  }, []);
   const [feedback, setFeedbackState] = useState("");
   const [decision, setDecision] = useState<DecisionKind | null>(null);
   const [resolved, setResolved] = useState<Resolved>({});
@@ -81,10 +99,15 @@ export function useDeskState(): DeskValue {
   const [activeScene, setActiveScene] = useState(0);
   const [rawProse, setRawProse] = useState("");
 
-  const setTheme = useCallback((id: ThemeId) => setThemeId(id), []);
+  const setTheme = useCallback((id: ThemeId) => {
+    setThemeId(id);
+    window.localStorage.setItem(THEME_STORAGE_KEY, id);
+  }, []);
   const setTab = useCallback((tb: Tab) => setTabState(tb), []);
   const togglePalette = useCallback(() => setPaletteOpen((p) => !p), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const toggleActivity = useCallback(() => setActivityOpen((o) => !o), []);
+  const closeActivity = useCallback(() => setActivityOpen(false), []);
   const acceptSugg = useCallback(
     (id: string) => setSuggStatus((s) => ({ ...s, [id]: "accepted" })),
     [],
@@ -166,6 +189,7 @@ export function useDeskState(): DeskValue {
       }
       if (e.key === "Escape") {
         closePalette();
+        closeActivity();
         return;
       }
       const tag = ((e.target as HTMLElement | null)?.tagName || "").toLowerCase();
@@ -200,7 +224,7 @@ export function useDeskState(): DeskValue {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [togglePalette, closePalette, router, nextScene, prevScene]);
+  }, [togglePalette, closePalette, closeActivity, router, nextScene, prevScene]);
 
   const t = themes[themeId];
 
@@ -209,6 +233,7 @@ export function useDeskState(): DeskValue {
     tab,
     mode,
     paletteOpen,
+    activityOpen,
     feedback,
     decision,
     resolved,
@@ -221,13 +246,14 @@ export function useDeskState(): DeskValue {
     activeScene,
     rawProse,
     t,
-    isManu: themeId === "manuscript",
-    isConsole: themeId === "console",
-    isGrim: themeId === "grimoire",
+    isDark: themeId === "dark",
+    isLight: themeId === "light",
     setTheme,
     setTab,
     togglePalette,
     closePalette,
+    toggleActivity,
+    closeActivity,
     setMode,
     acceptSugg,
     rejectSugg,

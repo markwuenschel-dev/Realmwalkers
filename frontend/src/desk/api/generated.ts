@@ -1607,6 +1607,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/jobs/recent": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Recent
+     * @description Queue positions + the last N terminal jobs, for the Activity drawer. The LIVE job is not
+     *     here — /jobs/status already carries it with phase/elapsed at the fast poll. Two slim queries.
+     */
+    get: operations["recent_jobs_recent_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/jobs/failed": {
     parameters: {
       query?: never;
@@ -4612,6 +4633,69 @@ export interface components {
        * @default true
        */
       auto_triage: boolean;
+    };
+    /**
+     * QueuedJobOut
+     * @description A QUEUED job awaiting the drain — list order is queue position (created_at asc).
+     */
+    QueuedJobOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Kind */
+      kind: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * RecentJobOut
+     * @description A terminal (done/failed) job for the Activity drawer's 'recently finished' feed.
+     *     duration_s/word_count stay None for rows predating finished_at / target_scene_id stamping.
+     */
+    RecentJobOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Kind */
+      kind: string;
+      /** Status */
+      status: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Last Error */
+      last_error?: string | null;
+      /** Claimed At */
+      claimed_at?: string | null;
+      /** Finished At */
+      finished_at?: string | null;
+      /** Duration S */
+      duration_s?: number | null;
+      /** Word Count */
+      word_count?: number | null;
+    };
+    /**
+     * RecentJobsOut
+     * @description Queue positions + recent terminal jobs behind the Activity drawer. The LIVE job is not
+     *     duplicated here — /jobs/status already carries it (with phase/elapsed) at the fast poll.
+     */
+    RecentJobsOut: {
+      /** Queued */
+      queued: components["schemas"]["QueuedJobOut"][];
+      /** Recent */
+      recent: components["schemas"]["RecentJobOut"][];
     };
     /**
      * RedraftIn
@@ -9057,6 +9141,38 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["JobsStatusOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  recent_jobs_recent_get: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RecentJobsOut"];
         };
       };
       /** @description Validation Error */

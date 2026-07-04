@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { css } from "../../css";
+import { Button } from "../ui";
 import { copyToClipboard } from "../../lib/download";
 import { buildRunDiagnosisSummary, downloadCallsCsv, downloadRunJson } from "./telemetryExport";
 import type { RunTelemetryOut } from "../../api/types";
@@ -31,14 +32,8 @@ export function RunExportToolbar({ data }: { data: RunTelemetryOut }) {
 
 function ToolbarBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={css(
-        "height:26px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer",
-      )}
-    >
+    <Button size="sm" variant="ghost" onClick={onClick}>
       {label}
-    </button>
+    </Button>
   );
 }
