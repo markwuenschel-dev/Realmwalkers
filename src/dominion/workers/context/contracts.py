@@ -11,6 +11,7 @@ from dominion.shared.models import ChapterPacket, ChapterSequence, ScenePacket
 from dominion.workers.context.types import ScenePacketFields, ScenePacketRequiredError
 from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet.projections import project
+from dominion.workers.scene_scope import beats_owned_by_later_scenes
 
 
 async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.UUID) -> ScenePacketFields:
@@ -71,6 +72,12 @@ async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.
             for k in ("reader_learns", "reader_must_not_know", "reader_knows_at_start"):
                 if seq_item.get(k) and k not in body:
                     body[k] = seq_item.get(k)
+        # Beat-ownership scope guard (recovery L2): tell the drafter which beats belong to LATER
+        # scenes so it cannot stage them here (scene_scope_bleed). Formatted with the owning
+        # scene number; project()/_contract_block render these as hard MUST-NOTs.
+        later_owned = beats_owned_by_later_scenes(sp.scene_no, seq.body)
+        if later_owned and "beats_owned_by_later_scenes" not in body:
+            body["beats_owned_by_later_scenes"] = [f"(owned by scene {owner}) {beat}" for beat, owner in later_owned]
 
     p = project(body, chapter_body)
     return ScenePacketFields(
