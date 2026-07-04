@@ -3664,6 +3664,50 @@
         }
       }
     },
+    "/chapter-sequences/{sequence_id}/align-scene-count": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Align Sequence Scene Count",
+        "description": "One-click fix for the sequence_scene_count_mismatch draft blocker: align the sequence's\nplanning target to the packet's actual seeded scenes (server derives the count).",
+        "operationId": "align_sequence_scene_count_chapter_sequences__sequence_id__align_scene_count_post",
+        "parameters": [
+          {
+            "name": "sequence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sequence Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterSequenceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapter-sequences/{sequence_id}/qa": {
       "post": {
         "tags": [
@@ -4755,6 +4799,111 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RetryFailedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/pause": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Pause",
+        "description": "Flip the human pause switch. Pausing lets the in-flight scene finish and stops the drain\nfrom claiming more (persisted \u2014 survives redeploys; the boot-resume honors it). Resuming with\njobs waiting kicks the drain immediately, same pattern as /draft-next.",
+        "operationId": "pause_jobs_pause_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueuePauseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsPauseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "delete": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cancel",
+        "description": "Cancel one QUEUED job (Activity drawer \u00d7). RUNNING jobs are not cancellable \u2014 the worker\nholds their row lock for the whole generation, and skip_locked turns that into a clean 409.",
+        "operationId": "cancel_jobs__job_id__delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelJobOut"
                 }
               }
             }
@@ -7083,6 +7232,33 @@
         ],
         "title": "AgentContractOut"
       },
+      "AgentControlsOut": {
+        "properties": {
+          "quality_live": {
+            "type": "boolean",
+            "title": "Quality Live",
+            "default": false
+          },
+          "semantic_escalation_live": {
+            "type": "boolean",
+            "title": "Semantic Escalation Live",
+            "default": false
+          },
+          "auto_run_live": {
+            "type": "boolean",
+            "title": "Auto Run Live",
+            "default": false
+          },
+          "fallback_mode": {
+            "type": "string",
+            "title": "Fallback Mode",
+            "default": "escalation"
+          }
+        },
+        "type": "object",
+        "title": "AgentControlsOut",
+        "description": "Honesty flags: which of this agent's control surfaces are actually wired to runtime behavior."
+      },
       "AgentEstimateOut": {
         "properties": {
           "cost_band": {
@@ -7304,6 +7480,15 @@
             "type": "array",
             "title": "Warnings",
             "default": []
+          },
+          "controls": {
+            "$ref": "#/components/schemas/AgentControlsOut",
+            "default": {
+              "quality_live": false,
+              "semantic_escalation_live": false,
+              "auto_run_live": false,
+              "fallback_mode": "escalation"
+            }
           }
         },
         "type": "object",
@@ -8897,6 +9082,48 @@
         "title": "BookTelemetryOut",
         "description": "Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,\nand models \u2014 the cross-chapter/scene view the global Telemetry tab renders."
       },
+      "CancelJobOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "scene_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene No"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "CancelJobOut",
+        "description": "One queued job cancelled from the Activity drawer."
+      },
       "CanonBulkDeleteOut": {
         "properties": {
           "deleted": {
@@ -9155,6 +9382,66 @@
             "type": "string",
             "title": "Status",
             "default": "active"
+          },
+          "doc_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Path"
+          },
+          "heading_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading Path"
+          },
+          "owner_topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Topic"
+          },
+          "source_priority": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Priority"
+          },
+          "embedding_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Version"
+          },
+          "embedding_stale": {
+            "type": "boolean",
+            "title": "Embedding Stale",
+            "default": false
           }
         },
         "type": "object",
@@ -10861,6 +11148,35 @@
         ],
         "title": "IssueOut"
       },
+      "JobsPauseOut": {
+        "properties": {
+          "queue_paused": {
+            "type": "boolean",
+            "title": "Queue Paused"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "default": 0
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "default": false
+          },
+          "scheduled": {
+            "type": "boolean",
+            "title": "Scheduled",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "queue_paused"
+        ],
+        "title": "JobsPauseOut",
+        "description": "Result of flipping the queue pause switch. `scheduled` is true when a resume kicked the\ndrain because jobs were waiting."
+      },
       "JobsStatusOut": {
         "properties": {
           "running": {
@@ -10877,6 +11193,11 @@
             "type": "integer",
             "title": "Failed",
             "default": 0
+          },
+          "queue_paused": {
+            "type": "boolean",
+            "title": "Queue Paused",
+            "default": false
           },
           "active_scene": {
             "anyOf": [
@@ -12226,6 +12547,19 @@
         },
         "type": "object",
         "title": "ProductionRunStartIn"
+      },
+      "QueuePauseIn": {
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          }
+        },
+        "type": "object",
+        "required": [
+          "paused"
+        ],
+        "title": "QueuePauseIn"
       },
       "QueuedJobOut": {
         "properties": {
@@ -14574,6 +14908,40 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "sequence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequence Id"
+          },
+          "planned_scene_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Scene Count"
+          },
+          "seed_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed Count"
           }
         },
         "type": "object",
@@ -14582,7 +14950,7 @@
           "message"
         ],
         "title": "StructuralBlockerOut",
-        "description": "A deterministic chapter-structure fault detected from the approved contracts alone (no prose,\nno LLM): `kind` is one of sequence_budget_mismatch | scene_scope_bleed | duplicate_irreversible_beat\n| canon_contract_leak; `message` is one human sentence naming the fault and the fix."
+        "description": "A deterministic chapter-structure fault detected from the approved contracts alone (no prose,\nno LLM): `kind` is one of sequence_scene_count_mismatch | sequence_budget_mismatch |\nscene_scope_bleed | duplicate_irreversible_beat | canon_contract_leak; `message` is one human\nsentence naming the fault and the fix. The scene-count kind carries the machine fields the\none-click \"Align plan to N seeded scenes\" action needs."
       },
       "SuggestionDecisionIn": {
         "properties": {
