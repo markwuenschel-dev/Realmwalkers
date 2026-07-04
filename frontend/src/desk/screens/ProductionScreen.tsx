@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "../api/client";
 import type {
@@ -17,6 +17,7 @@ import { css } from "../css";
 import ProseBlocks from "../components/ProseBlocks";
 import { Spinner } from "../components/DraftActivity";
 import { downloadBlob } from "../lib/download";
+import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import {
   isNoApprovedPacketError,
   packetAdvisories,
@@ -33,6 +34,19 @@ const PANEL =
   "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px";
 const SMALL =
   "font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)";
+
+// Session cache of full run details — the heaviest Desk payload (~670KB observed: every artifact's
+// prose rides inline). Selecting a run serves the cached detail instantly; the run row's updated_at
+// from the (cheap) list endpoint is the staleness token, since every backend action bumps it. An
+// unchanged run therefore costs ZERO detail refetch on a tab revisit, and post-action refreshes
+// update the entry in place (slim merges for actions that can't touch artifacts, full reloads for
+// the ones that can).
+const runDetailCache = new Map<string, ProductionRunDetailOut>();
+
+/** Test-only: module-level session state would otherwise leak between vitest cases. */
+export function resetRunDetailCacheForTests(): void {
+  runDetailCache.clear();
+}
 
 function latestArtifact(artifacts: ArtifactOut[], type: string): ArtifactOut | null {
   return [...artifacts].reverse().find((artifact) => artifact.artifact_type === type) ?? null;
@@ -131,13 +145,17 @@ export default function ProductionScreen() {
   // Prose coverage for the assembly gate: a run only concatenates EXISTING scene prose, so starting
   // one with missing scenes just manufactures missing_scene issues. Disable until coverage is full.
   const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
-  // Raw run JSON inspector: `detail` is refetched after every action (start/triage/assemble/apply/
-  // verify), so this is the full machine-readable state of the run after each step — issues, repair
-  // tasks, artifacts, events — viewable inline or downloadable for offline diffing between steps.
+  // Raw run JSON inspector: `detail` refreshed after every action — issues/repair tasks/events via
+  // the slim endpoints on every step, artifacts via a full reload on the steps that can change them
+  // (assemble/apply/start). repair_attempts/verifications refresh on full reloads only.
   const [jsonOpen, setJsonOpen] = useState(false);
   // Info-toned outcome line (never an error): triage is a deterministic no-op when no issue is still
   // `proposed`, which used to read as "the button did nothing". Cleared on any run/chapter switch.
   const [notice, setNotice] = useState<string | null>(null);
+  // First runs-list arrival — the screen's "first data render" moment for tab-load timing.
+  const [runsLoaded, setRunsLoaded] = useState(false);
+  // Mirror of `runs` for effects that need the latest rows without re-arming on every list refresh.
+  const runsRef = useRef<ProductionRunOut[]>([]);
 
   const loadDetail = useCallback(async (targetRunId: string | null) => {
     if (!targetRunId) {
@@ -145,29 +163,65 @@ export default function ProductionScreen() {
       return;
     }
     const out = await api.productionRun(targetRunId);
+    runDetailCache.set(targetRunId, out);
     setDetail(out);
   }, []);
 
-  const loadRuns = useCallback(async (targetChapterId: string) => {
-    setLoading(true);
-    setStartBlocked(false); // re-evaluated on every refresh / chapter switch
-    try {
-      const out = await api.productionRuns(targetChapterId);
-      setRuns(out);
-      setError(null);
-      setRunId((current) => {
-        if (current && out.some((run) => run.id === current)) return current;
-        return out[0]?.id ?? null;
+  // Slim post-action reconciliation: refetch only what the action could have changed — issues,
+  // repair tasks, events (small sub-resource endpoints) plus the fresh run row from the already
+  // reloaded list — and keep the cached artifacts/prose (the ~670KB bulk) untouched.
+  const refreshDetailSlim = useCallback(
+    async (targetRunId: string | null, freshRun?: ProductionRunOut) => {
+      if (!targetRunId) return;
+      const [issues, repairTasks, events] = await Promise.all([
+        api.productionRunIssues(targetRunId),
+        api.productionRunRepairTasks(targetRunId),
+        api.productionRunEvents(targetRunId),
+      ]);
+      setDetail((cur) => {
+        if (!cur || cur.run.id !== targetRunId) return cur;
+        const next = {
+          ...cur,
+          run: freshRun ?? cur.run,
+          issues,
+          repair_tasks: repairTasks,
+          events,
+        };
+        runDetailCache.set(targetRunId, next);
+        return next;
       });
-    } catch (e) {
-      setRuns([]);
-      setDetail(null);
-      setRunId(null);
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
+
+  const loadRuns = useCallback(
+    async (targetChapterId: string): Promise<ProductionRunOut[] | null> => {
+      setLoading(true);
+      setStartBlocked(false); // re-evaluated on every refresh / chapter switch
+      try {
+        const out = await api.productionRuns(targetChapterId);
+        runsRef.current = out;
+        setRuns(out);
+        setError(null);
+        setRunId((current) => {
+          if (current && out.some((run) => run.id === current)) return current;
+          return out[0]?.id ?? null;
+        });
+        return out;
+      } catch (e) {
+        runsRef.current = [];
+        setRuns([]);
+        setDetail(null);
+        setRunId(null);
+        setError(e instanceof Error ? e.message : String(e));
+        return null;
+      } finally {
+        setLoading(false);
+        setRunsLoaded(true);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const fromUrl = searchParams.get("chapter");
@@ -208,10 +262,21 @@ export default function ProductionScreen() {
       return;
     }
     setNotice(null);
+    const cached = runDetailCache.get(runId);
+    if (cached) {
+      setDetail(cached); // instant paint from the session cache
+      const row = runsRef.current.find((r) => r.id === runId);
+      // updated_at unchanged since we cached → nothing on the run moved → skip the ~670KB refetch
+      // entirely. Any backend action bumps updated_at, which falls through to the reload below.
+      if (row && row.updated_at === cached.run.updated_at) return;
+    }
     void loadDetail(runId).catch((e: unknown) => {
       setError(e instanceof Error ? e.message : String(e));
     });
   }, [loadDetail, runId]);
+
+  // Tab-switch cost, visible in the console: cached revisits log ~list-fetch time only.
+  useTabLoadTiming("production", runsLoaded);
 
   const runJson = useMemo(() => (detail ? JSON.stringify(detail, null, 2) : ""), [detail]);
   const downloadRunJson = () => {
@@ -225,6 +290,10 @@ export default function ProductionScreen() {
   };
 
   const chapter = orderedChapters.find((row) => row.id === chapterId) ?? null;
+  // Header metrics come straight off the (cheap) list row when the heavy detail hasn't landed yet —
+  // status + issue/repair counts paint immediately from ProductionRunOut.summary_json.
+  const selectedRun = runs.find((row) => row.id === runId) ?? null;
+  const headerRun = detail?.run ?? selectedRun;
   const finalArtifact = detail ? latestArtifact(detail.artifacts, "final_chapter") : null;
   const draftArtifact = detail ? latestArtifact(detail.artifacts, "chapter_draft") : null;
   const qaArtifact = detail ? latestArtifact(detail.artifacts, "chapter_draft_qa") : null;
@@ -236,19 +305,26 @@ export default function ProductionScreen() {
         : "";
 
   // Returns the action's result on success (so callers can report what happened) or null on failure
-  // (the error banner already carries the message).
+  // (the error banner already carries the message). `refresh` picks the post-action reload: "slim"
+  // for actions that cannot change artifacts/prose (triage, verify — they only move issues/tasks),
+  // "full" (default) for the ones that can (assemble, apply). Slim keeps the ~670KB artifact payload
+  // out of the request entirely.
   const runAction = useCallback(
     async <T,>(
       label: string,
       fn: () => Promise<T>,
-      opts?: { reloadRuns?: boolean; reloadDetail?: boolean },
+      opts?: { reloadRuns?: boolean; refresh?: "full" | "slim" },
     ): Promise<T | null> => {
       setBusy(label);
       try {
         const out = await fn();
         setError(null);
-        if (opts?.reloadRuns && chapterId) await loadRuns(chapterId);
-        if (opts?.reloadDetail !== false) await loadDetail(runId);
+        const freshRuns = opts?.reloadRuns && chapterId ? await loadRuns(chapterId) : null;
+        if (opts?.refresh === "slim") {
+          await refreshDetailSlim(runId, freshRuns?.find((r) => r.id === runId));
+        } else {
+          await loadDetail(runId);
+        }
         return out;
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -257,7 +333,7 @@ export default function ProductionScreen() {
         setBusy(null);
       }
     },
-    [chapterId, loadDetail, loadRuns, runId],
+    [chapterId, loadDetail, loadRuns, refreshDetailSlim, runId],
   );
 
   const startRun = async () => {
@@ -284,8 +360,9 @@ export default function ProductionScreen() {
   };
 
   // The remediation panel shows for a failed start precondition or a blocked selected run; it needs
-  // the chapter packet (404 = none yet) to say WHY and list its blockers / repair tasks.
-  const blockedRun = detail?.run.status === "blocked";
+  // the chapter packet (404 = none yet) to say WHY and list its blockers / repair tasks. headerRun:
+  // the list row already knows the status, so the gate shows before the heavy detail lands.
+  const blockedRun = headerRun?.status === "blocked";
   const showGate = startBlocked || blockedRun;
   useEffect(() => {
     if (!showGate || !chapterId) return;
@@ -537,17 +614,17 @@ export default function ProductionScreen() {
           <div style={css("display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px")}>
             <MetricCard
               label="Status"
-              value={detail?.run.status ?? "—"}
-              tone={statusTone(detail?.run.status ?? "")}
+              value={headerRun?.status ?? "—"}
+              tone={statusTone(headerRun?.status ?? "")}
             />
             <MetricCard
               label="Issues"
-              value={summaryCount(detail?.run.summary_json, "issue_count")}
+              value={summaryCount(headerRun?.summary_json, "issue_count")}
               tone="var(--warn)"
             />
             <MetricCard
               label="Repair tasks"
-              value={summaryCount(detail?.run.summary_json, "repair_task_count")}
+              value={summaryCount(headerRun?.summary_json, "repair_task_count")}
               tone="var(--info)"
             />
             <MetricCard
@@ -574,8 +651,11 @@ export default function ProductionScreen() {
                     return;
                   }
                   setNotice(null);
+                  // Triage only moves issues → repair tasks; artifacts/prose can't change, so the
+                  // slim refresh skips the ~670KB detail payload.
                   void runAction("triage", () => api.triageProductionRun(detail.run.id), {
                     reloadRuns: true,
+                    refresh: "slim",
                   }).then((ok) => {
                     if (ok)
                       setNotice(
@@ -675,13 +755,15 @@ export default function ProductionScreen() {
                         })
                       }
                       onVerify={() =>
+                        // Verification records a verdict and moves task/issue statuses — it never
+                        // touches artifacts/prose, so the slim refresh is enough.
                         void runAction(
                           `verify:${task.id}`,
                           async () => {
                             await api.verifyRepairTask(task.id);
                             return api.repairTask(task.id);
                           },
-                          { reloadRuns: true },
+                          { reloadRuns: true, refresh: "slim" },
                         ).then((updated) => {
                           if (updated)
                             setNotice(

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_JOBS } from "../../constants";
 import { useDeskBooks } from "../useDeskBooks";
 import { useDeskChapterCreate } from "../useDeskChapterCreate";
+import { resetCanonBodyGuardForTests, useDeskCollections } from "../useDeskCollections";
 import { useDeskJobs } from "../useDeskJobs";
 import { useDeskSceneActions } from "../useDeskSceneActions";
 
@@ -20,6 +21,14 @@ vi.mock("../../client", () => ({
     decide: vi.fn(),
     draftNext: vi.fn(),
     redraftScenes: vi.fn(),
+    chapters: vi.fn(),
+    chapterScenes: vi.fn(),
+    pending: vi.fn(),
+    manuscript: vi.fn(),
+    characters: vi.fn(),
+    canon: vi.fn(),
+    threads: vi.fn(),
+    ruleProposals: vi.fn(),
   },
 }));
 
@@ -444,5 +453,87 @@ describe("useDeskSceneActions restartRedraft", () => {
     expect(arg).toBeInstanceOf(Error);
     expect((arg as Error).message).toContain("Scene 3");
     expect((arg as Error).message).toContain("Approve ScenePackets first");
+  });
+});
+
+describe("useDeskCollections", () => {
+  const MARA = {
+    id: "c1",
+    kind: "person",
+    name: "Mara",
+    body: null,
+    source: "manual",
+    status: "active",
+  };
+  const CANON_SLIM = [MARA];
+  const CANON_FULL = [{ ...MARA, body: "full body text" }];
+  // The slim index request passes { includeBodies: false }; the heavy upgrade omits the option.
+  const fullBodyCanonCalls = () =>
+    vi.mocked(api.canon).mock.calls.filter((c) => c[2]?.includeBodies !== false).length;
+
+  beforeEach(() => {
+    vi.useRealTimers();
+    resetCanonBodyGuardForTests(); // module-level session guard would leak between cases
+    vi.mocked(api.chapters).mockReset().mockResolvedValue([]);
+    vi.mocked(api.chapterScenes).mockReset().mockResolvedValue([]);
+    vi.mocked(api.pending).mockReset().mockResolvedValue([]);
+    vi.mocked(api.manuscript)
+      .mockReset()
+      .mockResolvedValue({ book_id: "book-1", title: "T", chapters: [] } as never);
+    vi.mocked(api.characters).mockReset().mockResolvedValue([]);
+    vi.mocked(api.threads).mockReset().mockResolvedValue([]);
+    vi.mocked(api.ruleProposals).mockReset().mockResolvedValue([]);
+    vi.mocked(api.jobsStatus).mockReset().mockResolvedValue(EMPTY_JOBS);
+    vi.mocked(api.canon)
+      .mockReset()
+      .mockImplementation(async (_id, _kind, opts) =>
+        opts?.includeBodies === false ? CANON_SLIM : CANON_FULL,
+      );
+  });
+
+  function setup() {
+    const fail = vi.fn();
+    const setError = vi.fn();
+    const setLoading = vi.fn();
+    const onBookChange = vi.fn();
+    return renderHook(() =>
+      useDeskCollections("book-1", fail, setError, setLoading, onBookChange),
+    );
+  }
+
+  it("downloads full canon bodies once per book per session across repeated loads", async () => {
+    const { result } = setup();
+    // Initial load: slim index paints first, the body corpus upgrades in the background.
+    await waitFor(() => expect(result.current.canon).toEqual(CANON_FULL));
+    expect(fullBodyCanonCalls()).toBe(1);
+
+    await act(async () => {
+      await result.current.loadCollections("book-1");
+    });
+
+    // The reload refetched the slim index but NOT the multi-megabyte body corpus…
+    expect(fullBodyCanonCalls()).toBe(1);
+    expect(vi.mocked(api.canon).mock.calls.length).toBe(3); // 2 slim + 1 body upgrade
+    // …and the already-downloaded bodies survived the slim refresh (no downgrade to bodiless rows).
+    expect(result.current.canon).toEqual(CANON_FULL);
+  });
+
+  it("serves the warm manuscript with zero refetch and refetches only once stale", async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.manuscript).not.toBeNull());
+    expect(api.manuscript).toHaveBeenCalledTimes(1); // the initial full load
+
+    await act(async () => {
+      await result.current.refreshManuscript("book-1");
+    });
+    expect(api.manuscript).toHaveBeenCalledTimes(1); // warm: a Manuscript tab revisit fetches nothing
+
+    await act(async () => {
+      await result.current.refreshScenes("book-1"); // a scene decision's reconciliation path
+    });
+    await act(async () => {
+      await result.current.refreshManuscript("book-1");
+    });
+    expect(api.manuscript).toHaveBeenCalledTimes(2); // stale → exactly one background refetch
   });
 });

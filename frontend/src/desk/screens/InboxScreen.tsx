@@ -9,6 +9,7 @@ import { sceneLabel, wordCount } from "../lib/format";
 import { buildScenesMarkdown, downloadMarkdown, type SceneExportItem } from "../lib/sceneMarkdown";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { useSelection } from "../lib/useSelection";
+import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import Planner from "../components/Planner";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import { ActivityFeed, DraftPanel, formatElapsed } from "../components/DraftActivity";
@@ -19,6 +20,8 @@ import type { ExportKind } from "../lib/docx";
 export default function InboxScreen() {
   const { t, openScene, openSceneId } = useDesk();
   const data = useDeskData();
+  // Tab-switch cost, visible in the console (provider data is cached, so revisits log ~0ms).
+  useTabLoadTiming("inbox", !data.loading);
   const sel = useSelection();
   const [reviseMode, setReviseMode] = useState(false);
   const [note, setNote] = useState("");

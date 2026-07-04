@@ -33,9 +33,11 @@ import type {
   DecisionIn,
   DocDetail,
   DocMeta,
+  AgentEventOut,
   DraftAttemptOut,
   DraftNextOut,
   FailedJobOut,
+  IssueOut,
   JobsStatusOut,
   KnowledgeFactOut,
   LlmCallListOut,
@@ -291,6 +293,14 @@ export const api = {
   productionRuns: (chapterId: string) =>
     http<ProductionRunOut[]>(`/chapters/${chapterId}/production-runs`),
   productionRun: (runId: string) => http<ProductionRunDetailOut>(`/production-runs/${runId}`),
+  // Slim sub-resources for post-action reconciliation. The full detail above inlines every
+  // artifact's prose (~670KB observed); actions that only move issues/tasks (triage, verify) refetch
+  // just these instead and keep the cached artifacts.
+  productionRunIssues: (runId: string) => http<IssueOut[]>(`/production-runs/${runId}/issues`),
+  productionRunRepairTasks: (runId: string) =>
+    http<RepairTaskOut[]>(`/production-runs/${runId}/repair-tasks`),
+  productionRunEvents: (runId: string) =>
+    http<AgentEventOut[]>(`/production-runs/${runId}/events`),
   triageProductionRun: (runId: string) =>
     http<ProductionRunActionOut>(`/production-runs/${runId}/triage`, { method: "POST" }),
   assembleProductionRun: (runId: string) =>
