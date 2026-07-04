@@ -57,6 +57,8 @@ from dominion.shared.models import (
 )
 from dominion.shared.severity import issue_gates
 from dominion.shared.text_match import as_str_list, names_present
+from dominion.workers import repair_triage
+from dominion.workers.canon_guards import scan_packet_prose
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.job_scheduler import schedule_revision
 from dominion.workers.length import planner as length_planner
@@ -64,6 +66,11 @@ from dominion.workers.packet import latest_approved as latest_approved_chapter_p
 from dominion.workers.packet import master as packet_master
 from dominion.workers.packet.validation import leading_roster_name
 from dominion.workers.scene_packet import inputs as scene_packet_inputs
+from dominion.workers.scene_scope import DUPLICATE_IRREVERSIBLE_BEAT, SCENE_SCOPE_BLEED, evaluate_scene_scope
+
+# L6 (run orchestration): pure stage machine — pinned stage strings + deterministic gates that must
+# fail BEFORE any LLM spend. Persistence stays here; decisions live in run_stages (DB-free, tested).
+from dominion.workers import run_stages  # isort: skip
 
 
 def _hash_payload(value: Any) -> str:
@@ -552,22 +559,67 @@ def derive_chapter_sequence(packet_body: dict[str, Any]) -> dict[str, Any]:
     target_scene_count = max(target_scene_count, 0)
     hard_max_scene_count = max(hard_max_scene_count, target_scene_count)
 
-    return {
-        "chapter_no": packet_body.get("chapter_no"),
-        "chapter_job": packet_body.get("chapter_job") or "",
-        "chapter_spine": packet_body.get("one_sentence_spine") or "",
-        "target_words": chapter_target,
-        "max_words": chapter_max or chapter_target,
-        "hard_max_words": chapter_max or chapter_target,
-        "target_scene_count": target_scene_count,
-        "hard_max_scene_count": hard_max_scene_count,
-        "global_entry_state": packet_body.get("entry_state") or "",
-        "global_exit_state": packet_body.get("exit_state") or "",
-        "scenes": scenes,
-        "beat_ownership": beat_ownership,
-        "forbidden_duplicate_functions": sorted(set(duplicates)),
-        "composition_notes": {"must_merge": [], "must_cut": [], "must_expand": []},
-    }
+    return chain_scene_entry_states(
+        {
+            "chapter_no": packet_body.get("chapter_no"),
+            "chapter_job": packet_body.get("chapter_job") or "",
+            "chapter_spine": packet_body.get("one_sentence_spine") or "",
+            "target_words": chapter_target,
+            "max_words": chapter_max or chapter_target,
+            "hard_max_words": chapter_max or chapter_target,
+            "target_scene_count": target_scene_count,
+            "hard_max_scene_count": hard_max_scene_count,
+            "global_entry_state": packet_body.get("entry_state") or "",
+            "global_exit_state": packet_body.get("exit_state") or "",
+            "scenes": scenes,
+            "beat_ownership": beat_ownership,
+            "forbidden_duplicate_functions": sorted(set(duplicates)),
+            "composition_notes": {"must_merge": [], "must_cut": [], "must_expand": []},
+        }
+    )
+
+
+def chain_scene_entry_states(body: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic post-pass enforcing the entry/exit chaining contract on a sequence body.
+
+    The rule: scene 1 opens at the chapter's ``global_entry_state``; a dependent scene
+    (``independent_draft_allowed`` false) opens exactly where the scene it ``depends_on`` exited.
+    Seed/LLM-authored entry_states are rewritten to honor it — the Ch1 failure mode was every scene
+    carrying the identical global entry, so each drafter restarted the whole chapter arc.
+    ``depends_on_scene_no`` must reference an earlier scene (invalid/missing defaults to the previous
+    scene) and ``unlocks_scene_no`` must reference a later one (invalid/missing defaults to the next).
+    A scene with ``independent_draft_allowed`` true keeps its authored entry_state. Mutates ``body``'s
+    scenes in place and returns ``body``.
+    """
+    scenes = sorted(
+        [scene for scene in (body.get("scenes") or []) if isinstance(scene, dict)],
+        key=lambda scene: (int(scene.get("scene_no") or 0), str(scene.get("seed_id") or "")),
+    )
+    if not scenes:
+        return body
+    global_entry = str(body.get("global_entry_state") or "").strip()
+    by_scene_no = {int(scene.get("scene_no") or 0): scene for scene in scenes}
+    scene_nos = [int(scene.get("scene_no") or 0) for scene in scenes]
+    for index, scene in enumerate(scenes):
+        scene_no = scene_nos[index]
+        unlocks = _int_or_none(scene.get("unlocks_scene_no"))
+        if unlocks is None or unlocks <= scene_no or unlocks not in by_scene_no:
+            scene["unlocks_scene_no"] = scene_nos[index + 1] if index + 1 < len(scenes) else None
+        if index == 0:
+            scene["depends_on_scene_no"] = None
+            if global_entry:
+                scene["entry_state"] = global_entry
+            continue
+        dep_no = _int_or_none(scene.get("depends_on_scene_no"))
+        if dep_no is None or dep_no >= scene_no or dep_no not in by_scene_no:
+            dep_no = scene_nos[index - 1]
+        scene["depends_on_scene_no"] = dep_no
+        if scene.get("independent_draft_allowed"):
+            continue
+        dep_exit = str(by_scene_no[dep_no].get("exit_state") or "").strip()
+        if dep_exit:
+            scene["entry_state"] = dep_exit
+    return body
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -592,13 +644,16 @@ def run_chapter_draft_qa(
     scene_rows: list[dict[str, Any]],
     full_prose: str,
     packet_body: dict[str, Any] | None = None,
+    open_questions: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Structural ChapterDraftQA performed after chapter assembly.
 
     Checks for one timeline, duplicate functions/starts, entry/exit continuity,
     repeated onboarding signals, required beats presence (via sequence), forbidden reveals,
-    chapter word budget, and (when the chapter packet is supplied) that every characters_present
-    roster entry is actually visible in the prose. This is the gate that can block final_chapter
+    chapter word budget, (when the chapter packet is supplied) that every characters_present
+    roster entry is actually visible in the prose, and canon_contract_leak — prohibited on-page
+    terms derived from the packet's prohibition fields and resolved rulings appearing in the
+    assembled prose (see workers.canon_guards). This is the gate that can block final_chapter
     status. Findings carry `severity` + the derived `blocks_*` facts: "block" gates the final
     chapter, "repair" gates final export only (drafting and human review proceed), "warn" is
     advisory.
@@ -700,8 +755,34 @@ def run_chapter_draft_qa(
             if verdict == "pass":
                 verdict = "warn"
 
-    # Placeholder: required beats / forbidden would require deeper analysis of prose vs contracts
-    # For this landing we rely on sequence required and prior issue set.
+    # CANON_CONTRACT_LEAK (deterministic): scan the assembled prose against on-page prohibitions
+    # derived from the chapter packet's OWN contract fields (forbidden_surface_terms / forbidden_*
+    # prohibition sentences) and resolved author rulings in `open_questions`. This is the check the
+    # Ch1 bad run lacked: the "No Eyes notification in Chapter 1" ruling lived only in free text
+    # while surface_terms listed "Neurochromatic Eyes" as the ALLOWED name, so no layer ever
+    # compared prose to the prohibition. Deterministic, so "block" findings may gate final_chapter.
+    if full_prose.strip():
+        for leak in scan_packet_prose(full_prose, packet_body, open_questions):
+            findings.append(leak)
+            if leak.get("severity") == "block":
+                verdict = "block"
+            elif verdict == "pass":
+                verdict = "warn"
+
+    # Beat-ownership scope guards (recovery L2): deterministic keyword detection derived from the
+    # sequence body's beat_ownership. A scene performing a LATER scene's owned beat is
+    # scene_scope_bleed; an irreversible beat staged in more than one scene is
+    # duplicate_irreversible_beat. Both severities come from scene_scope ("block" for irreversible
+    # leaks/duplicates, "repair" otherwise — deterministic checks may block, per shared/severity.py).
+    if sequence_body:
+        prose_by_no = {int(r.get("scene_no") or 0): str(r.get("prose") or "") for r in scene_rows}
+        for scope_issue in evaluate_scene_scope(prose_by_no, sequence_body):
+            severity = str(scope_issue.get("severity") or "repair")
+            findings.append({**scope_issue, **issue_gates(severity)})
+            if severity == "block":
+                verdict = "block"
+            elif verdict == "pass":
+                verdict = "warn"
 
     return {
         "verdict": verdict,
@@ -740,9 +821,16 @@ def evaluate_chapter_sequence(body: dict[str, Any]) -> dict[str, Any]:
         planned_max_words += _int_or_none(budget.get("max")) or 0  # type: ignore[arg-type]
         planned_hard_max_words += _int_or_none(budget.get("hard_max")) or 0  # type: ignore[arg-type]
 
-        if index == 0:
+        if index == 0 or scene.get("independent_draft_allowed"):
+            # An independent scene may open away from the previous exit by design.
             continue
-        previous = scenes[index - 1]
+        # A dependent scene must open where the scene it depends_on exited (default: the previous
+        # scene) — the same contract chain_scene_entry_states enforces.
+        dep_no = _int_or_none(scene.get("depends_on_scene_no"))
+        previous = next(
+            (candidate for candidate in scenes[:index] if _int_or_none(candidate.get("scene_no")) == dep_no),
+            scenes[index - 1],
+        )
         previous_exit = str(previous.get("exit_state") or "").strip()
         entry_state = str(scene.get("entry_state") or "").strip()
         if previous_exit and entry_state and previous_exit != entry_state:
@@ -1103,7 +1191,7 @@ async def _apply_real_span_patch(
     }
 
 
-def _highest_authority(issues: list[Issue]) -> str:
+def _highest_authority(issues: list[Issue]) -> RepairAuthorityLevel:
     authorities = [_infer_authority(issue) for issue in issues]
     return max(authorities, key=lambda authority: _AUTHORITY_RANK.get(authority, -1))
 
@@ -1114,15 +1202,19 @@ async def _queue_repair_task_from_issues(
     run: ProductionRun,
     issues: list[Issue],
     agent_run_id: uuid.UUID | None = None,
+    repair_kind: str | None = None,
+    authority_level: RepairAuthorityLevel | None = None,
+    chapter_scoped: bool = False,
+    instruction_preamble: str | None = None,
 ) -> tuple[RepairTask, Artifact]:
     first = issues[0]
-    repair_kind = _infer_repair_kind(first)
-    authority_level = _highest_authority(issues)
+    repair_kind = repair_kind or _infer_repair_kind(first)
+    authority_level = authority_level or _highest_authority(issues)
     task = RepairTask(
         production_run_id=run.id,
         chapter_id=run.chapter_id,
-        scene_id=first.scene_id,
-        scene_no=first.scene_no,
+        scene_id=None if chapter_scoped else first.scene_id,
+        scene_no=None if chapter_scoped else first.scene_no,
         repair_kind=repair_kind,
         authority_level=authority_level,
         status=RepairTaskStatus.WAITING_FOR_HUMAN
@@ -1144,13 +1236,14 @@ async def _queue_repair_task_from_issues(
         else None,
         instructions="\n".join(
             [
+                *([instruction_preamble] if instruction_preamble else []),
                 f"Repair kind: {repair_kind}. Authority: {authority_level}.",
                 *[f"- {issue.recommended_action} Claim: {issue.claim}" for issue in issues],
             ]
         ),
         preserve=[
             f"Preserve scene outcome for scene {first.scene_no}."
-            if first.scene_no is not None
+            if first.scene_no is not None and not chapter_scoped
             else "Preserve chapter outcome."
         ],
         must_change=[issue.claim for issue in issues],
@@ -1262,6 +1355,33 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
     sequence = await latest_chapter_sequence(session, run.chapter_id)
     if chapter is None:
         return
+
+    # L6 assembly gate — assembly REFUSES (structured run event + parked stage, never an exception
+    # dump and never a chapter_draft "pretending it could succeed") when the sequence is QA-blocked
+    # or when sequence scenes lack prose. The ch1 failure assembled 2 of 4 broken scenes anyway and
+    # spent QA + a repair swarm on a chapter that could never be valid.
+    scenes_with_prose = {no for no, sc in latest_scenes.items() if (sc.prose or "").strip()}
+    gate = run_stages.evaluate_assembly_readiness(
+        sequence.body if sequence is not None else None,
+        scenes_with_prose,
+        sequence_blocked=(
+            sequence is not None
+            and (sequence.status == ChapterSequenceStatus.BLOCKED or sequence.qa_verdict == "block_drafting")
+        ),
+    )
+    if not gate.ok:
+        run.current_stage = gate.next_stage or run_stages.STAGE_WAITING_FOR_SCENE_DRAFTS
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="assembly_refused",
+            stage=run.current_stage,
+            message=f"Chapter assembly refused: {gate.reason}.",
+            payload={"reason": gate.reason, "violations": gate.violations},
+        )
+        return
+    run.current_stage = run_stages.STAGE_ASSEMBLING_CHAPTER
+
     seq_by_no = {}
     if sequence and sequence.body:
         for it in sequence.body.get("scenes") or []:
@@ -1311,6 +1431,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         scene_rows,
         chapter_text,
         packet_body=packet_body if isinstance(packet_body, dict) else None,
+        open_questions=approved_packet.open_questions if approved_packet is not None else None,
     )
 
     issues = (
@@ -1371,6 +1492,49 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         },
         dependencies=[(chapter_artifact.id, "source", chapter_artifact.content_hash)],
     )
+    # Persist beat-ownership scope findings as Issue rows so triage can cluster
+    # scene_scope_bleed / duplicate_irreversible_beat (recovery L2). Signature-deduped so
+    # re-assembly never duplicates them. Severity mapping: deterministic "block" -> "hard".
+    scope_signatures = {
+        str((issue.payload_json or {}).get("signature")) for issue in issues if isinstance(issue.payload_json, dict)
+    }
+    for finding in chapter_draft_qa.get("findings") or []:
+        kind = str(finding.get("kind") or "")
+        if kind not in (SCENE_SCOPE_BLEED, DUPLICATE_IRREVERSIBLE_BEAT):
+            continue
+        claim = str(finding.get("detail") or finding.get("beat") or kind)
+        scene_no = finding.get("scene_no") if isinstance(finding.get("scene_no"), int) else None
+        signature = _issue_signature(
+            validator="scene_scope", issue_kind=kind, claim=claim, quote=None, scene_no=scene_no
+        )
+        if signature in scope_signatures:
+            continue
+        scope_signatures.add(signature)
+        bleed_scene = latest_scenes.get(scene_no) if scene_no is not None else None
+        await _create_issue(
+            session,
+            run=run,
+            artifact_type="chapter_draft_qa",
+            artifact_id=qa_artifact.id,
+            scene_id=bleed_scene.id if bleed_scene is not None else None,
+            scene_no=scene_no,
+            validator="scene_scope",
+            issue_kind=kind,
+            severity="hard" if finding.get("severity") == "block" else "warn",
+            quote=None,
+            span_start=None,
+            span_end=None,
+            claim=claim,
+            contract_reference=str(sequence.id) if sequence is not None else None,
+            recommended_action=(
+                "Cut the leaked beat from this scene; only its owning scene may stage it."
+                if kind == SCENE_SCOPE_BLEED
+                else "Keep the irreversible beat only in its owning scene and remove the repeats."
+            ),
+            confidence=1.0,
+            auto_repair_allowed=False,
+            payload={**finding, "signature": signature},
+        )
     await _create_artifact(
         session,
         run=run,
@@ -1426,7 +1590,24 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
             payload={"chapter_id": str(run.chapter_id)},
         )
     else:
-        run.current_stage = "chapter_assembly"
+        # L6 chapter-QA routing — QA runs strictly AFTER a full assembly. STRUCTURAL blocking issues
+        # (sequence_budget_mismatch, scene_scope_bleed, duplicate_irreversible_beat,
+        # canon_contract_leak) park the run in structural_repair_required as one root-cause state
+        # instead of scattering downstream symptoms into repair_execution.
+        qa_outcome = run_stages.classify_qa_outcome(
+            [issue.issue_kind for issue in open_issues]
+            + [str(f.get("kind") or "") for f in chapter_draft_qa.get("findings") or []]
+        )
+        run.current_stage = qa_outcome.next_stage or run_stages.STAGE_CHAPTER_QA
+        if not qa_outcome.ok:
+            await _record_event(
+                session,
+                run_id=run.id,
+                event_type="structural_repair_required",
+                stage=run.current_stage,
+                message="Chapter QA found structural blocking issues; prose repair is gated until they are fixed.",
+                payload={"reason": qa_outcome.reason, "violations": qa_outcome.violations},
+            )
         if run.status == ProductionRunStatus.RUNNING:
             run.status = ProductionRunStatus.WAITING_FOR_HUMAN
 
@@ -1451,13 +1632,39 @@ async def queue_draft_jobs_for_missing_sequence_scenes(session: AsyncSession, ru
     sequence = await latest_chapter_sequence(session, run.chapter_id)
     if not sequence or not sequence.body:
         return []
+    scene_packets = await _scene_packet_map(session, run.chapter_id)
+
+    # L6 drafting gate — structural preconditions fail BEFORE any LLM call: valid derived sequence
+    # (not QA-blocked), non-contradictory budget arithmetic, and an approved NON-STALE ScenePacket
+    # for every sequence scene. The ch1 failure queued four drafters against budgets that already
+    # guaranteed a 34% chapter overrun.
+    gate = run_stages.evaluate_drafting_readiness(
+        sequence_status=str(sequence.status),
+        sequence_qa_verdict=sequence.qa_verdict,
+        sequence_body=sequence.body,
+        scene_packets={
+            no: {"status": str(p.status), "word_budget": (p.body or {}).get("word_budget")}
+            for no, p in scene_packets.items()
+        },
+    )
+    if not gate.ok:
+        if gate.next_stage:
+            run.current_stage = gate.next_stage
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="draft_blocked",
+            stage=run.current_stage or "draft_missing",
+            message=f"Draft queueing refused before LLM spend: {gate.reason}.",
+            payload={"reason": gate.reason, "violations": gate.violations},
+        )
+        return []
 
     seq_scenes = sorted(
         [s for s in (sequence.body.get("scenes") or []) if isinstance(s, dict)],
         key=lambda s: int(s.get("scene_no") or 0),
     )
     existing_scenes = await _latest_scene_map(session, run.chapter_id)
-    scene_packets = await _scene_packet_map(session, run.chapter_id)
 
     chapter = await session.get(Chapter, run.chapter_id)
 
@@ -1540,7 +1747,8 @@ async def queue_draft_jobs_for_missing_sequence_scenes(session: AsyncSession, ru
                     payload={"job_id": str(jid), "scene_no": sno, "production_run_id": str(run.id)},
                 )
             if created_job_ids:
-                run.current_stage = "awaiting_scene_drafts"
+                # L6: pinned stage string — drafts are in flight for this run.
+                run.current_stage = run_stages.STAGE_DRAFTING_SCENES
             return created_job_ids
 
     return []
@@ -1719,6 +1927,9 @@ async def update_timeline_after_scene(
         tl.chapter_so_far_summary = (sequence.body or {}).get("chapter_spine")
 
     tl.updated_at = _now()
+    # L6: a scene just persisted with its critiques — the run is in per-scene QA until the next
+    # draft is queued (drafting_scenes) or assembly is attempted (assembling_chapter / refusal).
+    run.current_stage = run_stages.STAGE_SCENE_QA
     await session.flush()
 
     # Refresh artifact for visibility (best effort)
@@ -1764,6 +1975,28 @@ async def _block_production_on_timeline_failure(
         payload={"error": error, "scene_no": getattr(run, "current_scene_no", None)},
     )
     await session.flush()
+
+
+async def mark_run_provider_rate_limited(
+    session: AsyncSession, production_run_id: uuid.UUID, error: str
+) -> ProductionRun | None:
+    """L6: a provider 429 that survived retries is transient infrastructure — park the run in the
+    retryable provider_rate_limited stage, NEVER in a contract/author-failure state. Status is left
+    untouched so resume/re-queue re-enters the draft loop without ceremony."""
+    run = await session.get(ProductionRun, production_run_id)
+    if run is None:
+        return None
+    run.current_stage = run_stages.STAGE_PROVIDER_RATE_LIMITED
+    await _record_event(
+        session,
+        run_id=run.id,
+        event_type="provider_rate_limited",
+        stage=run.current_stage,
+        message="Provider rate limit (429) persisted past automatic retries; the run is retryable.",
+        payload={"error": error[:2000], "retryable": True},
+    )
+    await session.flush()
+    return run
 
 
 async def create_production_run(
@@ -1892,7 +2125,13 @@ async def create_production_run(
         # (entry/exit, owned_beats, word_budget already planned, must_not etc.)
         sp_body = dict(scene_packet.body or {})
         seq_item = seq_by_no.get(scene_no, {})
-        sp_body.setdefault("entry_state", seq_item.get("entry_state"))
+        # The sequence is the authority for a dependent scene's opening state: its chained
+        # entry_state overwrites any stale one the packet body carries (an independent scene, or a
+        # scene missing from the sequence, keeps the packet's own value).
+        if seq_item.get("entry_state") and not seq_item.get("independent_draft_allowed"):
+            sp_body["entry_state"] = seq_item.get("entry_state")
+        else:
+            sp_body.setdefault("entry_state", seq_item.get("entry_state"))
         sp_body.setdefault("exit_state", seq_item.get("exit_state"))
         sp_body.setdefault("owned_beats", seq_item.get("owned_beats") or seq_item.get("required_beats"))
         sp_body.setdefault("word_budget", seq_item.get("word_budget") or sp_body.get("word_budget"))
@@ -2141,7 +2380,7 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
     run = await session.get(ProductionRun, run_id)
     if run is None:
         raise ValueError("production run not found")
-    issues = (
+    proposed = (
         (
             await session.execute(
                 select(Issue)
@@ -2152,7 +2391,21 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         .scalars()
         .all()
     )
-    if not issues:
+    # Issues accepted by an earlier triage but left untasked (deferred prose_polish
+    # or infra_rate_limit retry state). Re-planned so a re-triage after structural
+    # repairs resolve can release the deferred prose work.
+    deferred = (
+        (
+            await session.execute(
+                select(Issue)
+                .where(Issue.production_run_id == run_id, Issue.status == IssueStatus.ACCEPTED)
+                .order_by(Issue.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not proposed and not deferred:
         await _update_run_summary(session, run)
         return run
 
@@ -2165,10 +2418,10 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         stage="issue_triage",
         input_artifact_ids=[],
     )
-    grouped: dict[tuple[uuid.UUID | None, int | None, str, str], list[Issue]] = defaultdict(list)
     created_tasks: list[RepairTask] = []
     created_artifacts: list[Artifact] = []
-    for issue in issues:
+    accepted_new: list[Issue] = []
+    for issue in proposed:
         if issue.issue_kind == "missing_scene":
             decision = IssueDecisionKind.ESCALATE
             issue.status = IssueStatus.ESCALATED
@@ -2180,8 +2433,17 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         else:
             decision = IssueDecisionKind.ACCEPT
             issue.status = IssueStatus.ACCEPTED
-            reason = "Accepted for repair task generation."
-            grouped[(issue.scene_id, issue.scene_no, _infer_repair_kind(issue), _infer_authority(issue))].append(issue)
+            accepted_new.append(issue)
+            root_cause = repair_triage.infer_root_cause(issue)
+            if root_cause == repair_triage.ROOT_CAUSE_INFRA_RATE_LIMIT:
+                reason = "Accepted as infra_rate_limit retry state; provider rate limits never create repair tasks."
+            elif root_cause in repair_triage.STRUCTURAL_AUTHORITY:
+                reason = (
+                    f"Accepted into root-cause cluster '{root_cause}'; "
+                    "one chapter-scoped structural repair task covers all member issues."
+                )
+            else:
+                reason = "Accepted as prose_polish for repair task generation."
         session.add(
             IssueDecision(
                 issue_id=issue.id,
@@ -2207,15 +2469,94 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
             agent_run_id=triage.id,
         )
 
-    for _, grouped_issues in grouped.items():
+    # Root-cause clustering: one chapter-scoped repair task per structural cluster
+    # (sequence_entry_state | scene_scope_bleed | budget_mismatch | canon_contract_leak),
+    # never a per-scene scatter of symptom repairs.
+    plan = repair_triage.plan_repair_tasks([*accepted_new, *deferred])
+    for root_cause in repair_triage.STRUCTURAL_ROOT_CAUSES:
+        cluster = plan.structural_clusters.get(root_cause)
+        if not cluster:
+            continue
         task, artifact = await _queue_repair_task_from_issues(
             session,
             run=run,
-            issues=grouped_issues,
+            issues=cluster,
             agent_run_id=triage.id,
+            repair_kind=root_cause,
+            authority_level=repair_triage.STRUCTURAL_AUTHORITY[root_cause],
+            chapter_scoped=True,
+            instruction_preamble=repair_triage.ROOT_CAUSE_INSTRUCTIONS[root_cause],
         )
         created_tasks.append(task)
         created_artifacts.append(artifact)
+
+    # Prose polish stays gated while ANY structural root repair is unresolved —
+    # either a cluster planned just now, or a structural task still open in the DB.
+    unresolved_structural = (
+        (
+            await session.execute(
+                select(RepairTask).where(
+                    RepairTask.production_run_id == run_id,
+                    RepairTask.repair_kind.in_(repair_triage.STRUCTURAL_ROOT_CAUSES),
+                    RepairTask.status.in_(
+                        [
+                            RepairTaskStatus.QUEUED,
+                            RepairTaskStatus.RUNNING,
+                            RepairTaskStatus.WAITING_FOR_HUMAN,
+                            RepairTaskStatus.FAILED,
+                        ]
+                    ),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    defer_prose = plan.defer_prose or bool(unresolved_structural)
+    if plan.prose_issues and not defer_prose:
+        grouped: dict[tuple[uuid.UUID | None, int | None, str, str], list[Issue]] = defaultdict(list)
+        for issue in plan.prose_issues:
+            grouped[(issue.scene_id, issue.scene_no, _infer_repair_kind(issue), _infer_authority(issue))].append(issue)
+        for _, grouped_issues in grouped.items():
+            task, artifact = await _queue_repair_task_from_issues(
+                session,
+                run=run,
+                issues=grouped_issues,
+                agent_run_id=triage.id,
+            )
+            created_tasks.append(task)
+            created_artifacts.append(artifact)
+    elif plan.prose_issues:
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="repair_deferred",
+            stage="issue_triage",
+            message=(
+                f"{len(plan.prose_issues)} prose_polish issue(s) deferred until structural root-cause repairs resolve."
+            ),
+            payload={
+                "issue_ids": [str(issue.id) for issue in plan.prose_issues],
+                "deferred_behind": sorted(
+                    {task.repair_kind for task in [*created_tasks, *unresolved_structural]}
+                    & set(repair_triage.STRUCTURAL_ROOT_CAUSES)
+                ),
+            },
+            agent_run_id=triage.id,
+        )
+    if plan.rate_limit_issues:
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="rate_limit_retry_state",
+            stage="issue_triage",
+            message=(
+                f"{len(plan.rate_limit_issues)} infra_rate_limit issue(s) recorded as retry state; "
+                "no repair tasks created."
+            ),
+            payload={"issue_ids": [str(issue.id) for issue in plan.rate_limit_issues]},
+            agent_run_id=triage.id,
+        )
 
     _finish_agent_run(
         triage,
@@ -2223,7 +2564,19 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         output_artifact_ids=[str(artifact.id) for artifact in created_artifacts],
     )
     run.status = ProductionRunStatus.REPAIRING if created_tasks else ProductionRunStatus.WAITING_FOR_HUMAN
-    run.current_stage = "repair_queue" if created_tasks else "chapter_assembly"
+    # L5+L6 composition: a structural root-cause cluster (created now, or still open from an
+    # earlier triage) parks the run in structural_repair_required — ONE chapter-scoped task per
+    # root cause carries the work, and prose repair stays deferred behind it. Symptom-only
+    # triage lands in the ordinary repair_queue.
+    structural_open = unresolved_structural or [
+        task for task in created_tasks if task.repair_kind in repair_triage.STRUCTURAL_ROOT_CAUSES
+    ]
+    if structural_open:
+        run.current_stage = run_stages.STAGE_STRUCTURAL_REPAIR_REQUIRED
+    elif created_tasks:
+        run.current_stage = "repair_queue"
+    # L6: otherwise the run keeps its real stage (chapter_qa after assembly,
+    # waiting_for_scene_drafts after an assembly refusal) instead of claiming "chapter_assembly".
     await _update_run_summary(session, run)
     return run
 
@@ -2826,6 +3179,8 @@ async def update_chapter_sequence(
     sequence = await session.get(ChapterSequence, sequence_id)
     if sequence is None:
         raise ValueError("chapter sequence not found")
+    # Manual edits must keep the entry/exit chaining contract — rewrite before persisting/QA.
+    body = chain_scene_entry_states(body)
     sequence.body = body
     sequence.target_words = _int_or_none(body.get("target_words"))
     sequence.max_words = _int_or_none(body.get("max_words"))
@@ -3130,7 +3485,8 @@ async def run_final_qa(session: AsyncSession, run_id: uuid.UUID) -> Artifact:
     await assemble_run(session, run)
     qa_artifact = await latest_chapter_draft_qa(session, run_id)
     if qa_artifact is None:
-        raise ValueError("chapter QA artifact not found")
+        # L6: assembly refused (structured event recorded) — surface the parked stage, not a dump.
+        raise ValueError(f"chapter QA unavailable: assembly refused, run is parked in {run.current_stage!r}")
     return qa_artifact
 
 
@@ -3188,6 +3544,9 @@ async def resume_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         for task in await production_run_repair_tasks(session, run_id)
     )
     run.status = ProductionRunStatus.REPAIRING if has_pending_repairs else ProductionRunStatus.RUNNING
+    # L6: resuming a rate-limited run re-enters the ordered flow at the drafting boundary.
+    if run.current_stage == run_stages.STAGE_PROVIDER_RATE_LIMITED:
+        run.current_stage = run_stages.STAGE_WAITING_FOR_SCENE_DRAFTS
     await _record_event(
         session,
         run_id=run.id,

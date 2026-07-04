@@ -87,12 +87,27 @@ def _contract_block(ctx: SceneContext) -> str | None:
         [f"reveal or foreshadow: {x}" for x in lst("forbidden_reveals")]
         + [f"let the reader learn yet: {x}" for x in lst("forbidden_knowledge")]
         + [f"let this happen in the scene: {x}" for x in lst("forbidden_beats")]
+        + [
+            # Beat-ownership scope guard (recovery L2): beats owned by LATER scenes are forbidden
+            # here in ANY form — performed, pre-played, or resolved early. Staging one collapses
+            # the chapter's scene boundaries (scene_scope_bleed).
+            f"perform, stage, or pre-resolve this beat — it belongs to a LATER scene: {x}"
+            for x in lst("beats_owned_by_later_scenes")
+        ]
         + [f"put this system/UI concept on the page: {x}" for x in lst("forbidden_ui_concepts")]
     )
     if must_not:
         sections.append("MUST NOT:\n" + "\n".join(f"- {m}" for m in must_not))
 
-    must = [f"reveal in this scene: {x}" for x in lst("required_reveals")]
+    owned = lst("owned_beats") or lst("required_beats")
+    must = [f"perform this beat in THIS scene — it is owned here, and only here: {x}" for x in owned]
+    must += [f"reveal in this scene: {x}" for x in lst("required_reveals")]
+    entry_state = c.get("entry_state")
+    if isinstance(entry_state, str) and entry_state.strip():
+        must.append(
+            "open the scene FROM this state — everything in it has already happened on the page; "
+            f"do not restage, replay, or re-establish any of it: {entry_state.strip()}"
+        )
     exit_state = c.get("exit_state")
     if isinstance(exit_state, str) and exit_state.strip():
         must.append(f"end the scene at this state: {exit_state.strip()}")
@@ -161,6 +176,13 @@ def _beat_prompt(ctx: SceneContext) -> tuple[str | None, str]:
         prefix_parts.append(f"Story so far, as {ctx.pov} understands it:\n{ctx.pov_summary}")
     if ctx.prior_scene_tail:
         prefix_parts.append("The previous scene ended:\n" + ctx.prior_scene_tail)
+    if ctx.prior_exit_state:
+        # Live production timeline: the actual state the story reached before this scene. The scene
+        # picks up from here — the drafter must never restart the chapter arc from its beginning.
+        prefix_parts.append(
+            "Where the story stands as this scene opens (do not replay anything that led here):\n"
+            + ctx.prior_exit_state
+        )
 
     volatile_parts: list[str] = []
     if ctx.characters_present:

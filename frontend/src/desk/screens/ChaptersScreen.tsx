@@ -8,6 +8,7 @@ import { api } from "../api/client";
 import { wordCount } from "../lib/format";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { useSelection } from "../lib/useSelection";
+import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import type { ChaptersView } from "../types";
 import type { ChapterOut, ChapterUpdateIn, ManuscriptChapter, SceneOut } from "../api/types";
@@ -25,6 +26,8 @@ export default function ChaptersScreen() {
   const desk = useDesk();
   const { t } = desk;
   const data = useDeskData();
+  // Tab-switch cost, visible in the console (provider data is cached, so revisits log ~0ms).
+  useTabLoadTiming("chapters", !data.loading);
 
   // current state of each (chapter, scene) — derived once in the data layer. A latest row can only be
   // `superseded` when the scene was rejected (revisions create a newer version, so a superseded row is

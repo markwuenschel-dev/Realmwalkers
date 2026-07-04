@@ -5,6 +5,7 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
+import { invalidateCanonBodies } from "../api/hooks/useDeskCollections";
 import { statValue } from "../lib/format";
 import { useSelection } from "../lib/useSelection";
 import BulkBar, { BulkButton } from "../components/BulkBar";
@@ -151,6 +152,9 @@ export default function LedgerScreen() {
     setIngesting(true);
     setNotice(null);
     try {
+      // The rebuild replaces the corpus wholesale (new entity ids) — the once-per-session canon
+      // body upgrade must re-run on the next full load or palette body search goes dark.
+      invalidateCanonBodies(bookId);
       const o = await api.rebuildCanon(bookId);
       const tot = o.total ?? o.indexed;
       const ret = o.retired ?? 0;

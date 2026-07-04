@@ -10,11 +10,16 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+import structlog
+
 from dominion.shared.agent_policy import get_runtime_policy
 from dominion.shared.agent_registry import FALLBACK_ATTR, ROLE_KEYS, tier_of
 from dominion.shared.config import settings
 from dominion.workers import telemetry
 from dominion.workers.budget import Usage
+from dominion.workers.llm import LlmRateLimited
+
+log = structlog.get_logger()
 
 
 @dataclass(frozen=True)
@@ -75,7 +80,24 @@ async def attempt_with_escalation(
         with telemetry.call_metadata(fallback_attempt=True, semantic_escalation=semantic_fail):
             return await attempt_fn(model, max_tokens)
 
-    value2, _usage2 = await _fallback_attempt(fallback, fb_max)
+    try:
+        value2, _usage2 = await _fallback_attempt(fallback, fb_max)
+    except LlmRateLimited as exc:
+        # The FALLBACK was refused by the provider (429 past its automatic retries) — transient
+        # infrastructure, not a quality verdict. When the primary produced a usable, untruncated
+        # result (semantic-only escalation), losing it to a fallback 429 would convert provider
+        # state into an apparent author failure: keep the primary. With no usable primary the rate
+        # limit IS the terminal state — propagate so callers classify it as retryable (LlmRateLimited
+        # is never swallowed into a generic failure).
+        if is_success(value) and not usage.truncated:
+            log.warning(
+                "llm_escalation.fallback_rate_limited_kept_primary",
+                setting_key=setting_key,
+                fallback=fallback,
+                error=str(exc),
+            )
+            return value, primary_model, False
+        raise
     if pick_preferred is not None and is_success(value) and is_success(value2):
         chosen = pick_preferred(value, value2)
         return chosen, fallback if chosen is value2 else primary_model, True

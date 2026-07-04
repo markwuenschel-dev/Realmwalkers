@@ -21,12 +21,35 @@ from dominion.shared import agent_ops
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
-from dominion.shared.models import Job
-from dominion.workers import progress
+from dominion.shared.models import Job, ProductionRun
+from dominion.workers import progress, run_stages
+from dominion.workers.llm import find_rate_limit
 from dominion.workers.pipeline import generate_one_scene
 
 log = structlog.get_logger()
 WORKER_ID = f"worker-{os.getpid()}"
+
+# Pinned classification vocabulary (recovery L7): a job that dies on a provider 429 is retryable
+# INFRASTRUCTURE state, never an author/contract failure. `infra_rate_limit` is the issue/problem
+# kind; `provider_rate_limited` is the stage string parked on a production run whose scene job was
+# refused by the provider (mirrors ScenePacketStatus.RATE_LIMITED on the derive side).
+INFRA_RATE_LIMIT = "infra_rate_limit"
+PROVIDER_RATE_LIMITED_STAGE = "provider_rate_limited"
+
+
+def classify_job_failure(exc: BaseException, loc: str = "") -> tuple[str, str | None]:
+    """(last_error, error_kind) for a job that just failed.
+
+    A provider 429 ANYWHERE in the exception chain makes the failure retryable provider state:
+    last_error is prefixed "LlmRateLimited" (even when the 429 arrived wrapped in another error) and
+    the kind is "infra_rate_limit", so the Desk/diagnostics/retry-failed treat it as transient
+    infrastructure — the scene contract was never invalid, the provider just refused the call.
+    Anything else keeps the existing "<Type>: <message> @ file:line" shape."""
+    rate_limited = find_rate_limit(exc)
+    if rate_limited is not None:
+        detail = str(exc) if exc is rate_limited else f"{type(exc).__name__}: {exc}"
+        return f"LlmRateLimited: {detail}{loc}"[:2000], INFRA_RATE_LIMIT
+    return f"{type(exc).__name__}: {exc}{loc}"[:2000], None
 
 
 async def claim_one_job(session: AsyncSession) -> Job | None:
@@ -59,9 +82,10 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         if job is None:
             await session.commit()
             return False
-        # Capture as a primitive: rollback() expires every ORM attribute, and reading an expired
+        # Capture as primitives: rollback() expires every ORM attribute, and reading an expired
         # one would fire a *sync* reload query (illegal under the async engine -> MissingGreenlet).
         job_id = job.id
+        production_run_id = job.production_run_id
         progress.set_phase(str(job_id), "starting")
         try:
             scene = await asyncio.wait_for(generate_one_scene(session, job), timeout=settings.scene_time_budget_s)
@@ -78,13 +102,33 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
             tb = traceback.extract_tb(exc.__traceback__)
             frame = next((f for f in reversed(tb) if "dominion" in f.filename), tb[-1] if tb else None)
             loc = f" @ {os.path.basename(frame.filename)}:{frame.lineno}" if frame else ""
+            last_error, error_kind = classify_job_failure(exc, loc)
             await session.execute(
-                update(Job)
-                .where(Job.id == job_id)
-                .values(status=JobStatus.FAILED, last_error=f"{type(exc).__name__}: {exc}{loc}"[:2000])
+                update(Job).where(Job.id == job_id).values(status=JobStatus.FAILED, last_error=last_error)
             )
+            if error_kind == INFRA_RATE_LIMIT and production_run_id is not None:
+                # The run is not broken and neither is the contract — the provider refused the call.
+                # Park the run on the retryable provider stage (a plain stage string, no migration)
+                # instead of leaving it stuck on a stage that reads like a pipeline failure.
+                await session.execute(
+                    update(ProductionRun)
+                    .where(ProductionRun.id == production_run_id)
+                    .values(current_stage=PROVIDER_RATE_LIMITED_STAGE)
+                )
             await session.commit()
-            log.error("scene.failed", job=str(job_id), error=str(exc))
+            # L6 (run orchestration): a provider 429 past retries is transient infrastructure — the
+            # owning production run parks in the retryable provider_rate_limited stage, never in a
+            # contract-failure state. L7's classify_job_failure already stamped the stage above; this
+            # best-effort pass adds the run event trail. Never mask the original error being re-raised.
+            if production_run_id is not None and run_stages.stage_after_draft_failure(exc) is not None:
+                try:
+                    from dominion.workers import production as prod
+
+                    await prod.mark_run_provider_rate_limited(session, production_run_id, str(exc))
+                    await session.commit()
+                except Exception:  # noqa: BLE001 — diagnostics only; the job failure already persisted
+                    log.error("run.rate_limit_flag_failed", job=str(job_id))
+            log.error("scene.failed", job=str(job_id), error=str(exc), error_kind=error_kind)
             raise
         finally:
             # The job is no longer running (done, failed, or timed out) — drop its live phase so the

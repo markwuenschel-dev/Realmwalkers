@@ -6,6 +6,7 @@ import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { Spinner } from "../components/DraftActivity";
+import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import { TotalsStrip, TotalsTable, fmtTokens } from "../components/Telemetry";
 import { ProblemsPanel } from "../components/telemetry/ProblemsPanel";
 import {
@@ -40,6 +41,24 @@ function fmtRun(r: RunRollupOut): string {
 }
 
 const RUN_PAGE = 5;
+
+// Session cache keyed by book: the last-loaded aggregates. Route pages unmount per tab switch, so
+// without this every Telemetry revisit started from a blank spinner and refetched everything. Now a
+// revisit paints the cached aggregates instantly and load() revalidates in the background. Staleness:
+// telemetry only ever grows (LLM calls append) and every in-app mutation (run/telemetry deletes) goes
+// through onDataChanged → load(), which rewrites this cache — so briefly-stale totals during the
+// background refetch are the worst case.
+interface TelemetryCacheEntry {
+  data: BookTelemetryOut;
+  runs: RunRollupOut[];
+  latestRun: RunTelemetryOut | null;
+}
+const telemetryCache = new Map<string, TelemetryCacheEntry>();
+
+/** Test-only: module-level session state would otherwise leak between vitest cases. */
+export function resetTelemetryCacheForTests(): void {
+  telemetryCache.clear();
+}
 
 export default function TelemetryScreen() {
   const { bookId, chapters } = useDeskData();
@@ -112,11 +131,17 @@ export default function TelemetryScreen() {
       setData(d);
       setRuns(d.by_run);
       setError(null);
+      telemetryCache.set(bookId, { data: d, runs: d.by_run, latestRun: null });
       const firstRun = d.by_run[0]?.run_id;
       if (firstRun) {
         api
           .runTelemetry(firstRun)
-          .then(setLatestRun)
+          .then((lr) => {
+            setLatestRun(lr);
+            const c = telemetryCache.get(bookId);
+            // Only attach to the entry this load wrote — a newer load's entry keeps its own fetch.
+            if (c?.data === d) telemetryCache.set(bookId, { ...c, latestRun: lr });
+          })
           .catch(() => setLatestRun(null));
       } else {
         setLatestRun(null);
@@ -133,19 +158,41 @@ export default function TelemetryScreen() {
     setLoadingMore(true);
     try {
       const d = await api.bookTelemetry(bookId, { limit: RUN_PAGE, offset: runs.length });
-      setRuns((prev) => [...prev, ...d.by_run]);
+      const nextRuns = [...runs, ...d.by_run];
+      setRuns(nextRuns);
       setData((cur) => (cur ? { ...cur, run_total: d.run_total } : d));
+      const c = telemetryCache.get(bookId);
+      if (c) {
+        telemetryCache.set(bookId, {
+          ...c,
+          runs: nextRuns,
+          data: { ...c.data, run_total: d.run_total },
+        });
+      }
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoadingMore(false);
     }
-  }, [bookId, runs.length]);
+  }, [bookId, runs]);
 
+  // Instant paint on tab revisit: hydrate from the session cache (if any), then revalidate in the
+  // background. With no cache this is just the normal first load — the full-screen spinner only
+  // shows while `data` is null, so a cached revisit never blanks.
   useEffect(() => {
+    if (!bookId) return;
+    const cached = telemetryCache.get(bookId);
+    if (cached) {
+      setData(cached.data);
+      setRuns(cached.runs);
+      setLatestRun(cached.latestRun);
+    }
     void load();
-  }, [load]);
+  }, [bookId, load]);
+
+  // Tab-switch cost, visible in the console: ~0ms when the cache hydrates, network time when cold.
+  useTabLoadTiming("telemetry", data != null);
 
   const onDataChanged = useCallback(async () => {
     await load();

@@ -5,6 +5,7 @@ import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { wordCount } from "../lib/format";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
+import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import ProseBlocks from "../components/ProseBlocks";
 import type { ManuscriptOut } from "../api/types";
 
@@ -44,11 +45,16 @@ export default function ManuscriptScreen() {
   const [author, saveAuthor] = useAuthorName();
 
   // The approved manuscript is intentionally dropped from the post-action refresh (heaviest payload; a
-  // scene decision elsewhere doesn't need it recompiled). Pull a fresh compile when this screen opens
-  // (and on book change) so the Approved view reflects approvals made since the last full load.
+  // scene decision elsewhere doesn't need it recompiled). Ask for a compile when this screen opens —
+  // the provider serves the cached one with ZERO network while it's still fresh (nothing that touches
+  // the compile happened since), and only refetches when a scene action / chapter edit marked it
+  // stale. The cached compile stays on screen during that background refetch either way.
   useEffect(() => {
     void refreshManuscript();
   }, [refreshManuscript]);
+
+  // Tab-switch cost, visible in the console: with a warm cache this logs ~0ms (no fetch at all).
+  useTabLoadTiming("manuscript", manuscript != null);
 
   // Draft compile: assemble each scene's current (latest-version) prose into manuscript form, whatever
   // its status — built entirely client-side from data already loaded, so viewing/exporting it never

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import ProductionScreen from "./ProductionScreen";
+import ProductionScreen, { resetRunDetailCacheForTests } from "./ProductionScreen";
 
 const routerPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -48,6 +48,9 @@ vi.mock("../api/client", () => ({
   api: {
     productionRuns: vi.fn(),
     productionRun: vi.fn(),
+    productionRunIssues: vi.fn(),
+    productionRunRepairTasks: vi.fn(),
+    productionRunEvents: vi.fn(),
     startProductionRun: vi.fn(),
     triageProductionRun: vi.fn(),
     assembleProductionRun: vi.fn(),
@@ -226,8 +229,14 @@ const BLOCKED_PACKET = {
 
 describe("ProductionScreen", () => {
   beforeEach(() => {
+    // The run-detail session cache is module-level by design (it must survive screen remounts);
+    // clear it here so each test starts cold.
+    resetRunDetailCacheForTests();
     vi.mocked(api.productionRuns).mockReset().mockResolvedValue([RUN]);
     vi.mocked(api.productionRun).mockReset().mockResolvedValue(DETAIL);
+    vi.mocked(api.productionRunIssues).mockReset().mockResolvedValue(DETAIL.issues);
+    vi.mocked(api.productionRunRepairTasks).mockReset().mockResolvedValue(DETAIL.repair_tasks);
+    vi.mocked(api.productionRunEvents).mockReset().mockResolvedValue(DETAIL.events);
     vi.mocked(api.startProductionRun).mockReset().mockResolvedValue({
       run: RUN,
       issue_count: 1,
@@ -285,6 +294,13 @@ describe("ProductionScreen", () => {
         draftable: false,
         disabled_reason: "Every scene already has a draft — use redraft to regenerate a scene.",
         blockers: [],
+        scene_packets_stale: 0,
+        scene_packet_qa_blocking: 0,
+        active_draft_jobs: 0,
+        missing_scene_drafts: [],
+        structural_blockers: [],
+        provider_rate_limited: false,
+        can_draft: false,
       });
     routerPush.mockReset();
   });
@@ -297,6 +313,43 @@ describe("ProductionScreen", () => {
     expect(screen.getByText(/Tighten the dialogue/)).toBeInTheDocument();
     expect(api.productionRuns).toHaveBeenCalledWith("chapter-1");
     expect(api.productionRun).toHaveBeenCalledWith("run-1");
+  });
+
+  it("serves the cached run detail on remount without refetching an unchanged run", async () => {
+    // Tab revisits remount the screen. The full detail (~670KB with all artifact prose inline) must
+    // come from the session cache when the run's updated_at hasn't moved — only the cheap list
+    // endpoint is refetched.
+    const first = render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+    expect(api.productionRun).toHaveBeenCalledTimes(1);
+
+    first.unmount();
+    render(<ProductionScreen />);
+    expect(await screen.findByText("Final chapter prose.")).toBeInTheDocument();
+    expect(api.productionRuns).toHaveBeenCalledTimes(2); // slim headers refresh per visit
+    expect(api.productionRun).toHaveBeenCalledTimes(1); // heavy detail: cache hit, zero refetch
+  });
+
+  it("refetches only slim sub-resources after triage — never the full artifact payload", async () => {
+    // Triage moves issues → repair tasks; it cannot change artifacts/prose, so the post-action
+    // refresh must hit the small issues/repair-tasks/events endpoints and keep the cached detail's
+    // artifacts instead of re-downloading the full ProductionRunDetailOut.
+    const proposed = { ...DETAIL.issues[0], status: "proposed" };
+    vi.mocked(api.productionRun).mockResolvedValue({ ...DETAIL, issues: [proposed] });
+
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+    expect(api.productionRun).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Auto-triage" }));
+    await waitFor(() => expect(api.triageProductionRun).toHaveBeenCalledWith("run-1"));
+    await waitFor(() => expect(api.productionRunIssues).toHaveBeenCalledWith("run-1"));
+    expect(api.productionRunRepairTasks).toHaveBeenCalledWith("run-1");
+    expect(api.productionRunEvents).toHaveBeenCalledWith("run-1");
+    // The heavy detail fetch happened exactly once — on first selection, never after the action.
+    expect(api.productionRun).toHaveBeenCalledTimes(1);
+    // Artifacts kept from cache: the prose is still on screen after the slim merge.
+    expect(screen.getByText("Final chapter prose.")).toBeInTheDocument();
   });
 
   it("starts a run and lets the user apply and verify a repair task", async () => {
@@ -356,6 +409,43 @@ describe("ProductionScreen", () => {
 
     fireEvent.click(within(notice).getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByTestId("production-notice")).not.toBeInTheDocument();
+  });
+
+  it("explains a blocked assembly with expandable per-gate diagnostics", async () => {
+    // Half-drafted chapter: assembly is disabled, and the gate block must say exactly why —
+    // pass/fail per gate, never a bare disabled button.
+    vi.mocked(api.draftReadiness).mockResolvedValue({
+      chapter_id: "chapter-1",
+      chapter_packet_approved: true,
+      scene_packets: { approved: 4, expected: 4 },
+      beats: { approved: 4, linked: 4, unlinked: [] },
+      jobs: { active: 1, malformed: 0, failed_scene_packet_required: 0 },
+      prose: {
+        scenes_with_prose: 2,
+        expected_scenes: 4,
+        missing_scene_numbers: [3, 4],
+        assembly_ready: false,
+      },
+      draftable: true,
+      disabled_reason: null,
+      blockers: [],
+      scene_packets_stale: 0,
+      scene_packet_qa_blocking: 0,
+      active_draft_jobs: 1,
+      missing_scene_drafts: [3, 4],
+      structural_blockers: [],
+      provider_rate_limited: false,
+      can_draft: true,
+    });
+    render(<ProductionScreen />);
+
+    const gate = await screen.findByTestId("assembly-gate");
+    expect(screen.getByRole("button", { name: "Assemble chapter" })).toBeDisabled();
+
+    fireEvent.click(within(gate).getByRole("button", { name: /Why is this disabled\?/ }));
+    expect(within(gate).getByText(/2\/4 scenes have prose · missing: 3, 4/)).toBeInTheDocument();
+    expect(within(gate).getByText(/1 active — scenes may still be arriving/)).toBeInTheDocument();
+    expect(within(gate).getAllByText("fail").length).toBeGreaterThanOrEqual(2);
   });
 
   it("exposes the full run state as viewable + downloadable JSON after each step", async () => {

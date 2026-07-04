@@ -83,6 +83,13 @@ export type DraftReadinessProse = {
   assembly_ready?: boolean;
 };
 
+// A deterministic chapter-structure fault detected from the contracts alone. `kind` is one of
+// sequence_budget_mismatch | scene_scope_bleed | duplicate_irreversible_beat | canon_contract_leak.
+export type StructuralBlockerOut = {
+  kind: string;
+  message: string;
+};
+
 export type DraftReadinessOut = {
   chapter_id: string;
   chapter_packet_approved: boolean;
@@ -90,10 +97,20 @@ export type DraftReadinessOut = {
   beats: Record<string, unknown>;
   jobs: Record<string, unknown>;
   prose?: DraftReadinessProse;
+  // Legacy queueability flag — kept for compatibility. Bind actions/badges to `can_draft` instead.
   draftable: boolean;
-  // Plain-language name of the FIRST failing draft gate; null when draftable.
+  // Plain-language name of the FIRST failing draft gate in pipeline order (packet → sequence/budget
+  // → scene packets (stale/QA) → beats → jobs → prose coverage → rate limit); null iff can_draft.
   disabled_reason?: string | null;
   blockers: DraftQueueBlockerOut[];
+  // --- authoritative draft gate (recovery L8): the ONLY fields ready badges / draft buttons obey.
+  scene_packets_stale: number;
+  scene_packet_qa_blocking: number;
+  active_draft_jobs: number;
+  missing_scene_drafts: number[];
+  structural_blockers: StructuralBlockerOut[];
+  provider_rate_limited: boolean;
+  can_draft: boolean;
 };
 
 export type ScenePacketSummaryOut = S["ScenePacketSummaryOut"];

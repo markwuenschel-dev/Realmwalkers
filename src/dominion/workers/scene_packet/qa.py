@@ -21,6 +21,7 @@ from dominion.shared.config import settings
 from dominion.shared.risk_scorer import qa_result_preferred, score_qa_result, should_semantic_escalate
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
+from dominion.workers.canon_guards import format_prohibited_terms_block
 from dominion.workers.llm import CachedPrefixBlock, estimate_tokens
 from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
 from dominion.workers.scene_packet.author import format_chapter_rulings
@@ -38,6 +39,11 @@ _SYSTEM = (
     "packet; contradiction with relationship invariants or cast/roster constraints; an implausible word "
     "budget; missing reviewer false-positive traps; and missing phrases_to_avoid_echoing for abstract "
     "packet language.\n\n"
+    "If an ON-PAGE PROHIBITED TERMS list is supplied (in the chapter-packet prefix), those terms are "
+    "contract-prohibited from appearing on-page THIS chapter — even where canon locks or naming "
+    "allowlists cite the same term as the correct NAME (a lock states background truth, not "
+    "permission to stage the concept). Flag any on-page packet field (required_beats, exit_state, "
+    "scene_job) that stages or names one as kind 'canon_contract_leak'.\n\n"
     "known_before_scene.omniscient_author and must_remain_hidden.* are AUTHOR-ONLY fields BY DESIGN — a "
     "hidden truth belongs there. Naming a fact ONLY in those fields (never in reader/pov/on-page fields) is "
     "CORRECT, not a defect — do NOT flag it as 'collapse of reader-known vs POV-known' or as leaking "
@@ -98,6 +104,12 @@ def build_prefix(
     rulings = format_chapter_rulings(chapter_open_questions)
     if rulings:
         parts.append(rulings)
+    # Deterministic prohibition list (workers.canon_guards): the same terms the post-assembly
+    # chapter QA scans for, stated explicitly so scene QA doesn't have to infer them from ruling
+    # free text (the Ch1 Eyes leak survived exactly that inference gap).
+    prohibited = format_prohibited_terms_block(chapter_packet_body, chapter_open_questions)
+    if prohibited:
+        parts.append(prohibited)
     return "\n\n".join(parts)
 
 

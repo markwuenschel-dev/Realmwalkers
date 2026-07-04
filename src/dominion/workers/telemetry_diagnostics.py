@@ -130,9 +130,44 @@ def detect_truncations(calls: list[LlmCall]) -> dict[str, Any] | None:
     )
 
 
+def _is_rate_limited_job_error(err: str | None) -> bool:
+    """The worker writes last_error prefixed "LlmRateLimited" for any job whose failure chain contains
+    a provider 429 (worker.classify_job_failure) — the classification contract for retryable infra."""
+    return bool(err) and str(err).startswith("LlmRateLimited")
+
+
+def detect_rate_limited_jobs(
+    failed_jobs: list[tuple[uuid.UUID, int | None, int | None, str | None]],
+) -> dict[str, Any] | None:
+    """FAILED jobs that died on a provider rate limit — retryable infrastructure (kind
+    infra_rate_limit), reported separately from real failures so a 429'd scene is never presented as
+    an author/contract defect that needs a root-cause fix."""
+    limited = [(jid, ch, sc, err) for jid, ch, sc, err in failed_jobs if _is_rate_limited_job_error(err)]
+    if not limited:
+        return None
+    return _problem(
+        kind="infra_rate_limit",
+        severity="warn",
+        summary=f"{len(limited)} job{'s' if len(limited) != 1 else ''} failed on provider rate limits (retryable)",
+        count=len(limited),
+        breakdown=[
+            {"job_id": str(jid), "chapter_no": ch, "scene_no": sc, "error": (err or "")[:200]}
+            for jid, ch, sc, err in limited
+        ],
+        recommended_action=(
+            "Transient provider 429 (TPM window) — requeue via Retry failed once the limit resets; "
+            "no contract or author fix is needed."
+        ),
+        drill_down={"errors": True, "rate_limited": True},
+    )
+
+
 def detect_failed_jobs(
     failed_jobs: list[tuple[uuid.UUID, int | None, int | None, str | None]],
 ) -> dict[str, Any] | None:
+    # Rate-limited failures are retryable provider state, reported by detect_rate_limited_jobs —
+    # excluding them here keeps "failed draft job" meaning "needs a root-cause fix".
+    failed_jobs = [row for row in failed_jobs if not _is_rate_limited_job_error(row[3])]
     if not failed_jobs:
         return None
     breakdown = [
@@ -334,6 +369,9 @@ def build_problems(
     t = detect_truncations(calls)
     if t:
         problems.append(t)
+    rl = detect_rate_limited_jobs(failed_jobs)
+    if rl:
+        problems.append(rl)
     fj = detect_failed_jobs(failed_jobs)
     if fj:
         problems.append(fj)

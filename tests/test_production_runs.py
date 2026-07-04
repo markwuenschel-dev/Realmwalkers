@@ -151,9 +151,15 @@ async def test_start_production_run_creates_sequence_artifacts_and_structured_is
             "contract_classification",
             "chapter_sequence",
             "issue_set",
-            "chapter_draft",
-            "chapter_draft_qa",
         } <= artifact_types
+        # L6 order enforcement: scene 2 has no prose, so assembly REFUSES with a structured run
+        # event and parks the run in waiting_for_scene_drafts — no chapter_draft artifact is built
+        # "pretending it could succeed" (the ch1 failure mode).
+        assert "chapter_draft" not in artifact_types
+        assert "chapter_draft_qa" not in artifact_types
+        assert detail.run.current_stage == "waiting_for_scene_drafts"
+        refusals = [event for event in detail.events if event.event_type == "assembly_refused"]
+        assert refusals and refusals[0].payload_json["violations"][0]["missing_scene_nos"] == [2]
         assert detail.chapter_sequence is not None
         assert detail.chapter_sequence.body["scenes"][0]["scene_no"] == 1
         assert any(issue.issue_kind == "missing_scene" for issue in detail.issues)

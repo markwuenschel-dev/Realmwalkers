@@ -3717,10 +3717,14 @@ export interface components {
     };
     /**
      * DraftReadinessOut
-     * @description Contract-first drafting gate diagnostics. `draftable` is the single gate the Draft button obeys;
-     *     `disabled_reason` names the FIRST failing condition in plain language so the UI never shows a
-     *     disabled button (or a "ready to draft" claim) without an explanation. `prose` reports scene prose
-     *     coverage — `assembly_ready` is the production-assembly gate (all expected scenes have prose).
+     * @description Contract-first drafting gate diagnostics. `can_draft` is the authoritative gate the Draft
+     *     button (and every "ready" badge) obeys; when it is False, `disabled_reason` names the FIRST
+     *     failing gate in pipeline order (packet → sequence/budget → scene packets (stale/QA) → beats →
+     *     jobs → prose coverage → rate limit) in one human sentence — the UI never shows a disabled button
+     *     (or a "ready to draft" claim) without an explanation. `draftable` is the legacy queueability
+     *     flag (kept for compatibility; `can_draft` implies `draftable` but is stricter). `prose` reports
+     *     scene prose coverage — `assembly_ready` is the production-assembly gate (all expected scenes
+     *     have prose).
      */
     DraftReadinessOut: {
       /**
@@ -3773,6 +3777,41 @@ export interface components {
        * @default []
        */
       blockers: components["schemas"]["DraftQueueBlockerOut"][];
+      /**
+       * Scene Packets Stale
+       * @default 0
+       */
+      scene_packets_stale: number;
+      /**
+       * Scene Packet Qa Blocking
+       * @default 0
+       */
+      scene_packet_qa_blocking: number;
+      /**
+       * Active Draft Jobs
+       * @default 0
+       */
+      active_draft_jobs: number;
+      /**
+       * Missing Scene Drafts
+       * @default []
+       */
+      missing_scene_drafts: number[];
+      /**
+       * Structural Blockers
+       * @default []
+       */
+      structural_blockers: components["schemas"]["StructuralBlockerOut"][];
+      /**
+       * Provider Rate Limited
+       * @default false
+       */
+      provider_rate_limited: boolean;
+      /**
+       * Can Draft
+       * @default false
+       */
+      can_draft: boolean;
     };
     /** DraftScheduleOut */
     DraftScheduleOut: {
@@ -5563,6 +5602,18 @@ export interface components {
        * @default 0
        */
       truncations_delta: number;
+    };
+    /**
+     * StructuralBlockerOut
+     * @description A deterministic chapter-structure fault detected from the approved contracts alone (no prose,
+     *     no LLM): `kind` is one of sequence_budget_mismatch | scene_scope_bleed | duplicate_irreversible_beat
+     *     | canon_contract_leak; `message` is one human sentence naming the fault and the fix.
+     */
+    StructuralBlockerOut: {
+      /** Kind */
+      kind: string;
+      /** Message */
+      message: string;
     };
     /** SuggestionDecisionIn */
     SuggestionDecisionIn: {
