@@ -1716,6 +1716,11 @@ export interface paths {
      *     include_bodies=false returns the slim index (id/kind/name/source/status, body=null): the full
      *     corpus is megabytes and the Desk's global provider only needs the index for first paint — bodies
      *     upgrade in the background (command-palette search) or load on the Ledger screen itself.
+     *
+     *     Column-targeted on purpose: `select(CanonEntity)` dragged the 1536-dim `embedding` vector for
+     *     EVERY row (tens of MB of DB transfer + decode per call, multi-second queries). Concurrent canon
+     *     fetches then hogged the whole connection pool and unrelated cheap endpoints queued for seconds
+     *     behind them. The API never returns the vector, so it must never be fetched here.
      */
     get: operations["list_canon_books__book_id__canon_get"];
     put?: never;
