@@ -50,6 +50,7 @@ vi.mock("../api/client", () => ({
     verifyRepairTask: vi.fn(),
     repairTask: vi.fn(),
     packet: vi.fn(),
+    draftReadiness: vi.fn(),
   },
 }));
 
@@ -259,6 +260,26 @@ describe("ProductionScreen", () => {
       });
     vi.mocked(api.repairTask).mockReset().mockResolvedValue(DETAIL.repair_tasks[0]);
     vi.mocked(api.packet).mockReset().mockRejectedValue(new Error("404 Not Found"));
+    // Full prose coverage by default, so the Assemble-chapter button stays enabled in these tests;
+    // the assembly-gate test overrides this with missing scenes.
+    vi.mocked(api.draftReadiness)
+      .mockReset()
+      .mockResolvedValue({
+        chapter_id: "chapter-1",
+        chapter_packet_approved: true,
+        scene_packets: { approved: 4, expected: 4 },
+        beats: { approved: 4, linked: 4, unlinked: [] },
+        jobs: { active: 0, malformed: 0, failed_scene_packet_required: 0 },
+        prose: {
+          scenes_with_prose: 4,
+          expected_scenes: 4,
+          missing_scene_numbers: [],
+          assembly_ready: true,
+        },
+        draftable: false,
+        disabled_reason: "Every scene already has a draft — use redraft to regenerate a scene.",
+        blockers: [],
+      });
     routerPush.mockReset();
   });
 
@@ -276,7 +297,7 @@ describe("ProductionScreen", () => {
     render(<ProductionScreen />);
     await screen.findByText("Final chapter prose.");
 
-    fireEvent.click(screen.getByRole("button", { name: "Start run" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assemble chapter" }));
     await waitFor(() =>
       expect(api.startProductionRun).toHaveBeenCalledWith({
         chapter_id: "chapter-1",
@@ -304,7 +325,7 @@ describe("ProductionScreen", () => {
     render(<ProductionScreen />);
     await screen.findByText("Final chapter prose.");
 
-    fireEvent.click(screen.getByRole("button", { name: "Start run" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assemble chapter" }));
 
     const gate = await screen.findByTestId("production-gate");
     expect(api.packet).toHaveBeenCalledWith("chapter-1");

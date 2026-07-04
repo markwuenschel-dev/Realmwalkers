@@ -18,11 +18,12 @@ from dominion.workers.context.types import ScenePacketRequiredError
 from dominion.workers.gates import GateRefusal
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
 
-BlockerSource = Literal["author", "validation", "qa", "derive", "unknown"]
+BlockerSource = Literal["author", "validation", "qa", "derive", "rate_limit", "unknown"]
 
 # Blocker sources the derive persists on `qa_warnings["blocker_source"]`. "validation" is a deterministic
 # draft-safety block (NOT a QA block) — the distinction the UI needs so it stops labeling both as QA.
-_PERSISTED_BLOCKER_SOURCES: frozenset[str] = frozenset({"author", "validation", "qa", "derive"})
+# "rate_limit" is a provider 429 past its retries — transient infrastructure, never an author failure.
+_PERSISTED_BLOCKER_SOURCES: frozenset[str] = frozenset({"author", "validation", "qa", "derive", "rate_limit"})
 
 _STALE_GATE_RECONCILIATION = (
     "QA re-ran, but the packet remains blocked from an earlier gate. Re-run derive or edit/reconcile the packet."
@@ -49,9 +50,12 @@ def blocking_qa_reasons(packet: ScenePacket) -> list[str]:
     return reasons
 
 
+_HELD_STATUSES: frozenset[str] = frozenset({ScenePacketStatus.BLOCKED, ScenePacketStatus.RATE_LIMITED})
+
+
 def resolve_blocked_reason(packet: ScenePacket) -> str | None:
     """Resolve a human-readable blocked reason from persisted fields and QA state."""
-    if packet.status != ScenePacketStatus.BLOCKED:
+    if packet.status not in _HELD_STATUSES:
         return None
     warnings = packet.qa_warnings if isinstance(packet.qa_warnings, dict) else {}
     body = packet.body if isinstance(packet.body, dict) else {}
@@ -69,8 +73,10 @@ def infer_blocker_source(packet: ScenePacket, reason: str | None) -> BlockerSour
     """Classify which gate blocked the packet. The derive now PERSISTS this on
     `qa_warnings["blocker_source"]`, so prefer that authoritative value; the heuristics below remain only
     as a fallback for packets derived before that field existed."""
-    if packet.status != ScenePacketStatus.BLOCKED:
+    if packet.status not in _HELD_STATUSES:
         return "unknown"
+    if packet.status == ScenePacketStatus.RATE_LIMITED:
+        return "rate_limit"
     warnings = packet.qa_warnings if isinstance(packet.qa_warnings, dict) else {}
     persisted = warnings.get("blocker_source")
     if isinstance(persisted, str) and persisted in _PERSISTED_BLOCKER_SOURCES:
@@ -91,16 +97,21 @@ def infer_blocker_source(packet: ScenePacket, reason: str | None) -> BlockerSour
 
 
 def can_approve(packet: ScenePacket) -> GateRefusal | None:
-    """Refuse approval only on a BLOCKED packet (deterministic block-severity failure or a failed agent
-    call). QA verdicts and repair/warn issues are advisory — a repair-laden packet is approvable
-    (approve-with-repairs; the repairs still gate final export)."""
+    """Refuse approval only on a BLOCKED or RATE_LIMITED packet (deterministic block-severity failure
+    or a failed/refused agent call). QA verdicts and repair/warn issues are advisory — a repair-laden
+    packet is approvable (approve-with-repairs; the repairs still gate final export)."""
     if packet.status == ScenePacketStatus.BLOCKED:
         return GateRefusal("scene packet is blocked — re-derive or edit first")
+    if packet.status == ScenePacketStatus.RATE_LIMITED:
+        return GateRefusal(
+            "scene packet derive was rate limited by the provider (transient) — retry derive, or re-run QA "
+            "if the contract body survived"
+        )
     return None
 
 
 def approval_blockers(packet: ScenePacket) -> list[str]:
-    if packet.status == ScenePacketStatus.BLOCKED:
+    if packet.status in _HELD_STATUSES:
         return [resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"]
     return []
 
@@ -113,10 +124,17 @@ def status_after_author_qa(
     body: dict[str, Any] | None,
     qa: dict[str, Any] | None,
     error_detail: str | None = None,
+    *,
+    blocker_source: str | None = None,
 ) -> tuple[str, str | None]:
     """(status, blocked_reason). Fail closed on a thin body or unusable QA (infrastructure failures).
     A usable QA verdict — including BLOCK_DRAFTING — is advisory and leaves the packet proposed; its
-    issues ride along as repair tasks."""
+    issues ride along as repair tasks. A provider rate limit (blocker_source="rate_limit") lands as
+    RATE_LIMITED, not BLOCKED: the scene contract is not invalid — the provider refused the call."""
+    if blocker_source == "rate_limit" and (not valid_scene_packet_body(body) or qa is None):
+        return ScenePacketStatus.RATE_LIMITED, (
+            error_detail or "provider rate limit (429) interrupted this scene's derive — retry"
+        )
     if not valid_scene_packet_body(body):
         return ScenePacketStatus.BLOCKED, (error_detail or "scene packet author returned an incomplete body")
     if qa is None:
@@ -158,7 +176,11 @@ def apply_qa_rerun(row: ScenePacket, result: dict[str, Any] | None) -> None:
     }
     if prior_violations:
         qa_warnings["violations"] = prior_violations
-    if row.status == ScenePacketStatus.BLOCKED:
+    if row.status == ScenePacketStatus.RATE_LIMITED:
+        # The only hold was transient infrastructure (a 429'd QA call on a valid body). A usable
+        # verdict just arrived, so the hold is over — the packet is an ordinary proposed one again.
+        row.status = ScenePacketStatus.PROPOSED
+    elif row.status == ScenePacketStatus.BLOCKED:
         if existing_source in {"author", "validation", "derive"} and existing_reason:
             # An earlier non-QA gate still holds the packet — keep that reason AND its source so
             # enrichment doesn't degrade a "validation"/"author" block into a guessed "derive".
@@ -187,7 +209,7 @@ def assert_draft_ready(packet: ScenePacket) -> None:
 
 def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
     blockers = approval_blockers(row)
-    reason = resolve_blocked_reason(row) if row.status == ScenePacketStatus.BLOCKED else None
+    reason = resolve_blocked_reason(row) if row.status in _HELD_STATUSES else None
     source = infer_blocker_source(row, reason) if reason else None
     out = ScenePacketOut.model_validate(row)
     return out.model_copy(

@@ -172,6 +172,7 @@ async def qa_scene_packet(
             expect_cache=bool(prefix_blocks),
             context_window_budget=settings.scene_packet_context_window_budget,
             context_sections=context_sections_for_qa_call(prefix_blocks=prefix_blocks, user=user),
+            input_budget=settings.scene_packet_qa_prompt_budget,
         )
         return parse_scene_qa(raw), usage
 

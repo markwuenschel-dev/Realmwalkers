@@ -109,6 +109,88 @@ def test_hidden_identity_present_not_mentioned_only():
     assert "Seb's brother" in mentioned_leads  # a genuinely mentioned-only character is untouched
 
 
+def test_surface_presence_leaves_absent_and_ensures_label_in_present():
+    # The reported Roth mis-bucket: the packet author filed a surface-present character as absent
+    # ("named form absent; surface form present"). Roster presence is about entity participation, not
+    # whether the true name is spoken — normalization drops the absent entry, ensures the surface label
+    # rides in characters_present, and never leaks the canonical name into present.
+    body = _body(
+        characters_present=[],
+        characters_absent=["Roth (named form absent; surface form present)"],
+        surface_terms=[
+            {
+                "canonical_term": "Roth",
+                "forbidden_surface_terms": ["Roth"],
+                "surface_label": "suited Astria figure",
+                "policy": "replace",
+            }
+        ],
+    )
+    result = evaluate_chapter_packet(body)
+    assert result.draftable
+    assert result.normalized_body["characters_absent"] == []
+    assert result.normalized_body["characters_present"] == ["suited Astria figure"]
+    assert "Roth" not in result.normalized_body["characters_present"]
+    assert result.normalized_body["surface_terms"][0]["surface_label"] == "suited Astria figure"
+    assert any(w.kind == "roster_normalized" for w in result.warnings)
+
+
+def test_surface_presence_label_not_duplicated_in_present():
+    # When the surface label is already in characters_present (the correct authoring pattern), the
+    # absent echo is simply dropped — no duplicate label entry.
+    body = _body(
+        characters_present=["suited Astria figure (identity withheld)"],
+        characters_absent=["Roth (named form absent; surface form present)"],
+        surface_terms=[{"canonical_term": "Roth", "surface_label": "suited Astria figure", "policy": "replace"}],
+    )
+    result = evaluate_chapter_packet(body)
+    assert result.normalized_body["characters_absent"] == []
+    assert result.normalized_body["characters_present"] == ["suited Astria figure (identity withheld)"]
+
+
+def test_surface_presence_annotation_without_policy_still_leaves_absent():
+    # Even without a matching surface_terms policy, the "surface form present" annotation itself
+    # asserts participation — the entry must not stay a roster absence.
+    body = _body(characters_absent=["Roth (named form absent; surface form present)"])
+    result = evaluate_chapter_packet(body)
+    assert result.normalized_body["characters_absent"] == []
+    assert any(w.kind == "roster_normalized" for w in result.warnings)
+
+
+def test_conditional_presence_moves_to_mentioned_only():
+    # The reported Dead Hand leader mis-bucket: "may be present" is an unresolved maybe, not a fact —
+    # conditional presence never belongs in characters_absent. It moves (annotation preserved) to the
+    # lightweight mentioned_only bucket pending a human ruling.
+    body = _body(
+        characters_absent=["Dead Hand leader (may be present as brief comms voice)", "Brent"],
+    )
+    result = evaluate_chapter_packet(body)
+    assert result.normalized_body["characters_absent"] == ["Brent"]
+    assert result.normalized_body["characters_mentioned_only"] == [
+        "Dead Hand leader (may be present as brief comms voice)"
+    ]
+    assert any(w.kind == "roster_normalized" for w in result.warnings)
+
+
+def test_unhedged_absent_entries_are_untouched():
+    body = _body(characters_absent=["Brent (off-world this chapter)"])
+    result = evaluate_chapter_packet(body)
+    assert result.normalized_body["characters_absent"] == ["Brent (off-world this chapter)"]
+    assert result.warnings == []
+
+
+def test_conditional_roster_lock_is_repair_task():
+    # A roster lock that hedges presence is an unresolvable directive: flagged as a repair task telling
+    # the author to decide (present / mentioned_only) or delete the lock. Never blocks drafting.
+    body = _body(roster_locks=["Dead Hand leader may be present but unnamed"])
+    v = validate_chapter_packet_contract(body)
+    locks = [x for x in v if x.kind == "roster_lock_conditional"]
+    assert len(locks) == 1 and locks[0].severity == "repair"
+    assert not any(x.severity == "block" for x in v)
+    result = evaluate_chapter_packet(body)
+    assert result.draftable is True
+
+
 def test_non_dict_body_blocks():
     # Behavior-freeze: a structurally unusable body is a TRUE blocker and still hard-blocks drafting.
     v = validate_chapter_packet_contract("not a dict")  # type: ignore[arg-type]

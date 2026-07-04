@@ -253,6 +253,7 @@ async def _repair_section(
                     "system": estimate_tokens(_SECTION_REPAIR_SYSTEM),
                     "repair_input": estimate_tokens(user),
                 },
+                input_budget=settings.scene_packet_author_prompt_budget,
             )
     return extract_object(repaired_raw)
 
@@ -295,6 +296,7 @@ async def _author_section(
                     budget=budget,
                     context_window_budget=settings.scene_packet_context_window_budget,
                     context_sections=context_sections,
+                    input_budget=settings.scene_packet_author_prompt_budget,
                 )
         return raw, extract_object(raw), usage
 

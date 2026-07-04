@@ -9,6 +9,7 @@ import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { Spinner, formatElapsed } from "../components/DraftActivity";
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
+import { ViolationGroups } from "../components/ViolationGroups";
 import ClearFailedPanel from "../components/ClearFailedPanel";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { downloadBlob } from "../lib/download";
@@ -768,25 +769,7 @@ function PacketView({
 
       {violations.length > 0 && (
         <Panel accentVar="--warn" title={`Deterministic validation · ${violations.length}`}>
-          <div style={css("display:flex;flex-direction:column;gap:6px")}>
-            {violations.map((v, i) => (
-              <div key={i} style={css("font-size:12.5px;color:var(--ink)")}>
-                <span
-                  style={css(
-                    `font-family:var(--mono);font-size:11px;color:var(${
-                      v.blocks_drafting ? "--bad" : v.blocks_final_export ? "--warn" : "--dim"
-                    })`,
-                  )}
-                >
-                  {v.severity} · {v.kind}
-                  {v.field ? ` · ${v.field}` : ""}
-                  {v.blocks_final_export && !v.blocks_drafting ? " · blocks final export only" : ""}
-                  :{" "}
-                </span>
-                {v.detail}
-              </div>
-            ))}
-          </div>
+          <ViolationGroups violations={violations} />
         </Panel>
       )}
 

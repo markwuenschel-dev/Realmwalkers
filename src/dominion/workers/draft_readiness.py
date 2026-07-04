@@ -48,6 +48,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     approved_sp = [p for p in sp_rows if p.status == ScenePacketStatus.APPROVED]
     stale_sp = [p for p in sp_rows if p.status == ScenePacketStatus.STALE]
     blocked_sp = [p for p in sp_rows if p.status == ScenePacketStatus.BLOCKED]
+    rate_limited_sp = [p for p in sp_rows if p.status == ScenePacketStatus.RATE_LIMITED]
     seed_count = len((cp.body or {}).get("scene_seeds", [])) if cp else 0
     approved_nos = {p.scene_no for p in approved_sp}
     missing = sorted(set(range(1, seed_count + 1)) - approved_nos) if seed_count else []
@@ -65,10 +66,23 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     # queueable — redraft is the path for those. Excluding already-drafted scenes here keeps `draftable`
     # honest, so a fully-drafted chapter reports draftable=False instead of enabling a "Draft chapter"
     # click that skips every beat and 409s. "Drafted" matches the scheduler exactly: any Scene row for
-    # that scene_no (draft_queue.py:244-247).
-    drafted_scene_nos = {
-        n for (n,) in (await session.execute(select(Scene.scene_no).where(Scene.chapter_id == chapter_id))).all()
-    }
+    # that scene_no (draft_queue.py:244-247). Prose coverage is stricter — the latest row per scene_no
+    # must carry non-empty prose (matching production's `(scene.prose or "").strip()` test) — and gates
+    # chapter ASSEMBLY, which concatenates prose and hard-fails `missing_scene` on every gap.
+    scene_rows = (
+        await session.execute(
+            select(Scene.scene_no, Scene.prose)
+            .where(Scene.chapter_id == chapter_id)
+            .order_by(Scene.scene_no, Scene.created_at)
+        )
+    ).all()
+    latest_prose: dict[int, str] = {}
+    for scene_no, prose in scene_rows:  # ordered by created_at, so the latest row per scene_no wins
+        latest_prose[scene_no] = prose or ""
+    drafted_scene_nos = set(latest_prose)
+    prose_scene_nos = sorted(n for n, p in latest_prose.items() if p.strip())
+    expected_scenes = seed_count or len({p.scene_no for p in sp_rows})
+    missing_prose = sorted(set(range(1, expected_scenes + 1)) - set(prose_scene_nos)) if expected_scenes else []
 
     active_jobs = (
         await session.execute(
@@ -125,6 +139,31 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
         and draftable_scenes > 0
     )
 
+    # Name the FIRST failing gate in plain language, in the same priority order `draftable` checks
+    # them — so the Desk never shows a disabled Draft button without saying exactly why.
+    disabled_reason: str | None = None
+    if not chapter_packet_approved:
+        disabled_reason = "Chapter packet is not approved yet — approve it first."
+    elif len(approved_sp) == 0:
+        disabled_reason = (
+            f"No approved scene packets ({len(sp_rows)} derived) — approve the scene packets first."
+            if sp_rows
+            else "No scene packets derived yet — derive scene packets first."
+        )
+    elif unlinked:
+        disabled_reason = (
+            f"{len(unlinked)} of {len(approved_beats)} approved beats are not linked to an approved "
+            "scene packet — approve (or re-derive) the scene packets for those scenes so beats re-link."
+        )
+    elif blockers:
+        disabled_reason = f"{len(blockers)} draft-queue blocker(s): {blockers[0].message}"
+    elif draftable_scenes == 0:
+        disabled_reason = (
+            f"Scene drafting is already in progress ({int(active_jobs)} active draft job(s))."
+            if active_jobs
+            else "Every scene already has a draft — use redraft to regenerate a scene."
+        )
+
     return DraftReadinessOut(
         chapter_id=chapter_id,
         chapter_packet_approved=chapter_packet_approved,
@@ -132,6 +171,8 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
             "approved": len(approved_sp),
             "blocked": len(blocked_sp),
             "stale": len(stale_sp),
+            "rate_limited": len(rate_limited_sp),
+            "expected": expected_scenes,
             "missing_scene_numbers": missing,
         },
         beats={
@@ -144,6 +185,14 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
             "malformed": int(malformed),
             "failed_scene_packet_required": int(sp_required_failed),
         },
+        prose={
+            "scenes_with_prose": len(prose_scene_nos),
+            "expected_scenes": expected_scenes,
+            "missing_scene_numbers": missing_prose,
+            # The production-assembly gate: assembling with gaps hard-fails one missing_scene per gap.
+            "assembly_ready": expected_scenes > 0 and not missing_prose,
+        },
         draftable=draftable,
+        disabled_reason=disabled_reason,
         blockers=blockers,
     )

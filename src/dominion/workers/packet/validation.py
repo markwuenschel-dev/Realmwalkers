@@ -63,6 +63,34 @@ _CONTRADICTORY_ROSTER_PAIRS: frozenset[frozenset[str]] = frozenset(
 
 _LEADING_NAME_RE = re.compile(r"^[^(,;—-]+")
 
+# LLM-authored roster annotations the normalizer must interpret (the packet author is TOLD not to emit
+# these, but a model that does must not corrupt downstream gating):
+#   surface presence — "Roth (named form absent; surface form present)" in characters_absent: the
+#     entity PARTICIPATES via a surface form, so this is not a roster absence at all.
+#   hedged presence — "Dead Hand leader (may be present ...)": conditional presence is not absence;
+#     it is at most a mention until a human resolves it.
+_SURFACE_PRESENCE_NOTE_RE = re.compile(r"surface\s+form\s+present|named?\s+form\s+absent", re.IGNORECASE)
+_HEDGED_PRESENCE_RE = re.compile(
+    r"\b(?:may|might|could)\s+(?:be\s+present|appear|be\s+heard)\b|\bpossibly\s+(?:present|appears?)\b"
+    r"|\bpresence\s+(?:unclear|unresolved|conditional|uncertain)\b",
+    re.IGNORECASE,
+)
+
+
+def _surface_term_labels(body: dict[str, Any]) -> dict[str, str]:
+    """canonical_term (lower-cased) -> surface_label from the packet's `surface_terms` policies.
+    Read defensively straight off the body: normalization runs before the SurfaceContractBuilder, so
+    malformed entries are simply skipped here (the builder warns about them itself)."""
+    labels: dict[str, str] = {}
+    entries = body.get("surface_terms")
+    if isinstance(entries, list):
+        for entry in entries:
+            if isinstance(entry, dict):
+                term = str(entry.get("canonical_term") or "").strip()
+                if term:
+                    labels[term.lower()] = str(entry.get("surface_label") or "").strip()
+    return labels
+
 
 def leading_roster_name(entry: str) -> str:
     """The candidate identifier from a free-text roster entry: everything before the first
@@ -142,6 +170,26 @@ def validate_chapter_packet_contract(body: dict[str, Any]) -> list[ChapterPacket
                     )
                 )
 
+    # 2. Conditional roster locks: a lock that hedges presence ("may be present") is an unresolvable
+    # directive — every downstream consumer (production ROSTER_LOCK contract items, the drafter) needs a
+    # decided state. Decidable textually, so it is flagged here as a REPAIR task: resolve it — if the
+    # character appears at all (even brief comms/voice), move them to characters_present (or
+    # characters_mentioned_only if only referenced); if they do not appear, delete the lock.
+    for lock in as_str_list(body.get("roster_locks")):
+        if _HEDGED_PRESENCE_RE.search(lock):
+            violations.append(
+                ChapterPacketViolation(
+                    kind="roster_lock_conditional",
+                    field="roster_locks",
+                    detail=(
+                        f"roster lock {lock!r} hedges presence ('may be present') — resolve it: if the "
+                        "character appears (even as brief comms/voice) put them in characters_present or "
+                        "characters_mentioned_only; if they do not appear, remove this lock"
+                    ),
+                    severity="repair",
+                )
+            )
+
     # NOTE: Forbidden surface bleed is no longer checked here.
     # Raw ChapterPacket.scene_seeds (and other INTERNAL_PLANNING fields) may contain canonical terms
     # that are listed in characters_forbidden. SurfaceContractBuilder + validate_surface_contract
@@ -181,9 +229,10 @@ def _roster_normalized_warning(field: str, removed: list[str], reason: str) -> C
 def normalize_chapter_packet_roster(
     body: dict[str, Any],
 ) -> tuple[dict[str, Any], list[ChapterPacketViolation]]:
-    """Collapse the REDUNDANT (non-contradictory) roster overlaps with deterministic dominance rules so a
-    checker never blocks on them and the persisted roster is coherent. Two rules, both surfaced as
-    advisory `roster_normalized` warnings, never blockers:
+    """Collapse the REDUNDANT (non-contradictory) roster overlaps — and the two known LLM mis-bucketing
+    patterns (surface presence filed as absence; hedged conditional presence filed as absence) — with
+    deterministic dominance rules so a checker never blocks on them and the persisted roster is coherent.
+    All rules are surfaced as advisory `roster_normalized` warnings, never blockers:
 
     1. present dominates mentioned_only — a physically-present character redundantly echoed in
        `characters_mentioned_only` (the common masked / late-reveal mis-bucket: "she's present but her
@@ -193,6 +242,11 @@ def normalize_chapter_packet_roster(
     2. mentioned_only implies absence — a name in both `characters_absent` and `characters_mentioned_only`
        is redundant; drop it from `characters_absent` (keeping the more specific surface-reference bucket)
        so the downstream scene-packet absence check does not false-block a legitimate on-page *mention*.
+    3. surface presence is presence — an absent entry whose name has a `surface_terms` policy (or a
+       "surface form present" note) leaves `characters_absent`; its surface label is ensured in
+       `characters_present`. A withheld NAME is never a roster absence.
+    4. conditional presence is not absence — an absent entry hedged with "may be present" moves to
+       `characters_mentioned_only` pending an explicit human ruling.
 
     This never resolves a TRUE contradiction: `present ∩ absent` (and the forbidden pairs) are left intact
     for `validate_chapter_packet_contract` to block. `evaluate_chapter_packet` therefore validates the
@@ -231,6 +285,70 @@ def normalize_chapter_packet_roster(
                     removed,
                     "were listed in both characters_absent and characters_mentioned_only "
                     "(mentioned_only already implies physical absence)",
+                )
+            )
+
+    # 3. Surface presence is presence — an absent entry whose name has a surface_terms policy (or that
+    # carries a "surface form present"/"named form absent" annotation) describes an entity that
+    # PARTICIPATES this chapter under a surface label. Roster presence is about entity participation,
+    # not whether the true name is spoken, so the entry leaves characters_absent; the surface label is
+    # ensured in characters_present (the canonical name never is — it stays withheld). Without this,
+    # the scene-level absent-character checks raise false repair tasks and beats drop the entity.
+    surface_labels = _surface_term_labels(body)
+    absent_now = as_str_list(normalized.get("characters_absent"))
+    if absent_now:
+        kept_entries: list[str] = []
+        surface_present: list[str] = []
+        for entry in absent_now:
+            name = leading_roster_name(entry)
+            if name.lower() in surface_labels or _SURFACE_PRESENCE_NOTE_RE.search(entry):
+                surface_present.append(name or entry)
+                label = surface_labels.get(name.lower(), "")
+                if label:
+                    present_entries = as_str_list(normalized.get("characters_present"))
+                    label_name = leading_roster_name(label).lower()
+                    already = {leading_roster_name(e).lower() for e in present_entries}
+                    if label_name not in already:
+                        normalized["characters_present"] = [*present_entries, label]
+            else:
+                kept_entries.append(entry)
+        if surface_present:
+            normalized["characters_absent"] = kept_entries
+            warnings.append(
+                _roster_normalized_warning(
+                    "characters_absent",
+                    surface_present,
+                    "participate this chapter via a surface form (surface_terms policy / 'surface form "
+                    "present' note) — a withheld name is not a roster absence; the surface label carries "
+                    "the presence",
+                )
+            )
+
+    # 4. Conditional presence is not absence — an absent entry hedged with "may be present"/"possibly
+    # appears" is an unresolved maybe, not a fact. It moves (verbatim, annotation preserved) to
+    # characters_mentioned_only — the lightweight bucket — so downstream absence checks stop treating a
+    # maybe as a hard absence. The human resolves it from there (present, or truly absent, unhedged).
+    absent_now = as_str_list(normalized.get("characters_absent"))
+    if absent_now:
+        kept_entries = []
+        hedged_moved: list[str] = []
+        for entry in absent_now:
+            if _HEDGED_PRESENCE_RE.search(entry):
+                hedged_moved.append(leading_roster_name(entry) or entry)
+                mentioned_entries = as_str_list(normalized.get("characters_mentioned_only"))
+                already = {leading_roster_name(e).lower() for e in mentioned_entries}
+                if leading_roster_name(entry).lower() not in already:
+                    normalized["characters_mentioned_only"] = [*mentioned_entries, entry]
+            else:
+                kept_entries.append(entry)
+        if hedged_moved:
+            normalized["characters_absent"] = kept_entries
+            warnings.append(
+                _roster_normalized_warning(
+                    "characters_absent",
+                    hedged_moved,
+                    "carry a conditional presence note ('may be present') — conditional presence is not "
+                    "absence; moved to characters_mentioned_only pending an explicit ruling",
                 )
             )
 

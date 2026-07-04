@@ -86,6 +86,41 @@ export function packetRepairTasks(warnings: PacketWarnings | null | undefined): 
   return packetQaFindings(warnings).filter((v) => v.blocks_final_export && !v.blocks_drafting);
 }
 
+// Surface projection AUDIT events: non-blocking records of what the SurfaceContractBuilder did
+// (replaced/omitted a forbidden term with its safe label). They are receipts of safe automatic
+// work, not defects — the UI collapses them and must never present them as validation failures.
+const SURFACE_AUDIT_KINDS: ReadonlySet<string> = new Set([
+  "surface_term_replaced",
+  "surface_term_omitted",
+]);
+
+export function isSurfaceAuditEvent(v: PacketViolation): boolean {
+  return SURFACE_AUDIT_KINDS.has(v.kind) && !v.blocks_drafting && !v.blocks_final_export;
+}
+
+/** Non-blocking surface projection audit events (safe replacements/omissions applied). */
+export function packetSurfaceAudit(warnings: PacketWarnings | null | undefined): PacketViolation[] {
+  return packetQaFindings(warnings).filter(isSurfaceAuditEvent);
+}
+
+/** Advisory findings that are neither gates nor surface-audit receipts (plain warn/info). */
+export function packetAdvisories(warnings: PacketWarnings | null | undefined): PacketViolation[] {
+  return packetQaFindings(warnings).filter(
+    (v) => !v.blocks_drafting && !v.blocks_final_export && !isSurfaceAuditEvent(v),
+  );
+}
+
+/** One-line summary for a collapsed surface-audit group, e.g.
+ *  "Surface projection audit: 15 safe replacements applied. Drafting not blocked." */
+export function surfaceAuditSummary(events: PacketViolation[]): string {
+  const replaced = events.filter((v) => v.kind === "surface_term_replaced").length;
+  const omitted = events.length - replaced;
+  const parts: string[] = [];
+  if (replaced > 0) parts.push(`${replaced} safe replacement${replaced === 1 ? "" : "s"} applied`);
+  if (omitted > 0) parts.push(`${omitted} term${omitted === 1 ? "" : "s"} safely omitted`);
+  return `Surface projection audit: ${parts.join(" · ") || "no changes"}. Drafting not blocked.`;
+}
+
 /** Duck-typed match for the Production-run precondition refusal ("no approved chapter packet for
  *  this chapter"): checks the ApiError's parsed `data.detail` first, then the message string, never
  *  exception identity — so it recognizes the failure across the BFF proxy and in tests alike. */
@@ -107,6 +142,7 @@ const SOURCE_LABEL: Record<string, string> = {
   qa: "Packet QA",
   validation: "deterministic validation",
   input: "chapter input",
+  rate_limit: "provider rate limit (transient)",
 };
 
 function packetBody(packet: PacketOut): PacketBody {
