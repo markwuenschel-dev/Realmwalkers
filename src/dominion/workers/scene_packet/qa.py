@@ -93,9 +93,7 @@ def build_prefix(
     whose prefix alone hit ~35k tokens and blew the QA input budget outright)."""
     if not chapter_packet_body:
         return None
-    authoritative = {
-        k: v for k, v in chapter_packet_body.items() if not str(k).startswith("_") and k != "qa"
-    }
+    authoritative = {k: v for k, v in chapter_packet_body.items() if not str(k).startswith("_") and k != "qa"}
     parts = ["CHAPTER PACKET (the macro authority it must not contradict):\n" + _compact(authoritative)]
     rulings = format_chapter_rulings(chapter_open_questions)
     if rulings:
