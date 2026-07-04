@@ -443,91 +443,47 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
 
       {approvedCount > 0 && (
         <div style={css("margin-bottom:14px")}>
-          {/* The headline claim and the button obey the SAME server gate (readiness.draftable) — the
-              page must never say "ready to draft" while the button below it is disabled. */}
+          {/* The headline claim and the button obey the SAME authoritative server gate
+              (readiness.can_draft) — the page must never say "ready to draft" while the button
+              below it is disabled, and never disable it without naming the failing gate. */}
           <div
             style={css(
-              `font-family:var(--mono);font-size:11.5px;color:var(${readiness?.draftable ? "--good" : "--warn"});margin-bottom:10px`,
+              `font-family:var(--mono);font-size:11.5px;color:var(${readiness?.can_draft ? "--good" : "--warn"});margin-bottom:10px`,
             )}
           >
             {approvedCount} approved ·{" "}
-            {readiness?.draftable
+            {readiness?.can_draft
               ? "ready to draft scenes."
               : readiness
-                ? "not ready to draft — see the gate below."
+                ? "not ready to draft — see why below."
                 : "checking draft readiness…"}
           </div>
-          {readiness && (
-            <div
-              style={css(
-                "border:1px solid var(--line);border-radius:9px;background:var(--bg2b);padding:12px 13px;margin-bottom:10px;font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.6",
-              )}
-              data-testid="draft-gate-diagnostics"
-            >
-              <div>
-                chapter_packet_approved: {readiness.chapter_packet_approved ? "true" : "false"}
-              </div>
-              <div>
-                scene_packets_approved: {(readiness.scene_packets.approved as number) ?? 0}/
-                {(readiness.scene_packets.expected as number) ?? "?"}
-              </div>
-              {((readiness.scene_packets.stale as number) ?? 0) > 0 && (
-                <div>scene_packets_stale: {readiness.scene_packets.stale as number}</div>
-              )}
-              {((readiness.scene_packets.rate_limited as number) ?? 0) > 0 && (
-                <div style={css("color:var(--warn)")}>
-                  scene_packets_rate_limited: {readiness.scene_packets.rate_limited as number} ·
-                  transient provider 429 — re-derive to retry
-                </div>
-              )}
-              <div>
-                beats_linked: {(readiness.beats.linked as number) ?? 0}/
-                {(readiness.beats.approved as number) ?? 0}
-              </div>
-              <div>active_draft_jobs: {(readiness.jobs.active as number) ?? 0}</div>
-              <div>
-                prose_drafts: {(readiness.prose?.scenes_with_prose as number) ?? 0}/
-                {(readiness.prose?.expected_scenes as number) ?? "?"}
-                {(readiness.prose?.missing_scene_numbers?.length ?? 0) > 0
-                  ? ` (missing: ${readiness.prose!.missing_scene_numbers!.join(", ")})`
-                  : ""}
-              </div>
-              <div>can_draft: {readiness.draftable ? "true" : "false"}</div>
-              {!readiness.draftable && readiness.disabled_reason && (
-                <div style={css("color:var(--warn)")}>
-                  disabled_reason: {readiness.disabled_reason}
-                </div>
-              )}
-              {((readiness.beats.unlinked as string[] | undefined)?.length ?? 0) > 0 && (
-                <div style={css("margin-top:8px")}>
-                  <button
-                    disabled={busy != null}
-                    title="Reconcile beats with the current approved scene packets — prunes orphaned/legacy beats that hold the gate as 'unlinked'. Changes no approvals."
-                    onClick={() =>
-                      void (async () => {
-                        setBusy("relink-beats");
-                        setError(null);
-                        try {
-                          setReadiness(await api.deriveBeats(chapterId));
-                        } catch (e) {
-                          setError(e instanceof Error ? e.message : String(e));
-                        } finally {
-                          setBusy(null);
-                        }
-                      })()
-                    }
-                    style={btn(busy == null, t.accent, t.onAccent)}
-                  >
-                    {busy === "relink-beats" ? "Re-linking…" : "Re-link beats"}
-                  </button>
-                </div>
-              )}
-            </div>
+          {readiness && !readiness.can_draft && (
+            <DraftGateDiagnostics
+              readiness={readiness}
+              busy={busy != null}
+              relinkBusy={busy === "relink-beats"}
+              accent={t.accent}
+              onAccent={t.onAccent}
+              onRelink={() =>
+                void (async () => {
+                  setBusy("relink-beats");
+                  setError(null);
+                  try {
+                    setReadiness(await api.deriveBeats(chapterId));
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setBusy(null);
+                  }
+                })()
+              }
+            />
           )}
           <button
-            disabled={drafting || !readiness?.draftable}
+            disabled={drafting || !readiness?.can_draft}
             title={
-              readiness?.draftable
+              readiness?.can_draft
                 ? "Queue prose drafting jobs for every approved, undrafted scene"
                 : (readiness?.disabled_reason ?? "Checking draft readiness…")
             }
@@ -544,11 +500,11 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
                 setDrafting(false);
               }
             }}
-            style={btn(!drafting && !!readiness?.draftable, t.accent, t.onAccent)}
+            style={btn(!drafting && !!readiness?.can_draft, t.accent, t.onAccent)}
           >
             {drafting ? "Queuing…" : "Draft scenes"}
           </button>
-          {readiness && !readiness.draftable && readiness.blockers.length > 0 && (
+          {readiness && !readiness.can_draft && readiness.blockers.length > 0 && (
             <div style={css("margin-top:8px;font-size:11.5px;color:var(--warn);line-height:1.45")}>
               {readiness.blockers.slice(0, 3).map((b, i) => (
                 <div key={i}>
@@ -607,6 +563,177 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
       />
       {drawer.isOpen && desk.bookId && drawer.view && (
         <TelemetryDrawer nav={drawer.nav} bookId={desk.bookId} />
+      )}
+    </div>
+  );
+}
+
+// "Why is this disabled?" — rendered ONLY while the Draft-scenes action is disabled
+// (readiness.can_draft === false). Collapsed it shows the server's one-sentence disabled_reason
+// (the FIRST failing gate in pipeline order); expanded it lists every gate with a pass/fail chip,
+// in the exact order the backend's resolve_draft_gate checks them. Axis labels stay distinct —
+// contract lifecycle ≠ Scene QA opinion ≠ prose-draft state — mirroring the per-card chips.
+function DraftGateDiagnostics({
+  readiness,
+  busy,
+  relinkBusy,
+  accent,
+  onAccent,
+  onRelink,
+}: {
+  readiness: DraftReadinessOut;
+  busy: boolean;
+  relinkBusy: boolean;
+  accent: string;
+  onAccent: string;
+  onRelink: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const sp = readiness.scene_packets;
+  const spApproved = (sp.approved as number) ?? 0;
+  const spExpected = (sp.expected as number) ?? 0;
+  const spMissing = (sp.missing_scene_numbers as number[] | undefined) ?? [];
+  const spRateLimited = (sp.rate_limited as number) ?? 0;
+  const beatsApproved = (readiness.beats.approved as number) ?? 0;
+  const beatsLinked = (readiness.beats.linked as number) ?? 0;
+  const unlinkedCount = (readiness.beats.unlinked as string[] | undefined)?.length ?? 0;
+  const proseHave = readiness.prose?.scenes_with_prose ?? 0;
+  const proseExpected = readiness.prose?.expected_scenes ?? 0;
+  const missingDrafts = readiness.missing_scene_drafts;
+  const structural = readiness.structural_blockers;
+  // Pipeline order — identical to the backend gate: packet → sequence/budget → scene packets
+  // (contract, then Scene QA) → beats → jobs → prose coverage → provider rate limit.
+  const gates: { label: string; pass: boolean; detail: string }[] = [
+    {
+      label: "Chapter packet · contract",
+      pass: readiness.chapter_packet_approved,
+      detail: readiness.chapter_packet_approved ? "approved" : "not approved",
+    },
+    {
+      label: "Sequence / budget · structure",
+      pass: structural.length === 0,
+      detail:
+        structural.length === 0
+          ? "no structural faults"
+          : `${structural.length} structural fault(s) — see below`,
+    },
+    {
+      label: "Scene packets · contract",
+      pass: spApproved > 0 && spMissing.length === 0 && readiness.scene_packets_stale === 0,
+      detail:
+        `${spApproved}/${spExpected || "?"} approved` +
+        (spMissing.length > 0 ? ` · missing: ${spMissing.join(", ")}` : "") +
+        (readiness.scene_packets_stale > 0 ? ` · ${readiness.scene_packets_stale} stale` : ""),
+    },
+    {
+      label: "Scene packets · Scene QA",
+      pass: readiness.scene_packet_qa_blocking === 0,
+      detail:
+        readiness.scene_packet_qa_blocking === 0
+          ? "no QA blocks"
+          : `${readiness.scene_packet_qa_blocking} packet(s) with verdict block_drafting`,
+    },
+    {
+      label: "Beats",
+      pass: beatsApproved > 0 && unlinkedCount === 0 && readiness.blockers.length === 0,
+      detail:
+        beatsApproved === 0
+          ? "no approved beats yet — approving scene packets derives them"
+          : `${beatsLinked}/${beatsApproved} linked` +
+            (unlinkedCount > 0 ? ` · ${unlinkedCount} unlinked` : "") +
+            (readiness.blockers.length > 0
+              ? ` · ${readiness.blockers.length} queue blocker(s)`
+              : ""),
+    },
+    {
+      label: "Draft jobs",
+      pass: readiness.active_draft_jobs === 0,
+      detail:
+        readiness.active_draft_jobs === 0 ? "idle" : `${readiness.active_draft_jobs} active`,
+    },
+    {
+      label: "Prose drafts · prose",
+      pass: missingDrafts.length > 0,
+      detail:
+        `${proseHave}/${proseExpected || "?"} scenes have prose` +
+        (missingDrafts.length > 0
+          ? ` · to draft: ${missingDrafts.join(", ")}`
+          : " — every scene drafted; use redraft"),
+    },
+    {
+      label: "Provider",
+      pass: !readiness.provider_rate_limited,
+      detail: readiness.provider_rate_limited
+        ? `rate limited (429)${spRateLimited > 0 ? ` · ${spRateLimited} packet(s) held` : ""} — transient; retry shortly`
+        : "ok",
+    },
+  ];
+  return (
+    <div
+      style={css(
+        "border:1px solid var(--line);border-radius:9px;background:var(--bg2b);padding:11px 13px;margin-bottom:10px",
+      )}
+      data-testid="draft-gate-diagnostics"
+    >
+      <div
+        style={css("display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;cursor:pointer")}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--warn)")}>
+          Why is this disabled?
+        </span>
+        <span style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
+          {readiness.disabled_reason ?? "The draft gate is not satisfied."}
+        </span>
+        <span
+          style={css("margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--dim)")}
+        >
+          {open ? "▾" : "▸"}
+        </span>
+      </div>
+      {open && (
+        <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
+          {gates.map((g) => (
+            <div
+              key={g.label}
+              style={css("display:flex;align-items:baseline;gap:8px;flex-wrap:wrap")}
+            >
+              <Chip label={g.pass ? "pass" : "fail"} colorVar={g.pass ? "--good" : "--bad"} />
+              <span style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
+                {g.label}
+              </span>
+              <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                {g.detail}
+              </span>
+            </div>
+          ))}
+          {structural.length > 0 && (
+            <div style={css("margin-top:4px;display:flex;flex-direction:column;gap:4px")}>
+              {structural.slice(0, 4).map((b, i) => (
+                <div key={i} style={css("font-size:11.5px;color:var(--warn);line-height:1.4")}>
+                  · [{b.kind.replace(/_/g, " ")}] {b.message}
+                </div>
+              ))}
+              {structural.length > 4 && (
+                <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                  … {structural.length - 4} more
+                </div>
+              )}
+            </div>
+          )}
+          {unlinkedCount > 0 && (
+            <div style={css("margin-top:4px")}>
+              <button
+                disabled={busy}
+                title="Reconcile beats with the current approved scene packets — prunes orphaned/legacy beats that hold the gate as 'unlinked'. Changes no approvals."
+                onClick={onRelink}
+                style={btn(!busy, accent, onAccent)}
+              >
+                {relinkBusy ? "Re-linking…" : "Re-link beats"}
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
