@@ -20,6 +20,7 @@ Two layers:
 
 from __future__ import annotations
 
+import dataclasses
 import importlib
 import inspect
 import json
@@ -275,7 +276,12 @@ def call_detector(
             sig.bind(*args, **kwargs)
         except TypeError:
             continue
-        return fn(*args, **kwargs)
+        result = fn(*args, **kwargs)
+        # Lanes may return frozen dataclasses (e.g. budget_reconciliation.ReconciliationResult);
+        # normalize to plain dicts so the extraction helpers can walk them uniformly.
+        if dataclasses.is_dataclass(result) and not isinstance(result, type):
+            return dataclasses.asdict(result)
+        return result
     raise AdapterMismatch(
         f"{module.__name__}.{name}{sig} did not accept any known argument shape; "
         "extend the attempts list in tests/ch1_bad_run_fixtures.py"

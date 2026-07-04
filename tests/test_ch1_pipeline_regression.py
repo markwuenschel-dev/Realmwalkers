@@ -213,6 +213,7 @@ class TestLane1EntryStateChaining:
 # ---------------------------------------------------------------------------
 
 _SCENE_SCOPE_FUNCS = (
+    "evaluate_scene_scope",
     "detect_scene_scope_issues",
     "detect_scope_bleed",
     "scan_scene_scope",
@@ -237,6 +238,10 @@ def _scene_scope_result(module):
         module,
         _SCENE_SCOPE_FUNCS,
         attempts=[
+            # Landed lane-2 API: evaluate_scene_scope(scene_prose_by_no, sequence_body) — bind by
+            # keyword first; the bare (body, prose) positional shapes below would bind swapped.
+            ((), {"scene_prose_by_no": prose, "sequence_body": body}),
+            ((prose, body), {}),
             ((), {"sequence_body": body, "scene_prose": prose}),
             ((), {"sequence_body": body, "prose_by_scene": prose}),
             ((), {"scenes": scenes, "scene_prose": prose}),
