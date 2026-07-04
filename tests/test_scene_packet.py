@@ -165,7 +165,11 @@ async def test_derive_creates_one_scene_packet_per_seed(db_factory, monkeypatch)
         row = rows[0]
         assert row.status == ScenePacketStatus.PROPOSED
         assert row.source_hash  # staleness anchor recorded
-        assert row.body["word_budget"]["target"] == 1500  # planner budget folded in
+        # Planner budget folded in, reconciled against the chapter envelope (lane 3): a single
+        # 1500-target scene in a 1500-word chapter scales down so hard_max fits the envelope
+        # (previously target=1500/hard_max=2400 overflowed the stored hard_max_words=1500).
+        assert row.body["word_budget"]["target"] == 1200
+        assert row.body["word_budget"]["hard_max"] == 1500
         assert "known_before_scene" in row.body
         # Workstream-G advisory grade rides along with the QA output — never a gate.
         grade = (row.qa_warnings or {}).get("grade")
@@ -249,7 +253,8 @@ async def test_approve_scene_packet_derives_beat(db_factory, monkeypatch):
         assert len(beats) == 1
         beat = beats[0]
         assert beat.scene_packet_id == sp.id
-        assert beat.target_words == 1500  # mirrors word_budget.target
+        # Mirrors word_budget.target — 1200 after lane-3 envelope reconciliation (see the derive test).
+        assert beat.target_words == 1200
         assert beat.tags == ["combat"]
         assert beat.characters_present == ["Marcus", "Serra"]  # chapter cast minus absent
         # hard constraints are NOT copied onto the beat

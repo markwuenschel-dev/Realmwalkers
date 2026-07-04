@@ -20,6 +20,7 @@ from dominion.shared.enums import (
 )
 from dominion.shared.models import Beat, Chapter, ChapterPacket, ChapterSequence, Job, Scene, ScenePacket
 from dominion.shared.schemas import DraftQueueBlockerOut, DraftReadinessOut, StructuralBlockerOut
+from dominion.workers.budget_reconciliation import check_sequence_budget_consistency
 from dominion.workers.draft_queue import DraftQueueBlocker, resolve_approved_scene_packet_for_beat_prefetched
 
 
@@ -402,6 +403,44 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
             blockers.append(blocker_out(resolved))
         elif beat.scene_no not in drafted_scene_nos:
             draftable_scenes += 1
+
+    # ── Sequence budget envelope (lane 3) — structural pre-draft blocker ─────────────────────────
+    # The persisted sequence must be arithmetically self-consistent — scene word_budget.hard_max
+    # values must SUM within the chapter's hard_max_words — before any LLM spend (the ch1 bad run
+    # drafted 9,630 words against a 7,200 envelope because nothing compared the two). At most ONE
+    # chapter-level `sequence_budget_mismatch` blocker, prepended so it names the root cause first.
+    sequence = (
+        (
+            await session.execute(
+                select(ChapterSequence)
+                .where(ChapterSequence.chapter_id == chapter_id)
+                .order_by(ChapterSequence.updated_at.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if sequence is not None:
+        seq_scenes = (sequence.body or {}).get("scenes") or []
+        for issue in check_sequence_budget_consistency(
+            sequence.hard_max_words,
+            [s.get("word_budget") or {} for s in seq_scenes if isinstance(s, dict)],
+        ):
+            blockers.insert(
+                0,
+                DraftQueueBlockerOut(
+                    chapter_id=chapter_id,
+                    reason=issue.kind,
+                    message=issue.detail,
+                    required_action=(
+                        "Re-derive the chapter sequence and scene packets (freshly derived budgets "
+                        "now reconcile against the chapter envelope), or fix the sequence word "
+                        "budgets, before drafting."
+                    ),
+                ),
+            )
+    # ── end lane 3 ────────────────────────────────────────────────────────────────────────────────
 
     draftable = (
         chapter_packet_approved
