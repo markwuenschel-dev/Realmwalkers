@@ -7,6 +7,7 @@ import {
   REACHABLE_AFTER,
   UNREACHABLE_AFTER,
 } from "../constants";
+import type { ToastItem } from "../../components/ui/Toast";
 import type { ActivityEntry, FailedJobOut, JobsStatusOut } from "../types";
 
 export interface DeskJobsState {
@@ -21,12 +22,16 @@ export interface DeskJobsState {
 const sceneKey = (s: JobsStatusOut["active_scene"]): string =>
   s ? `${s.chapter_no ?? ""}:${s.scene_no ?? ""}` : "";
 
+const sceneToastLabel = (s: NonNullable<JobsStatusOut["active_scene"]>): string =>
+  `${s.chapter_no != null ? `Ch ${s.chapter_no} · ` : ""}Scene ${s.scene_no ?? "?"}`;
+
 export function useDeskJobs(
   bookId: string | null,
   jobs: JobsStatusOut,
   setJobs: React.Dispatch<React.SetStateAction<JobsStatusOut>>,
   loadCollections: (id: string) => Promise<void>,
   refreshScenes: (id: string | null) => Promise<void>,
+  pushToast?: (toast: Omit<ToastItem, "id">) => void,
 ): DeskJobsState {
   const [failedJobs, setFailedJobs] = useState<FailedJobOut[]>([]);
   const [jobsUnreachable, setJobsUnreachable] = useState(false);
@@ -39,6 +44,11 @@ export function useDeskJobs(
   const failCountRef = useRef(0);
   const okCountRef = useRef(0);
   const lastActivityRef = useRef("");
+  // Toasts ride a ref so adding/removing the callback never re-arms the poll effect.
+  const pushToastRef = useRef(pushToast);
+  pushToastRef.current = pushToast;
+  // Per-run tally for the queue-clear summary toast ("4 drafted, 1 failed").
+  const runStatsRef = useRef({ drafted: 0, failed: 0 });
 
   useEffect(() => {
     let alive = true;
@@ -60,6 +70,41 @@ export function useDeskJobs(
           if (okCountRef.current >= REACHABLE_AFTER) setJobsUnreachable(false);
           busyNow = js.running || js.queued > 0;
           const justFinished = !busyNow && (was.running || was.queued > 0);
+
+          // Completion toasts (Atelier): announce each scene that finishes, each failure (with a
+          // View action that opens the Activity drawer), and a run summary when the queue clears.
+          // Detection mirrors the refresh gating below: the previously-running scene completed if
+          // the active scene moved on (or drafting stopped) without the failed count rising.
+          const push = pushToastRef.current;
+          if (push) {
+            const completed =
+              was.running &&
+              js.failed === was.failed &&
+              (sceneKey(was.active_scene) !== sceneKey(js.active_scene) || !js.running);
+            if (completed && was.active_scene) {
+              runStatsRef.current.drafted += 1;
+              push({ tone: "success", message: `${sceneToastLabel(was.active_scene)} drafted ✓` });
+            }
+            if (js.failed > was.failed) {
+              const n = js.failed - was.failed;
+              runStatsRef.current.failed += n;
+              push({
+                tone: "error",
+                message: n === 1 ? "A scene draft failed" : `${n} scene drafts failed`,
+                action: { label: "View", kind: "open-activity" },
+              });
+            }
+            if (justFinished) {
+              const { drafted, failed } = runStatsRef.current;
+              if (drafted + failed > 1) {
+                push({
+                  tone: failed ? "warn" : "success",
+                  message: `Queue clear — ${drafted} drafted${failed ? `, ${failed} failed` : ""}`,
+                });
+              }
+              runStatsRef.current = { drafted: 0, failed: 0 };
+            }
+          }
 
           const label = activityLabel(js);
           if (label && label !== lastActivityRef.current) {

@@ -6,6 +6,7 @@ import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { lineDiff } from "../lib/diff";
 import type { SceneVersionOut } from "../api/types";
+import { Button, Chip, Eyebrow, Panel } from "../components/ui";
 
 export default function DiffScreen() {
   const router = useRouter();
@@ -68,6 +69,9 @@ export default function DiffScreen() {
     setConfirmFor(null);
   };
 
+  // Changed lines get a soft 10% wash of the semantic color over the panel surface — the grid
+  // backing between cells is var(--line), so mixing over var(--bg2) (not transparent) keeps the
+  // cells opaque while reading as the same quiet tint in both Ink and Vellum.
   const cell = (side: "l" | "r", type: "same" | "add" | "del") => {
     const b =
       "font-family:var(--mono);font-size:12.5px;line-height:1.65;padding:5px 14px;background:var(--bg2);white-space:pre-wrap;word-break:break-word;";
@@ -76,21 +80,21 @@ export default function DiffScreen() {
       return (
         b +
         (side === "r"
-          ? "background:color-mix(in srgb,var(--good) 14%,var(--bg2));color:var(--good)"
-          : "opacity:.35")
+          ? "background:color-mix(in srgb,var(--good) 10%,var(--bg2));color:var(--good)"
+          : "opacity:.3")
       );
     return (
       b +
       (side === "l"
-        ? "background:color-mix(in srgb,var(--bad) 14%,var(--bg2));color:var(--bad)"
-        : "opacity:.35")
+        ? "background:color-mix(in srgb,var(--bad) 10%,var(--bg2));color:var(--bad)"
+        : "opacity:.3")
     );
   };
 
   const versionLabel = (v: SceneVersionOut) =>
     `v${v.version} · ${v.status.replace(/_/g, " ")}${v.id === latest.id ? " · current" : ""}`;
   const selectStyle = css(
-    "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-family:var(--mono);font-size:12px;cursor:pointer",
+    "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:9px;height:30px;padding:0 10px;font-family:var(--mono);font-size:12px;cursor:pointer",
   );
 
   // Left/right line numbers advance independently: an `add` exists only on the right, a `del` only
@@ -100,25 +104,24 @@ export default function DiffScreen() {
 
   return (
     <div>
-      <div
-        style={css(
-          "display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:18px",
-        )}
+      <header style={css("margin-bottom:20px")}>
+        <Eyebrow style="margin-bottom:6px">
+          Scene {cur.scene_no} · {versions.length} versions
+        </Eyebrow>
+        <h1
+          style={css(
+            "margin:0;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)",
+          )}
+        >
+          Version history
+        </h1>
+      </header>
+
+      {/* sticky picker bar — rides just under the 60px top bar while the diff scrolls */}
+      <Panel
+        pad="12px"
+        style="position:sticky;top:68px;z-index:30;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px"
       >
-        <div>
-          <div
-            style={css("font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:7px")}
-          >
-            SCENE {cur.scene_no}
-          </div>
-          <h1
-            style={css(
-              "margin:0;font-family:var(--display);font-weight:600;font-size:28px;color:var(--ink)",
-            )}
-          >
-            Version history
-          </h1>
-        </div>
         <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
           <select
             value={base.id}
@@ -146,148 +149,126 @@ export default function DiffScreen() {
             ))}
           </select>
         </div>
-      </div>
-
-      <div
-        style={css(
-          "display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px",
-        )}
-      >
-        <div
-          style={css(
-            "display:flex;gap:18px;font-family:var(--mono);font-size:11.5px;color:var(--dim)",
-          )}
-        >
-          <span style={css("display:flex;align-items:center;gap:6px")}>
-            <span
-              style={css(
-                "width:10px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--good) 30%,transparent)",
-              )}
-            />
-            added
-          </span>
-          <span style={css("display:flex;align-items:center;gap:6px")}>
-            <span
-              style={css(
-                "width:10px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--bad) 30%,transparent)",
-              )}
-            />
-            removed
-          </span>
+        <div style={css("display:flex;align-items:center;gap:8px")}>
+          <Chip label="added" tone="good" />
+          <Chip label="removed" tone="bad" />
         </div>
-        {base.id !== latest.id &&
-          (confirmFor === base.id ? (
-            <div style={css("display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
-              <span style={css("font-size:12.5px;color:var(--dim)")}>
-                Revert scene {cur.scene_no} to v{base.version}? A new current version is created
-                with that text.
-              </span>
-              <button
-                onClick={() => revertTo(base)}
-                disabled={reverting}
-                style={css(
-                  "padding:7px 13px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui)",
-                )}
-              >
-                {reverting ? "Reverting…" : "Confirm revert"}
-              </button>
-              <button
-                onClick={() => setConfirmFor(null)}
-                disabled={reverting}
-                style={css(
-                  "padding:7px 13px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--dim);font-size:12.5px;cursor:pointer;font-family:var(--ui)",
-                )}
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmFor(base.id)}
-              disabled={reverting}
-              title={`Make v${base.version}'s text the current version`}
-              style={css(
-                "padding:7px 13px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui)",
-              )}
-            >
-              ⟲ Revert to v{base.version}
-            </button>
-          ))}
-      </div>
-
-      <div
-        style={css(
-          "display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden",
-        )}
-      >
-        <div
-          style={css(
-            "background:var(--bg2b);padding:11px 16px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)",
-          )}
-        >
-          v{base.version}
-          {base.agent_original ? " — agent original" : ""}
-        </div>
-        <div
-          style={css(
-            "background:var(--bg2b);padding:11px 16px;font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--dim)",
-          )}
-        >
-          v{target.version}
-          {target.id === latest.id ? " — current" : ""}
-        </div>
-        {ops.map((d, i) => {
-          const leftNum = d.type === "add" ? "" : String(++leftLn);
-          const rightNum = d.type === "del" ? "" : String(++rightLn);
-          return (
-            <Fragment key={i}>
-              <div style={css(cell("l", d.type))}>
-                <span
-                  style={css("display:inline-block;width:1.6em;color:var(--dim);user-select:none")}
-                >
-                  {leftNum}
+        {base.id !== latest.id && (
+          <div
+            style={css("margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap")}
+          >
+            {confirmFor === base.id ? (
+              <>
+                <span style={css("font-family:var(--ui);font-size:12.5px;color:var(--dim)")}>
+                  Revert scene {cur.scene_no} to v{base.version}? A new current version is created
+                  with that text.
                 </span>
-                {d.type === "add" ? "" : d.text}
-              </div>
-              <div style={css(cell("r", d.type))}>
-                <span
-                  style={css("display:inline-block;width:1.6em;color:var(--dim);user-select:none")}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => revertTo(base)}
+                  disabled={reverting}
                 >
-                  {rightNum}
-                </span>
-                {d.type === "del" ? "" : d.text}
-              </div>
-            </Fragment>
-          );
-        })}
-      </div>
+                  {reverting ? "Reverting…" : "Confirm revert"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmFor(null)}
+                  disabled={reverting}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setConfirmFor(base.id)}
+                disabled={reverting}
+                title={`Make v${base.version}'s text the current version`}
+              >
+                ⟲ Revert to v{base.version}
+              </Button>
+            )}
+          </div>
+        )}
+      </Panel>
+
+      {/* Before/After panes share one grid so the diff rows stay height-aligned across the split */}
+      <Panel pad="0" style="overflow:hidden">
+        <div
+          style={css("display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)")}
+        >
+          <div style={css("background:var(--bg2b);padding:12px 16px")}>
+            <Eyebrow>
+              Before · v{base.version}
+              {base.agent_original ? " — agent original" : ""}
+            </Eyebrow>
+          </div>
+          <div style={css("background:var(--bg2b);padding:12px 16px")}>
+            <Eyebrow>
+              After · v{target.version}
+              {target.id === latest.id ? " — current" : ""}
+            </Eyebrow>
+          </div>
+          {ops.map((d, i) => {
+            const leftNum = d.type === "add" ? "" : String(++leftLn);
+            const rightNum = d.type === "del" ? "" : String(++rightLn);
+            return (
+              <Fragment key={i}>
+                <div style={css(cell("l", d.type))}>
+                  <span
+                    style={css(
+                      "display:inline-block;width:1.6em;color:var(--dim);user-select:none",
+                    )}
+                  >
+                    {leftNum}
+                  </span>
+                  {d.type === "add" ? "" : d.text}
+                </div>
+                <div style={css(cell("r", d.type))}>
+                  <span
+                    style={css(
+                      "display:inline-block;width:1.6em;color:var(--dim);user-select:none",
+                    )}
+                  >
+                    {rightNum}
+                  </span>
+                  {d.type === "del" ? "" : d.text}
+                </div>
+              </Fragment>
+            );
+          })}
+        </div>
+      </Panel>
     </div>
   );
 }
 
 function Centered({ children }: { children: ReactNode }) {
   return (
-    <div
-      style={css(
-        "max-width:560px;margin:60px auto;text-align:center;color:var(--dim);font-size:14.5px;line-height:1.6",
-      )}
-    >
-      {children}
+    <div style={css("max-width:560px;margin:80px auto;text-align:center")}>
+      <div aria-hidden style={css("font-size:20px;color:var(--accent);margin-bottom:16px")}>
+        ✦
+      </div>
+      <div
+        style={css(
+          "font-family:var(--display);font-style:italic;font-size:18px;line-height:1.6;color:var(--dim)",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
 
 function Back({ go, label = "Go to inbox" }: { go: () => void; label?: string }) {
   return (
-    <div>
-      <button
-        onClick={go}
-        style={css(
-          "margin-top:18px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer;font-family:var(--ui);font-size:13.5px",
-        )}
-      >
+    <div style={css("margin-top:20px;font-style:normal")}>
+      <Button variant="secondary" onClick={go}>
         {label}
-      </button>
+      </Button>
     </div>
   );
 }

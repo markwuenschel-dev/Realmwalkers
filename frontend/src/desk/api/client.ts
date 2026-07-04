@@ -159,6 +159,12 @@ export const api = {
   jobsStatus: (bookId?: string, init?: RequestInit) =>
     http<JobsStatusOut>(`/jobs/status${qs({ book_id: bookId })}`, init),
   jobsFailed: (bookId?: string) => http<FailedJobOut[]>(`/jobs/failed${qs({ book_id: bookId })}`),
+  // Queue positions + recently finished jobs for the Activity drawer (the live job rides on
+  // jobsStatus at the fast poll; this list is polled only while the drawer is open or work runs).
+  jobsRecent: (bookId?: string, limit?: number) =>
+    http<import("./types").RecentJobsOut>(
+      `/jobs/recent${qs({ book_id: bookId, limit: limit != null ? String(limit) : undefined })}`,
+    ),
   draftNext: (bookId?: string) =>
     http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),
   retryFailed: (bookId?: string) =>

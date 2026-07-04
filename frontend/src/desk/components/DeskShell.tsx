@@ -8,12 +8,23 @@ import TopBar from "./TopBar";
 import CommandPalette from "./CommandPalette";
 import DecisionToast from "./DecisionToast";
 import ErrorToast, { BackendBanner } from "./ErrorToast";
+import ActivityDrawer from "./ActivityDrawer";
+import { ToastHost } from "./ui";
+import { useDeskData } from "../api/data";
 
 // The persistent desk chrome: themed root, ambient background overlays, TopBar, and the global
 // overlays (command palette, decision/error toasts, backend-unreachable banner). The active route
 // renders into <main> as `children` — the shell itself never switches pages.
 export default function DeskShell({ children }: { children: ReactNode }) {
-  const { t, themeId, isDark, paletteOpen, decision } = useDesk();
+  const { t, themeId, isDark, paletteOpen, decision, toggleActivity } = useDesk();
+  const { toasts, dismissToast } = useDeskData();
+  // Declarative toast actions resolve here — the data layer can't reach UI state, so it emits
+  // kind:"open-activity" and the shell binds it to the drawer toggle at render time.
+  const resolvedToasts = toasts.map((toast) =>
+    toast.action?.kind === "open-activity"
+      ? { ...toast, action: { ...toast.action, onClick: toggleActivity } }
+      : toast,
+  );
   return (
     <div style={themeRootStyle(t, themeId)}>
       {/* One ambient overlay per variant — Ink gets a faint gilt glow from above; Vellum a
@@ -40,6 +51,8 @@ export default function DeskShell({ children }: { children: ReactNode }) {
 
       {paletteOpen && <CommandPalette />}
       {decision && <DecisionToast />}
+      <ActivityDrawer />
+      <ToastHost toasts={resolvedToasts} onDismiss={dismissToast} />
       <BackendBanner />
       <ErrorToast />
     </div>

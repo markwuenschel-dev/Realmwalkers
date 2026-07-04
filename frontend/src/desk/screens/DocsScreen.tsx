@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { css } from "../css";
 import { api } from "../api/client";
 import type { DocDetail, DocMeta } from "../api/types";
 import ProseBlocks from "../components/ProseBlocks";
+import { Button, Eyebrow, Skeleton } from "../components/ui";
 
 // The canon-doc viewer (Domain B): lists the story bible / planning / style Markdown the author keeps
 // on disk and renders the selected one through the shared block/inline renderer. Read-only — these
@@ -19,6 +20,26 @@ const CATEGORIES: { id: string; label: string }[] = [
 ];
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+// Atelier display-XL screen title + the shared page frame.
+const TITLE_XL =
+  "margin:0;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)";
+const WRAP = "width:min(96vw,1800px);margin:0 auto;padding:0 clamp(12px,2vw,32px)";
+
+/** Drop a leading `# Title` line — the backend surfaces it as `doc.title` (which the reading view
+ *  renders itself in Newsreader), so leaving it in the body would set the title twice. */
+const stripTitleHeading = (text: string): string => {
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i].trim();
+    if (!s) continue;
+    if (s.startsWith("# ")) return [...lines.slice(0, i), ...lines.slice(i + 1)].join("\n");
+    break;
+  }
+  return text;
+};
+
+const wordCount = (text: string): number => (text.trim() ? text.trim().split(/\s+/).length : 0);
 
 export default function DocsScreen() {
   const [docs, setDocs] = useState<DocMeta[] | null>(null);
@@ -65,6 +86,9 @@ export default function DocsScreen() {
     return g;
   }, [docs]);
 
+  const body = useMemo(() => (doc ? stripTitleHeading(doc.content) : ""), [doc]);
+  const words = useMemo(() => (doc ? wordCount(doc.content) : 0), [doc]);
+
   // Word export (MarketMind styling, page-numbered) — docx-js lazy-loaded on click.
   const exportDocx = async () => {
     if (!doc) return;
@@ -85,112 +109,155 @@ export default function DocsScreen() {
   }
   if (!docs) {
     return (
-      <p
-        style={css(
-          "text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px;margin-top:40px",
-        )}
-      >
-        Loading canon…
-      </p>
+      <div style={css(WRAP)}>
+        <ScreenHeader />
+        <div style={css("display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start")}>
+          <div style={css("flex:0 1 252px")}>
+            <Skeleton lines={8} />
+          </div>
+          <div style={css("flex:1 1 700px;max-width:68ch")}>
+            <Skeleton lines={14} />
+          </div>
+        </div>
+      </div>
     );
   }
   if (docs.length === 0) {
     return (
-      <p
-        style={css(
-          "text-align:center;color:var(--dim);font-family:var(--mono);font-size:13px;margin-top:40px",
-        )}
-      >
-        No canon, planning, or style docs found on disk.
-      </p>
+      <div style={css(WRAP)}>
+        <ScreenHeader />
+        <EmptyState>No canon, planning, or style docs found on disk.</EmptyState>
+      </div>
     );
   }
 
   return (
-    <div
-      style={css(
-        "display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;width:min(96vw,1800px);margin:0 auto;padding:0 clamp(12px,2vw,32px)",
-      )}
-    >
-      {/* index: docs grouped by category */}
-      <nav
-        style={css(
-          "flex:0 1 252px;position:sticky;top:78px;max-height:calc(100vh - 110px);overflow-y:auto;padding-right:4px",
-        )}
-      >
-        {CATEGORIES.map(({ id, label }) => {
-          const items = groups[id] ?? [];
-          if (items.length === 0) return null;
-          return (
-            <div key={id} style={css("margin-bottom:18px")}>
-              <div
+    <div style={css(WRAP)}>
+      <ScreenHeader count={docs.length} />
+
+      <div style={css("display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start")}>
+        {/* index: docs grouped by category */}
+        <nav
+          style={css(
+            "flex:0 1 252px;position:sticky;top:78px;max-height:calc(100vh - 110px);overflow-y:auto;padding-right:4px",
+          )}
+        >
+          {CATEGORIES.map(({ id, label }) => {
+            const items = groups[id] ?? [];
+            if (items.length === 0) return null;
+            return (
+              <div key={id} style={css("margin-bottom:20px")}>
+                <Eyebrow style="margin:0 0 8px 10px">
+                  {label} · {items.length}
+                </Eyebrow>
+                {items.map((d) => {
+                  const active = d.path === sel;
+                  return (
+                    <button
+                      key={d.path}
+                      className="dk-navlink"
+                      onClick={() => setSel(d.path)}
+                      title={d.path}
+                      style={css(
+                        `display:block;width:100%;text-align:left;padding:6px 10px;margin-bottom:1px;border:none;border-radius:7px;cursor:pointer;` +
+                          `font-family:var(--ui);font-size:13px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;` +
+                          `background:${active ? "var(--accentSoft)" : "transparent"};color:${active ? "var(--ink)" : "var(--dim)"};` +
+                          `font-weight:${active ? "500" : "400"}`,
+                      )}
+                    >
+                      {d.title}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* reading panel — prose measure ~68ch, generous margins */}
+        <article
+          style={css(
+            "flex:1 1 700px;min-width:min(100%,320px);max-width:none;padding:6px 4px 80px",
+          )}
+        >
+          {docErr ? (
+            <p style={css("color:var(--bad);font-family:var(--mono);font-size:13px")}>
+              Couldn't load — {docErr}
+            </p>
+          ) : !sel ? (
+            <EmptyState>Select a document</EmptyState>
+          ) : !doc ? (
+            <div style={css("max-width:68ch")}>
+              <Skeleton lines={12} />
+            </div>
+          ) : (
+            <div style={css("max-width:68ch")}>
+              <header
                 style={css(
-                  "font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 7px 8px",
+                  "margin-bottom:26px;padding-bottom:16px;border-bottom:1px solid var(--line)",
                 )}
               >
-                {label} · {items.length}
-              </div>
-              {items.map((d) => {
-                const active = d.path === sel;
-                return (
-                  <button
-                    key={d.path}
-                    onClick={() => setSel(d.path)}
-                    title={d.path}
+                <h2
+                  style={css(
+                    "margin:0 0 10px;font-family:var(--display);font-weight:500;font-size:26px;line-height:34px;letter-spacing:-.01em;color:var(--ink)",
+                  )}
+                >
+                  {doc.title}
+                </h2>
+                <div
+                  style={css(
+                    "display:flex;align-items:center;justify-content:space-between;gap:12px",
+                  )}
+                >
+                  <div
                     style={css(
-                      `display:block;width:100%;text-align:left;padding:6px 9px;margin-bottom:1px;border:none;border-radius:7px;cursor:pointer;` +
-                        `font-family:var(--ui);font-size:12.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;` +
-                        `background:${active ? "var(--accentSoft)" : "transparent"};color:${active ? "var(--ink)" : "var(--dim)"};` +
-                        `font-weight:${active ? "500" : "400"}`,
+                      "font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--dim);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap",
                     )}
                   >
-                    {d.title}
-                  </button>
-                );
-              })}
+                    {doc.path} · {words.toLocaleString()} words
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={exportDocx}
+                    title="Download this doc as Word (.docx) — MarketMind styling, page-numbered"
+                  >
+                    ⬇ Word
+                  </Button>
+                </div>
+              </header>
+              <ProseBlocks text={body} proseSize="17px" justify={false} />
             </div>
-          );
-        })}
-      </nav>
+          )}
+        </article>
+      </div>
+    </div>
+  );
+}
 
-      {/* reading panel */}
-      <article
-        style={css("flex:1 1 700px;min-width:min(100%,320px);max-width:none;padding:6px 4px 80px")}
-      >
-        {docErr ? (
-          <p style={css("color:var(--bad);font-family:var(--mono);font-size:13px")}>
-            Couldn't load — {docErr}
-          </p>
-        ) : !doc ? (
-          <p style={css("color:var(--dim);font-family:var(--mono);font-size:13px")}>Loading…</p>
-        ) : (
-          <>
-            <div
-              style={css(
-                "display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px",
-              )}
-            >
-              <div
-                style={css(
-                  "font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);min-width:0;overflow:hidden;text-overflow:ellipsis",
-                )}
-              >
-                {doc.path}
-              </div>
-              <button
-                onClick={exportDocx}
-                title="Download this doc as Word (.docx) — MarketMind styling, page-numbered"
-                style={css(
-                  "flex:none;padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:var(--ui);font-size:12px;cursor:pointer",
-                )}
-              >
-                ⬇ Word
-              </button>
-            </div>
-            <ProseBlocks text={doc.content} proseSize="15.5px" justify={false} />
-          </>
+function ScreenHeader({ count }: { count?: number }) {
+  return (
+    <header style={css("margin:0 0 30px")}>
+      <Eyebrow style="margin-bottom:6px">
+        Library{count != null ? ` · ${count} documents` : ""}
+      </Eyebrow>
+      <h1 style={css(TITLE_XL)}>Canon Library</h1>
+    </header>
+  );
+}
+
+function EmptyState({ children }: { children: ReactNode }) {
+  return (
+    <div style={css("text-align:center;padding:90px 24px")}>
+      <div aria-hidden style={css("font-size:20px;color:var(--accent);margin-bottom:16px")}>
+        ✦
+      </div>
+      <p
+        style={css(
+          "margin:0;font-family:var(--display);font-style:italic;font-size:18px;line-height:1.6;color:var(--dim)",
         )}
-      </article>
+      >
+        {children}
+      </p>
     </div>
   );
 }

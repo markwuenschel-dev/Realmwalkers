@@ -7,8 +7,10 @@ export interface ToastItem {
   id: string;
   tone: ToastTone;
   message: string;
-  /** Optional action ("View" → open the Activity drawer, "Back to inbox", …). */
-  action?: { label: string; onClick: () => void };
+  /** Optional action. `onClick` runs directly; `kind` is declarative — the data layer can't reach
+   *  UI state (DeskDataProvider mounts OUTSIDE DeskProvider), so it emits "open-activity" and
+   *  DeskShell resolves it to the drawer toggle at render time. */
+  action?: { label: string; onClick?: () => void; kind?: "open-activity" };
 }
 
 const TONE_VAR: Record<ToastTone, string> = {
@@ -55,7 +57,7 @@ export function Toast({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: 
       {toast.action && (
         <button
           className="dk-btn"
-          onClick={toast.action.onClick}
+          onClick={toast.action.onClick ?? (() => {})}
           style={css(
             `flex:none;border:1px solid var(--line);background:var(--bg3);color:var(${v});border-radius:7px;padding:4px 10px;font-family:var(--ui);font-size:12px;cursor:pointer`,
           )}

@@ -8,7 +8,9 @@ import { invalidateCanonBodies, useDeskCollections } from "./hooks/useDeskCollec
 import { useDeskError } from "./hooks/useDeskError";
 import { useDeskJobs } from "./hooks/useDeskJobs";
 import { useDeskMarkup } from "./hooks/useDeskMarkup";
+import { useDeskRecentJobs } from "./hooks/useDeskRecentJobs";
 import { useDeskRules } from "./hooks/useDeskRules";
+import { useDeskToasts } from "./hooks/useDeskToasts";
 import { useDeskSceneActions } from "./hooks/useDeskSceneActions";
 import { useDeskWorld } from "./hooks/useDeskWorld";
 import type {
@@ -68,6 +70,11 @@ export interface DeskData {
   failedJobs: FailedJobOut[];
   jobsUnreachable: boolean;
   activity: ActivityEntry[];
+  // Activity drawer + completion toasts (Atelier). recentJobs is null until first gated poll.
+  recentJobs: import("./types").RecentJobsOut | null;
+  toasts: import("../components/ui/Toast").ToastItem[];
+  pushToast: (toast: Omit<import("../components/ui/Toast").ToastItem, "id">) => void;
+  dismissToast: (id: string) => void;
 
   detail: SceneDetail | null;
   versions: SceneVersionOut[];
@@ -128,9 +135,10 @@ export interface DeskData {
 // fan-out. Hoisting it means the bootstrap effect fires only when the book actually changes.
 const noopOnBookChange = (): void => {};
 
-export function useDeskDataState(): DeskData {
+export function useDeskDataState(activityOpen = false): DeskData {
   const [loading, setLoading] = useState(true);
   const { error, setError, clearError, fail } = useDeskError();
+  const { toasts, pushToast, dismissToast } = useDeskToasts();
 
   const { books, bookId, setBook, createBook } = useDeskBooks(fail, setLoading);
 
@@ -169,6 +177,13 @@ export function useDeskDataState(): DeskData {
     collections.setJobs,
     collections.loadCollections,
     collections.refreshScenes,
+    pushToast,
+  );
+  // Drawer feed — gated: polls only while the drawer is open or the queue is busy.
+  const recentJobs = useDeskRecentJobs(
+    bookId,
+    activityOpen,
+    collections.jobs.running || collections.jobs.queued > 0,
   );
 
   const world = useDeskWorld(
@@ -261,6 +276,10 @@ export function useDeskDataState(): DeskData {
       failedJobs: jobs.failedJobs,
       jobsUnreachable: jobs.jobsUnreachable,
       activity: jobs.activity,
+      recentJobs,
+      toasts,
+      pushToast,
+      dismissToast,
       detail: scene.detail,
       versions: scene.versions,
       activeBeat: scene.activeBeat,
@@ -313,6 +332,10 @@ export function useDeskDataState(): DeskData {
       setBook,
       collections,
       jobs,
+      recentJobs,
+      toasts,
+      pushToast,
+      dismissToast,
       scene,
       refreshAll,
       refreshManuscript,
@@ -338,8 +361,16 @@ export function useDeskDataState(): DeskData {
 
 const DeskDataContext = createContext<DeskData | null>(null);
 
-export function DeskDataProvider({ children }: { children: ReactNode }) {
-  const value = useDeskDataState();
+export function DeskDataProvider({
+  children,
+  activityOpen = false,
+}: {
+  children: ReactNode;
+  // Injected from Providers: the drawer flag lives in DeskProvider, which mounts BELOW this
+  // provider, so it arrives as a prop rather than via useDesk().
+  activityOpen?: boolean;
+}) {
+  const value = useDeskDataState(activityOpen);
   return <DeskDataContext.Provider value={value}>{children}</DeskDataContext.Provider>;
 }
 

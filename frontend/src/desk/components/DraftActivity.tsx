@@ -50,17 +50,36 @@ export function IndeterminateBar({ color = "var(--info)" }: { color?: string }) 
   );
 }
 
-// Compact pill for the top bar: spinner + which scene + live phase + elapsed; or a quiet "N queued".
+// Compact pill for the top bar — now a BUTTON that opens the Activity drawer (the old dead
+// "N queued" text was the single most-misread element in the Desk). Always rendered, so the
+// drawer is reachable even when idle.
 export function DraftPill() {
   const { jobs } = useDeskData();
+  const { activityOpen, toggleActivity } = useDesk();
   const active = jobs.active_scene;
   const elapsed = formatElapsed(active?.elapsed_s);
 
+  const shared =
+    "display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;border-radius:999px;padding:4px 11px;cursor:pointer;max-width:360px";
+  const caret = (
+    <span aria-hidden style={css("font-size:8px;color:var(--dim);flex:none")}>
+      ▾
+    </span>
+  );
+  const buttonProps = {
+    className: "dk-btn",
+    onClick: toggleActivity,
+    "aria-expanded": activityOpen,
+    "aria-controls": "activity-drawer",
+    title: "Pipeline activity — live, queued, and finished work",
+  } as const;
+
   if (jobs.running) {
     return (
-      <span
+      <button
+        {...buttonProps}
         style={css(
-          "display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--info);background:color-mix(in srgb,var(--info) 10%,transparent);border:1px solid color-mix(in srgb,var(--info) 28%,var(--line));border-radius:999px;padding:4px 10px;max-width:340px",
+          `${shared};color:var(--info);background:color-mix(in srgb,var(--info) 10%,transparent);border:1px solid color-mix(in srgb,var(--info) 28%,var(--line))`,
         )}
       >
         <Spinner size={12} />
@@ -73,32 +92,42 @@ export function DraftPill() {
         {elapsed && <span style={css("color:var(--dim)")}>{elapsed}</span>}
         <CacheBadge ratio={active?.cache_hit_ratio} />
         {jobs.queued > 0 && <span style={css("color:var(--dim)")}>+{jobs.queued}</span>}
-      </span>
+        {caret}
+      </button>
     );
   }
-  // Idle but with a recent scene's cache result — keep it visible in the top bar, not just the Inbox.
-  if (jobs.last_cache_hit_ratio != null) {
+  if (jobs.queued > 0 || jobs.failed > 0) {
     return (
-      <CacheBadge ratio={jobs.last_cache_hit_ratio} savedTokens={jobs.last_cache_tokens_saved} />
-    );
-  }
-  if (jobs.queued > 0) {
-    return (
-      <span
-        style={css(
-          "display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--dim)",
-        )}
+      <button
+        {...buttonProps}
+        style={css(`${shared};color:var(--dim);border:1px solid var(--line);background:var(--bg3)`)}
       >
         <span
           style={css(
-            "width:7px;height:7px;border-radius:50%;background:var(--info);animation:pulseDot 1.4s ease-in-out infinite",
+            `width:7px;height:7px;border-radius:50%;flex:none;background:${jobs.failed > 0 ? "var(--bad)" : "var(--info)"};animation:pulseDot 1.4s ease-in-out infinite`,
           )}
         />
-        {jobs.queued} queued
-      </span>
+        {jobs.queued > 0 && `${jobs.queued} queued`}
+        {jobs.queued > 0 && jobs.failed > 0 && " · "}
+        {jobs.failed > 0 && <span style={css("color:var(--bad)")}>{jobs.failed} failed</span>}
+        {caret}
+      </button>
     );
   }
-  return null;
+  // Fully idle: a quiet affordance (plus the last cache result when we have one).
+  return (
+    <button
+      {...buttonProps}
+      style={css(`${shared};color:var(--dim);border:1px solid transparent;background:transparent`)}
+    >
+      {jobs.last_cache_hit_ratio != null ? (
+        <CacheBadge ratio={jobs.last_cache_hit_ratio} savedTokens={jobs.last_cache_tokens_saved} />
+      ) : (
+        "Activity"
+      )}
+      {caret}
+    </button>
+  );
 }
 
 function CacheBadge({
