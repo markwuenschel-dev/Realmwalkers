@@ -22,15 +22,18 @@ tests
 docs
 # not needed to build or run the image (keeps the context uploaded to the builder small).
 # NB: series/ and book1/ markdown ARE copied in (runtime canon) — do not add a broad *.md here.
-book2/
-author notes/
-mcps/
-tmp/
-openapi.json
-package.json
-pnpm-lock.yaml
-skills-lock.json
-README.md
-LICENSE.md
-AGENTS.md
-justfile
+# NB: file entries are anchored with a leading slash — the Railway CLI indexes the upload with
+# gitignore-style ANY-DEPTH matching (unlike Docker's root-only dockerignore semantics), so a bare
+# `package.json` here silently dropped frontend/package.json from the context and broke the build.
+/book2/
+/author notes/
+/mcps/
+/tmp/
+/openapi.json
+/package.json
+/pnpm-lock.yaml
+/skills-lock.json
+/README.md
+/LICENSE.md
+/AGENTS.md
+/justfile
