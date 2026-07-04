@@ -15,6 +15,11 @@ _TEST_URL = os.environ.get(
     "postgresql+asyncpg://dominion:dominion@127.0.0.1:5432/dominion_test",
 )
 os.environ["DOMINION_DATABASE_URL"] = _TEST_URL
+# Tests must NEVER touch the network. With a real OPENAI_API_KEY in the developer's .env and the
+# default provider "openai", every canon/retrieval test was silently making LIVE OpenAI embedding
+# calls — test_canon_cleanup alone took ~8 minutes (3.5s on the hash backend), which was the entire
+# "why is local pytest 8x slower than CI" mystery. Force the deterministic hash embedder.
+os.environ["DOMINION_EMBEDDING_PROVIDER"] = "hash"
 
 import pytest  # noqa: E402
 from sqlalchemy import text  # noqa: E402
@@ -79,22 +84,27 @@ async def seed_scene_packet(s, *, chapter, beat, body: dict | None = None):
     return sp
 
 
-@pytest.fixture
-async def db_factory():
-    maint_url, dbname = _split_db(_TEST_URL)
+# Schema setup runs ONCE per pytest run, not once per test. The old per-test version rebuilt the
+# world for every DB test (maintenance-engine probe + CREATE EXTENSION + full create_all + every
+# lightweight migration + truncate + two engine disposals) — ~0.2s each on CI's local socket but
+# ~2s each on Windows/Docker, which turned the full suite from ~1 minute into 8-9. Per-test
+# isolation needs only the TRUNCATE. The one-time setup runs inside the FIRST requesting test's
+# event loop and fully disposes its engines there, so nothing leaks across pytest-asyncio's
+# function-scoped loops. The (ok, message) result is cached so an unreachable Postgres is paid for
+# once, not once per skipped test (a fresh TCP connect timeout per test, previously).
+_TABLES_SQL = ", ".join(f'"{name}"' for name in Base.metadata.tables)
+_db_state: tuple[bool, str] | None = None
 
-    # 1) ensure the test database exists — and use this connect as the "is Postgres up?" probe.
+
+async def _setup_schema_once() -> tuple[bool, str]:
+    maint_url, dbname = _split_db(_TEST_URL)
+    # 1) ensure the test database exists — this connect doubles as the "is Postgres up?" probe.
     maint = create_async_engine(maint_url, isolation_level="AUTOCOMMIT")
     try:
         conn = await maint.connect()
     except Exception as exc:  # noqa: BLE001
         await maint.dispose()
-        msg = f"Postgres not reachable for DB tests ({type(exc).__name__}): {exc}"
-        # Locally, no Postgres -> skip (DB tests are opt-in). In CI we set DOMINION_REQUIRE_DB so an
-        # unreachable DB fails loudly instead of producing a falsely-green run.
-        if os.environ.get("DOMINION_REQUIRE_DB"):
-            pytest.fail(msg, pytrace=False)
-        pytest.skip(msg)
+        return False, f"Postgres not reachable for DB tests ({type(exc).__name__}): {exc}"
     try:
         exists = await conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": dbname})
         if not exists:
@@ -103,16 +113,37 @@ async def db_factory():
         await conn.close()
         await maint.dispose()
 
-    # 2) extension + schema + clean slate. Engine is created in (and bound to) the test's loop.
+    # 2) extension + schema, brought up to the current ORM exactly like the app's boot provisioner.
+    engine = create_async_engine(_TEST_URL)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.run_sync(Base.metadata.create_all)
+            # create_all won't add new columns to tables it already created — same idempotent
+            # migration the app runs at boot.
+            await apply_lightweight_migrations(conn)
+    finally:
+        await engine.dispose()
+    return True, ""
+
+
+@pytest.fixture
+async def db_factory():
+    global _db_state
+    if _db_state is None:
+        _db_state = await _setup_schema_once()
+    ok, msg = _db_state
+    if not ok:
+        # Locally, no Postgres -> skip (DB tests are opt-in). In CI we set DOMINION_REQUIRE_DB so an
+        # unreachable DB fails loudly instead of producing a falsely-green run.
+        if os.environ.get("DOMINION_REQUIRE_DB"):
+            pytest.fail(msg, pytrace=False)
+        pytest.skip(msg)
+
+    # Per-test: a fresh engine bound to this test's loop + a clean slate. ONE round trip.
     engine = create_async_engine(_TEST_URL)
     async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(Base.metadata.create_all)
-        # Bring a pre-existing test DB up to the current ORM (create_all won't add new columns to
-        # tables it already created) — same idempotent migration the app runs at boot.
-        await apply_lightweight_migrations(conn)
-        tables = ", ".join(f'"{name}"' for name in Base.metadata.tables)
-        await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+        await conn.execute(text(f"TRUNCATE {_TABLES_SQL} RESTART IDENTITY CASCADE"))
 
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     try:
