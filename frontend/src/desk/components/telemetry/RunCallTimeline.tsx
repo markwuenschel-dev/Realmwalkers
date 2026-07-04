@@ -7,8 +7,8 @@ import { FANOUT_STAGES, PRIME_STAGES, stageSortKey } from "./telemetryStages";
 
 function callColor(c: LlmCallOut): string {
   if (c.error) return "var(--bad)";
-  if (c.truncated) return "var(--warn, #e8a020)";
-  return "color-mix(in srgb, var(--info, #5b9bd5) 55%, var(--dim))";
+  if (c.truncated) return "var(--warn)";
+  return "color-mix(in srgb, var(--info) 55%, var(--dim))";
 }
 
 function callStartMs(c: LlmCallOut, fallback: number): number {

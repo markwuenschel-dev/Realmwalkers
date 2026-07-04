@@ -9,6 +9,8 @@ import { invalidateCanonBodies } from "../api/hooks/useDeskCollections";
 import { statValue } from "../lib/format";
 import { useSelection } from "../lib/useSelection";
 import BulkBar, { BulkButton } from "../components/BulkBar";
+import { Button, Chip, Eyebrow, Panel } from "../components/ui";
+import type { ChipTone } from "../components/ui";
 import type {
   CanonCleanupPreviewOut,
   CanonEntityOut,
@@ -30,32 +32,29 @@ const SOURCE_OPTIONS = [
   "legacy",
 ] as const;
 
-// A small provenance/lifecycle badge. Color hints the meaning without a legend.
-const STATUS_COLOR: Record<string, string> = {
-  active: "var(--good)",
-  stale: "var(--warn)",
-  retired: "var(--dim)",
-  superseded: "var(--bad)",
+// Provenance/lifecycle → Chip tone. Same hues the old local Badge used, expressed semantically.
+const STATUS_TONE: Record<string, ChipTone> = {
+  active: "good",
+  stale: "warn",
+  retired: "neutral",
+  superseded: "bad",
 };
-const SOURCE_COLOR: Record<string, string> = {
-  manual: "var(--accent)",
-  repo_ingested: "var(--info)",
-  packet_derived: "var(--dim)",
-  draft_derived: "var(--dim)",
-  legacy: "var(--dim)",
+const SOURCE_TONE: Record<string, ChipTone> = {
+  manual: "accent",
+  repo_ingested: "info",
+  packet_derived: "neutral",
+  draft_derived: "neutral",
+  legacy: "neutral",
 };
 
-function Badge({ label, color }: { label: string; color: string }) {
-  return (
-    <span
-      style={css(
-        `font-family:var(--mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:${color};background:color-mix(in srgb,${color} 14%,transparent);border-radius:999px;padding:2px 7px;white-space:nowrap`,
-      )}
-    >
-      {label}
-    </span>
-  );
-}
+// Thread kind → raw theme var for the legacy Chip colorVar escape hatch (kept 1:1 with the old
+// hex-from-theme colors).
+const THREAD_KIND_VAR: Record<string, string> = {
+  relationship: "--bad",
+  mentorship: "--info",
+  system: "--accent",
+  power: "--warn",
+};
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -73,10 +72,9 @@ const coerce = (s: string): unknown => {
   }
 };
 
-const btn =
-  "padding:7px 12px;border-radius:7px;border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--ink);font-size:12.5px;cursor:pointer;font-family:var(--ui);white-space:nowrap";
-const ghost =
-  "padding:6px 11px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui);white-space:nowrap";
+// Atelier display-XL screen title.
+const TITLE_XL =
+  "margin:0;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)";
 const input =
   "width:100%;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 11px;font-size:13px;font-family:var(--ui)";
 const fieldLabel =
@@ -87,7 +85,7 @@ const filterSelect =
 type CanonEdit = { mode: "new"; kind?: string } | { mode: "edit"; entity: CanonEntityOut } | null;
 
 export default function LedgerScreen() {
-  const { t, ledgerCat, selectedThread, setLedgerCat, selectThread } = useDesk();
+  const { ledgerCat, selectedThread, setLedgerCat, selectThread } = useDesk();
   const data = useDeskData();
 
   const bookId = data.bookId;
@@ -129,23 +127,17 @@ export default function LedgerScreen() {
     (k) => k !== "character",
   );
   const pendingRules = data.ruleProposals.filter((r) => r.status === "pending");
-  const cats = [
+  // The rail groups: the story ledgers, then the canon corpus by kind.
+  const storyCats = [
     { id: "characters", label: "Characters", count: data.characters.length },
     { id: "threads", label: "Threads", count: data.threads.length },
     { id: "voice-rules", label: "Voice rules", count: pendingRules.length },
-    ...canonKinds.map((k) => ({
-      id: `canon:${k}`,
-      label: cap(k),
-      count: canonRows.filter((c) => (c.kind ?? "other") === k).length,
-    })),
   ];
-
-  const threadKinds: Record<string, string> = {
-    relationship: t.bad,
-    mentorship: t.info,
-    system: t.accent,
-    power: t.warn,
-  };
+  const canonCats = canonKinds.map((k) => ({
+    id: `canon:${k}`,
+    label: cap(k),
+    count: canonRows.filter((c) => (c.kind ?? "other") === k).length,
+  }));
 
   const rebuildIndex = async () => {
     if (!bookId) return;
@@ -248,44 +240,39 @@ export default function LedgerScreen() {
 
   return (
     <div>
-      <div
+      <header
         style={css(
-          "display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px",
+          "display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:26px",
         )}
       >
         <div>
-          <h1
-            style={css(
-              "margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:28px;color:var(--ink)",
-            )}
-          >
-            World ledger
-          </h1>
-          <p style={css("margin:0;color:var(--dim);font-size:14px")}>
+          <Eyebrow style="margin-bottom:6px">Continuity</Eyebrow>
+          <h1 style={css(TITLE_XL)}>World ledger</h1>
+          <p style={css("margin:6px 0 0;color:var(--dim);font-size:14px")}>
             The Oracle's canon — the hard numbers and lore the continuity passes check prose
             against. Author it here before you write.
           </p>
         </div>
         <div style={css("display:flex;gap:9px;align-items:center;flex-wrap:wrap")}>
-          <button
+          <Button
+            variant="primary"
             onClick={() => {
               setCanonEdit({ mode: "new" });
               setCharEdit(null);
             }}
-            style={css(btn)}
           >
             + Canon entry
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="danger"
             onClick={rebuildIndex}
             disabled={ingesting}
             title="Ledger “Clean rebuild from docs” deletes stale repo-ingested canon chunks (doc_path IS NOT NULL) and rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL)"
-            style={css(ghost)}
           >
             {ingesting ? "Cleaning…" : "⟳ Clean rebuild from docs"}
-          </button>
+          </Button>
         </div>
-      </div>
+      </header>
 
       {notice && (
         <div
@@ -298,29 +285,32 @@ export default function LedgerScreen() {
       )}
 
       <div style={css("display:grid;grid-template-columns:184px 1fr;gap:22px;align-items:start")}>
-        <div style={css("display:flex;flex-direction:column;gap:3px;position:sticky;top:84px")}>
-          {cats.map((cat) => {
-            const active = ledgerCat === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setLedgerCat(cat.id)}
-                style={css(
-                  `display:flex;align-items:center;width:100%;padding:9px 12px;border:1px solid ${active ? "var(--accentLine)" : "transparent"};border-radius:8px;background:${active ? "var(--accentSoft)" : "transparent"};color:${active ? "var(--ink)" : "var(--dim)"};font-family:var(--ui);font-size:13.5px;cursor:pointer`,
-                )}
-              >
-                {cat.label}
-                <span
-                  style={css(
-                    "margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)",
-                  )}
-                >
-                  {cat.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <nav style={css("position:sticky;top:84px")}>
+          <Eyebrow style="margin:0 0 8px 10px">Story</Eyebrow>
+          {storyCats.map((cat) => (
+            <NavLink
+              key={cat.id}
+              label={cat.label}
+              count={cat.count}
+              active={ledgerCat === cat.id}
+              onClick={() => setLedgerCat(cat.id)}
+            />
+          ))}
+          {canonCats.length > 0 && (
+            <>
+              <Eyebrow style="margin:20px 0 8px 10px">Canon</Eyebrow>
+              {canonCats.map((cat) => (
+                <NavLink
+                  key={cat.id}
+                  label={cat.label}
+                  count={cat.count}
+                  active={ledgerCat === cat.id}
+                  onClick={() => setLedgerCat(cat.id)}
+                />
+              ))}
+            </>
+          )}
+        </nav>
 
         <div style={css("min-width:0")}>
           {/* canon editor (general "+ Canon entry", per-kind add, or edit) renders above whatever's selected */}
@@ -358,15 +348,15 @@ export default function LedgerScreen() {
                     Hard numbers the Oracle tracks; continuity flags prose that disagrees. Seed a
                     character's starting stats here.
                   </p>
-                  <button
+                  <Button
+                    variant="primary"
                     onClick={() => {
                       setCharEdit("new");
                       setCanonEdit(null);
                     }}
-                    style={css(btn)}
                   >
                     + Add character
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -378,12 +368,7 @@ export default function LedgerScreen() {
               ) : (
                 <div style={css("display:grid;grid-template-columns:1fr 1fr;gap:14px")}>
                   {data.characters.map((ch) => (
-                    <div
-                      key={ch.character}
-                      style={css(
-                        "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden",
-                      )}
-                    >
+                    <Panel key={ch.character} pad="0" style="overflow:hidden">
                       <div
                         style={css(
                           "display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line);background:var(--bg2b)",
@@ -399,19 +384,15 @@ export default function LedgerScreen() {
                         <div style={css("min-width:0;flex:1")}>
                           <div
                             style={css(
-                              "font-family:var(--display);font-size:16px;color:var(--ink)",
+                              "font-family:var(--display);font-weight:500;font-size:16px;color:var(--ink)",
                             )}
                           >
                             {ch.character}
                           </div>
-                          <div
-                            style={css(
-                              "font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--dim);margin-top:2px",
-                            )}
-                          >
+                          <Eyebrow style="margin-top:2px;font-size:10px">
                             {ch.is_pov ? "POV" : "character"}
                             {ch.provisional ? " · provisional" : ""}
-                          </div>
+                          </Eyebrow>
                         </div>
                         <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
                           <input
@@ -423,24 +404,26 @@ export default function LedgerScreen() {
                               "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px",
                             )}
                           />
-                          <button
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => {
                               setCharEdit(ch);
                               setCanonEdit(null);
                             }}
-                            style={css(ghost)}
                           >
                             edit
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => {
                               if (confirm(`Delete ${ch.character}'s tracked stats?`))
                                 data.deleteCharacter(ch.character);
                             }}
-                            style={css(ghost)}
                           >
                             ×
-                          </button>
+                          </Button>
                         </div>
                       </div>
                       <div style={css("padding:13px 16px")}>
@@ -478,7 +461,7 @@ export default function LedgerScreen() {
                           </p>
                         )}
                       </div>
-                    </div>
+                    </Panel>
                   ))}
                 </div>
               )}
@@ -491,13 +474,13 @@ export default function LedgerScreen() {
                 <p style={css("margin:0;font-size:13px;color:var(--dim);line-height:1.5")}>
                   Follow a relationship or plot thread across the scenes it touches.
                 </p>
-                <button onClick={() => setThreadAdding(true)} style={css(btn)}>
+                <Button variant="primary" onClick={() => setThreadAdding(true)}>
                   + New thread
-                </button>
+                </Button>
               </div>
               {threadAdding && (
                 <ThreadForm
-                  kinds={Object.keys(threadKinds)}
+                  kinds={Object.keys(THREAD_KIND_VAR)}
                   onCancel={() => setThreadAdding(false)}
                   onSave={async (body) => {
                     await data.createThread(body);
@@ -510,116 +493,127 @@ export default function LedgerScreen() {
               )}
               {data.threads.map((th) => {
                 const sel = selectedThread === th.id;
-                const kindColor = threadKinds[th.kind ?? ""] ?? t.dim;
                 return (
                   <div
                     key={th.id}
                     onClick={() => selectThread(th.id)}
-                    style={css(
-                      `background:var(--bg2);border:1px solid ${sel ? "var(--accentLine)" : "var(--line)"};border-radius:var(--r);padding:16px 18px;cursor:pointer;box-shadow:${sel ? "var(--shadow)" : "none"}`,
-                    )}
+                    style={css("cursor:pointer")}
                   >
-                    <div
-                      style={css(
-                        "display:flex;align-items:center;gap:11px;margin-bottom:8px;flex-wrap:wrap",
-                      )}
+                    <Panel
+                      interactive
+                      pad="16px 18px"
+                      style={sel ? "border-color:var(--accentLine)" : ""}
                     >
-                      <input
-                        type="checkbox"
-                        checked={bulk.has(th.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => bulk.toggle(th.id)}
+                      <div
                         style={css(
-                          "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);flex:none",
+                          "display:flex;align-items:center;gap:11px;margin-bottom:8px;flex-wrap:wrap",
                         )}
-                      />
-                      <span
-                        style={css("font-family:var(--display);font-size:18px;color:var(--ink)")}
                       >
-                        {th.name}
-                      </span>
-                      {th.kind && (
+                        <input
+                          type="checkbox"
+                          checked={bulk.has(th.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => bulk.toggle(th.id)}
+                          style={css(
+                            "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);flex:none",
+                          )}
+                        />
                         <span
                           style={css(
-                            `font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:${kindColor};background:color-mix(in srgb,${kindColor} 13%,transparent);border-radius:999px;padding:3px 9px`,
+                            "font-family:var(--display);font-weight:500;font-size:18px;color:var(--ink)",
                           )}
                         >
-                          {th.kind}
+                          {th.name}
                         </span>
-                      )}
-                      <span
-                        style={css(
-                          "margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
+                        {th.kind && (
+                          <Chip
+                            label={th.kind}
+                            size="sm"
+                            colorVar={THREAD_KIND_VAR[th.kind] ?? "--dim"}
+                          />
                         )}
-                      >
-                        {th.state ? `state · ${th.state}` : ""}
-                      </span>
-                    </div>
-                    {th.note && (
-                      <p
-                        style={css(
-                          "margin:0 0 14px;font-size:13.5px;color:var(--dim);line-height:1.55",
-                        )}
-                      >
-                        {th.note}
-                      </p>
-                    )}
-                    <div style={css("display:flex;align-items:center;flex-wrap:wrap;row-gap:10px")}>
-                      {th.beats.map((b, i) => (
-                        <div key={b.id} style={css("display:flex;align-items:center")}>
-                          <div
-                            style={css(
-                              `display:flex;flex-direction:column;gap:2px;padding:7px 11px;border-radius:8px;border:1px solid ${b.flag ? "color-mix(in srgb,var(--bad) 40%,var(--line))" : "var(--line)"};background:${b.flag ? "color-mix(in srgb,var(--bad) 9%,var(--bg3))" : "var(--bg3)"};white-space:nowrap`,
-                            )}
-                          >
-                            <span
-                              style={css("font-family:var(--mono);font-size:9px;color:var(--dim)")}
-                            >
-                              SCENE {b.scene_no}
-                            </span>
-                            <span style={css("font-size:12.5px;color:var(--ink)")}>
-                              {b.label ?? "—"}
-                            </span>
-                          </div>
-                          {i !== th.beats.length - 1 && (
-                            <span style={css("margin:0 9px;color:var(--dim);font-size:13px")}>
-                              →
-                            </span>
+                        <span
+                          style={css(
+                            "margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
                           )}
-                        </div>
-                      ))}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setBeatFor(beatFor === th.id ? null : th.id);
-                        }}
-                        style={css(
-                          "margin-left:10px;padding:6px 10px;border-radius:7px;border:1px dashed var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui)",
-                        )}
+                        >
+                          {th.state ? `state · ${th.state}` : ""}
+                        </span>
+                      </div>
+                      {th.note && (
+                        <p
+                          style={css(
+                            "margin:0 0 14px;font-size:13.5px;color:var(--dim);line-height:1.55",
+                          )}
+                        >
+                          {th.note}
+                        </p>
+                      )}
+                      <div
+                        style={css("display:flex;align-items:center;flex-wrap:wrap;row-gap:10px")}
                       >
-                        + beat
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Delete thread "${th.name}"?`)) data.deleteThread(th.id);
-                        }}
-                        style={css(
-                          "margin-left:auto;padding:6px 10px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:11.5px;cursor:pointer;font-family:var(--ui)",
-                        )}
-                      >
-                        delete
-                      </button>
-                    </div>
-                    {beatFor === th.id && (
-                      <BeatForm
-                        onCancel={() => setBeatFor(null)}
-                        onSave={async (body) => {
-                          await data.addThreadBeat(th.id, body);
-                          setBeatFor(null);
-                        }}
-                      />
-                    )}
+                        {th.beats.map((b, i) => (
+                          <div key={b.id} style={css("display:flex;align-items:center")}>
+                            <div
+                              style={css(
+                                `display:flex;flex-direction:column;gap:2px;padding:7px 11px;border-radius:8px;border:1px solid ${b.flag ? "color-mix(in srgb,var(--bad) 40%,var(--line))" : "var(--line)"};background:${b.flag ? "color-mix(in srgb,var(--bad) 9%,var(--bg3))" : "var(--bg3)"};white-space:nowrap`,
+                              )}
+                            >
+                              <span
+                                style={css(
+                                  "font-family:var(--mono);font-size:9px;color:var(--dim)",
+                                )}
+                              >
+                                SCENE {b.scene_no}
+                              </span>
+                              <span style={css("font-size:12.5px;color:var(--ink)")}>
+                                {b.label ?? "—"}
+                              </span>
+                            </div>
+                            {i !== th.beats.length - 1 && (
+                              <span style={css("margin:0 9px;color:var(--dim);font-size:13px")}>
+                                →
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        <span
+                          onClick={(e) => e.stopPropagation()}
+                          style={css("margin-left:10px;display:inline-flex")}
+                        >
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setBeatFor(beatFor === th.id ? null : th.id)}
+                          >
+                            + beat
+                          </Button>
+                        </span>
+                        <span
+                          onClick={(e) => e.stopPropagation()}
+                          style={css("margin-left:auto;display:inline-flex")}
+                        >
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (confirm(`Delete thread "${th.name}"?`)) data.deleteThread(th.id);
+                            }}
+                          >
+                            delete
+                          </Button>
+                        </span>
+                      </div>
+                      {beatFor === th.id && (
+                        <BeatForm
+                          onCancel={() => setBeatFor(null)}
+                          onSave={async (body) => {
+                            await data.addThreadBeat(th.id, body);
+                            setBeatFor(null);
+                          }}
+                        />
+                      )}
+                    </Panel>
                   </div>
                 );
               })}
@@ -640,73 +634,66 @@ export default function LedgerScreen() {
                   <strong style={css("color:var(--ink);font-weight:600")}>active</strong> canon
                   reaches the drafter — retire or delete stale rows below.
                 </p>
-                <button
+                <Button
+                  variant="primary"
                   onClick={() => {
                     setCanonEdit({ mode: "new", kind: canonKind });
                     setCharEdit(null);
                   }}
-                  style={css(btn)}
                 >
                   + Add to {canonKind}
-                </button>
+                </Button>
               </div>
 
               {/* status / source / search filters (Workstream H) */}
-              <div
-                style={css(
-                  "display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:9px",
-                )}
-              >
-                <label style={css("display:flex;flex-direction:column;gap:3px")}>
-                  <span style={css(fieldLabel + ";margin-bottom:0")}>Status</span>
-                  <select
-                    aria-label="status filter"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    style={css(filterSelect)}
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label style={css("display:flex;flex-direction:column;gap:3px")}>
-                  <span style={css(fieldLabel + ";margin-bottom:0")}>Source</span>
-                  <select
-                    aria-label="source filter"
-                    value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    style={css(filterSelect)}
-                  >
-                    {SOURCE_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label style={css("display:flex;flex-direction:column;gap:3px;flex:1 1 180px")}>
-                  <span style={css(fieldLabel + ";margin-bottom:0")}>Search</span>
-                  <input
-                    aria-label="search canon"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="name or text…"
-                    style={css(input)}
-                  />
-                </label>
-              </div>
+              <Panel pad="10px 14px">
+                <div style={css("display:flex;gap:9px;flex-wrap:wrap;align-items:center")}>
+                  <label style={css("display:flex;flex-direction:column;gap:3px")}>
+                    <span style={css(fieldLabel + ";margin-bottom:0")}>Status</span>
+                    <select
+                      aria-label="status filter"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      style={css(filterSelect)}
+                    >
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={css("display:flex;flex-direction:column;gap:3px")}>
+                    <span style={css(fieldLabel + ";margin-bottom:0")}>Source</span>
+                    <select
+                      aria-label="source filter"
+                      value={sourceFilter}
+                      onChange={(e) => setSourceFilter(e.target.value)}
+                      style={css(filterSelect)}
+                    >
+                      {SOURCE_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={css("display:flex;flex-direction:column;gap:3px;flex:1 1 180px")}>
+                    <span style={css(fieldLabel + ";margin-bottom:0")}>Search</span>
+                    <input
+                      aria-label="search canon"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="name or text…"
+                      style={css(input)}
+                    />
+                  </label>
+                </div>
+              </Panel>
 
               {canonHere.length === 0 && <Empty>Nothing in this section yet.</Empty>}
               {canonHere.map((e) => (
-                <div
-                  key={e.id}
-                  style={css(
-                    "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:15px 18px",
-                  )}
-                >
+                <Panel key={e.id} pad="15px 18px">
                   <div
                     style={css(
                       "display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px",
@@ -718,17 +705,21 @@ export default function LedgerScreen() {
                       )}
                     >
                       <span
-                        style={css("font-family:var(--display);font-size:16px;color:var(--ink)")}
+                        style={css(
+                          "font-family:var(--display);font-weight:500;font-size:16px;color:var(--ink)",
+                        )}
                       >
                         {e.name ?? "—"}
                       </span>
-                      <Badge
+                      <Chip
                         label={e.status ?? "active"}
-                        color={STATUS_COLOR[e.status ?? "active"] ?? "var(--dim)"}
+                        size="sm"
+                        tone={STATUS_TONE[e.status ?? "active"] ?? "neutral"}
                       />
-                      <Badge
+                      <Chip
                         label={e.source ?? "manual"}
-                        color={SOURCE_COLOR[e.source ?? "manual"] ?? "var(--dim)"}
+                        size="sm"
+                        tone={SOURCE_TONE[e.source ?? "manual"] ?? "neutral"}
                       />
                     </div>
                     <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
@@ -741,26 +732,28 @@ export default function LedgerScreen() {
                           "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px",
                         )}
                       />
-                      <button
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => {
                           setCanonEdit({ mode: "edit", entity: e });
                           setCharEdit(null);
                         }}
-                        style={css(ghost)}
                       >
                         edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={async () => {
                           if (confirm(`Delete "${e.name ?? "entry"}"?`)) {
                             await data.deleteCanon(e.id);
                             await reloadCanon();
                           }
                         }}
-                        style={css(ghost)}
                       >
                         ×
-                      </button>
+                      </Button>
                     </div>
                   </div>
                   {e.body && (
@@ -772,7 +765,7 @@ export default function LedgerScreen() {
                       {e.body}
                     </p>
                   )}
-                </div>
+                </Panel>
               ))}
             </div>
           )}
@@ -816,6 +809,38 @@ export default function LedgerScreen() {
   );
 }
 
+// One category link in the rail — dk-navlink hover, accentSoft when active.
+function NavLink({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="dk-navlink"
+      onClick={onClick}
+      style={css(
+        `display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;margin-bottom:1px;border:none;border-radius:7px;cursor:pointer;` +
+          `font-family:var(--ui);font-size:13.5px;line-height:1.35;` +
+          `background:${active ? "var(--accentSoft)" : "transparent"};color:${active ? "var(--ink)" : "var(--dim)"};font-weight:${active ? "500" : "400"}`,
+      )}
+    >
+      {label}
+      <span
+        style={css("margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
 function CharacterForm({
   initial,
   onSave,
@@ -846,18 +871,11 @@ function CharacterForm({
   };
 
   return (
-    <div
-      style={css(
-        "background:var(--bg2);border:1px solid var(--accentLine);border-radius:var(--r);padding:16px 18px",
-      )}
+    <Panel
+      eyebrow={initial ? `Edit ${initial.character}` : "New character"}
+      pad="16px 18px"
+      style="border-color:var(--accentLine)"
     >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:12px",
-        )}
-      >
-        {initial ? `Edit ${initial.character}` : "New character"}
-      </div>
       <label style={css("display:block;margin-bottom:10px")}>
         <span style={css(fieldLabel)}>Name</span>
         <input
@@ -899,12 +917,14 @@ function CharacterForm({
             </button>
           </div>
         ))}
-        <button
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={() => setRows((rs) => [...rs, { k: "", v: "" }])}
-          style={css(ghost + ";align-self:flex-start")}
+          style="align-self:flex-start"
         >
           + stat
-        </button>
+        </Button>
       </div>
       <label style={css("display:block;margin-bottom:12px")}>
         <span style={css(fieldLabel)}>
@@ -923,14 +943,14 @@ function CharacterForm({
         />
       </label>
       <div style={css("display:flex;gap:9px")}>
-        <button onClick={save} disabled={!name.trim()} style={css(btn)}>
+        <Button variant="primary" onClick={save} disabled={!name.trim()}>
           {initial ? "Save" : "Add character"}
-        </button>
-        <button onClick={onCancel} style={css(ghost)}>
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -952,18 +972,11 @@ function CanonForm({
     onSave({ kind: kind.trim() || null, name: name.trim() || null, body: body.trim() || null });
 
   return (
-    <div
-      style={css(
-        "background:var(--bg2);border:1px solid var(--accentLine);border-radius:var(--r);padding:16px 18px;margin-bottom:16px",
-      )}
+    <Panel
+      eyebrow={initial ? "Edit canon entry" : "New canon entry"}
+      pad="16px 18px"
+      style="border-color:var(--accentLine);margin-bottom:16px"
     >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:12px",
-        )}
-      >
-        {initial ? "Edit canon entry" : "New canon entry"}
-      </div>
       <div style={css("display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px")}>
         <label style={css("flex:1 1 160px")}>
           <span style={css(fieldLabel)}>Kind</span>
@@ -1001,14 +1014,14 @@ function CanonForm({
         />
       </label>
       <div style={css("display:flex;gap:9px")}>
-        <button onClick={save} style={css(btn)}>
+        <Button variant="primary" onClick={save}>
           {initial ? "Save" : "Add entry"}
-        </button>
-        <button onClick={onCancel} style={css(ghost)}>
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -1035,18 +1048,7 @@ function ThreadForm({
   };
 
   return (
-    <div
-      style={css(
-        "background:var(--bg2);border:1px solid var(--accentLine);border-radius:var(--r);padding:16px 18px",
-      )}
-    >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:12px",
-        )}
-      >
-        New thread
-      </div>
+    <Panel eyebrow="New thread" pad="16px 18px" style="border-color:var(--accentLine)">
       <div style={css("display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px")}>
         <label style={css("flex:2 1 200px")}>
           <span style={css(fieldLabel)}>Name</span>
@@ -1086,14 +1088,14 @@ function ThreadForm({
         />
       </label>
       <div style={css("display:flex;gap:9px")}>
-        <button onClick={save} disabled={!name.trim()} style={css(btn)}>
+        <Button variant="primary" onClick={save} disabled={!name.trim()}>
           Add thread
-        </button>
-        <button onClick={onCancel} style={css(ghost)}>
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -1116,7 +1118,7 @@ function BeatForm({
     <div
       onClick={(e) => e.stopPropagation()}
       style={css(
-        "margin-top:12px;padding:12px 14px;border:1px solid var(--accentLine);border-radius:9px;background:var(--bg2b);display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap",
+        "margin-top:12px;padding:12px 14px;border:1px solid var(--accentLine);border-radius:var(--r);background:var(--bg2b);display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap",
       )}
     >
       <label>
@@ -1144,12 +1146,12 @@ function BeatForm({
           style={css(input)}
         />
       </label>
-      <button onClick={save} disabled={!valid} style={css(btn)}>
+      <Button variant="primary" onClick={save} disabled={!valid}>
         Add beat
-      </button>
-      <button onClick={onCancel} style={css(ghost)}>
+      </Button>
+      <Button variant="ghost" onClick={onCancel}>
         Cancel
-      </button>
+      </Button>
     </div>
   );
 }
@@ -1186,14 +1188,14 @@ function RulesSection() {
           which the drafter reads on the next scene — so the agent learns your style without
           retraining.
         </p>
-        <button
+        <Button
+          variant="primary"
           onClick={distill}
           disabled={busy}
           title="Read recent agent→author edit pairs and propose durable voice/dialogue rules"
-          style={css(btn)}
         >
           {busy ? "Distilling…" : "⟳ Distill from edits"}
-        </button>
+        </Button>
       </div>
       {notice && (
         <div
@@ -1218,13 +1220,7 @@ function RulesSection() {
 
       {decided.length > 0 && (
         <>
-          <div
-            style={css(
-              "margin-top:6px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)",
-            )}
-          >
-            Reviewed
-          </div>
+          <Eyebrow style="margin-top:6px">Reviewed</Eyebrow>
           {decided.map((r) => (
             <RuleCard key={r.id} rule={r} />
           ))}
@@ -1239,41 +1235,16 @@ function RuleCard({ rule }: { rule: RuleProposalOut }) {
   const [text, setText] = useState(rule.rule_text);
   const pending = rule.status === "pending";
   const accepted = rule.status === "accepted";
-  const kindColor = rule.kind === "dialogue" ? "var(--info)" : "var(--accent)";
-  const statusColor = accepted
-    ? "var(--good)"
-    : rule.status === "rejected"
-      ? "var(--bad)"
-      : "var(--dim)";
+  const statusTone: ChipTone = accepted ? "good" : rule.status === "rejected" ? "bad" : "neutral";
 
   return (
-    <div
-      style={css(
-        `background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;opacity:${pending ? 1 : 0.72}`,
-      )}
-    >
+    <Panel pad="14px 16px" style={pending ? "" : "opacity:.72"}>
       <div style={css("display:flex;align-items:center;gap:9px;margin-bottom:9px;flex-wrap:wrap")}>
-        <span
-          style={css(
-            "font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--dim);background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:2px 8px",
-          )}
-        >
-          {rule.pov}
-        </span>
-        <span
-          style={css(
-            `font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:${kindColor};background:color-mix(in srgb,${kindColor} 13%,transparent);border-radius:999px;padding:3px 9px`,
-          )}
-        >
-          {rule.kind}
-        </span>
+        <Chip label={rule.pov} size="sm" tone="neutral" />
+        <Chip label={rule.kind} size="sm" tone={rule.kind === "dialogue" ? "info" : "accent"} />
         {!pending && (
-          <span
-            style={css(
-              `margin-left:auto;font-family:var(--mono);font-size:10px;text-transform:uppercase;color:${statusColor}`,
-            )}
-          >
-            {rule.status}
+          <span style={css("margin-left:auto;display:inline-flex")}>
+            <Chip label={rule.status} size="sm" tone={statusTone} />
           </span>
         )}
       </div>
@@ -1299,7 +1270,8 @@ function RuleCard({ rule }: { rule: RuleProposalOut }) {
       )}
       {pending && (
         <div style={css("display:flex;gap:9px;margin-top:11px")}>
-          <button
+          <Button
+            variant="primary"
             onClick={() =>
               data.decideRuleProposal(rule.id, {
                 status: "accepted",
@@ -1307,19 +1279,18 @@ function RuleCard({ rule }: { rule: RuleProposalOut }) {
               })
             }
             disabled={!text.trim()}
-            style={css(btn)}
           >
             Accept
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             onClick={() => data.decideRuleProposal(rule.id, { status: "rejected" })}
-            style={css(ghost)}
           >
             Reject
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -1342,7 +1313,7 @@ function CleanupDialog({
   const count = isDelete ? preview.would_delete : preview.would_retire;
   const stat =
     "display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg3);min-width:96px";
-  const statNum = "font-family:var(--display);font-size:20px;color:var(--ink)";
+  const statNum = "font-family:var(--display);font-weight:500;font-size:20px;color:var(--ink)";
   const statLbl =
     "font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--dim)";
   return (
@@ -1350,16 +1321,20 @@ function CleanupDialog({
       role="dialog"
       aria-label={isDelete ? "confirm delete canon" : "confirm retire canon"}
       style={css(
-        "position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55)",
+        "position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--scrim)",
       )}
     >
       <div
         style={css(
-          "background:var(--bg2);border:1px solid var(--accentLine);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.5);width:min(560px,94vw);max-height:86vh;display:flex;flex-direction:column;overflow:hidden",
+          "background:var(--bg2);border:1px solid var(--accentLine);border-radius:var(--rLg);box-shadow:var(--shadow);width:min(560px,94vw);max-height:86vh;display:flex;flex-direction:column;overflow:hidden;animation:fadeUp .18s ease both",
         )}
       >
         <div style={css("padding:18px 20px 12px")}>
-          <div style={css("font-family:var(--display);font-size:19px;color:var(--ink)")}>
+          <div
+            style={css(
+              "font-family:var(--display);font-weight:500;font-size:19px;color:var(--ink)",
+            )}
+          >
             {isDelete ? "Delete canon rows?" : "Retire canon rows?"}
           </div>
           <p style={css("margin:6px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5")}>
@@ -1401,13 +1376,15 @@ function CleanupDialog({
                   )}
                 >
                   <span style={css("font-size:13px;color:var(--ink)")}>{it.name ?? "—"}</span>
-                  <Badge
+                  <Chip
                     label={it.status ?? "active"}
-                    color={STATUS_COLOR[it.status ?? "active"] ?? "var(--dim)"}
+                    size="sm"
+                    tone={STATUS_TONE[it.status ?? "active"] ?? "neutral"}
                   />
-                  <Badge
+                  <Chip
                     label={it.source ?? "manual"}
-                    color={SOURCE_COLOR[it.source ?? "manual"] ?? "var(--dim)"}
+                    size="sm"
+                    tone={SOURCE_TONE[it.source ?? "manual"] ?? "neutral"}
                   />
                   <span
                     style={css(
@@ -1426,22 +1403,20 @@ function CleanupDialog({
             "display:flex;gap:9px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line)",
           )}
         >
-          <button onClick={onCancel} disabled={busy} style={css(ghost)}>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={isDelete ? "danger" : "primary"}
             onClick={onConfirm}
             disabled={busy || count === 0}
-            style={css(
-              `padding:8px 15px;border-radius:8px;border:1px solid color-mix(in srgb,var(${isDelete ? "--bad" : "--accent"}) 45%,var(--line));background:color-mix(in srgb,var(${isDelete ? "--bad" : "--accent"}) 15%,var(--bg3));color:var(${isDelete ? "--bad" : "--accent"});font-family:var(--ui);font-size:12.5px;cursor:${busy || count === 0 ? "default" : "pointer"};opacity:${busy || count === 0 ? 0.6 : 1}`,
-            )}
           >
             {busy
               ? "Working…"
               : isDelete
                 ? `Delete ${preview.would_delete} row(s)`
                 : `Retire ${preview.would_retire} row(s)`}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -1452,10 +1427,19 @@ function Empty({ children }: { children: ReactNode }) {
   return (
     <div
       style={css(
-        "background:var(--bg2);border:1px dashed var(--line);border-radius:var(--r);padding:40px;text-align:center;font-family:var(--mono);font-size:12.5px;color:var(--dim)",
+        "background:var(--bg2);border:1px dashed var(--line);border-radius:var(--r);padding:44px 24px;text-align:center",
       )}
     >
-      {children}
+      <div aria-hidden style={css("font-size:18px;color:var(--accent);margin-bottom:12px")}>
+        ✦
+      </div>
+      <p
+        style={css(
+          "margin:0;font-family:var(--display);font-style:italic;font-size:15.5px;line-height:1.6;color:var(--dim)",
+        )}
+      >
+        {children}
+      </p>
     </div>
   );
 }

@@ -17,6 +17,7 @@ const AXIS_TONES: Record<StatusAxis, Record<string, ChipTone>> = {
   qa: {
     approve: "good",
     approve_warn: "warn",
+    approve_with_warnings: "warn",
     revise_required: "warn",
     block_drafting: "bad",
     not_run: "neutral",

@@ -36,7 +36,7 @@ export type DrawerNav = {
 
 export function statusColor(status: string): string {
   if (status === "error") return "var(--bad)";
-  if (status === "warn") return "var(--warn, #e8a020)";
+  if (status === "warn") return "var(--warn)";
   return "var(--ok)";
 }
 

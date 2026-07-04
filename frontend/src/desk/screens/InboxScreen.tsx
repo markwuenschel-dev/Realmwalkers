@@ -14,11 +14,13 @@ import Planner from "../components/Planner";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import { ActivityFeed, DraftPanel, formatElapsed } from "../components/DraftActivity";
 import ClearFailedPanel from "../components/ClearFailedPanel";
+import { Chip, Eyebrow, MetricCard, Panel } from "../components/ui";
+import type { ChipTone } from "../components/ui";
 import type { SceneOut } from "../api/types";
 import type { ExportKind } from "../lib/docx";
 
 export default function InboxScreen() {
-  const { t, openScene, openSceneId } = useDesk();
+  const { openScene, openSceneId } = useDesk();
   const data = useDeskData();
   // Tab-switch cost, visible in the console (provider data is cached, so revisits log ~0ms).
   useTabLoadTiming("inbox", !data.loading);
@@ -185,54 +187,56 @@ export default function InboxScreen() {
     },
   ];
 
-  const cardBase =
-    "background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 17px;min-height:118px;display:flex;flex-direction:column";
   const sceneCard = (
     s: SceneOut,
-    color: string,
+    tone: ChipTone,
     tag: string,
     onClick?: () => void,
     select?: { checked: boolean; onToggle: () => void },
   ) => (
-    <div
-      key={s.id}
-      onClick={onClick}
-      style={css(
-        `${cardBase};border-left:3px solid ${select?.checked ? color : color};${select?.checked ? "outline:2px solid " + color + ";" : ""}${onClick ? "cursor:pointer;box-shadow:var(--shadow)" : "opacity:.8"}`,
-      )}
-    >
-      <div style={css("display:flex;align-items:center;gap:9px;margin-bottom:9px")}>
-        {select && (
-          <input
-            type="checkbox"
-            checked={select.checked}
-            onClick={(e) => e.stopPropagation()}
-            onChange={select.onToggle}
-            style={css(
-              "width:15px;height:15px;cursor:pointer;flex:none;accent-color:var(--accent)",
-            )}
-          />
-        )}
-        <span style={css("font-family:var(--display);font-size:16.5px;color:var(--ink)")}>
-          Scene {s.scene_no}
-        </span>
-        <span
-          style={css("margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}
-        >
-          v{s.version}
-        </span>
-      </div>
-      <div style={css("font-size:13.5px;color:var(--dim);line-height:1.45;margin-bottom:12px")}>
-        {sceneLabel(s)}
-      </div>
-      <div
-        style={css(
-          "margin-top:auto;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
-        )}
+    <div key={s.id} onClick={onClick} style={css(onClick ? "cursor:pointer" : "")}>
+      <Panel
+        interactive={!!onClick}
+        pad="13px 14px"
+        style={`min-height:112px;display:flex;flex-direction:column;${select?.checked ? "outline:2px solid var(--accentLine);" : ""}${onClick ? "" : "opacity:.8"}`}
       >
-        <span>{wordCount(s.prose)} words</span>
-        <span style={css(`color:${color}`)}>{tag}</span>
-      </div>
+        <div style={css("display:flex;align-items:center;gap:9px;margin-bottom:9px")}>
+          {select && (
+            <input
+              type="checkbox"
+              checked={select.checked}
+              onClick={(e) => e.stopPropagation()}
+              onChange={select.onToggle}
+              style={css(
+                "width:15px;height:15px;cursor:pointer;flex:none;accent-color:var(--accent)",
+              )}
+            />
+          )}
+          <span style={css("font-family:var(--display);font-size:16.5px;color:var(--ink)")}>
+            Scene {s.scene_no}
+          </span>
+          <span
+            style={css(
+              "margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
+            )}
+          >
+            v{s.version}
+          </span>
+        </div>
+        <div style={css("font-size:13.5px;color:var(--dim);line-height:1.45;margin-bottom:12px")}>
+          {sceneLabel(s)}
+        </div>
+        <div
+          style={css(
+            "margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px",
+          )}
+        >
+          <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+            {wordCount(s.prose)} words
+          </span>
+          <Chip label={tag} tone={tone} size="sm" />
+        </div>
+      </Panel>
     </div>
   );
 
@@ -241,7 +245,7 @@ export default function InboxScreen() {
       <div style={css("margin-bottom:24px")}>
         <h1
           style={css(
-            "margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:30px;color:var(--ink)",
+            "margin:0 0 6px;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)",
           )}
         >
           Drafting desk
@@ -258,37 +262,12 @@ export default function InboxScreen() {
         style={css("display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px")}
       >
         {stats.map((s) => (
-          <div
+          <MetricCard
             key={s.label}
-            style={css(
-              "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px",
-            )}
-          >
-            <div
-              style={css(
-                "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:10px",
-              )}
-            >
-              {s.label}
-            </div>
-            <div
-              style={css(
-                "font-family:var(--display);font-size:27px;color:var(--ink);line-height:1",
-              )}
-            >
-              {s.value}
-              <span style={css("font-size:14px;color:var(--dim)")}> {s.suffix}</span>
-            </div>
-            {s.note && (
-              <div
-                style={css(
-                  "font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:9px",
-                )}
-              >
-                {s.note}
-              </div>
-            )}
-          </div>
+            label={s.label}
+            value={s.value}
+            hint={[s.suffix, s.note].filter(Boolean).join(" · ") || undefined}
+          />
         ))}
       </div>
 
@@ -297,7 +276,7 @@ export default function InboxScreen() {
       >
         {/* Drafting (live worker state) */}
         <div>
-          <Column title="Drafting" color={t.info} count={data.jobs.running ? 1 : 0} />
+          <Column title="Drafting" tone="info" count={data.jobs.running ? 1 : 0} />
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             <DraftPanel />
             <RetryFailedBanner />
@@ -307,7 +286,7 @@ export default function InboxScreen() {
 
         {/* Awaiting review (pending queue) */}
         <div>
-          <Column title="Awaiting review" color={t.warn} count={data.pending.length} />
+          <Column title="Awaiting review" tone="warn" count={data.pending.length} />
           {data.pending.length > 0 && (
             <label
               style={css(
@@ -326,7 +305,7 @@ export default function InboxScreen() {
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             {data.pending.length === 0 && <Empty text="nothing to review" />}
             {data.pending.map((s, i) =>
-              sceneCard(s, t.warn, "review →", () => openScene(i), {
+              sceneCard(s, "warn", "review →", () => openScene(i), {
                 checked: sel.has(s.id),
                 onToggle: () => sel.toggle(s.id),
               }),
@@ -336,21 +315,21 @@ export default function InboxScreen() {
 
         {/* Revising */}
         <div>
-          <Column title="Revising" color={t.bad} count={revising.length} />
+          <Column title="Revising" tone="bad" count={revising.length} />
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             {revising.length === 0 && <Empty text="—" />}
-            {revising.map((s) => sceneCard(s, t.bad, "redrafting", () => openSceneId(s.id)))}
+            {revising.map((s) => sceneCard(s, "bad", "redrafting", () => openSceneId(s.id)))}
           </div>
         </div>
 
         {/* Approved */}
         <div>
-          <Column title="Approved" color={t.good} count={approved.length} />
+          <Column title="Approved" tone="good" count={approved.length} />
           <div style={css("display:flex;flex-direction:column;gap:10px")}>
             {approved.length === 0 && <Empty text="—" />}
             {approved
               .sort((a, b) => a.scene_no - b.scene_no)
-              .map((s) => sceneCard(s, t.good, "edit →", () => openSceneId(s.id)))}
+              .map((s) => sceneCard(s, "good", "edit →", () => openSceneId(s.id)))}
           </div>
         </div>
       </div>
@@ -451,20 +430,15 @@ export default function InboxScreen() {
   );
 }
 
-function Column({ title, color, count }: { title: string; color: string; count: number }) {
+function Column({ title, tone, count }: { title: string; tone: ChipTone; count: number }) {
   return (
-    <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:11px;padding:0 2px")}>
-      <span style={css(`width:8px;height:8px;border-radius:50%;background:${color}`)} />
-      <span
-        style={css(
-          "font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)",
-        )}
-      >
-        {title}
-      </span>
-      <span style={css("margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-        {count}
-      </span>
+    <div
+      style={css(
+        "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px;padding:7px 12px;background:var(--bg3);border:1px solid var(--line);border-radius:9px",
+      )}
+    >
+      <Eyebrow tone="var(--ink)">{title}</Eyebrow>
+      <Chip label={String(count)} tone={tone} size="sm" />
     </div>
   );
 }

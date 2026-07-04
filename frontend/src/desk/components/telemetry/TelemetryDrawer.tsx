@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { css } from "../../css";
 import { api } from "../../api/client";
-import { Spinner } from "../DraftActivity";
+import { Button, Eyebrow, Skeleton } from "../ui";
 import { TotalsStrip, TotalsTable, fmtTokens } from "../Telemetry";
 import type {
   LlmCallOut,
@@ -35,11 +35,11 @@ export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: strin
     <>
       <div
         onClick={nav.close}
-        style={css("position:fixed;inset:0;z-index:85;background:rgba(0,0,0,.45)")}
+        style={css("position:fixed;inset:0;z-index:85;background:var(--scrim)")}
       />
       <div
         style={css(
-          "position:fixed;top:0;right:0;bottom:0;z-index:86;width:min(520px,96vw);overflow-y:auto;background:var(--bg2);border-left:1px solid var(--line);box-shadow:-12px 0 40px rgba(0,0,0,.35);padding:16px 18px",
+          "position:fixed;top:0;right:0;bottom:0;z-index:86;width:min(520px,96vw);overflow-y:auto;background:var(--bg2);border-left:1px solid var(--line);box-shadow:var(--shadow);padding:18px 20px",
         )}
       >
         <DrawerHeader nav={nav} />
@@ -77,30 +77,22 @@ export function TelemetryDrawer({ nav, bookId }: { nav: DrawerNav; bookId: strin
 
 function DrawerHeader({ nav }: { nav: DrawerNav }) {
   return (
-    <div style={css("display:flex;align-items:center;gap:10px;margin-bottom:14px")}>
+    <div style={css("display:flex;align-items:center;gap:10px;margin-bottom:16px")}>
       {nav.stack.length > 1 && (
-        <button
-          type="button"
-          onClick={nav.pop}
-          style={css(
-            "height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-size:12px;cursor:pointer",
-          )}
-        >
+        <Button size="sm" onClick={nav.pop}>
           Back
-        </button>
+        </Button>
       )}
-      <h2 style={css("margin:0;font-size:16px;font-weight:600;color:var(--ink);flex:1")}>
-        {groupLabel(nav.view)}
-      </h2>
-      <button
-        type="button"
-        onClick={nav.close}
+      <h2
         style={css(
-          "height:28px;width:28px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);cursor:pointer",
+          "margin:0;font-family:var(--display);font-weight:500;font-size:21px;line-height:28px;color:var(--ink);flex:1",
         )}
       >
+        {groupLabel(nav.view)}
+      </h2>
+      <Button size="sm" variant="ghost" onClick={nav.close} title="Close">
         ×
-      </button>
+      </Button>
     </div>
   );
 }
@@ -227,14 +219,15 @@ function StageDetail({
     <div style={css("display:flex;flex-direction:column;gap:12px")}>
       {totals && <TotalsStrip t={totals} />}
       {flags.length > 0 && (
-        <div style={css("font-size:12px;color:var(--warn, #e8a020)")}>{flags.join(" · ")}</div>
+        <div style={css("font-size:12px;color:var(--warn)")}>{flags.join(" · ")}</div>
       )}
       {worst && (
         <button
           type="button"
+          className="dk-row"
           onClick={() => nav.push({ kind: "call", callId: worst.id })}
           style={css(
-            "text-align:left;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg3);cursor:pointer;color:var(--ink);font-size:12px",
+            "text-align:left;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;background:var(--boxbg);cursor:pointer;color:var(--ink);font-size:12px",
           )}
         >
           Worst call: {worst.latency_ms ?? "—"}ms · {fmtTokens(worst.input_tokens)} in
@@ -273,7 +266,7 @@ function ModelDetail({
     <div style={css("display:flex;flex-direction:column;gap:12px")}>
       <TotalsStrip t={totals} />
       {flags.length > 0 ? (
-        <div style={css("font-size:12px;color:var(--warn, #e8a020)")}>
+        <div style={css("font-size:12px;color:var(--warn)")}>
           This model shows: {flags.join(", ")}
         </div>
       ) : (
@@ -322,9 +315,10 @@ function SceneDetail({
             <button
               key={i}
               type="button"
+              className="dk-row"
               onClick={() => nav.push({ kind: "stage", stage: step.stage, bookId, runId })}
               style={css(
-                "display:flex;justify-content:space-between;text-align:left;border:1px solid var(--line);border-radius:7px;padding:6px 10px;background:var(--bg3);cursor:pointer;color:var(--ink);font-family:var(--mono);font-size:11px",
+                "display:flex;justify-content:space-between;text-align:left;border:1px solid var(--line);border-radius:7px;padding:6px 10px;background:var(--boxbg);cursor:pointer;color:var(--ink);font-family:var(--mono);font-size:11px",
               )}
             >
               <span>
@@ -369,41 +363,51 @@ function CallDetail({ callId, nav }: { callId: string; nav: DrawerNav }) {
       )}
     >
       <CallTruncationPanel call={call} />
-      <Row label="Stage" value={call.stage} />
-      <Row label="Model" value={call.model} />
-      <Row label="Scene" value={call.scene_no != null ? String(call.scene_no) : "—"} />
-      <Row label="Latency" value={call.latency_ms != null ? `${call.latency_ms}ms` : "—"} />
-      <Row label="Input" value={fmtTokens(call.input_tokens)} />
-      <Row label="Output" value={fmtTokens(call.output_tokens)} />
-      <Row label="Cache write" value={fmtTokens(call.cache_creation_tokens)} />
-      <Row label="Cache read" value={fmtTokens(call.cache_read_tokens)} />
-      <Row label="Truncated" value={call.truncated ? "yes" : "no"} />
-      <Row label="Error" value={call.error ?? "—"} color={call.error ? "var(--bad)" : undefined} />
-      {typeof meta.max_tokens === "number" && (
-        <Row label="Max tokens" value={String(meta.max_tokens)} />
-      )}
-      {typeof meta.stop_reason === "string" && <Row label="Stop reason" value={meta.stop_reason} />}
-      {typeof meta.raw_context_total === "number" && (
+      <div
+        style={css(
+          "display:flex;flex-direction:column;gap:6px;background:var(--boxbg);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px",
+        )}
+      >
+        <Row label="Stage" value={call.stage} />
+        <Row label="Model" value={call.model} />
+        <Row label="Scene" value={call.scene_no != null ? String(call.scene_no) : "—"} />
+        <Row label="Latency" value={call.latency_ms != null ? `${call.latency_ms}ms` : "—"} />
+        <Row label="Input" value={fmtTokens(call.input_tokens)} />
+        <Row label="Output" value={fmtTokens(call.output_tokens)} />
+        <Row label="Cache write" value={fmtTokens(call.cache_creation_tokens)} />
+        <Row label="Cache read" value={fmtTokens(call.cache_read_tokens)} />
+        <Row label="Truncated" value={call.truncated ? "yes" : "no"} />
         <Row
-          label="Raw context"
-          value={`${fmtTokens(meta.raw_context_total)} / ${meta.context_window_budget ?? "—"}`}
+          label="Error"
+          value={call.error ?? "—"}
+          color={call.error ? "var(--bad)" : undefined}
         />
-      )}
-      {meta.fallback_attempt === true && (
-        <Row label="Fallback" value="yes" color="var(--warn, #e8a020)" />
-      )}
-      {typeof meta.section_name === "string" && <Row label="Section" value={meta.section_name} />}
-      {sections && (
-        <div>
-          <div style={css("color:var(--dim);font-size:10px;margin-bottom:4px")}>
-            Context sections
+        {typeof meta.max_tokens === "number" && (
+          <Row label="Max tokens" value={String(meta.max_tokens)} />
+        )}
+        {typeof meta.stop_reason === "string" && (
+          <Row label="Stop reason" value={meta.stop_reason} />
+        )}
+        {typeof meta.raw_context_total === "number" && (
+          <Row
+            label="Raw context"
+            value={`${fmtTokens(meta.raw_context_total)} / ${meta.context_window_budget ?? "—"}`}
+          />
+        )}
+        {meta.fallback_attempt === true && <Row label="Fallback" value="yes" color="var(--warn)" />}
+        {typeof meta.section_name === "string" && <Row label="Section" value={meta.section_name} />}
+        {sections && (
+          <div>
+            <div style={css("color:var(--dim);font-size:10px;margin-bottom:4px")}>
+              Context sections
+            </div>
+            {Object.entries(sections).map(([k, v]) => (
+              <Row key={k} label={k} value={fmtTokens(v)} />
+            ))}
           </div>
-          {Object.entries(sections).map(([k, v]) => (
-            <Row key={k} label={k} value={fmtTokens(v)} />
-          ))}
-        </div>
-      )}
-      <div style={css("display:flex;flex-wrap:gap:8px;margin-top:8px")}>
+        )}
+      </div>
+      <div style={css("display:flex;flex-wrap:wrap;gap:8px;margin-top:8px")}>
         {call.links.scene_id && (
           <LinkBtn
             label="Open scene"
@@ -533,9 +537,10 @@ function CallList({ calls, nav }: { calls: LlmCallOut[]; nav: DrawerNav }) {
         <button
           key={c.id}
           type="button"
+          className="dk-row"
           onClick={() => nav.push({ kind: "call", callId: c.id })}
           style={css(
-            "text-align:left;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--bg3);cursor:pointer;color:var(--ink);font-family:var(--mono);font-size:11px",
+            "text-align:left;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:var(--boxbg);cursor:pointer;color:var(--ink);font-family:var(--mono);font-size:11px",
           )}
         >
           <div>
@@ -581,13 +586,7 @@ function aggregateCalls(calls: LlmCallOut[]): TelemetryTotals {
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:6px",
-        )}
-      >
-        {label}
-      </div>
+      <Eyebrow style="margin-bottom:6px">{label}</Eyebrow>
       {children}
     </div>
   );
@@ -635,24 +634,14 @@ function CompareRow({
 
 function LinkBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={css(
-        "height:28px;padding:0 12px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);color:var(--ink);font-size:11.5px;cursor:pointer",
-      )}
-    >
+    <Button size="sm" onClick={onClick}>
       {label}
-    </button>
+    </Button>
   );
 }
 
 function SpinnerRow() {
-  return (
-    <div style={css("display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px")}>
-      <Spinner size={12} /> loading…
-    </div>
-  );
+  return <Skeleton lines={6} />;
 }
 
 function Err({ msg }: { msg: string }) {
@@ -701,7 +690,7 @@ function ChapterDetail({
       {readiness && !readiness.can_draft && (
         <div
           style={css(
-            "border:1px solid color-mix(in srgb,var(--warn, #e8a020) 40%,var(--line));border-radius:8px;padding:10px 12px;font-size:12px;color:var(--warn, #e8a020)",
+            "border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));border-radius:8px;padding:10px 12px;font-size:12px;color:var(--warn)",
           )}
         >
           Draft not ready — {readiness.disabled_reason ?? `${readiness.blockers.length} blocker(s)`}
@@ -719,15 +708,14 @@ function ChapterDetail({
       )}
       <TotalsStrip t={telemetry.totals} />
       {telemetry.run_id && (
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="ghost"
+          style="align-self:flex-start"
           onClick={() => nav.push({ kind: "run", runId: telemetry.run_id! })}
-          style={css(
-            "height:26px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer;align-self:flex-start",
-          )}
         >
           Open latest run
-        </button>
+        </Button>
       )}
       <Section label="Scenes">
         <TotalsTable<SceneTelemetryOut>
@@ -745,7 +733,7 @@ function ChapterDetail({
           }}
         />
       </Section>
-      <div style={css("display:flex;flex-wrap:gap:8px")}>
+      <div style={css("display:flex;flex-wrap:wrap;gap:8px")}>
         <LinkBtn
           label="Open packets"
           onClick={() => router.push(`/packets?chapter=${chapterId}`)}
@@ -826,7 +814,7 @@ function DraftReadinessDetail({ bookId, nav }: { bookId: string; nav: DrawerNav 
         <div
           key={r.chapterId}
           style={css(
-            "border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg3)",
+            "border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--boxbg)",
           )}
         >
           <button

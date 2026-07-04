@@ -3,6 +3,7 @@
 import { css } from "../../css";
 import type { LlmCallOut } from "../../api/types";
 import { fmtTokens } from "../Telemetry";
+import { Eyebrow } from "../ui";
 import { cacheHealthByStage, formatSettingsKey } from "./telemetryDiagnosis";
 import { PRIME_STAGES } from "./telemetryStages";
 
@@ -12,7 +13,7 @@ export function RunSettingsSnapshot({ snapshot }: { snapshot: Record<string, unk
   return (
     <div
       style={css(
-        "display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg3)",
+        "display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;background:var(--boxbg)",
       )}
     >
       {entries.map(([k, v]) => (
@@ -54,13 +55,11 @@ export function RunCacheDiagnostics({ calls }: { calls: LlmCallOut[] }) {
             <div
               key={r.stage}
               style={css(
-                "display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:10.5px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg3)",
+                "display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:10.5px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--boxbg)",
               )}
             >
               <span style={css("color:var(--ink)")}>{r.stage.replace(/_/g, " ")}</span>
-              <span
-                style={css(`color:${low || shortPrime ? "var(--warn, #e8a020)" : "var(--dim)"}`)}
-              >
+              <span style={css(`color:${low || shortPrime ? "var(--warn)" : "var(--dim)"}`)}>
                 {r.hitPct}% hit · {r.calls} calls
                 {shortPrime ? " · short prime" : ""}
                 {low ? " · low cache" : ""}
@@ -85,16 +84,12 @@ export function CallTruncationPanel({ call }: { call: LlmCallOut }) {
   return (
     <div
       style={css(
-        "border:1px solid color-mix(in srgb,var(--warn, #e8a020) 45%,var(--line));background:color-mix(in srgb,var(--warn, #e8a020) 8%,var(--bg2));border-radius:8px;padding:10px 12px",
+        "border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg2));border-radius:var(--r);padding:10px 12px",
       )}
     >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--warn, #e8a020);margin-bottom:6px",
-        )}
-      >
+      <Eyebrow tone="var(--warn)" style="margin-bottom:6px">
         {call.error ? "Error diagnosis" : "Truncation diagnosis"}
-      </div>
+      </Eyebrow>
       {typeof meta.stop_reason === "string" && (
         <div style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
           Stop reason: {meta.stop_reason}

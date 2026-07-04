@@ -6,6 +6,8 @@ import { css } from "../../css";
 import { api } from "../../api/client";
 import { useDeskData } from "../../api/data";
 import ClearFailedPanel from "../ClearFailedPanel";
+import { Button, Chip, Eyebrow } from "../ui";
+import type { ChipTone } from "../ui";
 import { copyToClipboard } from "../../lib/download";
 import type { TelemetryProblemOut } from "../../api/types";
 import type { TelemetryDrawerView } from "./types";
@@ -48,10 +50,10 @@ export function ProblemsPanel({
     return (
       <div
         style={css(
-          "margin-bottom:14px;border:1px solid color-mix(in srgb,var(--ok) 35%,var(--line));background:color-mix(in srgb,var(--ok) 6%,var(--bg2));border-radius:10px;padding:12px 14px",
+          "margin-bottom:14px;border:1px solid color-mix(in srgb,var(--good) 35%,var(--line));background:color-mix(in srgb,var(--good) 6%,var(--bg2));border-radius:var(--r);padding:12px 14px",
         )}
       >
-        <div style={css("font-family:var(--mono);font-size:11px;color:var(--ok)")}>
+        <div style={css("font-family:var(--mono);font-size:11px;color:var(--good)")}>
           No problems detected
         </div>
       </div>
@@ -61,7 +63,7 @@ export function ProblemsPanel({
   return (
     <div
       style={css(
-        "margin-bottom:14px;border:1px solid color-mix(in srgb,var(--warn, #e8a020) 40%,var(--line));background:color-mix(in srgb,var(--warn, #e8a020) 6%,var(--bg2));border-radius:10px;padding:12px 14px",
+        "margin-bottom:14px;border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 6%,var(--bg2));border-radius:var(--r);padding:12px 14px",
       )}
     >
       <button
@@ -71,41 +73,28 @@ export function ProblemsPanel({
           `display:flex;width:100%;align-items:center;gap:8px;flex-wrap:wrap;background:transparent;border:none;padding:0;cursor:pointer;text-align:left;${open ? "margin-bottom:12px" : ""}`,
         )}
       >
-        <div
-          style={css(
-            "font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);flex:1",
-          )}
-        >
-          Problems detected
-        </div>
-        <span
-          style={css(
-            "font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--warn, #e8a020) 18%,var(--bg3));color:var(--ink)",
-          )}
-        >
-          {problemCount}
-        </span>
+        <Eyebrow style="flex:1">Problems detected</Eyebrow>
+        <Chip size="sm" tone="warn" label={String(problemCount)} />
         <span style={css("color:var(--dim);font-size:11px")}>{open ? "▲" : "▼"}</span>
       </button>
       {open && (
         <>
           <div style={css("display:flex;justify-content:flex-end;margin-bottom:10px")}>
-            <button
-              type="button"
-              onClick={async (e) => {
-                e.stopPropagation();
-                const ok = await copyToClipboard(buildProblemsSummary(problems ?? [], healthy));
-                if (ok) {
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                void (async () => {
+                  const ok = await copyToClipboard(buildProblemsSummary(problems ?? [], healthy));
+                  if (ok) {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }
+                })();
               }}
-              style={css(
-                "height:24px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer",
-              )}
             >
               {copied ? "Copied" : "Copy summary"}
-            </button>
+            </Button>
           </div>
           <div
             style={css(
@@ -187,8 +176,14 @@ function formatBreakdownLine(b: Record<string, unknown>): string {
 
 function severityColor(severity: string): string {
   if (severity === "error") return "var(--bad)";
-  if (severity === "warn") return "var(--warn, #e8a020)";
+  if (severity === "warn") return "var(--warn)";
   return "var(--dim)";
+}
+
+function severityTone(severity: string): ChipTone {
+  if (severity === "error") return "bad";
+  if (severity === "warn") return "warn";
+  return "neutral";
 }
 
 function ProblemCard({
@@ -213,17 +208,11 @@ function ProblemCard({
   return (
     <div
       style={css(
-        "border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:var(--bg2);display:flex;flex-direction:column;gap:6px",
+        "border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg2);display:flex;flex-direction:column;gap:6px",
       )}
     >
       <div style={css("display:flex;align-items:flex-start;gap:8px")}>
-        <span
-          style={css(
-            `flex-shrink:0;font-family:var(--mono);font-size:9px;text-transform:uppercase;padding:2px 6px;border-radius:5px;border:1px solid ${color};color:${color}`,
-          )}
-        >
-          {p.severity}
-        </span>
+        <Chip size="sm" tone={severityTone(p.severity)} label={p.severity} />
         <button
           type="button"
           onClick={() => openProblem(p, bookId, onOpen)}
@@ -266,7 +255,7 @@ function ProblemCard({
                       type="button"
                       onClick={() => router.push(`/packets?chapter=${chapterId}`)}
                       style={css(
-                        "background:none;border:none;padding:0;cursor:pointer;color:var(--info, #5b9bd5);font:inherit;text-align:left",
+                        "background:none;border:none;padding:0;cursor:pointer;color:var(--info);font:inherit;text-align:left",
                       )}
                     >
                       {formatBreakdownLine(row)}
@@ -316,7 +305,7 @@ function ProblemCard({
           type="button"
           onClick={() => router.push("/settings")}
           style={css(
-            "align-self:flex-start;background:none;border:none;padding:0;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--info, #5b9bd5)",
+            "align-self:flex-start;background:none;border:none;padding:0;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--info)",
           )}
         >
           Adjust in Settings → Agent Ops

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { css } from "../css";
 import { api } from "../api/client";
-import { Spinner } from "./DraftActivity";
+import { Spinner } from "./ui";
 import type { ChapterTelemetryOut, SceneTelemetryOut, TelemetryTotals } from "../api/types";
 import { statusColor } from "./telemetry/types";
 import type { TelemetryDrawerView } from "./telemetry/types";

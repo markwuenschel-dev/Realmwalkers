@@ -10,6 +10,8 @@ import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { useSelection } from "../lib/useSelection";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import BulkBar, { BulkButton } from "../components/BulkBar";
+import { Button, Chip, Panel } from "../components/ui";
+import type { ChipTone } from "../components/ui";
 import type { ChaptersView } from "../types";
 import type { ChapterOut, ChapterUpdateIn, ManuscriptChapter, SceneOut } from "../api/types";
 import type { ExportKind } from "../lib/docx";
@@ -24,7 +26,6 @@ const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = 
 
 export default function ChaptersScreen() {
   const desk = useDesk();
-  const { t } = desk;
   const data = useDeskData();
   // Tab-switch cost, visible in the console (provider data is cached, so revisits log ~0ms).
   useTabLoadTiming("chapters", !data.loading);
@@ -39,7 +40,13 @@ export default function ChaptersScreen() {
   const scenesByChapter = (chapterId: string): SceneOut[] =>
     latest.filter((s) => s.chapter_id === chapterId).sort((a, b) => a.scene_no - b.scene_no);
 
-  const colorOf = (status: string): string => t[STATUS_COLORS[status] ?? "dim"];
+  // Status → theme token (CSS var) and Chip tone. Colors stay tokenized so both Atelier variants
+  // retint them for free.
+  const colorOf = (status: string): string => `var(--${STATUS_COLORS[status] ?? "dim"})`;
+  const toneOf = (status: string): ChipTone => {
+    const c = STATUS_COLORS[status] ?? "dim";
+    return c === "dim" ? "neutral" : c;
+  };
 
   // Bulk re-draft: tick scenes on the board, re-queue a fresh draft for each (supersedes the version).
   const sel = useSelection();
@@ -152,7 +159,7 @@ export default function ChaptersScreen() {
         <div>
           <h1
             style={css(
-              "margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:30px;color:var(--ink)",
+              "margin:0 0 6px;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)",
             )}
           >
             Chapters & progress
@@ -161,23 +168,18 @@ export default function ChaptersScreen() {
             Where each scene stands, and the order they compile in.
           </p>
         </div>
-        <div
-          style={css(
-            "display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px",
-          )}
-        >
+        <div style={css("display:flex;gap:6px")}>
           {chViewItems.map((v) => {
             const active = desk.chaptersView === v.id;
             return (
-              <button
+              <Button
                 key={v.id}
+                size="sm"
+                variant={active ? "primary" : "ghost"}
                 onClick={() => desk.setChaptersView(v.id)}
-                style={css(
-                  `padding:6px 14px;border:none;border-radius:7px;cursor:pointer;font-family:var(--ui);font-size:12.5px;background:${active ? "var(--accent)" : "transparent"};color:${active ? "var(--onAccent)" : "var(--dim)"};font-weight:${active ? "600" : "400"}`,
-                )}
               >
                 {v.label}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -188,18 +190,7 @@ export default function ChaptersScreen() {
           "display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start;margin-bottom:30px",
         )}
       >
-        <div
-          style={css(
-            "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:20px",
-          )}
-        >
-          <div
-            style={css(
-              "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:12px",
-            )}
-          >
-            Manuscript
-          </div>
+        <Panel eyebrow="Manuscript">
           <div
             style={css("font-family:var(--display);font-size:40px;line-height:1;color:var(--ink)")}
           >
@@ -217,22 +208,10 @@ export default function ChaptersScreen() {
             k="awaiting you"
             v={`${data.pending.length} scenes`}
             accent={data.pending.length > 0}
-            t={t}
           />
-        </div>
+        </Panel>
 
-        <div
-          style={css(
-            "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px",
-          )}
-        >
-          <div
-            style={css(
-              "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:18px",
-            )}
-          >
-            Pacing · per chapter
-          </div>
+        <Panel eyebrow="Pacing · per chapter" pad="20px 22px">
           <div style={css("display:flex;flex-direction:column;gap:18px")}>
             {data.chapters.length === 0 && (
               <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>
@@ -328,27 +307,25 @@ export default function ChaptersScreen() {
                             )}
                           />
                           <div style={css("display:flex;gap:8px")}>
-                            <button
+                            <Button
+                              size="sm"
+                              variant="primary"
                               disabled={busy || !sceneNo.trim() || !prose.trim()}
-                              onClick={() => saveSection(c.id)}
-                              style={css(
-                                `padding:6px 12px;border-radius:7px;border:1px solid color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 12%,var(--bg3));color:var(--good);font-family:var(--ui);font-size:12.5px;cursor:${busy ? "default" : "pointer"}`,
-                              )}
+                              onClick={() => void saveSection(c.id)}
                             >
                               {busy ? "Saving…" : "Save section"}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => {
                                 setWriteFor(null);
                                 setSceneNo("");
                                 setProse("");
                               }}
-                              style={css(
-                                "padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim);font-family:var(--ui);font-size:12.5px;cursor:pointer",
-                              )}
                             >
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ) : (
@@ -378,7 +355,7 @@ export default function ChaptersScreen() {
                 );
               })}
           </div>
-        </div>
+        </Panel>
       </div>
 
       {desk.chaptersView === "board" && (
@@ -414,16 +391,13 @@ export default function ChaptersScreen() {
                 No scenes drafted yet.
               </span>
             )}
-            {ordered.map(({ scene: s, chapter: c }) => {
-              const color = colorOf(s.status);
-              return (
-                <div
-                  key={s.id}
-                  onClick={() => desk.openSceneId(s.id)}
-                  style={css(
-                    `flex:1 1 168px;min-width:160px;background:var(--bg2);border:1px solid var(--line);border-left:3px solid ${color};border-radius:10px;padding:13px 14px;box-shadow:var(--shadow);cursor:pointer`,
-                  )}
-                >
+            {ordered.map(({ scene: s, chapter: c }) => (
+              <div
+                key={s.id}
+                onClick={() => desk.openSceneId(s.id)}
+                style={css("flex:1 1 168px;min-width:160px;cursor:pointer")}
+              >
+                <Panel interactive pad="13px 14px">
                   <div
                     style={css(
                       "display:flex;align-items:center;gap:6px;margin-bottom:9px;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
@@ -446,25 +420,23 @@ export default function ChaptersScreen() {
                   </div>
                   <div
                     style={css(
-                      "display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10.5px",
+                      "display:flex;align-items:center;justify-content:space-between;gap:8px",
                     )}
                   >
-                    <span style={css(`color:${color}`)}>● {s.status.replace(/_/g, " ")}</span>
-                    <span style={css("color:var(--dim)")}>{wordCount(s.prose)} words</span>
+                    <Chip label={s.status.replace(/_/g, " ")} tone={toneOf(s.status)} size="sm" />
+                    <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+                      {wordCount(s.prose)} words
+                    </span>
                   </div>
-                </div>
-              );
-            })}
+                </Panel>
+              </div>
+            ))}
           </div>
         </>
       )}
 
       {desk.chaptersView === "timeline" && (
-        <div
-          style={css(
-            "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;overflow-x:auto",
-          )}
-        >
+        <Panel pad="18px 20px" style="overflow-x:auto">
           {ordered.length === 0 ? (
             <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>
               No scenes to chart yet.
@@ -511,7 +483,7 @@ export default function ChaptersScreen() {
               })}
             </div>
           )}
-        </div>
+        </Panel>
       )}
 
       <BulkBar count={sel.count} noun="scene" onClear={sel.clear}>
@@ -521,17 +493,7 @@ export default function ChaptersScreen() {
   );
 }
 
-function Row({
-  k,
-  v,
-  accent,
-  t,
-}: {
-  k: string;
-  v: string;
-  accent?: boolean;
-  t?: { warn: string };
-}) {
+function Row({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
   return (
     <div
       style={css(
@@ -539,7 +501,7 @@ function Row({
       )}
     >
       <span>{k}</span>
-      <span style={css(accent && t ? `color:${t.warn}` : "color:var(--ink)")}>{v}</span>
+      <span style={css(accent ? "color:var(--warn)" : "color:var(--ink)")}>{v}</span>
     </div>
   );
 }

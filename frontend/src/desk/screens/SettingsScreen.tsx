@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { css } from "../css";
-import { useDesk } from "../state";
 import { api } from "../api/client";
 import type { AgentOpsOut, AgentStatsListOut, SmokeTestOut } from "../api/types";
 import { PresetBar } from "../components/agentOps/PresetBar";
 import { BudgetControls } from "../components/agentOps/BudgetControls";
 import { AgentRow } from "../components/agentOps/AgentRow";
 import { SmokeTestModal } from "../components/agentOps/SmokeTestModal";
+import { Eyebrow, Skeleton } from "../components/ui";
 
 export default function SettingsScreen() {
-  const { t } = useDesk();
   const [data, setData] = useState<AgentOpsOut | null>(null);
   const [stats, setStats] = useState<AgentStatsListOut | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -173,10 +172,11 @@ export default function SettingsScreen() {
 
   return (
     <div>
-      <div style={css("margin-bottom:22px")}>
+      <header style={css("margin:0 0 30px")}>
+        <Eyebrow style="margin-bottom:6px">Operations · agents</Eyebrow>
         <h1
           style={css(
-            "margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:30px;color:var(--ink)",
+            "margin:0 0 8px;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)",
           )}
         >
           Agent operations
@@ -186,12 +186,12 @@ export default function SettingsScreen() {
           Changes apply on the next call and persist across restarts. Oracle is deterministic (no
           model).
         </p>
-      </div>
+      </header>
 
       {error && (
         <div
           style={css(
-            `margin-bottom:16px;border:1px solid color-mix(in srgb,${t.bad} 40%,var(--line));background:color-mix(in srgb,${t.bad} 8%,var(--bg2));border-radius:9px;padding:11px 13px;color:${t.bad};font-size:13px`,
+            "margin-bottom:16px;border:1px solid color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--bg2));border-radius:var(--r);padding:11px 13px;color:var(--bad);font-size:13px",
           )}
         >
           {error}
@@ -199,7 +199,11 @@ export default function SettingsScreen() {
       )}
 
       {!data && !error && (
-        <div style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>Loading…</div>
+        <div style={css("max-width:920px;display:flex;flex-direction:column;gap:14px")}>
+          <Skeleton height="120px" />
+          <Skeleton height="90px" />
+          <Skeleton lines={8} />
+        </div>
       )}
 
       {data && (
@@ -216,6 +220,7 @@ export default function SettingsScreen() {
             smokeBusy={smokeBusy}
           />
           <BudgetControls globals={data.globals} busy={presetBusy} onSave={saveGlobals} />
+          <Eyebrow style="margin:0 0 10px 2px">Agents · {data.agents.length}</Eyebrow>
           <div style={css("display:flex;flex-direction:column;gap:12px;max-width:920px")}>
             {data.agents.map((a) => (
               <AgentRow
