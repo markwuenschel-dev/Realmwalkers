@@ -85,7 +85,7 @@ def _flat_drafter_contract(scene_body: dict[str, Any], chapter_body: dict[str, A
     required_reveals = str_list(learned.get("reader_must_learn"))
     if required_reveals:
         contract["required_reveals"] = required_reveals
-    for key in ("required_beats", "forbidden_beats"):
+    for key in ("owned_beats", "required_beats", "forbidden_beats", "beats_owned_by_later_scenes"):
         if vals := str_list(scene_body.get(key)):
             contract[key] = vals
     if isinstance(scene_body.get("exit_state"), str) and scene_body["exit_state"].strip():

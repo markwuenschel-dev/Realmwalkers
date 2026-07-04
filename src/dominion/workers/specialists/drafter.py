@@ -87,12 +87,21 @@ def _contract_block(ctx: SceneContext) -> str | None:
         [f"reveal or foreshadow: {x}" for x in lst("forbidden_reveals")]
         + [f"let the reader learn yet: {x}" for x in lst("forbidden_knowledge")]
         + [f"let this happen in the scene: {x}" for x in lst("forbidden_beats")]
+        + [
+            # Beat-ownership scope guard (recovery L2): beats owned by LATER scenes are forbidden
+            # here in ANY form — performed, pre-played, or resolved early. Staging one collapses
+            # the chapter's scene boundaries (scene_scope_bleed).
+            f"perform, stage, or pre-resolve this beat — it belongs to a LATER scene: {x}"
+            for x in lst("beats_owned_by_later_scenes")
+        ]
         + [f"put this system/UI concept on the page: {x}" for x in lst("forbidden_ui_concepts")]
     )
     if must_not:
         sections.append("MUST NOT:\n" + "\n".join(f"- {m}" for m in must_not))
 
-    must = [f"reveal in this scene: {x}" for x in lst("required_reveals")]
+    owned = lst("owned_beats") or lst("required_beats")
+    must = [f"perform this beat in THIS scene — it is owned here, and only here: {x}" for x in owned]
+    must += [f"reveal in this scene: {x}" for x in lst("required_reveals")]
     exit_state = c.get("exit_state")
     if isinstance(exit_state, str) and exit_state.strip():
         must.append(f"end the scene at this state: {exit_state.strip()}")

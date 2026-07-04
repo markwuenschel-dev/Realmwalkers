@@ -64,6 +64,7 @@ from dominion.workers.packet import latest_approved as latest_approved_chapter_p
 from dominion.workers.packet import master as packet_master
 from dominion.workers.packet.validation import leading_roster_name
 from dominion.workers.scene_packet import inputs as scene_packet_inputs
+from dominion.workers.scene_scope import DUPLICATE_IRREVERSIBLE_BEAT, SCENE_SCOPE_BLEED, evaluate_scene_scope
 
 
 def _hash_payload(value: Any) -> str:
@@ -700,8 +701,20 @@ def run_chapter_draft_qa(
             if verdict == "pass":
                 verdict = "warn"
 
-    # Placeholder: required beats / forbidden would require deeper analysis of prose vs contracts
-    # For this landing we rely on sequence required and prior issue set.
+    # Beat-ownership scope guards (recovery L2): deterministic keyword detection derived from the
+    # sequence body's beat_ownership. A scene performing a LATER scene's owned beat is
+    # scene_scope_bleed; an irreversible beat staged in more than one scene is
+    # duplicate_irreversible_beat. Both severities come from scene_scope ("block" for irreversible
+    # leaks/duplicates, "repair" otherwise — deterministic checks may block, per shared/severity.py).
+    if sequence_body:
+        prose_by_no = {int(r.get("scene_no") or 0): str(r.get("prose") or "") for r in scene_rows}
+        for scope_issue in evaluate_scene_scope(prose_by_no, sequence_body):
+            severity = str(scope_issue.get("severity") or "repair")
+            findings.append({**scope_issue, **issue_gates(severity)})
+            if severity == "block":
+                verdict = "block"
+            elif verdict == "pass":
+                verdict = "warn"
 
     return {
         "verdict": verdict,
@@ -1371,6 +1384,49 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         },
         dependencies=[(chapter_artifact.id, "source", chapter_artifact.content_hash)],
     )
+    # Persist beat-ownership scope findings as Issue rows so triage can cluster
+    # scene_scope_bleed / duplicate_irreversible_beat (recovery L2). Signature-deduped so
+    # re-assembly never duplicates them. Severity mapping: deterministic "block" -> "hard".
+    scope_signatures = {
+        str((issue.payload_json or {}).get("signature")) for issue in issues if isinstance(issue.payload_json, dict)
+    }
+    for finding in chapter_draft_qa.get("findings") or []:
+        kind = str(finding.get("kind") or "")
+        if kind not in (SCENE_SCOPE_BLEED, DUPLICATE_IRREVERSIBLE_BEAT):
+            continue
+        claim = str(finding.get("detail") or finding.get("beat") or kind)
+        scene_no = finding.get("scene_no") if isinstance(finding.get("scene_no"), int) else None
+        signature = _issue_signature(
+            validator="scene_scope", issue_kind=kind, claim=claim, quote=None, scene_no=scene_no
+        )
+        if signature in scope_signatures:
+            continue
+        scope_signatures.add(signature)
+        bleed_scene = latest_scenes.get(scene_no) if scene_no is not None else None
+        await _create_issue(
+            session,
+            run=run,
+            artifact_type="chapter_draft_qa",
+            artifact_id=qa_artifact.id,
+            scene_id=bleed_scene.id if bleed_scene is not None else None,
+            scene_no=scene_no,
+            validator="scene_scope",
+            issue_kind=kind,
+            severity="hard" if finding.get("severity") == "block" else "warn",
+            quote=None,
+            span_start=None,
+            span_end=None,
+            claim=claim,
+            contract_reference=str(sequence.id) if sequence is not None else None,
+            recommended_action=(
+                "Cut the leaked beat from this scene; only its owning scene may stage it."
+                if kind == SCENE_SCOPE_BLEED
+                else "Keep the irreversible beat only in its owning scene and remove the repeats."
+            ),
+            confidence=1.0,
+            auto_repair_allowed=False,
+            payload={**finding, "signature": signature},
+        )
     await _create_artifact(
         session,
         run=run,
