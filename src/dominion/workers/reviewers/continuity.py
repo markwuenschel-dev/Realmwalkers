@@ -11,9 +11,10 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from dominion.shared.agent_policy import quality_effort, quality_temperature
 from dominion.shared.config import settings
 from dominion.shared.enums import Severity
-from dominion.workers import llm
+from dominion.workers.llm_escalation import complete_with_rate_limit_fallback
 from dominion.workers.reviewers.base import Flag, parse_json_objects
 
 if TYPE_CHECKING:
@@ -151,13 +152,16 @@ class ContinuityReviewer:
         if not watched:
             return []
 
-        raw, _usage = await llm.complete(
+        raw, _usage = await complete_with_rate_limit_fallback(
+            setting_key="review_model",
             model=settings.review_model,
             system=_SYSTEM,
             user=_extract_prompt(scene_prose, watched),
             max_tokens=_EXTRACT_MAX_TOKENS,
             budget=ctx.budget,
             expect_cache=False,
+            temperature=quality_temperature("review_model"),
+            effort=quality_effort("review_model"),
         )
 
         flags: list[Flag] = []
@@ -195,13 +199,16 @@ class ContinuityReviewer:
         # Run when there's either a POV summary or a reader-state contract to measure against.
         if (not ctx.pov_summary and not ctx.reader_state_contract) or not scene_prose.strip():
             return []
-        raw, _usage = await llm.complete(
+        raw, _usage = await complete_with_rate_limit_fallback(
+            setting_key="review_model",
             model=settings.review_model,
             system=_KNOWLEDGE_SYSTEM,
             user=_knowledge_prompt(scene_prose, ctx.pov, ctx.pov_summary, ctx.reader_state_contract),
             max_tokens=_KNOWLEDGE_MAX_TOKENS,
             budget=ctx.budget,
             expect_cache=False,
+            temperature=quality_temperature("review_model"),
+            effort=quality_effort("review_model"),
         )
         flags: list[Flag] = []
         for item in parse_json_objects(raw):

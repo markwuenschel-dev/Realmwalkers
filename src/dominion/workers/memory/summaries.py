@@ -11,10 +11,12 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.agent_policy import quality_effort, quality_temperature
 from dominion.shared.config import settings
 from dominion.shared.models import Chapter, Scene, Summary
-from dominion.workers import llm, telemetry, telemetry_db
+from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
+from dominion.workers.llm_escalation import complete_with_rate_limit_fallback
 
 _SUMMARY_MAX_TOKENS = 600
 
@@ -108,12 +110,15 @@ async def _summarize(previous: str | None, scene_prose: str, lens: str) -> str:
     # Budget must fit a whole scene of *input*: a full hand-written/imported scene can be 8k+ tokens,
     # well past a tight cap. Size it to the per-scene budget — folding a scene shouldn't cost more
     # than drafting one — so long authored scenes (e.g. the seed import) fold instead of aborting.
-    text, _usage = await llm.complete(
+    text, _usage = await complete_with_rate_limit_fallback(
+        setting_key="review_model",
         model=settings.review_model,
         system=system,
         user=user,
         max_tokens=_SUMMARY_MAX_TOKENS,
         budget=TokenBudget(max_tokens=settings.scene_token_budget),
         expect_cache=False,
+        temperature=quality_temperature("review_model"),
+        effort=quality_effort("review_model"),
     )
     return text.strip()

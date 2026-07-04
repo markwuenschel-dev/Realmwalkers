@@ -15,7 +15,7 @@ import structlog
 from dominion.shared.agent_policy import get_runtime_policy
 from dominion.shared.agent_registry import FALLBACK_ATTR, ROLE_KEYS, tier_of
 from dominion.shared.config import settings
-from dominion.workers import telemetry
+from dominion.workers import llm, telemetry
 from dominion.workers.budget import Usage
 from dominion.workers.llm import LlmRateLimited
 
@@ -106,6 +106,37 @@ async def attempt_with_escalation(
     if is_success(value) and not usage.truncated:
         return value, primary_model, False
     return value2, fallback, True
+
+
+async def complete_with_rate_limit_fallback(
+    *, setting_key: str, model: str, **complete_kwargs: Any
+) -> tuple[str, Usage]:
+    """One llm.complete with a rate-limit-only fallback hop (no structural/semantic escalation).
+
+    For the high-volume advisory lanes (reviewers, summaries, enrichment) a bad answer is cheap but a
+    provider 429 stalls the whole chapter — so the ONLY trigger here is LlmRateLimited. On a 429 the
+    call retries ONCE on the agent's configured fallback model (same kwargs; llm.complete picks
+    temperature vs. effort per model). No fallback configured, fallback == primary, or a fallback tier
+    in the agent's never_fallback set → the original LlmRateLimited re-raises unchanged, keeping the
+    caller's retryable classification intact.
+    """
+    try:
+        return await llm.complete(model=model, **complete_kwargs)
+    except LlmRateLimited as exc:
+        fallback = resolve_fallback_model(setting_key)
+        if not fallback or fallback == model:
+            raise
+        if _blocked_fallback(fallback, get_runtime_policy(setting_key).never_fallback_tiers):
+            raise
+        log.warning(
+            "llm_escalation.rate_limit_fallback",
+            setting_key=setting_key,
+            primary=model,
+            fallback=fallback,
+            error=str(exc),
+        )
+        with telemetry.call_metadata(fallback_attempt=True, rate_limit_fallback=True):
+            return await llm.complete(model=fallback, **complete_kwargs)
 
 
 def policy_for_setting(setting_key: str) -> EscalationPolicy:

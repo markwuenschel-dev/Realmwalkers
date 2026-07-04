@@ -41,6 +41,7 @@ from dominion.shared.models import (
 )
 from dominion.shared.schemas import (
     AgentContractOut,
+    AgentControlsOut,
     AgentEstimateOut,
     AgentGlobalsOut,
     AgentGlobalsUpdateIn,
@@ -71,6 +72,29 @@ _ESCALATION_DESCRIPTIONS: dict[str, str] = {
 _COST_RANK = {"low": 0, "medium": 1, "high": 2}
 _SPEED_RANK = {"fast": 0, "medium": 1, "slow": 2}
 _PASS_VERDICTS = frozenset({"approve", "approve_warn"})
+
+# --- honesty flags (Desk Control Round) -----------------------------------------------------------
+# Which control surfaces are actually WIRED to runtime behavior today, per the code audit. These are
+# pinned here (not inferred) so the ops panel can never claim a knob is live that no worker reads:
+# - quality_level (temperature/effort) steers only the drafter and the review/summary lanes;
+# - semantic escalation fires only inside the two QA gates' attempt_with_escalation calls;
+# - auto_run is consulted only for the enrichment and review lanes;
+# - the review/enrich lanes fall back on provider 429s only (rate_limit_only); every other wrapped
+#   agent uses full structural/semantic escalation ("escalation").
+QUALITY_LIVE: frozenset[str] = frozenset({"draft_model", "review_model"})
+SEMANTIC_LIVE: frozenset[str] = frozenset({"packet_qa_model", "scene_packet_qa_model"})
+AUTO_RUN_LIVE: frozenset[str] = frozenset({"enrich_model", "review_model"})
+FALLBACK_MODE: dict[str, str] = {"review_model": "rate_limit_only", "enrich_model": "rate_limit_only"}
+_DEFAULT_FALLBACK_MODE = "escalation"
+
+
+def _controls_out(setting_key: str) -> AgentControlsOut:
+    return AgentControlsOut(
+        quality_live=setting_key in QUALITY_LIVE,
+        semantic_escalation_live=setting_key in SEMANTIC_LIVE,
+        auto_run_live=setting_key in AUTO_RUN_LIVE,
+        fallback_mode=FALLBACK_MODE.get(setting_key, _DEFAULT_FALLBACK_MODE),
+    )
 
 
 def _escalation_rules(agent: AgentDefinition) -> list[EscalationRuleOut]:
@@ -163,6 +187,7 @@ def _agent_ops_row(agent: AgentDefinition, override: AgentPolicyOverride | None)
             policy.fallback_tier,
             semantic_escalation=resolved.semantic_escalation,
         ),
+        controls=_controls_out(agent.setting_key),
     )
 
 
