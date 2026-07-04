@@ -65,6 +65,10 @@ from dominion.workers.packet import master as packet_master
 from dominion.workers.packet.validation import leading_roster_name
 from dominion.workers.scene_packet import inputs as scene_packet_inputs
 
+# L6 (run orchestration): pure stage machine — pinned stage strings + deterministic gates that must
+# fail BEFORE any LLM spend. Persistence stays here; decisions live in run_stages (DB-free, tested).
+from dominion.workers import run_stages  # isort: skip
+
 
 def _hash_payload(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode("utf-8")).hexdigest()
@@ -1262,6 +1266,33 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
     sequence = await latest_chapter_sequence(session, run.chapter_id)
     if chapter is None:
         return
+
+    # L6 assembly gate — assembly REFUSES (structured run event + parked stage, never an exception
+    # dump and never a chapter_draft "pretending it could succeed") when the sequence is QA-blocked
+    # or when sequence scenes lack prose. The ch1 failure assembled 2 of 4 broken scenes anyway and
+    # spent QA + a repair swarm on a chapter that could never be valid.
+    scenes_with_prose = {no for no, sc in latest_scenes.items() if (sc.prose or "").strip()}
+    gate = run_stages.evaluate_assembly_readiness(
+        sequence.body if sequence is not None else None,
+        scenes_with_prose,
+        sequence_blocked=(
+            sequence is not None
+            and (sequence.status == ChapterSequenceStatus.BLOCKED or sequence.qa_verdict == "block_drafting")
+        ),
+    )
+    if not gate.ok:
+        run.current_stage = gate.next_stage or run_stages.STAGE_WAITING_FOR_SCENE_DRAFTS
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="assembly_refused",
+            stage=run.current_stage,
+            message=f"Chapter assembly refused: {gate.reason}.",
+            payload={"reason": gate.reason, "violations": gate.violations},
+        )
+        return
+    run.current_stage = run_stages.STAGE_ASSEMBLING_CHAPTER
+
     seq_by_no = {}
     if sequence and sequence.body:
         for it in sequence.body.get("scenes") or []:
@@ -1426,7 +1457,24 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
             payload={"chapter_id": str(run.chapter_id)},
         )
     else:
-        run.current_stage = "chapter_assembly"
+        # L6 chapter-QA routing — QA runs strictly AFTER a full assembly. STRUCTURAL blocking issues
+        # (sequence_budget_mismatch, scene_scope_bleed, duplicate_irreversible_beat,
+        # canon_contract_leak) park the run in structural_repair_required as one root-cause state
+        # instead of scattering downstream symptoms into repair_execution.
+        qa_outcome = run_stages.classify_qa_outcome(
+            [issue.issue_kind for issue in open_issues]
+            + [str(f.get("kind") or "") for f in chapter_draft_qa.get("findings") or []]
+        )
+        run.current_stage = qa_outcome.next_stage or run_stages.STAGE_CHAPTER_QA
+        if not qa_outcome.ok:
+            await _record_event(
+                session,
+                run_id=run.id,
+                event_type="structural_repair_required",
+                stage=run.current_stage,
+                message="Chapter QA found structural blocking issues; prose repair is gated until they are fixed.",
+                payload={"reason": qa_outcome.reason, "violations": qa_outcome.violations},
+            )
         if run.status == ProductionRunStatus.RUNNING:
             run.status = ProductionRunStatus.WAITING_FOR_HUMAN
 
@@ -1451,13 +1499,39 @@ async def queue_draft_jobs_for_missing_sequence_scenes(session: AsyncSession, ru
     sequence = await latest_chapter_sequence(session, run.chapter_id)
     if not sequence or not sequence.body:
         return []
+    scene_packets = await _scene_packet_map(session, run.chapter_id)
+
+    # L6 drafting gate — structural preconditions fail BEFORE any LLM call: valid derived sequence
+    # (not QA-blocked), non-contradictory budget arithmetic, and an approved NON-STALE ScenePacket
+    # for every sequence scene. The ch1 failure queued four drafters against budgets that already
+    # guaranteed a 34% chapter overrun.
+    gate = run_stages.evaluate_drafting_readiness(
+        sequence_status=str(sequence.status),
+        sequence_qa_verdict=sequence.qa_verdict,
+        sequence_body=sequence.body,
+        scene_packets={
+            no: {"status": str(p.status), "word_budget": (p.body or {}).get("word_budget")}
+            for no, p in scene_packets.items()
+        },
+    )
+    if not gate.ok:
+        if gate.next_stage:
+            run.current_stage = gate.next_stage
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="draft_blocked",
+            stage=run.current_stage or "draft_missing",
+            message=f"Draft queueing refused before LLM spend: {gate.reason}.",
+            payload={"reason": gate.reason, "violations": gate.violations},
+        )
+        return []
 
     seq_scenes = sorted(
         [s for s in (sequence.body.get("scenes") or []) if isinstance(s, dict)],
         key=lambda s: int(s.get("scene_no") or 0),
     )
     existing_scenes = await _latest_scene_map(session, run.chapter_id)
-    scene_packets = await _scene_packet_map(session, run.chapter_id)
 
     chapter = await session.get(Chapter, run.chapter_id)
 
@@ -1540,7 +1614,8 @@ async def queue_draft_jobs_for_missing_sequence_scenes(session: AsyncSession, ru
                     payload={"job_id": str(jid), "scene_no": sno, "production_run_id": str(run.id)},
                 )
             if created_job_ids:
-                run.current_stage = "awaiting_scene_drafts"
+                # L6: pinned stage string — drafts are in flight for this run.
+                run.current_stage = run_stages.STAGE_DRAFTING_SCENES
             return created_job_ids
 
     return []
@@ -1719,6 +1794,9 @@ async def update_timeline_after_scene(
         tl.chapter_so_far_summary = (sequence.body or {}).get("chapter_spine")
 
     tl.updated_at = _now()
+    # L6: a scene just persisted with its critiques — the run is in per-scene QA until the next
+    # draft is queued (drafting_scenes) or assembly is attempted (assembling_chapter / refusal).
+    run.current_stage = run_stages.STAGE_SCENE_QA
     await session.flush()
 
     # Refresh artifact for visibility (best effort)
@@ -1764,6 +1842,28 @@ async def _block_production_on_timeline_failure(
         payload={"error": error, "scene_no": getattr(run, "current_scene_no", None)},
     )
     await session.flush()
+
+
+async def mark_run_provider_rate_limited(
+    session: AsyncSession, production_run_id: uuid.UUID, error: str
+) -> ProductionRun | None:
+    """L6: a provider 429 that survived retries is transient infrastructure — park the run in the
+    retryable provider_rate_limited stage, NEVER in a contract/author-failure state. Status is left
+    untouched so resume/re-queue re-enters the draft loop without ceremony."""
+    run = await session.get(ProductionRun, production_run_id)
+    if run is None:
+        return None
+    run.current_stage = run_stages.STAGE_PROVIDER_RATE_LIMITED
+    await _record_event(
+        session,
+        run_id=run.id,
+        event_type="provider_rate_limited",
+        stage=run.current_stage,
+        message="Provider rate limit (429) persisted past automatic retries; the run is retryable.",
+        payload={"error": error[:2000], "retryable": True},
+    )
+    await session.flush()
+    return run
 
 
 async def create_production_run(
@@ -2165,6 +2265,49 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         stage="issue_triage",
         input_artifact_ids=[],
     )
+
+    # L6 structural gate — if any proposed issue is a STRUCTURAL blocker, triage collapses to a
+    # single root-cause state: escalate the structural issues, leave the downstream symptoms
+    # untouched (still proposed), and park the run in structural_repair_required. No repair tasks
+    # are scattered off symptoms of a broken skeleton (ch1: 24 issues / 10 tasks from 3 root causes).
+    structural = run_stages.structural_kinds(issue.issue_kind for issue in issues)
+    if structural:
+        structural_set = set(structural)
+        escalated: list[str] = []
+        for issue in issues:
+            if issue.issue_kind not in structural_set:
+                continue
+            issue.status = IssueStatus.ESCALATED
+            escalated.append(str(issue.id))
+            session.add(
+                IssueDecision(
+                    issue_id=issue.id,
+                    decided_by="issue_triage_evaluator",
+                    decision=IssueDecisionKind.ESCALATE,
+                    reason="Structural blocker: repair the chapter skeleton before prose repair.",
+                    agent_run_id=triage.id,
+                )
+            )
+        _finish_agent_run(
+            triage,
+            status=AgentRunStatus.COMPLETED,
+            output_artifact_ids=[],
+            payload={"structural_blocking_kinds": structural, "escalated_issue_ids": escalated},
+        )
+        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
+        run.current_stage = run_stages.STAGE_STRUCTURAL_REPAIR_REQUIRED
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="structural_repair_required",
+            stage=run.current_stage,
+            message="Structural blocking issues present; prose repair is gated until they are resolved.",
+            payload={"structural_blocking_kinds": structural, "escalated_issue_ids": escalated},
+            agent_run_id=triage.id,
+        )
+        await _update_run_summary(session, run)
+        return run
+
     grouped: dict[tuple[uuid.UUID | None, int | None, str, str], list[Issue]] = defaultdict(list)
     created_tasks: list[RepairTask] = []
     created_artifacts: list[Artifact] = []
@@ -2223,7 +2366,10 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         output_artifact_ids=[str(artifact.id) for artifact in created_artifacts],
     )
     run.status = ProductionRunStatus.REPAIRING if created_tasks else ProductionRunStatus.WAITING_FOR_HUMAN
-    run.current_stage = "repair_queue" if created_tasks else "chapter_assembly"
+    if created_tasks:
+        run.current_stage = "repair_queue"
+    # L6: with no repair tasks the run keeps its real stage (chapter_qa after assembly,
+    # waiting_for_scene_drafts after an assembly refusal) instead of claiming "chapter_assembly".
     await _update_run_summary(session, run)
     return run
 
@@ -3130,7 +3276,8 @@ async def run_final_qa(session: AsyncSession, run_id: uuid.UUID) -> Artifact:
     await assemble_run(session, run)
     qa_artifact = await latest_chapter_draft_qa(session, run_id)
     if qa_artifact is None:
-        raise ValueError("chapter QA artifact not found")
+        # L6: assembly refused (structured event recorded) — surface the parked stage, not a dump.
+        raise ValueError(f"chapter QA unavailable: assembly refused, run is parked in {run.current_stage!r}")
     return qa_artifact
 
 
@@ -3188,6 +3335,9 @@ async def resume_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         for task in await production_run_repair_tasks(session, run_id)
     )
     run.status = ProductionRunStatus.REPAIRING if has_pending_repairs else ProductionRunStatus.RUNNING
+    # L6: resuming a rate-limited run re-enters the ordered flow at the drafting boundary.
+    if run.current_stage == run_stages.STAGE_PROVIDER_RATE_LIMITED:
+        run.current_stage = run_stages.STAGE_WAITING_FOR_SCENE_DRAFTS
     await _record_event(
         session,
         run_id=run.id,
