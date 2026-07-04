@@ -1,6 +1,19 @@
 # Agent instructions — Realmwalkers
 
-$env:PATH = "C:\Program Files\Git\cmd;C:\Program Files\GitHub CLI;$env:PATH"
+## Verify before ship
+
+Run the backend CI gates locally before claiming green or shipping:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+```bash
+just verify
+# or: bash scripts/verify.sh
+```
+
+This runs **ruff check**, **ruff format --check**, **pyright on changed `src/` Python files** (vs `origin/main`), and **pytest -q -rs** with the same env as CI (`DOMINION_REQUIRE_DB=1`, Postgres on `127.0.0.1:5432`). Provide a Postgres+pgvector instance (or unset `DOMINION_REQUIRE_DB`) if DB-backed tests skip or fail on connection.
 
 ## Contract-first drafting
 
