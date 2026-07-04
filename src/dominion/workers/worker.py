@@ -22,7 +22,7 @@ from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job
-from dominion.workers import progress
+from dominion.workers import progress, run_stages
 from dominion.workers.pipeline import generate_one_scene
 
 log = structlog.get_logger()
@@ -59,9 +59,10 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         if job is None:
             await session.commit()
             return False
-        # Capture as a primitive: rollback() expires every ORM attribute, and reading an expired
+        # Capture as primitives: rollback() expires every ORM attribute, and reading an expired
         # one would fire a *sync* reload query (illegal under the async engine -> MissingGreenlet).
         job_id = job.id
+        production_run_id = job.production_run_id
         progress.set_phase(str(job_id), "starting")
         try:
             scene = await asyncio.wait_for(generate_one_scene(session, job), timeout=settings.scene_time_budget_s)
@@ -84,6 +85,17 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
                 .values(status=JobStatus.FAILED, last_error=f"{type(exc).__name__}: {exc}{loc}"[:2000])
             )
             await session.commit()
+            # L6 (run orchestration): a provider 429 past retries is transient infrastructure — the
+            # owning production run parks in the retryable provider_rate_limited stage, never in a
+            # contract-failure state. Best effort: never mask the original error being re-raised.
+            if production_run_id is not None and run_stages.stage_after_draft_failure(exc) is not None:
+                try:
+                    from dominion.workers import production as prod
+
+                    await prod.mark_run_provider_rate_limited(session, production_run_id, str(exc))
+                    await session.commit()
+                except Exception:  # noqa: BLE001 — diagnostics only; the job failure already persisted
+                    log.error("run.rate_limit_flag_failed", job=str(job_id))
             log.error("scene.failed", job=str(job_id), error=str(exc))
             raise
         finally:
