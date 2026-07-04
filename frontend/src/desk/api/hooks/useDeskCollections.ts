@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../client";
 import { EMPTY_JOBS } from "../constants";
 import type {
@@ -12,6 +12,24 @@ import type {
   ThreadOut,
 } from "../types";
 import type { DeskFail } from "./shared";
+
+// Books whose full canon bodies have already been downloaded this session. loadCollections re-runs
+// on every book load and queue-clear; without this guard each run re-fetched the entire body corpus
+// (~2MB observed) in the background just to keep command-palette body search warm. Bodies change
+// only via canon mutations (which patch state directly) or an ingest/rebuild (which must call
+// invalidateCanonBodies), so once per book per session is enough.
+const canonBodiesLoaded = new Set<string>();
+
+/** Force the next loadCollections for this book to re-download full canon bodies — call after an
+ *  ingest/rebuild replaces the corpus wholesale (entity ids change, so merged bodies would be lost). */
+export function invalidateCanonBodies(bookId: string): void {
+  canonBodiesLoaded.delete(bookId);
+}
+
+/** Test-only: module-level session state would otherwise leak between vitest cases. */
+export function resetCanonBodyGuardForTests(): void {
+  canonBodiesLoaded.clear();
+}
 
 export interface DeskCollectionsState {
   chapters: ChapterOut[];
@@ -34,6 +52,7 @@ export interface DeskCollectionsState {
   refreshAll: (bookId: string | null) => Promise<void>;
   refreshScenes: (bookId: string | null) => Promise<void>;
   refreshManuscript: (bookId: string | null) => Promise<void>;
+  markManuscriptStale: () => void;
 }
 
 export function useDeskCollections(
@@ -52,6 +71,11 @@ export function useDeskCollections(
   const [threads, setThreads] = useState<ThreadOut[]>([]);
   const [ruleProposals, setRuleProposals] = useState<RuleProposalOut[]>([]);
   const [jobs, setJobs] = useState<JobsStatusOut>(EMPTY_JOBS);
+
+  // Manuscript freshness: true while the cached compile still matches the backend. Scene actions and
+  // chapter edits flip it false (refreshScenes / markManuscriptStale); while fresh, refreshManuscript
+  // is a pure no-op, so revisiting the Manuscript tab renders the cached compile with zero network.
+  const manuscriptFresh = useRef(false);
 
   const latestScenes = useMemo(() => {
     const m = new Map<string, SceneOut>();
@@ -83,15 +107,29 @@ export function useDeskCollections(
     setScenes(sceneLists.flat());
     setPending(pend.filter((s) => chIds.has(s.chapter_id)));
     setManuscript(ms);
+    manuscriptFresh.current = ms != null;
     setCharacters(chars);
-    setCanon(can);
+    const hasBodies = canonBodiesLoaded.has(id);
+    setCanon((prev) => {
+      if (!hasBodies || prev.length === 0) return can;
+      // Bodies already downloaded this session: keep the fresh slim index authoritative for
+      // adds/deletes/renames, but carry the known bodies over by id — a routine reload must never
+      // downgrade the upgraded corpus back to bodiless rows.
+      const bodies = new Map(prev.map((c) => [c.id, c.body]));
+      return can.map((c) => (c.body == null ? { ...c, body: bodies.get(c.id) ?? c.body } : c));
+    });
+    if (!hasBodies) {
+      canonBodiesLoaded.add(id); // set before the fetch so overlapping loads don't double-download
+      void api
+        .canon(id)
+        .then((full) => setCanon(full))
+        // Slim index stays if the upgrade fails (palette searches names/kinds); clear the guard so
+        // the next load retries the body download.
+        .catch(() => canonBodiesLoaded.delete(id));
+    }
     setThreads(thr);
     setRuleProposals(rules);
     setJobs(js);
-    void api
-      .canon(id)
-      .then((full) => setCanon(full))
-      .catch(() => {}); // slim index stays if the upgrade fails — palette just searches names/kinds
   }, []);
 
   const refreshAll = useCallback(
@@ -114,6 +152,10 @@ export function useDeskCollections(
   const refreshScenes = useCallback(
     async (activeBookId: string | null): Promise<void> => {
       if (!activeBookId) return;
+      // A scene action may have changed the approved compile (approve/revert/delete/clear) — the
+      // next Manuscript visit refetches instead of trusting the cached compile. Over-broad on
+      // drafting-progress ticks, but staleness must err toward refetching.
+      manuscriptFresh.current = false;
       try {
         const chs = await api.chapters(activeBookId);
         const [sceneLists, pend, js] = await Promise.all([
@@ -136,11 +178,20 @@ export function useDeskCollections(
 
   const refreshManuscript = useCallback(async (activeBookId: string | null): Promise<void> => {
     if (!activeBookId) return;
+    // Warm cache: the compile on hand still matches the backend — render it, fetch nothing. This is
+    // what makes a Manuscript tab revisit instant. Stale or never-loaded: refetch (callers keep
+    // showing the cached compile while this resolves in the background).
+    if (manuscriptFresh.current) return;
     try {
       setManuscript(await api.manuscript(activeBookId));
+      manuscriptFresh.current = true;
     } catch {
       /* keep the prior manuscript on a transient failure */
     }
+  }, []);
+
+  const markManuscriptStale = useCallback((): void => {
+    manuscriptFresh.current = false;
   }, []);
 
   useEffect(() => {
@@ -188,6 +239,7 @@ export function useDeskCollections(
       refreshAll,
       refreshScenes,
       refreshManuscript,
+      markManuscriptStale,
     }),
     [
       chapters,
@@ -210,6 +262,7 @@ export function useDeskCollections(
       refreshAll,
       refreshScenes,
       refreshManuscript,
+      markManuscriptStale,
     ],
   );
 }

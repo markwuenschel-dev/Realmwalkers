@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { useDeskActiveScene } from "./hooks/useDeskActiveScene";
 import { useDeskBooks } from "./hooks/useDeskBooks";
 import { useDeskChapterCreate } from "./hooks/useDeskChapterCreate";
-import { useDeskCollections } from "./hooks/useDeskCollections";
+import { invalidateCanonBodies, useDeskCollections } from "./hooks/useDeskCollections";
 import { useDeskError } from "./hooks/useDeskError";
 import { useDeskJobs } from "./hooks/useDeskJobs";
 import { useDeskMarkup } from "./hooks/useDeskMarkup";
@@ -122,6 +122,12 @@ export interface DeskData {
   deleteSuggestion: (id: string) => Promise<void>;
 }
 
+// Stable identity for the onBookChange callback. An inline `() => {}` here re-armed the collections
+// bootstrap effect (it's in that effect's dependency array) on EVERY provider render — so any state
+// change in this hook (each drafting poll tick, every action) re-ran the full loadCollections
+// fan-out. Hoisting it means the bootstrap effect fires only when the book actually changes.
+const noopOnBookChange = (): void => {};
+
 export function useDeskDataState(): DeskData {
   const [loading, setLoading] = useState(true);
   const { error, setError, clearError, fail } = useDeskError();
@@ -129,7 +135,7 @@ export function useDeskDataState(): DeskData {
   const { books, bookId, setBook, createBook } = useDeskBooks(fail, setLoading);
 
   const chapterCreate = useDeskChapterCreate(fail);
-  const collections = useDeskCollections(bookId, fail, setError, setLoading, () => {});
+  const collections = useDeskCollections(bookId, fail, setError, setLoading, noopOnBookChange);
 
   const refreshAll = useCallback(
     () => collections.refreshAll(bookId),
@@ -202,9 +208,21 @@ export function useDeskDataState(): DeskData {
     [bookId, world.createCanon],
   );
 
-  const ingestCanon = useCallback(
-    () => world.ingestCanon(bookId, collections.loadCollections),
-    [bookId, collections.loadCollections, world.ingestCanon],
+  const ingestCanon = useCallback(() => {
+    // A rebuild replaces the corpus wholesale (new entity ids) — the once-per-session canon body
+    // upgrade must re-run on the reload that follows, or palette body search goes dark.
+    if (bookId) invalidateCanonBodies(bookId);
+    return world.ingestCanon(bookId, collections.loadCollections);
+  }, [bookId, collections.loadCollections, world.ingestCanon]);
+
+  // Chapter edits (title/epigraph/POV/kind) surface in the compiled manuscript — mark the cached
+  // compile stale so the next Manuscript visit refetches instead of serving it warm.
+  const updateChapter = useCallback(
+    async (chapterId: string, body: ChapterUpdateIn) => {
+      collections.markManuscriptStale();
+      await sceneActions.updateChapter(chapterId, body);
+    },
+    [collections.markManuscriptStale, sceneActions.updateChapter],
   );
 
   const distillRules = useCallback(
@@ -255,7 +273,7 @@ export function useDeskDataState(): DeskData {
       refreshAll,
       refreshManuscript,
       createBook,
-      updateChapter: sceneActions.updateChapter,
+      updateChapter,
       creatingChapter: chapterCreate.creating,
       createAndPropose,
       retryFailed: sceneActions.retryFailed,
@@ -300,6 +318,7 @@ export function useDeskDataState(): DeskData {
       refreshManuscript,
       createBook,
       sceneActions,
+      updateChapter,
       chapterCreate.creating,
       createAndPropose,
       createThread,
