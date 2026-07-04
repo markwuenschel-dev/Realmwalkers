@@ -349,6 +349,7 @@ class TestLane3BudgetReconciliation:
 # ---------------------------------------------------------------------------
 
 _CANON_FUNCS = (
+    "scan_packet_prose",
     "scan_prohibitions",
     "detect_canon_leaks",
     "scan_canon",
@@ -382,10 +383,15 @@ _BENIGN_UI_PROSE = (
 def _canon_scan(module, prose):
     packet_body = fx.chapter_packet_body()
     packet = fx.chapter_packet()
+    # The No-Eyes prohibition lives in the packet's resolved rulings, not the body —
+    # the landed lane-4 API takes open_questions alongside the body.
+    open_questions = packet.get("open_questions") if isinstance(packet, dict) else None
     return fx.call_detector(
         module,
         _CANON_FUNCS,
         attempts=[
+            ((), {"prose": prose, "packet_body": packet_body, "open_questions": open_questions}),
+            ((prose, packet_body, open_questions), {}),
             ((), {"prose": prose, "chapter_packet_body": packet_body}),
             ((), {"prose": prose, "packet_body": packet_body}),
             ((), {"prose": prose, "chapter_packet": packet}),
