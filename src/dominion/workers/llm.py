@@ -255,6 +255,22 @@ def _response_of(exc: BaseException) -> httpx.Response | None:
     return resp if isinstance(resp, httpx.Response) else None
 
 
+def find_rate_limit(exc: BaseException | None) -> LlmRateLimited | None:
+    """The LlmRateLimited buried anywhere in an exception chain (__cause__/__context__), else None.
+
+    Orchestrators classify a failure as retryable provider state by TYPE, but a 429 can reach them
+    wrapped (an enrichment PassError, an escalation wrapper, a re-raise). Walking the chain keeps the
+    classification honest without string-matching provider messages — the contract LlmRateLimited's
+    docstring promises."""
+    seen: set[int] = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if isinstance(exc, LlmRateLimited):
+            return exc
+        exc = exc.__cause__ or exc.__context__
+    return None
+
+
 # OpenAI reset headers use duration strings like "12ms" / "1.234s" / "6m0s" — parse the leading unit.
 _RESET_DURATION_RE = re.compile(r"^(\d+(?:\.\d+)?)(ms|s|m|h)?")
 
@@ -723,6 +739,13 @@ async def complete(
         system_chars=len(system),
         token_count_method=token_count_method,
         preflight_total=preflight_total,
+        # Rate-limit observability: how many automatic retries this call burned, the output allowance
+        # we asked the provider to admit, and (OpenAI-compatible path) the provider's remaining/reset
+        # headers — so a 429-adjacent call is diagnosable from the log stream alone.
+        retries=retry_stats.get("retries", 0),
+        max_tokens=max_tokens,
+        requested_tokens=estimated_input_tokens + max_tokens,
+        rate_limit_headers=provider_headers or None,
         budget_soft_exceeded=charge_result.soft_exceeded,
         budget_hard_exceeded=charge_result.hard_exceeded,
     )
