@@ -5,9 +5,14 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from dominion.shared.model_pricing import pricing_for_model
 from dominion.shared.models import LlmCall
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
-from dominion.workers.telemetry_cost import estimate_cache_savings_usd, estimate_calls_cost_usd
+from dominion.workers.telemetry_cost import (
+    estimate_cache_savings_usd,
+    estimate_call_cost_usd,
+    estimate_calls_cost_usd,
+)
 
 # Canonical pipeline order for scene timeline display.
 PIPELINE_STAGE_ORDER: tuple[str, ...] = (
@@ -56,6 +61,47 @@ def _totals(calls: Iterable[LlmCall]) -> dict[str, Any]:
         errors=sum(1 for c in calls if c.error),
         fallbacks=fallbacks,
         avg_latency_ms=int(sum(latencies) / len(latencies)) if latencies else None,
+        estimated_cost_usd=round(cost, 4),
+        cache_savings_usd=round(cache_saved_usd, 4),
+    )
+
+
+def totals_from_model_rows(rows: Iterable[Any]) -> dict[str, Any]:
+    """`_totals` computed from SQL-side per-model aggregate rows instead of materialized calls.
+
+    Each row must carry `model` plus the summed columns (calls, token sums, truncations/errors/
+    fallbacks counts, latency_sum, latency_count). Pricing is linear in tokens, so applying each
+    model's rates to that model's sums yields the same cost/savings as pricing every call.
+    """
+    rows = list(rows)
+    input_t = sum(r.input_tokens for r in rows)
+    cc = sum(r.cache_creation_tokens for r in rows)
+    cr = sum(r.cache_read_tokens for r in rows)
+    prompt = input_t + cc + cr
+    latency_sum = sum(r.latency_sum or 0 for r in rows)
+    latency_count = sum(r.latency_count for r in rows)
+    cost = 0.0
+    cache_saved_usd = 0.0
+    for r in rows:
+        tier = pricing_for_model(r.model)
+        cost += (
+            estimate_call_cost_usd(model=r.model, input_tokens=r.input_tokens, output_tokens=r.output_tokens)
+            + r.cache_creation_tokens * tier.cache_write / 1_000_000
+            + r.cache_read_tokens * tier.cache_read / 1_000_000
+        )
+        cache_saved_usd += max(0.0, r.cache_read_tokens * (tier.input - tier.cache_read) / 1_000_000)
+    return dict(
+        calls=sum(r.calls for r in rows),
+        input_tokens=input_t,
+        output_tokens=sum(r.output_tokens for r in rows),
+        cache_creation_tokens=cc,
+        cache_read_tokens=cr,
+        cache_hit_ratio=round(cr / prompt, 3) if prompt else 0.0,
+        cache_tokens_saved=int(cr * 0.9),
+        truncations=sum(r.truncations for r in rows),
+        errors=sum(r.errors for r in rows),
+        fallbacks=sum(r.fallbacks for r in rows),
+        avg_latency_ms=int(latency_sum / latency_count) if latency_count else None,
         estimated_cost_usd=round(cost, 4),
         cache_savings_usd=round(cache_saved_usd, 4),
     )

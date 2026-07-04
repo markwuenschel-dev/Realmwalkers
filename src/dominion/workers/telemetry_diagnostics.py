@@ -5,12 +5,40 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from sqlalchemy import ColumnElement, and_, or_
+
 from dominion.shared.models import LlmCall
 from dominion.workers.telemetry_agg import PRIME_STAGES, call_metadata, group_calls
 
 # Prime calls below this input token count likely did not write a meaningful cache breakpoint.
 _PRIME_MIN_INPUT_TOKENS = 1024
 _HIGH_LATENCY_MS = 30_000
+# Author calls that paid a cache write this large with zero cache read are the cache-miss-after-prime signal.
+_AUTHOR_MISS_MIN_CACHE_CREATION = 5000
+
+
+def problem_call_criteria() -> ColumnElement[bool]:
+    """SQL prefilter matching every llm_calls row a detector below can flag, so the problems endpoint
+    fetches only candidate rows instead of a book's whole exhaust. Each detector re-filters in Python,
+    so each OR arm only has to cover one detector's predicate — the metadata arms rely on the writers
+    only ever storing those flags as JSON booleans/strings (workers/llm.py, llm_escalation.py)."""
+    return or_(
+        LlmCall.truncated.is_(True),  # detect_truncations
+        and_(LlmCall.error.isnot(None), LlmCall.error != ""),  # error rollup in build_problems
+        LlmCall.latency_ms >= _HIGH_LATENCY_MS,  # detect_high_latency
+        LlmCall.metadata_["budget_hard_exceeded"].astext == "true",  # detect_budget_overages
+        LlmCall.metadata_["budget_soft_exceeded"].astext == "true",
+        LlmCall.metadata_["token_count_method"].astext == "local_estimate",  # detect_token_count_fallbacks
+        # detect_cache_issues: short primes; primes that read cache (the had_prime_read witness);
+        # author calls that paid a big cache write with zero read.
+        and_(LlmCall.stage.in_(sorted(PRIME_STAGES)), LlmCall.input_tokens < _PRIME_MIN_INPUT_TOKENS),
+        and_(LlmCall.stage.in_(sorted(PRIME_STAGES)), LlmCall.cache_read_tokens > 0),
+        and_(
+            LlmCall.stage == "scene_packet_author",
+            LlmCall.cache_read_tokens == 0,
+            LlmCall.cache_creation_tokens > _AUTHOR_MISS_MIN_CACHE_CREATION,
+        ),
+    )
 
 
 def _problem(
@@ -168,7 +196,11 @@ def detect_cache_issues(calls: list[LlmCall]) -> list[dict[str, Any]]:
         authors = [c for c in run_calls if c.stage == "scene_packet_author"]
         if primes and authors:
             had_prime_read = any(c.cache_read_tokens > 0 for c in primes)
-            zero_read_authors = [c for c in authors if c.cache_read_tokens == 0 and c.cache_creation_tokens > 5000]
+            zero_read_authors = [
+                c
+                for c in authors
+                if c.cache_read_tokens == 0 and c.cache_creation_tokens > _AUTHOR_MISS_MIN_CACHE_CREATION
+            ]
             if had_prime_read and zero_read_authors:
                 problems.append(
                     _problem(
