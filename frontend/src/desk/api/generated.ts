@@ -617,6 +617,29 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/chapters/{chapter_id}/beats/derive": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rederive Beats
+     * @description Reconcile beats with the CURRENT approved scene packets: upsert one beat per approved packet
+     *     and prune orphans (legacy beat-first rows, beats of no-longer-approved packets). The escape hatch
+     *     for a gate stuck on 'N approved beats are not linked' when every packet is already approved — no
+     *     approval state changes, so it is safe to run any time. Returns fresh readiness.
+     */
+    post: operations["rederive_beats_chapters__chapter_id__beats_derive_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/scene-packets/summary": {
     parameters: {
       query?: never;
@@ -1689,6 +1712,10 @@ export interface paths {
      *     Filters (all optional): `kind`; `status` (active|stale|retired|superseded|all, default `active` so
      *     the Ledger hides retired/stale canon by default — pass `all` to see everything); `source`
      *     (manual|repo_ingested|packet_derived|draft_derived|legacy|all).
+     *
+     *     include_bodies=false returns the slim index (id/kind/name/source/status, body=null): the full
+     *     corpus is megabytes and the Desk's global provider only needs the index for first paint — bodies
+     *     upgrade in the background (command-palette search) or load on the Ledger screen itself.
      */
     get: operations["list_canon_books__book_id__canon_get"];
     put?: never;
@@ -5114,6 +5141,11 @@ export interface components {
        */
       rate_limited: number;
       /**
+       * Skipped
+       * @default 0
+       */
+      skipped: number;
+      /**
        * Packets
        * @default []
        */
@@ -7091,6 +7123,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DeleteScenePacketsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  rederive_beats_chapters__chapter_id__beats_derive_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DraftReadinessOut"];
         };
       };
       /** @description Validation Error */
@@ -9120,6 +9183,7 @@ export interface operations {
         kind?: string | null;
         status?: string;
         source?: string | null;
+        include_bodies?: boolean;
       };
       header?: never;
       path: {

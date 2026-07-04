@@ -30,6 +30,7 @@ from dominion.shared.models import ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.schemas import (
     DeleteScenePacketOut,
     DeleteScenePacketsOut,
+    DraftReadinessOut,
     ScenePacketApproveIn,
     ScenePacketDeriveOut,
     ScenePacketDeriveStatusOut,
@@ -41,6 +42,7 @@ from dominion.shared.schemas import (
 from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.budget import TokenBudget
+from dominion.workers.draft_readiness import compute_draft_readiness
 from dominion.workers.llm import LlmRateLimited
 from dominion.workers.packet import approval_policy as packet_approval
 from dominion.workers.scene_packet import approval_policy as sp_approval
@@ -71,12 +73,15 @@ async def _latest_approved_chapter_packet(session: AsyncSession, chapter_id: uui
 async def _run_derive(chapter_id: uuid.UUID) -> None:
     """Background derive for one chapter, on its own session+commit (the request already returned).
     The ScenePacket Author + QA run once per scene, so a 12-scene chapter is ~25 LLM calls — far too
-    long to block the request."""
+    long to block the request. Beats are reconciled afterwards so a re-derive also prunes orphaned
+    beats (legacy beat-first rows, beats of no-longer-approved packets) that would otherwise hold the
+    draft gate as "unlinked" forever."""
     try:
         async with SessionFactory() as session:
             cp = await _latest_approved_chapter_packet(session, chapter_id)
             if cp is not None:
                 counts = await derive_mod.derive_scene_packets(session, packet=cp)
+                await beats_mod.derive_beats(session, chapter_id=chapter_id)
                 await session.commit()
                 background_work.set_derive_result(str(chapter_id), counts)
     except Exception as exc:  # noqa: BLE001 — never let a background crash strand the slot
@@ -121,22 +126,16 @@ async def derive_status(chapter_id: uuid.UUID, session: SessionDep) -> ScenePack
     running = background_work.is_running(key)
     result: ScenePacketDeriveOut | None = None
     if not running and (counts := background_work.get_derive_result(str(chapter_id))) is not None:
-        rows = (
-            (
-                await session.execute(
-                    select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        # Counts only — no packet bodies. The Desk refetches the (slim) list itself when the derive
+        # finishes; embedding every full contract here made each 1.5s status poll a ~100KB download.
         result = ScenePacketDeriveOut(
             created=counts["created"],
             updated=counts["updated"],
             blocked=counts["blocked"],
             stale=counts["stale"],
             rate_limited=counts.get("rate_limited", 0),
-            packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
+            skipped=counts.get("skipped", 0),
+            packets=[],
             context_budget_report=counts.get("context_budget_report"),
         )
     return ScenePacketDeriveStatusOut(running=running, phase=phase, elapsed_s=elapsed_s, result=result)
@@ -149,6 +148,7 @@ async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePac
         raise HTTPException(status_code=409, detail=refusal.detail)
     assert cp is not None  # narrowed by can_derive_scene_packets
     counts = await derive_mod.derive_scene_packets(session, packet=cp)
+    await beats_mod.derive_beats(session, chapter_id=chapter_id)
     await session.commit()
     rows = (
         (
@@ -165,6 +165,7 @@ async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePac
         blocked=counts["blocked"],
         stale=counts["stale"],
         rate_limited=counts.get("rate_limited", 0),
+        skipped=counts.get("skipped", 0),
         packets=[sp_approval.enrich_scene_packet_out(r) for r in rows],
         context_budget_report=counts.get("context_budget_report"),
     )
@@ -182,6 +183,18 @@ async def list_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> list
         .all()
     )
     return [sp_approval.enrich_scene_packet_out(r) for r in rows]
+
+
+@router.post("/chapters/{chapter_id}/beats/derive", response_model=DraftReadinessOut)
+async def rederive_beats(chapter_id: uuid.UUID, session: SessionDep) -> DraftReadinessOut:
+    """Reconcile beats with the CURRENT approved scene packets: upsert one beat per approved packet
+    and prune orphans (legacy beat-first rows, beats of no-longer-approved packets). The escape hatch
+    for a gate stuck on 'N approved beats are not linked' when every packet is already approved — no
+    approval state changes, so it is safe to run any time. Returns fresh readiness."""
+    derived = await beats_mod.derive_beats(session, chapter_id=chapter_id)
+    await session.commit()
+    log.info("scene_packet.beats_rederived", chapter=str(chapter_id), beats=derived)
+    return await compute_draft_readiness(session, chapter_id)
 
 
 @router.get("/chapters/{chapter_id}/scene-packets/summary", response_model=list[ScenePacketSummaryOut])

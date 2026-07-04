@@ -16,6 +16,7 @@ import type {
   ScenePacketBody,
   ScenePacketOut,
   ScenePacketSummaryOut,
+  ScenePacketDeriveStatusOut,
   DraftReadinessOut,
   QaIssue,
   SceneOut,
@@ -124,6 +125,12 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const [telemetryKey, setTelemetryKey] = useState(0);
   const [readiness, setReadiness] = useState<DraftReadinessOut | null>(null);
   const [drafting, setDrafting] = useState(false);
+  // The last completed derive's counts — so a re-derive that (correctly) skips every approved,
+  // unchanged packet says so instead of looking like the button did nothing.
+  const [deriveResult, setDeriveResult] = useState<NonNullable<
+    ScenePacketDeriveStatusOut["result"]
+  > | null>(null);
+  const [copied, setCopied] = useState(false);
   // Per-scene export (Markdown / Reader-DOCX / Shunn-DOCX) once a scene packet's scene has been
   // drafted — same builders the Manuscript tab uses. Author name shared with every export surface.
   const [author, saveAuthor] = useAuthorName();
@@ -151,11 +158,13 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPackets(await api.scenePacketSummaries(chapterId));
+      // Summaries + readiness in parallel — readiness is the slower call and serializing them
+      // added its full latency to every list paint.
+      const [summaries] = await Promise.all([api.scenePacketSummaries(chapterId), loadReadiness()]);
+      setPackets(summaries);
       // Statuses/bodies may have changed server-side — drop the per-card cache so open cards refetch.
       setFullPackets({});
       setTelemetryKey((k) => k + 1);
-      await loadReadiness();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -176,6 +185,7 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
   useEffect(() => {
     setError(null);
     setPackets([]);
+    setDeriveResult(null);
     void load();
     let alive = true;
     api
@@ -202,6 +212,7 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
         } else {
           setDeriving(false);
           setElapsed(null);
+          if (st.result) setDeriveResult(st.result);
           await load();
         }
       } catch {
@@ -330,6 +341,25 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
           </p>
         </div>
         <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
+          <button
+            title="Copy the readiness gate, per-scene statuses, and last derive counts as JSON — paste it when reporting a pipeline problem."
+            onClick={() => {
+              const diagnostics = {
+                chapter_id: chapterId,
+                copied_at: new Date().toISOString(),
+                readiness,
+                scene_packets: packets,
+                last_derive: deriveResult,
+              };
+              void navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2)).then(() => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 2000);
+              });
+            }}
+            style={btn(true, "var(--bg3)", "var(--ink)")}
+          >
+            {copied ? "Copied ✓" : "Copy diagnostics"}
+          </button>
           {packets.length > 0 && (
             <button
               disabled={busy != null || deriving}
@@ -401,6 +431,16 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
+      {deriveResult && !deriving && (
+        <div
+          style={css("font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:12px")}
+        >
+          last derive: {deriveResult.created ?? 0} created · {deriveResult.updated ?? 0} updated ·{" "}
+          {deriveResult.skipped ?? 0} skipped (approved, unchanged) · {deriveResult.blocked ?? 0}{" "}
+          blocked · {deriveResult.rate_limited ?? 0} rate-limited
+        </div>
+      )}
+
       {approvedCount > 0 && (
         <div style={css("margin-bottom:14px")}>
           {/* The headline claim and the button obey the SAME server gate (readiness.draftable) — the
@@ -456,6 +496,30 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
               {!readiness.draftable && readiness.disabled_reason && (
                 <div style={css("color:var(--warn)")}>
                   disabled_reason: {readiness.disabled_reason}
+                </div>
+              )}
+              {((readiness.beats.unlinked as string[] | undefined)?.length ?? 0) > 0 && (
+                <div style={css("margin-top:8px")}>
+                  <button
+                    disabled={busy != null}
+                    title="Reconcile beats with the current approved scene packets — prunes orphaned/legacy beats that hold the gate as 'unlinked'. Changes no approvals."
+                    onClick={() =>
+                      void (async () => {
+                        setBusy("relink-beats");
+                        setError(null);
+                        try {
+                          setReadiness(await api.deriveBeats(chapterId));
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : String(e));
+                        } finally {
+                          setBusy(null);
+                        }
+                      })()
+                    }
+                    style={btn(busy == null, t.accent, t.onAccent)}
+                  >
+                    {busy === "relink-beats" ? "Re-linking…" : "Re-link beats"}
+                  </button>
                 </div>
               )}
             </div>

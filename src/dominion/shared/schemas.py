@@ -376,6 +376,11 @@ class ScenePacketDeriveOut(BaseModel):
     # Scenes whose author/QA call was refused by the provider (429 past retries) — transient
     # infrastructure, retriable; NOT counted as blocked.
     rate_limited: int = 0
+    # Approved packets whose inputs were unchanged (source_hash match) — a re-derive skips them, and
+    # the Desk says so instead of looking like it did nothing.
+    skipped: int = 0
+    # NOTE: the derive/status poll returns this EMPTY — the Desk refetches the list itself, and
+    # embedding every full contract body made each 1.5s poll a ~100KB download.
     packets: list[ScenePacketOut] = []
     context_budget_report: dict[str, Any] | None = None
 

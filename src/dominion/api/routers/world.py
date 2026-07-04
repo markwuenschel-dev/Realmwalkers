@@ -208,12 +208,17 @@ async def list_canon(
     kind: str | None = None,
     status: str = "active",
     source: str | None = None,
-) -> list[CanonEntity]:
+    include_bodies: bool = True,
+) -> list[CanonEntity] | list[CanonEntityOut]:
     """The story bible: characters, locations, factions, items, lore.
 
     Filters (all optional): `kind`; `status` (active|stale|retired|superseded|all, default `active` so
     the Ledger hides retired/stale canon by default — pass `all` to see everything); `source`
     (manual|repo_ingested|packet_derived|draft_derived|legacy|all).
+
+    include_bodies=false returns the slim index (id/kind/name/source/status, body=null): the full
+    corpus is megabytes and the Desk's global provider only needs the index for first paint — bodies
+    upgrade in the background (command-palette search) or load on the Ledger screen itself.
     """
     book = await session.get(Book, book_id)
     if book is None:
@@ -226,7 +231,9 @@ async def list_canon(
     if source and source != "all":
         stmt = stmt.where(CanonEntity.source == source)
     rows = (await session.execute(stmt.order_by(CanonEntity.kind, CanonEntity.name))).scalars().all()
-    return list(rows)
+    if include_bodies:
+        return list(rows)
+    return [CanonEntityOut.model_validate(r).model_copy(update={"body": None}) for r in rows]
 
 
 @router.post("/books/{book_id}/canon", response_model=CanonEntityOut)

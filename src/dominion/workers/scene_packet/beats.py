@@ -15,11 +15,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared.enums import BeatStatus, ScenePacketStatus
-from dominion.shared.models import Beat, ChapterPacket, Scene, ScenePacket
+from dominion.shared.enums import BeatStatus, JobStatus, ScenePacketStatus
+from dominion.shared.models import Beat, ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.text_match import binding_replacements, project_text
 
 _LANE_TAGS: tuple[str, ...] = ("combat", "dialogue", "sensory")
@@ -69,8 +69,15 @@ async def _chapter_cast(session: AsyncSession, chapter_packet_id: uuid.UUID) -> 
 
 
 async def derive_beats(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
-    """Upsert one Beat per APPROVED ScenePacket of this chapter (keyed by scene_packet_id) and prune
-    stale, un-drafted derived beats. Returns the count of scene-packet-linked beats. The caller commits.
+    """Upsert one Beat per APPROVED ScenePacket of this chapter (keyed by scene_packet_id), prune
+    stale un-drafted derived beats, AND prune legacy beat-first rows (scene_packet_id IS NULL).
+    Returns the count of scene-packet-linked beats. The caller commits.
+
+    Legacy pruning: beat-first drafting is disabled, so an approved beat with no packet link can never
+    draft — but draft_readiness counts it as "unlinked" and hard-blocks the Draft gate FOREVER (the
+    observed 'beats_linked 4/8' dead-end: 4 packet-linked beats + 4 legacy orphans). A legacy beat is
+    never the beat of record for a drafted scene (the packet-linked beat is), so the drafted-scene
+    guard below deliberately does not spare it; only a beat still referenced by an ACTIVE job is kept.
     """
     packets = (
         (
@@ -87,13 +94,9 @@ async def derive_beats(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
         .all()
     )
 
-    existing: dict[uuid.UUID, Beat] = {
-        b.scene_packet_id: b
-        for b in (
-            await session.execute(select(Beat).where(Beat.chapter_id == chapter_id, Beat.scene_packet_id.isnot(None)))
-        ).scalars()
-        if b.scene_packet_id is not None
-    }
+    all_beats = list((await session.execute(select(Beat).where(Beat.chapter_id == chapter_id))).scalars())
+    existing: dict[uuid.UUID, Beat] = {b.scene_packet_id: b for b in all_beats if b.scene_packet_id is not None}
+    legacy = [b for b in all_beats if b.scene_packet_id is None]
 
     seen: set[uuid.UUID] = set()
     for sp in packets:
@@ -119,5 +122,27 @@ async def derive_beats(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
     for sp_id, beat in existing.items():
         if sp_id not in seen and beat.scene_no not in drafted:
             await session.delete(beat)
+
+    # Prune legacy beat-first rows (see docstring). Jobs FK beats without cascade, so historical
+    # (failed/done) jobs are detached first; a beat still held by a QUEUED/RUNNING job is left alone.
+    if legacy:
+        legacy_ids = [b.id for b in legacy]
+        active_beat_ids = {
+            bid
+            for (bid,) in (
+                await session.execute(
+                    select(Job.beat_id).where(
+                        Job.beat_id.in_(legacy_ids),
+                        Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+                    )
+                )
+            ).all()
+        }
+        removable = [b for b in legacy if b.id not in active_beat_ids]
+        if removable:
+            removable_ids = [b.id for b in removable]
+            await session.execute(update(Job).where(Job.beat_id.in_(removable_ids)).values(beat_id=None))
+            for beat in removable:
+                await session.delete(beat)
 
     return len(seen)

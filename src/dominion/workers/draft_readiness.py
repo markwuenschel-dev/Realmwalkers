@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, PacketStatus, ScenePacketStatus
 from dominion.shared.models import Beat, Chapter, ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.schemas import DraftQueueBlockerOut, DraftReadinessOut
-from dominion.workers.draft_queue import DraftQueueBlocker, resolve_approved_scene_packet_for_beat
+from dominion.workers.draft_queue import DraftQueueBlocker, resolve_approved_scene_packet_for_beat_prefetched
 
 
 def blocker_out(b: DraftQueueBlocker) -> DraftQueueBlockerOut:
@@ -122,10 +122,20 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
         )
     ).scalar_one() or 0
 
+    # Resolve every beat against the already-loaded packet rows (read-only twin of the queue
+    # resolver) — the old per-beat DB resolution was an N+1 that alone put multiple seconds on
+    # GET /draft/readiness over a networked Postgres.
+    packet_by_id = {p.id: p for p in sp_rows}
+    packets_by_scene_no: dict[int, list[ScenePacket]] = {}
+    for p in sp_rows:
+        packets_by_scene_no.setdefault(p.scene_no, []).append(p)
+
     blockers: list[DraftQueueBlockerOut] = []
     draftable_scenes = 0
     for beat in approved_beats:
-        resolved = await resolve_approved_scene_packet_for_beat(session, beat=beat, repair=False)
+        resolved = resolve_approved_scene_packet_for_beat_prefetched(
+            beat, packet_by_id=packet_by_id, packets_by_scene_no=packets_by_scene_no
+        )
         if isinstance(resolved, DraftQueueBlocker):
             blockers.append(blocker_out(resolved))
         elif beat.scene_no not in drafted_scene_nos:

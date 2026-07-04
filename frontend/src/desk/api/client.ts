@@ -205,6 +205,12 @@ export const api = {
     }),
   draftReadiness: (chapterId: string) =>
     http<import("./types").DraftReadinessOut>(`/chapters/${chapterId}/draft/readiness`),
+  // Reconcile beats with the current approved scene packets (prunes legacy/orphaned beats) — the
+  // escape hatch for a gate stuck on "N approved beats are not linked". Returns fresh readiness.
+  deriveBeats: (chapterId: string) =>
+    http<import("./types").DraftReadinessOut>(`/chapters/${chapterId}/beats/derive`, {
+      method: "POST",
+    }),
 
   // --- manuscript ---------------------------------------------------------------------------------
   manuscript: (bookId: string) => http<ManuscriptOut>(`/books/${bookId}/manuscript`),
@@ -431,8 +437,12 @@ export const api = {
     http<{ deleted: string }>(`/books/${bookId}/characters/${encodeURIComponent(name)}`, {
       method: "DELETE",
     }),
-  canon: (bookId: string, kind?: string) =>
-    http<CanonEntityOut[]>(`/books/${bookId}/canon${qs({ kind })}`),
+  // includeBodies=false fetches the slim index (no bodies) — the full corpus is megabytes and only
+  // command-palette body search / the Ledger need it; the provider upgrades in the background.
+  canon: (bookId: string, kind?: string, opts?: { includeBodies?: boolean }) =>
+    http<CanonEntityOut[]>(
+      `/books/${bookId}/canon${qs({ kind, include_bodies: opts?.includeBodies === false ? "false" : undefined })}`,
+    ),
   // Filtered canon list for the Ledger cleanup UI. `status` defaults to active server-side; pass
   // stale|retired|all to surface hidden rows, and `source` to scope by provenance.
   listCanon: (bookId: string, opts?: { status?: string; source?: string; kind?: string }) =>

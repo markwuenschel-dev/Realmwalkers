@@ -1811,6 +1811,50 @@
         }
       }
     },
+    "/chapters/{chapter_id}/beats/derive": {
+      "post": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Rederive Beats",
+        "description": "Reconcile beats with the CURRENT approved scene packets: upsert one beat per approved packet\nand prune orphans (legacy beat-first rows, beats of no-longer-approved packets). The escape hatch\nfor a gate stuck on 'N approved beats are not linked' when every packet is already approved \u2014 no\napproval state changes, so it is safe to run any time. Returns fresh readiness.",
+        "operationId": "rederive_beats_chapters__chapter_id__beats_derive_post",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftReadinessOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapters/{chapter_id}/scene-packets/summary": {
       "get": {
         "tags": [
@@ -5122,7 +5166,7 @@
           "world"
         ],
         "summary": "List Canon",
-        "description": "The story bible: characters, locations, factions, items, lore.\n\nFilters (all optional): `kind`; `status` (active|stale|retired|superseded|all, default `active` so\nthe Ledger hides retired/stale canon by default \u2014 pass `all` to see everything); `source`\n(manual|repo_ingested|packet_derived|draft_derived|legacy|all).",
+        "description": "The story bible: characters, locations, factions, items, lore.\n\nFilters (all optional): `kind`; `status` (active|stale|retired|superseded|all, default `active` so\nthe Ledger hides retired/stale canon by default \u2014 pass `all` to see everything); `source`\n(manual|repo_ingested|packet_derived|draft_derived|legacy|all).\n\ninclude_bodies=false returns the slim index (id/kind/name/source/status, body=null): the full\ncorpus is megabytes and the Desk's global provider only needs the index for first paint \u2014 bodies\nupgrade in the background (command-palette search) or load on the Ledger screen itself.",
         "operationId": "list_canon_books__book_id__canon_get",
         "parameters": [
           {
@@ -5175,6 +5219,16 @@
                 }
               ],
               "title": "Source"
+            }
+          },
+          {
+            "name": "include_bodies",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Include Bodies"
             }
           }
         ],
@@ -13345,6 +13399,11 @@
           "rate_limited": {
             "type": "integer",
             "title": "Rate Limited",
+            "default": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
             "default": 0
           },
           "packets": {
