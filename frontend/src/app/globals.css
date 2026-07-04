@@ -1,7 +1,22 @@
 /* Global rules from the .dc prototype's <style> block. Everything else is inline-styled and themed
-   via the CSS custom properties set on the desk root element (see desk/theme.ts). */
+   via the CSS custom properties set on the desk root element (see desk/theme.ts).
+
+   THE ONE DELIBERATE EXCEPTION to inline-only styling: the .dk-* utility classes below. Inline
+   styles cannot express :hover / :focus-visible / :active, so interactive primitives take a .dk-*
+   class that carries ONLY transitions + pseudo-state rules (all colors via CSS vars, so both
+   Atelier variants work). Layout and color stay in css() strings. Do not grow this into a class
+   system — if a rule isn't a transition or a pseudo-state, it belongs inline. */
 * {
   box-sizing: border-box;
+}
+
+/* Motion tokens (Atelier): refined, not dramatic. */
+:root {
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 260ms;
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 html,
 body {
@@ -61,6 +76,114 @@ body {
   100% {
     left: 100%;
     width: 35%;
+  }
+}
+/* Activity drawer slide-in + backdrop. */
+@keyframes drawerIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Toast exit (entry reuses fadeUp). */
+@keyframes toastOut {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+/* Skeleton shimmer — a background-position sweep over a 3-stop gradient. */
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+/* Success tick pop — refined, 200ms, for completion marks in the drawer/toasts. */
+@keyframes checkPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Interactive utility classes — transitions + pseudo-states ONLY (see header comment). */
+.dk-btn {
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.dk-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--ink);
+}
+.dk-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.dk-btn:focus-visible {
+  outline: 2px solid var(--accentLine);
+  outline-offset: 2px;
+}
+.dk-card {
+  transition:
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.dk-card:hover {
+  box-shadow: var(--shadow1);
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--line));
+}
+.dk-row {
+  transition: background var(--dur-fast) var(--ease);
+}
+.dk-row:hover {
+  background: var(--bg3);
+}
+.dk-navlink {
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.dk-navlink:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accentSoft) 60%, transparent);
+}
+.dk-chip {
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.dk-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+/* Reduced motion: kill animation/transition time globally. Live-ness survives via data ticks
+   (phase text, elapsed clock) — the accessible signal is never animation-only. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

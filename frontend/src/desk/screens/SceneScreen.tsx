@@ -473,7 +473,7 @@ export default function SceneScreen() {
   let pkey = 0;
   const blocks = tokenizedParas.map(({ isLead, lead, tokens }, bi) => {
     const leadStyle = isLead
-      ? desk.isManu
+      ? desk.isLight
         ? "float:left;font-family:var(--display);font-size:60px;line-height:.74;padding:9px 12px 0 0;color:var(--accent)"
         : "font:inherit;color:inherit"
       : "";
