@@ -30,7 +30,7 @@ from dominion.shared.schemas import (
     KnowledgeFactOut,
 )
 from dominion.workers.memory import canon_rag
-from dominion.workers.memory.embedding import embed
+from dominion.workers.memory.embedding import embed_async
 
 router = APIRouter(tags=["world"])
 
@@ -153,7 +153,7 @@ async def upsert_character(
             canon = CanonEntity(book_id=book_id, kind="character", name=name)
             session.add(canon)
         canon.body = text
-        canon.embedding = embed(text) if text else None
+        canon.embedding = (await embed_async(text)) if text else None
 
     await session.commit()
     return await _character_out(book_id, row, session)
@@ -260,7 +260,7 @@ async def create_canon(book_id: uuid.UUID, body: CanonEntityIn, session: Session
         kind=(body.kind or "").strip() or None,
         name=(body.name or "").strip() or None,
         body=text,
-        embedding=embed(text) if text else None,
+        embedding=(await embed_async(text)) if text else None,
     )
     session.add(entity)
     await session.commit()
@@ -281,7 +281,7 @@ async def update_canon(canon_id: uuid.UUID, body: CanonEntityUpdateIn, session: 
     if "body" in data:
         text = (data["body"] or "").strip() or None
         entity.body = text
-        entity.embedding = embed(text) if text else None
+        entity.embedding = (await embed_async(text)) if text else None
     await session.commit()
     return entity
 

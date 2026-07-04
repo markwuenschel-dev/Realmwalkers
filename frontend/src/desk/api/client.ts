@@ -152,7 +152,10 @@ export const api = {
 
   // --- drafting (browser-driven worker) -----------------------------------------------------------
   // book_id scopes the indicator to the active book, so another book's drafting doesn't light it up.
-  jobsStatus: (bookId?: string) => http<JobsStatusOut>(`/jobs/status${qs({ book_id: bookId })}`),
+  // init passthrough lets the poller attach an AbortSignal timeout so a stalled poll fails fast
+  // instead of silently freezing the live-status loop for the browser's default socket timeout.
+  jobsStatus: (bookId?: string, init?: RequestInit) =>
+    http<JobsStatusOut>(`/jobs/status${qs({ book_id: bookId })}`, init),
   jobsFailed: (bookId?: string) => http<FailedJobOut[]>(`/jobs/failed${qs({ book_id: bookId })}`),
   draftNext: (bookId?: string) =>
     http<DraftNextOut>(`/jobs/draft-next${qs({ book_id: bookId })}`, { method: "POST" }),

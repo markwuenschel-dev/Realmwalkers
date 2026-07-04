@@ -12,13 +12,16 @@
 `embedding_version()` encodes the active backend + model, so a provider switch forces a re-embed of
 changed chunks (ingest compares the stored version) rather than mixing incompatible vector spaces.
 
-Note: `embed()` is synchronous (callers in ingest + retrieval rely on that). The OpenAI path makes a
+Note: `embed()` is synchronous (sync callers in scripts/tests rely on that). The OpenAI path makes a
 blocking HTTP call; it is bounded by `settings.embedding_time_budget_s` and falls back to the hash
-vector on any error, so a provider outage never breaks drafting.
+vector on any error, so a provider outage never breaks drafting. Async callers (API handlers, the
+in-process drafting worker) MUST use `embed_async()` instead — the worker shares the API's single
+event loop, so a blocking embed call would freeze every in-flight HTTP request for the duration.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import math
 import re
@@ -84,6 +87,14 @@ def embed(text: str) -> list[float]:
     except Exception as exc:  # noqa: BLE001 — never let an embedding outage break ingest/retrieval
         log.warning("embedding.openai_failed", error=str(exc), note="falling back to hash vector")
         return _hash_embed(text)
+
+
+async def embed_async(text: str) -> list[float]:
+    """`embed()` off the event loop. The OpenAI path blocks on HTTP for up to
+    `embedding_time_budget_s` (30s default); called directly from async code that stall freezes the
+    whole process — API responses AND the co-resident drafting worker — so every async caller goes
+    through this thread offload."""
+    return await asyncio.to_thread(embed, text)
 
 
 def embedding_version() -> str:

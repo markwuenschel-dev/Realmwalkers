@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.models import Book, CanonEntity
-from dominion.workers.memory.embedding import embed, embedding_version
+from dominion.workers.memory.embedding import embed_async, embedding_version
 from dominion.workers.memory.owner_router import _RULES
 
 _PASSAGE_KIND = "passage"
@@ -147,7 +147,7 @@ async def retrieve(session: AsyncSession, *, book_id: uuid.UUID, query: str, k: 
     """Beat-scoped top-k canon snippets by cosine distance. Empty corpus/query -> []."""
     if not query.strip():
         return []
-    qvec = embed(query)
+    qvec = await embed_async(query)
     stmt = (
         select(CanonEntity.body)
         .where(
@@ -170,7 +170,7 @@ async def retrieve_with_meta(
     canon row, not just an unsourced model assertion (DESIGN: contract-first drafting)."""
     if not query.strip():
         return []
-    qvec = embed(query)
+    qvec = await embed_async(query)
     stmt = (
         select(CanonEntity.id, CanonEntity.name, CanonEntity.body)
         .where(
@@ -199,7 +199,7 @@ async def ingest_path(session: AsyncSession, *, book_id: uuid.UUID, root: str | 
                     kind=kind,
                     name=path.stem,
                     body=chunk,
-                    embedding=embed(chunk),
+                    embedding=await embed_async(chunk),
                     source="repo_ingested",
                     status="active",
                 )
@@ -260,7 +260,7 @@ async def ingest_incremental(
                     kind=row_kind,
                     name=path.stem,
                     body=chunk,
-                    embedding=embed(chunk),
+                    embedding=await embed_async(chunk),
                     source="repo_ingested",
                     status="active",
                     doc_path=doc_path,
