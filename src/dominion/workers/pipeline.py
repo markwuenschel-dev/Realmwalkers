@@ -22,6 +22,7 @@ from dominion.workers import progress, telemetry, telemetry_db
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context import assemble_context
 from dominion.workers.length import guard as length_guard
+from dominion.workers.llm import find_rate_limit
 from dominion.workers.router import passes_for, reviewers_for
 from dominion.workers.specialists.base import PassError
 from dominion.workers.specialists.drafter import drafter
@@ -76,7 +77,10 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
 
     # 2) tagged enrichment passes, fixed order; PassError lands partial + flag (never block). A
     # BudgetExceeded mid-pass aborts the rest — the spine already exists, so we save it (DESIGN §10).
-    pass_failures: list[tuple[str, str]] = []
+    # (pass name, message, rate_limited): a pass killed by a provider 429 (LlmRateLimited anywhere in
+    # the PassError chain) is retryable infrastructure — its critique carries kind=infra_rate_limit so
+    # production's issue snapshot never reclassifies provider state as a literary issue.
+    pass_failures: list[tuple[str, str, bool]] = []
     budget_exceeded = False
     try:
         if agent_auto_run("enrich_model"):
@@ -91,7 +95,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                         passes_run.append(specialist.name)
                         record(_ENRICH_STAGE.get(specialist.name, specialist.name), prose, settings.enrich_model)
                     except PassError as exc:
-                        pass_failures.append((specialist.name, str(exc)))
+                        pass_failures.append((specialist.name, str(exc), find_rate_limit(exc) is not None))
         else:
             log.info("pipeline.enrichment_skipped", reason="enrich_model auto_run disabled")
     except BudgetExceeded:
@@ -196,7 +200,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
             )
         )
 
-    for name, msg in pass_failures:
+    for name, msg, rate_limited in pass_failures:
         session.add(
             Critique(
                 scene_id=scene.id,
@@ -204,7 +208,14 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                 version=scene.version,
                 reviewer=name,
                 severity=Severity.WARN,
-                note=f"enrichment pass failed: {msg}",
+                note=(
+                    f"enrichment pass rate limited by provider (retryable, not a prose defect): {msg}"
+                    if rate_limited
+                    else f"enrichment pass failed: {msg}"
+                ),
+                # production's issue snapshot uses payload["kind"] as Issue.issue_kind — pin the
+                # infra classification so a 429 never becomes a "combat"/"sensory" literary issue.
+                payload={"kind": "infra_rate_limit"} if rate_limited else None,
             )
         )
 
@@ -237,7 +248,11 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
             elif isinstance(result, BaseException):
                 # Advisory reviewers must never fail the job or discard the drafted spine (a raise here
                 # propagates to run_once, which rolls the whole scene back). Land a flag like a failed
-                # enrichment pass and keep the good prose — same philosophy as PassError above.
+                # enrichment pass and keep the good prose — same philosophy as PassError above. A
+                # rate-limited reviewer (LlmRateLimited in the chain) is retryable provider state, so
+                # its critique is pinned kind=infra_rate_limit — production's issue snapshot must never
+                # mint it as a "continuity"/"pacing" literary issue.
+                reviewer_rate_limited = find_rate_limit(result) is not None
                 session.add(
                     Critique(
                         scene_id=scene.id,
@@ -245,7 +260,12 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                         version=scene.version,
                         reviewer=_reviewer_label(reviewer),
                         severity=Severity.WARN,
-                        note=f"reviewer failed: {result}",
+                        note=(
+                            f"reviewer rate limited by provider (retryable, not a prose defect): {result}"
+                            if reviewer_rate_limited
+                            else f"reviewer failed: {result}"
+                        ),
+                        payload={"kind": "infra_rate_limit"} if reviewer_rate_limited else None,
                     )
                 )
             else:
