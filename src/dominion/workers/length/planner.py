@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from dominion.workers import budget_reconciliation
+
 # Per-scene-type weight: how much page-space a scene of this kind earns relative to a plain dialogue
 # scene (1.0). Combat/climax/rupture earn the most; bridges/transitions the least.
 SCENE_TYPE_WEIGHTS: dict[str, float] = {
@@ -200,5 +202,21 @@ def plan_word_budgets(
         for budget in budgets.values():
             budget["hard_max"] = min(budget["hard_max"], chapter_max_words)
             budget["max"] = min(budget["max"], budget["hard_max"])
+
+    # Reconcile against the chapter envelope (lane 3): individually-capped budgets can still SUM
+    # past the chapter's hard cap (the ch1 bad run: scene hard_max summed to 10,400 against a
+    # 7,200-word chapter). The envelope is authoritative — scale every budget down proportionally,
+    # preserving each scene's min floor and the scenes' relative weights, so freshly derived
+    # sequences and scene packets are arithmetically consistent before any drafting. An impossible
+    # envelope (min floors alone overflow) is left as-is here; the draft-readiness gate blocks it
+    # with a `sequence_budget_mismatch` before any LLM spend.
+    envelope = (
+        chapter_max_words if isinstance(chapter_max_words, int) and chapter_max_words > 0 else chapter_target_words
+    )
+    if isinstance(envelope, int) and envelope > 0:
+        ordered_ids = [str(s["seed_id"]) for s in seeds]
+        result = budget_reconciliation.reconcile(envelope, [budgets[sid] for sid in ordered_ids])
+        if result.changed and not result.blocking:
+            budgets = dict(zip(ordered_ids, (dict(b) for b in result.budgets), strict=True))
 
     return budgets
