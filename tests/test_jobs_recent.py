@@ -115,7 +115,7 @@ async def test_recent_reaches_legacy_jobs_through_their_run(db_factory):
         from dominion.shared.models import Run
 
         book, _ch, _scene = await _seed(s)
-        run = Run(book_id=book.id, scope_json={}, gate_mode="manual")
+        run = Run(book_id=book.id, scope_json={}, gate_mode="pause_each", token_budget=1000)
         s.add(run)
         await s.flush()
         # Legacy routing: job carries run_id but NOT book_id.
