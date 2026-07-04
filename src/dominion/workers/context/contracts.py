@@ -52,6 +52,11 @@ async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.
             None,
         )
         if seq_item:
+            # The sequence is the authority for a dependent scene's opening state: its chained
+            # entry_state (scene N opens where scene N-1 exited) overwrites any stale packet-body
+            # value, or the drafter would restart the chapter arc from the global entry.
+            if seq_item.get("entry_state") and not seq_item.get("independent_draft_allowed"):
+                body["entry_state"] = seq_item.get("entry_state")
             # Overlay key fields (do not overwrite author-provided if already present)
             for key in ("entry_state", "exit_state", "scene_function", "sequence_scene_function"):
                 if seq_item.get(key) and key not in body:

@@ -552,22 +552,67 @@ def derive_chapter_sequence(packet_body: dict[str, Any]) -> dict[str, Any]:
     target_scene_count = max(target_scene_count, 0)
     hard_max_scene_count = max(hard_max_scene_count, target_scene_count)
 
-    return {
-        "chapter_no": packet_body.get("chapter_no"),
-        "chapter_job": packet_body.get("chapter_job") or "",
-        "chapter_spine": packet_body.get("one_sentence_spine") or "",
-        "target_words": chapter_target,
-        "max_words": chapter_max or chapter_target,
-        "hard_max_words": chapter_max or chapter_target,
-        "target_scene_count": target_scene_count,
-        "hard_max_scene_count": hard_max_scene_count,
-        "global_entry_state": packet_body.get("entry_state") or "",
-        "global_exit_state": packet_body.get("exit_state") or "",
-        "scenes": scenes,
-        "beat_ownership": beat_ownership,
-        "forbidden_duplicate_functions": sorted(set(duplicates)),
-        "composition_notes": {"must_merge": [], "must_cut": [], "must_expand": []},
-    }
+    return chain_scene_entry_states(
+        {
+            "chapter_no": packet_body.get("chapter_no"),
+            "chapter_job": packet_body.get("chapter_job") or "",
+            "chapter_spine": packet_body.get("one_sentence_spine") or "",
+            "target_words": chapter_target,
+            "max_words": chapter_max or chapter_target,
+            "hard_max_words": chapter_max or chapter_target,
+            "target_scene_count": target_scene_count,
+            "hard_max_scene_count": hard_max_scene_count,
+            "global_entry_state": packet_body.get("entry_state") or "",
+            "global_exit_state": packet_body.get("exit_state") or "",
+            "scenes": scenes,
+            "beat_ownership": beat_ownership,
+            "forbidden_duplicate_functions": sorted(set(duplicates)),
+            "composition_notes": {"must_merge": [], "must_cut": [], "must_expand": []},
+        }
+    )
+
+
+def chain_scene_entry_states(body: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic post-pass enforcing the entry/exit chaining contract on a sequence body.
+
+    The rule: scene 1 opens at the chapter's ``global_entry_state``; a dependent scene
+    (``independent_draft_allowed`` false) opens exactly where the scene it ``depends_on`` exited.
+    Seed/LLM-authored entry_states are rewritten to honor it — the Ch1 failure mode was every scene
+    carrying the identical global entry, so each drafter restarted the whole chapter arc.
+    ``depends_on_scene_no`` must reference an earlier scene (invalid/missing defaults to the previous
+    scene) and ``unlocks_scene_no`` must reference a later one (invalid/missing defaults to the next).
+    A scene with ``independent_draft_allowed`` true keeps its authored entry_state. Mutates ``body``'s
+    scenes in place and returns ``body``.
+    """
+    scenes = sorted(
+        [scene for scene in (body.get("scenes") or []) if isinstance(scene, dict)],
+        key=lambda scene: (int(scene.get("scene_no") or 0), str(scene.get("seed_id") or "")),
+    )
+    if not scenes:
+        return body
+    global_entry = str(body.get("global_entry_state") or "").strip()
+    by_scene_no = {int(scene.get("scene_no") or 0): scene for scene in scenes}
+    scene_nos = [int(scene.get("scene_no") or 0) for scene in scenes]
+    for index, scene in enumerate(scenes):
+        scene_no = scene_nos[index]
+        unlocks = _int_or_none(scene.get("unlocks_scene_no"))
+        if unlocks is None or unlocks <= scene_no or unlocks not in by_scene_no:
+            scene["unlocks_scene_no"] = scene_nos[index + 1] if index + 1 < len(scenes) else None
+        if index == 0:
+            scene["depends_on_scene_no"] = None
+            if global_entry:
+                scene["entry_state"] = global_entry
+            continue
+        dep_no = _int_or_none(scene.get("depends_on_scene_no"))
+        if dep_no is None or dep_no >= scene_no or dep_no not in by_scene_no:
+            dep_no = scene_nos[index - 1]
+        scene["depends_on_scene_no"] = dep_no
+        if scene.get("independent_draft_allowed"):
+            continue
+        dep_exit = str(by_scene_no[dep_no].get("exit_state") or "").strip()
+        if dep_exit:
+            scene["entry_state"] = dep_exit
+    return body
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -740,9 +785,16 @@ def evaluate_chapter_sequence(body: dict[str, Any]) -> dict[str, Any]:
         planned_max_words += _int_or_none(budget.get("max")) or 0  # type: ignore[arg-type]
         planned_hard_max_words += _int_or_none(budget.get("hard_max")) or 0  # type: ignore[arg-type]
 
-        if index == 0:
+        if index == 0 or scene.get("independent_draft_allowed"):
+            # An independent scene may open away from the previous exit by design.
             continue
-        previous = scenes[index - 1]
+        # A dependent scene must open where the scene it depends_on exited (default: the previous
+        # scene) — the same contract chain_scene_entry_states enforces.
+        dep_no = _int_or_none(scene.get("depends_on_scene_no"))
+        previous = next(
+            (candidate for candidate in scenes[:index] if _int_or_none(candidate.get("scene_no")) == dep_no),
+            scenes[index - 1],
+        )
         previous_exit = str(previous.get("exit_state") or "").strip()
         entry_state = str(scene.get("entry_state") or "").strip()
         if previous_exit and entry_state and previous_exit != entry_state:
@@ -1892,7 +1944,13 @@ async def create_production_run(
         # (entry/exit, owned_beats, word_budget already planned, must_not etc.)
         sp_body = dict(scene_packet.body or {})
         seq_item = seq_by_no.get(scene_no, {})
-        sp_body.setdefault("entry_state", seq_item.get("entry_state"))
+        # The sequence is the authority for a dependent scene's opening state: its chained
+        # entry_state overwrites any stale one the packet body carries (an independent scene, or a
+        # scene missing from the sequence, keeps the packet's own value).
+        if seq_item.get("entry_state") and not seq_item.get("independent_draft_allowed"):
+            sp_body["entry_state"] = seq_item.get("entry_state")
+        else:
+            sp_body.setdefault("entry_state", seq_item.get("entry_state"))
         sp_body.setdefault("exit_state", seq_item.get("exit_state"))
         sp_body.setdefault("owned_beats", seq_item.get("owned_beats") or seq_item.get("required_beats"))
         sp_body.setdefault("word_budget", seq_item.get("word_budget") or sp_body.get("word_budget"))
@@ -2826,6 +2884,8 @@ async def update_chapter_sequence(
     sequence = await session.get(ChapterSequence, sequence_id)
     if sequence is None:
         raise ValueError("chapter sequence not found")
+    # Manual edits must keep the entry/exit chaining contract — rewrite before persisting/QA.
+    body = chain_scene_entry_states(body)
     sequence.body = body
     sequence.target_words = _int_or_none(body.get("target_words"))
     sequence.max_words = _int_or_none(body.get("max_words"))
