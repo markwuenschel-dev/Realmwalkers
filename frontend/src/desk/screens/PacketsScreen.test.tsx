@@ -266,7 +266,15 @@ describe("PacketsScreen approve with repairs", () => {
       beats: {},
       jobs: {},
       draftable: false,
+      disabled_reason: "No scene packets derived yet — derive scene packets first.",
       blockers: [],
+      scene_packets_stale: 0,
+      scene_packet_qa_blocking: 0,
+      active_draft_jobs: 0,
+      missing_scene_drafts: [],
+      structural_blockers: [],
+      provider_rate_limited: false,
+      can_draft: false,
     });
     vi.mocked(api.chapterTelemetry).mockReset().mockRejectedValue(new Error("404"));
   });

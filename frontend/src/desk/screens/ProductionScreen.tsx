@@ -119,6 +119,81 @@ function EventFeed({ detail }: { detail: ProductionRunDetailOut }) {
   );
 }
 
+// "Why is this disabled?" for the Assemble-chapter action. Assembly stitches EXISTING prose only
+// (it never drafts scenes), so its authoritative gate is prose coverage (prose.assembly_ready);
+// active draft jobs and provider holds render as context so a half-drafted chapter explains
+// itself. Axis labels mirror the packets screen — Contract / Prose draft stay distinct.
+function AssemblyGateDiagnostics({ readiness }: { readiness: DraftReadinessOut }) {
+  const [open, setOpen] = useState(false);
+  const prose = readiness.prose;
+  const missing = readiness.missing_scene_drafts;
+  const gates: { label: string; pass: boolean; detail: string }[] = [
+    {
+      label: "Chapter packet · contract",
+      pass: readiness.chapter_packet_approved,
+      detail: readiness.chapter_packet_approved ? "approved" : "not approved",
+    },
+    {
+      label: "Prose coverage · prose draft",
+      pass: prose?.assembly_ready === true,
+      detail:
+        `${prose?.scenes_with_prose ?? 0}/${prose?.expected_scenes ?? 0} scenes have prose` +
+        (missing.length > 0 ? ` · missing: ${missing.join(", ")}` : ""),
+    },
+    {
+      label: "Draft jobs",
+      pass: readiness.active_draft_jobs === 0,
+      detail:
+        readiness.active_draft_jobs === 0
+          ? "idle"
+          : `${readiness.active_draft_jobs} active — scenes may still be arriving`,
+    },
+    {
+      label: "Provider",
+      pass: !readiness.provider_rate_limited,
+      detail: readiness.provider_rate_limited
+        ? "rate limited (429) — transient; retry shortly"
+        : "ok",
+    },
+  ];
+  return (
+    <div
+      style={css("display:flex;flex-direction:column;gap:6px")}
+      data-testid="assembly-gate-diagnostics"
+    >
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={css(
+          "background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:var(--mono);font-size:11px;color:var(--warn)",
+        )}
+      >
+        {open ? "▾" : "▸"} Why is this disabled?
+      </button>
+      {open &&
+        gates.map((g) => (
+          <div
+            key={g.label}
+            style={css("display:flex;align-items:baseline;gap:8px;flex-wrap:wrap")}
+          >
+            <span
+              style={css(
+                `font-family:var(--mono);font-size:10.5px;color:var(--${g.pass ? "good" : "bad"});border:1px solid color-mix(in srgb,var(--${g.pass ? "good" : "bad"}) 35%,var(--line));border-radius:999px;padding:1px 8px`,
+              )}
+            >
+              {g.pass ? "pass" : "fail"}
+            </span>
+            <span style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
+              {g.label}
+            </span>
+            <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+              {g.detail}
+            </span>
+          </div>
+        ))}
+    </div>
+  );
+}
+
 export default function ProductionScreen() {
   const { t } = useDesk();
   const { chapters } = useDeskData();
@@ -503,6 +578,7 @@ export default function ProductionScreen() {
             {prose?.scenes_with_prose ?? 0}/{prose?.expected_scenes ?? 0} scenes have prose
             {missingProse.length > 0 ? ` (missing: ${missingProse.join(", ")})` : ""}.
           </div>
+          {readiness && <AssemblyGateDiagnostics readiness={readiness} />}
           <div style={css("display:flex;gap:10px;align-items:center;flex-wrap:wrap")}>
             <button
               onClick={() => router.push(chapterId ? `/packets?chapter=${chapterId}` : "/packets")}

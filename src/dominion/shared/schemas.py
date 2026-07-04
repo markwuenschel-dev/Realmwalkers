@@ -741,11 +741,24 @@ class DraftScheduleOut(BaseModel):
     repaired_beats: int = 0
 
 
+class StructuralBlockerOut(BaseModel):
+    """A deterministic chapter-structure fault detected from the approved contracts alone (no prose,
+    no LLM): `kind` is one of sequence_budget_mismatch | scene_scope_bleed | duplicate_irreversible_beat
+    | canon_contract_leak; `message` is one human sentence naming the fault and the fix."""
+
+    kind: str
+    message: str
+
+
 class DraftReadinessOut(BaseModel):
-    """Contract-first drafting gate diagnostics. `draftable` is the single gate the Draft button obeys;
-    `disabled_reason` names the FIRST failing condition in plain language so the UI never shows a
-    disabled button (or a "ready to draft" claim) without an explanation. `prose` reports scene prose
-    coverage — `assembly_ready` is the production-assembly gate (all expected scenes have prose)."""
+    """Contract-first drafting gate diagnostics. `can_draft` is the authoritative gate the Draft
+    button (and every "ready" badge) obeys; when it is False, `disabled_reason` names the FIRST
+    failing gate in pipeline order (packet → sequence/budget → scene packets (stale/QA) → beats →
+    jobs → prose coverage → rate limit) in one human sentence — the UI never shows a disabled button
+    (or a "ready to draft" claim) without an explanation. `draftable` is the legacy queueability
+    flag (kept for compatibility; `can_draft` implies `draftable` but is stricter). `prose` reports
+    scene prose coverage — `assembly_ready` is the production-assembly gate (all expected scenes
+    have prose)."""
 
     chapter_id: uuid.UUID
     chapter_packet_approved: bool = False
@@ -756,6 +769,14 @@ class DraftReadinessOut(BaseModel):
     draftable: bool = False
     disabled_reason: str | None = None
     blockers: list[DraftQueueBlockerOut] = []
+    # --- authoritative draft gate (recovery L8) — flat fields the Desk binds actions/badges to ----
+    scene_packets_stale: int = 0
+    scene_packet_qa_blocking: int = 0
+    active_draft_jobs: int = 0
+    missing_scene_drafts: list[int] = []
+    structural_blockers: list[StructuralBlockerOut] = []
+    provider_rate_limited: bool = False
+    can_draft: bool = False
 
 
 class FailedJobOut(BaseModel):

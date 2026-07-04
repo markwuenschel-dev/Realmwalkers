@@ -294,6 +294,13 @@ describe("ProductionScreen", () => {
         draftable: false,
         disabled_reason: "Every scene already has a draft — use redraft to regenerate a scene.",
         blockers: [],
+        scene_packets_stale: 0,
+        scene_packet_qa_blocking: 0,
+        active_draft_jobs: 0,
+        missing_scene_drafts: [],
+        structural_blockers: [],
+        provider_rate_limited: false,
+        can_draft: false,
       });
     routerPush.mockReset();
   });
@@ -402,6 +409,45 @@ describe("ProductionScreen", () => {
 
     fireEvent.click(within(notice).getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByTestId("production-notice")).not.toBeInTheDocument();
+  });
+
+  it("explains a blocked assembly with expandable per-gate diagnostics", async () => {
+    // Half-drafted chapter: assembly is disabled, and the gate block must say exactly why —
+    // pass/fail per gate, never a bare disabled button.
+    vi.mocked(api.draftReadiness).mockResolvedValue({
+      chapter_id: "chapter-1",
+      chapter_packet_approved: true,
+      scene_packets: { approved: 4, expected: 4 },
+      beats: { approved: 4, linked: 4, unlinked: [] },
+      jobs: { active: 1, malformed: 0, failed_scene_packet_required: 0 },
+      prose: {
+        scenes_with_prose: 2,
+        expected_scenes: 4,
+        missing_scene_numbers: [3, 4],
+        assembly_ready: false,
+      },
+      draftable: true,
+      disabled_reason: null,
+      blockers: [],
+      scene_packets_stale: 0,
+      scene_packet_qa_blocking: 0,
+      active_draft_jobs: 1,
+      missing_scene_drafts: [3, 4],
+      structural_blockers: [],
+      provider_rate_limited: false,
+      can_draft: true,
+    });
+    render(<ProductionScreen />);
+
+    const gate = await screen.findByTestId("assembly-gate");
+    expect(screen.getByRole("button", { name: "Assemble chapter" })).toBeDisabled();
+
+    fireEvent.click(within(gate).getByRole("button", { name: /Why is this disabled\?/ }));
+    expect(within(gate).getByText(/2\/4 scenes have prose · missing: 3, 4/)).toBeInTheDocument();
+    expect(
+      within(gate).getByText(/1 active — scenes may still be arriving/),
+    ).toBeInTheDocument();
+    expect(within(gate).getAllByText("fail").length).toBeGreaterThanOrEqual(2);
   });
 
   it("exposes the full run state as viewable + downloadable JSON after each step", async () => {
