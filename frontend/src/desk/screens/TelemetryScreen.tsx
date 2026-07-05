@@ -44,9 +44,7 @@ function fmtRun(r: RunRollupOut): string {
 
 function fmtProductionRun(r: ProductionRunRollupOut): string {
   const label =
-    r.chapter_no != null
-      ? `Ch ${r.chapter_no}`
-      : (r.production_run_id?.slice(0, 8) ?? "—");
+    r.chapter_no != null ? `Ch ${r.chapter_no}` : (r.production_run_id?.slice(0, 8) ?? "—");
   return r.status ? `${label} · ${r.status}` : label;
 }
 

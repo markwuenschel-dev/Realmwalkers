@@ -24,7 +24,7 @@ status: active
 | Age | 29 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | Self-made; ordinary warm-family background, no connections or shortcuts |
 | Guild Role (Earth) | Disruptor-Assassin; tandem with Mara Valeria |
-| Realm Class | Warrior (base, Book 1) → **Tempest** (danger-path specialization; Book 2) → Worldbreaker (Mythic evolved direction; Book 2+) → unique Worldbreaker expression (endgame) |
+| Realm Class | Warrior (base, Book 1) → **Tempest** (danger-path specialization; Book 2+) → Worldbreaker (Mythic evolved direction; Book 3+) → unique Worldbreaker expression (endgame) |
 | Realm Role | Disruptor / Severance Pulse Interface user / Intermittent — comes and goes |
 | Power Interface | Severance Pulse Interface |
 | Current Location | Separates from Marcus; solo arc in progress |
