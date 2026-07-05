@@ -5,7 +5,7 @@ import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { formatElapsed } from "./DraftActivity";
 import { Button, Chip, Eyebrow, ProgressBar, Spinner } from "./ui";
-import type { RecentJobOut } from "../api/types";
+import type { ActivityOut, RecentJobOut } from "../api/types";
 
 // The Activity drawer — everything the pipeline is doing, has queued, and just finished, one click
 // from the top-bar pill. Fixed right panel over a scrim; Esc (global handler in state.ts), scrim
@@ -77,6 +77,43 @@ function Section({
   );
 }
 
+const SEV_COLOR: Record<string, string> = {
+  info: "var(--info)",
+  success: "var(--good)",
+  warn: "var(--warn)",
+  error: "var(--bad)",
+};
+
+function ActivityRow({ a }: { a: ActivityOut }) {
+  const color = SEV_COLOR[a.severity] ?? "var(--dim)";
+  return (
+    <div style={css(`${ROW};background:var(--bg3);align-items:flex-start`)}>
+      <span
+        style={css(
+          `width:8px;height:8px;border-radius:50%;background:${color};flex:none;margin-top:5px`,
+        )}
+      />
+      <div style={css("min-width:0;flex:1")}>
+        <div style={css("font-family:var(--ui);font-size:13px;color:var(--ink)")}>{a.title}</div>
+        {a.detail && (
+          <div
+            style={css(
+              `font-family:var(--mono);font-size:10px;color:${a.severity === "error" ? "var(--bad)" : "var(--dim)"};margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`,
+            )}
+            title={a.detail}
+          >
+            {a.detail}
+          </div>
+        )}
+        <div style={css(`${MONO};margin-top:2px`)}>
+          {a.source} · {a.kind.replace(/_/g, " ")}
+        </div>
+      </div>
+      <div style={css(`${MONO};text-align:right;flex:none`)}>{relTime(a.created_at)}</div>
+    </div>
+  );
+}
+
 function RecentRow({ job }: { job: RecentJobOut }) {
   const failed = job.status === "failed";
   return (
@@ -125,15 +162,23 @@ function RecentRow({ job }: { job: RecentJobOut }) {
 
 export default function ActivityDrawer() {
   const { activityOpen, closeActivity } = useDesk();
-  const { jobs, recentJobs, failedJobs, retryFailed, clearFailed, cancelJob, setQueuePaused } =
-    useDeskData();
+  const {
+    jobs,
+    recentJobs,
+    failedJobs,
+    activityFeed,
+    clearActivityFeed,
+    retryFailed,
+    clearFailed,
+    cancelJob,
+    setQueuePaused,
+  } = useDeskData();
   if (!activityOpen) return null;
 
   const active = jobs.active_scene;
   const elapsed = formatElapsed(active?.elapsed_s);
   const queued = recentJobs?.queued ?? [];
   const recent = recentJobs?.recent ?? [];
-  const finished = recent.filter((j) => j.status !== "failed");
   const failed = recent.filter((j) => j.status === "failed");
 
   return (
@@ -264,17 +309,24 @@ export default function ActivityDrawer() {
             )}
           </Section>
 
-          <Section label="Recently finished">
-            {finished.length ? (
+          <Section
+            label="Recent activity"
+            actions={
+              activityFeed.length > 0 ? (
+                <Button size="sm" variant="ghost" onClick={() => void clearActivityFeed()}>
+                  Clear finished
+                </Button>
+              ) : undefined
+            }
+          >
+            {activityFeed.length ? (
               <div style={css("display:flex;flex-direction:column;gap:6px")}>
-                {finished.map((j) => (
-                  <RecentRow key={j.id} job={j} />
+                {activityFeed.map((a) => (
+                  <ActivityRow key={a.id} a={a} />
                 ))}
               </div>
             ) : (
-              <div style={css(`${MONO};padding:2px 1px`)}>
-                nothing finished yet{recentJobs ? "" : " — loading…"}
-              </div>
+              <div style={css(`${MONO};padding:2px 1px`)}>nothing yet</div>
             )}
           </Section>
 

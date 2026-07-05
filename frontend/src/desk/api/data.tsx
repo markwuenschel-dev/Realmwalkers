@@ -10,6 +10,7 @@ import { useDeskError } from "./hooks/useDeskError";
 import { useDeskJobs } from "./hooks/useDeskJobs";
 import { useDeskMarkup } from "./hooks/useDeskMarkup";
 import { useDeskRecentJobs } from "./hooks/useDeskRecentJobs";
+import { useDeskActivity } from "./hooks/useDeskActivity";
 import { useDeskRules } from "./hooks/useDeskRules";
 import { useDeskToasts } from "./hooks/useDeskToasts";
 import { useDeskSceneActions } from "./hooks/useDeskSceneActions";
@@ -30,6 +31,7 @@ import type {
   ContinuityResolveIn,
   DecisionIn,
   ActivityEntry,
+  ActivityOut,
   FailedJobOut,
   JobsStatusOut,
   ManuscriptOut,
@@ -71,6 +73,11 @@ export interface DeskData {
   failedJobs: FailedJobOut[];
   jobsUnreachable: boolean;
   activity: ActivityEntry[];
+  // Central Activity feed (persisted, cross-page) behind the drawer — the single source of truth for
+  // "what happened". `clearActivityFeed` dismisses finished activity + purges DONE jobs.
+  activityFeed: ActivityOut[];
+  refreshActivity: () => Promise<void>;
+  clearActivityFeed: () => Promise<void>;
   // Activity drawer + completion toasts (Atelier). recentJobs is null until first gated poll.
   recentJobs: import("./types").RecentJobsOut | null;
   refreshRecentJobs: () => Promise<void>;
@@ -190,6 +197,23 @@ export function useDeskDataState(activityOpen = false): DeskData {
     activityOpen,
     collections.jobs.running || collections.jobs.queued > 0,
   );
+  // Central activity feed — same gating; the drawer's history + all cross-page events read from here.
+  const { activityFeed, refreshActivity } = useDeskActivity(
+    bookId,
+    activityOpen,
+    collections.jobs.running || collections.jobs.queued > 0,
+  );
+  const clearActivityFeed = useCallback(async () => {
+    try {
+      await Promise.all([
+        api.clearActivity({ scope: "finished", book_id: bookId ?? undefined }),
+        api.clearFinishedJobs(bookId ?? undefined),
+      ]);
+      await Promise.all([refreshActivity(), refreshRecentJobs()]);
+    } catch {
+      pushToast({ tone: "error", message: "Couldn't clear finished activity" });
+    }
+  }, [bookId, refreshActivity, refreshRecentJobs, pushToast]);
 
   // Queue control (Desk Control Round). Cancel repaints the drawer + queue count immediately;
   // pause flips optimistically off the authoritative response.
@@ -328,6 +352,9 @@ export function useDeskDataState(activityOpen = false): DeskData {
       failedJobs: jobs.failedJobs,
       jobsUnreachable: jobs.jobsUnreachable,
       activity: jobs.activity,
+      activityFeed,
+      refreshActivity,
+      clearActivityFeed,
       recentJobs,
       refreshRecentJobs,
       toasts,
@@ -387,6 +414,9 @@ export function useDeskDataState(activityOpen = false): DeskData {
       setBook,
       collections,
       jobs,
+      activityFeed,
+      refreshActivity,
+      clearActivityFeed,
       recentJobs,
       refreshRecentJobs,
       toasts,

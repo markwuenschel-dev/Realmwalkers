@@ -29,6 +29,7 @@ from dominion.shared.schemas import (
     ActiveScene,
     CancelJobOut,
     ClearFailedOut,
+    ClearFinishedJobsOut,
     DraftNextOut,
     FailedJobOut,
     JobsPauseOut,
@@ -201,6 +202,27 @@ async def clear_failed(
         failed_remaining=counts.get(JobStatus.FAILED, 0),
     )
     return ClearFailedOut(purged=purge.purged, failed=counts.get(JobStatus.FAILED, 0))
+
+
+@router.post("/clear-finished", response_model=ClearFinishedJobsOut)
+async def clear_finished(
+    session: SessionDep,
+    book_id: uuid.UUID | None = None,
+    chapter_id: uuid.UUID | None = None,
+) -> ClearFinishedJobsOut:
+    """Delete DONE jobs — clears the Activity drawer's 'recently finished' history. DONE jobs are pure
+    exhaust; the scenes they produced are untouched. (Failed jobs have their own /jobs/clear-failed.)"""
+    from dominion.workers.draft_queue import purge_done_draft_jobs
+
+    purge = await purge_done_draft_jobs(session, book_id=book_id, chapter_id=chapter_id)
+    await session.commit()
+    log.info(
+        "jobs.clear_finished",
+        book=str(book_id) if book_id else None,
+        chapter=str(chapter_id) if chapter_id else None,
+        purged=purge.purged,
+    )
+    return ClearFinishedJobsOut(purged=purge.purged)
 
 
 @router.get("/status", response_model=JobsStatusOut)

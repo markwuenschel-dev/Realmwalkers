@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from dominion.api.routers import (
+    activity,
     beats,
     books,
     chapters,
@@ -98,7 +99,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 asyncio.get_running_loop().create_task(background_work.drain_queued_jobs())
     except Exception as exc:  # noqa: BLE001 — never block boot on the resume probe
         log.warning("draft.drain_resume_failed", error=str(exc))
-    yield
+
+    # Start the autonomous self-repair + retention loop (workers/sweeper.py). One in-process background
+    # task; it gates its own work behind the autonomy + queue-pause switches and single-flights each
+    # tick. Cancelled on shutdown so a redeploy doesn't leave an orphan loop behind.
+    sweeper_task: asyncio.Task[None] | None = None
+    try:
+        from dominion.workers import sweeper
+
+        sweeper_task = asyncio.get_running_loop().create_task(sweeper.run_forever())
+    except Exception as exc:  # noqa: BLE001 — a sweeper that fails to start must not block boot
+        log.warning("sweeper.start_failed", error=str(exc))
+    try:
+        yield
+    finally:
+        if sweeper_task is not None:
+            sweeper_task.cancel()
+            try:
+                await sweeper_task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(title="Dominion Realm API", version="0.1.0", lifespan=lifespan)
@@ -123,6 +143,7 @@ app.include_router(production.router)
 app.include_router(telemetry.router)
 app.include_router(jobs.router)
 app.include_router(world.router)
+app.include_router(activity.router)
 app.include_router(threads.router)
 app.include_router(markup.router)
 app.include_router(learning.router)

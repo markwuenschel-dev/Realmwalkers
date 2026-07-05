@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 
 from dominion.api.routers import production as production_router
@@ -141,6 +142,7 @@ async def test_start_production_run_creates_sequence_artifacts_and_structured_is
         out = await production_router.start_production_run(
             ProductionRunCreateIn(chapter_id=chapter.id, auto_triage=False),
             s,
+            BackgroundTasks(),
         )
 
         assert out.issue_count == 2  # dialogue critique + missing scene
@@ -250,14 +252,12 @@ def test_draft_qa_block_findings_carry_block_facts():
 
 
 async def test_triage_endpoint_kicks_the_repair_drain(db_factory):
-    from fastapi import BackgroundTasks
-
     from dominion.workers import background_work
 
     async with db_factory() as s:
         _book, chapter, _scene, _packet = await _seed_chapter(s, seed_count=2, add_critique=True)
         out = await production_router.start_production_run(
-            ProductionRunCreateIn(chapter_id=chapter.id, auto_triage=False), s
+            ProductionRunCreateIn(chapter_id=chapter.id, auto_triage=False), s, BackgroundTasks()
         )
         background = BackgroundTasks()
         await production_router.triage_production_run(out.run.id, s, background)
@@ -292,7 +292,7 @@ async def test_scope_issue_severity_passes_through_unified_vocab(db_factory, mon
     async with db_factory() as s:
         _book, chapter, _scene, _packet = await _seed_chapter(s, seed_count=1, add_critique=False)
         out = await production_router.start_production_run(
-            ProductionRunCreateIn(chapter_id=chapter.id, auto_triage=False), s
+            ProductionRunCreateIn(chapter_id=chapter.id, auto_triage=False), s, BackgroundTasks()
         )
         detail = await production_router.get_production_run(out.run.id, s)
         scope = [issue for issue in detail.issues if issue.validator == "scene_scope"]

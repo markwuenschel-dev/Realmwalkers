@@ -26,8 +26,16 @@ import type {
   ChapterUpdateIn,
   CharacterStateIn,
   CharacterStateOut,
+  ActivityOut,
+  ActivityClearIn,
+  ActivityClearOut,
+  AutonomyOut,
+  AutonomyUpdateIn,
   ClearDraftScenesOut,
   ClearFailedOut,
+  ClearFinishedJobsOut,
+  ClearProductionRunsOut,
+  DeleteProductionRunOut,
   DeleteSceneOut,
   ContinuityResolveIn,
   DecisionIn,
@@ -184,6 +192,26 @@ export const api = {
     http<ClearFailedOut>(`/jobs/clear-failed${qs({ book_id: bookId, chapter_id: chapterId })}`, {
       method: "POST",
     }),
+  // Delete DONE jobs — clears the Activity drawer's finished history (scenes are untouched).
+  clearFinishedJobs: (bookId?: string, chapterId?: string) =>
+    http<ClearFinishedJobsOut>(
+      `/jobs/clear-finished${qs({ book_id: bookId, chapter_id: chapterId })}`,
+      { method: "POST" },
+    ),
+
+  // --- central activity feed (the single source behind the Activity drawer) -----------------------
+  activity: (bookId?: string, limit?: number) =>
+    http<ActivityOut[]>(
+      `/activity${qs({ book_id: bookId, limit: limit != null ? String(limit) : undefined })}`,
+    ),
+  dismissActivity: (id: string) => http<ActivityOut>(`/activity/${id}/dismiss`, { method: "POST" }),
+  clearActivity: (body: ActivityClearIn) =>
+    http<ActivityClearOut>("/activity/clear", { method: "POST", body: JSON.stringify(body) }),
+
+  // Autonomous self-repair sweeper settings.
+  autonomy: () => http<AutonomyOut>("/settings/autonomy"),
+  setAutonomy: (body: AutonomyUpdateIn) =>
+    http<AutonomyOut>("/settings/autonomy", { method: "PUT", body: JSON.stringify(body) }),
 
   // --- gate 1: books, runs, chapters, beats -------------------------------------------------------
   books: () => http<BookOut[]>("/books"),
@@ -310,6 +338,14 @@ export const api = {
   productionRuns: (chapterId: string) =>
     http<ProductionRunOut[]>(`/chapters/${chapterId}/production-runs`),
   productionRun: (runId: string) => http<ProductionRunDetailOut>(`/production-runs/${runId}`),
+  // Hard-delete a stale run + all its children (issues/tasks/artifacts/events); scenes are untouched.
+  deleteProductionRun: (runId: string) =>
+    http<DeleteProductionRunOut>(`/production-runs/${runId}`, { method: "DELETE" }),
+  // Bulk-delete a chapter's terminal runs (completed/cancelled/failed).
+  clearProductionRuns: (chapterId: string) =>
+    http<ClearProductionRunsOut>(`/chapters/${chapterId}/production-runs/clear`, {
+      method: "POST",
+    }),
   // One-click fix for the sequence_scene_count_mismatch draft blocker: server aligns the plan's
   // target to the packet's actual seeded scenes and re-runs chaining + sequence QA.
   alignSequenceSceneCount: (sequenceId: string) =>

@@ -22,7 +22,7 @@ from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job, ProductionRun
-from dominion.workers import background_work, progress, run_stages
+from dominion.workers import activity, background_work, progress, run_stages
 from dominion.workers.llm import find_rate_limit
 from dominion.workers.pipeline import generate_one_scene
 
@@ -35,6 +35,12 @@ WORKER_ID = f"worker-{os.getpid()}"
 # refused by the provider (mirrors ScenePacketStatus.RATE_LIMITED on the derive side).
 INFRA_RATE_LIMIT = "infra_rate_limit"
 PROVIDER_RATE_LIMITED_STAGE = "provider_rate_limited"
+
+
+def _job_place(chapter_no: int | None, scene_no: int | None) -> str:
+    """'Ch 7 · Scene 3' label for Activity titles (chapter optional, matches the drawer's format)."""
+    prefix = f"Ch {chapter_no} · " if chapter_no is not None else ""
+    return f"{prefix}Scene {scene_no if scene_no is not None else '?'}"
 
 
 def classify_job_failure(exc: BaseException, loc: str = "") -> tuple[str, str | None]:
@@ -92,6 +98,11 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         # one would fire a *sync* reload query (illegal under the async engine -> MissingGreenlet).
         job_id = job.id
         production_run_id = job.production_run_id
+        job_kind = job.kind
+        job_chapter_id = job.chapter_id
+        job_chapter_no = job.chapter_no
+        job_scene_no = job.scene_no
+        job_book_id = job.book_id
         progress.set_phase(str(job_id), "starting")
         try:
             scene = await asyncio.wait_for(generate_one_scene(session, job), timeout=settings.scene_time_budget_s)
@@ -101,6 +112,18 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
             # (fresh drafts otherwise never carry target_scene_id — only revisions do).
             if job.target_scene_id is None:
                 job.target_scene_id = scene.id
+            await activity.safe_record_activity(
+                session,
+                kind="draft_done",
+                title=f"{_job_place(job_chapter_no, job_scene_no)} {'revised' if job_kind != 'draft' else 'drafted'}",
+                source="jobs",
+                severity="success",
+                book_id=job_book_id,
+                chapter_id=job_chapter_id,
+                production_run_id=production_run_id,
+                job_id=job_id,
+                payload={"kind": str(job_kind), "word_count": scene.word_count},
+            )
             await session.commit()
             log.info("scene.drafted", job=str(job_id), scene=str(scene.id), tokens=scene.token_count)
             return True
@@ -128,6 +151,19 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
                     .where(ProductionRun.id == production_run_id)
                     .values(current_stage=PROVIDER_RATE_LIMITED_STAGE)
                 )
+            await activity.safe_record_activity(
+                session,
+                kind="draft_failed",
+                title=f"{_job_place(job_chapter_no, job_scene_no)} failed",
+                source="jobs",
+                severity="error",
+                book_id=job_book_id,
+                chapter_id=job_chapter_id,
+                production_run_id=production_run_id,
+                job_id=job_id,
+                detail=last_error,
+                payload={"kind": str(job_kind), "error_kind": error_kind},
+            )
             await session.commit()
             # L6 (run orchestration): a provider 429 past retries is transient infrastructure — the
             # owning production run parks in the retryable provider_rate_limited stage, never in a

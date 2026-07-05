@@ -27,7 +27,7 @@ from dominion.shared.schemas import (
     RunStartIn,
     RunStartOut,
 )
-from dominion.workers import planner, telemetry, telemetry_db
+from dominion.workers import activity, planner, telemetry, telemetry_db
 from dominion.workers.memory import canon_rag
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -183,6 +183,16 @@ async def start_run(body: RunStartIn, session: SessionDep) -> RunStartOut:
         outline=body.outline,
         max_beats=body.max_beats,
         target_words=body.target_words,
+    )
+    await activity.safe_record_activity(
+        session,
+        kind="run_started",
+        title=f"Ch {chapter.chapter_no} — planning run started",
+        source="runs",
+        severity="info",
+        book_id=body.book_id,
+        chapter_id=chapter.id,
+        payload={"gate_mode": str(body.gate_mode), "chapter_no": body.chapter_no},
     )
     await session.commit()
 

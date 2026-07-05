@@ -9,11 +9,14 @@ from dominion.api.agent_smoke import run_smoke_test
 from dominion.api.deps import SessionDep
 from dominion.shared import agent_ops
 from dominion.shared.agent_registry import PROVIDER_TIERS, ROLE_KEYS, TIERS
+from dominion.shared.enums import RepairAuthorityLevel
 from dominion.shared.schemas import (
     AgentGlobalsUpdateIn,
     AgentOpsOut,
     AgentPolicyUpdateIn,
     AgentStatsListOut,
+    AutonomyOut,
+    AutonomyUpdateIn,
     CustomPresetCreateIn,
     ModelSettingOut,
     ModelSettingsOut,
@@ -21,6 +24,7 @@ from dominion.shared.schemas import (
     SmokeTestIn,
     SmokeTestOut,
 )
+from dominion.workers import sweeper
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -125,6 +129,42 @@ async def set_agent_policy(setting: str, body: AgentPolicyUpdateIn, session: Ses
 async def get_agent_stats(session: SessionDep) -> AgentStatsListOut:
     """Per-agent health stats from recent llm_calls."""
     return await agent_ops.build_agent_stats(session)
+
+
+def _autonomy_out(cfg: sweeper.SweeperConfig) -> AutonomyOut:
+    return AutonomyOut(
+        autonomy_enabled=cfg.autonomy_enabled,
+        interval_s=cfg.interval_s,
+        stale_window_s=cfg.stale_window_s,
+        authority_ceiling=cfg.ceiling,
+        max_attempts=cfg.max_attempts,
+        retention_days=cfg.retention_days,
+    )
+
+
+@router.get("/autonomy", response_model=AutonomyOut)
+async def get_autonomy(session: SessionDep) -> AutonomyOut:
+    """Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention)."""
+    return _autonomy_out(await sweeper.load_config(session))
+
+
+@router.put("/autonomy", response_model=AutonomyOut)
+async def set_autonomy(body: AutonomyUpdateIn, session: SessionDep) -> AutonomyOut:
+    """Update the sweeper switches. Persisted as KV rows and read live on the next tick."""
+    if body.authority_ceiling is not None and body.authority_ceiling not in {e.value for e in RepairAuthorityLevel}:
+        raise HTTPException(status_code=422, detail=f"unknown authority ceiling '{body.authority_ceiling}'")
+    await sweeper.save_config(
+        session,
+        autonomy_enabled=body.autonomy_enabled,
+        interval_s=body.interval_s,
+        stale_window_s=body.stale_window_s,
+        authority_ceiling=body.authority_ceiling,
+        max_attempts=body.max_attempts,
+        retention_days=body.retention_days,
+    )
+    await session.commit()
+    log.info("settings.autonomy_changed", **body.model_dump(exclude_none=True))
+    return _autonomy_out(await sweeper.load_config(session))
 
 
 @router.post("/agents/smoke-test", response_model=SmokeTestOut)
