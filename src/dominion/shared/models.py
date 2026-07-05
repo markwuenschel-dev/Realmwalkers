@@ -392,7 +392,7 @@ class Critique(Base):
     scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
     version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reviewer: Mapped[str] = mapped_column(Text)  # continuity|combat|sensory|...
-    severity: Mapped[str] = mapped_column(Text)  # info|warn|hard
+    severity: Mapped[str] = mapped_column(Text)  # info|warn|repair|block (legacy rows: hard == block)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     # for continuity mismatches: {character, prose_value, ledger_value, context_sentence, span}
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)

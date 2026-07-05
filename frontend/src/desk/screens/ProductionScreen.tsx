@@ -18,6 +18,7 @@ import ProseBlocks from "../components/ProseBlocks";
 import { Button, Chip, Eyebrow, MetricCard, Panel, Spinner, Stepper } from "../components/ui";
 import type { ChipTone, Step, StepState } from "../components/ui";
 import { downloadBlob } from "../lib/download";
+import { severityChipTone } from "../lib/severity";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import {
   isNoApprovedPacketError,
@@ -49,17 +50,6 @@ export function resetRunDetailCacheForTests(): void {
 
 function latestArtifact(artifacts: ArtifactOut[], type: string): ArtifactOut | null {
   return [...artifacts].reverse().find((artifact) => artifact.artifact_type === type) ?? null;
-}
-
-function severityChipTone(severity: string): ChipTone {
-  switch (severity) {
-    case "hard":
-      return "bad";
-    case "warn":
-      return "warn";
-    default:
-      return "info";
-  }
 }
 
 function statusTone(status: string): string {

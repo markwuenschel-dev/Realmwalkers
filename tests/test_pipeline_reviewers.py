@@ -117,11 +117,11 @@ async def test_reviewer_budget_exceeded_downgrades_to_partial_draft(db_factory, 
         scene = await pipeline.generate_one_scene(s, job)
         await s.commit()
 
-        # one reviewer blew the budget -> quarantined DRAFT + a hard budget flag; the spine survives
+        # one reviewer blew the budget -> quarantined DRAFT + a block budget flag; the spine survives
         assert scene.status == SceneStatus.DRAFT
         assert "A short spine of prose." in (scene.prose or "")
         crits = (await s.execute(select(Critique).where(Critique.scene_id == scene.id))).scalars().all()
-        assert any(c.reviewer == "budget" and c.severity == "hard" for c in crits)
+        assert any(c.reviewer == "budget" and c.severity == "block" for c in crits)
 
 
 async def test_non_budget_reviewer_error_lands_a_flag_not_a_failure(db_factory, monkeypatch):

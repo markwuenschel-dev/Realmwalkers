@@ -69,10 +69,10 @@ async def test_lane_noops_on_short_prose(monkeypatch, reviewer, name):
 
 
 @pytest.mark.parametrize("reviewer,name", _LANES)
-async def test_lane_never_emits_hard(monkeypatch, reviewer, name):
-    _mock(monkeypatch, '[{"severity": "hard", "note": "trying to escalate"}]')
+async def test_lane_never_emits_block(monkeypatch, reviewer, name):
+    _mock(monkeypatch, '[{"severity": "block", "note": "trying to escalate"}]')
     flags = await reviewer.review(_LONG_PROSE, _ctx())
-    assert flags and all(f.severity != Severity.HARD for f in flags)  # clamped to advisory
+    assert flags and all(f.severity != Severity.BLOCK for f in flags)  # clamped to advisory
 
 
 @pytest.mark.parametrize("reviewer,name", _LANES)

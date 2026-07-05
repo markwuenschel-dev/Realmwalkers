@@ -83,7 +83,7 @@ def score_reviewer_flags(flags: list[Any]) -> RiskLevel:
     hard = warn = 0
     for flag in flags:
         sev = getattr(flag, "severity", None) or (flag.get("severity") if isinstance(flag, dict) else None)
-        if sev == Severity.HARD or str(sev).lower() == "hard":
+        if sev == Severity.BLOCK or str(sev).lower() in ("block", "hard"):
             hard += 1
         elif sev == Severity.WARN or str(sev).lower() == "warn":
             warn += 1

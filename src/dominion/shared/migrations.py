@@ -74,6 +74,11 @@ _BACKFILLS: tuple[str, ...] = (
        SET source = CASE WHEN doc_path IS NOT NULL THEN 'repo_ingested' ELSE 'manual' END
        WHERE source IS NULL""",
     "UPDATE canon_entities SET status = 'active' WHERE status IS NULL",
+    # Severity unification: the issue pipeline's legacy "hard" is the packet contract's "block"
+    # (one vocabulary: info|warn|repair|block). Idempotent via the WHERE clause; JSON snapshots
+    # inside artifact bodies keep the old spelling forever, so readers tolerate both.
+    "UPDATE issues SET severity = 'block' WHERE severity = 'hard'",
+    "UPDATE critiques SET severity = 'block' WHERE severity = 'hard'",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).

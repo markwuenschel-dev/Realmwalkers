@@ -64,9 +64,16 @@ class JobStatus(StrEnum):
 
 
 class Severity(StrEnum):
+    """Unified severity vocabulary — one language across the issue pipeline and the packet contract
+    (shared/severity.py uses the warn/repair/block subset). On Issue/Critique rows these are ADVISORY
+    labels for the human (DESIGN §9): even BLOCK never gates drafting there — gating facts derive only
+    via shared.severity.issue_gates for packet-contract issues. Legacy rows/JSON snapshots may still
+    say "hard" (the pre-unification spelling of BLOCK); readers tolerate both."""
+
     INFO = "info"
     WARN = "warn"
-    HARD = "hard"  # never blocks; surfaced in the continuity panel (DESIGN §9)
+    REPAIR = "repair"  # fixable: never blocks drafting/approval, gates final export
+    BLOCK = "block"
 
 
 class Decision(StrEnum):

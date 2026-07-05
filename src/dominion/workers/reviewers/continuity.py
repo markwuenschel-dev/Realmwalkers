@@ -177,7 +177,7 @@ class ContinuityReviewer:
                 flags.append(
                     Flag(
                         reviewer=self.name,
-                        severity=Severity.HARD,
+                        severity=Severity.BLOCK,
                         note=f"{character} {attribute}: scene says {prose_value!r}, "
                         f"ledger says {str(canon[attribute])!r}",
                         payload={

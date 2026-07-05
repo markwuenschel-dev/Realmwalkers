@@ -14,6 +14,7 @@ import type { Marker } from "../types";
 import { applyAcceptedSuggestions, sceneLabel, statValue, wordCount } from "../lib/format";
 import { buildSceneMarkdown, downloadMarkdown, sceneMarkdownFilename } from "../lib/sceneMarkdown";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
+import { severityVar } from "../lib/severity";
 import { api } from "../api/client";
 import { Button, Chip, Eyebrow, Panel } from "../components/ui";
 import type { ChipTone } from "../components/ui";
@@ -516,8 +517,7 @@ export default function SceneScreen() {
         )
       : [];
 
-  const sevColor = (s: string) =>
-    s === "hard" ? "var(--bad)" : s === "warn" ? "var(--warn)" : "var(--info)";
+  const sevColor = (s: string) => `var(${severityVar(s, "--info")})`;
 
   // Best-effort guard: hide/disable Restart while a job for this exact scene is the one actively
   // drafting right now, so a click can't queue a redundant concurrent redraft of the same original

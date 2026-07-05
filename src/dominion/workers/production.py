@@ -1494,7 +1494,8 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
     )
     # Persist beat-ownership scope findings as Issue rows so triage can cluster
     # scene_scope_bleed / duplicate_irreversible_beat (recovery L2). Signature-deduped so
-    # re-assembly never duplicates them. Severity mapping: deterministic "block" -> "hard".
+    # re-assembly never duplicates them. Severity passes through unchanged — the finding already
+    # speaks the unified vocabulary (warn/repair/block), so `repair` survives into triage.
     scope_signatures = {
         str((issue.payload_json or {}).get("signature")) for issue in issues if isinstance(issue.payload_json, dict)
     }
@@ -1520,7 +1521,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
             scene_no=scene_no,
             validator="scene_scope",
             issue_kind=kind,
-            severity="hard" if finding.get("severity") == "block" else "warn",
+            severity=str(finding.get("severity") or "warn"),
             quote=None,
             span_start=None,
             span_end=None,
@@ -1541,7 +1542,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         artifact_type="reader_simulation",
         body={
             "missing_scene_nos": missing_scene_nos,
-            "likely_confusions": [issue.claim for issue in issues if issue.severity == "hard"][:5],
+            "likely_confusions": [issue.claim for issue in issues if issue.severity in ("hard", "block")][:5],
             "open_issues": [issue.claim for issue in open_issues[:10]],
         },
         dependencies=[(chapter_artifact.id, "source", chapter_artifact.content_hash)],
@@ -1552,7 +1553,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         artifact_type="agent_evaluation",
         body={
             "ready_for_human": ready_for_human,
-            "blocking_issues": [issue.claim for issue in open_issues if issue.severity == "hard"],
+            "blocking_issues": [issue.claim for issue in open_issues if issue.severity in ("hard", "block")],
             "issue_count": len(issues),
             "repair_task_count": len(tasks),
             "missing_scene_nos": missing_scene_nos,
@@ -2255,7 +2256,7 @@ async def create_production_run(
                 contract_reference=str(scene.scene_packet_id) if scene.scene_packet_id else None,
                 recommended_action=_recommended_action_from_critique(critique),
                 confidence=(lambda v: float(v) if isinstance(v, (int, float)) else None)(payload.get("confidence")),
-                auto_repair_allowed=scene.id is not None and critique.severity != "hard",
+                auto_repair_allowed=scene.id is not None and critique.severity not in ("hard", "block"),
                 payload=payload | {"signature": signature},
             )
             issues.append(issue)
@@ -2275,7 +2276,7 @@ async def create_production_run(
                 scene_no=scene_no,
                 validator="chapter_assembly",
                 issue_kind="missing_scene",
-                severity="hard",
+                severity="block",
                 quote=None,
                 span_start=None,
                 span_end=None,
@@ -2429,7 +2430,7 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
         elif issue.severity == "info":
             decision = IssueDecisionKind.REJECT
             issue.status = IssueStatus.REJECTED
-            reason = "Info-level notes stay advisory and do not create repair work by default."
+            reason = "Info-level notes stay advisory and do not create repair work; warn/repair/block are accepted."
         else:
             decision = IssueDecisionKind.ACCEPT
             issue.status = IssueStatus.ACCEPTED
@@ -2941,7 +2942,7 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
             contract_reference=str(revised.scene_packet_id) if revised.scene_packet_id else None,
             recommended_action=_recommended_action_from_critique(critique),
             confidence=float(conf_val) if isinstance(conf_val, (int, float)) else None,
-            auto_repair_allowed=critique.severity != "hard",
+            auto_repair_allowed=critique.severity not in ("hard", "block"),
             payload=payload | {"signature": signature},
         )
         created_new_issues.append(issue)
@@ -2960,7 +2961,7 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         if accept_cond
         else (
             RepairVerificationVerdict.ESCALATE_TO_HUMAN
-            if any(issue.severity == "hard" for issue in created_new_issues)
+            if any(issue.severity in ("hard", "block") for issue in created_new_issues)
             else RepairVerificationVerdict.NEEDS_ANOTHER_REPAIR
         )
     )
@@ -2983,17 +2984,17 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         or None,
         target_issue_resolved=not remaining and direct_checks.get("span_changed", True),
         canon_preserved=(
-            not any(c.reviewer == "continuity" and c.severity == "hard" for c in new_critiques)
+            not any(c.reviewer == "continuity" and c.severity in ("hard", "block") for c in new_critiques)
             and direct_checks.get("span_changed", True)
         ),
         scene_outcome_preserved=revised.scene_packet_id == base_scene.scene_packet_id,
-        voice_preserved=not any(c.reviewer == "voice" and c.severity == "hard" for c in new_critiques),
+        voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
         required_beats_preserved=(
             revised.scene_packet_id == base_scene.scene_packet_id
             and bool(direct_checks.get("instruction_addressed", True))
         ),
         reader_state_preserved=not any(
-            c.reviewer in {"continuity", "state_drift"} and c.severity == "hard" for c in new_critiques
+            c.reviewer in {"continuity", "state_drift"} and c.severity in ("hard", "block") for c in new_critiques
         ),
         regression_score=float(len(remaining) + len(created_new_issues)),
         reason=(

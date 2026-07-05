@@ -33,7 +33,7 @@ def parse_json_objects(raw: str) -> list[dict[str, Any]]:
 
 
 def advisory_severity(value: object) -> Severity:
-    """Clamp a model-suggested severity to an advisory level. Reviewers never emit HARD — that is
+    """Clamp a model-suggested severity to an advisory level. Reviewers never emit BLOCK — that is
     reserved for the continuity hard-number check (DESIGN §6, §9)."""
     return Severity.WARN if str(value).strip().lower() == "warn" else Severity.INFO
 

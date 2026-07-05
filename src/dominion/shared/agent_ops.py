@@ -616,7 +616,7 @@ async def _qa_pass_rates(session: AsyncSession, cutoff: datetime) -> dict[str, s
             await session.execute(
                 select(Critique.scene_id).where(
                     Critique.scene_id.in_(scene_ids),
-                    Critique.severity == "hard",
+                    Critique.severity.in_(("hard", "block")),
                     Critique.reviewer.notin_(("length",)),
                 )
             )

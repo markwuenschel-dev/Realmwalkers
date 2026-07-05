@@ -93,7 +93,7 @@ async def test_budget_exceeded_saves_partial_draft_with_flag(db_factory, monkeyp
         assert "Marcus stands at the gate" in (sc.prose or "")  # the spine was NOT lost
         crits = (await s.execute(select(Critique).where(Critique.scene_id == sc.id))).scalars().all()
         budget_flags = [c for c in crits if c.reviewer == "budget"]
-        assert len(budget_flags) == 1 and budget_flags[0].severity == "hard"
+        assert len(budget_flags) == 1 and budget_flags[0].severity == "block"
         # the worker still committed the partial and finished the job (not stuck running/queued)
         job = (await s.execute(select(Job))).scalar_one()
         assert job.status == JobStatus.DONE

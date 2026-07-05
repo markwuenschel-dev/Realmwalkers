@@ -59,10 +59,10 @@ async def test_voice_flags_drift_as_advisory(monkeypatch):
 # --- pacing ---------------------------------------------------------------------------------------
 
 
-async def test_pacing_never_hard(monkeypatch):
-    _mock(monkeypatch, '[{"severity": "hard", "note": "trying to escalate"}]')
+async def test_pacing_never_block(monkeypatch):
+    _mock(monkeypatch, '[{"severity": "block", "note": "trying to escalate"}]')
     flags = await pacing_reviewer.review("word " * 400, _ctx())
-    assert flags and all(f.severity != Severity.HARD for f in flags)  # clamped to advisory
+    assert flags and all(f.severity != Severity.BLOCK for f in flags)  # clamped to advisory
 
 
 # --- state drift ----------------------------------------------------------------------------------
@@ -96,4 +96,4 @@ async def test_continuity_knowledge_flags_are_advisory(monkeypatch):
     assert len(flags) == 1
     assert flags[0].reviewer == "continuity" and flags[0].severity == Severity.WARN
     assert flags[0].payload == {"kind": "knowledge", "reference": "the queen's death"}
-    assert all(f.severity != Severity.HARD for f in flags)  # knowledge findings are never HARD
+    assert all(f.severity != Severity.BLOCK for f in flags)  # knowledge findings are never BLOCK

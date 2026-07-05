@@ -12,6 +12,7 @@ import { TelemetryDrawer, useTelemetryDrawer } from "./telemetry/TelemetryDrawer
 import type { TelemetryDrawerView } from "./telemetry/types";
 import { useDeskData } from "../api/data";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
+import { severityVar } from "../lib/severity";
 import type {
   ScenePacketBody,
   ScenePacketOut,
@@ -47,8 +48,6 @@ const BLOCKER_SOURCE_LABEL: Record<string, string> = {
   rate_limit: "provider rate limit",
   unknown: "gate",
 };
-
-const SEVERITY_VAR: Record<string, string> = { block: "--bad", warn: "--warn", info: "--dim" };
 
 // QA verdict and prose state render through the shared StatusPill (axis "qa" / "prose") — the three
 // status axes stay independent: contract approval ≠ QA opinion ≠ drafted prose.
@@ -1086,7 +1085,7 @@ function ScenePacketCard({
                 <Label text="QA report" />
                 {issues.map((it, i) => {
                   const sev = it.severity ?? "info";
-                  const sevVar = SEVERITY_VAR[sev] ?? "--dim";
+                  const sevVar = severityVar(sev);
                   return (
                     <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
                       <Chip label={sev} colorVar={sevVar} />{" "}
@@ -1115,7 +1114,7 @@ function ScenePacketCard({
                 <Label text="Deterministic validation (non-blocking)" />
                 {violations.slice(0, 6).map((it, i) => {
                   const sev = it.severity ?? "warn";
-                  const sevVar = SEVERITY_VAR[sev] ?? "--warn";
+                  const sevVar = severityVar(sev, "--warn");
                   return (
                     <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
                       <Chip label={sev} colorVar={sevVar} />{" "}
@@ -1481,7 +1480,7 @@ function FieldIssues({ issues }: { issues?: QaIssue[] }) {
     <div style={css("margin-top:5px;display:flex;flex-direction:column;gap:4px")}>
       {issues.map((it, i) => {
         const sev = it.severity ?? "info";
-        const v = SEVERITY_VAR[sev] ?? "--dim";
+        const v = severityVar(sev);
         return (
           <div
             key={i}

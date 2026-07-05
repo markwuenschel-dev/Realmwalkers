@@ -115,7 +115,7 @@ async def apply_length_guard(
                 quarantine=True,
                 stages=[stage],
                 critique=(
-                    Severity.HARD,
+                    Severity.BLOCK,
                     f"still over hard_max after compression ({new_wc} > {hard_max}); quarantined as draft",
                 ),
             )
