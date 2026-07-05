@@ -21,7 +21,7 @@ import type { SceneOut } from "../api/types";
 import type { ExportKind } from "../lib/docx";
 
 export default function InboxScreen() {
-  const { openScene, toggleActivity } = useDesk();
+  const { openSceneId, toggleActivity } = useDesk();
   const data = useDeskData();
   const router = useRouter();
   // Tab-switch cost, visible in the console (provider data is cached, so revisits log ~0ms).
@@ -323,8 +323,11 @@ export default function InboxScreen() {
                 "display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px",
               )}
             >
-              {data.pending.slice(0, 5).map((s, i) =>
-                sceneCard(s, "warn", "review →", () => openScene(i), {
+              {data.pending.slice(0, 5).map((s) =>
+                // Navigate by scene ID (focused /scene/[id]), like the Chapters board and command
+                // palette — NOT by pending-queue index. The old openScene(i) queue-index path could
+                // land you on pending[0] (scene 1) whenever the index/queue-length didn't line up.
+                sceneCard(s, "warn", "review →", () => openSceneId(s.id), {
                   checked: sel.has(s.id),
                   onToggle: () => sel.toggle(s.id),
                 }),
