@@ -14,12 +14,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 const openScene = vi.fn();
+const openSceneId = vi.fn();
 const toggleActivity = vi.fn();
 vi.mock("../state", () => ({
   useDesk: () => ({
     t: { accent: "#000", bad: "#f00", warn: "#e90", good: "#0a0", info: "#09f", dim: "#888" },
     openScene,
-    openSceneId: vi.fn(),
+    openSceneId,
     toggleActivity,
   }),
 }));
@@ -112,7 +113,19 @@ describe("InboxScreen command center", () => {
     mockData = baseData();
     routerPush.mockReset();
     openScene.mockReset();
+    openSceneId.mockReset();
     toggleActivity.mockReset();
+  });
+
+  it("opens a pending scene by ID (focused), not by queue index", () => {
+    // Regression: clicking scene 2 in the Inbox must open scene 2, not scene 1. The old queue-index
+    // path (openScene(i) → bare /scene) could clamp to pending[0]. Navigate by scene id like the
+    // Chapters board / command palette.
+    render(<InboxScreen />);
+    const reviewLinks = screen.getAllByText("review →");
+    fireEvent.click(reviewLinks[1]); // the 2nd pending card = scene 2 (id "p2")
+    expect(openSceneId).toHaveBeenCalledWith("p2");
+    expect(openScene).not.toHaveBeenCalled();
   });
 
   it("lists the first five pending scenes and select-all covers ALL pending, not just the visible", () => {
