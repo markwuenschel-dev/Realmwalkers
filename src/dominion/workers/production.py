@@ -2382,6 +2382,17 @@ async def list_production_runs(session: AsyncSession, chapter_id: uuid.UUID) -> 
     return list(rows)
 
 
+async def list_book_production_runs(session: AsyncSession, book_id: uuid.UUID) -> list[ProductionRun]:
+    """Every production run in a book, newest first — the book-wide read the Pipeline dashboard fans
+    out from (list_production_runs above stays chapter-scoped for the Production tab)."""
+    rows = (
+        await session.execute(
+            select(ProductionRun).where(ProductionRun.book_id == book_id).order_by(ProductionRun.created_at.desc())
+        )
+    ).scalars()
+    return list(rows)
+
+
 async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> ProductionRun:
     run = await session.get(ProductionRun, run_id)
     if run is None:

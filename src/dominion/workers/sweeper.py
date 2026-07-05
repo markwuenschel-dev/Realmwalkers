@@ -26,6 +26,7 @@ import time
 import traceback
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -72,6 +73,20 @@ _attempts: dict[str, int] = {}  # run_id -> autonomous apply attempts this proce
 _warned_human: set[str] = set()  # run_ids we've already flagged as needing a human, so we warn once
 _last_retention_monotonic = 0.0
 _RETENTION_MIN_INTERVAL_S = 3600.0  # run housekeeping at most hourly regardless of tick cadence
+
+# Liveness heartbeat, refreshed EVERY tick (even when autonomy is off/paused, so the dashboard can show
+# "swept 12s ago · off/paused"). Reset on redeploy. Reassigned atomically at the end of a tick so a
+# reader never sees a half-updated dict (the API event loop is single-threaded).
+_heartbeat: dict[str, Any] = {
+    "last_tick_at": None,  # datetime | None — advances every tick; the proof the loop is alive
+    "ran": False,  # did this tick actually sweep (autonomy on AND not paused)?
+    "autonomy_enabled": True,
+    "paused": False,
+    "stale_runs_found": 0,
+    "actions": [],  # [{run_id, kind}] this tick took (repair_applied | verified | blocked)
+    "driving": [],  # run ids this tick swept
+    "last_error": None,  # str | None — last per-run sweep failure this tick
+}
 
 
 @dataclass
@@ -166,16 +181,18 @@ async def _stale_run_ids(session, stale_window_s: int, limit: int = 10) -> list:
     return list(rows.scalars().all())
 
 
-async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
+async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, str]]:
     """Drive a single stalled run forward on the given session (caller commits). Best-effort
-    throughout — a failure here parks the run for a human, it never crashes the loop."""
+    throughout — a failure here parks the run for a human, it never crashes the loop. Returns the
+    actions it took (for the heartbeat): [{run_id, kind}] with kind in repair_applied|verified|blocked."""
+    actions: list[dict[str, str]] = []
     run = await session.get(ProductionRun, run_id)
     if run is None or run.status in (
         ProductionRunStatus.COMPLETED,
         ProductionRunStatus.CANCELLED,
         ProductionRunStatus.FAILED,
     ):
-        return
+        return actions
     book_id, chapter_id = run.book_id, run.chapter_id
     rid = str(run_id)
 
@@ -219,6 +236,7 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
                     session, task.id, human_approved=True, approval_reason="autonomous sweeper"
                 )
             _attempts[rid] = _attempts.get(rid, 0) + 1
+            actions.append({"run_id": rid, "kind": "repair_applied"})
             await activity.record_activity(
                 session,
                 kind="sweeper_repair",
@@ -233,6 +251,7 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
         except ValueError as exc:
             # e.g. "draft the missing scenes first" — the sweeper can't resolve it; leave for a human.
             needs_human = True
+            actions.append({"run_id": rid, "kind": "blocked"})
             await activity.record_activity(
                 session,
                 kind="sweeper_blocked",
@@ -268,6 +287,7 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
             # SAVEPOINT: a "still drafting" verify raises after possibly touching rows — isolate it.
             async with session.begin_nested():
                 await production.verify_repair_task(session, task.id)  # emits repair_verified via _record_event
+            actions.append({"run_id": rid, "kind": "verified"})
         except ValueError:
             pass  # revision still drafting — a later tick will pick it up
         except Exception as exc:  # noqa: BLE001 — unexpected verify failure; log the stage + move on
@@ -286,6 +306,7 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
             chapter_id=chapter_id,
             production_run_id=run_id,
         )
+    return actions
 
 
 async def _maybe_retention(cfg: SweeperConfig) -> None:
@@ -315,24 +336,61 @@ async def run_tick() -> None:
             cfg = await load_config(session)
             paused = await background_work.load_queue_paused(session)
 
+        # Build this tick's heartbeat as we go, then publish it atomically at the end. Populated even
+        # when autonomy is off/paused so the dashboard's liveness line ("swept 12s ago") stays honest.
+        tick: dict[str, Any] = {
+            "last_tick_at": datetime.now(UTC),
+            "ran": False,
+            "autonomy_enabled": cfg.autonomy_enabled,
+            "paused": paused,
+            "stale_runs_found": 0,
+            "actions": [],
+            "driving": [],
+            "last_error": None,
+        }
+
         if cfg.autonomy_enabled and not paused:
-            run_ids = None
+            tick["ran"] = True
+            run_ids: list = []
             async with SessionFactory() as session:
                 run_ids = await _stale_run_ids(session, cfg.stale_window_s)
+            tick["stale_runs_found"] = len(run_ids)
+            tick["driving"] = [str(run_id) for run_id in run_ids]
             for run_id in run_ids or []:
                 try:
                     async with SessionFactory() as session:  # fresh session per run — isolate failures
-                        await _sweep_one_run(session, run_id, cfg)
+                        acted = await _sweep_one_run(session, run_id, cfg)
                         await session.commit()
+                    tick["actions"].extend(acted)
                 except Exception as exc:  # noqa: BLE001 — one bad run must not strand the rest
                     # Full traceback: a data-specific greenlet_spawn fires OUTSIDE the wrapped stages on
                     # one real run and no synthetic run reproduces it — the frame names the exact line.
+                    tick["last_error"] = f"{run_id}: {exc}"
                     log.error("sweeper.run_error", run=str(run_id), error=str(exc), tb=traceback.format_exc())
             if run_ids:
                 # Drive all newly-eligible non-approval tasks + chain the job drain (drafts revisions).
                 await background_work.drain_queued_repair_tasks()
 
+        global _heartbeat
+        _heartbeat = tick
         await _maybe_retention(cfg)
+
+
+async def sweeper_status(session) -> dict[str, Any]:
+    """The sweeper's live status = in-process heartbeat + persisted config + per-run attempt counts.
+    autonomy_enabled/paused are re-read live (the heartbeat may lag by up to one tick after a settings
+    change). Cheap — a few KV reads plus in-process state; the single API process owns the loop."""
+    cfg = await load_config(session)
+    return {
+        **_heartbeat,
+        "autonomy_enabled": cfg.autonomy_enabled,
+        "paused": background_work.queue_paused(),
+        "interval_s": cfg.interval_s,
+        "stale_window_s": cfg.stale_window_s,
+        "authority_ceiling": cfg.ceiling,
+        "max_attempts": cfg.max_attempts,
+        "attempts": dict(_attempts),
+    }
 
 
 async def run_forever() -> None:

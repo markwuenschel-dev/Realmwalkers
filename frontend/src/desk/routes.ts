@@ -56,6 +56,16 @@ export const DESK_ROUTES: readonly DeskRoute[] = [
     nav: true,
   },
   {
+    id: "pipeline",
+    label: "Pipeline",
+    paletteLabel: "Open the live Pipeline dashboard",
+    href: "/pipeline",
+    key: "w",
+    shortcut: "G W",
+    icon: "◉",
+    nav: true,
+  },
+  {
     id: "packets",
     label: "Packets",
     paletteLabel: "Open Knowledge packets",

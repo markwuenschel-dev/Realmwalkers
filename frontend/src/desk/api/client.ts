@@ -66,6 +66,7 @@ import type {
   ProductionRunDetailOut,
   ProductionRunOut,
   ChapterPipelineOut,
+  PipelineStatusOut,
   RedraftIn,
   RetryFailedOut,
   RepairApplyAllOut,
@@ -375,6 +376,9 @@ export const api = {
   // Per-chapter pipeline facts for the Chapters command center — one request for the whole book.
   chaptersOverview: (bookId: string) =>
     http<ChapterPipelineOut[]>(`/books/${bookId}/chapters/overview`),
+  // One live book-wide snapshot of the whole production pipeline for the Pipeline dashboard (now /
+  // queue / waiting / blocked / completed / sweeper). Polled ~3s while the Pipeline tab is active.
+  pipeline: (bookId: string) => http<PipelineStatusOut>(`/books/${bookId}/pipeline`),
   applyRepairTask: (taskId: string) =>
     http<RepairTaskOut>(`/repair-tasks/${taskId}/apply`, { method: "POST" }),
   // One click drains the run's queued repair tasks (same drain the auto-triggers use).
