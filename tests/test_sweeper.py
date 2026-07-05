@@ -114,22 +114,41 @@ async def test_sweeper_auto_approves_within_ceiling(db_factory):
         assert any(a.kind == "sweeper_repair" and a.source == "sweeper" for a in acts)
 
 
-async def test_sweeper_never_auto_approves_human_required(db_factory):
+async def test_sweeper_gates_human_required_at_default_ceiling(db_factory):
     sweeper._attempts.clear()
     sweeper._warned_human.clear()
     async with db_factory() as s:
         book, _chapter, run, scenes = await _seed_run(s)
         task = await _approval_task(s, run, scenes, authority=RepairAuthorityLevel.HUMAN_REQUIRED)
 
-        await sweeper._sweep_one_run(s, run.id, _cfg())
+        await sweeper._sweep_one_run(s, run.id, _cfg())  # default ceiling = chapter_structural
         await s.commit()
 
         task = await s.get(RepairTask, task.id)
-        assert task.status == RepairTaskStatus.WAITING_FOR_HUMAN  # untouched
+        assert task.status == RepairTaskStatus.WAITING_FOR_HUMAN  # untouched — above the default ceiling
         assert task.human_approved_at is None
         acts = await activity_router.list_activity(s, book_id=book.id)
         assert any(a.kind == "run_blocked" and a.severity == "warn" for a in acts)
         assert not any(a.kind == "sweeper_repair" for a in acts)
+
+
+async def test_sweeper_approves_human_required_when_ceiling_raised(db_factory):
+    # Raising the ceiling to human_required opts into full autonomy — the sweeper then drives even the
+    # highest-authority repairs (the honest-ceiling fix; previously human_required was hard-blocked).
+    sweeper._attempts.clear()
+    sweeper._warned_human.clear()
+    async with db_factory() as s:
+        book, _chapter, run, scenes = await _seed_run(s)
+        task = await _approval_task(s, run, scenes, authority=RepairAuthorityLevel.HUMAN_REQUIRED)
+
+        await sweeper._sweep_one_run(s, run.id, _cfg(ceiling=RepairAuthorityLevel.HUMAN_REQUIRED.value))
+        await s.commit()
+
+        task = await s.get(RepairTask, task.id)
+        assert task.status == RepairTaskStatus.RUNNING
+        assert task.human_approved_at is not None
+        acts = await activity_router.list_activity(s, book_id=book.id)
+        assert any(a.kind == "sweeper_repair" for a in acts)
 
 
 async def test_sweeper_respects_ceiling_below_task_authority(db_factory):
@@ -168,6 +187,38 @@ async def test_delete_production_run_cascades(db_factory):
         # A single "run deleted" marker lands in the feed.
         acts = await activity_router.list_activity(s)
         assert any(a.kind == "run_deleted" for a in acts)
+
+
+async def test_sweeper_triage_realwork_no_greenlet(db_factory):
+    # Repro for the prod greenlet_spawn error: the sweeper's other tests seed issues as REPAIR_QUEUED,
+    # which makes triage a no-op — so they never exercise triage doing real work (accept → cluster →
+    # create repair task → _record_event → activity mirror). A PROPOSED issue forces that path.
+    sweeper._attempts.clear()
+    sweeper._warned_human.clear()
+    async with db_factory() as s:
+        _book, chapter, run, scenes = await _seed_run(s)
+        s.add(
+            Issue(
+                production_run_id=run.id,
+                chapter_id=chapter.id,
+                artifact_type="chapter_draft_qa",
+                artifact_id=uuid.uuid4(),
+                scene_id=scenes[0].id,
+                scene_no=1,
+                validator="scene_scope",
+                issue_kind="scene_scope_bleed",
+                severity="repair",
+                claim="Scene 1 stages a beat it does not own.",
+                recommended_action="Cut the leaked beat.",
+                status=IssueStatus.PROPOSED,
+                payload_json={"signature": "sig-1"},
+            )
+        )
+        await s.flush()
+
+        # Must not raise greenlet_spawn / MissingGreenlet.
+        await sweeper._sweep_one_run(s, run.id, _cfg())
+        await s.commit()
 
 
 async def test_retention_prunes_aged_exhaust_but_keeps_completed_runs(db_factory):

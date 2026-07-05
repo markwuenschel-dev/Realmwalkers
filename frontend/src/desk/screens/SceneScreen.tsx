@@ -112,6 +112,13 @@ export default function SceneScreen() {
     }
   }, [focused, focusSceneId, data.missingSceneId, router]);
 
+  // Keep the raw queue index reconciled to the clamped position. Without this, approving a scene
+  // (which shrinks the pending queue) or paging past the end leaves activeScene drifted ABOVE the
+  // queue — idx pins to the last item and the › / j "next" appears dead until you page back down.
+  useEffect(() => {
+    if (pending.length && desk.activeScene !== idx) desk.syncActiveScene(idx);
+  }, [pending.length, desk.activeScene, idx, desk.syncActiveScene]);
+
   const cur = data.detail;
   const draftKey = (s: { id: string; version: number }) => `dominion:draft:${s.id}:${s.version}`;
 
