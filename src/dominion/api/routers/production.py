@@ -5,9 +5,11 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.models import RepairTask
+from dominion.shared.enums import ProductionRunStatus
+from dominion.shared.models import ProductionRun, RepairTask
 from dominion.shared.schemas import (
     AgentEventOut,
     AgentRunOut,
@@ -16,6 +18,8 @@ from dominion.shared.schemas import (
     ChapterSequenceOut,
     ChapterSequenceQaOut,
     ChapterSequenceUpdateIn,
+    ClearProductionRunsOut,
+    DeleteProductionRunOut,
     IssueDecisionIn,
     IssueDecisionOut,
     IssueOut,
@@ -29,7 +33,7 @@ from dominion.shared.schemas import (
     RepairTaskOut,
     RepairVerificationOut,
 )
-from dominion.workers import background_work, production
+from dominion.workers import background_work, production, production_delete
 
 router = APIRouter(tags=["production"])
 
@@ -57,7 +61,9 @@ async def _action_out(session: SessionDep, run_id: uuid.UUID) -> ProductionRunAc
 
 
 @router.post("/production-runs", response_model=ProductionRunActionOut)
-async def start_production_run(body: ProductionRunCreateIn, session: SessionDep) -> ProductionRunActionOut:
+async def start_production_run(
+    body: ProductionRunCreateIn, session: SessionDep, background: BackgroundTasks
+) -> ProductionRunActionOut:
     try:
         run = await production.create_production_run(
             session,
@@ -70,12 +76,16 @@ async def start_production_run(body: ProductionRunCreateIn, session: SessionDep)
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    # create_production_run auto-triages inline but never kicked the drain (only /triage did), so a
+    # fresh run's non-approval repair tasks sat QUEUED. Kick it here so the run starts self-repairing
+    # the moment it's created (drain skips approval-gated tasks + honors the pause switch).
+    background.add_task(background_work.drain_queued_repair_tasks)
     return await _action_out(session, run.id)
 
 
 @router.post("/chapters/{chapter_id}/production-runs", response_model=ProductionRunActionOut)
 async def start_chapter_production_run(
-    chapter_id: uuid.UUID, body: ProductionRunStartIn, session: SessionDep
+    chapter_id: uuid.UUID, body: ProductionRunStartIn, session: SessionDep, background: BackgroundTasks
 ) -> ProductionRunActionOut:
     try:
         run = await production.create_production_run(
@@ -89,6 +99,8 @@ async def start_chapter_production_run(
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    # Kick the drain on create (see start_production_run) so the run self-repairs immediately.
+    background.add_task(background_work.drain_queued_repair_tasks)
     return await _action_out(session, run.id)
 
 
@@ -96,6 +108,44 @@ async def start_chapter_production_run(
 async def list_production_runs(chapter_id: uuid.UUID, session: SessionDep) -> list[ProductionRunOut]:
     rows = await production.list_production_runs(session, chapter_id)
     return [_run_out(row) for row in rows]
+
+
+@router.delete("/production-runs/{run_id}", response_model=DeleteProductionRunOut)
+async def delete_production_run(run_id: uuid.UUID, session: SessionDep) -> DeleteProductionRunOut:
+    """Hard-delete a run and all its children (issues, repair tasks, artifacts, events, agent runs) so
+    stale runs can be cleared from the Production tab. Draft jobs are detached, not deleted — the
+    drafted scenes are untouched."""
+    deleted = await production_delete.delete_production_run(session, run_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="production run not found")
+    await session.commit()
+    return DeleteProductionRunOut(deleted=run_id)
+
+
+@router.post("/chapters/{chapter_id}/production-runs/clear", response_model=ClearProductionRunsOut)
+async def clear_production_runs(chapter_id: uuid.UUID, session: SessionDep) -> ClearProductionRunsOut:
+    """Bulk-delete the chapter's terminal runs (completed/cancelled/failed) — the "Clear completed"
+    button. In-flight runs are left; delete those individually with DELETE /production-runs/{id}."""
+    ids = list(
+        (
+            await session.execute(
+                select(ProductionRun.id).where(
+                    ProductionRun.chapter_id == chapter_id,
+                    ProductionRun.status.in_(
+                        (ProductionRunStatus.COMPLETED, ProductionRunStatus.CANCELLED, ProductionRunStatus.FAILED)
+                    ),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    deleted = 0
+    for rid in ids:
+        if await production_delete.delete_production_run(session, rid):
+            deleted += 1
+    await session.commit()
+    return ClearProductionRunsOut(deleted=deleted)
 
 
 @router.get("/production-runs/{run_id}", response_model=ProductionRunDetailOut)
@@ -195,12 +245,12 @@ async def _decide_issue(
 
 
 @router.post("/issues/{issue_id}/accept", response_model=IssueOut)
-async def accept_issue(issue_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep) -> IssueOut:
+async def accept_issue(issue_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None) -> IssueOut:
     return await _decide_issue(issue_id, "accept", body, session)
 
 
 @router.post("/issues/{issue_id}/reject", response_model=IssueOut)
-async def reject_issue(issue_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep) -> IssueOut:
+async def reject_issue(issue_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None) -> IssueOut:
     return await _decide_issue(issue_id, "reject", body, session)
 
 
@@ -210,12 +260,14 @@ async def merge_issue(issue_id: uuid.UUID, body: IssueDecisionIn, session: Sessi
 
 
 @router.post("/issues/{issue_id}/escalate", response_model=IssueOut)
-async def escalate_issue(issue_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep) -> IssueOut:
+async def escalate_issue(issue_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None) -> IssueOut:
     return await _decide_issue(issue_id, "escalate", body, session)
 
 
 @router.post("/issues/{issue_id}/mark-false-positive", response_model=IssueOut)
-async def mark_issue_false_positive(issue_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep) -> IssueOut:
+async def mark_issue_false_positive(
+    issue_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None
+) -> IssueOut:
     return await _decide_issue(issue_id, "mark_false_positive", body, session)
 
 
@@ -315,7 +367,7 @@ async def run_repair_task(task_id: uuid.UUID, session: SessionDep, background: B
 
 @router.post("/repair-tasks/{task_id}/approve-apply", response_model=RepairTaskOut)
 async def approve_and_apply_repair_task(
-    task_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep, background: BackgroundTasks
+    task_id: uuid.UUID, session: SessionDep, background: BackgroundTasks, body: IssueDecisionIn | None = None
 ) -> RepairTaskOut:
     """Explicit human approval for a requires_human_approval task, then the normal apply. This is the
     ONLY path that executes such a task — plain /apply parks it waiting_for_human, and the background
@@ -347,7 +399,9 @@ async def verify_repair_task(
 
 
 @router.post("/repair-tasks/{task_id}/reject", response_model=RepairTaskOut)
-async def reject_repair_task(task_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep) -> RepairTaskOut:
+async def reject_repair_task(
+    task_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None
+) -> RepairTaskOut:
     try:
         task = await production.reject_repair_task(session, task_id, reason=body.reason if body else None)
     except ValueError as exc:
@@ -357,7 +411,9 @@ async def reject_repair_task(task_id: uuid.UUID, body: IssueDecisionIn | None, s
 
 
 @router.post("/repair-tasks/{task_id}/rollback", response_model=RepairTaskOut)
-async def rollback_repair_task(task_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep) -> RepairTaskOut:
+async def rollback_repair_task(
+    task_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None
+) -> RepairTaskOut:
     try:
         task = await production.rollback_repair_task(session, task_id, reason=body.reason if body else None)
     except ValueError as exc:

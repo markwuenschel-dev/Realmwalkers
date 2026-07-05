@@ -63,8 +63,19 @@ export type RetryFailedOut = S["RetryFailedOut"] & {
   skipped?: DraftQueueBlockerOut[];
 };
 export type ClearFailedOut = S["ClearFailedOut"];
+export type ClearFinishedJobsOut = S["ClearFinishedJobsOut"];
 export type DeleteSceneOut = S["DeleteSceneOut"];
 export type ClearDraftScenesOut = S["ClearDraftScenesOut"];
+
+// Central Activity feed + cleanup (the single source behind the Activity drawer).
+export type ActivityOut = S["ActivityOut"];
+export type ActivityClearIn = S["ActivityClearIn"];
+export type ActivityClearOut = S["ActivityClearOut"];
+export type DeleteProductionRunOut = S["DeleteProductionRunOut"];
+export type ClearProductionRunsOut = S["ClearProductionRunsOut"];
+// Autonomous self-repair sweeper settings.
+export type AutonomyOut = S["AutonomyOut"];
+export type AutonomyUpdateIn = S["AutonomyUpdateIn"];
 
 export type DraftQueueBlockerOut = {
   chapter_id: string;

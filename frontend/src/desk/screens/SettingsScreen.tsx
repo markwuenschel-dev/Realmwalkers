@@ -8,6 +8,7 @@ import { PresetBar } from "../components/agentOps/PresetBar";
 import { BudgetControls } from "../components/agentOps/BudgetControls";
 import { AgentRow } from "../components/agentOps/AgentRow";
 import { SmokeTestModal } from "../components/agentOps/SmokeTestModal";
+import { AutonomyPanel } from "../components/agentOps/AutonomyPanel";
 import { Eyebrow, Skeleton } from "../components/ui";
 
 export default function SettingsScreen() {
@@ -200,6 +201,8 @@ export default function SettingsScreen() {
           {error}
         </div>
       )}
+
+      <AutonomyPanel />
 
       {!data && !error && (
         <div style={css("max-width:920px;display:flex;flex-direction:column;gap:14px")}>

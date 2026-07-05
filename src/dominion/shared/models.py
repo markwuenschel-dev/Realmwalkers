@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, Boolean, DateTime, Float, ForeignKey, Integer, Text, func
+from sqlalchemy import ARRAY, BigInteger, Boolean, DateTime, Float, ForeignKey, Identity, Integer, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -644,6 +644,40 @@ class AgentEvent(Base):
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Activity(Base):
+    """Central cross-surface activity feed — the single source of truth for the Activity drawer.
+
+    Unlike AgentEvent (append-only, strictly scoped to one production run) this is the app-wide feed:
+    every mutating surface (production, jobs, reviews, runs, the autonomous sweeper, retention) emits a
+    row through `workers.activity.record_activity`, and the drawer reads them from `GET /activity`.
+    Manual "Clear" sets `dismissed_at` (soft hide); the retention sweep hard-deletes old rows.
+    """
+
+    __tablename__ = "activities"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    # Monotonic insertion counter. Postgres now() is the transaction timestamp — CONSTANT within one
+    # transaction — so activities emitted together (one request, one sweeper tick) share created_at and
+    # can't be ordered by it. This identity column gives a stable newest-first order; the feed sorts on it.
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), index=True)
+    # Scope/link ids are all nullable — an activity may be book-wide, chapter-wide, run-scoped, or
+    # job-scoped. production_run_id/job_id carry NO ForeignKey on purpose: manual delete and the
+    # retention sweep remove runs/jobs out from under their activities, and a hard FK would either
+    # block that delete or cascade-erase the audit trail. They are soft links the UI resolves best-effort.
+    book_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True, index=True)
+    chapter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapters.id"), nullable=True)
+    production_run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True, index=True)
+    job_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    source: Mapped[str] = mapped_column(Text)  # production|jobs|reviews|runs|sweeper|retention|canon|packets
+    kind: Mapped[str] = mapped_column(Text)  # run_started|repair_applied|draft_done|sweeper_repair|...
+    severity: Mapped[str] = mapped_column(Text, default="info")  # info | success | warn | error
+    title: Mapped[str] = mapped_column(Text)  # one-line human summary
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)  # secondary line (e.g. an error)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # Manual "Clear" soft-hides by stamping this; the retention sweep hard-deletes by created_at age.
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
 class Issue(Base):

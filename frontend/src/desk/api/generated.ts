@@ -841,6 +841,33 @@ export interface paths {
     get: operations["get_production_run_production_runs__run_id__get"];
     put?: never;
     post?: never;
+    /**
+     * Delete Production Run
+     * @description Hard-delete a run and all its children (issues, repair tasks, artifacts, events, agent runs) so
+     *     stale runs can be cleared from the Production tab. Draft jobs are detached, not deleted — the
+     *     drafted scenes are untouched.
+     */
+    delete: operations["delete_production_run_production_runs__run_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/production-runs/clear": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clear Production Runs
+     * @description Bulk-delete the chapter's terminal runs (completed/cancelled/failed) — the "Clear completed"
+     *     button. In-flight runs are left; delete those individually with DELETE /production-runs/{id}.
+     */
+    post: operations["clear_production_runs_chapters__chapter_id__production_runs_clear_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1713,6 +1740,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/jobs/clear-finished": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clear Finished
+     * @description Delete DONE jobs — clears the Activity drawer's 'recently finished' history. DONE jobs are pure
+     *     exhaust; the scenes they produced are untouched. (Failed jobs have their own /jobs/clear-failed.)
+     */
+    post: operations["clear_finished_jobs_clear_finished_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/jobs/status": {
     parameters: {
       query?: never;
@@ -1999,6 +2047,65 @@ export interface paths {
      *     (doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched.
      */
     post: operations["rebuild_canon_books__book_id__canon_rebuild_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/activity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Activity
+     * @description Recent activity, newest first. The drawer polls this while open; capped so the feed can't
+     *     return an unbounded history.
+     */
+    get: operations["list_activity_activity_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/activity/{activity_id}/dismiss": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Dismiss Activity */
+    post: operations["dismiss_activity_activity__activity_id__dismiss_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/activity/clear": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clear Activity
+     * @description Bulk soft-hide. scope="finished" clears terminal history (FINISHED_KINDS); scope="all" clears
+     *     everything still showing. Optional book scope keeps one book's clear from touching another's.
+     */
+    post: operations["clear_activity_activity_clear_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2349,6 +2456,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/settings/autonomy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Autonomy
+     * @description Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention).
+     */
+    get: operations["get_autonomy_settings_autonomy_get"];
+    /**
+     * Set Autonomy
+     * @description Update the sweeper switches. Persisted as KV rows and read live on the next tick.
+     */
+    put: operations["set_autonomy_settings_autonomy_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/settings/agents/smoke-test": {
     parameters: {
       query?: never;
@@ -2429,6 +2560,58 @@ export interface components {
       total_cache_read_tokens?: number | null;
       /** Total Cache Creation Tokens */
       total_cache_creation_tokens?: number | null;
+    };
+    /** ActivityClearIn */
+    ActivityClearIn: {
+      /**
+       * Scope
+       * @default finished
+       */
+      scope: string;
+      /** Book Id */
+      book_id?: string | null;
+    };
+    /** ActivityClearOut */
+    ActivityClearOut: {
+      /** Dismissed */
+      dismissed: number;
+    };
+    /** ActivityOut */
+    ActivityOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Book Id */
+      book_id?: string | null;
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** Production Run Id */
+      production_run_id?: string | null;
+      /** Job Id */
+      job_id?: string | null;
+      /** Source */
+      source: string;
+      /** Kind */
+      kind: string;
+      /** Severity */
+      severity: string;
+      /** Title */
+      title: string;
+      /** Detail */
+      detail?: string | null;
+      /** Payload Json */
+      payload_json?: {
+        [key: string]: unknown;
+      } | null;
+      /** Dismissed At */
+      dismissed_at?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /** AgentContractOut */
     AgentContractOut: {
@@ -2920,6 +3103,39 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /**
+     * AutonomyOut
+     * @description Autonomous self-repair sweeper settings (workers/sweeper.py).
+     */
+    AutonomyOut: {
+      /** Autonomy Enabled */
+      autonomy_enabled: boolean;
+      /** Interval S */
+      interval_s: number;
+      /** Stale Window S */
+      stale_window_s: number;
+      /** Authority Ceiling */
+      authority_ceiling: string;
+      /** Max Attempts */
+      max_attempts: number;
+      /** Retention Days */
+      retention_days: number;
+    };
+    /** AutonomyUpdateIn */
+    AutonomyUpdateIn: {
+      /** Autonomy Enabled */
+      autonomy_enabled?: boolean | null;
+      /** Interval S */
+      interval_s?: number | null;
+      /** Stale Window S */
+      stale_window_s?: number | null;
+      /** Authority Ceiling */
+      authority_ceiling?: string | null;
+      /** Max Attempts */
+      max_attempts?: number | null;
+      /** Retention Days */
+      retention_days?: number | null;
     };
     /**
      * BatchChapterResultOut
@@ -3847,6 +4063,16 @@ export interface components {
        */
       failed: number;
     };
+    /** ClearFinishedJobsOut */
+    ClearFinishedJobsOut: {
+      /** Purged */
+      purged: number;
+    };
+    /** ClearProductionRunsOut */
+    ClearProductionRunsOut: {
+      /** Deleted */
+      deleted: number;
+    };
     /**
      * ContinuityResolveIn
      * @description Resolve one continuity mismatch from the panel: pick prose or ledger (DESIGN §9).
@@ -3920,6 +4146,14 @@ export interface components {
        * @default 0
        */
       deleted_scene_packets: number;
+    };
+    /** DeleteProductionRunOut */
+    DeleteProductionRunOut: {
+      /**
+       * Deleted
+       * Format: uuid
+       */
+      deleted: string;
     };
     /**
      * DeleteSceneOut
@@ -8139,6 +8373,68 @@ export interface operations {
       };
     };
   };
+  delete_production_run_production_runs__run_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeleteProductionRunOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clear_production_runs_chapters__chapter_id__production_runs_clear_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClearProductionRunsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   get_production_run_events_production_runs__run_id__events_get: {
     parameters: {
       query?: never;
@@ -8365,7 +8661,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["IssueDecisionIn"] | null;
       };
@@ -8400,7 +8696,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["IssueDecisionIn"] | null;
       };
@@ -8470,7 +8766,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["IssueDecisionIn"] | null;
       };
@@ -8505,7 +8801,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["IssueDecisionIn"] | null;
       };
@@ -8757,7 +9053,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["IssueDecisionIn"] | null;
       };
@@ -8823,7 +9119,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["IssueDecisionIn"] | null;
       };
@@ -8858,7 +9154,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         "application/json": components["schemas"]["IssueDecisionIn"] | null;
       };
@@ -9728,6 +10024,38 @@ export interface operations {
       };
     };
   };
+  clear_finished_jobs_clear_finished_post: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+        chapter_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClearFinishedJobsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   status_jobs_status_get: {
     parameters: {
       query?: {
@@ -10247,6 +10575,105 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["CanonIngestOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_activity_activity_get: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+        since?: string | null;
+        kind?: string | null;
+        include_dismissed?: boolean;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ActivityOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  dismiss_activity_activity__activity_id__dismiss_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        activity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ActivityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clear_activity_activity_clear_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ActivityClearIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ActivityClearOut"];
         };
       };
       /** @description Validation Error */
@@ -11015,6 +11442,59 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AgentStatsListOut"];
+        };
+      };
+    };
+  };
+  get_autonomy_settings_autonomy_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AutonomyOut"];
+        };
+      };
+    };
+  };
+  set_autonomy_settings_autonomy_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AutonomyUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AutonomyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

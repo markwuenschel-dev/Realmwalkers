@@ -673,3 +673,33 @@ async def purge_failed_draft_jobs(
         chapter_id=str(chapter_id) if chapter_id else None,
     )
     return result
+
+
+async def purge_done_draft_jobs(
+    session: AsyncSession,
+    *,
+    book_id: uuid.UUID | None = None,
+    chapter_id: uuid.UUID | None = None,
+    older_than: datetime | None = None,
+) -> PurgeResult:
+    """Delete DONE jobs (every kind) — the counterpart to purge_failed_draft_jobs for the "recently
+    finished" list. The Activity drawer's "Clear finished" calls this with no `older_than` (clear all
+    finished); the retention sweep passes a cutoff so only aged rows are pruned. DONE jobs are pure
+    exhaust — the scenes they produced live in the scenes table and are untouched here."""
+    done_q = select(Job.id).where(Job.status == JobStatus.DONE)
+    if book_id is not None:
+        done_q = done_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    if chapter_id is not None:
+        done_q = done_q.where(Job.chapter_id == chapter_id)
+    if older_than is not None:
+        done_q = done_q.where(Job.finished_at < older_than)
+    job_ids = list((await session.execute(done_q)).scalars().all())
+    purged = await _purge_job_ids(session, job_ids)
+    log.info(
+        "draft_purge.done",
+        purged=purged,
+        book_id=str(book_id) if book_id else None,
+        chapter_id=str(chapter_id) if chapter_id else None,
+        older_than=older_than.isoformat() if older_than else None,
+    )
+    return PurgeResult(purged=purged)

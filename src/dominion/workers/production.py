@@ -57,7 +57,7 @@ from dominion.shared.models import (
 )
 from dominion.shared.severity import issue_gates
 from dominion.shared.text_match import as_str_list, names_present
-from dominion.workers import repair_triage
+from dominion.workers import activity, repair_triage
 from dominion.workers.canon_guards import scan_packet_prose
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.job_scheduler import schedule_revision
@@ -184,6 +184,11 @@ async def _record_event(
     )
     session.add(event)
     await session.flush()
+    # Mirror every production event into the central Activity feed so it lands in the Activity drawer
+    # alongside draft jobs and review actions (best-effort; a feed failure never breaks the pipeline).
+    await activity.record_from_production_event(
+        session, run_id=run_id, event_type=event_type, stage=stage, message=message, payload=payload
+    )
     return event
 
 

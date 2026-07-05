@@ -346,6 +346,43 @@ export default function ProductionScreen() {
     [],
   );
 
+  const onDeleteRun = useCallback(
+    async (run: ProductionRunOut) => {
+      if (
+        !window.confirm(
+          `Delete run ${run.id.slice(0, 8)} (${run.status})? This removes its issues, repair tasks, ` +
+            `artifacts, and events. Drafted scenes are kept.`,
+        )
+      )
+        return;
+      try {
+        await api.deleteProductionRun(run.id);
+        setNotice(`Deleted run ${run.id.slice(0, 8)}.`);
+        if (chapterId) await loadRuns(chapterId);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [chapterId, loadRuns],
+  );
+
+  const onClearRuns = useCallback(async () => {
+    if (!chapterId) return;
+    if (
+      !window.confirm(
+        "Delete all completed / cancelled / failed runs for this chapter? Drafted scenes are kept.",
+      )
+    )
+      return;
+    try {
+      const out = await api.clearProductionRuns(chapterId);
+      setNotice(`Cleared ${out.deleted} finished run${out.deleted === 1 ? "" : "s"}.`);
+      await loadRuns(chapterId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [chapterId, loadRuns]);
+
   useEffect(() => {
     const fromUrl = searchParams.get("chapter");
     if (fromUrl && orderedChapters.some((chapter) => chapter.id === fromUrl)) {
@@ -674,7 +711,21 @@ export default function ProductionScreen() {
           </div>
 
           <div>
-            <Eyebrow>Runs</Eyebrow>
+            <div
+              style={css("display:flex;align-items:center;justify-content:space-between;gap:8px")}
+            >
+              <Eyebrow>Runs</Eyebrow>
+              {runs.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void onClearRuns()}
+                  title="Delete all completed / cancelled / failed runs for this chapter"
+                >
+                  Clear done
+                </Button>
+              )}
+            </div>
             {loading ? (
               <div
                 style={css(
@@ -688,30 +739,42 @@ export default function ProductionScreen() {
                 {runs.map((run) => {
                   const active = run.id === runId;
                   return (
-                    <button
-                      key={run.id}
-                      className="dk-card"
-                      onClick={() => setRunId(run.id)}
-                      style={css(
-                        `text-align:left;padding:10px 12px;border-radius:10px;border:1px solid ${active ? "var(--accent)" : "var(--line)"};background:${active ? "var(--accentSoft)" : "var(--bg3)"};color:var(--ink);cursor:pointer`,
-                      )}
-                    >
-                      <div
+                    <div key={run.id} style={css("display:flex;align-items:stretch;gap:6px")}>
+                      <button
+                        className="dk-card"
+                        onClick={() => setRunId(run.id)}
                         style={css(
-                          "display:flex;justify-content:space-between;gap:10px;align-items:center",
+                          `flex:1;min-width:0;text-align:left;padding:10px 12px;border-radius:10px;border:1px solid ${active ? "var(--accent)" : "var(--line)"};background:${active ? "var(--accentSoft)" : "var(--bg3)"};color:var(--ink);cursor:pointer`,
                         )}
                       >
-                        <span
-                          style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
+                        <div
+                          style={css(
+                            "display:flex;justify-content:space-between;gap:10px;align-items:center",
+                          )}
                         >
-                          {run.id.slice(0, 8)}
-                        </span>
-                        <Chip label={run.status} tone={statusChipTone(run.status)} size="sm" />
-                      </div>
-                      <div style={css("margin-top:6px;font-size:12.5px;color:var(--ink)")}>
-                        {run.current_stage ?? "queued"}
-                      </div>
-                    </button>
+                          <span
+                            style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
+                          >
+                            {run.id.slice(0, 8)}
+                          </span>
+                          <Chip label={run.status} tone={statusChipTone(run.status)} size="sm" />
+                        </div>
+                        <div style={css("margin-top:6px;font-size:12.5px;color:var(--ink)")}>
+                          {run.current_stage ?? "queued"}
+                        </div>
+                      </button>
+                      <button
+                        className="dk-btn"
+                        onClick={() => void onDeleteRun(run)}
+                        aria-label={`Delete run ${run.id.slice(0, 8)}`}
+                        title="Delete this run (keeps drafted scenes)"
+                        style={css(
+                          "flex:none;width:28px;border-radius:10px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center",
+                        )}
+                      >
+                        ×
+                      </button>
+                    </div>
                   );
                 })}
               </div>

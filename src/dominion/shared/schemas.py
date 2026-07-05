@@ -1439,6 +1439,65 @@ class AgentEventOut(_ORM):
     created_at: datetime
 
 
+class ActivityOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID | None = None
+    chapter_id: uuid.UUID | None = None
+    production_run_id: uuid.UUID | None = None
+    job_id: uuid.UUID | None = None
+    source: str
+    kind: str
+    severity: str
+    title: str
+    detail: str | None = None
+    payload_json: dict[str, Any] | None = None
+    dismissed_at: datetime | None = None
+    created_at: datetime
+
+
+class ActivityClearIn(BaseModel):
+    # "finished" clears terminal/finished activities (done/failed/completed/cancelled kinds); "all"
+    # clears everything currently shown. Optional book scope keeps one book's clear from wiping another.
+    scope: str = "finished"
+    book_id: uuid.UUID | None = None
+
+
+class ActivityClearOut(BaseModel):
+    dismissed: int
+
+
+class DeleteProductionRunOut(BaseModel):
+    deleted: uuid.UUID
+
+
+class ClearProductionRunsOut(BaseModel):
+    deleted: int
+
+
+class ClearFinishedJobsOut(BaseModel):
+    purged: int
+
+
+class AutonomyOut(BaseModel):
+    """Autonomous self-repair sweeper settings (workers/sweeper.py)."""
+
+    autonomy_enabled: bool
+    interval_s: int
+    stale_window_s: int
+    authority_ceiling: str
+    max_attempts: int
+    retention_days: int
+
+
+class AutonomyUpdateIn(BaseModel):
+    autonomy_enabled: bool | None = None
+    interval_s: int | None = None
+    stale_window_s: int | None = None
+    authority_ceiling: str | None = None
+    max_attempts: int | None = None
+    retention_days: int | None = None
+
+
 class AgentRunOut(_ORM):
     id: uuid.UUID
     production_run_id: uuid.UUID

@@ -2446,6 +2446,48 @@
       }
     },
     "/production-runs/{run_id}": {
+      "delete": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Delete Production Run",
+        "description": "Hard-delete a run and all its children (issues, repair tasks, artifacts, events, agent runs) so\nstale runs can be cleared from the Production tab. Draft jobs are detached, not deleted \u2014 the\ndrafted scenes are untouched.",
+        "operationId": "delete_production_run_production_runs__run_id__delete",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteProductionRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "production"
@@ -2471,6 +2513,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProductionRunDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chapters/{chapter_id}/production-runs/clear": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Clear Production Runs",
+        "description": "Bulk-delete the chapter's terminal runs (completed/cancelled/failed) \u2014 the \"Clear completed\"\nbutton. In-flight runs are left; delete those individually with DELETE /production-runs/{id}.",
+        "operationId": "clear_production_runs_chapters__chapter_id__production_runs_clear_post",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearProductionRunsOut"
                 }
               }
             }
@@ -2825,7 +2911,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -2886,7 +2971,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -3000,7 +3084,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -3061,7 +3144,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -3430,7 +3512,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -3534,7 +3615,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -3595,7 +3675,6 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -5143,6 +5222,74 @@
         }
       }
     },
+    "/jobs/clear-finished": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Clear Finished",
+        "description": "Delete DONE jobs \u2014 clears the Activity drawer's 'recently finished' history. DONE jobs are pure\nexhaust; the scenes they produced are untouched. (Failed jobs have their own /jobs/clear-failed.)",
+        "operationId": "clear_finished_jobs_clear_finished_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "chapter_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearFinishedJobsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/status": {
       "get": {
         "tags": [
@@ -6006,6 +6153,199 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CanonIngestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activity": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "List Activity",
+        "description": "Recent activity, newest first. The drawer polls this while open; capped so the feed can't\nreturn an unbounded history.",
+        "operationId": "list_activity_activity_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "include_dismissed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Dismissed"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityOut"
+                  },
+                  "title": "Response List Activity Activity Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activity/{activity_id}/dismiss": {
+      "post": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Dismiss Activity",
+        "operationId": "dismiss_activity_activity__activity_id__dismiss_post",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activity/clear": {
+      "post": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Clear Activity",
+        "description": "Bulk soft-hide. scope=\"finished\" clears terminal history (FINISHED_KINDS); scope=\"all\" clears\neverything still showing. Optional book scope keeps one book's clear from touching another's.",
+        "operationId": "clear_activity_activity_clear_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityClearIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityClearOut"
                 }
               }
             }
@@ -7122,6 +7462,68 @@
         }
       }
     },
+    "/settings/autonomy": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Autonomy",
+        "description": "Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention).",
+        "operationId": "get_autonomy_settings_autonomy_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomyOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Set Autonomy",
+        "description": "Update the sweeper switches. Persisted as KV rows and read live on the next tick.",
+        "operationId": "set_autonomy_settings_autonomy_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutonomyUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/settings/agents/smoke-test": {
       "post": {
         "tags": [
@@ -7325,6 +7727,165 @@
         },
         "type": "object",
         "title": "ActiveScene"
+      },
+      "ActivityClearIn": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "finished"
+          },
+          "book_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Id"
+          }
+        },
+        "type": "object",
+        "title": "ActivityClearIn"
+      },
+      "ActivityClearOut": {
+        "properties": {
+          "dismissed": {
+            "type": "integer",
+            "title": "Dismissed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dismissed"
+        ],
+        "title": "ActivityClearOut"
+      },
+      "ActivityOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "book_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "production_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production Run Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "payload_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Json"
+          },
+          "dismissed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissed At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "kind",
+          "severity",
+          "title",
+          "created_at"
+        ],
+        "title": "ActivityOut"
       },
       "AgentContractOut": {
         "properties": {
@@ -8630,6 +9191,117 @@
           "created_at"
         ],
         "title": "ArtifactOut"
+      },
+      "AutonomyOut": {
+        "properties": {
+          "autonomy_enabled": {
+            "type": "boolean",
+            "title": "Autonomy Enabled"
+          },
+          "interval_s": {
+            "type": "integer",
+            "title": "Interval S"
+          },
+          "stale_window_s": {
+            "type": "integer",
+            "title": "Stale Window S"
+          },
+          "authority_ceiling": {
+            "type": "string",
+            "title": "Authority Ceiling"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts"
+          },
+          "retention_days": {
+            "type": "integer",
+            "title": "Retention Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "autonomy_enabled",
+          "interval_s",
+          "stale_window_s",
+          "authority_ceiling",
+          "max_attempts",
+          "retention_days"
+        ],
+        "title": "AutonomyOut",
+        "description": "Autonomous self-repair sweeper settings (workers/sweeper.py)."
+      },
+      "AutonomyUpdateIn": {
+        "properties": {
+          "autonomy_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autonomy Enabled"
+          },
+          "interval_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval S"
+          },
+          "stale_window_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stale Window S"
+          },
+          "authority_ceiling": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority Ceiling"
+          },
+          "max_attempts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Attempts"
+          },
+          "retention_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention Days"
+          }
+        },
+        "type": "object",
+        "title": "AutonomyUpdateIn"
       },
       "BatchChapterResultOut": {
         "properties": {
@@ -10505,6 +11177,32 @@
         "title": "ClearFailedOut",
         "description": "Result of purging FAILED draft jobs without re-queueing."
       },
+      "ClearFinishedJobsOut": {
+        "properties": {
+          "purged": {
+            "type": "integer",
+            "title": "Purged"
+          }
+        },
+        "type": "object",
+        "required": [
+          "purged"
+        ],
+        "title": "ClearFinishedJobsOut"
+      },
+      "ClearProductionRunsOut": {
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "ClearProductionRunsOut"
+      },
       "ContinuityResolveIn": {
         "properties": {
           "critique_id": {
@@ -10679,6 +11377,20 @@
         "type": "object",
         "title": "DeleteChapterPacketOut",
         "description": "Result of clearing chapter packets (and their scene packets) for one chapter."
+      },
+      "DeleteProductionRunOut": {
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "DeleteProductionRunOut"
       },
       "DeleteSceneOut": {
         "properties": {

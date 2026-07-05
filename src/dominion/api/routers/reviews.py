@@ -25,6 +25,7 @@ from dominion.shared.models import (
     Scene,
 )
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
+from dominion.workers import activity
 from dominion.workers.job_scheduler import schedule_next_after_approval, schedule_revision
 from dominion.workers.memory import knowledge, ledger, summaries
 from dominion.workers.stat_render import render_stat_blocks
@@ -122,6 +123,29 @@ async def decide(
     elif body.decision == Decision.REVISE:
         scene.status = SceneStatus.REVISION_REQUESTED
         next_job = await schedule_revision(session, scene, target_pass=body.target_pass)
+
+    # Land this review action in the central Activity feed too, so the drawer is the single pane for
+    # "what happened" across pages (best-effort; never blocks the verdict).
+    chapter_row = (
+        await session.execute(select(Chapter.book_id, Chapter.chapter_no).where(Chapter.id == scene.chapter_id))
+    ).first()
+    verb = {Decision.APPROVE: "approved", Decision.DENY: "denied", Decision.REVISE: "sent for revision"}.get(
+        body.decision, str(body.decision)
+    )
+    place = (
+        f"Ch {chapter_row[1]} · " if chapter_row and chapter_row[1] is not None else ""
+    ) + f"Scene {scene.scene_no}"
+    await activity.safe_record_activity(
+        session,
+        kind="scene_decision",
+        title=f"{place} {verb}",
+        source="reviews",
+        severity="success" if body.decision == Decision.APPROVE else "info",
+        book_id=chapter_row[0] if chapter_row else None,
+        chapter_id=scene.chapter_id,
+        job_id=next_job,
+        payload={"decision": str(body.decision)},
+    )
 
     await session.commit()  # land the verdict before responding
     return {"scene": str(scene.id), "status": str(scene.status), "next_job": str(next_job) if next_job else None}
