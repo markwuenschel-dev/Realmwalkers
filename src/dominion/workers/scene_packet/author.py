@@ -18,6 +18,7 @@ from typing import Any
 from dominion.shared.config import settings
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget, Usage
+from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
 from dominion.workers.scene_packet.parse import extract_object, valid_scene_packet_body
 
 
@@ -252,7 +253,9 @@ async def author_scene_packet(
 
     Fail loud, not thin: if the primary model returns a truncated/unparseable/thin body, retry ONCE
     escalated to the configured fallback model with extra token headroom (which fixes both a real
-    truncation and a model that can't emit clean JSON for this schema). If it still can't, raise
+    truncation and a model that can't emit clean JSON for this schema) — via the shared
+    attempt_with_escalation path (same idiom as the chapter packet author), so runtime policy
+    (never_fallback tiers, fallback floors) applies here too. If it still can't, raise
     ScenePacketAuthorError carrying the cause — the derive persists that as the scene's blocked reason."""
     prefix = build_prefix(
         chapter_packet_body=chapter_packet_body,
@@ -270,6 +273,10 @@ async def author_scene_packet(
         canon_snippets=canon_snippets,
     )
 
+    # Every attempt (primary + fallback) is recorded so a total failure can name each model's
+    # specific cause — attempt_with_escalation itself only returns the last value.
+    attempts: list[tuple[str, int, Any, Usage]] = []
+
     async def _attempt(model: str, max_tokens: int) -> tuple[Any, Usage]:
         raw, usage = await llm.complete(
             model=model,
@@ -280,21 +287,25 @@ async def author_scene_packet(
             budget=budget,
             input_budget=settings.scene_packet_author_prompt_budget,
         )
-        return extract_object(raw), usage
+        body = extract_object(raw)
+        attempts.append((model, max_tokens, body, usage))
+        return body, usage
 
     primary = settings.scene_packet_author_model
     primary_max = settings.scene_packet_author_max_tokens
-    body, usage = await _attempt(primary, primary_max)
+    body, _model_used, _escalated = await attempt_with_escalation(
+        setting_key="scene_packet_author_model",
+        primary_model=primary,
+        primary_max_tokens=primary_max,
+        attempt_fn=_attempt,
+        is_success=valid_scene_packet_body,
+        policy=policy_for_setting("scene_packet_author_model"),
+        fallback_max_tokens=max(primary_max, _FALLBACK_MAX_TOKENS_FLOOR),
+    )
     if valid_scene_packet_body(body):
         return _stamp(body, word_budget)
 
-    first_cause = _why(body, usage, model=primary, max_tokens=primary_max)
-    fallback = (settings.scene_packet_author_fallback_model or "").strip()
-    if not fallback or fallback == primary:
-        raise ScenePacketAuthorError(f"{first_cause}; no fallback model configured")
-
-    fb_max = max(primary_max, _FALLBACK_MAX_TOKENS_FLOOR)
-    body2, usage2 = await _attempt(fallback, fb_max)
-    if valid_scene_packet_body(body2):
-        return _stamp(body2, word_budget)
-    raise ScenePacketAuthorError(f"{first_cause}; fallback {_why(body2, usage2, model=fallback, max_tokens=fb_max)}")
+    causes = [_why(b, u, model=m, max_tokens=mt) for m, mt, b, u in attempts]
+    if len(causes) == 1:  # fallback absent, same as primary, or blocked by never_fallback policy
+        raise ScenePacketAuthorError(f"{causes[0]}; no fallback model configured")
+    raise ScenePacketAuthorError(f"{causes[0]}; fallback {causes[1]}")

@@ -655,6 +655,8 @@ class JobsStatusOut(BaseModel):
     running: bool = False
     queued: int = 0
     failed: int = 0
+    # Human pause switch: the drain stops claiming new jobs (the in-flight scene finishes).
+    queue_paused: bool = False
     active_scene: ActiveScene | None = None
     # Cache stats for the most recently completed scene — persists during the idle window so the
     # Desk can show cache efficiency after drafting finishes, not just while it's running.
@@ -743,11 +745,16 @@ class DraftScheduleOut(BaseModel):
 
 class StructuralBlockerOut(BaseModel):
     """A deterministic chapter-structure fault detected from the approved contracts alone (no prose,
-    no LLM): `kind` is one of sequence_budget_mismatch | scene_scope_bleed | duplicate_irreversible_beat
-    | canon_contract_leak; `message` is one human sentence naming the fault and the fix."""
+    no LLM): `kind` is one of sequence_scene_count_mismatch | sequence_budget_mismatch |
+    scene_scope_bleed | duplicate_irreversible_beat | canon_contract_leak; `message` is one human
+    sentence naming the fault and the fix. The scene-count kind carries the machine fields the
+    one-click "Align plan to N seeded scenes" action needs."""
 
     kind: str
     message: str
+    sequence_id: uuid.UUID | None = None
+    planned_scene_count: int | None = None
+    seed_count: int | None = None
 
 
 class DraftReadinessOut(BaseModel):
@@ -814,6 +821,29 @@ class RecentJobOut(BaseModel):
     word_count: int | None = None
 
 
+class QueuePauseIn(BaseModel):
+    paused: bool
+
+
+class JobsPauseOut(BaseModel):
+    """Result of flipping the queue pause switch. `scheduled` is true when a resume kicked the
+    drain because jobs were waiting."""
+
+    queue_paused: bool
+    queued: int = 0
+    running: bool = False
+    scheduled: bool = False
+
+
+class CancelJobOut(BaseModel):
+    """One queued job cancelled from the Activity drawer."""
+
+    id: uuid.UUID
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    queued: int = 0  # fresh queue depth after the cancel
+
+
 class RecentJobsOut(BaseModel):
     """Queue positions + recent terminal jobs behind the Activity drawer. The LIVE job is not
     duplicated here — /jobs/status already carries it (with phase/elapsed) at the fast poll."""
@@ -844,6 +874,16 @@ class CanonEntityOut(_ORM):
     # draft_derived | legacy. `status`: active | stale | retired | superseded (only `active` reaches RAG).
     source: str = "manual"
     status: str = "active"
+    # Fine-grained provenance + retrieval facts (Desk Control Round): which file/heading an ingested
+    # row came from, its owner-precedence metadata, and whether its embedding predates the active
+    # embedding backend. `embedding_stale` is server-computed; rows with no recorded version
+    # (hand-authored, pre-versioning) never claim staleness.
+    doc_path: str | None = None
+    heading_path: str | None = None
+    owner_topic: str | None = None
+    source_priority: int | None = None
+    embedding_version: str | None = None
+    embedding_stale: bool = False
 
 
 class CanonEntityIn(BaseModel):
@@ -1168,6 +1208,15 @@ class AgentPresetOut(BaseModel):
     is_custom: bool = False
 
 
+class AgentControlsOut(BaseModel):
+    """Honesty flags: which of this agent's control surfaces are actually wired to runtime behavior."""
+
+    quality_live: bool = False
+    semantic_escalation_live: bool = False
+    auto_run_live: bool = False
+    fallback_mode: str = "escalation"
+
+
 class AgentOpsAgentOut(BaseModel):
     setting: str
     label: str
@@ -1180,6 +1229,7 @@ class AgentOpsAgentOut(BaseModel):
     permissions: AgentPermissionsOut
     estimate: AgentEstimateOut
     warnings: list[str] = []
+    controls: AgentControlsOut = AgentControlsOut()
 
 
 class PipelineEstimateOut(BaseModel):

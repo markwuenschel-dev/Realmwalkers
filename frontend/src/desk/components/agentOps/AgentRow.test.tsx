@@ -61,6 +61,12 @@ function agent(over: Partial<AgentOpsAgentOut> = {}): AgentOpsAgentOut {
       estimated_latency_sec_per_chapter: 30,
     },
     warnings: [],
+    controls: {
+      quality_live: true,
+      semantic_escalation_live: true,
+      auto_run_live: true,
+      fallback_mode: "escalation",
+    },
     ...over,
   } as AgentOpsAgentOut;
 }
@@ -68,6 +74,7 @@ function agent(over: Partial<AgentOpsAgentOut> = {}): AgentOpsAgentOut {
 function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
   const onPickTier = vi.fn();
   const onSetFallback = vi.fn();
+  const onSetNeverFallback = vi.fn();
   render(
     <AgentRow
       agent={agent()}
@@ -79,6 +86,7 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
       onSetQuality={vi.fn()}
       onSetSemanticEscalation={vi.fn()}
       onSetAutoRun={vi.fn()}
+      onSetNeverFallback={onSetNeverFallback}
       {...props}
     />,
   );
@@ -86,6 +94,7 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
   return {
     onPickTier,
     onSetFallback,
+    onSetNeverFallback,
     primary: within(screen.getByTestId("primary-model-picker")),
     fallback: within(screen.getByTestId("fallback-model-picker")),
   };
@@ -199,5 +208,77 @@ describe("AgentRow flat model picker", () => {
     const { primary } = renderOpen({ providerTiers: { anthropic: PROVIDER_TIERS.anthropic } });
     expect(primary.queryByText("Grok")).not.toBeInTheDocument();
     expect(primary.queryByText("GPT 5.5")).not.toBeInTheDocument();
+  });
+});
+
+describe("AgentRow controls honesty", () => {
+  const controls = (over: Partial<AgentOpsAgentOut["controls"]> = {}) =>
+    agent({ controls: { ...agent().controls, ...over } });
+
+  it("shows the quality toggle, temp line, and mechanism caption when quality is live", () => {
+    renderOpen();
+    expect(screen.getByText("Balanced")).toBeInTheDocument();
+    expect(screen.getByText("temp 0.7")).toBeInTheDocument();
+    expect(
+      screen.getByText("applies as temperature, or effort on flagship models"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/quality knob not wired/)).not.toBeInTheDocument();
+  });
+
+  it("hides the quality toggle and derived temp when quality_live is false, showing the not-wired note", () => {
+    renderOpen({ agent: controls({ quality_live: false }) });
+    expect(screen.queryByText("Balanced")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^temp /)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("sampling: provider default — quality knob not wired for this agent"),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the semantic escalation checkbox when semantic_escalation_live is false", () => {
+    renderOpen({ agent: controls({ semantic_escalation_live: false }) });
+    expect(
+      screen.queryByText("Semantic escalation (canon conflict / high QA risk)"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("replaces the auto-run checkbox with static pipeline-stage text when auto_run_live is false", () => {
+    renderOpen({ agent: controls({ auto_run_live: false }) });
+    expect(screen.queryByText("Auto-run in pipeline")).not.toBeInTheDocument();
+    expect(screen.getByText("always runs — pipeline stage")).toBeInTheDocument();
+  });
+
+  it("captions the fallback picker with escalation semantics by default", () => {
+    const { fallback } = renderOpen();
+    expect(fallback.getByText("escalates on parse failure / truncation")).toBeInTheDocument();
+    expect(fallback.queryByText("retried on provider rate limit only")).not.toBeInTheDocument();
+  });
+
+  it("captions the fallback picker with rate-limit-only semantics for rate_limit_only agents", () => {
+    const { fallback } = renderOpen({ agent: controls({ fallback_mode: "rate_limit_only" }) });
+    expect(fallback.getByText("retried on provider rate limit only")).toBeInTheDocument();
+    expect(fallback.queryByText("escalates on parse failure / truncation")).not.toBeInTheDocument();
+  });
+
+  it("clicking an inactive never-fallback chip emits the full expanded tier list", () => {
+    const { onSetNeverFallback } = renderOpen({
+      agent: agent({ policy: { ...agent().policy, never_fallback: ["haiku"] } }),
+    });
+    const group = within(screen.getByTestId("never-fallback-group"));
+    fireEvent.click(group.getByText("sonnet"));
+    expect(onSetNeverFallback).toHaveBeenCalledWith("draft_model", ["haiku", "sonnet"]);
+  });
+
+  it("clicking an active never-fallback chip emits the list without that tier", () => {
+    const { onSetNeverFallback } = renderOpen({
+      agent: agent({ policy: { ...agent().policy, never_fallback: ["haiku", "opus"] } }),
+    });
+    const group = within(screen.getByTestId("never-fallback-group"));
+    fireEvent.click(group.getByText("haiku"));
+    expect(onSetNeverFallback).toHaveBeenCalledWith("draft_model", ["opus"]);
+  });
+
+  it("prefixes the permissions summary with the advisory disclaimer", () => {
+    renderOpen();
+    expect(screen.getByText("Advisory — descriptive, not enforced at runtime")).toBeInTheDocument();
   });
 });

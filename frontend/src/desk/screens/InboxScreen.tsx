@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -14,14 +15,15 @@ import Planner from "../components/Planner";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import { ActivityFeed, DraftPanel, formatElapsed } from "../components/DraftActivity";
 import ClearFailedPanel from "../components/ClearFailedPanel";
-import { Chip, Eyebrow, MetricCard, Panel } from "../components/ui";
+import { Button, Chip, Eyebrow, MetricCard, Panel, ProgressBar } from "../components/ui";
 import type { ChipTone } from "../components/ui";
 import type { SceneOut } from "../api/types";
 import type { ExportKind } from "../lib/docx";
 
 export default function InboxScreen() {
-  const { openScene, openSceneId } = useDesk();
+  const { openScene, toggleActivity } = useDesk();
   const data = useDeskData();
+  const router = useRouter();
   // Tab-switch cost, visible in the console (provider data is cached, so revisits log ~0ms).
   useTabLoadTiming("inbox", !data.loading);
   const sel = useSelection();
@@ -148,6 +150,25 @@ export default function InboxScreen() {
   const approved = latest.filter((s) => s.status === "approved");
   const revising = latest.filter((s) => s.status === "revision_requested");
 
+  // "Plan a chapter" collapse: open by default ONLY on an empty book (no chapters yet). Once the
+  // author clicks the header the explicit toggle wins over the default.
+  const [plannerToggled, setPlannerToggled] = useState<boolean | null>(null);
+  const plannerOpen = plannerToggled ?? data.chapters.length === 0;
+
+  // Chapters progress strip: latest scenes grouped per chapter (approved vs drafted).
+  const chapterRows = useMemo(() => {
+    const byChapter = new Map<string, { total: number; done: number }>();
+    for (const s of latest) {
+      const row = byChapter.get(s.chapter_id) ?? { total: 0, done: 0 };
+      row.total += 1;
+      if (s.status === "approved") row.done += 1;
+      byChapter.set(s.chapter_id, row);
+    }
+    return [...data.chapters]
+      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .map((ch) => ({ chapter: ch, ...(byChapter.get(ch.id) ?? { total: 0, done: 0 }) }));
+  }, [data.chapters, latest]);
+
   // Word-count the whole assembled manuscript once per manuscript change, not on every Inbox render
   // (this flatMaps + counts every approved scene's prose — costly on a long book).
   const manuscriptWords = useMemo(
@@ -256,8 +277,6 @@ export default function InboxScreen() {
         </p>
       </div>
 
-      <Planner />
-
       <div
         style={css("display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px")}
       >
@@ -271,26 +290,17 @@ export default function InboxScreen() {
         ))}
       </div>
 
-      <div
-        style={css("display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start")}
-      >
-        {/* Drafting (live worker state) */}
-        <div>
-          <Column title="Drafting" tone="info" count={data.jobs.running ? 1 : 0} />
-          <div style={css("display:flex;flex-direction:column;gap:10px")}>
-            <DraftPanel />
-            <RetryFailedBanner />
-            <ActivityFeed />
-          </div>
-        </div>
-
-        {/* Awaiting review (pending queue) */}
-        <div>
-          <Column title="Awaiting review" tone="warn" count={data.pending.length} />
-          {data.pending.length > 0 && (
+      {/* 1 — the review queue, front and center. Select-all covers EVERY pending scene, not just
+          the five visible cards, so bulk approve/export always operates on the whole queue. */}
+      <Panel
+        eyebrow="Needs your decision"
+        title={`${data.pending.length} awaiting review`}
+        style="margin-bottom:26px"
+        actions={
+          data.pending.length > 0 ? (
             <label
               style={css(
-                "display:flex;align-items:center;gap:7px;margin:0 2px 9px;font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer",
+                "display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer",
               )}
             >
               <input
@@ -299,40 +309,145 @@ export default function InboxScreen() {
                 onChange={() => sel.toggleAll(data.pending.map((s) => s.id))}
                 style={css("width:14px;height:14px;cursor:pointer;accent-color:var(--accent)")}
               />
-              select all
+              select all {data.pending.length}
             </label>
-          )}
-          <div style={css("display:flex;flex-direction:column;gap:10px")}>
-            {data.pending.length === 0 && <Empty text="nothing to review" />}
-            {data.pending.map((s, i) =>
-              sceneCard(s, "warn", "review →", () => openScene(i), {
-                checked: sel.has(s.id),
-                onToggle: () => sel.toggle(s.id),
-              }),
+          ) : undefined
+        }
+      >
+        {data.pending.length === 0 ? (
+          <Empty text="nothing to review" />
+        ) : (
+          <>
+            <div
+              style={css(
+                "display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px",
+              )}
+            >
+              {data.pending.slice(0, 5).map((s, i) =>
+                sceneCard(s, "warn", "review →", () => openScene(i), {
+                  checked: sel.has(s.id),
+                  onToggle: () => sel.toggle(s.id),
+                }),
+              )}
+            </div>
+            {data.pending.length > 5 && (
+              <div
+                style={css(
+                  "margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--dim)",
+                )}
+              >
+                +{data.pending.length - 5} more awaiting
+              </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
+      </Panel>
 
-        {/* Revising */}
-        <div>
-          <Column title="Revising" tone="bad" count={revising.length} />
-          <div style={css("display:flex;flex-direction:column;gap:10px")}>
-            {revising.length === 0 && <Empty text="—" />}
-            {revising.map((s) => sceneCard(s, "bad", "redrafting", () => openSceneId(s.id)))}
-          </div>
+      {/* 2 — the pipeline: live worker state, failures, queue summary + quick actions. */}
+      <Panel
+        eyebrow="Pipeline"
+        style="margin-bottom:26px"
+        actions={
+          <>
+            <span
+              style={css(
+                `font-family:var(--mono);font-size:11px;white-space:nowrap;color:${data.jobs.queue_paused ? "var(--warn)" : "var(--dim)"}`,
+              )}
+            >
+              {data.jobs.queued} queued · {data.jobs.failed} failed
+              {data.jobs.queue_paused ? " · paused" : ""}
+            </span>
+            <Button size="sm" onClick={() => void data.draftNext()}>
+              Draft next
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              title={data.jobs.queue_paused ? "resume the draft queue" : "pause the draft queue"}
+              onClick={() => void data.setQueuePaused(!data.jobs.queue_paused)}
+            >
+              {data.jobs.queue_paused ? "Resume" : "Pause"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={toggleActivity}>
+              Activity
+            </Button>
+          </>
+        }
+      >
+        <div style={css("display:flex;flex-direction:column;gap:10px")}>
+          <DraftPanel />
+          <RetryFailedBanner />
+          <ActivityFeed />
         </div>
+      </Panel>
 
-        {/* Approved */}
-        <div>
-          <Column title="Approved" tone="good" count={approved.length} />
-          <div style={css("display:flex;flex-direction:column;gap:10px")}>
-            {approved.length === 0 && <Empty text="—" />}
-            {approved
-              .sort((a, b) => a.scene_no - b.scene_no)
-              .map((s) => sceneCard(s, "good", "edit →", () => openSceneId(s.id)))}
+      {/* 3 — per-chapter progress strip (replaces the Revising/Approved kanban columns). */}
+      <Panel
+        eyebrow="Chapters"
+        style="margin-bottom:26px"
+        actions={
+          revising.length > 0 ? (
+            <Chip
+              label={`Revising ${revising.length}`}
+              tone="bad"
+              title="scenes sent back for revision — open the chapters board"
+              onClick={() => router.push("/chapters")}
+            />
+          ) : undefined
+        }
+      >
+        {chapterRows.length === 0 ? (
+          <Empty text="no chapters yet — plan one below" />
+        ) : (
+          <div style={css("display:flex;flex-direction:column;gap:2px")}>
+            {chapterRows.map(({ chapter, total, done }) => (
+              <button
+                key={chapter.id}
+                className="dk-navlink"
+                onClick={() => router.push("/chapters")}
+                title={`Ch ${chapter.chapter_no} — open the chapters board`}
+                style={css(
+                  "display:grid;grid-template-columns:minmax(150px,1fr) 2fr auto;align-items:center;gap:14px;width:100%;padding:8px 10px;border:none;border-radius:8px;background:transparent;cursor:pointer;text-align:left",
+                )}
+              >
+                <span
+                  style={css(
+                    "font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis",
+                  )}
+                >
+                  Ch {chapter.chapter_no}
+                  {chapter.title ? ` · ${chapter.title}` : ""}
+                </span>
+                <ProgressBar value={total > 0 ? done / total : 0} color="var(--good)" />
+                <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+                  {done}/{total}
+                </span>
+              </button>
+            ))}
           </div>
-        </div>
-      </div>
+        )}
+      </Panel>
+
+      {/* 4 — the planner, tucked away once the book has chapters. */}
+      <Panel pad="12px 18px" style="margin-bottom:26px">
+        <button
+          onClick={() => setPlannerToggled(!plannerOpen)}
+          aria-expanded={plannerOpen}
+          style={css(
+            "display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:none;border:none;padding:4px 2px;cursor:pointer;text-align:left",
+          )}
+        >
+          <Eyebrow tone="var(--ink)">Plan a chapter</Eyebrow>
+          <span aria-hidden style={css("color:var(--dim);font-size:11px")}>
+            {plannerOpen ? "▾" : "▸"}
+          </span>
+        </button>
+        {plannerOpen && (
+          <div style={css("margin-top:12px")}>
+            <Planner />
+          </div>
+        )}
+      </Panel>
 
       <BulkBar count={sel.count} noun="scene" onClear={clearSel}>
         {!reviseMode ? (
@@ -430,20 +545,7 @@ export default function InboxScreen() {
   );
 }
 
-function Column({ title, tone, count }: { title: string; tone: ChipTone; count: number }) {
-  return (
-    <div
-      style={css(
-        "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px;padding:7px 12px;background:var(--bg3);border:1px solid var(--line);border-radius:9px",
-      )}
-    >
-      <Eyebrow tone="var(--ink)">{title}</Eyebrow>
-      <Chip label={String(count)} tone={tone} size="sm" />
-    </div>
-  );
-}
-
-// Shown in the Drafting column whenever jobs have FAILED — re-queues them to draft again. A scene
+// Shown in the Pipeline panel whenever jobs have FAILED — re-queues them to draft again. A scene
 // usually fails on a transient cause (API outage, depleted credits, a one-off 5xx); a FAILED job is
 // terminal, so without this it would never redraft on its own.
 function RetryFailedBanner() {

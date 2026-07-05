@@ -34,6 +34,7 @@ STAGE_PROVIDER_RATE_LIMITED = "provider_rate_limited"
 STRUCTURAL_BLOCKING_ISSUE_KINDS: frozenset[str] = frozenset(
     {
         "sequence_budget_mismatch",
+        "sequence_scene_count_mismatch",
         "scene_scope_bleed",
         "duplicate_irreversible_beat",
         "canon_contract_leak",

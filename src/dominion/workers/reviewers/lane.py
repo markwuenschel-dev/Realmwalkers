@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from dominion.shared.agent_policy import quality_effort, quality_temperature
 from dominion.shared.config import settings
-from dominion.workers import llm
+from dominion.workers.llm_escalation import complete_with_rate_limit_fallback
 from dominion.workers.reviewers.base import Flag, advisory_severity, parse_json_objects
 
 if TYPE_CHECKING:
@@ -76,13 +77,19 @@ async def lane_review(scene_prose: str, ctx: SceneContext, *, name: str, focus: 
     """Run one advisory lane review over `scene_prose`; silent (and free) on stubs below the floor."""
     if len(scene_prose.strip()) < _MIN_PROSE_CHARS:
         return []
-    raw, _usage = await llm.complete(
+    # Same review_model treatment as the named reviewers (Desk Control Round P3): the quality knob
+    # applies as sampling (temperature/effort — llm.complete routes one per model) and a provider
+    # 429 gets one retry on the configured fallback instead of silently dropping the lane.
+    raw, _usage = await complete_with_rate_limit_fallback(
+        setting_key="review_model",
         model=settings.review_model,
         system=_SYSTEM.format(focus=focus),
         user=_prompt(scene_prose, ctx, name),
         max_tokens=_REVIEW_MAX_TOKENS,
         budget=ctx.budget,
         expect_cache=False,
+        temperature=quality_temperature("review_model"),
+        effort=quality_effort("review_model"),
     )
     flags: list[Flag] = []
     for item in parse_json_objects(raw):

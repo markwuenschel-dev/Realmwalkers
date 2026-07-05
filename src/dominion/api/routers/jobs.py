@@ -22,11 +22,14 @@ from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job, Run, Scene
 from dominion.shared.schemas import (
     ActiveScene,
+    CancelJobOut,
     ClearFailedOut,
     DraftNextOut,
     FailedJobOut,
+    JobsPauseOut,
     JobsStatusOut,
     QueuedJobOut,
+    QueuePauseIn,
     RecentJobOut,
     RecentJobsOut,
     RetryFailedOut,
@@ -60,7 +63,7 @@ async def draft_next(
     counts = await _queue_counts(session, book_id)
     queued = counts.get(JobStatus.QUEUED, 0)
     running = background_work.drain_locked()
-    if queued and not running:
+    if queued and not running and not background_work.queue_paused():
         background.add_task(background_work.drain_queued_jobs)
         running = True
     return DraftNextOut(scheduled=bool(queued) and running, queued=queued, running=running)
@@ -82,7 +85,7 @@ async def retry_failed(
     counts = await _queue_counts(session, book_id)
     queued = counts.get(JobStatus.QUEUED, 0)
     running = background_work.drain_locked()
-    if queued and not running:
+    if queued and not running and not background_work.queue_paused():
         background.add_task(background_work.drain_queued_jobs)
         running = True
     log.info(
@@ -99,6 +102,58 @@ async def retry_failed(
         queued=queued,
         running=running,
         skipped=[blocker_out(b) for b in requeue.skipped],
+    )
+
+
+@router.post("/pause", response_model=JobsPauseOut)
+async def pause(
+    body: QueuePauseIn,
+    background: BackgroundTasks,
+    session: SessionDep,
+    book_id: uuid.UUID | None = None,
+) -> JobsPauseOut:
+    """Flip the human pause switch. Pausing lets the in-flight scene finish and stops the drain
+    from claiming more (persisted — survives redeploys; the boot-resume honors it). Resuming with
+    jobs waiting kicks the drain immediately, same pattern as /draft-next."""
+    await background_work.set_queue_paused(session, body.paused)
+    await session.commit()
+    counts = await _queue_counts(session, book_id)
+    queued = counts.get(JobStatus.QUEUED, 0)
+    running = background_work.drain_locked()
+    scheduled = False
+    if not body.paused and queued and not running:
+        background.add_task(background_work.drain_queued_jobs)
+        scheduled = True
+        running = True
+    log.info("jobs.queue_paused" if body.paused else "jobs.queue_resumed", queued=queued)
+    return JobsPauseOut(queue_paused=body.paused, queued=queued, running=running, scheduled=scheduled)
+
+
+@router.delete("/{job_id}", response_model=CancelJobOut)
+async def cancel(job_id: uuid.UUID, session: SessionDep) -> CancelJobOut:
+    """Cancel one QUEUED job (Activity drawer ×). RUNNING jobs are not cancellable — the worker
+    holds their row lock for the whole generation, and skip_locked turns that into a clean 409."""
+    from fastapi import HTTPException
+
+    from dominion.workers.draft_queue import cancel_queued_job
+
+    cancelled = await cancel_queued_job(session, job_id)
+    if cancelled is None:
+        existing = await session.get(Job, job_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="job not found")
+        raise HTTPException(
+            status_code=409,
+            detail=f"only QUEUED jobs can be cancelled — this job is {existing.status}",
+        )
+    await session.commit()
+    counts = await _queue_counts(session, None)
+    log.info("jobs.cancelled", job=str(job_id), scene=cancelled.scene_no, chapter=cancelled.chapter_no)
+    return CancelJobOut(
+        id=job_id,
+        chapter_no=cancelled.chapter_no,
+        scene_no=cancelled.scene_no,
+        queued=counts.get(JobStatus.QUEUED, 0),
     )
 
 
@@ -159,6 +214,7 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
         running=running,
         queued=counts.get(JobStatus.QUEUED, 0),
         failed=counts.get(JobStatus.FAILED, 0),
+        queue_paused=background_work.queue_paused(),
         active_scene=active_scene,
         last_cache_hit_ratio=last["cache_hit_ratio"] if last else None,
         last_cache_read_tokens=last["total_cache_read_tokens"] if last else None,

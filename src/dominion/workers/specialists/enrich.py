@@ -17,8 +17,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from dominion.shared.config import settings
-from dominion.workers import llm
 from dominion.workers.budget import BudgetExceeded
+from dominion.workers.llm_escalation import complete_with_rate_limit_fallback
 from dominion.workers.specialists.base import PassError
 
 if TYPE_CHECKING:
@@ -77,7 +77,10 @@ async def run_enrichment(
         system += _DIALOGUE_RULES.format(rules=ctx.dialogue_rules)
 
     try:
-        text, _usage = await llm.complete(
+        # Rate-limit-only fallback (no structural escalation, no quality knobs — enrich quality is
+        # deliberately not wired): a provider 429 hops once to the configured fallback model.
+        text, _usage = await complete_with_rate_limit_fallback(
+            setting_key="enrich_model",
             model=settings.enrich_model,
             system=system,
             user=_user(source, ctx.beat_text),

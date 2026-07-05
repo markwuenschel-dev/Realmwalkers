@@ -70,6 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from sqlalchemy import func, select
 
         async with SessionFactory() as session:
+            paused = await background_work.load_queue_paused(session)
             queued = (
                 await session.execute(
                     select(func.count())
@@ -77,7 +78,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     .where(Job.kind == JobKind.DRAFT, Job.status == JobStatus.QUEUED)
                 )
             ).scalar_one()
-        if queued:
+        if queued and paused:
+            # Honor the human pause switch across redeploys — jobs stay queued until resumed.
+            log.info("draft.drain_resume_skipped_paused", queued=queued)
+        elif queued:
             log.info("draft.drain_resumed_on_boot", queued=queued)
             asyncio.get_running_loop().create_task(background_work.drain_queued_jobs())
     except Exception as exc:  # noqa: BLE001 — never block boot on the resume probe

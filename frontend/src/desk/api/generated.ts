@@ -1255,6 +1255,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/chapter-sequences/{sequence_id}/align-scene-count": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Align Sequence Scene Count
+     * @description One-click fix for the sequence_scene_count_mismatch draft blocker: align the sequence's
+     *     planning target to the packet's actual seeded scenes (server derives the count).
+     */
+    post: operations["align_sequence_scene_count_chapter_sequences__sequence_id__align_scene_count_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapter-sequences/{sequence_id}/qa": {
     parameters: {
       query?: never;
@@ -1558,6 +1579,49 @@ export interface paths {
      */
     post: operations["retry_failed_jobs_retry_failed_post"];
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/jobs/pause": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Pause
+     * @description Flip the human pause switch. Pausing lets the in-flight scene finish and stops the drain
+     *     from claiming more (persisted — survives redeploys; the boot-resume honors it). Resuming with
+     *     jobs waiting kicks the drain immediately, same pattern as /draft-next.
+     */
+    post: operations["pause_jobs_pause_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/jobs/{job_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Cancel
+     * @description Cancel one QUEUED job (Activity drawer ×). RUNNING jobs are not cancellable — the worker
+     *     holds their row lock for the whole generation, and skip_locked turns that into a clean 409.
+     */
+    delete: operations["cancel_jobs__job_id__delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -2334,6 +2398,32 @@ export interface components {
        */
       requires_approval: boolean;
     };
+    /**
+     * AgentControlsOut
+     * @description Honesty flags: which of this agent's control surfaces are actually wired to runtime behavior.
+     */
+    AgentControlsOut: {
+      /**
+       * Quality Live
+       * @default false
+       */
+      quality_live: boolean;
+      /**
+       * Semantic Escalation Live
+       * @default false
+       */
+      semantic_escalation_live: boolean;
+      /**
+       * Auto Run Live
+       * @default false
+       */
+      auto_run_live: boolean;
+      /**
+       * Fallback Mode
+       * @default escalation
+       */
+      fallback_mode: string;
+    };
     /** AgentEstimateOut */
     AgentEstimateOut: {
       /** Cost Band */
@@ -2417,6 +2507,15 @@ export interface components {
        * @default []
        */
       warnings: string[];
+      /**
+       * @default {
+       *       "quality_live": false,
+       *       "semantic_escalation_live": false,
+       *       "auto_run_live": false,
+       *       "fallback_mode": "escalation"
+       *     }
+       */
+      controls: components["schemas"]["AgentControlsOut"];
     };
     /** AgentOpsOut */
     AgentOpsOut: {
@@ -2996,6 +3095,26 @@ export interface components {
       by_model: components["schemas"]["TelemetryGroupOut"][];
     };
     /**
+     * CancelJobOut
+     * @description One queued job cancelled from the Activity drawer.
+     */
+    CancelJobOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /**
+       * Queued
+       * @default 0
+       */
+      queued: number;
+    };
+    /**
      * CanonBulkDeleteOut
      * @description Result of a hard bulk delete of canon rows.
      */
@@ -3133,6 +3252,21 @@ export interface components {
        * @default active
        */
       status: string;
+      /** Doc Path */
+      doc_path?: string | null;
+      /** Heading Path */
+      heading_path?: string | null;
+      /** Owner Topic */
+      owner_topic?: string | null;
+      /** Source Priority */
+      source_priority?: number | null;
+      /** Embedding Version */
+      embedding_version?: string | null;
+      /**
+       * Embedding Stale
+       * @default false
+       */
+      embedding_stale: boolean;
     };
     /**
      * CanonEntityUpdateIn
@@ -4012,6 +4146,30 @@ export interface components {
       created_at: string;
     };
     /**
+     * JobsPauseOut
+     * @description Result of flipping the queue pause switch. `scheduled` is true when a resume kicked the
+     *     drain because jobs were waiting.
+     */
+    JobsPauseOut: {
+      /** Queue Paused */
+      queue_paused: boolean;
+      /**
+       * Queued
+       * @default 0
+       */
+      queued: number;
+      /**
+       * Running
+       * @default false
+       */
+      running: boolean;
+      /**
+       * Scheduled
+       * @default false
+       */
+      scheduled: boolean;
+    };
+    /**
      * JobsStatusOut
      * @description Live queue state, so the Desk can show a 'drafting…' indicator without a terminal.
      */
@@ -4031,6 +4189,11 @@ export interface components {
        * @default 0
        */
       failed: number;
+      /**
+       * Queue Paused
+       * @default false
+       */
+      queue_paused: boolean;
       active_scene?: components["schemas"]["ActiveScene"] | null;
       /** Last Cache Hit Ratio */
       last_cache_hit_ratio?: number | null;
@@ -4633,6 +4796,11 @@ export interface components {
        * @default true
        */
       auto_triage: boolean;
+    };
+    /** QueuePauseIn */
+    QueuePauseIn: {
+      /** Paused */
+      paused: boolean;
     };
     /**
      * QueuedJobOut
@@ -5690,14 +5858,22 @@ export interface components {
     /**
      * StructuralBlockerOut
      * @description A deterministic chapter-structure fault detected from the approved contracts alone (no prose,
-     *     no LLM): `kind` is one of sequence_budget_mismatch | scene_scope_bleed | duplicate_irreversible_beat
-     *     | canon_contract_leak; `message` is one human sentence naming the fault and the fix.
+     *     no LLM): `kind` is one of sequence_scene_count_mismatch | sequence_budget_mismatch |
+     *     scene_scope_bleed | duplicate_irreversible_beat | canon_contract_leak; `message` is one human
+     *     sentence naming the fault and the fix. The scene-count kind carries the machine fields the
+     *     one-click "Align plan to N seeded scenes" action needs.
      */
     StructuralBlockerOut: {
       /** Kind */
       kind: string;
       /** Message */
       message: string;
+      /** Sequence Id */
+      sequence_id?: string | null;
+      /** Planned Scene Count */
+      planned_scene_count?: number | null;
+      /** Seed Count */
+      seed_count?: number | null;
     };
     /** SuggestionDecisionIn */
     SuggestionDecisionIn: {
@@ -8504,6 +8680,37 @@ export interface operations {
       };
     };
   };
+  align_sequence_scene_count_chapter_sequences__sequence_id__align_scene_count_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sequence_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterSequenceOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   qa_chapter_sequence_chapter_sequences__sequence_id__qa_post: {
     parameters: {
       query?: never;
@@ -9078,6 +9285,72 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["RetryFailedOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  pause_jobs_pause_post: {
+    parameters: {
+      query?: {
+        book_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QueuePauseIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JobsPauseOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  cancel_jobs__job_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CancelJobOut"];
         };
       };
       /** @description Validation Error */

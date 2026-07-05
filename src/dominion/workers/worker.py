@@ -22,7 +22,7 @@ from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job, ProductionRun
-from dominion.workers import progress, run_stages
+from dominion.workers import background_work, progress, run_stages
 from dominion.workers.llm import find_rate_limit
 from dominion.workers.pipeline import generate_one_scene
 
@@ -78,6 +78,12 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
     """
     async with session_factory() as session:
         await agent_ops.apply_model_overrides(session)
+        # Human pause switch (persisted): honored here so BOTH the in-process drain and any
+        # terminal `dominion-worker --loop` process stop claiming; the read also refreshes this
+        # process's cached flag every poll.
+        if await background_work.load_queue_paused(session):
+            await session.commit()
+            return False
         job = await claim_one_job(session)
         if job is None:
             await session.commit()

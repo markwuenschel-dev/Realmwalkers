@@ -3194,6 +3194,30 @@ async def update_chapter_sequence(
     return sequence
 
 
+async def align_sequence_scene_count(session: AsyncSession, sequence_id: uuid.UUID) -> ChapterSequence:
+    """One-click reconcile for `sequence_scene_count_mismatch`: set the sequence's PLANNING TARGET
+    to the packet's actual seed count. The sequence's scenes[] is already one-per-seed — only the
+    scalar target diverges (an explicit packet policy or a words/1200 estimate that re-derive would
+    just reproduce). Seed count is derived server-side, never client-supplied. Delegates to
+    update_chapter_sequence so entry-state chaining and sequence QA re-run as on any manual edit."""
+    sequence = await session.get(ChapterSequence, sequence_id)
+    if sequence is None:
+        raise ValueError("chapter sequence not found")
+    packet = await session.get(ChapterPacket, sequence.chapter_packet_id) if sequence.chapter_packet_id else None
+    if packet is None:
+        raise ValueError("chapter packet for this sequence not found")
+    seed_count = len((packet.body or {}).get("scene_seeds") or [])
+    if not seed_count:
+        raise ValueError("chapter packet has no scene seeds — author seeds before aligning the plan")
+    body = dict(sequence.body or {})
+    body["target_scene_count"] = seed_count
+    existing_hard_max = _int_or_none(body.get("hard_max_scene_count"))
+    body["hard_max_scene_count"] = max(seed_count, existing_hard_max or 0)
+    return await update_chapter_sequence(
+        session, sequence_id, body, reason=f"aligned target_scene_count to {seed_count} seeded scenes"
+    )
+
+
 async def approve_chapter_sequence(session: AsyncSession, sequence_id: uuid.UUID) -> ChapterSequence:
     sequence = await session.get(ChapterSequence, sequence_id)
     if sequence is None:

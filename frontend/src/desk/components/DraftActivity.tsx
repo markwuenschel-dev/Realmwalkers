@@ -96,7 +96,8 @@ export function DraftPill() {
       </button>
     );
   }
-  if (jobs.queued > 0 || jobs.failed > 0) {
+  if (jobs.queued > 0 || jobs.failed > 0 || jobs.queue_paused) {
+    // Paused: static amber dot (no pulse — nothing is moving, and the pill must not pretend).
     return (
       <button
         {...buttonProps}
@@ -104,10 +105,13 @@ export function DraftPill() {
       >
         <span
           style={css(
-            `width:7px;height:7px;border-radius:50%;flex:none;background:${jobs.failed > 0 ? "var(--bad)" : "var(--info)"};animation:pulseDot 1.4s ease-in-out infinite`,
+            `width:7px;height:7px;border-radius:50%;flex:none;background:${jobs.queue_paused ? "var(--warn)" : jobs.failed > 0 ? "var(--bad)" : "var(--info)"};${jobs.queue_paused ? "" : "animation:pulseDot 1.4s ease-in-out infinite"}`,
           )}
         />
         {jobs.queued > 0 && `${jobs.queued} queued`}
+        {jobs.queue_paused && (
+          <span style={css("color:var(--warn)")}>{jobs.queued > 0 ? "· paused" : "paused"}</span>
+        )}
         {jobs.queued > 0 && jobs.failed > 0 && " · "}
         {jobs.failed > 0 && <span style={css("color:var(--bad)")}>{jobs.failed} failed</span>}
         {caret}

@@ -561,6 +561,26 @@ async def _purge_job_ids(session: AsyncSession, job_ids: list[uuid.UUID]) -> int
     return len(job_ids)
 
 
+async def cancel_queued_job(session: AsyncSession, job_id: uuid.UUID) -> Job | None:
+    """Cancel exactly one QUEUED job (Activity drawer ×). skip_locked mirrors the worker's claim:
+    a job being claimed RIGHT NOW is invisible here (the worker holds its row lock for the whole
+    scene generation), so the caller sees a clean 'not cancellable' instead of a minutes-long
+    blocking wait. Returns the (detached) job info on success, None when missing/running/locked."""
+    row = (
+        await session.execute(
+            select(Job).where(Job.id == job_id, Job.status == JobStatus.QUEUED).with_for_update(skip_locked=True)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None
+    # Capture primitives before deletion — the ORM object expires once the row is gone.
+    cancelled = Job(
+        id=row.id, kind=row.kind, chapter_no=row.chapter_no, scene_no=row.scene_no, token_budget=row.token_budget
+    )
+    await _purge_job_ids(session, [job_id])
+    return cancelled
+
+
 async def purge_draft_jobs_for_scene_packet(
     session: AsyncSession,
     *,

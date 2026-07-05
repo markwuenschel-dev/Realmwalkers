@@ -22,7 +22,7 @@ import type {
 
 // Canon provenance/lifecycle filter option lists (Workstream H). `status` defaults to "active" so the
 // Ledger hides retired/stale rows until you ask for them; `all` shows everything.
-const STATUS_OPTIONS = ["active", "stale", "retired", "all"] as const;
+const STATUS_OPTIONS = ["active", "stale", "retired", "superseded", "all"] as const;
 const SOURCE_OPTIONS = [
   "all",
   "repo_ingested",
@@ -57,6 +57,10 @@ const THREAD_KIND_VAR: Record<string, string> = {
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Where a repo-ingested canon row came from: `doc_path › heading_path` (heading only when present).
+const provenanceOf = (e: CanonEntityOut): string =>
+  `${e.doc_path}${e.heading_path ? ` › ${e.heading_path}` : ""}`;
 
 // Round-trip a stat value to/from an editable string: objects/arrays as JSON, scalars as text.
 const rawOf = (v: unknown): string =>
@@ -721,6 +725,18 @@ export default function LedgerScreen() {
                         size="sm"
                         tone={SOURCE_TONE[e.source ?? "manual"] ?? "neutral"}
                       />
+                      {e.owner_topic && <Chip label={e.owner_topic} size="sm" tone="info" />}
+                      {e.source_priority != null && (
+                        <Chip label={`prio ${e.source_priority}`} size="sm" tone="neutral" />
+                      )}
+                      {e.embedding_stale && (
+                        <Chip
+                          label="embedding stale"
+                          size="sm"
+                          tone="warn"
+                          title="embedded under a different backend — re-ingest or edit to re-embed"
+                        />
+                      )}
                     </div>
                     <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
                       <input
@@ -756,6 +772,16 @@ export default function LedgerScreen() {
                       </Button>
                     </div>
                   </div>
+                  {e.doc_path && (
+                    <div
+                      title={provenanceOf(e)}
+                      style={css(
+                        "margin:0 0 5px;font-family:var(--mono);font-size:10.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis",
+                      )}
+                    >
+                      {provenanceOf(e)}
+                    </div>
+                  )}
                   {e.body && (
                     <p
                       style={css(

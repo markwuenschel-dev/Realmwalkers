@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from dominion.shared.agent_policy import quality_effort, quality_temperature
 from dominion.shared.config import settings
-from dominion.workers import llm
+from dominion.workers.llm_escalation import complete_with_rate_limit_fallback
 from dominion.workers.reviewers.base import Flag, advisory_severity, parse_json_objects
 
 if TYPE_CHECKING:
@@ -45,12 +46,15 @@ class PacingReviewer:
     async def review(self, scene_prose: str, ctx: SceneContext) -> list[Flag]:
         if len(scene_prose.strip()) < _MIN_PROSE_CHARS:
             return []
-        raw, _usage = await llm.complete(
+        raw, _usage = await complete_with_rate_limit_fallback(
+            setting_key="review_model",
             model=settings.review_model,
             system=_SYSTEM,
             user=_prompt(scene_prose, ctx.beat_text),
             max_tokens=_REVIEW_MAX_TOKENS,
             budget=ctx.budget,
+            temperature=quality_temperature("review_model"),
+            effort=quality_effort("review_model"),
         )
         flags: list[Flag] = []
         for item in parse_json_objects(raw):

@@ -288,7 +288,6 @@ PRESETS: tuple[AgentPreset, ...] = (
         },
         policy_hints={
             "draft_model": {"quality_level": "fast"},
-            "review_model": {"semantic_escalation": False},
         },
     ),
     AgentPreset(
@@ -309,7 +308,7 @@ PRESETS: tuple[AgentPreset, ...] = (
         },
         policy_hints={
             "draft_model": {"quality_level": "quality"},
-            "review_model": {"semantic_escalation": True, "quality_level": "quality"},
+            "review_model": {"quality_level": "quality"},
             "packet_qa_model": {"semantic_escalation": True},
             "scene_packet_qa_model": {"semantic_escalation": True},
         },
@@ -331,7 +330,7 @@ PRESETS: tuple[AgentPreset, ...] = (
             "scene_packet_qa_model": "sonnet",
         },
         policy_hints={
-            "review_model": {"semantic_escalation": True, "quality_level": "quality"},
+            "review_model": {"quality_level": "quality"},
             "packet_qa_model": {"semantic_escalation": True},
             "scene_packet_qa_model": {"semantic_escalation": True},
         },
@@ -354,7 +353,6 @@ PRESETS: tuple[AgentPreset, ...] = (
         },
         policy_hints={
             "draft_model": {"quality_level": "fast"},
-            "review_model": {"semantic_escalation": False},
         },
     ),
 )

@@ -75,7 +75,9 @@ ROOT_CAUSE_INSTRUCTIONS: dict[str, str] = {
 _RATE_LIMIT_KINDS = frozenset({"infra_rate_limit"})
 _CANON_KINDS = frozenset({"canon_contract_leak"})
 _SCOPE_KINDS = frozenset({"scene_scope_bleed", "duplicate_irreversible_beat"})
-_BUDGET_KINDS = frozenset({"sequence_budget_mismatch", "length", "budget", "word_budget"})
+_BUDGET_KINDS = frozenset(
+    {"sequence_budget_mismatch", "sequence_scene_count_mismatch", "length", "budget", "word_budget"}
+)
 _BUDGET_VALIDATORS = frozenset({"length", "budget"})
 _ENTRY_KINDS = frozenset({"sequence_entry_state", "entry_state_mismatch", "transition", "pacing"})
 _ENTRY_VALIDATORS = frozenset({"pacing"})

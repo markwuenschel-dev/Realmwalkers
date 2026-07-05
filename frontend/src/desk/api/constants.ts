@@ -5,6 +5,7 @@ export const EMPTY_JOBS: JobsStatusOut = {
   running: false,
   queued: 0,
   failed: 0,
+  queue_paused: false,
   active_scene: null,
   last_cache_hit_ratio: null,
   last_cache_read_tokens: null,
