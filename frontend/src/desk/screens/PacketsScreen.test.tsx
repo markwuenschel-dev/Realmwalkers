@@ -299,6 +299,37 @@ describe("PacketsScreen approve with repairs", () => {
     await screen.findByText(/Deterministic validation/);
     expect(screen.getByText(/blocks final export only/)).toBeInTheDocument();
   });
+
+  it("a disabled Approve always shows a reason and a hover title — never a silent grey", async () => {
+    // Server-guaranteed blockers render verbatim; the keyed fallback covers legacy payloads whose
+    // blockers arrive empty (the exact case that used to grey the button with no explanation).
+    vi.mocked(api.packet).mockResolvedValue({
+      ...REPAIR_PACKET,
+      can_approve: false,
+      approval_state: "open_questions",
+      approval_blockers: ["resolve the packet's open questions first"],
+    });
+    render(<PacketsScreen />);
+
+    const approve = await screen.findByRole("button", { name: /Approve/ });
+    expect(approve).toBeDisabled();
+    expect(approve).toHaveAttribute("title", "resolve the packet's open questions first");
+    expect(screen.getByText("resolve the packet's open questions first")).toBeInTheDocument();
+  });
+
+  it("falls back to a keyed reason when a legacy payload ships no blockers", async () => {
+    vi.mocked(api.packet).mockResolvedValue({
+      ...REPAIR_PACKET,
+      can_approve: false,
+      approval_state: "approvable", // pre-approval_state serializations default here
+      approval_blockers: [],
+    });
+    render(<PacketsScreen />);
+
+    const approve = await screen.findByRole("button", { name: /Approve/ });
+    expect(approve).toBeDisabled();
+    expect(screen.getByText(/not approvable right now/)).toBeInTheDocument();
+  });
 });
 
 describe("PacketsScreen raw packet JSON", () => {

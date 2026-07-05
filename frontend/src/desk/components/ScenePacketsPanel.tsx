@@ -93,7 +93,14 @@ function issuesFor(issues: QaIssue[], path: string): QaIssue[] {
   return issues.filter((it) => (it.field ?? "") === path);
 }
 
-export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
+export function ScenePacketsPanel({
+  chapterId,
+  focusScene,
+}: {
+  chapterId: string;
+  // Deep-link target (?scene=N from Production's issue rows): auto-expand + scroll to this card.
+  focusScene?: number;
+}) {
   const desk = useDeskData();
   const drawer = useTelemetryDrawer();
   // The LIST renders from slim summaries (statuses/counters — no bodies), so switching to this tab
@@ -124,6 +131,8 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
     kind: ExportKind;
   } | null>(null);
   const pollRef = useRef<number | null>(null);
+  // Scroll to the deep-linked card once per mount, not on every list reload.
+  const focusScrolled = useRef(false);
 
   const openTelemetry = useCallback(
     (view: TelemetryDrawerView) => {
@@ -550,28 +559,42 @@ export function ScenePacketsPanel({ chapterId }: { chapterId: string }) {
       ) : (
         <div style={css("display:flex;flex-direction:column;gap:12px")}>
           {packets.map((p) => (
-            <ScenePacketCard
+            <div
               key={p.id}
-              summary={p}
-              full={fullPackets[p.id] ?? null}
-              onLoadFull={() => void loadFull(p.id)}
-              busy={busy}
-              scene={sceneByNo.get(p.scene_no) ?? null}
-              exportingKind={exportingScene?.packetId === p.id ? exportingScene.kind : null}
-              onExport={(scene, kind) => void exportScene(p.id, scene, kind)}
-              onApprove={() => run(`approve:${p.id}`, () => api.approveScenePacket(p.id))}
-              onReQa={() => run(`qa:${p.id}`, () => api.qaScenePacket(p.id))}
-              onSave={(body) => run(`save:${p.id}`, () => api.updateScenePacket(p.id, { body }))}
-              onDelete={() => {
-                if (
-                  !confirm(
-                    `Delete scene packet for scene ${p.scene_no}? Re-derive before drafting this scene.`,
+              ref={
+                focusScene != null && p.scene_no === focusScene
+                  ? (el) => {
+                      if (el && !focusScrolled.current) {
+                        focusScrolled.current = true;
+                        el.scrollIntoView?.({ behavior: "smooth", block: "start" });
+                      }
+                    }
+                  : undefined
+              }
+            >
+              <ScenePacketCard
+                summary={p}
+                full={fullPackets[p.id] ?? null}
+                onLoadFull={() => void loadFull(p.id)}
+                busy={busy}
+                focus={focusScene != null && p.scene_no === focusScene}
+                scene={sceneByNo.get(p.scene_no) ?? null}
+                exportingKind={exportingScene?.packetId === p.id ? exportingScene.kind : null}
+                onExport={(scene, kind) => void exportScene(p.id, scene, kind)}
+                onApprove={() => run(`approve:${p.id}`, () => api.approveScenePacket(p.id))}
+                onReQa={() => run(`qa:${p.id}`, () => api.qaScenePacket(p.id))}
+                onSave={(body) => run(`save:${p.id}`, () => api.updateScenePacket(p.id, { body }))}
+                onDelete={() => {
+                  if (
+                    !confirm(
+                      `Delete scene packet for scene ${p.scene_no}? Re-derive before drafting this scene.`,
+                    )
                   )
-                )
-                  return;
-                void run(`delete:${p.id}`, () => api.deleteScenePacket(p.id));
-              }}
-            />
+                    return;
+                  void run(`delete:${p.id}`, () => api.deleteScenePacket(p.id));
+                }}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -783,6 +806,7 @@ function ScenePacketCard({
   full,
   onLoadFull,
   busy,
+  focus,
   scene,
   exportingKind,
   onExport,
@@ -795,6 +819,8 @@ function ScenePacketCard({
   full: ScenePacketOut | null;
   onLoadFull: () => void;
   busy: string | null;
+  // Deep-link target: start expanded (the panel wrapper handles the scroll).
+  focus?: boolean;
   scene: SceneOut | null;
   exportingKind: ExportKind | null;
   onExport: (scene: SceneOut, kind: ExportKind) => void;
@@ -803,7 +829,7 @@ function ScenePacketCard({
   onSave: (body: ScenePacketBody) => void;
   onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(focus ?? false);
   const [editing, setEditing] = useState(false);
   // The collapsed row renders entirely from the slim summary; the full contract (body, QA report,
   // sources) loads lazily on first expand/edit and is cached panel-side until the list reloads.
@@ -837,7 +863,15 @@ function ScenePacketCard({
   const violations = full?.qa_warnings?.violations ?? [];
   const reasons = summary.approval_blockers ?? [];
   const canApprove = summary.can_approve;
-  const showBlockers = reasons.length > 0 && (summary.status === "proposed" || isBlocked);
+  // The server now guarantees a reason for EVERY non-approvable state, so key this panel off the
+  // machine-readable approval_state instead of guessing from status strings. Blocked/rate-limited
+  // rows render their own dedicated panels above; already_approved is the good state (StatusPill) —
+  // neither needs this red "approval refused" box repeating it.
+  const showBlockers =
+    reasons.length > 0 &&
+    !canApprove &&
+    !isRateLimited &&
+    summary.approval_state !== "already_approved";
 
   // Per-action busy flags (the panel keys busy as "<action>:<id>"). cardBusy disables every action on
   // this card while any one of them is in flight.
