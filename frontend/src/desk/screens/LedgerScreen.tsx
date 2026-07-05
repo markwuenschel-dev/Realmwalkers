@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
@@ -91,6 +92,26 @@ type CanonEdit = { mode: "new"; kind?: string } | { mode: "edit"; entity: CanonE
 export default function LedgerScreen() {
   const { ledgerCat, selectedThread, setLedgerCat, selectThread } = useDesk();
   const data = useDeskData();
+  const searchParams = useSearchParams();
+
+  // Deep-link consumption (?cat=…&focus=<character name>), e.g. from a Scene continuity conflict.
+  // One-shot on mount: the URL selects the category and names the character panel to highlight;
+  // navigating within the tab afterwards clears the highlight.
+  const [focusChar, setFocusChar] = useState<string | null>(null);
+  const consumedLink = useRef(false);
+  useEffect(() => {
+    if (consumedLink.current) return;
+    consumedLink.current = true;
+    const cat = searchParams.get("cat");
+    const focus = searchParams.get("focus");
+    if (cat) setLedgerCat(cat);
+    if (focus) setFocusChar(focus);
+  }, [searchParams, setLedgerCat]);
+  // The highlight belongs to the characters view; switching category ends it.
+  useEffect(() => {
+    if (ledgerCat !== "characters") setFocusChar(null);
+  }, [ledgerCat]);
+  const focusScrolled = useRef(false);
 
   const bookId = data.bookId;
   const [charEdit, setCharEdit] = useState<CharacterStateOut | "new" | null>(null);
@@ -372,100 +393,124 @@ export default function LedgerScreen() {
               ) : (
                 <div style={css("display:grid;grid-template-columns:1fr 1fr;gap:14px")}>
                   {data.characters.map((ch) => (
-                    <Panel key={ch.character} pad="0" style="overflow:hidden">
-                      <div
-                        style={css(
-                          "display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line);background:var(--bg2b)",
-                        )}
+                    <div
+                      key={ch.character}
+                      id={`ledger-char-${ch.character}`}
+                      ref={
+                        focusChar === ch.character
+                          ? (el) => {
+                              if (el && !focusScrolled.current) {
+                                focusScrolled.current = true;
+                                el.scrollIntoView?.({ behavior: "smooth", block: "start" });
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      <Panel
+                        pad="0"
+                        style={`overflow:hidden${
+                          focusChar === ch.character ? ";border-color:var(--accentLine)" : ""
+                        }`}
                       >
                         <div
                           style={css(
-                            "width:38px;height:38px;border-radius:9px;background:var(--accentSoft);border:1px solid var(--accentLine);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:17px;color:var(--accent);flex:none",
+                            "display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line);background:var(--bg2b)",
                           )}
                         >
-                          {ch.character.charAt(0)}
-                        </div>
-                        <div style={css("min-width:0;flex:1")}>
                           <div
                             style={css(
-                              "font-family:var(--display);font-weight:500;font-size:16px;color:var(--ink)",
+                              "width:38px;height:38px;border-radius:9px;background:var(--accentSoft);border:1px solid var(--accentLine);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:17px;color:var(--accent);flex:none",
                             )}
                           >
-                            {ch.character}
+                            {ch.character.charAt(0)}
                           </div>
-                          <Eyebrow style="margin-top:2px;font-size:10px">
-                            {ch.is_pov ? "POV" : "character"}
-                            {ch.provisional ? " · provisional" : ""}
-                          </Eyebrow>
-                        </div>
-                        <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
-                          <input
-                            type="checkbox"
-                            checked={bulk.has(ch.character)}
-                            onChange={() => bulk.toggle(ch.character)}
-                            title="select"
-                            style={css(
-                              "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px",
-                            )}
-                          />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setCharEdit(ch);
-                              setCanonEdit(null);
-                            }}
-                          >
-                            edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              if (confirm(`Delete ${ch.character}'s tracked stats?`))
-                                data.deleteCharacter(ch.character);
-                            }}
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      </div>
-                      <div style={css("padding:13px 16px")}>
-                        {Object.keys(ch.stats).length === 0 && (
-                          <div
-                            style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}
-                          >
-                            no tracked stats
-                          </div>
-                        )}
-                        {Object.entries(ch.stats).map(([k, v]) => (
-                          <div
-                            key={k}
-                            style={css(
-                              "display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;border-bottom:1px solid var(--hairline)",
-                            )}
-                          >
-                            <span
-                              style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
+                          <div style={css("min-width:0;flex:1")}>
+                            <div
+                              style={css(
+                                "font-family:var(--display);font-weight:500;font-size:16px;color:var(--ink)",
+                              )}
                             >
-                              {k}
-                            </span>
-                            <span style={css("color:var(--ink);text-align:right")}>
-                              {statValue(v)}
-                            </span>
+                              {ch.character}
+                            </div>
+                            <Eyebrow style="margin-top:2px;font-size:10px">
+                              {ch.is_pov ? "POV" : "character"}
+                              {ch.provisional ? " · provisional" : ""}
+                            </Eyebrow>
                           </div>
-                        ))}
-                        {ch.body && (
-                          <p
-                            style={css(
-                              "margin:10px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5",
-                            )}
-                          >
-                            {ch.body}
-                          </p>
-                        )}
-                      </div>
-                    </Panel>
+                          <div style={css("display:flex;gap:6px;flex:none;align-items:center")}>
+                            <input
+                              type="checkbox"
+                              checked={bulk.has(ch.character)}
+                              onChange={() => bulk.toggle(ch.character)}
+                              title="select"
+                              style={css(
+                                "width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin-right:2px",
+                              )}
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setCharEdit(ch);
+                                setCanonEdit(null);
+                              }}
+                            >
+                              edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                if (confirm(`Delete ${ch.character}'s tracked stats?`))
+                                  data.deleteCharacter(ch.character);
+                              }}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        </div>
+                        <div style={css("padding:13px 16px")}>
+                          {Object.keys(ch.stats).length === 0 && (
+                            <div
+                              style={css(
+                                "font-family:var(--mono);font-size:11.5px;color:var(--dim)",
+                              )}
+                            >
+                              no tracked stats
+                            </div>
+                          )}
+                          {Object.entries(ch.stats).map(([k, v]) => (
+                            <div
+                              key={k}
+                              style={css(
+                                "display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;border-bottom:1px solid var(--hairline)",
+                              )}
+                            >
+                              <span
+                                style={css(
+                                  "font-family:var(--mono);font-size:11px;color:var(--dim)",
+                                )}
+                              >
+                                {k}
+                              </span>
+                              <span style={css("color:var(--ink);text-align:right")}>
+                                {statValue(v)}
+                              </span>
+                            </div>
+                          ))}
+                          {ch.body && (
+                            <p
+                              style={css(
+                                "margin:10px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5",
+                              )}
+                            >
+                              {ch.body}
+                            </p>
+                          )}
+                        </div>
+                      </Panel>
+                    </div>
                   ))}
                 </div>
               )}

@@ -5,18 +5,22 @@ import LedgerScreen from "./LedgerScreen";
 // Workstream H: the stale-canon cleanup UI. These assert the screen wires the new client methods and,
 // critically, that a destructive action always dry-runs `cleanup-preview` BEFORE the real retire/delete.
 
+let mockSearch = new URLSearchParams();
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearch,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-// Pin the Ledger to a canon kind so the cleanup filters/rows/BulkBar actions render.
+// Pin the Ledger to a canon kind so the cleanup filters/rows/BulkBar actions render; deep-link tests
+// repoint mockLedgerCat/mockSearch before render.
+const setLedgerCat = vi.fn();
+let mockLedgerCat = "canon:location";
 vi.mock("../state", () => ({
   useDesk: () => ({
     t: { accent: "#000", bad: "#f00", warn: "#e90", good: "#0a0", info: "#09f", dim: "#888" },
-    ledgerCat: "canon:location",
+    ledgerCat: mockLedgerCat,
     selectedThread: "",
-    setLedgerCat: vi.fn(),
+    setLedgerCat,
     selectThread: vi.fn(),
   }),
 }));
@@ -24,7 +28,7 @@ vi.mock("../state", () => ({
 const mockData = {
   bookId: "b1",
   canon: [],
-  characters: [],
+  characters: [] as { character: string; stats: Record<string, unknown> }[],
   threads: [],
   ruleProposals: [],
   runBulk: vi.fn(),
@@ -197,5 +201,39 @@ describe("LedgerScreen canon cleanup", () => {
     await screen.findByText("Old Keep");
     fireEvent.click(screen.getByText(/Clean rebuild from docs/));
     await waitFor(() => expect(api.rebuildCanon).toHaveBeenCalledWith("b1"));
+  });
+});
+
+describe("LedgerScreen deep links (?cat & ?focus)", () => {
+  beforeEach(() => {
+    vi.mocked(api.listCanon).mockReset().mockResolvedValue([ROW]);
+    setLedgerCat.mockReset();
+    mockSearch = new URLSearchParams();
+    mockLedgerCat = "canon:location";
+    mockData.characters = [];
+  });
+
+  it("consumes ?cat= on mount and selects that category", async () => {
+    mockSearch = new URLSearchParams("cat=characters");
+    render(<LedgerScreen />);
+    await waitFor(() => expect(setLedgerCat).toHaveBeenCalledWith("characters"));
+  });
+
+  it("highlights the ?focus= character panel — the target of a Scene continuity link", async () => {
+    mockSearch = new URLSearchParams("cat=characters&focus=Mara");
+    mockLedgerCat = "characters";
+    mockData.characters = [
+      { character: "Mara", stats: { level: 15 }, is_pov: true, provisional: false, body: null },
+      { character: "Seb", stats: {}, is_pov: false, provisional: false, body: null },
+    ] as never;
+    render(<LedgerScreen />);
+    await screen.findByText("Mara");
+
+    // The highlight lives on the Panel's own border (every card's avatar square also uses
+    // --accentLine, so assert on the <section> style, not innerHTML).
+    const focusedPanel = document.getElementById("ledger-char-Mara")?.querySelector("section");
+    const otherPanel = document.getElementById("ledger-char-Seb")?.querySelector("section");
+    expect(focusedPanel?.getAttribute("style")).toContain("--accentLine");
+    expect(otherPanel?.getAttribute("style")).not.toContain("--accentLine");
   });
 });
