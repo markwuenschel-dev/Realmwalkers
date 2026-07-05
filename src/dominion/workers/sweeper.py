@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import traceback
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -324,7 +325,9 @@ async def run_tick() -> None:
                         await _sweep_one_run(session, run_id, cfg)
                         await session.commit()
                 except Exception as exc:  # noqa: BLE001 — one bad run must not strand the rest
-                    log.error("sweeper.run_error", run=str(run_id), error=str(exc))
+                    # Full traceback: a data-specific greenlet_spawn fires OUTSIDE the wrapped stages on
+                    # one real run and no synthetic run reproduces it — the frame names the exact line.
+                    log.error("sweeper.run_error", run=str(run_id), error=str(exc), tb=traceback.format_exc())
             if run_ids:
                 # Drive all newly-eligible non-approval tasks + chain the job drain (drafts revisions).
                 await background_work.drain_queued_repair_tasks()
