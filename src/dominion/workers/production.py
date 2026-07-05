@@ -3080,9 +3080,7 @@ async def _verify_chapter_scoped_repair(
         ]
         or None,
         target_issue_resolved=not remaining,
-        canon_preserved=not any(
-            c.reviewer == "continuity" and c.severity in ("hard", "block") for c in new_critiques
-        ),
+        canon_preserved=not any(c.reviewer == "continuity" and c.severity in ("hard", "block") for c in new_critiques),
         scene_outcome_preserved=outcome_preserved,
         voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
         required_beats_preserved=bool(task.instructions),
