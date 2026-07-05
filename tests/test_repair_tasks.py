@@ -202,6 +202,27 @@ async def test_fanout_verify_names_still_drafting_scenes(db_factory):
             await production.verify_repair_task(s, task.id)
 
 
+async def test_apply_all_counts_and_schedules_the_shared_drain(db_factory):
+    from fastapi import BackgroundTasks
+
+    from dominion.api.routers import production as production_router
+    from dominion.workers import background_work
+
+    async with db_factory() as s:
+        _book, _chapter, run, scenes = await _seed(s)
+        await _chapter_task(s, run, scenes, requires_approval=False)  # eligible: queued, no approval
+        await _chapter_task(s, run, scenes, requires_approval=True)  # counted, never auto-applied
+        await s.flush()
+
+        background = BackgroundTasks()
+        out = await production_router.apply_all_repair_tasks(run.id, s, background)
+
+        assert out.queued == 1
+        assert out.requires_approval == 1
+        assert out.scheduled is True and out.running is True
+        assert any(t.func is background_work.drain_queued_repair_tasks for t in background.tasks)
+
+
 async def test_fanout_verify_accepts_when_every_scene_revised_clean(db_factory):
     async with db_factory() as s:
         _book, chapter, run, scenes = await _seed(s)

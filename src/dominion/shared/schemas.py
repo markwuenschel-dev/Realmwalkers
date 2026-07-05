@@ -678,6 +678,18 @@ class DraftNextOut(BaseModel):
     running: bool = False
 
 
+class RepairApplyAllOut(BaseModel):
+    """Result of 'Apply all queued' on a run's repair tasks. `scheduled` is true when the call kicked
+    the repair drain; `requires_approval` counts the waiting tasks the drain will never touch (they
+    need the explicit Approve & apply)."""
+
+    scheduled: bool = False
+    queued: int = 0
+    requires_approval: int = 0
+    running: bool = False
+    queue_paused: bool = False
+
+
 class RetryFailedOut(BaseModel):
     """Result of re-queuing FAILED jobs (contract-first: reconciles fresh ScenePackets)."""
 

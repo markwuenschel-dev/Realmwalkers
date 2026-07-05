@@ -3231,6 +3231,50 @@
         }
       }
     },
+    "/production-runs/{run_id}/repair-tasks/apply-all": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Apply All Repair Tasks",
+        "description": "One click drains the run's queued repair tasks (same drain the auto-triggers use \u2014 the button\nand the background loop share one path). Tasks needing Approve & apply are counted, never applied.",
+        "operationId": "apply_all_repair_tasks_production_runs__run_id__repair_tasks_apply_all_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairApplyAllOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/repair-tasks/{task_id}/apply": {
       "post": {
         "tags": [
@@ -12822,6 +12866,38 @@
         ],
         "title": "RedraftIn",
         "description": "POST body to re-draft existing scenes: re-queue a draft for each (supersedes the current version)."
+      },
+      "RepairApplyAllOut": {
+        "properties": {
+          "scheduled": {
+            "type": "boolean",
+            "title": "Scheduled",
+            "default": false
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "default": 0
+          },
+          "requires_approval": {
+            "type": "integer",
+            "title": "Requires Approval",
+            "default": 0
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "default": false
+          },
+          "queue_paused": {
+            "type": "boolean",
+            "title": "Queue Paused",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "RepairApplyAllOut",
+        "description": "Result of 'Apply all queued' on a run's repair tasks. `scheduled` is true when the call kicked\nthe repair drain; `requires_approval` counts the waiting tasks the drain will never touch (they\nneed the explicit Approve & apply)."
       },
       "RepairAttemptOut": {
         "properties": {

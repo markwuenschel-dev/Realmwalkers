@@ -268,6 +268,8 @@ Two seats are plain code, never an LLM:
 
 The advisory **continuity reviewer** is the opposite job: an LLM that only *reports* whether the prose matches the Oracle's truth. It never writes to the ledger. Truth-ownership and conformance-judgment are kept apart on purpose — fusing them is one step from the system "correcting" things on its own, which is the autonomy this design eliminates.
 
+**Deliberate exception — the repair-task drain (Desk Control Round P14).** Autonomy stays eliminated for canon/ledger writes, plan changes, and anything an LLM *judges*; but the *execution* of already-triaged, bounded repair tasks (span patches and human-verifiable scene revision jobs) now auto-drains after triage. What runs was decided by deterministic triage the human can inspect — the drain adds no new judgment. The human keeps the same controls as drafting: the one queue pause switch stops it between tasks, `requires_human_approval` tasks (cross-scene / chapter-structural / human-required authority) are never claimed and execute only through an explicit **Approve & apply**, and every application remains verifiable, rejectable, and rollbackable after the fact.
+
 ```python
 DRAFT_PASSES = {                      # enrichment: modify prose during drafting
     "combat":               combat_pass,

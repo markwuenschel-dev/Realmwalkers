@@ -1102,6 +1102,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/production-runs/{run_id}/repair-tasks/apply-all": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Apply All Repair Tasks
+     * @description One click drains the run's queued repair tasks (same drain the auto-triggers use — the button
+     *     and the background loop share one path). Tasks needing Approve & apply are counted, never applied.
+     */
+    post: operations["apply_all_repair_tasks_production_runs__run_id__repair_tasks_apply_all_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/repair-tasks/{task_id}/apply": {
     parameters: {
       query?: never;
@@ -4900,6 +4921,39 @@ export interface components {
       /** Scene Ids */
       scene_ids: string[];
     };
+    /**
+     * RepairApplyAllOut
+     * @description Result of 'Apply all queued' on a run's repair tasks. `scheduled` is true when the call kicked
+     *     the repair drain; `requires_approval` counts the waiting tasks the drain will never touch (they
+     *     need the explicit Approve & apply).
+     */
+    RepairApplyAllOut: {
+      /**
+       * Scheduled
+       * @default false
+       */
+      scheduled: boolean;
+      /**
+       * Queued
+       * @default 0
+       */
+      queued: number;
+      /**
+       * Requires Approval
+       * @default 0
+       */
+      requires_approval: number;
+      /**
+       * Running
+       * @default false
+       */
+      running: boolean;
+      /**
+       * Queue Paused
+       * @default false
+       */
+      queue_paused: boolean;
+    };
     /** RepairAttemptOut */
     RepairAttemptOut: {
       /**
@@ -8415,6 +8469,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["RepairTaskOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  apply_all_repair_tasks_production_runs__run_id__repair_tasks_apply_all_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairApplyAllOut"];
         };
       };
       /** @description Validation Error */

@@ -7,6 +7,11 @@ clicking "approve beats" or "revise" in the Desk is all it takes to get prose dr
 A draft runs ONLY when triggered, so the "nothing runs between approvals" guarantee holds. The lock
 keeps at most one drain in flight per process; the worker's atomic claim (FOR UPDATE SKIP LOCKED)
 keeps it safe even if a terminal worker drains concurrently.
+
+A second triggered/boot-resumed drain exists for repair tasks (background_work.drain_queued_repair_tasks,
+kicked by triage/verify/apply-all and the boot resume): already-triaged bounded repairs auto-apply under
+the SAME pause switch, and requires_human_approval tasks always wait for an explicit Approve & apply
+(DESIGN §5 documents this deliberate posture change).
 """
 
 from __future__ import annotations
@@ -121,10 +126,28 @@ async def pause(
     queued = counts.get(JobStatus.QUEUED, 0)
     running = background_work.drain_locked()
     scheduled = False
-    if not body.paused and queued and not running:
-        background.add_task(background_work.drain_queued_jobs)
-        scheduled = True
-        running = True
+    if not body.paused:
+        # Resume BOTH drains the switch was holding. The repair drain chains into the job drain and
+        # both single-flight, so kicking it first covers queued repairs AND queued jobs in one shot.
+        from sqlalchemy import false
+
+        from dominion.shared.models import RepairTask
+
+        queued_repairs = (
+            await session.execute(
+                select(func.count())
+                .select_from(RepairTask)
+                .where(RepairTask.status == "queued", RepairTask.requires_human_approval == false())
+            )
+        ).scalar_one()
+        if queued_repairs and not background_work.repair_drain_locked():
+            background.add_task(background_work.drain_queued_repair_tasks)
+            scheduled = True
+            running = True
+        elif queued and not running:
+            background.add_task(background_work.drain_queued_jobs)
+            scheduled = True
+            running = True
     log.info("jobs.queue_paused" if body.paused else "jobs.queue_resumed", queued=queued)
     return JobsPauseOut(queue_paused=body.paused, queued=queued, running=running, scheduled=scheduled)
 
