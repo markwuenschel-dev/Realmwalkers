@@ -1497,6 +1497,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/books/{book_id}/pipeline": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Pipeline
+     * @description One live snapshot of the whole production pipeline for a book (see PipelineStatusOut). The Desk
+     *     polls this ~3s while the Pipeline tab is active; each section carries pre-computed human reasons +
+     *     suggested actions so the frontend stays thin.
+     */
+    get: operations["get_pipeline_books__book_id__pipeline_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/telemetry": {
     parameters: {
       query?: never;
@@ -2491,7 +2513,8 @@ export interface paths {
     };
     /**
      * Get Autonomy
-     * @description Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention).
+     * @description Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention),
+     *     plus the live sweeper heartbeat so the Settings screen can show the loop is alive and what it did.
      */
     get: operations["get_autonomy_settings_autonomy_get"];
     /**
@@ -3154,6 +3177,7 @@ export interface components {
       max_attempts: number;
       /** Retention Days */
       retention_days: number;
+      heartbeat?: components["schemas"]["SweeperStatusOut"] | null;
     };
     /** AutonomyUpdateIn */
     AutonomyUpdateIn: {
@@ -5006,6 +5030,91 @@ export interface components {
       /** Confidence */
       confidence?: string | null;
     };
+    /**
+     * PipelineAgentRunOut
+     * @description A RUNNING editorial AgentRun (repair/verify/QA step) inside a production run.
+     */
+    PipelineAgentRunOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Production Run Id
+       * Format: uuid
+       */
+      production_run_id: string;
+      /** Agent Name */
+      agent_name: string;
+      /** Stage */
+      stage: string;
+      /** Started At */
+      started_at?: string | null;
+    };
+    /**
+     * PipelineBlockedOut
+     * @description Work stuck on a specific fault (a structural-repair stage, a provider rate limit, a failed draft,
+     *     or the human queue pause), each with the unblock action.
+     */
+    PipelineBlockedOut: {
+      /**
+       * Runs
+       * @default []
+       */
+      runs: components["schemas"]["PipelineRunRef"][];
+      /**
+       * Failed Jobs
+       * @default []
+       */
+      failed_jobs: components["schemas"]["PipelineJobOut"][];
+      /**
+       * Queue Paused
+       * @default false
+       */
+      queue_paused: boolean;
+    };
+    /** PipelineCompletedOut */
+    PipelineCompletedOut: {
+      /**
+       * Runs
+       * @default []
+       */
+      runs: components["schemas"]["PipelineCompletedRef"][];
+    };
+    /**
+     * PipelineCompletedRef
+     * @description A completed run + its final-chapter status (from the final_chapter artifact).
+     */
+    PipelineCompletedRef: {
+      /**
+       * Run Id
+       * Format: uuid
+       */
+      run_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Status */
+      status: string;
+      /** Current Stage */
+      current_stage?: string | null;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Final Chapter Status */
+      final_chapter_status?: string | null;
+      /** Scenes Drafted */
+      scenes_drafted?: number | null;
+      /** Scenes Expected */
+      scenes_expected?: number | null;
+    };
     /** PipelineEstimateOut */
     PipelineEstimateOut: {
       /** Cost Band */
@@ -5028,6 +5137,256 @@ export interface components {
       estimated_usd_low_per_chapter?: number | null;
       /** Estimated Latency Sec Per Chapter */
       estimated_latency_sec_per_chapter?: number | null;
+    };
+    /**
+     * PipelineIssueRef
+     * @description An undecided issue (proposed/escalated) waiting on a human triage decision.
+     */
+    PipelineIssueRef: {
+      /**
+       * Issue Id
+       * Format: uuid
+       */
+      issue_id: string;
+      /**
+       * Production Run Id
+       * Format: uuid
+       */
+      production_run_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Issue Kind */
+      issue_kind: string;
+      /** Severity */
+      severity: string;
+      /** Status */
+      status: string;
+      /** Claim */
+      claim: string;
+      /** Reason */
+      reason?: string | null;
+      /** Suggested Action */
+      suggested_action?: string | null;
+      /** Action Kind */
+      action_kind?: string | null;
+    };
+    /**
+     * PipelineJobOut
+     * @description A draft/revision Job in the pipeline. Live phase/elapsed/cache ride only on RUNNING rows and
+     *     come from the in-process progress registry — they are null when served by a non-drain process.
+     */
+    PipelineJobOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Kind */
+      kind: string;
+      /** Status */
+      status: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Phase */
+      phase?: string | null;
+      /** Elapsed S */
+      elapsed_s?: number | null;
+      /** Cache Hit Ratio */
+      cache_hit_ratio?: number | null;
+      /** Claimed At */
+      claimed_at?: string | null;
+      /** Position */
+      position?: number | null;
+      /** Created At */
+      created_at?: string | null;
+      /** Last Error */
+      last_error?: string | null;
+    };
+    /**
+     * PipelineNowOut
+     * @description What is executing right now. The engine is serial — at most one draft and one repair drain in
+     *     flight per process — so these lists are short by design.
+     */
+    PipelineNowOut: {
+      /**
+       * Jobs
+       * @default []
+       */
+      jobs: components["schemas"]["PipelineJobOut"][];
+      /**
+       * Agent Runs
+       * @default []
+       */
+      agent_runs: components["schemas"]["PipelineAgentRunOut"][];
+      /**
+       * Runs
+       * @default []
+       */
+      runs: components["schemas"]["PipelineRunRef"][];
+      /**
+       * Drain Locked
+       * @default false
+       */
+      drain_locked: boolean;
+      /**
+       * Repair Drain Locked
+       * @default false
+       */
+      repair_drain_locked: boolean;
+    };
+    /**
+     * PipelineQueueOut
+     * @description What is waiting to run, IN ORDER. `serial` is the honest framing: work drafts/repairs one at a
+     *     time (a single process-global drain lock), so this is a line, not a parallel fan-out.
+     */
+    PipelineQueueOut: {
+      /**
+       * Serial
+       * @default true
+       */
+      serial: boolean;
+      /**
+       * Note
+       * @default Work runs one at a time, in order — the engine drafts and repairs sequentially, not in parallel.
+       */
+      note: string;
+      /**
+       * Queue Paused
+       * @default false
+       */
+      queue_paused: boolean;
+      /**
+       * Jobs Queued
+       * @default 0
+       */
+      jobs_queued: number;
+      /**
+       * Jobs
+       * @default []
+       */
+      jobs: components["schemas"]["PipelineJobOut"][];
+      /**
+       * Repair Tasks Auto
+       * @default []
+       */
+      repair_tasks_auto: components["schemas"]["PipelineRepairTaskRef"][];
+      /**
+       * Repair Tasks Approval
+       * @default []
+       */
+      repair_tasks_approval: components["schemas"]["PipelineRepairTaskRef"][];
+      /**
+       * Runs Queued
+       * @default []
+       */
+      runs_queued: components["schemas"]["PipelineRunRef"][];
+    };
+    /**
+     * PipelineRepairTaskRef
+     * @description A queued/parked repair task, with the reason + suggested action pre-computed.
+     */
+    PipelineRepairTaskRef: {
+      /**
+       * Task Id
+       * Format: uuid
+       */
+      task_id: string;
+      /**
+       * Production Run Id
+       * Format: uuid
+       */
+      production_run_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Repair Kind */
+      repair_kind: string;
+      /** Authority Level */
+      authority_level: string;
+      /** Status */
+      status: string;
+      /** Requires Human Approval */
+      requires_human_approval: boolean;
+      /** Reason */
+      reason?: string | null;
+      /** Suggested Action */
+      suggested_action?: string | null;
+      /** Action Kind */
+      action_kind?: string | null;
+    };
+    /**
+     * PipelineRunRef
+     * @description A production run in the pipeline, with the human reason + suggested action pre-computed.
+     */
+    PipelineRunRef: {
+      /**
+       * Run Id
+       * Format: uuid
+       */
+      run_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Status */
+      status: string;
+      /** Current Stage */
+      current_stage?: string | null;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Reason */
+      reason?: string | null;
+      /** Suggested Action */
+      suggested_action?: string | null;
+      /** Action Kind */
+      action_kind?: string | null;
+      /** Scenes Drafted */
+      scenes_drafted?: number | null;
+      /** Scenes Expected */
+      scenes_expected?: number | null;
+    };
+    /**
+     * PipelineStatusOut
+     * @description One live snapshot of the whole production pipeline for a book — the Pipeline dashboard's spine.
+     */
+    PipelineStatusOut: {
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /**
+       * Generated At
+       * Format: date-time
+       */
+      generated_at: string;
+      now: components["schemas"]["PipelineNowOut"];
+      queue: components["schemas"]["PipelineQueueOut"];
+      waiting_on_human: components["schemas"]["PipelineWaitingOut"];
+      blocked: components["schemas"]["PipelineBlockedOut"];
+      completed: components["schemas"]["PipelineCompletedOut"];
+      sweeper: components["schemas"]["SweeperStatusOut"];
     };
     /**
      * PipelineStepOut
@@ -5101,6 +5460,28 @@ export interface components {
        * @default
        */
       stage: string;
+    };
+    /**
+     * PipelineWaitingOut
+     * @description Everything parked ON A HUMAN, each with a direct action. Runs stuck in a *blocked* stage move to
+     *     `blocked` instead; what remains here is genuine review/approve/decide/resume work.
+     */
+    PipelineWaitingOut: {
+      /**
+       * Runs
+       * @default []
+       */
+      runs: components["schemas"]["PipelineRunRef"][];
+      /**
+       * Repair Tasks
+       * @default []
+       */
+      repair_tasks: components["schemas"]["PipelineRepairTaskRef"][];
+      /**
+       * Issues
+       * @default []
+       */
+      issues: components["schemas"]["PipelineIssueRef"][];
     };
     /** ProductionRunActionOut */
     ProductionRunActionOut: {
@@ -6427,6 +6808,77 @@ export interface components {
      * @enum {string}
      */
     SuggestionStatus: "pending" | "accepted" | "rejected";
+    /**
+     * SweeperStatusOut
+     * @description Autonomous sweeper liveness + config, merged from the in-process heartbeat and persisted config
+     *     (workers/sweeper.sweeper_status). `last_tick_at` advancing is the proof the loop is alive; `driving`
+     *     lists the run ids the sweep is currently pushing; `actions` is what the last tick actually did.
+     */
+    SweeperStatusOut: {
+      /** Last Tick At */
+      last_tick_at?: string | null;
+      /**
+       * Ran
+       * @default false
+       */
+      ran: boolean;
+      /**
+       * Autonomy Enabled
+       * @default true
+       */
+      autonomy_enabled: boolean;
+      /**
+       * Paused
+       * @default false
+       */
+      paused: boolean;
+      /**
+       * Stale Runs Found
+       * @default 0
+       */
+      stale_runs_found: number;
+      /**
+       * Actions
+       * @default []
+       */
+      actions: {
+        [key: string]: unknown;
+      }[];
+      /**
+       * Driving
+       * @default []
+       */
+      driving: string[];
+      /** Last Error */
+      last_error?: string | null;
+      /**
+       * Interval S
+       * @default 120
+       */
+      interval_s: number;
+      /**
+       * Stale Window S
+       * @default 120
+       */
+      stale_window_s: number;
+      /**
+       * Authority Ceiling
+       * @default chapter_structural
+       */
+      authority_ceiling: string;
+      /**
+       * Max Attempts
+       * @default 3
+       */
+      max_attempts: number;
+      /**
+       * Attempts
+       * @default {}
+       */
+      attempts: {
+        [key: string]: number;
+      };
+    };
     /** TelemetryDeleteOut */
     TelemetryDeleteOut: {
       /** Deleted Calls */
@@ -9581,6 +10033,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ProductionRunOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_pipeline_books__book_id__pipeline_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PipelineStatusOut"];
         };
       };
       /** @description Validation Error */

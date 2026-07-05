@@ -29,7 +29,8 @@ import type {
 const TITLE_XL =
   "margin:0;font-family:var(--display);font-weight:500;font-size:30px;line-height:38px;letter-spacing:-.01em;color:var(--ink)";
 const MONO = "font-family:var(--mono);font-size:10.5px;color:var(--dim)";
-const CARD = "border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;background:var(--bg3)";
+const CARD =
+  "border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;background:var(--bg3)";
 
 function relTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -69,11 +70,17 @@ const SEV_COLOR: Record<string, string> = {
 
 // --- sweeper heartbeat line -----------------------------------------------------------------------
 function sweeperLine(sw: SweeperStatusOut): { text: string; tone: string } {
-  if (!sw.autonomy_enabled) return { text: "Autonomy off — the sweeper isn't driving runs", tone: "var(--dim)" };
-  if (sw.paused) return { text: "Autonomy paused — the queue is paused, so the sweep is idle", tone: "var(--warn)" };
+  if (!sw.autonomy_enabled)
+    return { text: "Autonomy off — the sweeper isn't driving runs", tone: "var(--dim)" };
+  if (sw.paused)
+    return {
+      text: "Autonomy paused — the queue is paused, so the sweep is idle",
+      tone: "var(--warn)",
+    };
   const parts = ["Autonomy on"];
   if (sw.last_tick_at) parts.push(`swept ${relTime(sw.last_tick_at)}`);
-  if (sw.driving.length) parts.push(`driving ${sw.driving.length} run${sw.driving.length === 1 ? "" : "s"}`);
+  if (sw.driving.length)
+    parts.push(`driving ${sw.driving.length} run${sw.driving.length === 1 ? "" : "s"}`);
   else if (sw.ran) parts.push("idle — nothing stale to drive");
   return { text: parts.join(" · "), tone: "var(--good)" };
 }
@@ -93,11 +100,17 @@ function CardShell({
   return (
     <div style={css(CARD)}>
       <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px")}>
-        <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>{title}</span>
+        <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>
+          {title}
+        </span>
         {chips}
       </div>
       {reason && (
-        <div style={css("font-family:var(--ui);font-size:12.5px;color:var(--dim);line-height:1.5;margin-bottom:10px")}>
+        <div
+          style={css(
+            "font-family:var(--ui);font-size:12.5px;color:var(--dim);line-height:1.5;margin-bottom:10px",
+          )}
+        >
           {reason}
         </div>
       )}
@@ -107,7 +120,9 @@ function CardShell({
 }
 
 function ActionRow({ children }: { children: ReactNode }) {
-  return <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>{children}</div>;
+  return (
+    <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>{children}</div>
+  );
 }
 
 export default function PipelineScreen() {
@@ -158,27 +173,38 @@ export default function PipelineScreen() {
   }, [data.bookId]);
 
   if (!data.bookId) {
-    return (
-      <div style={css(MONO)}>Select a book to see its pipeline.</div>
-    );
+    return <div style={css(MONO)}>Select a book to see its pipeline.</div>;
   }
 
   return (
     <div>
-      <div style={css("display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px")}>
+      <div
+        style={css(
+          "display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px",
+        )}
+      >
         <div>
           <h1 style={css(TITLE_XL)}>Pipeline</h1>
           <p style={css("margin:6px 0 0;color:var(--dim);font-size:14.5px")}>
             Everything production is doing right now — live, and honest about the order it runs in.
           </p>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => void refreshPipeline()} title="Re-fetch the pipeline snapshot">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => void refreshPipeline()}
+          title="Re-fetch the pipeline snapshot"
+        >
           ⟳ Refresh
         </Button>
       </div>
 
       {pipeline === null ? (
-        <div style={css("display:flex;align-items:center;gap:10px;color:var(--dim);font-family:var(--mono);font-size:12px")}>
+        <div
+          style={css(
+            "display:flex;align-items:center;gap:10px;color:var(--dim);font-family:var(--mono);font-size:12px",
+          )}
+        >
           <Spinner size={13} /> loading the pipeline…
         </div>
       ) : (
@@ -215,9 +241,12 @@ function PipelineBody({
 }) {
   const sw = sweeperLine(p.sweeper);
   const runningCount = p.now.jobs.length + p.now.agent_runs.length;
-  const queuedCount = p.queue.jobs_queued + p.queue.repair_tasks_auto.length + p.queue.repair_tasks_approval.length;
+  const queuedCount =
+    p.queue.jobs_queued + p.queue.repair_tasks_auto.length + p.queue.repair_tasks_approval.length;
   const waitingCount =
-    p.waiting_on_human.runs.length + p.waiting_on_human.repair_tasks.length + p.waiting_on_human.issues.length;
+    p.waiting_on_human.runs.length +
+    p.waiting_on_human.repair_tasks.length +
+    p.waiting_on_human.issues.length;
   const blockedCount = p.blocked.runs.length + p.blocked.failed_jobs.length;
 
   return (
@@ -229,24 +258,41 @@ function PipelineBody({
             `width:9px;height:9px;border-radius:50%;flex:none;background:${sw.tone};${p.sweeper.autonomy_enabled && !p.sweeper.paused ? "animation:pulseDot 1.6s ease-in-out infinite" : ""}`,
           )}
         />
-        <span style={css(`font-family:var(--mono);font-size:12px;color:${sw.tone}`)}>{sw.text}</span>
+        <span style={css(`font-family:var(--mono);font-size:12px;color:${sw.tone}`)}>
+          {sw.text}
+        </span>
         {p.sweeper.last_error && (
-          <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--bad)")} title={p.sweeper.last_error}>
+          <span
+            style={css("font-family:var(--mono);font-size:10.5px;color:var(--bad)")}
+            title={p.sweeper.last_error}
+          >
             · last sweep hit an error
           </span>
         )}
       </div>
 
       {/* Glance metrics */}
-      <div style={css("display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px")}>
-        <MetricCard label="Running now" value={String(runningCount)} tone={runningCount ? "var(--info)" : "var(--dim)"} />
+      <div
+        style={css(
+          "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px",
+        )}
+      >
+        <MetricCard
+          label="Running now"
+          value={String(runningCount)}
+          tone={runningCount ? "var(--info)" : "var(--dim)"}
+        />
         <MetricCard label="Queued" value={String(queuedCount)} hint="runs one at a time" />
         <MetricCard
           label="Waiting on you"
           value={String(waitingCount)}
           tone={waitingCount ? "var(--warn)" : "var(--dim)"}
         />
-        <MetricCard label="Blocked" value={String(blockedCount)} tone={blockedCount ? "var(--bad)" : "var(--dim)"} />
+        <MetricCard
+          label="Blocked"
+          value={String(blockedCount)}
+          tone={blockedCount ? "var(--bad)" : "var(--dim)"}
+        />
         <MetricCard label="Completed" value={String(p.completed.runs.length)} tone="var(--good)" />
       </div>
 
@@ -263,8 +309,14 @@ function PipelineBody({
               <div key={r.run_id} style={css(CARD)}>
                 <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
                   <Spinner size={12} />
-                  <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>{place(r)}</span>
-                  <Chip label={String(r.status).replace(/_/g, " ")} tone={RUN_TONE[r.status] ?? "info"} size="sm" />
+                  <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>
+                    {place(r)}
+                  </span>
+                  <Chip
+                    label={String(r.status).replace(/_/g, " ")}
+                    tone={RUN_TONE[r.status] ?? "info"}
+                    size="sm"
+                  />
                   <span style={css(MONO)}>{r.reason}</span>
                   {r.scenes_expected != null && (
                     <span style={css("margin-left:auto")}>
@@ -275,11 +327,18 @@ function PipelineBody({
               </div>
             ))}
             {p.now.agent_runs.map((a) => (
-              <div key={a.id} style={css(`${CARD};display:flex;align-items:center;gap:8px;flex-wrap:wrap`)}>
+              <div
+                key={a.id}
+                style={css(`${CARD};display:flex;align-items:center;gap:8px;flex-wrap:wrap`)}
+              >
                 <Spinner size={11} />
-                <span style={css("font-family:var(--ui);font-size:13px;color:var(--ink)")}>{a.agent_name}</span>
+                <span style={css("font-family:var(--ui);font-size:13px;color:var(--ink)")}>
+                  {a.agent_name}
+                </span>
                 <Chip label={a.stage.replace(/_/g, " ")} tone="info" size="sm" />
-                {a.started_at && <span style={css(`${MONO};margin-left:auto`)}>{relTime(a.started_at)}</span>}
+                {a.started_at && (
+                  <span style={css(`${MONO};margin-left:auto`)}>{relTime(a.started_at)}</span>
+                )}
               </div>
             ))}
           </div>
@@ -308,7 +367,11 @@ function PipelineBody({
           </span>
         }
       >
-        <div style={css("font-family:var(--ui);font-size:12.5px;color:var(--dim);line-height:1.5;margin-bottom:12px")}>
+        <div
+          style={css(
+            "font-family:var(--ui);font-size:12.5px;color:var(--dim);line-height:1.5;margin-bottom:12px",
+          )}
+        >
           {p.queue.note}
         </div>
         {p.queue.jobs.length === 0 &&
@@ -321,23 +384,40 @@ function PipelineBody({
             {p.queue.jobs.length > 0 && (
               <QueueGroup label={`Draft / revision jobs · ${p.queue.jobs_queued}`}>
                 {p.queue.jobs.map((j) => (
-                  <div key={j.id} style={css("display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;background:var(--bg3)")}>
-                    <span style={css(`${MONO};width:18px;text-align:center;flex:none`)}>{j.position}</span>
-                    <span style={css("font-family:var(--ui);font-size:13px;color:var(--ink);flex:1")}>{place(j)}</span>
-                    {j.kind !== "draft" && <Chip label={j.kind.replace(/_/g, " ")} tone="info" size="sm" />}
+                  <div
+                    key={j.id}
+                    style={css(
+                      "display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;background:var(--bg3)",
+                    )}
+                  >
+                    <span style={css(`${MONO};width:18px;text-align:center;flex:none`)}>
+                      {j.position}
+                    </span>
+                    <span
+                      style={css("font-family:var(--ui);font-size:13px;color:var(--ink);flex:1")}
+                    >
+                      {place(j)}
+                    </span>
+                    {j.kind !== "draft" && (
+                      <Chip label={j.kind.replace(/_/g, " ")} tone="info" size="sm" />
+                    )}
                   </div>
                 ))}
               </QueueGroup>
             )}
             {p.queue.repair_tasks_auto.length > 0 && (
-              <QueueGroup label={`Repairs — run automatically · ${p.queue.repair_tasks_auto.length}`}>
+              <QueueGroup
+                label={`Repairs — run automatically · ${p.queue.repair_tasks_auto.length}`}
+              >
                 {p.queue.repair_tasks_auto.map((t) => (
                   <RepairQueueRow key={t.task_id} t={t} />
                 ))}
               </QueueGroup>
             )}
             {p.queue.repair_tasks_approval.length > 0 && (
-              <QueueGroup label={`Repairs — need your approval · ${p.queue.repair_tasks_approval.length}`}>
+              <QueueGroup
+                label={`Repairs — need your approval · ${p.queue.repair_tasks_approval.length}`}
+              >
                 {p.queue.repair_tasks_approval.map((t) => (
                   <RepairQueueRow key={t.task_id} t={t} approval />
                 ))}
@@ -346,8 +426,17 @@ function PipelineBody({
             {p.queue.runs_queued.length > 0 && (
               <QueueGroup label={`Production runs · ${p.queue.runs_queued.length}`}>
                 {p.queue.runs_queued.map((r) => (
-                  <div key={r.run_id} style={css("display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;background:var(--bg3)")}>
-                    <span style={css("font-family:var(--ui);font-size:13px;color:var(--ink);flex:1")}>{place(r)}</span>
+                  <div
+                    key={r.run_id}
+                    style={css(
+                      "display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;background:var(--bg3)",
+                    )}
+                  >
+                    <span
+                      style={css("font-family:var(--ui);font-size:13px;color:var(--ink);flex:1")}
+                    >
+                      {place(r)}
+                    </span>
                     <span style={css(MONO)}>{r.reason}</span>
                   </div>
                 ))}
@@ -358,19 +447,32 @@ function PipelineBody({
       </Panel>
 
       {/* WAITING ON YOU */}
-      <Panel eyebrow="Waiting on you" title={waitingCount ? `${waitingCount} need a decision` : "Nothing waiting"}>
+      <Panel
+        eyebrow="Waiting on you"
+        title={waitingCount ? `${waitingCount} need a decision` : "Nothing waiting"}
+      >
         {waitingCount === 0 ? (
           <div style={css(MONO)}>nothing is waiting on you — nice</div>
         ) : (
-          <div style={css("display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px")}>
+          <div
+            style={css(
+              "display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px",
+            )}
+          >
             {p.waiting_on_human.repair_tasks.map((t) => (
               <RepairActionCard
                 key={t.task_id}
                 t={t}
                 busy={busyId === t.task_id}
-                onVerify={() => void act(t.task_id, () => api.verifyRepairTask(t.task_id), "Verify started")}
+                onVerify={() =>
+                  void act(t.task_id, () => api.verifyRepairTask(t.task_id), "Verify started")
+                }
                 onApprove={() =>
-                  void act(t.task_id, () => api.approveApplyRepairTask(t.task_id), "Approved & applied")
+                  void act(
+                    t.task_id,
+                    () => api.approveApplyRepairTask(t.task_id),
+                    "Approved & applied",
+                  )
                 }
                 onProduction={() => onProduction(t.chapter_id)}
               />
@@ -384,7 +486,11 @@ function PipelineBody({
               />
             ))}
             {p.waiting_on_human.issues.map((i) => (
-              <IssueActionCard key={i.issue_id} i={i} onProduction={() => onProduction(i.chapter_id)} />
+              <IssueActionCard
+                key={i.issue_id}
+                i={i}
+                onProduction={() => onProduction(i.chapter_id)}
+              />
             ))}
           </div>
         )}
@@ -393,7 +499,11 @@ function PipelineBody({
       {/* BLOCKED */}
       {blockedCount > 0 && (
         <Panel eyebrow="Blocked" title={`${blockedCount} stuck on a fault`}>
-          <div style={css("display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px")}>
+          <div
+            style={css(
+              "display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px",
+            )}
+          >
             {p.blocked.runs.map((r) => (
               <RunActionCard
                 key={r.run_id}
@@ -404,7 +514,10 @@ function PipelineBody({
               />
             ))}
             {p.blocked.failed_jobs.length > 0 && (
-              <CardShell title={`${p.blocked.failed_jobs.length} failed draft${p.blocked.failed_jobs.length === 1 ? "" : "s"}`} reason={p.blocked.failed_jobs[0]?.last_error ?? undefined}>
+              <CardShell
+                title={`${p.blocked.failed_jobs.length} failed draft${p.blocked.failed_jobs.length === 1 ? "" : "s"}`}
+                reason={p.blocked.failed_jobs[0]?.last_error ?? undefined}
+              >
                 <div style={css("display:flex;flex-direction:column;gap:5px;margin-bottom:10px")}>
                   {p.blocked.failed_jobs.slice(0, 4).map((j) => (
                     <div key={j.id} style={css(`${MONO};display:flex;gap:8px`)}>
@@ -419,7 +532,11 @@ function PipelineBody({
                     variant="danger"
                     disabled={busyId === "failed-jobs"}
                     onClick={() =>
-                      void act("failed-jobs", () => api.retryFailed(p.book_id), "Re-queued failed drafts")
+                      void act(
+                        "failed-jobs",
+                        () => api.retryFailed(p.book_id),
+                        "Re-queued failed drafts",
+                      )
                     }
                   >
                     Retry all failed
@@ -432,7 +549,10 @@ function PipelineBody({
       )}
 
       {/* COMPLETED */}
-      <Panel eyebrow="Recently completed" title={p.completed.runs.length ? undefined : "Nothing completed yet"}>
+      <Panel
+        eyebrow="Recently completed"
+        title={p.completed.runs.length ? undefined : "Nothing completed yet"}
+      >
         {p.completed.runs.length === 0 ? (
           <div style={css(MONO)}>no completed runs yet</div>
         ) : (
@@ -441,9 +561,13 @@ function PipelineBody({
               <div
                 key={r.run_id}
                 onClick={() => onProduction(r.chapter_id)}
-                style={css(`${CARD};display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer`)}
+                style={css(
+                  `${CARD};display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer`,
+                )}
               >
-                <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>{place(r)}</span>
+                <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>
+                  {place(r)}
+                </span>
                 <Chip label="completed" tone="good" size="sm" />
                 {r.final_chapter_status && (
                   <Chip label={r.final_chapter_status.replace(/_/g, " ")} tone="good" size="sm" />
@@ -465,7 +589,11 @@ function PipelineBody({
         {events.length === 0 ? (
           <div style={css(MONO)}>nothing yet</div>
         ) : (
-          <div style={css("display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto")}>
+          <div
+            style={css(
+              "display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto",
+            )}
+          >
             {events.map((e) => (
               <EventRow key={e.id} a={e} />
             ))}
@@ -482,9 +610,15 @@ function NowJob({ j }: { j: PipelineJobOut }) {
     <div style={css(`${CARD};border-color:color-mix(in srgb,var(--info) 35%,var(--line))`)}>
       <div style={css("display:flex;align-items:center;gap:9px;flex-wrap:wrap")}>
         <Spinner size={13} />
-        <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>{place(j)}</span>
+        <span style={css("font-family:var(--display);font-size:15px;color:var(--ink)")}>
+          {place(j)}
+        </span>
         {j.kind !== "draft" && <Chip label={j.kind.replace(/_/g, " ")} tone="info" size="sm" />}
-        {j.phase && <span style={css("font-family:var(--mono);font-size:11px;color:var(--info)")}>{j.phase}</span>}
+        {j.phase && (
+          <span style={css("font-family:var(--mono);font-size:11px;color:var(--info)")}>
+            {j.phase}
+          </span>
+        )}
         {elapsed && <span style={css(`${MONO};margin-left:auto`)}>{elapsed}</span>}
       </div>
     </div>
@@ -496,7 +630,11 @@ function SceneProgress({ drafted, expected }: { drafted?: number | null; expecte
   const frac = expected > 0 ? Math.min(100, Math.round((d / expected) * 100)) : 0;
   return (
     <span style={css("display:inline-flex;align-items:center;gap:8px")}>
-      <span style={css("position:relative;width:70px;height:7px;border-radius:5px;background:var(--bg3);overflow:hidden;display:inline-block")}>
+      <span
+        style={css(
+          "position:relative;width:70px;height:7px;border-radius:5px;background:var(--bg3);overflow:hidden;display:inline-block",
+        )}
+      >
         <span style={css(`position:absolute;inset:0;width:${frac}%;background:var(--good)`)} />
       </span>
       <span style={css(MONO)}>
@@ -517,7 +655,11 @@ function QueueGroup({ label, children }: { label: string; children: ReactNode })
 
 function RepairQueueRow({ t, approval = false }: { t: PipelineRepairTaskRef; approval?: boolean }) {
   return (
-    <div style={css("display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;background:var(--bg3)")}>
+    <div
+      style={css(
+        "display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;background:var(--bg3)",
+      )}
+    >
       <span style={css("font-family:var(--ui);font-size:13px;color:var(--ink);flex:1")}>
         {place(t)} · {t.repair_kind.replace(/_/g, " ")}
       </span>
@@ -587,8 +729,18 @@ function RunActionCard({
       reason={r.reason}
       chips={
         <>
-          <Chip label={String(r.status).replace(/_/g, " ")} tone={RUN_TONE[r.status] ?? (blocked ? "bad" : "warn")} size="sm" />
-          {r.current_stage && <Chip label={r.current_stage.replace(/_/g, " ")} tone={blocked ? "bad" : "neutral"} size="sm" />}
+          <Chip
+            label={String(r.status).replace(/_/g, " ")}
+            tone={RUN_TONE[r.status] ?? (blocked ? "bad" : "warn")}
+            size="sm"
+          />
+          {r.current_stage && (
+            <Chip
+              label={r.current_stage.replace(/_/g, " ")}
+              tone={blocked ? "bad" : "neutral"}
+              size="sm"
+            />
+          )}
         </>
       }
     >
@@ -628,7 +780,11 @@ function IssueActionCard({ i, onProduction }: { i: PipelineIssueRef; onProductio
         </>
       }
     >
-      <div style={css("font-family:var(--ui);font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px")}>
+      <div
+        style={css(
+          "font-family:var(--ui);font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px",
+        )}
+      >
         “{i.claim}”
       </div>
       <ActionRow>
@@ -643,8 +799,16 @@ function IssueActionCard({ i, onProduction }: { i: PipelineIssueRef; onProductio
 function EventRow({ a }: { a: ActivityOut }) {
   const color = SEV_COLOR[a.severity] ?? "var(--dim)";
   return (
-    <div style={css("display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;background:var(--bg3)")}>
-      <span style={css(`width:8px;height:8px;border-radius:50%;background:${color};flex:none;margin-top:5px`)} />
+    <div
+      style={css(
+        "display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;background:var(--bg3)",
+      )}
+    >
+      <span
+        style={css(
+          `width:8px;height:8px;border-radius:50%;background:${color};flex:none;margin-top:5px`,
+        )}
+      />
       <div style={css("min-width:0;flex:1")}>
         <div style={css("font-family:var(--ui);font-size:13px;color:var(--ink)")}>{a.title}</div>
         {a.detail && (

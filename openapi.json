@@ -4262,6 +4262,50 @@
         }
       }
     },
+    "/books/{book_id}/pipeline": {
+      "get": {
+        "tags": [
+          "pipeline"
+        ],
+        "summary": "Get Pipeline",
+        "description": "One live snapshot of the whole production pipeline for a book (see PipelineStatusOut). The Desk\npolls this ~3s while the Pipeline tab is active; each section carries pre-computed human reasons +\nsuggested actions so the frontend stays thin.",
+        "operationId": "get_pipeline_books__book_id__pipeline_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapters/{chapter_id}/telemetry": {
       "get": {
         "tags": [
@@ -7521,7 +7565,7 @@
           "settings"
         ],
         "summary": "Get Autonomy",
-        "description": "Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention).",
+        "description": "Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention),\nplus the live sweeper heartbeat so the Settings screen can show the loop is alive and what it did.",
         "operationId": "get_autonomy_settings_autonomy_get",
         "responses": {
           "200": {
@@ -9286,6 +9330,16 @@
           "retention_days": {
             "type": "integer",
             "title": "Retention Days"
+          },
+          "heartbeat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SweeperStatusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -13184,6 +13238,178 @@
         "title": "PacketUpdateIn",
         "description": "PUT body to adjudicate/edit a proposed packet. Only provided fields are applied. The human\nedits the body, clears open questions, and may raise the confidence after reviewing flags."
       },
+      "PipelineAgentRunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "production_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Production Run Id"
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "production_run_id",
+          "agent_name",
+          "stage"
+        ],
+        "title": "PipelineAgentRunOut",
+        "description": "A RUNNING editorial AgentRun (repair/verify/QA step) inside a production run."
+      },
+      "PipelineBlockedOut": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRunRef"
+            },
+            "type": "array",
+            "title": "Runs",
+            "default": []
+          },
+          "failed_jobs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineJobOut"
+            },
+            "type": "array",
+            "title": "Failed Jobs",
+            "default": []
+          },
+          "queue_paused": {
+            "type": "boolean",
+            "title": "Queue Paused",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "PipelineBlockedOut",
+        "description": "Work stuck on a specific fault (a structural-repair stage, a provider rate limit, a failed draft,\nor the human queue pause), each with the unblock action."
+      },
+      "PipelineCompletedOut": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineCompletedRef"
+            },
+            "type": "array",
+            "title": "Runs",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "PipelineCompletedOut"
+      },
+      "PipelineCompletedRef": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "current_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Stage"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "final_chapter_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Chapter Status"
+          },
+          "scenes_drafted": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenes Drafted"
+          },
+          "scenes_expected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenes Expected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "chapter_id",
+          "status",
+          "updated_at"
+        ],
+        "title": "PipelineCompletedRef",
+        "description": "A completed run + its final-chapter status (from the final_chapter artifact)."
+      },
       "PipelineEstimateOut": {
         "properties": {
           "cost_band": {
@@ -13259,6 +13485,590 @@
           "total_estimated_calls"
         ],
         "title": "PipelineEstimateOut"
+      },
+      "PipelineIssueRef": {
+        "properties": {
+          "issue_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Issue Id"
+          },
+          "production_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Production Run Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "scene_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene No"
+          },
+          "issue_kind": {
+            "type": "string",
+            "title": "Issue Kind"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "claim": {
+            "type": "string",
+            "title": "Claim"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "suggested_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Action"
+          },
+          "action_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issue_id",
+          "production_run_id",
+          "chapter_id",
+          "issue_kind",
+          "severity",
+          "status",
+          "claim"
+        ],
+        "title": "PipelineIssueRef",
+        "description": "An undecided issue (proposed/escalated) waiting on a human triage decision."
+      },
+      "PipelineJobOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "scene_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene No"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "elapsed_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed S"
+          },
+          "cache_hit_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Hit Ratio"
+          },
+          "claimed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed At"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status"
+        ],
+        "title": "PipelineJobOut",
+        "description": "A draft/revision Job in the pipeline. Live phase/elapsed/cache ride only on RUNNING rows and\ncome from the in-process progress registry \u2014 they are null when served by a non-drain process."
+      },
+      "PipelineNowOut": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineJobOut"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "default": []
+          },
+          "agent_runs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineAgentRunOut"
+            },
+            "type": "array",
+            "title": "Agent Runs",
+            "default": []
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRunRef"
+            },
+            "type": "array",
+            "title": "Runs",
+            "default": []
+          },
+          "drain_locked": {
+            "type": "boolean",
+            "title": "Drain Locked",
+            "default": false
+          },
+          "repair_drain_locked": {
+            "type": "boolean",
+            "title": "Repair Drain Locked",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "PipelineNowOut",
+        "description": "What is executing right now. The engine is serial \u2014 at most one draft and one repair drain in\nflight per process \u2014 so these lists are short by design."
+      },
+      "PipelineQueueOut": {
+        "properties": {
+          "serial": {
+            "type": "boolean",
+            "title": "Serial",
+            "default": true
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": "Work runs one at a time, in order \u2014 the engine drafts and repairs sequentially, not in parallel."
+          },
+          "queue_paused": {
+            "type": "boolean",
+            "title": "Queue Paused",
+            "default": false
+          },
+          "jobs_queued": {
+            "type": "integer",
+            "title": "Jobs Queued",
+            "default": 0
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineJobOut"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "default": []
+          },
+          "repair_tasks_auto": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRepairTaskRef"
+            },
+            "type": "array",
+            "title": "Repair Tasks Auto",
+            "default": []
+          },
+          "repair_tasks_approval": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRepairTaskRef"
+            },
+            "type": "array",
+            "title": "Repair Tasks Approval",
+            "default": []
+          },
+          "runs_queued": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRunRef"
+            },
+            "type": "array",
+            "title": "Runs Queued",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "PipelineQueueOut",
+        "description": "What is waiting to run, IN ORDER. `serial` is the honest framing: work drafts/repairs one at a\ntime (a single process-global drain lock), so this is a line, not a parallel fan-out."
+      },
+      "PipelineRepairTaskRef": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Task Id"
+          },
+          "production_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Production Run Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "scene_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene No"
+          },
+          "repair_kind": {
+            "type": "string",
+            "title": "Repair Kind"
+          },
+          "authority_level": {
+            "type": "string",
+            "title": "Authority Level"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "requires_human_approval": {
+            "type": "boolean",
+            "title": "Requires Human Approval"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "suggested_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Action"
+          },
+          "action_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "production_run_id",
+          "chapter_id",
+          "repair_kind",
+          "authority_level",
+          "status",
+          "requires_human_approval"
+        ],
+        "title": "PipelineRepairTaskRef",
+        "description": "A queued/parked repair task, with the reason + suggested action pre-computed."
+      },
+      "PipelineRunRef": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "current_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Stage"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "suggested_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Action"
+          },
+          "action_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Kind"
+          },
+          "scenes_drafted": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenes Drafted"
+          },
+          "scenes_expected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenes Expected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "chapter_id",
+          "status",
+          "updated_at"
+        ],
+        "title": "PipelineRunRef",
+        "description": "A production run in the pipeline, with the human reason + suggested action pre-computed."
+      },
+      "PipelineStatusOut": {
+        "properties": {
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "now": {
+            "$ref": "#/components/schemas/PipelineNowOut"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/PipelineQueueOut"
+          },
+          "waiting_on_human": {
+            "$ref": "#/components/schemas/PipelineWaitingOut"
+          },
+          "blocked": {
+            "$ref": "#/components/schemas/PipelineBlockedOut"
+          },
+          "completed": {
+            "$ref": "#/components/schemas/PipelineCompletedOut"
+          },
+          "sweeper": {
+            "$ref": "#/components/schemas/SweeperStatusOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "book_id",
+          "generated_at",
+          "now",
+          "queue",
+          "waiting_on_human",
+          "blocked",
+          "completed",
+          "sweeper"
+        ],
+        "title": "PipelineStatusOut",
+        "description": "One live snapshot of the whole production pipeline for a book \u2014 the Pipeline dashboard's spine."
       },
       "PipelineStepOut": {
         "properties": {
@@ -13342,6 +14152,37 @@
         "type": "object",
         "title": "PipelineStepOut",
         "description": "One stage in a scene/run pipeline timeline."
+      },
+      "PipelineWaitingOut": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRunRef"
+            },
+            "type": "array",
+            "title": "Runs",
+            "default": []
+          },
+          "repair_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRepairTaskRef"
+            },
+            "type": "array",
+            "title": "Repair Tasks",
+            "default": []
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineIssueRef"
+            },
+            "type": "array",
+            "title": "Issues",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "PipelineWaitingOut",
+        "description": "Everything parked ON A HUMAN, each with a direct action. Runs stuck in a *blocked* stage move to\n`blocked` instead; what remains here is genuine review/approve/decide/resume work."
       },
       "ProductionRunActionOut": {
         "properties": {
@@ -16273,6 +17114,101 @@
           "rejected"
         ],
         "title": "SuggestionStatus"
+      },
+      "SweeperStatusOut": {
+        "properties": {
+          "last_tick_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Tick At"
+          },
+          "ran": {
+            "type": "boolean",
+            "title": "Ran",
+            "default": false
+          },
+          "autonomy_enabled": {
+            "type": "boolean",
+            "title": "Autonomy Enabled",
+            "default": true
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused",
+            "default": false
+          },
+          "stale_runs_found": {
+            "type": "integer",
+            "title": "Stale Runs Found",
+            "default": 0
+          },
+          "actions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Actions",
+            "default": []
+          },
+          "driving": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Driving",
+            "default": []
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "interval_s": {
+            "type": "integer",
+            "title": "Interval S",
+            "default": 120
+          },
+          "stale_window_s": {
+            "type": "integer",
+            "title": "Stale Window S",
+            "default": 120
+          },
+          "authority_ceiling": {
+            "type": "string",
+            "title": "Authority Ceiling",
+            "default": "chapter_structural"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts",
+            "default": 3
+          },
+          "attempts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Attempts",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "title": "SweeperStatusOut",
+        "description": "Autonomous sweeper liveness + config, merged from the in-process heartbeat and persisted config\n(workers/sweeper.sweeper_status). `last_tick_at` advancing is the proof the loop is alive; `driving`\nlists the run ids the sweep is currently pushing; `actions` is what the last tick actually did."
       },
       "TelemetryDeleteOut": {
         "properties": {

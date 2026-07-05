@@ -320,7 +320,11 @@ function EventFeed({ detail }: { detail: ProductionRunDetailOut }) {
               <div style={css("font-size:13px;color:var(--ink)")}>
                 {event.message ?? event.event_type}
               </div>
-              <div style={css("margin-top:2px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+              <div
+                style={css(
+                  "margin-top:2px;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
+                )}
+              >
                 {event.event_type}
               </div>
               {reason && (
@@ -354,8 +358,7 @@ function StatusBreakdown({ summary }: { summary: Record<string, unknown> | null 
   const issuesBy = statusMapEntries(summary?.issues_by_status);
   const tasksBy = statusMapEntries(summary?.repair_tasks_by_status);
   const rawVerificationCount = summary?.verification_count;
-  const verificationCount =
-    typeof rawVerificationCount === "number" ? rawVerificationCount : 0;
+  const verificationCount = typeof rawVerificationCount === "number" ? rawVerificationCount : 0;
 
   if (!issuesBy.length && !tasksBy.length && !verificationCount) {
     return (
@@ -365,7 +368,8 @@ function StatusBreakdown({ summary }: { summary: Record<string, unknown> | null 
     );
   }
 
-  const rowLabel = "font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)";
+  const rowLabel =
+    "font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)";
   const chipRow = "display:flex;flex-wrap:wrap;gap:6px;margin-top:6px";
   return (
     <div data-testid="status-breakdown" style={css("display:flex;flex-direction:column;gap:12px")}>
@@ -786,9 +790,7 @@ export default function ProductionScreen() {
     () => new Set(repairTasks.flatMap((t) => t.issue_ids)),
     [repairTasks],
   );
-  const deferredIssues = issues.filter(
-    (i) => i.status === "accepted" && !taskedIssueIds.has(i.id),
-  );
+  const deferredIssues = issues.filter((i) => i.status === "accepted" && !taskedIssueIds.has(i.id));
   const deferredCount = deferredIssues.length;
   const proposedCount = issues.filter((i) => i.status === "proposed").length;
   const openStructuralRepair = repairTasks.some(
