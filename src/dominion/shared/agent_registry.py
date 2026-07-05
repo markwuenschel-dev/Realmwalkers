@@ -269,6 +269,63 @@ for _agent in AGENTS:
     for _stage in _agent.stages:
         STAGE_TO_SETTING[_stage] = _agent.setting_key
 
+
+@dataclass(frozen=True)
+class EditorialAgent:
+    """A deterministic editorial/production-pipeline agent (from workers/production.py).
+
+    Metadata ONLY: no model, no tier, no setting_key. These agents run as pure code (agent_role=
+    "deterministic") at $0 and are NOT in AGENTS / ROLE_KEYS, so they never enter model resolution.
+    They exist here purely so the Agents tab can show the full roster as read-only rows.
+    """
+
+    name: str
+    label: str
+    description: str
+    stage: str
+
+
+# The deterministic pipeline agents surfaced read-only in the Agents tab. `name`/`stage` mirror the
+# `agent_name`/`stage` each one runs under in workers/production.py.
+EDITORIAL_AGENTS: tuple[EditorialAgent, ...] = (
+    EditorialAgent(
+        name="contract_classifier",
+        label="Contract classifier",
+        description="Derives the chapter's beat and reveal contract from the approved packet.",
+        stage="contract_classification",
+    ),
+    EditorialAgent(
+        name="chapter_sequence_planner",
+        label="Chapter sequence planner",
+        description="Plans the chapter's scene sequence and word budget from the packet and contract.",
+        stage="chapter_sequence",
+    ),
+    EditorialAgent(
+        name="issue_normalizer",
+        label="Issue normalizer",
+        description="Normalizes reviewer critiques into deduplicated, signed issues.",
+        stage="issue_snapshot",
+    ),
+    EditorialAgent(
+        name="issue_triage_evaluator",
+        label="Issue triage evaluator",
+        description="Triages issues into accept / reject / escalate decisions by severity and root cause.",
+        stage="issue_triage",
+    ),
+    EditorialAgent(
+        name="repair_scheduler",
+        label="Repair scheduler",
+        description="Fans accepted repair tasks out into per-scene revision jobs.",
+        stage="repair_execution",
+    ),
+    EditorialAgent(
+        name="repair_verifier",
+        label="Repair verifier",
+        description="Verifies revised scenes resolved their issues and preserved the scene contract.",
+        stage="repair_verification",
+    ),
+)
+
 PRESETS: tuple[AgentPreset, ...] = (
     AgentPreset(
         id="fast_drafting",

@@ -13,6 +13,7 @@ from dominion.shared.agent_policy import load_runtime_policies, resolve_policy
 from dominion.shared.agent_registry import (
     AGENTS,
     BUILTIN_PRESET_IDS,
+    EDITORIAL_AGENTS,
     FALLBACK_ATTR,
     PRESET_BY_ID,
     PRESETS,
@@ -54,6 +55,7 @@ from dominion.shared.schemas import (
     AgentStatsListOut,
     AgentStatsOut,
     CustomPresetCreateIn,
+    EditorialAgentOut,
     EscalationRuleOut,
     ModelSettingOut,
     PipelineEstimateOut,
@@ -225,6 +227,15 @@ def _pipeline_estimate(agents: list[AgentOpsAgentOut]) -> PipelineEstimateOut:
         estimated_usd_low_per_chapter=usd_low,
         estimated_latency_sec_per_chapter=seq_latency,
     )
+
+
+def _editorial_agents_out() -> list[EditorialAgentOut]:
+    """Read-only roster of the deterministic editorial agents (no model, $0). Purely metadata from
+    EDITORIAL_AGENTS -- these never enter model resolution and carry no policy/tier/estimate."""
+    return [
+        EditorialAgentOut(name=ea.name, label=ea.label, description=ea.description, stage=ea.stage)
+        for ea in EDITORIAL_AGENTS
+    ]
 
 
 def _sync_runtime_policies(policy_map: dict[str, AgentPolicyOverride]) -> None:
@@ -409,6 +420,7 @@ async def build_agent_ops(session: AsyncSession) -> AgentOpsOut:
         active_preset=active,
         presets=presets,
         agents=agents,
+        editorial_agents=_editorial_agents_out(),
         pipeline_estimate=_pipeline_estimate(agents),
         tiers=TIERS,
         provider_tiers=PROVIDER_TIERS,

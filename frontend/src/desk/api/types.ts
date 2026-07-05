@@ -9,7 +9,16 @@ type S = components["schemas"];
 
 export type ModelSettingOut = S["ModelSettingOut"];
 export type ModelSettingsOut = S["ModelSettingsOut"];
-export type AgentOpsOut = S["AgentOpsOut"];
+// Deterministic editorial-pipeline agents shown read-only in the Agents tab (no model, $0). The
+// generated DTO predates this field, so it's added here until OpenAPI codegen catches up.
+export type EditorialAgentOut = {
+  name: string;
+  label: string;
+  description: string;
+  stage: string;
+  deterministic: boolean;
+};
+export type AgentOpsOut = S["AgentOpsOut"] & { editorial_agents: EditorialAgentOut[] };
 export type TelemetryDeleteOut = {
   deleted_calls: number;
 };
