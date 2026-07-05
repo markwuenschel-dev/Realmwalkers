@@ -56,6 +56,8 @@ export type RecentJobOut = S["RecentJobOut"];
 export type RecentJobsOut = S["RecentJobsOut"];
 export type DraftNextOut = S["DraftNextOut"];
 export type RepairApplyAllOut = S["RepairApplyAllOut"];
+export type ChapterPipelineOut = S["ChapterPipelineOut"];
+export type ChapterRunFactsOut = S["ChapterRunFactsOut"];
 export type RetryFailedOut = S["RetryFailedOut"] & {
   requested?: number;
   skipped?: DraftQueueBlockerOut[];
