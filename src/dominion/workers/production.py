@@ -1098,104 +1098,6 @@ def _target_pass_for_task(task: RepairTask) -> str | None:
     return mapping.get(task.repair_kind)
 
 
-async def _apply_real_span_patch(
-    session: AsyncSession, run: ProductionRun, task: RepairTask, scene: Scene
-) -> dict[str, Any]:
-    """Bounded span patch application for SPAN_ONLY repair tasks.
-
-    - Locates target span/quote from task.target_spans or linked issues.
-    - Validates anchors (surrounding text).
-    - Computes replacement (placeholder generation for this wave; real patch LLM can plug in).
-    - Applies to create a new Scene version.
-    - Records before/after in patch_json and returns data for attempt.
-    """
-    current = scene.prose or ""
-    before_wc = scene.word_count or 0
-
-    # Use normalized targets (unifies "items" producer shape with legacy)
-    targets = _normalized_repair_targets(task)
-    quote = None
-    st = en = None
-    for t in targets:
-        if t.quote:
-            quote = t.quote
-        if t.span_start is not None and t.span_end is not None:
-            st, en = t.span_start, t.span_end
-        if quote or (st is not None and en is not None):
-            break
-
-    if not quote and not (st is not None and en is not None) and task.issue_ids:
-        first_issue = await session.get(Issue, uuid.UUID(task.issue_ids[0]))
-        if first_issue:
-            quote = first_issue.quote
-
-    replacement = None
-    if quote and quote in current:
-        # Anchor validation: record context
-        idx = current.find(quote)
-        anchor_before = current[max(0, idx - 20) : idx]
-        anchor_after = current[idx + len(quote) : idx + len(quote) + 20]
-        # Actual replacement prose: in full system this is produced by a patch-generation agent
-        # using instructions + constraints. For this corrective pass we keep the original span
-        # text (no marker) so that no-op patches can be tested and verification can reject them.
-        replacement = quote
-        new_prose = current[:idx] + replacement + current[idx + len(quote) :]
-    elif st is not None and en is not None and 0 <= st < en <= len(current):
-        anchor_before = current[max(0, st - 20) : st]
-        anchor_after = current[en : en + 20]
-        original_span = current[st:en]
-        replacement = original_span
-        new_prose = current[:st] + replacement + current[en:]
-    else:
-        # Fallback: no precise target -> treat as no-op (new version created for flow, but text unchanged)
-        new_prose = current
-        replacement = current[:100] + "..." if current else ""
-        anchor_before = ""
-        anchor_after = ""
-
-    # Create new versioned scene for the patch
-    new_scene = Scene(
-        chapter_id=scene.chapter_id,
-        scene_no=scene.scene_no,
-        version=scene.version + 1,
-        parent_scene_id=scene.id,
-        status=SceneStatus.PENDING_REVIEW,
-        scene_packet_id=scene.scene_packet_id,
-        word_count=len(new_prose.split()) if new_prose else 0,
-        length_status=scene.length_status,
-        prose=new_prose,
-        prose_source="agent+repair_patch",
-        agent_original=scene.agent_original,
-        passes_run=scene.passes_run,
-        token_count=scene.token_count,
-        model=scene.model,
-    )
-    session.add(new_scene)
-    await session.flush()
-
-    after_wc = new_scene.word_count or 0
-    patch_json = {
-        "type": "span_patch",
-        "target_spans": task.target_spans,
-        "quote": quote,
-        "before": current[st:en] if (st is not None and en is not None) else quote,
-        "after": replacement,
-        "anchor_before_preserved": anchor_before,
-        "anchor_after_preserved": anchor_after,
-        "instructions": task.instructions,
-        "word_delta": after_wc - before_wc,
-    }
-
-    return {
-        "patch_json": patch_json,
-        "revised_text": new_prose,
-        "word_count_before": before_wc,
-        "word_count_after": after_wc,
-        "change_summary": "Applied bounded span patch and created new scene version.",
-        "new_scene_id": str(new_scene.id),
-    }
-
-
 def _highest_authority(issues: list[Issue]) -> RepairAuthorityLevel:
     authorities = [_infer_authority(issue) for issue in issues]
     return max(authorities, key=lambda authority: _AUTHORITY_RANK.get(authority, -1))
@@ -2778,62 +2680,12 @@ async def apply_repair_task(
 
     target_pass = _target_pass_for_task(task)
 
-    if task.authority_level == RepairAuthorityLevel.SPAN_ONLY and task.target_spans:
-        # 8. Actual bounded span patch application (not full revision)
-        patch_result = await _apply_real_span_patch(session, run, task, scene)
-        patch_json = patch_result["patch_json"]
-        job_id = None  # direct apply, no separate job
-        # Create a lightweight agent_run record for traceability
-        repair_agent = await _start_agent_run(
-            session,
-            run=run,
-            agent_name="span_patch_applier",
-            agent_role="deterministic",
-            stage="repair_execution",
-            input_artifact_ids=[],
-            payload={"repair_task_id": str(task.id), "mode": "span_patch"},
-        )
-        latest_attempt_no = await session.scalar(
-            select(func.max(RepairAttempt.attempt_no)).where(RepairAttempt.repair_task_id == task.id)
-        )
-        attempt = RepairAttempt(
-            repair_task_id=task.id,
-            agent_run_id=repair_agent.id,
-            attempt_no=int(latest_attempt_no or 0) + 1,
-            model="patch",
-            patch_json=patch_json,
-            revised_text=patch_result["revised_text"],
-            change_summary=patch_result.get("change_summary", "Span patch applied directly."),
-            issues_addressed=list(task.issue_ids),
-            new_risks=[],
-            word_count_before=patch_result["word_count_before"],
-            word_count_after=patch_result["word_count_after"],
-        )
-        session.add(attempt)
-        await session.flush()
-        _finish_agent_run(repair_agent, status=AgentRunStatus.COMPLETED, payload={"repair_attempt_id": str(attempt.id)})
-        task.status = RepairTaskStatus.RUNNING
-        run.status = ProductionRunStatus.REPAIRING
-        run.current_stage = "repair_execution"
-        for iid in task.issue_ids:
-            iss = await session.get(Issue, uuid.UUID(iid))
-            if iss is not None:
-                iss.status = IssueStatus.REPAIR_QUEUED
-        await _record_event(
-            session,
-            run_id=run.id,
-            event_type="repair_started",
-            stage="repair_execution",
-            message="Span-only patch applied directly to scene prose.",
-            payload={"repair_task_id": str(task.id)},
-            agent_run_id=repair_agent.id,
-        )
-        await _update_run_summary(session, run)
-        return task
-
-    # Non-span: normal path (full revision job)
-    # 5. For span_only, prepare explicit patch_json (target span + instructions as patch spec)
-    # Real replacement generation belongs to a patch agent; here we wire the bounded path.
+    # Span-only AND non-span single-scene tasks both queue a REAL revision job that carries the target
+    # span + instructions, so an actual LLM revision changes the scene. Span-only repairs used to be
+    # applied inline as a placeholder patch that wrote the span back UNCHANGED — verify's span/quote
+    # change check could never pass, so the task looped queued→running→queued forever, churning while
+    # doing nothing (D1). Routing them through the revision path makes apply produce a genuine change
+    # that verify can then accept honestly.
     patch_json = {
         "repair_kind": task.repair_kind,
         "authority_level": task.authority_level,
@@ -2844,6 +2696,25 @@ async def apply_repair_task(
         "word_delta_target": task.word_delta_target,
         "applied_via": "revision_job",
     }
+
+    job_id = await schedule_revision(session, scene, target_pass=target_pass, production_run_id=task.production_run_id)
+    if job_id is None:
+        # Guard: no revision job could be queued (e.g. the scene's chapter is gone), so this task can
+        # never produce a changed scene. Escalate to a human instead of marking it RUNNING — otherwise
+        # verify would keep raising "no revised scene yet" and the drain would re-apply it forever.
+        task.status = RepairTaskStatus.WAITING_FOR_HUMAN
+        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
+        await _record_event(
+            session,
+            run_id=run.id,
+            event_type="human_action_required",
+            stage="repair_execution",
+            message="Could not queue a revision for this repair — it needs a human. No changed scene "
+            "can be produced automatically.",
+            payload={"repair_task_id": str(task.id), "authority_level": str(task.authority_level)},
+        )
+        await _update_run_summary(session, run)
+        return task
 
     approval = Approval(
         scene_id=scene.id,
@@ -2862,7 +2733,6 @@ async def apply_repair_task(
         input_artifact_ids=[],
         payload={"repair_task_id": str(task.id), "target_pass": target_pass},
     )
-    job_id = await schedule_revision(session, scene, target_pass=target_pass, production_run_id=task.production_run_id)
     # Create the attempt record for the queued revision; the verify step fills in the after-state
     # once the revision job has drafted the new scene version.
     latest_attempt_no = await session.scalar(
