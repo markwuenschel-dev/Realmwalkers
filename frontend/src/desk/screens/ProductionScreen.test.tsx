@@ -200,6 +200,7 @@ const GATE_PACKET = {
   open_questions: { items: [] },
   created_at: "2026-07-02T10:00:00Z",
   can_approve: true,
+  approval_state: "approvable",
   approval_blockers: [],
 };
 
@@ -209,6 +210,7 @@ const BLOCKED_PACKET = {
   confidence: "red",
   qa_verdict: "block_drafting",
   can_approve: false,
+  approval_state: "blocked",
   blocked_reason: "deterministic validation failed: packet body is not a JSON object",
   blocker_source: "validation",
   blocker_kind: "contract_validation",

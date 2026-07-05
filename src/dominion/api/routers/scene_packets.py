@@ -267,6 +267,7 @@ async def list_scene_packet_summaries(chapter_id: uuid.UUID, session: SessionDep
                 qa_verdict=str(row.qa_verdict) if row.qa_verdict else None,
                 stale_reason=row.stale_reason,
                 can_approve=enriched.can_approve,
+                approval_state=enriched.approval_state,
                 approval_blockers=enriched.approval_blockers,
                 blocked_reason=enriched.blocked_reason,
                 blocker_source=enriched.blocker_source,

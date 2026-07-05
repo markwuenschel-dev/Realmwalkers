@@ -21,6 +21,7 @@ const basePacket = {
   open_questions: { items: [] },
   created_at: "2026-01-01T00:00:00Z",
   can_approve: false,
+  approval_state: "blocked",
   approval_blockers: [],
 } satisfies PacketOut;
 

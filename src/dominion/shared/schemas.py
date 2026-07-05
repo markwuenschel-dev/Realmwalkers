@@ -273,6 +273,8 @@ class PacketOut(_ORM):
     open_questions: dict[str, Any] | None = None
     created_at: datetime
     can_approve: bool = False
+    # Why can_approve is what it is — the UI must always have a reason to show, not just a grey button.
+    approval_state: str = "approvable"  # approvable | already_approved | blocked | open_questions
     approval_blockers: list[str] = []
     blocked_reason: str | None = None
     blocker_source: str | None = None
@@ -326,6 +328,8 @@ class ScenePacketOut(_ORM):
     created_at: datetime
     updated_at: datetime | None = None
     can_approve: bool = False
+    # approvable | already_approved | blocked | rate_limited (STALE is re-approvable → approvable)
+    approval_state: str = "approvable"
     approval_blockers: list[str] = []
     blocked_reason: str | None = None
     blocker_source: str | None = None  # author | qa | derive | unknown
@@ -345,6 +349,8 @@ class ScenePacketSummaryOut(BaseModel):
     qa_verdict: str | None = None
     stale_reason: str | None = None
     can_approve: bool = False
+    # approvable | already_approved | blocked | rate_limited (STALE is re-approvable → approvable)
+    approval_state: str = "approvable"
     approval_blockers: list[str] = []
     blocked_reason: str | None = None
     blocker_source: str | None = None  # author | validation | qa | derive | rate_limit | unknown

@@ -4501,6 +4501,11 @@ export interface components {
        */
       can_approve: boolean;
       /**
+       * Approval State
+       * @default approvable
+       */
+      approval_state: string;
+      /**
        * Approval Blockers
        * @default []
        */
@@ -5535,6 +5540,11 @@ export interface components {
        */
       can_approve: boolean;
       /**
+       * Approval State
+       * @default approvable
+       */
+      approval_state: string;
+      /**
        * Approval Blockers
        * @default []
        */
@@ -5593,6 +5603,11 @@ export interface components {
        * @default false
        */
       can_approve: boolean;
+      /**
+       * Approval State
+       * @default approvable
+       */
+      approval_state: string;
       /**
        * Approval Blockers
        * @default []

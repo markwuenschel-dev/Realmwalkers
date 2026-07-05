@@ -131,6 +131,7 @@ const REPAIR_PACKET = {
   open_questions: { items: [] },
   created_at: "2026-07-02T10:00:00Z",
   can_approve: true,
+  approval_state: "approvable",
   approval_blockers: [],
 };
 

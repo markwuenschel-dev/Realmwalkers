@@ -71,9 +71,33 @@ def test_enrich_packet_out_can_approve():
     p = _packet()
     out = approval_policy.enrich_packet_out(p)
     assert out.can_approve is True
+    assert out.approval_state == "approvable"
     assert out.approval_blockers == []
 
     blocked = _packet(status=PacketStatus.BLOCKED)
     out2 = approval_policy.enrich_packet_out(blocked)
     assert out2.can_approve is False
+    assert out2.approval_state == "blocked"
     assert out2.approval_blockers
+
+
+def test_enrich_packet_out_approved_is_never_silent():
+    # The old DTO shipped can_approve=False with EMPTY blockers for an approved packet — a greyed
+    # Approve button with no reason. Every non-approvable state must now carry one.
+    out = approval_policy.enrich_packet_out(_packet(status=PacketStatus.APPROVED))
+    assert out.can_approve is False
+    assert out.approval_state == "already_approved"
+    assert out.approval_blockers and "already approved" in out.approval_blockers[0]
+
+
+def test_enrich_packet_out_open_questions_state():
+    out = approval_policy.enrich_packet_out(_packet(open_questions={"items": ["who is the traitor?"]}))
+    assert out.can_approve is False
+    assert out.approval_state == "open_questions"
+    assert out.approval_blockers == ["resolve the packet's open questions first"]
+
+
+def test_approve_gate_unchanged_for_approved_rows():
+    # The endpoints' real gate must stay idempotent for re-approve: only the DTO reports
+    # already_approved; can_approve() itself does not refuse an approved packet.
+    assert approval_policy.can_approve(_packet(status=PacketStatus.APPROVED)) is None

@@ -116,6 +116,20 @@ def approval_blockers(packet: ScenePacket) -> list[str]:
     return []
 
 
+def approval_state(packet: ScenePacket) -> tuple[str, list[str]]:
+    """(state, reasons) for the DTO — every non-approvable state carries a human-readable reason, so the
+    UI never shows a greyed Approve with nothing to say. STALE stays approvable (re-approve IS the
+    remedy). Distinct from can_approve(), the endpoints' real gate."""
+    if packet.status in _HELD_STATUSES:
+        state = "rate_limited" if packet.status == ScenePacketStatus.RATE_LIMITED else "blocked"
+        return state, [resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"]
+    if packet.status == ScenePacketStatus.APPROVED:
+        return "already_approved", [
+            "Scene packet already approved — edit or re-derive to propose changes, then approve again."
+        ]
+    return "approvable", []
+
+
 def is_approvable_for_batch(packet: ScenePacket) -> bool:
     return can_approve(packet) is None
 
@@ -208,7 +222,7 @@ def assert_draft_ready(packet: ScenePacket) -> None:
 
 
 def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
-    blockers = approval_blockers(row)
+    state, blockers = approval_state(row)
     reason = resolve_blocked_reason(row) if row.status in _HELD_STATUSES else None
     source = infer_blocker_source(row, reason) if reason else None
     out = ScenePacketOut.model_validate(row)
@@ -217,7 +231,8 @@ def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
             # Mirrors the real gate (can_approve() refuses only BLOCKED/RATE_LIMITED): STALE is
             # re-approvable — assert_draft_ready's own remedy says "re-derive or re-approve" — so the
             # UI must offer the button, not just the error message.
-            "can_approve": row.status in (ScenePacketStatus.PROPOSED, ScenePacketStatus.STALE) and not blockers,
+            "can_approve": state == "approvable",
+            "approval_state": state,
             "approval_blockers": blockers,
             "blocked_reason": reason,
             "blocker_source": source,

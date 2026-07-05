@@ -11906,6 +11906,11 @@
             "title": "Can Approve",
             "default": false
           },
+          "approval_state": {
+            "type": "string",
+            "title": "Approval State",
+            "default": "approvable"
+          },
           "approval_blockers": {
             "items": {
               "type": "string"
@@ -14220,6 +14225,11 @@
             "title": "Can Approve",
             "default": false
           },
+          "approval_state": {
+            "type": "string",
+            "title": "Approval State",
+            "default": "approvable"
+          },
           "approval_blockers": {
             "items": {
               "type": "string"
@@ -14342,6 +14352,11 @@
             "type": "boolean",
             "title": "Can Approve",
             "default": false
+          },
+          "approval_state": {
+            "type": "string",
+            "title": "Approval State",
+            "default": "approvable"
           },
           "approval_blockers": {
             "items": {
