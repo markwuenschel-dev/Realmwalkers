@@ -3,14 +3,15 @@
 The repair pipeline is otherwise reactive: structural triage produces `requires_human_approval` tasks
 that the drain deliberately skips, and nothing auto-verifies after a revision drafts, so a run parks
 until a human clicks. This loop closes that gap. Each tick it finds runs that have gone quiet,
-re-triages them, auto-approves approval-gated repairs UP TO a configured authority ceiling (never
-`human_required`), auto-verifies applied repairs whose revisions have landed, and kicks the shared
+re-triages them, auto-approves approval-gated repairs UP TO a configured authority ceiling (default
+gates `human_required`; raise the ceiling to it for full autonomy), auto-verifies applied repairs
+whose revisions have landed, and kicks the shared
 drain. Every action it takes is written to the central Activity feed (source="sweeper") so the human
 can see — and roll back — what autonomy did.
 
 Guardrails, all honored every tick:
   * `autonomy_enabled` kill switch (persisted; default on) AND the existing `queue_paused` switch.
-  * an authority ceiling — tasks above it (and always `human_required`) are left for the human.
+  * an authority ceiling — tasks above it are left for the human (default gates `human_required`).
   * a per-run attempt cap (in-process) so a run that keeps failing parks instead of looping forever.
   * one fresh DB session per run, so a poison run can't strand the sweep.
 
@@ -147,9 +148,9 @@ def _rank(level: str) -> int:
 
 
 def _within_ceiling(level: str, ceiling: str) -> bool:
-    """True if `level` may be auto-approved under `ceiling`. human_required is never within a ceiling."""
-    if level == RepairAuthorityLevel.HUMAN_REQUIRED.value:
-        return False
+    """True if `level` may be auto-approved under `ceiling` — an honest inclusive threshold. At the
+    default ceiling (chapter_structural) human_required stays gated; raising the ceiling to
+    human_required opts into full autonomy so the sweeper also drives the highest-authority repairs."""
     return _rank(level) <= _rank(ceiling)
 
 
@@ -177,11 +178,14 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
     book_id, chapter_id = run.book_id, run.chapter_id
     rid = str(run_id)
 
-    # 1) Re-triage: turn any freshly-proposed issues into repair tasks (no-op if none).
+    # 1) Re-triage — isolated in a savepoint so a failure here can't abort auto-approving the run's
+    # EXISTING repair tasks, and labeled so a stage that fails in prod is named in the logs (we hit a
+    # data-specific greenlet_spawn here that no synthetic run reproduces).
     try:
-        await production.triage_production_run(session, run_id)
-    except ValueError:
-        pass
+        async with session.begin_nested():
+            await production.triage_production_run(session, run_id)
+    except Exception as exc:  # noqa: BLE001 — best-effort; existing tasks are still driven below
+        log.warning("sweeper.stage_error", run=rid, stage="triage", error=str(exc))
 
     tasks = (
         (
@@ -240,6 +244,9 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
                 detail=str(exc),
                 payload={"repair_task_id": str(task.id)},
             )
+        except Exception as exc:  # noqa: BLE001 — unexpected apply failure; log the stage + move on
+            needs_human = True
+            log.error("sweeper.stage_error", run=rid, stage="apply", task=str(task.id), error=str(exc))
 
     # 2) Auto-verify applied repairs whose revision jobs have landed (tolerate "not ready yet").
     applied = (
@@ -262,6 +269,8 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> None:
                 await production.verify_repair_task(session, task.id)  # emits repair_verified via _record_event
         except ValueError:
             pass  # revision still drafting — a later tick will pick it up
+        except Exception as exc:  # noqa: BLE001 — unexpected verify failure; log the stage + move on
+            log.warning("sweeper.stage_error", run=rid, stage="verify", task=str(task.id), error=str(exc))
 
     # 3) Warn once if the run is blocked only on above-ceiling / human-required work.
     if needs_human and rid not in _warned_human:

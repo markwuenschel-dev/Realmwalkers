@@ -51,6 +51,9 @@ export interface DeskValue {
   prevScene: () => void;
   nextScene: () => void;
   openScene: (index: number) => void;
+  // Reconcile the raw queue index to a valid position (state only, no navigation) — SceneScreen calls
+  // this so the index can't drift above the pending queue when it shrinks.
+  syncActiveScene: (index: number) => void;
   openSceneId: (id: string) => void; // navigate to /scene/[id] (any scene, incl. approved)
   decide: (d: DecisionKind) => void;
   undoDecision: () => void;
@@ -263,6 +266,7 @@ export function useDeskState(): DeskValue {
     prevScene,
     nextScene,
     openScene,
+    syncActiveScene: setActiveScene,
     openSceneId,
     decide,
     undoDecision,
