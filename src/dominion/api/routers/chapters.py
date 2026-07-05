@@ -14,8 +14,8 @@ from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import BeatStatus, ChapterStatus, SceneStatus
-from dominion.shared.models import Beat, Chapter, Scene, Summary
+from dominion.shared.enums import BeatStatus, ChapterStatus, ScenePacketStatus, SceneStatus
+from dominion.shared.models import Beat, Chapter, Scene, ScenePacket, Summary
 from dominion.shared.schemas import (
     ApproveBeatsIn,
     BeatCreateIn,
@@ -29,8 +29,8 @@ from dominion.shared.schemas import (
     RedraftIn,
     SceneOut,
 )
-from dominion.workers import planner, telemetry, telemetry_db
-from dominion.workers.draft_queue import DraftScheduleResult
+from dominion.workers import background_work, planner, telemetry, telemetry_db
+from dominion.workers.draft_queue import DraftScheduleResult, schedule_contract_first_draft_jobs
 from dominion.workers.draft_readiness import blocker_out, compute_draft_readiness
 from dominion.workers.job_scheduler import (
     _latest_run,
@@ -38,6 +38,7 @@ from dominion.workers.job_scheduler import (
     schedule_undrafted_beats,
 )
 from dominion.workers.memory import summaries
+from dominion.workers.scene_packet import approval_policy as sp_approval
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["chapters"])
@@ -297,6 +298,119 @@ async def redraft_scenes(
         # blocker detail JSON-native (raw UUIDs would 500 via Starlette's json.dumps, not this 409).
         raise HTTPException(status_code=409, detail={"blockers": [s.model_dump(mode="json") for s in out.skipped]})
     await session.commit()
+    return out
+
+
+@router.post("/{chapter_id}/scenes/{scene_no}/redraft", response_model=DraftScheduleOut)
+async def redraft_scene(
+    chapter_id: uuid.UUID,
+    scene_no: int,
+    session: SessionDep,
+    background: BackgroundTasks,
+) -> DraftScheduleOut:
+    """One-click re-draft of a single deleted/undrafted scene, scoped to ONE scene_no.
+
+    Deleting a scene keeps its beat but marks the slot's ScenePacket STALE ("scene deleted"), and
+    contract-first drafting is fail-closed on an approved, non-stale packet — so the beat is left
+    "undrafted" yet unqueueable. This re-approves that STALE packet (flip STALE → APPROVED, clear
+    stale_reason), then queues a draft job for just this scene's approved beat and kicks the drain.
+    Never touches the rest of the chapter, and never force-approves a BLOCKED/RATE_LIMITED packet."""
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+
+    # The slot's scene packet(s). The delete flow normally leaves exactly one, marked STALE.
+    packets = (
+        (
+            await session.execute(
+                select(ScenePacket)
+                .where(ScenePacket.chapter_id == chapter_id, ScenePacket.scene_no == scene_no)
+                .order_by(ScenePacket.updated_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not packets:
+        raise HTTPException(
+            status_code=409,
+            detail=f"no scene packet for scene {scene_no} — derive and approve scene packets first",
+        )
+
+    # This action is for a MISSING scene. If the slot already has drafted prose the scene wasn't
+    # deleted — the user wants the supersede-in-place path (POST /chapters/{id}/scenes/redraft).
+    existing = (
+        await session.execute(
+            select(Scene)
+            .where(Scene.chapter_id == chapter_id, Scene.scene_no == scene_no)
+            .order_by(Scene.version.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if existing is not None and (existing.prose or "").strip():
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"scene {scene_no} already has prose (v{existing.version}) — use redraft to supersede "
+                "it, not re-draft this scene"
+            ),
+        )
+
+    # Re-approve the slot's contract so contract-first scheduling can resolve an approved packet. An
+    # already-approved (non-stale) packet needs nothing; otherwise re-approve a STALE one (STALE is
+    # re-approvable — assert_draft_ready's own remedy is "re-derive or re-approve"). can_approve() is
+    # the real approval gate: it refuses BLOCKED/RATE_LIMITED, so we never force-approve one of those.
+    target = next((p for p in packets if p.status == ScenePacketStatus.APPROVED and not p.stale_reason), None)
+    if target is None:
+        for p in packets:
+            if p.status == ScenePacketStatus.STALE and sp_approval.can_approve(p) is None:
+                p.status = ScenePacketStatus.APPROVED
+                p.stale_reason = None
+                target = p
+                break
+    if target is None:
+        # Everything at this slot is blocked/rate-limited/proposed — surface the clearest refusal.
+        refusal = next((r for p in packets if (r := sp_approval.can_approve(p)) is not None), None)
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                refusal.detail
+                if refusal
+                else f"scene packet for scene {scene_no} is not approved — approve or re-derive it first"
+            ),
+        )
+
+    # Queue a draft for JUST this scene's approved, undrafted beat — a scoped schedule_undrafted_beats.
+    beat = (
+        await session.execute(
+            select(Beat).where(
+                Beat.chapter_id == chapter_id,
+                Beat.scene_no == scene_no,
+                Beat.status == BeatStatus.APPROVED,
+            )
+        )
+    ).scalar_one_or_none()
+    if beat is None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"no approved beat for scene {scene_no} — approve scene packets to derive beats first",
+        )
+
+    run = await _latest_run(session, chapter.book_id)
+    result = await schedule_contract_first_draft_jobs(
+        session, chapter=chapter, beats=[beat], run=run, skip_drafted=True
+    )
+    out = _schedule_out(chapter_id, result)
+    if not out.queued_job_ids:
+        if out.skipped:
+            # Same UUID-serialization hazard as draft_chapter: mode="json" keeps the blocker detail
+            # JSON-native so HTTPException renders a 409 instead of a 500 on a raw UUID.
+            raise HTTPException(status_code=409, detail={"blockers": [s.model_dump(mode="json") for s in out.skipped]})
+        raise HTTPException(status_code=409, detail=f"nothing to draft for scene {scene_no}")
+    await session.commit()
+    # One-click: kick the drain so the queued job starts without a separate Draft-next call. The drain
+    # single-flights (process-global lock) and honors the pause switch, so an unconditional kick is safe.
+    background.add_task(background_work.drain_queued_jobs)
     return out
 
 
