@@ -9,7 +9,7 @@ import { BudgetControls } from "../components/agentOps/BudgetControls";
 import { AgentRow } from "../components/agentOps/AgentRow";
 import { SmokeTestModal } from "../components/agentOps/SmokeTestModal";
 import { AutonomyPanel } from "../components/agentOps/AutonomyPanel";
-import { Eyebrow, Skeleton } from "../components/ui";
+import { Chip, Eyebrow, Skeleton } from "../components/ui";
 
 export default function SettingsScreen() {
   const [data, setData] = useState<AgentOpsOut | null>(null);
@@ -247,6 +247,55 @@ export default function SettingsScreen() {
               />
             ))}
           </div>
+
+          {(data.editorial_agents ?? []).length > 0 && (
+            <>
+              <Eyebrow style="margin:26px 0 4px 2px">Editorial pipeline · deterministic</Eyebrow>
+              <p
+                style={css(
+                  "margin:0 0 10px 2px;color:var(--dim);font-size:12.5px;max-width:720px;line-height:1.5",
+                )}
+              >
+                Pure-code stages that run automatically inside a production run. No model to pick —
+                nothing to configure, $0 per chapter. Shown for the full roster.
+              </p>
+              <div style={css("display:flex;flex-direction:column;gap:8px;max-width:920px")}>
+                {(data.editorial_agents ?? []).map((ea) => (
+                  <div
+                    key={ea.name}
+                    style={css(
+                      "background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:13px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap",
+                    )}
+                  >
+                    <div style={css("flex:1 1 auto;min-width:0")}>
+                      <div
+                        style={css(
+                          "font-family:var(--display);font-weight:500;font-size:15px;color:var(--ink)",
+                        )}
+                      >
+                        {ea.label}
+                      </div>
+                      <div
+                        style={css(
+                          "font-size:13px;color:var(--dim);margin-top:3px;line-height:1.45",
+                        )}
+                      >
+                        {ea.description}
+                      </div>
+                      <div style={css("margin-top:5px")}>
+                        <span
+                          style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}
+                        >
+                          stage: {ea.stage}
+                        </span>
+                      </div>
+                    </div>
+                    <Chip size="sm" label="deterministic · no model · $0" />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
 

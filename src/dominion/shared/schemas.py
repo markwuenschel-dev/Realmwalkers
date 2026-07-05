@@ -1359,10 +1359,25 @@ class CustomPresetCreateIn(BaseModel):
     description: str | None = None
 
 
+class EditorialAgentOut(BaseModel):
+    """A deterministic editorial-pipeline agent, shown read-only in the Agents tab.
+
+    These agents have no model to configure and cost $0 (pure code). They are metadata-only and are
+    NOT part of `agents` (the configurable, model-resolved roles).
+    """
+
+    name: str
+    label: str
+    description: str
+    stage: str
+    deterministic: bool = True
+
+
 class AgentOpsOut(BaseModel):
     active_preset: str | None
     presets: list[AgentPresetOut]
     agents: list[AgentOpsAgentOut]
+    editorial_agents: list[EditorialAgentOut] = []
     pipeline_estimate: PipelineEstimateOut
     tiers: dict[str, str]
     provider_tiers: dict[str, dict[str, str]] = {}
