@@ -121,7 +121,7 @@ async def complete_with_rate_limit_fallback(
     caller's retryable classification intact.
     """
     try:
-        return await llm.complete(model=model, **complete_kwargs)
+        return await llm.complete(model=model, setting_key=setting_key, **complete_kwargs)
     except LlmRateLimited as exc:
         fallback = resolve_fallback_model(setting_key)
         if not fallback or fallback == model:
@@ -136,7 +136,7 @@ async def complete_with_rate_limit_fallback(
             error=str(exc),
         )
         with telemetry.call_metadata(fallback_attempt=True, rate_limit_fallback=True):
-            return await llm.complete(model=fallback, **complete_kwargs)
+            return await llm.complete(model=fallback, setting_key=setting_key, **complete_kwargs)
 
 
 def policy_for_setting(setting_key: str) -> EscalationPolicy:

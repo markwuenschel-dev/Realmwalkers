@@ -1258,6 +1258,7 @@ class AgentPolicyOut(BaseModel):
     escalation_rules: list[EscalationRuleOut] = []
     semantic_escalation: bool = True
     quality_level: str = "balanced"
+    backend: str = "llm"  # "llm" (HTTP API) | "agent_cli" (Claude Code CLI subprocess)
 
 
 class AgentPresetOut(BaseModel):
@@ -1338,6 +1339,7 @@ class AgentPolicyUpdateIn(BaseModel):
     never_fallback: list[str] | None = None
     semantic_escalation: bool | None = None
     quality_level: str | None = None  # fast | balanced | quality
+    backend: str | None = None  # "llm" | "agent_cli"
     permissions: AgentPermissionsPatchIn | None = None
 
 

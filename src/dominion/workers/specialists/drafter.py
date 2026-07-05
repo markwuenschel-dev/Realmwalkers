@@ -263,6 +263,7 @@ class Drafter:
                 budget=ctx.budget,
                 temperature=quality_temperature("draft_model"),
                 effort=quality_effort("draft_model"),
+                setting_key="draft_model",
             )
             return text.strip(), usage
 

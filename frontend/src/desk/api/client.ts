@@ -483,6 +483,7 @@ export const api = {
       never_fallback?: string[] | null;
       semantic_escalation?: boolean | null;
       quality_level?: string | null;
+      backend?: string | null;
       permissions?: { auto_run?: boolean } | null;
     },
   ) =>

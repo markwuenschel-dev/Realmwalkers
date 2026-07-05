@@ -111,6 +111,7 @@ async def qa_packet(packet: dict[str, Any], *, budget: TokenBudget) -> dict[str,
             max_tokens=max_tokens,
             budget=budget,
             expect_cache=False,
+            setting_key="packet_qa_model",
         )
         return parse_qa(raw), usage
 

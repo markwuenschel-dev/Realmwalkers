@@ -122,6 +122,7 @@ async def propose_rules(
                 user=_prompt(pairs, pov=pov, max_chars=settings.distill_pair_max_chars),
                 max_tokens=_DISTILL_MAX_TOKENS,
                 budget=budget or TokenBudget(max_tokens=settings.scene_token_budget),
+                setting_key="review_model",
             ),
             timeout=time_budget_s,
         )

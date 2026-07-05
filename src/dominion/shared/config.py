@@ -214,6 +214,22 @@ class Settings(BaseSettings):
     # Anthropic stays uncapped here; scene_packet_max_inflight_llm already bounds its fan-out.
     llm_openai_concurrency: int = 1
     llm_anthropic_concurrency: int = 0
+
+    # --- Claude Code CLI backend (per-role "Agent CLI" toggle, workers/agent_cli.py) ----------------
+    # When a role's policy sets backend="agent_cli", llm.complete shells out to the Claude Code CLI
+    # (`claude -p ... --output-format json`) instead of the HTTP API — the model choice is unchanged,
+    # only HOW it's called. Auth is inherited from the process env at runtime: CLAUDE_CODE_OAUTH_TOKEN
+    # (subscription — the cost lever) or ANTHROPIC_API_KEY (metered). Defaults are a cheap single-shot
+    # (one turn, no tools); loosen turns/tools only to deliberately enable agentic behavior. Env-override
+    # via the DOMINION_ prefix (e.g. DOMINION_AGENT_CLI_MAX_TURNS).
+    agent_cli_bin: str = "claude"
+    agent_cli_max_turns: int = 1
+    # Comma/space-separated tool allowlist passed to --allowedTools; empty (default) = no tools, so the
+    # CLI runs a pure single-shot completion and can't touch the filesystem or network beyond the model.
+    agent_cli_allowed_tools: str = ""
+    # Ceiling on concurrent `claude` subprocesses (0 = uncapped). Bounds subprocess fan-out so a busy
+    # queue with an agent_cli role doesn't spawn unbounded processes.
+    agent_cli_concurrency: int = 2
     # Hard per-stage INPUT budgets (estimated tokens) for scene-packet author/QA prompts. A prompt over
     # its budget fails locally with PromptBudgetExceeded ("prompt_budget_exceeded") BEFORE any provider
     # call — an oversized context must never burn TPM just to get refused mid-generation.

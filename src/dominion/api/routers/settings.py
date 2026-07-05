@@ -119,6 +119,7 @@ async def set_agent_policy(setting: str, body: AgentPolicyUpdateIn, session: Ses
             never_fallback=body.never_fallback,
             semantic_escalation=body.semantic_escalation,
             quality_level=body.quality_level,
+            backend=body.backend,
             permissions=body.permissions,
         )
     except ValueError as exc:

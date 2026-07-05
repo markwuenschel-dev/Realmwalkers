@@ -193,6 +193,7 @@ async def author_packet(
             max_tokens=max_tokens,
             budget=budget,
             expect_cache=False,
+            setting_key="packet_author_model",
         )
         obj = extract_object(raw)
         return obj if isinstance(obj, dict) else None, usage

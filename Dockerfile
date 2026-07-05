@@ -15,6 +15,11 @@ COPY frontend/ ./
 # output: "standalone" => .next/standalone/server.js + traced node_modules; static assets separate.
 RUN pnpm build
 
+# Global Claude Code CLI for the optional per-role "Agent CLI" backend (src/dominion/workers/agent_cli.py).
+# npm ships with the node image, so install it in this node stage (npm is absent from the python app
+# stage) and copy the result across below. Adds ~150MB; unused until a role is flipped to backend="agent_cli".
+RUN npm install -g @anthropic-ai/claude-code
+
 # --- 2) python + node runtime --------------------------------------------------------------------
 FROM python:3.14-slim AS app
 WORKDIR /app
@@ -32,6 +37,16 @@ RUN apt-get update \
 
 # Node 24 runtime (runs the Next standalone server) — copied from the frontend build stage.
 COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
+
+# Claude Code CLI for the optional per-role "Agent CLI" backend (workers/agent_cli.py). Copy the global
+# node_modules (npm + the CLI + its deps) and the `claude` bin symlink from the node stage. OFF by
+# default — only invoked when a role's policy sets backend="agent_cli". Auth is supplied at RUNTIME as a
+# Railway env var, never baked into the image:
+#   CLAUDE_CODE_OAUTH_TOKEN  — subscription auth from `claude setup-token` (the cost lever), OR
+#   ANTHROPIC_API_KEY        — metered pay-as-you-go.
+# The runner inherits the container env, so whichever is set authenticates the CLI.
+COPY --from=frontend /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=frontend /usr/local/bin/claude /usr/local/bin/claude
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy

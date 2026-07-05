@@ -246,6 +246,9 @@ async def _compress(
         max_tokens=max_tokens,
         budget=budget,
         expect_cache=False,
+        # Length rewrites are co-located on the drafter's provider, so they follow the drafter's backend
+        # too — flipping the drafter to agent_cli routes its length fix-ups through the CLI as well.
+        setting_key="draft_model",
     )
     return text.strip() or prose
 
@@ -303,5 +306,7 @@ async def _expand(
         max_tokens=max_tokens,
         budget=budget,
         expect_cache=False,
+        # Length rewrites follow the drafter's backend (see _compress).
+        setting_key="draft_model",
     )
     return text.strip() or prose

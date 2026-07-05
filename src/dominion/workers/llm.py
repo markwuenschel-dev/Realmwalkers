@@ -32,6 +32,7 @@ import structlog
 from anthropic import AsyncAnthropic
 from anthropic.types import TextBlockParam
 
+from dominion.shared.agent_policy import agent_backend
 from dominion.shared.agent_registry import supports_effort, supports_temperature
 from dominion.shared.config import settings
 from dominion.workers import telemetry
@@ -372,12 +373,21 @@ _provider_sems: dict[tuple[int, str], asyncio.Semaphore] = {}
 
 
 def _provider_slot(model: str) -> Any:
-    """Async context manager bounding in-flight calls to this model's provider path (0 = uncapped)."""
-    is_a = _is_anthropic_model(model)
-    limit = settings.llm_anthropic_concurrency if is_a else settings.llm_openai_concurrency
+    """Async context manager bounding in-flight calls to this model's provider path (0 = uncapped).
+
+    The sentinel `model="agent_cli"` selects the Claude Code CLI subprocess slot instead of an HTTP
+    provider slot — its own limit bounds concurrent `claude` processes so a busy queue can't spawn
+    unbounded subprocesses."""
+    if model == "agent_cli":
+        limit = settings.agent_cli_concurrency
+        path = "agent_cli"
+    else:
+        is_a = _is_anthropic_model(model)
+        limit = settings.llm_anthropic_concurrency if is_a else settings.llm_openai_concurrency
+        path = "anthropic" if is_a else "openai_compatible"
     if limit <= 0:
         return contextlib.nullcontext()
-    key = (id(asyncio.get_running_loop()), "anthropic" if is_a else "openai_compatible")
+    key = (id(asyncio.get_running_loop()), path)
     sem = _provider_sems.get(key)
     if sem is None:
         sem = asyncio.Semaphore(limit)
@@ -425,6 +435,7 @@ async def complete(
     temperature: float | None = None,
     effort: str | None = None,
     input_budget: int | None = None,
+    setting_key: str | None = None,
 ) -> tuple[str, Usage]:
     """One LLM call. Retries transient errors with exponential backoff; charges the budget from the
     response usage on success (raises BudgetExceeded if over). Non-transient errors raise at once.
@@ -440,8 +451,14 @@ async def complete(
 
     user_prefix_blocks: ordered cached blocks for explicit cache breakpoints. The old `user_prefix`
     parameter maps to one block named "user_prefix" so existing callers keep their behavior.
+
+    setting_key: the agent role making this call. When its policy sets backend="agent_cli", generation
+    routes through the Claude Code CLI subprocess (workers/agent_cli.py) instead of the HTTP API; every
+    cross-cutting concern below (budget, telemetry, escalation) is unchanged. Default None -> backend
+    "llm", so every existing caller keeps the current HTTP behavior with zero blast radius.
     """
     is_anthropic = _is_anthropic_model(model)
+    backend = agent_backend(setting_key) if setting_key else "llm"
 
     # Warn when the cache may have expired: if a prior call in this job wrote to cache more than
     # ~4.5 minutes ago, the next call is likely cold — surfacing this explains a cache_ratio drop.
@@ -451,7 +468,12 @@ async def complete(
     # write to explicitly, so there's no anticipatory warning to raise here for those two paths — a
     # miss just shows up after the fact as cache_read_tokens=0.
     now = time.time()
-    if is_anthropic and budget.first_call_at is not None and now - budget.first_call_at > _CACHE_TTL_WARN_S:
+    if (
+        is_anthropic
+        and backend != "agent_cli"
+        and budget.first_call_at is not None
+        and now - budget.first_call_at > _CACHE_TTL_WARN_S
+    ):
         log.warning(
             "llm.cache_ttl_risk",
             elapsed_s=int(now - budget.first_call_at),
@@ -561,7 +583,9 @@ async def complete(
     token_count_error: str | None = None
     if context_window_budget is not None:
         local_input_estimate = estimated_input_tokens
-        if is_anthropic and settings.llm_token_counting_enabled:
+        # The agent_cli backend must not touch the HTTP token-counting endpoint (it may not even have
+        # an API key when authing via CLAUDE_CODE_OAUTH_TOKEN) — estimate-only, like the OpenAI path.
+        if is_anthropic and backend != "agent_cli" and settings.llm_token_counting_enabled:
             try:
                 preflight_input_tokens = await count_input_tokens(
                     model=model, system=system_blocks, messages=create_kwargs["messages"]
@@ -586,7 +610,7 @@ async def complete(
             # always estimate. Distinct from "local_estimate" (an Anthropic-counting failure fallback) so
             # telemetry can tell "never available" apart from "available but failed this time".
             preflight_input_tokens = local_input_estimate
-            if not is_anthropic:
+            if not is_anthropic or backend == "agent_cli":
                 token_count_method = "estimate_only"
 
         preflight_total = preflight_input_tokens + max_tokens
@@ -606,8 +630,31 @@ async def complete(
     provider_headers: dict[str, str] = {}
     resp: Any = None
     http_resp: httpx.Response | None = None
+    agent_cli_result: tuple[str, Usage] | None = None
     try:
-        if is_anthropic:
+        if backend == "agent_cli":
+            # Route this role through the Claude Code CLI subprocess instead of the HTTP API. The runner
+            # returns provider-neutral (text, Usage); the shared tail below (budget.charge, telemetry,
+            # logging) is unchanged. Lazy import avoids an import cycle (agent_cli imports from llm).
+            from dominion.workers import agent_cli
+
+            async with _provider_slot("agent_cli"):
+                agent_cli_result = await _call_with_retries(
+                    lambda: agent_cli.run(
+                        model=model,
+                        system=system,
+                        user=user,
+                        prefix_blocks=blocks,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        effort=effort,
+                        expect_cache=expect_cache,
+                    ),
+                    what="agent_cli",
+                    is_transient=agent_cli.is_transient_error,
+                    stats=retry_stats,
+                )
+        elif is_anthropic:
             async with _provider_slot(model):
                 resp = await _call_with_retries(
                     lambda: _client().messages.create(**create_kwargs), what="create", stats=retry_stats
@@ -660,7 +707,12 @@ async def complete(
         )
         raise
 
-    if is_anthropic:
+    if backend == "agent_cli":
+        assert agent_cli_result is not None  # set in the try block above for the agent_cli branch
+        text, usage = agent_cli_result
+        truncated = usage.truncated
+        stop_reason = "max_tokens" if truncated else "end_turn"
+    elif is_anthropic:
         assert resp is not None  # set in the try block above for the Anthropic branch
         # Truncation is silent at the API level: the response just stops mid-output. Surface it so
         # callers that parse JSON (packet author/QA, reviewers) can see *why* their parse failed instead
@@ -714,7 +766,13 @@ async def complete(
     # on every job's first call) from a genuinely-too-short prompt, so a per-call warning here would
     # mostly just fire on normal first touches. The aggregate cache_ratio/hit-rate in telemetry is the
     # right place to notice a persistently-cold OpenAI/xAI cache instead.
-    if is_anthropic and expect_cache and usage.cache_creation_tokens == 0 and usage.cache_read_tokens == 0:
+    if (
+        is_anthropic
+        and backend != "agent_cli"
+        and expect_cache
+        and usage.cache_creation_tokens == 0
+        and usage.cache_read_tokens == 0
+    ):
         log.warning(
             "llm.cache_skipped", model=model, note="system prompt below minimum cacheable length; cache_control ignored"
         )
