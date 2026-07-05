@@ -279,6 +279,25 @@ async def run_repair_task(task_id: uuid.UUID, session: SessionDep, background: B
     return await apply_repair_task(task_id, session, background)
 
 
+@router.post("/repair-tasks/{task_id}/approve-apply", response_model=RepairTaskOut)
+async def approve_and_apply_repair_task(
+    task_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep, background: BackgroundTasks
+) -> RepairTaskOut:
+    """Explicit human approval for a requires_human_approval task, then the normal apply. This is the
+    ONLY path that executes such a task — plain /apply parks it waiting_for_human, and the background
+    drain skips it. Chapter-scoped tasks fan out into one revision job per member scene."""
+    try:
+        task = await production.apply_repair_task(
+            session, task_id, human_approved=True, approval_reason=body.reason if body else None
+        )
+    except ValueError as exc:
+        raise _raise_for_value_error(exc) from exc
+    await session.commit()
+    # Same kick as /apply: the fan-out queues revision Jobs that nothing else would drain here.
+    background.add_task(background_work.drain_queued_jobs)
+    return RepairTaskOut.model_validate(task)
+
+
 @router.post("/repair-tasks/{task_id}/verify", response_model=RepairVerificationOut)
 async def verify_repair_task(task_id: uuid.UUID, session: SessionDep) -> RepairVerificationOut:
     try:

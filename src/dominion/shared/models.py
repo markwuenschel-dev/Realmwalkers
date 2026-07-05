@@ -708,6 +708,9 @@ class RepairTask(Base):
     forbidden_operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
     word_delta_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
     requires_human_approval: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Stamped by the explicit Approve & apply action; a re-queued task (verify said NEEDS_ANOTHER_REPAIR)
+    # keeps its stamp — one human approval covers the task's whole repair loop, not a single attempt.
+    human_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -3317,6 +3317,68 @@
         }
       }
     },
+    "/repair-tasks/{task_id}/approve-apply": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Approve And Apply Repair Task",
+        "description": "Explicit human approval for a requires_human_approval task, then the normal apply. This is the\nONLY path that executes such a task \u2014 plain /apply parks it waiting_for_human, and the background\ndrain skips it. Chapter-scoped tasks fan out into one revision job per member scene.",
+        "operationId": "approve_and_apply_repair_task_repair_tasks__task_id__approve_apply_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/IssueDecisionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairTaskOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/repair-tasks/{task_id}/verify": {
       "post": {
         "tags": [
@@ -13005,6 +13067,18 @@
           "requires_human_approval": {
             "type": "boolean",
             "title": "Requires Human Approval"
+          },
+          "human_approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Approved At"
           },
           "created_at": {
             "type": "string",

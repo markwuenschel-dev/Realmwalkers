@@ -565,6 +565,8 @@ export interface RepairTaskOut {
   forbidden_operations: string[];
   word_delta_target?: number | null;
   requires_human_approval: boolean;
+  // Stamped by Approve & apply — distinguishes an approval-hold from a conflict-hold.
+  human_approved_at?: string | null;
   created_at: string;
   updated_at: string;
 }

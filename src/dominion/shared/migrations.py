@@ -62,6 +62,8 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE agent_ops_state ADD COLUMN IF NOT EXISTS globals_json JSONB",
     # Production driver scoping: tie draft jobs (and therefore timeline updates) to a ProductionRun.
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS production_run_id UUID",
+    # Approve & apply for human-approval repair tasks: when the human explicitly approved execution.
+    "ALTER TABLE repair_tasks ADD COLUMN IF NOT EXISTS human_approved_at TIMESTAMPTZ",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only

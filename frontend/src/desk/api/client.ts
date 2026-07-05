@@ -330,6 +330,9 @@ export const api = {
     http<ProductionRunActionOut>(`/production-runs/${runId}/assemble`, { method: "POST" }),
   applyRepairTask: (taskId: string) =>
     http<RepairTaskOut>(`/repair-tasks/${taskId}/apply`, { method: "POST" }),
+  // Explicit human approval + apply — the only path that executes a requires_human_approval task.
+  approveApplyRepairTask: (taskId: string) =>
+    http<RepairTaskOut>(`/repair-tasks/${taskId}/approve-apply`, { method: "POST" }),
   verifyRepairTask: (taskId: string) =>
     http<RepairVerificationOut>(`/repair-tasks/${taskId}/verify`, { method: "POST" }),
   repairTask: (taskId: string) => http<RepairTaskOut>(`/repair-tasks/${taskId}`),

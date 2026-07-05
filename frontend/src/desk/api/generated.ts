@@ -1136,6 +1136,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/repair-tasks/{task_id}/approve-apply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Approve And Apply Repair Task
+     * @description Explicit human approval for a requires_human_approval task, then the normal apply. This is the
+     *     ONLY path that executes such a task — plain /apply parks it waiting_for_human, and the background
+     *     drain skips it. Chapter-scoped tasks fan out into one revision job per member scene.
+     */
+    post: operations["approve_and_apply_repair_task_repair_tasks__task_id__approve_apply_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/repair-tasks/{task_id}/verify": {
     parameters: {
       query?: never;
@@ -4967,6 +4989,8 @@ export interface components {
       word_delta_target?: number | null;
       /** Requires Human Approval */
       requires_human_approval: boolean;
+      /** Human Approved At */
+      human_approved_at?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -8445,6 +8469,41 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairTaskOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_and_apply_repair_task_repair_tasks__task_id__approve_apply_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        task_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
     responses: {
       /** @description Successful Response */
       200: {

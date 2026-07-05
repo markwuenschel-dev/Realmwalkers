@@ -1460,6 +1460,8 @@ class RepairTaskOut(_ORM):
     forbidden_operations: list[str]
     word_delta_target: int | None = None
     requires_human_approval: bool
+    # Stamped by Approve & apply — lets the UI tell an approval-hold from a conflict-hold.
+    human_approved_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
