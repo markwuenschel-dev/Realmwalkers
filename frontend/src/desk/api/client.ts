@@ -252,10 +252,9 @@ export const api = {
   // One-click re-draft of a single deleted/undrafted scene: re-approve its STALE scene packet and
   // queue a fresh draft for just that scene (kicks the drain server-side). Scoped to one scene_no.
   redraftScene: (chapterId: string, sceneNo: number) =>
-    http<import("./types").DraftScheduleOut>(
-      `/chapters/${chapterId}/scenes/${sceneNo}/redraft`,
-      { method: "POST" },
-    ),
+    http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/scenes/${sceneNo}/redraft`, {
+      method: "POST",
+    }),
   draftChapter: (chapterId: string) =>
     http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/draft`, {
       method: "POST",

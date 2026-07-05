@@ -100,8 +100,7 @@ export default function SettingsScreen() {
   const setNeverFallback = (setting: string, tiers: string[]) =>
     void patchPolicy(setting, { never_fallback: tiers });
 
-  const setBackend = (setting: string, backend: string) =>
-    void patchPolicy(setting, { backend });
+  const setBackend = (setting: string, backend: string) => void patchPolicy(setting, { backend });
 
   const applyPreset = async (presetId: string) => {
     setPresetBusy(true);

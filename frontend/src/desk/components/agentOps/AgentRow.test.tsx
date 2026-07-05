@@ -87,6 +87,7 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
       onSetSemanticEscalation={vi.fn()}
       onSetAutoRun={vi.fn()}
       onSetNeverFallback={onSetNeverFallback}
+      onSetBackend={vi.fn()}
       {...props}
     />,
   );

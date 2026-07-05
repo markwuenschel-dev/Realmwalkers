@@ -1273,6 +1273,59 @@
         }
       }
     },
+    "/chapters/{chapter_id}/scenes/{scene_no}/redraft": {
+      "post": {
+        "tags": [
+          "chapters"
+        ],
+        "summary": "Redraft Scene",
+        "description": "One-click re-draft of a single deleted/undrafted scene, scoped to ONE scene_no.\n\nDeleting a scene keeps its beat but marks the slot's ScenePacket STALE (\"scene deleted\"), and\ncontract-first drafting is fail-closed on an approved, non-stale packet \u2014 so the beat is left\n\"undrafted\" yet unqueueable. This re-approves that STALE packet (flip STALE \u2192 APPROVED, clear\nstale_reason), then queues a draft job for just this scene's approved beat and kicks the drain.\nNever touches the rest of the chapter, and never force-approves a BLOCKED/RATE_LIMITED packet.",
+        "operationId": "redraft_scene_chapters__chapter_id__scenes__scene_no__redraft_post",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "name": "scene_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Scene No"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftScheduleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapters/{chapter_id}/draft": {
       "post": {
         "tags": [
@@ -8485,6 +8538,11 @@
             "type": "string",
             "title": "Quality Level",
             "default": "balanced"
+          },
+          "backend": {
+            "type": "string",
+            "title": "Backend",
+            "default": "llm"
           }
         },
         "type": "object",
@@ -8553,6 +8611,17 @@
               }
             ],
             "title": "Quality Level"
+          },
+          "backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backend"
           },
           "permissions": {
             "anyOf": [
