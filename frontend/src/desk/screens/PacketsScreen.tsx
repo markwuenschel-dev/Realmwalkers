@@ -85,6 +85,11 @@ export default function PacketsScreen() {
     if (chapterId === null && chapters.length) setChapterId(chapters[0].id);
   }, [chapters, chapterId, searchParams]);
 
+  // Deep-link target from Production's issue rows (?chapter=…&scene=N): the scene-packet card to
+  // auto-expand and scroll to. Same query-param convention as ?chapter=.
+  const focusSceneRaw = searchParams.get("scene");
+  const focusScene = focusSceneRaw ? Number.parseInt(focusSceneRaw, 10) || undefined : undefined;
+
   const chapter = chapters.find((c) => c.id === chapterId) ?? null;
   const hasOutline = !!(chapter?.outline || "").trim();
 
@@ -222,6 +227,13 @@ export default function PacketsScreen() {
   // Approval is the SERVER's gate: repair/warn issues never disable it locally (approve-with-repairs
   // — the repairs still gate final export). Only `blocked` packets refuse approval.
   const canApprove = packet?.can_approve ?? false;
+  // The server guarantees a reason for every non-approvable state; the keyed fallback only covers
+  // pre-approval_state payloads so a greyed Approve can never be silent again.
+  const disabledReason =
+    packet?.approval_blockers[0] ??
+    (packet?.approval_state === "already_approved"
+      ? "Packet already approved — edit or re-propose to make changes."
+      : "Packet is not approvable right now — derive or re-propose it first.");
   const repairCount = packet ? packetRepairTasks(packet.qa_warnings).length : 0;
 
   // Raw canonical JSON of the chapter packet body — the exact contract the drafting agents receive.
@@ -634,6 +646,7 @@ export default function PacketsScreen() {
             variant="primary"
             style="background:var(--good);border-color:transparent"
             disabled={!canApprove || busy === "approve"}
+            title={!canApprove ? disabledReason : undefined}
             onClick={() => {
               if (chapterId) void run("approve", () => api.approvePacket(chapterId));
             }}
@@ -652,9 +665,9 @@ export default function PacketsScreen() {
               outstanding
             </span>
           )}
-          {!canApprove && packet.status !== "approved" && packet.approval_blockers.length > 0 && (
+          {!canApprove && packet.status !== "approved" && (
             <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
-              {packet.approval_blockers[0]}
+              {disabledReason}
             </span>
           )}
           {packet.status === "approved" && (
@@ -692,7 +705,7 @@ export default function PacketsScreen() {
               />
             </div>
           )}
-          <ScenePacketsPanel chapterId={chapterId} />
+          <ScenePacketsPanel chapterId={chapterId} focusScene={focusScene} />
         </>
       )}
     </div>

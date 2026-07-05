@@ -273,6 +273,8 @@ class PacketOut(_ORM):
     open_questions: dict[str, Any] | None = None
     created_at: datetime
     can_approve: bool = False
+    # Why can_approve is what it is — the UI must always have a reason to show, not just a grey button.
+    approval_state: str = "approvable"  # approvable | already_approved | blocked | open_questions
     approval_blockers: list[str] = []
     blocked_reason: str | None = None
     blocker_source: str | None = None
@@ -326,6 +328,8 @@ class ScenePacketOut(_ORM):
     created_at: datetime
     updated_at: datetime | None = None
     can_approve: bool = False
+    # approvable | already_approved | blocked | rate_limited (STALE is re-approvable → approvable)
+    approval_state: str = "approvable"
     approval_blockers: list[str] = []
     blocked_reason: str | None = None
     blocker_source: str | None = None  # author | qa | derive | unknown
@@ -345,6 +349,8 @@ class ScenePacketSummaryOut(BaseModel):
     qa_verdict: str | None = None
     stale_reason: str | None = None
     can_approve: bool = False
+    # approvable | already_approved | blocked | rate_limited (STALE is re-approvable → approvable)
+    approval_state: str = "approvable"
     approval_blockers: list[str] = []
     blocked_reason: str | None = None
     blocker_source: str | None = None  # author | validation | qa | derive | rate_limit | unknown
@@ -670,6 +676,18 @@ class DraftNextOut(BaseModel):
     scheduled: bool = False
     queued: int = 0
     running: bool = False
+
+
+class RepairApplyAllOut(BaseModel):
+    """Result of 'Apply all queued' on a run's repair tasks. `scheduled` is true when the call kicked
+    the repair drain; `requires_approval` counts the waiting tasks the drain will never touch (they
+    need the explicit Approve & apply)."""
+
+    scheduled: bool = False
+    queued: int = 0
+    requires_approval: int = 0
+    running: bool = False
+    queue_paused: bool = False
 
 
 class RetryFailedOut(BaseModel):
@@ -1454,6 +1472,8 @@ class RepairTaskOut(_ORM):
     forbidden_operations: list[str]
     word_delta_target: int | None = None
     requires_human_approval: bool
+    # Stamped by Approve & apply — lets the UI tell an approval-hold from a conflict-hold.
+    human_approved_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

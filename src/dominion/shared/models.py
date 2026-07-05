@@ -392,7 +392,7 @@ class Critique(Base):
     scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
     version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reviewer: Mapped[str] = mapped_column(Text)  # continuity|combat|sensory|...
-    severity: Mapped[str] = mapped_column(Text)  # info|warn|hard
+    severity: Mapped[str] = mapped_column(Text)  # info|warn|repair|block (legacy rows: hard == block)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     # for continuity mismatches: {character, prose_value, ledger_value, context_sentence, span}
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
@@ -708,6 +708,9 @@ class RepairTask(Base):
     forbidden_operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
     word_delta_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
     requires_human_approval: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Stamped by the explicit Approve & apply action; a re-queued task (verify said NEEDS_ANOTHER_REPAIR)
+    # keeps its stamp — one human approval covers the task's whole repair loop, not a single attempt.
+    human_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

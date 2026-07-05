@@ -18,6 +18,7 @@ import ProseBlocks from "../components/ProseBlocks";
 import { Button, Chip, Eyebrow, MetricCard, Panel, Spinner, Stepper } from "../components/ui";
 import type { ChipTone, Step, StepState } from "../components/ui";
 import { downloadBlob } from "../lib/download";
+import { severityChipTone } from "../lib/severity";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import {
   isNoApprovedPacketError,
@@ -49,17 +50,6 @@ export function resetRunDetailCacheForTests(): void {
 
 function latestArtifact(artifacts: ArtifactOut[], type: string): ArtifactOut | null {
   return [...artifacts].reverse().find((artifact) => artifact.artifact_type === type) ?? null;
-}
-
-function severityChipTone(severity: string): ChipTone {
-  switch (severity) {
-    case "hard":
-      return "bad";
-    case "warn":
-      return "warn";
-    default:
-      return "info";
-  }
 }
 
 function statusTone(status: string): string {
@@ -551,6 +541,10 @@ export default function ProductionScreen() {
 
   const issues = detail?.issues ?? [];
   const repairTasks = detail?.repair_tasks ?? [];
+  // "Apply all queued" covers exactly what the background drain would: queued, no approval gate.
+  const queuedEligibleCount = repairTasks.filter(
+    (t) => t.status === "queued" && !t.requires_human_approval,
+  ).length;
   const sequenceScenes = Array.isArray(detail?.chapter_sequence?.body?.scenes)
     ? detail?.chapter_sequence?.body?.scenes
     : [];
@@ -867,7 +861,22 @@ export default function ProductionScreen() {
             <Panel eyebrow="Issue inbox" pad="18px 20px">
               <div style={css("display:flex;flex-direction:column;gap:10px")}>
                 {issues.length ? (
-                  issues.map((issue) => <IssueRow key={issue.id} issue={issue} />)
+                  issues.map((issue) => (
+                    <IssueRow
+                      key={issue.id}
+                      issue={issue}
+                      onOpenPacket={
+                        chapterId
+                          ? () =>
+                              router.push(
+                                issue.scene_no != null
+                                  ? `/packets?chapter=${chapterId}&scene=${issue.scene_no}`
+                                  : `/packets?chapter=${chapterId}`,
+                              )
+                          : undefined
+                      }
+                    />
+                  ))
                 ) : (
                   <div style={css("color:var(--dim);font-size:13px")}>
                     No structured issues on this run.
@@ -878,6 +887,35 @@ export default function ProductionScreen() {
 
             <Panel eyebrow="Repair tasks" pad="18px 20px">
               <div style={css("display:flex;flex-direction:column;gap:10px")}>
+                {queuedEligibleCount > 0 && runId && (
+                  <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
+                    <Button
+                      size="sm"
+                      disabled={busy != null}
+                      onClick={() =>
+                        void runAction("apply-all", () => api.applyAllRepairTasks(runId), {
+                          reloadRuns: true,
+                        }).then((out) => {
+                          if (!out) return;
+                          setNotice(
+                            out.queue_paused
+                              ? `Queue is paused — ${out.queued} queued repair task${out.queued === 1 ? "" : "s"} will apply after you resume the queue.`
+                              : out.scheduled
+                                ? `Applying ${out.queued} queued repair task${out.queued === 1 ? "" : "s"} in the background${out.requires_approval ? `; ${out.requires_approval} still need${out.requires_approval === 1 ? "s" : ""} your explicit Approve & apply` : ""}.`
+                                : `Nothing to apply${out.requires_approval ? ` — ${out.requires_approval} task${out.requires_approval === 1 ? " needs" : "s need"} your explicit Approve & apply` : ""}.`,
+                          );
+                        })
+                      }
+                    >
+                      {busy === "apply-all"
+                        ? "Applying…"
+                        : `Apply all queued (${queuedEligibleCount})`}
+                    </Button>
+                    <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                      same drain the auto-triggers use — approval-gated tasks are never included
+                    </span>
+                  </div>
+                )}
                 {repairTasks.length ? (
                   repairTasks.map((task) => (
                     <RepairRow
@@ -893,11 +931,31 @@ export default function ProductionScreen() {
                             task.scene_no != null ? `Scene ${task.scene_no}` : "chapter";
                           setNotice(
                             updated.status === "waiting_for_human"
-                              ? `Repair task for ${where} is held for human review — it requires approval or conflicts with another repair on the same span.`
+                              ? updated.requires_human_approval && !updated.human_approved_at
+                                ? `Repair task for ${where} needs your explicit approval — use Approve & apply on the task.`
+                                : `Repair task for ${where} is held: it conflicts with another repair on the same span, or its last auto-apply failed. Resolve the overlap (or Reject one task), then apply again.`
                               : `Repair applied for ${where} (status: ${updated.status}). Span patches land immediately; instruction repairs queue a scene revision that drafts in the background — watch the queue indicator, then Verify.`,
                           );
                         })
                       }
+                      onApproveApply={() => {
+                        if (
+                          !window.confirm(
+                            `Approve & apply this ${task.authority_level.replace(/_/g, " ")} repair? It touches more than one scene, queueing a revision for every affected scene.`,
+                          )
+                        )
+                          return;
+                        void runAction(
+                          `apply:${task.id}`,
+                          () => api.approveApplyRepairTask(task.id),
+                          { reloadRuns: true },
+                        ).then((updated) => {
+                          if (!updated) return;
+                          setNotice(
+                            `Approved — repair is running (status: ${updated.status}). Revisions draft in the background; watch the queue indicator, then Verify.`,
+                          );
+                        });
+                      }}
                       onVerify={() =>
                         // Verification records a verdict and moves task/issue statuses — it never
                         // touches artifacts/prose, so the slim refresh is enough.
@@ -1170,7 +1228,7 @@ function ProductionGatePanel({
   );
 }
 
-function IssueRow({ issue }: { issue: IssueOut }) {
+function IssueRow({ issue, onOpenPacket }: { issue: IssueOut; onOpenPacket?: () => void }) {
   return (
     <div
       style={css(
@@ -1199,6 +1257,15 @@ function IssueRow({ issue }: { issue: IssueOut }) {
           “{issue.quote}”
         </div>
       )}
+      {/* The inbox is display-only by design, but "where do I act on this?" must not be a scavenger
+          hunt — editing/approval live on the Packets tab, one click away. */}
+      {onOpenPacket && (
+        <div style={css("margin-top:8px")}>
+          <Button size="sm" variant="ghost" onClick={onOpenPacket}>
+            {issue.scene_no != null ? "Open scene packet →" : "Open chapter packet →"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1207,13 +1274,19 @@ function RepairRow({
   task,
   busy,
   onApply,
+  onApproveApply,
   onVerify,
 }: {
   task: RepairTaskOut;
   busy: string | null;
   onApply: () => void;
+  onApproveApply: () => void;
   onVerify: () => void;
 }) {
+  // Not yet human-approved: the ONLY way this task ever executes is the explicit Approve & apply
+  // (the background drain skips it; plain Apply just re-parks it). Once approved, the stamp covers
+  // the task's whole repair loop, so re-queued attempts go back to plain Apply.
+  const needsApproval = task.requires_human_approval && !task.human_approved_at;
   return (
     <div
       style={css(
@@ -1224,7 +1297,14 @@ function RepairRow({
         <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
           {task.scene_no != null ? `Scene ${task.scene_no}` : "Chapter"}
         </span>
-        <Chip label={task.status.replace(/_/g, " ")} tone={statusChipTone(task.status)} size="sm" />
+        <span style={css("display:inline-flex;gap:5px;align-items:center")}>
+          {needsApproval && <Chip label="needs approval" tone="warn" size="sm" />}
+          <Chip
+            label={task.status.replace(/_/g, " ")}
+            tone={statusChipTone(task.status)}
+            size="sm"
+          />
+        </span>
       </div>
       <div style={css("margin-top:6px;font-size:13px;color:var(--ink)")}>
         {task.repair_kind} · {task.authority_level}
@@ -1232,14 +1312,42 @@ function RepairRow({
       <div style={css("margin-top:6px;font-size:12px;color:var(--dim);white-space:pre-wrap")}>
         {task.instructions}
       </div>
+      {needsApproval && (
+        <div style={css("margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--warn)")}>
+          {task.authority_level.replace(/_/g, " ")} repair — touches more than one scene; applies
+          only with your explicit approval.
+        </div>
+      )}
       {/* Disabled while ANY action runs (busy != null), not just this task's own: `busy` is a single
           slot, so per-label disabling let a second click flip it and re-enable the first button while
           its request was still in flight — a double-submit race. */}
       <div style={css("display:flex;gap:8px;margin-top:10px;flex-wrap:wrap")}>
-        <Button size="sm" disabled={task.requires_human_approval || busy != null} onClick={onApply}>
-          {busy === `apply:${task.id}` ? "Applying…" : "Apply"}
-        </Button>
-        <Button size="sm" disabled={busy != null} onClick={onVerify}>
+        {needsApproval ? (
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={busy != null}
+            title="Runs the repair after your explicit approval — the auto-drain never picks this task up"
+            onClick={onApproveApply}
+          >
+            {busy === `apply:${task.id}` ? "Applying…" : "Approve & apply"}
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            disabled={busy != null}
+            title={busy != null ? "Another action is still running" : undefined}
+            onClick={onApply}
+          >
+            {busy === `apply:${task.id}` ? "Applying…" : "Apply"}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          disabled={busy != null}
+          title={busy != null ? "Another action is still running" : undefined}
+          onClick={onVerify}
+        >
           {busy === `verify:${task.id}` ? "Verifying…" : "Verify"}
         </Button>
       </div>

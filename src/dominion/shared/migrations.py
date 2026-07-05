@@ -62,6 +62,8 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE agent_ops_state ADD COLUMN IF NOT EXISTS globals_json JSONB",
     # Production driver scoping: tie draft jobs (and therefore timeline updates) to a ProductionRun.
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS production_run_id UUID",
+    # Approve & apply for human-approval repair tasks: when the human explicitly approved execution.
+    "ALTER TABLE repair_tasks ADD COLUMN IF NOT EXISTS human_approved_at TIMESTAMPTZ",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -74,6 +76,11 @@ _BACKFILLS: tuple[str, ...] = (
        SET source = CASE WHEN doc_path IS NOT NULL THEN 'repo_ingested' ELSE 'manual' END
        WHERE source IS NULL""",
     "UPDATE canon_entities SET status = 'active' WHERE status IS NULL",
+    # Severity unification: the issue pipeline's legacy "hard" is the packet contract's "block"
+    # (one vocabulary: info|warn|repair|block). Idempotent via the WHERE clause; JSON snapshots
+    # inside artifact bodies keep the old spelling forever, so readers tolerate both.
+    "UPDATE issues SET severity = 'block' WHERE severity = 'hard'",
+    "UPDATE critiques SET severity = 'block' WHERE severity = 'hard'",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).

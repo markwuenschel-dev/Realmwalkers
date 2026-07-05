@@ -55,6 +55,8 @@ vi.mock("../api/client", () => ({
     triageProductionRun: vi.fn(),
     assembleProductionRun: vi.fn(),
     applyRepairTask: vi.fn(),
+    approveApplyRepairTask: vi.fn(),
+    applyAllRepairTasks: vi.fn(),
     verifyRepairTask: vi.fn(),
     repairTask: vi.fn(),
     packet: vi.fn(),
@@ -200,6 +202,7 @@ const GATE_PACKET = {
   open_questions: { items: [] },
   created_at: "2026-07-02T10:00:00Z",
   can_approve: true,
+  approval_state: "approvable",
   approval_blockers: [],
 };
 
@@ -209,6 +212,7 @@ const BLOCKED_PACKET = {
   confidence: "red",
   qa_verdict: "block_drafting",
   can_approve: false,
+  approval_state: "blocked",
   blocked_reason: "deterministic validation failed: packet body is not a JSON object",
   blocker_source: "validation",
   blocker_kind: "contract_validation",
@@ -256,6 +260,14 @@ describe("ProductionScreen", () => {
       latest_verification: null,
     });
     vi.mocked(api.applyRepairTask).mockReset().mockResolvedValue(DETAIL.repair_tasks[0]);
+    vi.mocked(api.approveApplyRepairTask).mockReset().mockResolvedValue(DETAIL.repair_tasks[0]);
+    vi.mocked(api.applyAllRepairTasks).mockReset().mockResolvedValue({
+      scheduled: true,
+      queued: 1,
+      requires_approval: 0,
+      running: true,
+      queue_paused: false,
+    });
     vi.mocked(api.verifyRepairTask)
       .mockReset()
       .mockResolvedValue({
@@ -380,6 +392,88 @@ describe("ProductionScreen", () => {
     await waitFor(() => expect(api.applyRepairTask).toHaveBeenCalledTimes(1));
     const notice = await screen.findByTestId("production-notice");
     expect(notice.textContent).toContain("Repair applied for Scene 1");
+  });
+
+  it("drains every eligible task from one Apply-all click and says what it excluded", async () => {
+    vi.mocked(api.applyAllRepairTasks).mockResolvedValue({
+      scheduled: true,
+      queued: 1,
+      requires_approval: 2,
+      running: true,
+      queue_paused: false,
+    });
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply all queued (1)" }));
+    await waitFor(() => expect(api.applyAllRepairTasks).toHaveBeenCalledWith("run-1"));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("Applying 1 queued repair task");
+    expect(notice.textContent).toContain("2 still need your explicit Approve & apply");
+  });
+
+  it("deep-links an issue row to its scene packet on the Packets tab", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Open scene packet →" }));
+    expect(routerPush).toHaveBeenCalledWith("/packets?chapter=chapter-1&scene=1");
+  });
+
+  it("labels an approval-gated task and executes it only through Approve & apply + confirm", async () => {
+    const heldTask = {
+      ...DETAIL.repair_tasks[0],
+      id: "task-2",
+      scene_no: null,
+      authority_level: "chapter_structural",
+      status: "waiting_for_human",
+      requires_human_approval: true,
+      human_approved_at: null,
+    };
+    vi.mocked(api.productionRun).mockResolvedValue({ ...DETAIL, repair_tasks: [heldTask] });
+    vi.mocked(api.approveApplyRepairTask).mockResolvedValue({
+      ...heldTask,
+      status: "running",
+      human_approved_at: "2026-07-05T10:00:00Z",
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    // The hold is labeled and explained, and the one actionable button is ENABLED (the old UI greyed
+    // Apply with no explanation — a dead-end).
+    expect(screen.getByText("needs approval")).toBeInTheDocument();
+    expect(screen.getByText(/applies only with your explicit approval/)).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Approve & apply" });
+    expect(button).not.toBeDisabled();
+
+    // Declining the confirm never touches the API.
+    fireEvent.click(button);
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(api.approveApplyRepairTask).not.toHaveBeenCalled();
+
+    confirmSpy.mockReturnValue(true);
+    fireEvent.click(button);
+    await waitFor(() => expect(api.approveApplyRepairTask).toHaveBeenCalledWith("task-2"));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("Approved — repair is running");
+    confirmSpy.mockRestore();
+  });
+
+  it("splits the waiting_for_human copy: approval hold reads differently from a conflict hold", async () => {
+    // task-1 has requires_human_approval=false, so a waiting_for_human result can only be a
+    // conflict/failed-drain hold — the notice must not tell the user to look for Approve & apply.
+    vi.mocked(api.applyRepairTask).mockResolvedValue({
+      ...DETAIL.repair_tasks[0],
+      status: "waiting_for_human",
+    });
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("conflicts with another repair");
+    expect(notice.textContent).not.toContain("Approve & apply on the task");
   });
 
   it("disables every action while one is in flight (double-submit guard)", async () => {

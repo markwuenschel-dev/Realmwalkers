@@ -44,7 +44,7 @@ from dominion.api.routers.settings import apply_model_overrides
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobKind, JobStatus
-from dominion.shared.models import Job
+from dominion.shared.models import Job, RepairTask
 from dominion.workers import background_work
 
 log = structlog.get_logger()
@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # drain_queued_jobs already single-flights via its process-global lock and persists per-job
     # failures, so a boot-time kick is exactly as safe as a button-press kick.
     try:
-        from sqlalchemy import func, select
+        from sqlalchemy import false, func, select
 
         async with SessionFactory() as session:
             paused = await background_work.load_queue_paused(session)
@@ -78,12 +78,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     .where(Job.kind == JobKind.DRAFT, Job.status == JobStatus.QUEUED)
                 )
             ).scalar_one()
-        if queued and paused:
-            # Honor the human pause switch across redeploys — jobs stay queued until resumed.
-            log.info("draft.drain_resume_skipped_paused", queued=queued)
-        elif queued:
-            log.info("draft.drain_resumed_on_boot", queued=queued)
-            asyncio.get_running_loop().create_task(background_work.drain_queued_jobs())
+            queued_repairs = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(RepairTask)
+                    .where(RepairTask.status == "queued", RepairTask.requires_human_approval == false())
+                )
+            ).scalar_one()
+        if (queued or queued_repairs) and paused:
+            # Honor the human pause switch across redeploys — work stays queued until resumed.
+            log.info("draft.drain_resume_skipped_paused", queued=queued, queued_repairs=queued_repairs)
+        else:
+            # The repair drain chains into the job drain, so kick at most one of the two.
+            if queued_repairs:
+                log.info("repair.drain_resumed_on_boot", queued_repairs=queued_repairs)
+                asyncio.get_running_loop().create_task(background_work.drain_queued_repair_tasks())
+            elif queued:
+                log.info("draft.drain_resumed_on_boot", queued=queued)
+                asyncio.get_running_loop().create_task(background_work.drain_queued_jobs())
     except Exception as exc:  # noqa: BLE001 — never block boot on the resume probe
         log.warning("draft.drain_resume_failed", error=str(exc))
     yield

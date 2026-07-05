@@ -291,7 +291,7 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                 scene_packet_id=ctx.scene_packet_id,
                 version=scene.version,
                 reviewer="budget",
-                severity=Severity.HARD,
+                severity=Severity.BLOCK,
                 note=f"token budget exceeded (used {ctx.budget.used} / {ctx.budget.max_tokens}); saved partial draft",
             )
         )

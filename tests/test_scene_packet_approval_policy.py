@@ -185,6 +185,7 @@ def test_enrich_stale_packet_is_reapprovable():
     assert approval_policy.can_approve(sp) is None
     out = approval_policy.enrich_scene_packet_out(sp)
     assert out.can_approve is True
+    assert out.approval_state == "approvable"
     assert out.approval_blockers == []
 
 
@@ -192,6 +193,7 @@ def test_enrich_scene_packet_out():
     sp = _sp()
     out = approval_policy.enrich_scene_packet_out(sp)
     assert out.can_approve is True
+    assert out.approval_state == "approvable"
     # An advisory REVISE_REQUIRED verdict no longer disables approval.
     sp2 = _sp(qa_verdict=ScenePacketVerdict.REVISE_REQUIRED.value)
     out2 = approval_policy.enrich_scene_packet_out(sp2)
@@ -201,4 +203,40 @@ def test_enrich_scene_packet_out():
     sp3 = _sp(status=ScenePacketStatus.BLOCKED, qa_warnings={"blocked_reason": "author returned thin body"})
     out3 = approval_policy.enrich_scene_packet_out(sp3)
     assert out3.can_approve is False
+    assert out3.approval_state == "blocked"
     assert out3.approval_blockers == ["author returned thin body"]
+
+
+def test_enrich_never_silent_in_any_non_approvable_state():
+    # The old DTO could ship can_approve=False with EMPTY blockers (approved rows) — a greyed button
+    # with no reason. Every non-approvable state now names its state and carries a reason.
+    approved = approval_policy.enrich_scene_packet_out(_sp(status=ScenePacketStatus.APPROVED))
+    assert approved.can_approve is False
+    assert approved.approval_state == "already_approved"
+    assert approved.approval_blockers and "already approved" in approved.approval_blockers[0]
+
+    rate_limited = approval_policy.enrich_scene_packet_out(
+        _sp(
+            status=ScenePacketStatus.RATE_LIMITED,
+            qa_verdict=None,
+            qa_warnings={
+                "residual_risks": [],
+                "blocked_reason": "Rate limited by provider during scene author (429).",
+                "blocker_source": "rate_limit",
+            },
+        )
+    )
+    assert rate_limited.can_approve is False
+    assert rate_limited.approval_state == "rate_limited"
+    assert rate_limited.approval_blockers and "Rate limited" in rate_limited.approval_blockers[0]
+
+    blocked = approval_policy.enrich_scene_packet_out(_sp(status=ScenePacketStatus.BLOCKED, qa_warnings=None))
+    assert blocked.can_approve is False
+    assert blocked.approval_state == "blocked"
+    assert blocked.approval_blockers  # fallback reason even when nothing was persisted
+
+
+def test_approve_gate_unchanged_for_approved_rows():
+    # The endpoints' real gate must stay idempotent for re-approve: only the DTO reports
+    # already_approved; can_approve() itself does not refuse an approved packet.
+    assert approval_policy.can_approve(_sp(status=ScenePacketStatus.APPROVED)) is None

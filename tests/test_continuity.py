@@ -42,7 +42,7 @@ async def test_empty_ledger_skips_extraction_entirely(monkeypatch):
     assert called is False  # nothing canonical to protect -> no LLM call, no tokens spent
 
 
-async def test_flags_numeric_contradiction_as_hard(monkeypatch):
+async def test_flags_numeric_contradiction_as_block(monkeypatch):
     async def fake_complete(**kwargs):
         return (
             '[{"character":"Marcus","attribute":"level","value":"7",'
@@ -55,7 +55,7 @@ async def test_flags_numeric_contradiction_as_hard(monkeypatch):
     assert len(flags) == 1
     flag = flags[0]
     assert flag.reviewer == "continuity"
-    assert flag.severity == Severity.HARD
+    assert flag.severity == Severity.BLOCK
     assert flag.payload is not None
     assert flag.payload["prose_value"] == "7"
     assert flag.payload["ledger_value"] == "5"

@@ -249,6 +249,56 @@ def test_draft_qa_block_findings_carry_block_facts():
     assert qa["verdict"] == "block"
 
 
+async def test_triage_endpoint_kicks_the_repair_drain(db_factory):
+    from fastapi import BackgroundTasks
+
+    from dominion.workers import background_work
+
+    async with db_factory() as s:
+        _book, chapter, _scene, _packet = await _seed_chapter(s, seed_count=2, add_critique=True)
+        out = await production_router.start_production_run(
+            ProductionRunCreateIn(chapter_id=chapter.id, auto_triage=False), s
+        )
+        background = BackgroundTasks()
+        await production_router.triage_production_run(out.run.id, s, background)
+        # Tasks auto-apply the moment triage creates them (DESIGN §5 posture change).
+        assert any(t.func is background_work.drain_queued_repair_tasks for t in background.tasks)
+
+
+async def test_scope_issue_severity_passes_through_unified_vocab(db_factory, monkeypatch):
+    # Pre-unification, assembly collapsed every non-"block" scope finding to "warn" when persisting it
+    # as an Issue — a `repair` finding lost its tier before triage ever saw it. The finding already
+    # speaks the unified vocabulary, so its severity must survive verbatim.
+    from dominion.workers import production as production_worker
+
+    def fake_qa(*args, **kwargs):
+        return {
+            "verdict": "warn",
+            "findings": [
+                {
+                    "kind": "scene_scope_bleed",
+                    "detail": "Scene 1 stages a beat owned by scene 2.",
+                    "scene_no": 1,
+                    "severity": "repair",
+                    "blocks_drafting": False,
+                    "blocks_human_review": False,
+                    "blocks_final_export": True,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(production_worker, "run_chapter_draft_qa", fake_qa)
+
+    async with db_factory() as s:
+        _book, chapter, _scene, _packet = await _seed_chapter(s, seed_count=1, add_critique=False)
+        out = await production_router.start_production_run(
+            ProductionRunCreateIn(chapter_id=chapter.id, auto_triage=False), s
+        )
+        detail = await production_router.get_production_run(out.run.id, s)
+        scope = [issue for issue in detail.issues if issue.validator == "scene_scope"]
+        assert scope and scope[0].severity == "repair"
+
+
 # --- align_sequence_scene_count (Desk Control Round P2) --------------------------------------------
 
 

@@ -59,6 +59,7 @@ import type {
   ProductionRunOut,
   RedraftIn,
   RetryFailedOut,
+  RepairApplyAllOut,
   RepairTaskOut,
   RepairVerificationOut,
   RuleProposalDecisionIn,
@@ -330,6 +331,12 @@ export const api = {
     http<ProductionRunActionOut>(`/production-runs/${runId}/assemble`, { method: "POST" }),
   applyRepairTask: (taskId: string) =>
     http<RepairTaskOut>(`/repair-tasks/${taskId}/apply`, { method: "POST" }),
+  // One click drains the run's queued repair tasks (same drain the auto-triggers use).
+  applyAllRepairTasks: (runId: string) =>
+    http<RepairApplyAllOut>(`/production-runs/${runId}/repair-tasks/apply-all`, { method: "POST" }),
+  // Explicit human approval + apply — the only path that executes a requires_human_approval task.
+  approveApplyRepairTask: (taskId: string) =>
+    http<RepairTaskOut>(`/repair-tasks/${taskId}/approve-apply`, { method: "POST" }),
   verifyRepairTask: (taskId: string) =>
     http<RepairVerificationOut>(`/repair-tasks/${taskId}/verify`, { method: "POST" }),
   repairTask: (taskId: string) => http<RepairTaskOut>(`/repair-tasks/${taskId}`),

@@ -102,6 +102,21 @@ def approval_blockers(packet: ChapterPacket) -> list[str]:
     return refusal_reasons(can_approve(packet))
 
 
+def approval_state(packet: ChapterPacket) -> tuple[str, list[str]]:
+    """(state, reasons) for the DTO — every non-approvable state carries a human-readable reason, so the
+    UI never shows a greyed Approve with nothing to say. Distinct from can_approve(), which the approve
+    endpoints use as the real gate (and which stays idempotent for already-approved rows)."""
+    if packet.status == PacketStatus.BLOCKED:
+        return "blocked", [resolve_blocked_reason(packet) or "packet is blocked"]
+    if open_question_items(packet):
+        return "open_questions", ["resolve the packet's open questions first"]
+    if packet.status == PacketStatus.APPROVED:
+        return "already_approved", [
+            "Packet already approved — edit the body or re-propose to make changes, then approve again."
+        ]
+    return "approvable", []
+
+
 def can_derive_scene_packets(chapter_packet: ChapterPacket | None) -> GateRefusal | None:
     if chapter_packet is None or chapter_packet.status != PacketStatus.APPROVED:
         return GateRefusal("no approved chapter packet — approve the chapter packet first")
@@ -122,11 +137,12 @@ def status_from_qa(packet_body: dict[str, Any], qa: dict[str, Any]) -> tuple[Pac
 
 
 def enrich_packet_out(row: ChapterPacket) -> PacketOut:
-    blockers = approval_blockers(row)
+    state, blockers = approval_state(row)
     out = PacketOut.model_validate(row)
     return out.model_copy(
         update={
-            "can_approve": row.status == PacketStatus.PROPOSED and not blockers,
+            "can_approve": state == "approvable",
+            "approval_state": state,
             "approval_blockers": blockers,
             "blocked_reason": resolve_blocked_reason(row),
             "blocker_source": resolve_blocker_source(row),

@@ -3231,6 +3231,50 @@
         }
       }
     },
+    "/production-runs/{run_id}/repair-tasks/apply-all": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Apply All Repair Tasks",
+        "description": "One click drains the run's queued repair tasks (same drain the auto-triggers use \u2014 the button\nand the background loop share one path). Tasks needing Approve & apply are counted, never applied.",
+        "operationId": "apply_all_repair_tasks_production_runs__run_id__repair_tasks_apply_all_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairApplyAllOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/repair-tasks/{task_id}/apply": {
       "post": {
         "tags": [
@@ -3293,6 +3337,68 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairTaskOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repair-tasks/{task_id}/approve-apply": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Approve And Apply Repair Task",
+        "description": "Explicit human approval for a requires_human_approval task, then the normal apply. This is the\nONLY path that executes such a task \u2014 plain /apply parks it waiting_for_human, and the background\ndrain skips it. Chapter-scoped tasks fan out into one revision job per member scene.",
+        "operationId": "approve_and_apply_repair_task_repair_tasks__task_id__approve_apply_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/IssueDecisionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -11906,6 +12012,11 @@
             "title": "Can Approve",
             "default": false
           },
+          "approval_state": {
+            "type": "string",
+            "title": "Approval State",
+            "default": "approvable"
+          },
           "approval_blockers": {
             "items": {
               "type": "string"
@@ -12756,6 +12867,38 @@
         "title": "RedraftIn",
         "description": "POST body to re-draft existing scenes: re-queue a draft for each (supersedes the current version)."
       },
+      "RepairApplyAllOut": {
+        "properties": {
+          "scheduled": {
+            "type": "boolean",
+            "title": "Scheduled",
+            "default": false
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "default": 0
+          },
+          "requires_approval": {
+            "type": "integer",
+            "title": "Requires Approval",
+            "default": 0
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "default": false
+          },
+          "queue_paused": {
+            "type": "boolean",
+            "title": "Queue Paused",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "RepairApplyAllOut",
+        "description": "Result of 'Apply all queued' on a run's repair tasks. `scheduled` is true when the call kicked\nthe repair drain; `requires_approval` counts the waiting tasks the drain will never touch (they\nneed the explicit Approve & apply)."
+      },
       "RepairAttemptOut": {
         "properties": {
           "id": {
@@ -13000,6 +13143,18 @@
           "requires_human_approval": {
             "type": "boolean",
             "title": "Requires Human Approval"
+          },
+          "human_approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Approved At"
           },
           "created_at": {
             "type": "string",
@@ -14220,6 +14375,11 @@
             "title": "Can Approve",
             "default": false
           },
+          "approval_state": {
+            "type": "string",
+            "title": "Approval State",
+            "default": "approvable"
+          },
           "approval_blockers": {
             "items": {
               "type": "string"
@@ -14342,6 +14502,11 @@
             "type": "boolean",
             "title": "Can Approve",
             "default": false
+          },
+          "approval_state": {
+            "type": "string",
+            "title": "Approval State",
+            "default": "approvable"
           },
           "approval_blockers": {
             "items": {

@@ -24,6 +24,7 @@ from dominion.shared.schemas import (
     ProductionRunDetailOut,
     ProductionRunOut,
     ProductionRunStartIn,
+    RepairApplyAllOut,
     RepairAttemptOut,
     RepairTaskOut,
     RepairVerificationOut,
@@ -219,12 +220,17 @@ async def mark_issue_false_positive(issue_id: uuid.UUID, body: IssueDecisionIn |
 
 
 @router.post("/production-runs/{run_id}/triage", response_model=ProductionRunActionOut)
-async def triage_production_run(run_id: uuid.UUID, session: SessionDep) -> ProductionRunActionOut:
+async def triage_production_run(
+    run_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
+) -> ProductionRunActionOut:
     try:
         run = await production.triage_production_run(session, run_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     await session.commit()
+    # Tasks auto-apply the moment triage creates them (DESIGN §5 posture change): the drain skips
+    # requires_human_approval tasks, honors the queue pause switch, and single-flights.
+    background.add_task(background_work.drain_queued_repair_tasks)
     return await _action_out(session, run.id)
 
 
@@ -259,6 +265,34 @@ async def get_production_run_repair_tasks(run_id: uuid.UUID, session: SessionDep
     return [RepairTaskOut.model_validate(row) for row in rows]
 
 
+@router.post("/production-runs/{run_id}/repair-tasks/apply-all", response_model=RepairApplyAllOut)
+async def apply_all_repair_tasks(
+    run_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
+) -> RepairApplyAllOut:
+    """One click drains the run's queued repair tasks (same drain the auto-triggers use — the button
+    and the background loop share one path). Tasks needing Approve & apply are counted, never applied."""
+    rows = await production.production_run_repair_tasks(session, run_id)
+    queued = [t for t in rows if t.status == "queued"]
+    eligible = [t for t in queued if not t.requires_human_approval]
+    requires_approval = sum(
+        1 for t in rows if t.requires_human_approval and t.status in ("queued", "waiting_for_human")
+    )
+    running = background_work.repair_drain_locked()
+    paused = background_work.queue_paused()
+    scheduled = False
+    if eligible and not running and not paused:
+        background.add_task(background_work.drain_queued_repair_tasks)
+        scheduled = True
+        running = True
+    return RepairApplyAllOut(
+        scheduled=scheduled,
+        queued=len(eligible),
+        requires_approval=requires_approval,
+        running=running,
+        queue_paused=paused,
+    )
+
+
 @router.post("/repair-tasks/{task_id}/apply", response_model=RepairTaskOut)
 async def apply_repair_task(task_id: uuid.UUID, session: SessionDep, background: BackgroundTasks) -> RepairTaskOut:
     try:
@@ -279,13 +313,36 @@ async def run_repair_task(task_id: uuid.UUID, session: SessionDep, background: B
     return await apply_repair_task(task_id, session, background)
 
 
+@router.post("/repair-tasks/{task_id}/approve-apply", response_model=RepairTaskOut)
+async def approve_and_apply_repair_task(
+    task_id: uuid.UUID, body: IssueDecisionIn | None, session: SessionDep, background: BackgroundTasks
+) -> RepairTaskOut:
+    """Explicit human approval for a requires_human_approval task, then the normal apply. This is the
+    ONLY path that executes such a task — plain /apply parks it waiting_for_human, and the background
+    drain skips it. Chapter-scoped tasks fan out into one revision job per member scene."""
+    try:
+        task = await production.apply_repair_task(
+            session, task_id, human_approved=True, approval_reason=body.reason if body else None
+        )
+    except ValueError as exc:
+        raise _raise_for_value_error(exc) from exc
+    await session.commit()
+    # Same kick as /apply: the fan-out queues revision Jobs that nothing else would drain here.
+    background.add_task(background_work.drain_queued_jobs)
+    return RepairTaskOut.model_validate(task)
+
+
 @router.post("/repair-tasks/{task_id}/verify", response_model=RepairVerificationOut)
-async def verify_repair_task(task_id: uuid.UUID, session: SessionDep) -> RepairVerificationOut:
+async def verify_repair_task(
+    task_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
+) -> RepairVerificationOut:
     try:
         verification = await production.verify_repair_task(session, task_id)
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    # NEEDS_ANOTHER_REPAIR re-queues the task — pick it straight back up instead of letting it sit.
+    background.add_task(background_work.drain_queued_repair_tasks)
     return RepairVerificationOut.model_validate(verification)
 
 

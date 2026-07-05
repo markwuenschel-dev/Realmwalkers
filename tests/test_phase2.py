@@ -336,7 +336,7 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
     async with db_factory() as s:
         sc = (await s.execute(select(Scene).where(Scene.scene_no == 1))).scalars().first()
         detail = await scene_detail(sc.id, s)
-        hard = [c for c in detail.critiques if c.severity == "hard" and c.reviewer == "continuity"]
+        hard = [c for c in detail.critiques if c.severity == "block" and c.reviewer == "continuity"]
         assert len(hard) == 1  # the reviewer flagged it on its own
         assert hard[0].payload["attribute"] == "level"
         assert hard[0].payload["prose_value"] == "7"
