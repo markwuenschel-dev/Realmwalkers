@@ -1,19 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
 import { wordCount } from "../lib/format";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
+import { severityLabel, severityVar } from "../lib/severity";
 import { useSelection } from "../lib/useSelection";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import BulkBar, { BulkButton } from "../components/BulkBar";
+import GateDisclosure from "../components/GateDisclosure";
 import { Button, Chip, Panel } from "../components/ui";
 import type { ChipTone } from "../components/ui";
 import type { ChaptersView } from "../types";
-import type { ChapterOut, ChapterUpdateIn, ManuscriptChapter, SceneOut } from "../api/types";
+import type {
+  ChapterOut,
+  ChapterPipelineOut,
+  ChapterUpdateIn,
+  ManuscriptChapter,
+  SceneOut,
+} from "../api/types";
 import type { ExportKind } from "../lib/docx";
 
 const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = {
@@ -24,11 +33,47 @@ const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = 
   superseded: "dim",
 };
 
+// Production-run status → tone (run-status vocabulary, distinct from scene status and severity).
+const RUN_TONE: Record<string, ChipTone> = {
+  completed: "good",
+  approved: "good",
+  repairing: "warn",
+  waiting_for_human: "warn",
+  waiting_for_scene_drafts: "warn",
+  blocked: "bad",
+  failed: "bad",
+  cancelled: "neutral",
+  running: "info",
+  queued: "info",
+};
+
+// Canonical severity display order for the violation mini-chips.
+const SEVERITY_ORDER = ["block", "repair", "warn", "info"];
+
 export default function ChaptersScreen() {
   const desk = useDesk();
   const data = useDeskData();
+  const router = useRouter();
   // Tab-switch cost, visible in the console (provider data is cached, so revisits log ~0ms).
   useTabLoadTiming("chapters", !data.loading);
+
+  // Pipeline overview — one batched request for the whole book (packet state, contract/prose
+  // coverage, violations, draft gate, latest run). NOT wired into the provider poll loop: it loads
+  // on mount and refreshes after actions that change it, or via the ⟳ button. A fetch failure keeps
+  // whatever rendered before; strips show a placeholder instead of blocking the panels.
+  const [overview, setOverview] = useState<Map<string, ChapterPipelineOut> | null>(null);
+  const loadOverview = useCallback(async () => {
+    if (!data.bookId) return;
+    try {
+      const rows = await api.chaptersOverview(data.bookId);
+      setOverview(new Map(rows.map((r) => [r.chapter_id, r])));
+    } catch {
+      setOverview((prev) => prev ?? new Map());
+    }
+  }, [data.bookId]);
+  useEffect(() => {
+    void loadOverview();
+  }, [loadOverview]);
 
   // current state of each (chapter, scene) — derived once in the data layer. A latest row can only be
   // `superseded` when the scene was rejected (revisions create a newer version, so a superseded row is
@@ -56,9 +101,17 @@ export default function ChaptersScreen() {
       const sc = latest.find((s) => s.id === id);
       if (sc) byChapter.set(sc.chapter_id, [...(byChapter.get(sc.chapter_id) ?? []), id]);
     }
+    const queued = sel.count;
     sel.clear();
     await Promise.allSettled([...byChapter].map(([cid, ids]) => api.redraftScenes(cid, ids)));
     await data.draftNext();
+    if (data.jobs.queue_paused) {
+      data.pushToast({
+        tone: "warn",
+        message: `Queued ${queued} redraft${queued === 1 ? "" : "s"} — the queue is paused; they draft after you resume`,
+      });
+    }
+    void loadOverview();
   };
 
   // Per-chapter export: the same Markdown / Reader-DOCX / Shunn-DOCX builders the Manuscript tab uses,
@@ -116,6 +169,7 @@ export default function ChaptersScreen() {
       setWriteFor(null);
       setSceneNo("");
       setProse("");
+      void loadOverview();
     } finally {
       setBusy(false);
     }
@@ -169,6 +223,14 @@ export default function ChaptersScreen() {
           </p>
         </div>
         <div style={css("display:flex;gap:6px")}>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Re-fetch the per-chapter pipeline facts (packet, contracts, production, gate)"
+            onClick={() => void loadOverview()}
+          >
+            ⟳ Refresh pipeline
+          </Button>
           {chViewItems.map((v) => {
             const active = desk.chaptersView === v.id;
             return (
@@ -214,9 +276,14 @@ export default function ChaptersScreen() {
         <Panel eyebrow="Pacing · per chapter" pad="20px 22px">
           <div style={css("display:flex;flex-direction:column;gap:18px")}>
             {data.chapters.length === 0 && (
-              <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>
-                No chapters yet — plan one from the Inbox.
-              </span>
+              <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
+                <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>
+                  No chapters yet — plan one from the Inbox.
+                </span>
+                <Button size="sm" onClick={() => router.push("/inbox")}>
+                  Go to Inbox
+                </Button>
+              </div>
             )}
             {[...data.chapters]
               .sort((a, b) => a.chapter_no - b.chapter_no)
@@ -266,6 +333,13 @@ export default function ChaptersScreen() {
                         )}
                       />
                     </div>
+                    {overview !== null && (
+                      <ChapterPipelineStrip
+                        row={overview.get(c.id) ?? null}
+                        onOpenPackets={() => router.push(`/packets?chapter=${c.id}`)}
+                        onOpenProduction={() => router.push(`/production?chapter=${c.id}`)}
+                      />
+                    )}
                     <ChapterMetaControls
                       chapter={c}
                       onSave={(patch) => void data.updateChapter(c.id, patch)}
@@ -311,6 +385,15 @@ export default function ChaptersScreen() {
                               size="sm"
                               variant="primary"
                               disabled={busy || !sceneNo.trim() || !prose.trim()}
+                              title={
+                                busy
+                                  ? "Saving…"
+                                  : !sceneNo.trim()
+                                    ? "Enter a scene number first"
+                                    : !prose.trim()
+                                      ? "Write the prose first"
+                                      : "Save as an approved human-authored section"
+                              }
                               onClick={() => void saveSection(c.id)}
                             >
                               {busy ? "Saving…" : "Save section"}
@@ -487,8 +570,167 @@ export default function ChaptersScreen() {
       )}
 
       <BulkBar count={sel.count} noun="scene" onClear={sel.clear}>
-        <BulkButton onClick={() => void redraftSelected()}>Re-draft selected</BulkButton>
+        <BulkButton
+          onClick={() => void redraftSelected()}
+          title={
+            data.jobs.queue_paused
+              ? "Queue is paused — redrafts queue now and draft after you resume"
+              : "Queue a fresh draft for each selected scene"
+          }
+        >
+          Re-draft selected
+        </BulkButton>
       </BulkBar>
+    </div>
+  );
+}
+
+// The per-chapter pipeline strip: packet → contracts+prose → production → draft gate, each segment
+// a click away from the tab that acts on it. Renders from ONE batched overview row; `row` is null
+// when the overview fetch failed — show a quiet placeholder, never block the chapter panels.
+function ChapterPipelineStrip({
+  row,
+  onOpenPackets,
+  onOpenProduction,
+}: {
+  row: ChapterPipelineOut | null;
+  onOpenPackets: () => void;
+  onOpenProduction: () => void;
+}) {
+  if (!row) {
+    return (
+      <div style={css("margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+        pipeline — (unavailable; use ⟳ Refresh pipeline)
+      </div>
+    );
+  }
+
+  const packetChip: { label: string; tone: ChipTone } =
+    row.packet_approval_state == null
+      ? { label: "no packet", tone: "neutral" }
+      : row.packet_approval_state === "blocked"
+        ? { label: "packet blocked", tone: "bad" }
+        : row.packet_approval_state === "open_questions"
+          ? { label: "open questions", tone: "warn" }
+          : row.packet_approval_state === "already_approved"
+            ? { label: "packet approved", tone: "good" }
+            : { label: "packet proposed", tone: "info" };
+
+  // Fold raw severity tokens (legacy "hard" → block) and sum, in canonical severity order.
+  const folded = new Map<string, number>();
+  for (const [sev, n] of Object.entries(row.violation_counts ?? {})) {
+    const label = severityLabel(sev);
+    folded.set(label, (folded.get(label) ?? 0) + (n ?? 0));
+  }
+  const severityRank = (label: string) => {
+    const i = SEVERITY_ORDER.indexOf(label);
+    return i === -1 ? SEVERITY_ORDER.length : i; // unknown tokens sort last
+  };
+  const violations = [...folded.entries()].sort((a, b) => severityRank(a[0]) - severityRank(b[0]));
+
+  const run = row.latest_run;
+  const gateRows = [
+    {
+      label: "Chapter packet · contract",
+      pass: row.packet_approval_state === "already_approved",
+      detail: row.packet_approval_state?.replace(/_/g, " ") ?? "no packet yet",
+    },
+    {
+      label: "Scene contracts",
+      pass: row.scene_packets_total > 0 && row.scene_packets_approved === row.scene_packets_total,
+      detail:
+        `${row.scene_packets_approved}/${row.scene_packets_total} approved` +
+        (row.scene_packets_stale ? ` · ${row.scene_packets_stale} stale` : "") +
+        (row.scene_packets_rate_limited ? ` · ${row.scene_packets_rate_limited} rate-limited` : ""),
+    },
+    {
+      label: "Prose coverage · prose draft",
+      pass: row.assembly_ready,
+      detail: `${row.scenes_with_prose}/${row.expected_scenes} scenes have prose`,
+    },
+    {
+      label: "Draft jobs",
+      pass: row.active_draft_jobs === 0,
+      detail:
+        row.active_draft_jobs === 0
+          ? "idle"
+          : `${row.active_draft_jobs} active — scenes may still be arriving`,
+    },
+    {
+      label: "Provider",
+      pass: !row.provider_rate_limited,
+      detail: row.provider_rate_limited ? "rate limited (429) — transient; retry shortly" : "ok",
+    },
+  ];
+
+  const arrow = <span style={css("color:var(--dim);opacity:.5;flex:none")}>→</span>;
+  return (
+    <div style={css("margin-top:8px;display:flex;flex-direction:column;gap:6px")}>
+      <div style={css("display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+        <Chip
+          label={packetChip.label}
+          tone={packetChip.tone}
+          size="sm"
+          onClick={onOpenPackets}
+          title={
+            row.packet_approval_blockers[0] ?? "Chapter packet — the contract drafting works from"
+          }
+        />
+        {arrow}
+        <span
+          onClick={onOpenPackets}
+          title="Scene contracts + prose coverage — opens the Packets tab"
+          style={css(
+            "cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--dim);display:inline-flex;align-items:center;gap:6px",
+          )}
+        >
+          contracts {row.scene_packets_approved}/{row.scene_packets_total} · prose{" "}
+          {row.scenes_with_prose}/{row.expected_scenes}
+          {violations.map(([label, count]) =>
+            count > 0 ? (
+              <Chip
+                key={label}
+                label={`${count} ${label}`}
+                colorVar={severityVar(label)}
+                size="sm"
+                title="Contract QA findings across this chapter's scene packets — block gates drafting, repair gates final export"
+              />
+            ) : null,
+          )}
+        </span>
+        {arrow}
+        {run ? (
+          <span
+            onClick={onOpenProduction}
+            title={run.current_stage ?? "queued"}
+            style={css(
+              "cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
+            )}
+          >
+            <Chip
+              label={run.status.replace(/_/g, " ")}
+              tone={RUN_TONE[run.status] ?? "neutral"}
+              size="sm"
+            />
+            {run.issue_count} issues · {run.repair_task_count} repairs
+          </span>
+        ) : (
+          <span
+            onClick={onOpenProduction}
+            title="No production runs yet — opens the Production tab"
+            style={css("cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}
+          >
+            no runs
+          </span>
+        )}
+        {arrow}
+        <Chip
+          label={row.can_draft ? "ready to draft" : "not ready"}
+          tone={row.can_draft ? "good" : "warn"}
+          size="sm"
+        />
+      </div>
+      {!row.can_draft && <GateDisclosure lead={row.disabled_reason} rows={gateRows} />}
     </div>
   );
 }
