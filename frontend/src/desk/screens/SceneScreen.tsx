@@ -182,6 +182,27 @@ export default function SceneScreen() {
     [data.chapters, cur?.chapter_id],
   );
 
+  // Chapter-order navigation: the ‹ › arrows page through THIS chapter's scenes by scene_no (not the
+  // pending-review queue), so you can advance through the whole chapter even when only one scene is
+  // pending review. Falls back to the old queue nav only when the loaded scene has no chapter context.
+  const chapterScenes = useMemo(
+    () =>
+      (data.latestScenes ?? [])
+        .filter((s) => s.chapter_id === cur?.chapter_id)
+        .sort((a, b) => a.scene_no - b.scene_no),
+    [data.latestScenes, cur?.chapter_id],
+  );
+  const chapterPos = cur ? chapterScenes.findIndex((s) => s.id === cur.id) : -1;
+  const goPrevScene = () => {
+    if (chapterPos > 0) desk.openSceneId(chapterScenes[chapterPos - 1].id);
+    else if (chapterPos < 0) desk.prevScene();
+  };
+  const goNextScene = () => {
+    if (chapterPos >= 0 && chapterPos < chapterScenes.length - 1)
+      desk.openSceneId(chapterScenes[chapterPos + 1].id);
+    else if (chapterPos < 0) desk.nextScene();
+  };
+
   const editing = desk.mode === "editing";
   const suggesting = desk.mode === "suggesting";
   const showMarks = !editing;
@@ -646,20 +667,28 @@ export default function SceneScreen() {
         >
           <div style={css("display:flex;align-items:center;gap:8px")}>
             <button
-              onClick={desk.prevScene}
-              title="Previous (k)"
+              onClick={goPrevScene}
+              title="Previous scene"
+              disabled={chapterPos === 0}
               style={css(
-                "width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer",
+                `width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer${chapterPos === 0 ? ";opacity:.4;cursor:default" : ""}`,
               )}
             >
               ‹
             </button>
-            <span>{focused ? "out of queue" : `${idx + 1} / ${pending.length}`}</span>
+            <span>
+              {chapterPos >= 0
+                ? `Scene ${cur.scene_no} · ${chapterPos + 1}/${chapterScenes.length}`
+                : focused
+                  ? "out of queue"
+                  : `${idx + 1} / ${pending.length}`}
+            </span>
             <button
-              onClick={desk.nextScene}
-              title="Next (j)"
+              onClick={goNextScene}
+              title="Next scene"
+              disabled={chapterPos >= 0 && chapterPos === chapterScenes.length - 1}
               style={css(
-                "width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer",
+                `width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);cursor:pointer${chapterPos >= 0 && chapterPos === chapterScenes.length - 1 ? ";opacity:.4;cursor:default" : ""}`,
               )}
             >
               ›
