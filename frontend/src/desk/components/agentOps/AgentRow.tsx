@@ -79,6 +79,7 @@ interface AgentRowProps {
   onSetSemanticEscalation: (setting: string, enabled: boolean) => void;
   onSetAutoRun: (setting: string, enabled: boolean) => void;
   onSetNeverFallback: (setting: string, tiers: string[]) => void;
+  onSetBackend: (setting: string, backend: string) => void;
 }
 
 export function AgentRow({
@@ -92,6 +93,7 @@ export function AgentRow({
   onSetSemanticEscalation,
   onSetAutoRun,
   onSetNeverFallback,
+  onSetBackend,
 }: AgentRowProps) {
   const [open, setOpen] = useState(false);
   const a = agent;
@@ -244,6 +246,25 @@ export function AgentRow({
                 </div>
               )}
             </div>
+            <div data-testid="backend-toggle">
+              <Eyebrow style="margin-bottom:6px">Backend</Eyebrow>
+              <BackendToggle
+                active={a.policy.backend ?? "llm"}
+                disabled={busy || a.provider !== "anthropic"}
+                onPick={(backend) => onSetBackend(a.setting, backend)}
+              />
+              <div
+                style={css(
+                  "font-size:11px;color:var(--dim);margin-top:4px;max-width:220px;line-height:1.5",
+                )}
+              >
+                {a.provider !== "anthropic"
+                  ? "Agent CLI needs an Anthropic model"
+                  : (a.policy.backend ?? "llm") === "agent_cli"
+                    ? "runs via the Claude Code CLI (subscription auth)"
+                    : "calls the HTTP API (default)"}
+              </div>
+            </div>
           </div>
 
           <div style={css("display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px")}>
@@ -389,6 +410,50 @@ function TierButtons({
             )}
           >
             {labels[tier] ?? tier}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Two-button segmented control: HTTP API ("LLM") vs the Claude Code CLI subprocess ("Agent"). The
+// model is unchanged either way — only HOW it's called. Guarded disabled for non-Anthropic roles
+// (the CLI can only drive an Anthropic model), with a hint rendered by the caller.
+function BackendToggle({
+  active,
+  disabled,
+  onPick,
+}: {
+  active: string;
+  disabled: boolean;
+  onPick: (backend: string) => void;
+}) {
+  const options: { value: string; label: string }[] = [
+    { value: "llm", label: "LLM" },
+    { value: "agent_cli", label: "Agent" },
+  ];
+  return (
+    <div
+      style={css(
+        `display:flex;padding:3px;gap:2px;background:var(--bg3);border:1px solid var(--line);border-radius:9px;opacity:${disabled ? ".6" : "1"}`,
+      )}
+    >
+      {options.map((opt) => {
+        const on = active === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              if (!on) onPick(opt.value);
+            }}
+            style={css(
+              `padding:5px 12px;border:none;border-radius:7px;cursor:${disabled ? "default" : "pointer"};font-family:var(--ui);font-size:12px;background:${on ? "var(--accent)" : "transparent"};color:${on ? "var(--onAccent)" : "var(--dim)"};font-weight:${on ? "600" : "400"}`,
+            )}
+          >
+            {opt.label}
           </button>
         );
       })}

@@ -455,6 +455,32 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/chapters/{chapter_id}/scenes/{scene_no}/redraft": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Redraft Scene
+     * @description One-click re-draft of a single deleted/undrafted scene, scoped to ONE scene_no.
+     *
+     *     Deleting a scene keeps its beat but marks the slot's ScenePacket STALE ("scene deleted"), and
+     *     contract-first drafting is fail-closed on an approved, non-stale packet — so the beat is left
+     *     "undrafted" yet unqueueable. This re-approves that STALE packet (flip STALE → APPROVED, clear
+     *     stale_reason), then queues a draft job for just this scene's approved beat and kicks the drain.
+     *     Never touches the rest of the chapter, and never force-approves a BLOCKED/RATE_LIMITED packet.
+     */
+    post: operations["redraft_scene_chapters__chapter_id__scenes__scene_no__redraft_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/draft": {
     parameters: {
       query?: never;
@@ -2879,6 +2905,11 @@ export interface components {
        * @default balanced
        */
       quality_level: string;
+      /**
+       * Backend
+       * @default llm
+       */
+      backend: string;
     };
     /** AgentPolicyUpdateIn */
     AgentPolicyUpdateIn: {
@@ -2892,6 +2923,8 @@ export interface components {
       semantic_escalation?: boolean | null;
       /** Quality Level */
       quality_level?: string | null;
+      /** Backend */
+      backend?: string | null;
       permissions?: components["schemas"]["AgentPermissionsPatchIn"] | null;
     };
     /** AgentPresetOut */
@@ -7518,6 +7551,38 @@ export interface operations {
         "application/json": components["schemas"]["RedraftIn"];
       };
     };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DraftScheduleOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  redraft_scene_chapters__chapter_id__scenes__scene_no__redraft_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+        scene_no: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       /** @description Successful Response */
       200: {

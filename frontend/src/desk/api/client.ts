@@ -249,6 +249,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ scene_ids: sceneIds } satisfies RedraftIn),
     }),
+  // One-click re-draft of a single deleted/undrafted scene: re-approve its STALE scene packet and
+  // queue a fresh draft for just that scene (kicks the drain server-side). Scoped to one scene_no.
+  redraftScene: (chapterId: string, sceneNo: number) =>
+    http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/scenes/${sceneNo}/redraft`, {
+      method: "POST",
+    }),
   draftChapter: (chapterId: string) =>
     http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/draft`, {
       method: "POST",
@@ -483,6 +489,7 @@ export const api = {
       never_fallback?: string[] | null;
       semantic_escalation?: boolean | null;
       quality_level?: string | null;
+      backend?: string | null;
       permissions?: { auto_run?: boolean } | null;
     },
   ) =>

@@ -286,6 +286,7 @@ async def author_scene_packet(
             max_tokens=max_tokens,
             budget=budget,
             input_budget=settings.scene_packet_author_prompt_budget,
+            setting_key="scene_packet_author_model",
         )
         body = extract_object(raw)
         attempts.append((model, max_tokens, body, usage))

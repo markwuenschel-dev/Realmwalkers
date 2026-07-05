@@ -8,6 +8,8 @@ from typing import Any, Literal
 from dominion.shared.agent_registry import AGENT_BY_KEY, AGENTS, AgentDefinition, AgentPermissions
 
 QualityLevel = Literal["fast", "balanced", "quality"]
+AgentBackend = Literal["llm", "agent_cli"]
+_BACKENDS: frozenset[str] = frozenset({"llm", "agent_cli"})
 
 # temperature steers older / Haiku Anthropic + OpenAI/xAI; effort (output_config.effort) steers the
 # Anthropic flagship models that dropped sampling params (Opus 4.7+, Sonnet 5, Fable 5). llm.complete
@@ -41,6 +43,9 @@ class ResolvedAgentPolicy:
     can_only_suggest: bool
     quality_level: QualityLevel
     semantic_escalation: bool
+    # "llm" (default) calls the Anthropic/OpenAI HTTP API; "agent_cli" routes this role's generation
+    # through the Claude Code CLI subprocess (workers/agent_cli.py). Orthogonal to the model choice.
+    backend: AgentBackend
     temperature: float
     effort: str  # Anthropic output_config.effort (low/medium/high) for models that reject `temperature`
     prompt_suffix: str
@@ -76,6 +81,9 @@ def resolve_policy(agent: AgentDefinition, policy_json: dict[str, Any] | None) -
     else:
         never_set = frozenset(str(t) for t in never_fb)
     semantic_default = agent.setting_key in ("packet_qa_model", "scene_packet_qa_model", "review_model")
+    backend = pj.get("backend", "llm")
+    if backend not in _BACKENDS:
+        backend = "llm"
     return ResolvedAgentPolicy(
         setting_key=agent.setting_key,
         auto_run=perms.auto_run,
@@ -87,6 +95,7 @@ def resolve_policy(agent: AgentDefinition, policy_json: dict[str, Any] | None) -
         can_only_suggest=perms.can_only_suggest,
         quality_level=ql,  # type: ignore[arg-type]
         semantic_escalation=bool(pj.get("semantic_escalation", semantic_default)),
+        backend=backend,  # type: ignore[arg-type]
         temperature=float(profile["temperature"]),
         effort=str(profile["effort"]),
         prompt_suffix=str(profile.get("prompt_suffix", "")),
@@ -114,6 +123,15 @@ def get_runtime_policy(setting_key: str) -> ResolvedAgentPolicy:
 
 def agent_auto_run(setting_key: str) -> bool:
     return get_runtime_policy(setting_key).auto_run
+
+
+def agent_backend(setting_key: str) -> str:
+    """The resolved generation backend for a role ("llm" or "agent_cli"). Unknown keys fall back to
+    "llm" so a caller threading an unregistered setting_key never breaks — the safe, current behavior."""
+    try:
+        return get_runtime_policy(setting_key).backend
+    except KeyError:
+        return "llm"
 
 
 def quality_temperature(setting_key: str) -> float:

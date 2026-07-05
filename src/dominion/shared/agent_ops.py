@@ -128,6 +128,7 @@ def _policy_from_live(agent: AgentDefinition, override: AgentPolicyOverride | No
         escalation_rules=_escalation_rules(agent),
         semantic_escalation=resolved.semantic_escalation,
         quality_level=resolved.quality_level,
+        backend=resolved.backend,
     )
 
 
@@ -509,6 +510,7 @@ async def apply_agent_policy(
     never_fallback: list[str] | None = None,
     semantic_escalation: bool | None = None,
     quality_level: str | None = None,
+    backend: str | None = None,
     permissions: AgentPermissionsPatchIn | None = None,
 ) -> AgentOpsOut:
     agent = next((a for a in AGENTS if a.setting_key == setting_key), None)
@@ -545,6 +547,14 @@ async def apply_agent_policy(
         if quality_level not in ("fast", "balanced", "quality"):
             raise ValueError("quality_level must be fast, balanced, or quality")
         policy_json["quality_level"] = quality_level
+    if backend is not None:
+        if backend not in ("llm", "agent_cli"):
+            raise ValueError("backend must be llm or agent_cli")
+        # The CLI can only drive an Anthropic model — guard here so the role can't be flipped to the
+        # agent_cli backend while pointed at an OpenAI/xAI/Gemini model (the CLI has no such model).
+        if backend == "agent_cli" and provider_of(getattr(settings, setting_key)) != "anthropic":
+            raise ValueError("agent_cli backend requires an Anthropic model for this role")
+        policy_json["backend"] = backend
     if permissions is not None:
         perm_patch = permissions.model_dump(exclude_none=True)
         if perm_patch:

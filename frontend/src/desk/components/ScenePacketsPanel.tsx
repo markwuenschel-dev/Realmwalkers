@@ -582,6 +582,9 @@ export function ScenePacketsPanel({
                 exportingKind={exportingScene?.packetId === p.id ? exportingScene.kind : null}
                 onExport={(scene, kind) => void exportScene(p.id, scene, kind)}
                 onApprove={() => run(`approve:${p.id}`, () => api.approveScenePacket(p.id))}
+                onRedraft={() =>
+                  run(`redraft:${p.id}`, () => api.redraftScene(chapterId, p.scene_no))
+                }
                 onReQa={() => run(`qa:${p.id}`, () => api.qaScenePacket(p.id))}
                 onSave={(body) => run(`save:${p.id}`, () => api.updateScenePacket(p.id, { body }))}
                 onDelete={() => {
@@ -811,6 +814,7 @@ function ScenePacketCard({
   exportingKind,
   onExport,
   onApprove,
+  onRedraft,
   onReQa,
   onSave,
   onDelete,
@@ -825,6 +829,7 @@ function ScenePacketCard({
   exportingKind: ExportKind | null;
   onExport: (scene: SceneOut, kind: ExportKind) => void;
   onApprove: () => void;
+  onRedraft: () => void;
   onReQa: () => void;
   onSave: (body: ScenePacketBody) => void;
   onDelete: () => void;
@@ -876,7 +881,12 @@ function ScenePacketCard({
   // Per-action busy flags (the panel keys busy as "<action>:<id>"). cardBusy disables every action on
   // this card while any one of them is in flight.
   const mine = (action: string) => busy === `${action}:${summary.id}`;
-  const cardBusy = mine("approve") || mine("qa") || mine("save") || mine("delete");
+  const cardBusy =
+    mine("approve") || mine("qa") || mine("save") || mine("delete") || mine("redraft");
+  // A stale packet with no drafted prose is the deleted-scene case: offer a one-click re-draft that
+  // re-approves the contract and queues a fresh draft for just this scene.
+  const sceneHasProse = !!(scene && (scene.prose ?? "").trim());
+  const canRedraft = summary.status === "stale" && !sceneHasProse;
 
   return (
     <Panel pad="13px 15px" style={`border-left:3px solid var(${statusVar})`}>
@@ -976,6 +986,23 @@ function ScenePacketCard({
       {summary.status === "stale" && summary.stale_reason && (
         <div style={css("font-family:var(--mono);font-size:11px;color:var(--warn);margin-top:7px")}>
           stale: {summary.stale_reason} — re-derive or re-approve before drafting.
+        </div>
+      )}
+      {/* Deleted-scene recovery: the slot's contract is stale and no prose exists, so offer a single
+          action that re-approves this scene packet and queues a fresh draft for just this scene. */}
+      {canRedraft && (
+        <div style={css("margin-top:8px")}>
+          <span onClick={(e) => e.stopPropagation()} style={css("display:inline-flex")}>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={cardBusy}
+              title="Re-approve this scene's contract and queue a fresh draft for just this scene — use after deleting a scene by accident."
+              onClick={onRedraft}
+            >
+              {mine("redraft") ? "Re-drafting…" : "Re-draft this scene"}
+            </Button>
+          </span>
         </div>
       )}
       {!editing && !bodyValid && !isRateLimited && summary.status !== "approved" && (

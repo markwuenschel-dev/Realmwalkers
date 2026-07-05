@@ -158,6 +158,7 @@ async def prime_qa_shared_prefix(
             "chapter_shared_prefix": estimate_tokens(prefix_blocks[0].text),
             "prime_suffix": estimate_tokens(user),
         },
+        setting_key="scene_packet_qa_model",
     )
 
 
@@ -191,6 +192,7 @@ async def qa_scene_packet(
             context_window_budget=settings.scene_packet_context_window_budget,
             context_sections=context_sections_for_qa_call(prefix_blocks=prefix_blocks, user=user),
             input_budget=settings.scene_packet_qa_prompt_budget,
+            setting_key="scene_packet_qa_model",
         )
         return parse_scene_qa(raw), usage
 
