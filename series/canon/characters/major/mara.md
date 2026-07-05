@@ -21,7 +21,7 @@ status: active
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
 | Soul Level | TBD — deferred (do not assign) |
-| Age | TBD |
+| Age | 26 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | Semi-rural outskirts of an average-sized city; average household |
 | Guild Role (Earth) | Glacial Arcanist / Control Mage — positional setup and assassin-function tandem with Serra Hawthorne **(both Dead Hand)** |
 | Realm Role | Specular Salience Transducer — full spectrum attention operator |

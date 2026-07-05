@@ -107,6 +107,7 @@
 | R-03 | 🟡 | At what point does Seb's path put him in direct conflict with Marcus? | The mirror-rival dynamic needs a collision point. |
 | R-04 | 🟢 | Does Serra ever tell Marcus what the solo arc cost her? | Affects intimacy arc. May be a late-series beat. |
 | R-05 | ✅ RESOLVED | **Serra's one rule** — the single armor-line that governs the kiss and the severance | **"I don't ask people to stay" (CCB-007 R-5).** Her oldest armor; the "after" motif at the character-rule level. *Enacted* at the second kiss (takes the *now*, never asks the *after*); *cost-breaks* at the severance (she cuts the bond to keep from asking — the rule, held, finally breaks her). **Never stated on the page; never collapse into the Myrmidon "being seen" beat.** Owner: `serra_hawthorne.md` (+ `marcus_serra_relationship.md` §8). |
+| R-06 | 🟢 | **Duel Ladder placement** — where each Marcus⇄Serra fight lands | **Shape locked, placement open.** Five recurring fights with distinct outcomes. **Only Fight 0 (Aetherfall: Genesis — Aspect vs. Rogue) is in Book 1** (= the Earth scrim / SCENE-001, **locked**). **Fights 1–4 are Book 2 onward** — series **trajectory** across the rest of the arc (Mage vs Warrior → Planar Mage vs Tempest → Realmwalker vs Worldbreaker → apex unique-vs-unique). Full shape: `marcus_serra_relationship.md` §18; outcomes locked in **INV-1 Axis G**. Assign chapter/act when a scene needs it; **do not add a Marcus⇄Serra Realm duel into the locked Book-1 spine.** Keep Fight 2 (neither knows) and Fight 4 (both know Marcus would win) distinct. |
 
 ---
 

@@ -34,7 +34,8 @@ Shared canon lives under `series/` (`canon/`, `style/`, `voice/`); each book's p
 |---|---|
 | Relational invariants (standing, recognition, dynamic) | `relationship_invariants.md` |
 | Relationships; Marcus↔Serra; the Earth Thing (ordinary description; **defers to `relationship_invariants.md`** on any standing/recognition/dynamic fact) | `relationship_map.md` |
-| The **Marcus–Serra relationship** — conflict engine, progression, motifs, guardrails (the series-spine pairing; governs with INV-1/INV-3 + `forbidden_drift.md` #10; does **not** own chapter placement or days) | `characters/marcus_serra_relationship.md` |
+| The **Marcus–Serra relationship** — conflict engine, progression, motifs, guardrails, the **Duel Ladder** (§18), **Story-Ownership** (§19) (the series-spine pairing; governs with INV-1/INV-3 + `forbidden_drift.md` #10; does **not** own chapter placement or days) | `characters/marcus_serra_relationship.md` |
+| **Character ages** (locks) | `characters/cast_index.md` → Character Age Locks |
 | How relationships are *written* (Critic enforcement; RR1–RR8) — **style**-tier, sibling to `prose_clarity_rules.md` | `relational_clarity_rules.md` |
 | Power models (Character-Origin + Realm power stack), cast power table | `character_power_architecture.md` |
 | Class taxonomy, rarity tiers, specializations | `classes.md` |

@@ -21,7 +21,7 @@ status: active
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
 | Soul Level | TBD — deferred (do not assign) |
-| Age | TBD |
+| Age | 33 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | TBD |
 | Guild Role (Earth) | Guild Leader — Aetherfall top-25 roster |
 | Realm Role | Warrior + Reaver specialization (consumes others) · Pyric Blood interface (consumes self) — mirror-rival to Marcus |

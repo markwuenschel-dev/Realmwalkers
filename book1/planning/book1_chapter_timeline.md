@@ -58,6 +58,7 @@ status: working
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · *Serra* · ~Days 1–3 · **(inserted; lettered to avoid renumbering Chs 7–30 — see Open Questions)**
 - Serra wakes in the Realm; **Marcus absent / presumed unreachable.** Her first true POV chapter — graduating her from interlude to deuteragonist (§9).
+- She wakes **unarmed** (a Muay Thai striker) and **arms herself by disarming a first-blood threat and taking its weapon** — the weapon she still carries at the Ch-8 reunion; establishes competence and self-reliance without naming a class (interface dormant). (`book1_chapter_plan.md` 6A.2; `scene_queue.md` Act-3 power-state.)
 - **The full altana flashback lands here — her side, her misread** (option C). The celebration / altana / **Discord origin** content is delivered now, as flashback: the reader learns she believed she'd **left an opening**, which **retro-charges "See you after, Marcus."** (`marcus_serra_relationship.md` §4, §9.)
 - Establishes what the kiss and Discord meant to her, her present-tense authorship, and the suppressed romantic charge (INV-1 Axis C) — and opens her Book-1 throughline.
 
@@ -67,7 +68,7 @@ status: working
 
 **Ch 7 — Alone** · Day 3–7 · Survival (water, shelter, first cost); the Eyes wake involuntarily; Illyri established with limits. Finds the road.
 
-**Ch 8 — The Road** · Day ~7 · **Marcus nearly walks into Serra** — both at zero, she has a blade and he has nothing, the Earth Thing immediately present and unaddressed. They fall into step.
+**Ch 8 — The Road** · Day ~7 · **Marcus nearly walks into Serra** — both at zero, she's armed with a weapon she took off an opponent and he has nothing, the Earth Thing immediately present and unaddressed. They fall into step.
 
 **Ch 9 — The Caravan** · Day ~8 · Dara, Cael (Dara's brother), **Vaeli** (the elven child — injured, early interface sensitivity). A crew of **charter inspectors** (false authority — *bandits wearing bureaucracy*) stops them. **First live use of the Neurochromatic interface** — partial, strange notification; Marcus's social puncture of the *performance* + Serra's repositioning; the inspectors retreat *having gotten what they needed* — they **mark Vaeli** (false-rescue seed).
 
