@@ -39,13 +39,16 @@ function gatesFromSeverity(severity: PacketViolationSeverity) {
 }
 
 /** Normalize one raw violation/issue to the guaranteed machine-readable shape. Persisted `blocks_*`
- *  booleans win; missing ones derive from severity; unknown severity degrades to `warn`. */
+ *  booleans win; missing ones derive from severity; unknown severity degrades to `warn`. Legacy
+ *  `hard` (the pre-unification spelling of `block`, kept forever in JSON snapshots) normalizes to
+ *  `block` — degrading it to `warn` would strip a blocker's gate facts. */
 export function normalizePacketViolation(raw: QaIssue | null | undefined): PacketViolation {
   const rawSeverity = String(raw?.severity ?? "")
     .trim()
     .toLowerCase();
+  const canonical = rawSeverity === "hard" ? "block" : rawSeverity;
   const severity = (
-    KNOWN_SEVERITIES.has(rawSeverity) ? rawSeverity : "warn"
+    KNOWN_SEVERITIES.has(canonical) ? canonical : "warn"
   ) as PacketViolationSeverity;
   const fallback = gatesFromSeverity(severity);
   const r = (raw ?? {}) as Record<string, unknown>;

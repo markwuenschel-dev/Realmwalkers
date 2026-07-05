@@ -223,7 +223,7 @@ export type LengthStatus =
 
 export type RuleKind = "voice" | "dialogue";
 
-export type ScenePacketStatus = "proposed" | "approved" | "blocked" | "stale";
+export type ScenePacketStatus = "proposed" | "approved" | "blocked" | "stale" | "rate_limited";
 
 /** Timestamped line in the Desk live activity feed (client-only; not an API DTO). */
 export interface ActivityEntry {
