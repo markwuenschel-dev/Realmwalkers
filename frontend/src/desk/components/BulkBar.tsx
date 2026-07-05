@@ -46,11 +46,13 @@ export function BulkButton({
   onClick,
   disabled,
   tone = "neutral",
+  title,
   children,
 }: {
   onClick: () => void;
   disabled?: boolean;
   tone?: "good" | "bad" | "neutral";
+  title?: string;
   children: ReactNode;
 }) {
   const v = tone === "good" ? "--good" : tone === "bad" ? "--bad" : "--accent";
@@ -58,6 +60,7 @@ export function BulkButton({
     <button
       onClick={onClick}
       disabled={disabled}
+      title={title}
       style={css(
         `padding:7px 13px;border-radius:8px;border:1px solid color-mix(in srgb,var(${v}) 45%,var(--line));background:color-mix(in srgb,var(${v}) 13%,var(--bg3));color:var(${v});font-family:var(--ui);font-size:12.5px;cursor:${disabled ? "default" : "pointer"};opacity:${disabled ? 0.6 : 1};white-space:nowrap`,
       )}

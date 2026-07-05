@@ -14,6 +14,7 @@ import type {
 } from "../api/types";
 import { useDeskData } from "../api/data";
 import { css } from "../css";
+import GateDisclosure from "../components/GateDisclosure";
 import ProseBlocks from "../components/ProseBlocks";
 import { Button, Chip, Eyebrow, MetricCard, Panel, Spinner, Stepper } from "../components/ui";
 import type { ChipTone, Step, StepState } from "../components/ui";
@@ -208,7 +209,6 @@ function EventFeed({ detail }: { detail: ProductionRunDetailOut }) {
 // active draft jobs and provider holds render as context so a half-drafted chapter explains
 // itself. Axis labels mirror the packets screen — Contract / Prose draft stay distinct.
 function AssemblyGateDiagnostics({ readiness }: { readiness: DraftReadinessOut }) {
-  const [open, setOpen] = useState(false);
   const prose = readiness.prose;
   const missing = readiness.missing_scene_drafts;
   const gates: { label: string; pass: boolean; detail: string }[] = [
@@ -240,36 +240,7 @@ function AssemblyGateDiagnostics({ readiness }: { readiness: DraftReadinessOut }
         : "ok",
     },
   ];
-  return (
-    <div
-      style={css("display:flex;flex-direction:column;gap:6px")}
-      data-testid="assembly-gate-diagnostics"
-    >
-      <button
-        onClick={() => setOpen((v) => !v)}
-        style={css(
-          "background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:var(--mono);font-size:11px;color:var(--warn)",
-        )}
-      >
-        {open ? "▾" : "▸"} Why is this disabled?
-      </button>
-      {open &&
-        gates.map((g) => (
-          <div
-            key={g.label}
-            style={css("display:flex;align-items:baseline;gap:8px;flex-wrap:wrap")}
-          >
-            <Chip label={g.pass ? "pass" : "fail"} tone={g.pass ? "good" : "bad"} size="sm" />
-            <span style={css("font-family:var(--mono);font-size:11px;color:var(--ink)")}>
-              {g.label}
-            </span>
-            <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-              {g.detail}
-            </span>
-          </div>
-        ))}
-    </div>
-  );
+  return <GateDisclosure rows={gates} testId="assembly-gate-diagnostics" />;
 }
 
 export default function ProductionScreen() {

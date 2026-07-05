@@ -257,6 +257,29 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/books/{book_id}/chapters/overview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Chapters Overview
+     * @description Per-chapter pipeline facts for the Chapters command center in ONE request: chapter packet
+     *     approval state, scene-contract + prose coverage, contract-violation counts, the authoritative
+     *     draft gate (identical derivation to GET /chapters/{id}/draft/readiness), and the latest
+     *     production run's status + issue/repair counts.
+     */
+    get: operations["chapters_overview_books__book_id__chapters_overview_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/books/{book_id}/scenes/clear-draft": {
     parameters: {
       query?: never;
@@ -3421,6 +3444,95 @@ export interface components {
       epigraph?: string | null;
     };
     /**
+     * ChapterPipelineOut
+     * @description One chapter's pipeline facts for the Chapters command center — batched server-side so the tab
+     *     costs ONE request, not 4×N. The readiness fields mirror DraftReadinessOut's authoritative gate
+     *     exactly (same derivation); packet fields use the chapter packet's approval_state vocabulary.
+     */
+    ChapterPipelineOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Chapter No */
+      chapter_no: number;
+      /** Packet Status */
+      packet_status?: string | null;
+      /** Packet Approval State */
+      packet_approval_state?: string | null;
+      /**
+       * Packet Approval Blockers
+       * @default []
+       */
+      packet_approval_blockers: string[];
+      /**
+       * Scene Packets Total
+       * @default 0
+       */
+      scene_packets_total: number;
+      /**
+       * Scene Packets Approved
+       * @default 0
+       */
+      scene_packets_approved: number;
+      /**
+       * Scene Packets Blocked
+       * @default 0
+       */
+      scene_packets_blocked: number;
+      /**
+       * Scene Packets Stale
+       * @default 0
+       */
+      scene_packets_stale: number;
+      /**
+       * Scene Packets Rate Limited
+       * @default 0
+       */
+      scene_packets_rate_limited: number;
+      /**
+       * Violation Counts
+       * @default {}
+       */
+      violation_counts: {
+        [key: string]: number;
+      };
+      /**
+       * Scenes With Prose
+       * @default 0
+       */
+      scenes_with_prose: number;
+      /**
+       * Expected Scenes
+       * @default 0
+       */
+      expected_scenes: number;
+      /**
+       * Assembly Ready
+       * @default false
+       */
+      assembly_ready: boolean;
+      /**
+       * Can Draft
+       * @default false
+       */
+      can_draft: boolean;
+      /** Disabled Reason */
+      disabled_reason?: string | null;
+      /**
+       * Active Draft Jobs
+       * @default 0
+       */
+      active_draft_jobs: number;
+      /**
+       * Provider Rate Limited
+       * @default false
+       */
+      provider_rate_limited: boolean;
+      latest_run?: components["schemas"]["ChapterRunFactsOut"] | null;
+    };
+    /**
      * ChapterRollupOut
      * @description One chapter's totals for the global cross-chapter comparison.
      */
@@ -3496,6 +3608,36 @@ export interface components {
       chapter_no?: number | null;
       /** Title */
       title?: string | null;
+    };
+    /**
+     * ChapterRunFactsOut
+     * @description Slim production-run facts for the Chapters pipeline strip (counts from summary_json).
+     */
+    ChapterRunFactsOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Status */
+      status: string;
+      /** Current Stage */
+      current_stage?: string | null;
+      /**
+       * Issue Count
+       * @default 0
+       */
+      issue_count: number;
+      /**
+       * Repair Task Count
+       * @default 0
+       */
+      repair_task_count: number;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
     };
     /** ChapterSequenceOut */
     ChapterSequenceOut: {
@@ -6752,6 +6894,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ManuscriptOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  chapters_overview_books__book_id__chapters_overview_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterPipelineOut"][];
         };
       };
       /** @description Validation Error */

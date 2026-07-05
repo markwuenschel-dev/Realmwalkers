@@ -119,6 +119,28 @@ describe("normalizePacketViolation", () => {
     );
     expect(normalizePacketViolation(null).kind).toBe("issue");
   });
+
+  it('normalizes legacy "hard" to block — never a downgraded advisory', () => {
+    // Regression: "hard" was missing from the known-severity set, so a legacy blocker without
+    // persisted blocks_* booleans degraded to a non-blocking warn.
+    const bare = normalizePacketViolation({ kind: "invalid_body", detail: "d", severity: "hard" });
+    expect(bare.severity).toBe("block");
+    expect(bare.blocks_drafting).toBe(true);
+    expect(bare.blocks_human_review).toBe(true);
+    expect(bare.blocks_final_export).toBe(true);
+
+    // Persisted gate facts still win over the severity-derived fallback.
+    const persisted = normalizePacketViolation({
+      kind: "x",
+      detail: "d",
+      severity: "hard",
+      blocks_drafting: false,
+      blocks_human_review: false,
+      blocks_final_export: true,
+    });
+    expect(persisted.severity).toBe("block");
+    expect(persisted.blocks_drafting).toBe(false);
+  });
 });
 
 describe("packet finding partitions", () => {
@@ -136,6 +158,13 @@ describe("packet finding partitions", () => {
   it("merges violations + issues into one normalized list", () => {
     expect(packetQaFindings(warnings)).toHaveLength(4);
     expect(packetQaFindings(null)).toEqual([]);
+  });
+
+  it("counts a legacy hard violation as a draft blocker", () => {
+    const legacy = {
+      violations: [{ kind: "legacy_row", detail: "old snapshot", severity: "hard" }],
+    };
+    expect(packetDraftBlockers(legacy).map((v) => v.kind)).toEqual(["legacy_row"]);
   });
 
   it("splits true blockers from repair tasks", () => {

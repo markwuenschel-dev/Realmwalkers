@@ -14,7 +14,7 @@ import type { Marker } from "../types";
 import { applyAcceptedSuggestions, sceneLabel, statValue, wordCount } from "../lib/format";
 import { buildSceneMarkdown, downloadMarkdown, sceneMarkdownFilename } from "../lib/sceneMarkdown";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
-import { severityVar } from "../lib/severity";
+import { severityChipTone, severityLabel, severityVar } from "../lib/severity";
 import { api } from "../api/client";
 import { Button, Chip, Eyebrow, Panel } from "../components/ui";
 import type { ChipTone } from "../components/ui";
@@ -182,6 +182,11 @@ export default function SceneScreen() {
   const critiques = useMemo(() => cur?.critiques ?? [], [cur]);
   const conflicts = useMemo(() => critiques.filter(isConflict), [critiques]);
   const notes = critiques.filter((c) => !isConflict(c));
+  // Continuity conflicts are STORED severity=block (reserved for the deterministic hard-number
+  // check), but this review surface is explicitly non-gating ("advisory — nothing is blocked"):
+  // resolving one is fixable repair work, so it wears the repair tone here. Deliberate — do NOT
+  // "clean this up" to severityVar(c.severity); that would re-paint advisories as hard blockers.
+  const conflictVar = severityVar("repair");
   const annotations = data.annotations;
   const suggestions = data.suggestions;
   const pendingSugg = suggestions.filter((s) => s.status === "pending").length;
@@ -410,7 +415,7 @@ export default function SceneScreen() {
             ? "border-bottom:1px dotted var(--accent);cursor:help;color:inherit"
             : "color:inherit"
           : showMarks
-            ? "border-bottom:1px dotted var(--bad);background:color-mix(in srgb,var(--bad) 9%,transparent);border-radius:2px;cursor:help;color:inherit"
+            ? `border-bottom:1px dotted var(${conflictVar});background:color-mix(in srgb,var(${conflictVar}) 9%,transparent);border-radius:2px;cursor:help;color:inherit`
             : "color:inherit";
       return (
         <span
@@ -496,16 +501,28 @@ export default function SceneScreen() {
   ];
 
   const passes = cur.passes_run ?? [];
-  const tabDefs: { id: "continuity" | "notes" | "changes"; label: string; badge: string | null }[] =
-    [
-      {
-        id: "continuity",
-        label: "Continuity",
-        badge: conflicts.length ? String(conflicts.length) : null,
-      },
-      { id: "notes", label: "Notes", badge: notes.length ? String(notes.length) : null },
-      { id: "changes", label: "Changes", badge: null },
-    ];
+  // Badge tones follow what the count means: conflicts are repair-tier work (see conflictVar);
+  // notes are only worth an amber nudge when any is above info. Never the old hardcoded alarm-red.
+  const tabDefs: {
+    id: "continuity" | "notes" | "changes";
+    label: string;
+    badge: string | null;
+    badgeVar: string;
+  }[] = [
+    {
+      id: "continuity",
+      label: "Continuity",
+      badge: conflicts.length ? String(conflicts.length) : null,
+      badgeVar: conflictVar,
+    },
+    {
+      id: "notes",
+      label: "Notes",
+      badge: notes.length ? String(notes.length) : null,
+      badgeVar: notes.some((n) => severityChipTone(n.severity) !== "info") ? "--warn" : "--dim",
+    },
+    { id: "changes", label: "Changes", badge: null, badgeVar: "--dim" },
+  ];
 
   const deltas =
     cur && data.activeBeat?.expected_state_changes
@@ -666,6 +683,16 @@ export default function SceneScreen() {
           </span>
           <span style={css("opacity:.4")}>·</span>
           <span
+            onClick={() => router.push(`/packets?chapter=${cur.chapter_id}&scene=${cur.scene_no}`)}
+            title="Open this scene's contract on the Packets tab"
+            style={css(
+              "cursor:pointer;color:var(--accent);border-bottom:1px solid var(--accentSoft)",
+            )}
+          >
+            Scene packet →
+          </span>
+          <span style={css("opacity:.4")}>·</span>
+          <span
             onClick={() =>
               downloadMarkdown(
                 sceneMarkdownFilename(cur, chapter),
@@ -731,6 +758,9 @@ export default function SceneScreen() {
             <span>
               Waiting to redraft against your feedback. If it's been stuck a while (a failed or
               missed job), <b>Restart</b> re-queues drafting now.
+              {data.jobs.queue_paused
+                ? " The queue is paused, so a restarted job waits until you resume."
+                : ""}
             </span>
           ) : (
             <span>
@@ -748,7 +778,9 @@ export default function SceneScreen() {
               title={
                 restartBlockedByActiveJob
                   ? "Already drafting — wait for it to finish"
-                  : "Re-queue drafting for this scene now"
+                  : data.jobs.queue_paused
+                    ? "Queue is paused — Restart queues the redraft; drafting starts when you resume"
+                    : "Re-queue drafting for this scene now"
               }
             >
               {restarting ? "Restarting…" : "Restart"}
@@ -1199,7 +1231,7 @@ export default function SceneScreen() {
                   {tb.badge && (
                     <span
                       style={css(
-                        "margin-left:6px;font-family:var(--mono);font-size:10px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff",
+                        `margin-left:6px;font-family:var(--mono);font-size:10px;padding:0 5px;border-radius:999px;background:color-mix(in srgb,var(${tb.badgeVar}) 18%,var(--bg3));color:var(${tb.badgeVar})`,
                       )}
                     >
                       {tb.badge}
@@ -1228,16 +1260,18 @@ export default function SceneScreen() {
                   <div
                     key={c.id}
                     style={css(
-                      "background:var(--bg2);border:1px solid color-mix(in srgb,var(--bad) 32%,var(--line));border-radius:10px;padding:14px",
+                      `background:var(--bg2);border:1px solid color-mix(in srgb,var(${conflictVar}) 32%,var(--line));border-radius:10px;padding:14px`,
                     )}
                   >
                     <div style={css("display:flex;align-items:center;gap:8px;margin-bottom:9px")}>
                       <span
-                        style={css("width:6px;height:6px;border-radius:50%;background:var(--bad)")}
+                        style={css(
+                          `width:6px;height:6px;border-radius:50%;background:var(${conflictVar})`,
+                        )}
                       />
                       <span
                         style={css(
-                          "font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--bad)",
+                          `font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(${conflictVar})`,
                         )}
                       >
                         {pstr(c, "attribute") || c.reviewer}
@@ -1309,6 +1343,22 @@ export default function SceneScreen() {
                         Keep ledger · fix prose
                       </Button>
                     </div>
+                    {pstr(c, "character") && (
+                      <div style={css("margin-top:9px")}>
+                        <span
+                          onClick={() =>
+                            router.push(
+                              `/ledger?cat=characters&focus=${encodeURIComponent(pstr(c, "character"))}`,
+                            )
+                          }
+                          style={css(
+                            "cursor:pointer;font-size:12px;color:var(--accent);border-bottom:1px solid var(--accentSoft)",
+                          )}
+                        >
+                          View {pstr(c, "character")} in ledger →
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1344,7 +1394,7 @@ export default function SceneScreen() {
                           `font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:${sevColor(n.severity)}`,
                         )}
                       >
-                        {n.severity}
+                        {severityLabel(n.severity)}
                       </span>
                     </div>
                     <p style={css("margin:0;font-size:13px;line-height:1.5;color:var(--dim)")}>

@@ -17,6 +17,16 @@ export function severityChipTone(severity: string): ChipTone {
   }
 }
 
+/** Display name for a severity token — never show the retired `hard` spelling to the user, never
+ * crash on an unknown one (lowercase it, underscores to spaces). */
+export function severityLabel(severity: string): string {
+  const token = String(severity ?? "")
+    .trim()
+    .toLowerCase();
+  if (token === "hard") return "block";
+  return token.replace(/_/g, " ");
+}
+
 /** CSS var name (without `var()`) for severity accents. `fallback` covers unknown/absent severities
  * so call sites keep their local default (e.g. deterministic-validation lists assume warn). */
 export function severityVar(severity: string, fallback = "--dim"): string {

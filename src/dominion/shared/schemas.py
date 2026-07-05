@@ -804,6 +804,50 @@ class DraftReadinessOut(BaseModel):
     can_draft: bool = False
 
 
+class ChapterRunFactsOut(BaseModel):
+    """Slim production-run facts for the Chapters pipeline strip (counts from summary_json)."""
+
+    id: uuid.UUID
+    status: str
+    current_stage: str | None = None
+    issue_count: int = 0
+    repair_task_count: int = 0
+    updated_at: datetime
+
+
+class ChapterPipelineOut(BaseModel):
+    """One chapter's pipeline facts for the Chapters command center — batched server-side so the tab
+    costs ONE request, not 4×N. The readiness fields mirror DraftReadinessOut's authoritative gate
+    exactly (same derivation); packet fields use the chapter packet's approval_state vocabulary."""
+
+    chapter_id: uuid.UUID
+    chapter_no: int
+    # chapter packet (contract axis); packet_* are None when no packet exists yet
+    packet_status: str | None = None  # proposed | approved | blocked
+    packet_approval_state: str | None = None  # approvable | open_questions | already_approved | blocked
+    packet_approval_blockers: list[str] = []
+    # scene packets (contract axis, aggregated)
+    scene_packets_total: int = 0
+    scene_packets_approved: int = 0
+    scene_packets_blocked: int = 0
+    scene_packets_stale: int = 0
+    scene_packets_rate_limited: int = 0
+    # severity -> count over persisted contract violations; raw tokens pass through (legacy "hard"
+    # may appear — the UI folds it into block).
+    violation_counts: dict[str, int] = {}
+    # prose axis
+    scenes_with_prose: int = 0
+    expected_scenes: int = 0
+    assembly_ready: bool = False
+    # authoritative draft gate (same contract as DraftReadinessOut)
+    can_draft: bool = False
+    disabled_reason: str | None = None
+    active_draft_jobs: int = 0
+    provider_rate_limited: bool = False
+    # production axis
+    latest_run: ChapterRunFactsOut | None = None
+
+
 class FailedJobOut(BaseModel):
     """A FAILED job + why it died, so the Desk can show the actual error instead of a generic note."""
 

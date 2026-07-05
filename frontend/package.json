@@ -22,8 +22,7 @@
     "docx": "^9.7.1",
     "next": "^16.2.9",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-router-dom": "^6.26.2"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

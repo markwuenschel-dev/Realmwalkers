@@ -56,6 +56,8 @@ export type RecentJobOut = S["RecentJobOut"];
 export type RecentJobsOut = S["RecentJobsOut"];
 export type DraftNextOut = S["DraftNextOut"];
 export type RepairApplyAllOut = S["RepairApplyAllOut"];
+export type ChapterPipelineOut = S["ChapterPipelineOut"];
+export type ChapterRunFactsOut = S["ChapterRunFactsOut"];
 export type RetryFailedOut = S["RetryFailedOut"] & {
   requested?: number;
   skipped?: DraftQueueBlockerOut[];
@@ -223,7 +225,7 @@ export type LengthStatus =
 
 export type RuleKind = "voice" | "dialogue";
 
-export type ScenePacketStatus = "proposed" | "approved" | "blocked" | "stale";
+export type ScenePacketStatus = "proposed" | "approved" | "blocked" | "stale" | "rate_limited";
 
 /** Timestamped line in the Desk live activity feed (client-only; not an API DTO). */
 export interface ActivityEntry {

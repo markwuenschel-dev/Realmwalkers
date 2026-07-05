@@ -57,6 +57,7 @@ import type {
   ProductionRunCreateIn,
   ProductionRunDetailOut,
   ProductionRunOut,
+  ChapterPipelineOut,
   RedraftIn,
   RetryFailedOut,
   RepairApplyAllOut,
@@ -329,6 +330,9 @@ export const api = {
     http<ProductionRunActionOut>(`/production-runs/${runId}/triage`, { method: "POST" }),
   assembleProductionRun: (runId: string) =>
     http<ProductionRunActionOut>(`/production-runs/${runId}/assemble`, { method: "POST" }),
+  // Per-chapter pipeline facts for the Chapters command center — one request for the whole book.
+  chaptersOverview: (bookId: string) =>
+    http<ChapterPipelineOut[]>(`/books/${bookId}/chapters/overview`),
   applyRepairTask: (taskId: string) =>
     http<RepairTaskOut>(`/repair-tasks/${taskId}/apply`, { method: "POST" }),
   // One click drains the run's queued repair tasks (same drain the auto-triggers use).

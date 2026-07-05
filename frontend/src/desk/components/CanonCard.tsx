@@ -1,4 +1,9 @@
 import { css } from "../css";
+import { severityVar } from "../lib/severity";
+
+// Continuity conflicts are stored severity=block, but the review surface is non-gating (advisory) —
+// they wear the repair tone here, matching SceneScreen's Continuity panel.
+const CONFLICT_VAR = severityVar("repair");
 
 // The hover popover shown over a name (entity) or a flagged span (conflict) in the prose. Built from
 // spans (not divs) because it lives inside a <p>, exactly as the prototype does it.
@@ -56,10 +61,12 @@ export default function CanonCard({ card }: { card: CardModel }) {
           )}
         >
           <span style={css("display:flex;align-items:center;gap:6px;margin-bottom:7px")}>
-            <span style={css("width:6px;height:6px;border-radius:50%;background:var(--bad)")} />
+            <span
+              style={css(`width:6px;height:6px;border-radius:50%;background:var(${CONFLICT_VAR})`)}
+            />
             <span
               style={css(
-                "font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--bad)",
+                `font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(${CONFLICT_VAR})`,
               )}
             >
               continuity conflict

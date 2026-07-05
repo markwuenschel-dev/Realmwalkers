@@ -295,26 +295,34 @@ def resolve_draft_gate(g: DraftGateInputs) -> tuple[bool, str | None]:
 # --- readiness query -------------------------------------------------------------------------------
 
 
-async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) -> DraftReadinessOut:
-    chapter = await session.get(Chapter, chapter_id)
-    if chapter is None:
-        raise ValueError("chapter not found")
+@dataclass(frozen=True)
+class ReadinessRows:
+    """Everything `derive_draft_readiness` reads, fetched up front. Splitting fetch from derive lets
+    the per-chapter endpoint keep its shape while the book-scoped overview batches ONE set of flat
+    queries for every chapter instead of ~8 sequential awaits × N chapters."""
 
-    cp = (
-        await session.execute(
-            select(ChapterPacket)
-            .where(
-                ChapterPacket.chapter_id == chapter_id,
-                ChapterPacket.status == PacketStatus.APPROVED,
-            )
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    chapter_id: uuid.UUID
+    cp: ChapterPacket | None  # the APPROVED chapter packet (readiness never reads other statuses)
+    sp_rows: list[ScenePacket]
+    beats: list[Beat]
+    # Latest Scene row per scene_no → does it carry non-empty prose? (latest-row-wins by created_at;
+    # a key existing at all == "drafted", True == prose coverage — same two facts as before.)
+    latest_has_prose: dict[int, bool]
+    active_jobs: int
+    malformed_jobs: int
+    sp_required_failed: int
+    budget_sequence: ChapterSequence | None  # latest by updated_at, any status (lane-3 budget check)
+    cp_sequence: ChapterSequence | None  # latest non-stale sequence scoped to cp (structural gates)
+
+
+def derive_draft_readiness(rows: ReadinessRows) -> DraftReadinessOut:
+    """Pure derivation — no ORM, no DB. Verbatim move of the readiness logic; the parity test in
+    tests/test_chapters_overview.py pins its output against the pre-split behavior."""
+    chapter_id = rows.chapter_id
+    cp = rows.cp
     chapter_packet_approved = cp is not None
 
-    sp_rows = list(
-        (await session.execute(select(ScenePacket).where(ScenePacket.chapter_id == chapter_id))).scalars().all()
-    )
+    sp_rows = rows.sp_rows
     approved_sp = [p for p in sp_rows if p.status == ScenePacketStatus.APPROVED]
     stale_sp = [p for p in sp_rows if p.status == ScenePacketStatus.STALE]
     blocked_sp = [p for p in sp_rows if p.status == ScenePacketStatus.BLOCKED]
@@ -326,12 +334,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     approved_nos = {p.scene_no for p in approved_sp}
     missing = sorted(set(range(1, seed_count + 1)) - approved_nos) if seed_count else []
 
-    beats = list(
-        (await session.execute(select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)))
-        .scalars()
-        .all()
-    )
-    approved_beats = [b for b in beats if b.status == BeatStatus.APPROVED]
+    approved_beats = [b for b in rows.beats if b.status == BeatStatus.APPROVED]
     linked = [b for b in approved_beats if b.scene_packet_id is not None]
     unlinked = [b.id for b in approved_beats if b.scene_packet_id is None]
 
@@ -342,58 +345,14 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     # that scene_no (draft_queue.py:244-247). Prose coverage is stricter — the latest row per scene_no
     # must carry non-empty prose (matching production's `(scene.prose or "").strip()` test) — and gates
     # chapter ASSEMBLY, which concatenates prose and hard-fails `missing_scene` on every gap.
-    scene_rows = (
-        await session.execute(
-            select(Scene.scene_no, Scene.prose)
-            .where(Scene.chapter_id == chapter_id)
-            .order_by(Scene.scene_no, Scene.created_at)
-        )
-    ).all()
-    latest_prose: dict[int, str] = {}
-    for scene_no, prose in scene_rows:  # ordered by created_at, so the latest row per scene_no wins
-        latest_prose[scene_no] = prose or ""
-    drafted_scene_nos = set(latest_prose)
-    prose_scene_nos = sorted(n for n, p in latest_prose.items() if p.strip())
+    drafted_scene_nos = set(rows.latest_has_prose)
+    prose_scene_nos = sorted(n for n, has in rows.latest_has_prose.items() if has)
     expected_scenes = seed_count or len({p.scene_no for p in sp_rows})
     missing_prose = sorted(set(range(1, expected_scenes + 1)) - set(prose_scene_nos)) if expected_scenes else []
 
-    active_jobs = (
-        await session.execute(
-            select(func.count())
-            .select_from(Job)
-            .where(
-                Job.chapter_id == chapter_id,
-                Job.kind == JobKind.DRAFT,
-                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
-            )
-        )
-    ).scalar_one() or 0
-
-    malformed = (
-        await session.execute(
-            select(func.count())
-            .select_from(Job)
-            .where(
-                Job.chapter_id == chapter_id,
-                Job.kind == JobKind.DRAFT,
-                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
-                Job.scene_packet_id.is_(None),
-            )
-        )
-    ).scalar_one() or 0
-
-    sp_required_failed = (
-        await session.execute(
-            select(func.count())
-            .select_from(Job)
-            .where(
-                Job.chapter_id == chapter_id,
-                Job.kind == JobKind.DRAFT,
-                Job.status == JobStatus.FAILED,
-                Job.last_error.ilike("%ScenePacket%"),
-            )
-        )
-    ).scalar_one() or 0
+    active_jobs = rows.active_jobs
+    malformed = rows.malformed_jobs
+    sp_required_failed = rows.sp_required_failed
 
     # Resolve every beat against the already-loaded packet rows (read-only twin of the queue
     # resolver) — the old per-beat DB resolution was an N+1 that alone put multiple seconds on
@@ -419,18 +378,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     # values must SUM within the chapter's hard_max_words — before any LLM spend (the ch1 bad run
     # drafted 9,630 words against a 7,200 envelope because nothing compared the two). At most ONE
     # chapter-level `sequence_budget_mismatch` blocker, prepended so it names the root cause first.
-    sequence = (
-        (
-            await session.execute(
-                select(ChapterSequence)
-                .where(ChapterSequence.chapter_id == chapter_id)
-                .order_by(ChapterSequence.updated_at.desc())
-                .limit(1)
-            )
-        )
-        .scalars()
-        .first()
-    )
+    sequence = rows.budget_sequence
     if sequence is not None:
         seq_scenes = (sequence.body or {}).get("scenes") or []
         for issue in check_sequence_budget_consistency(
@@ -461,25 +409,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
     )
 
     # --- structural blockers (recovery L8) — deterministic contract faults, cheap over loaded rows.
-    # One extra query total (the chapter sequence); everything else reuses rows already in memory.
-    sequence = None
-    if cp is not None:
-        sequence = (
-            (
-                await session.execute(
-                    select(ChapterSequence)
-                    .where(
-                        ChapterSequence.chapter_id == chapter_id,
-                        ChapterSequence.chapter_packet_id == cp.id,
-                        ChapterSequence.status != ChapterSequenceStatus.STALE,
-                    )
-                    .order_by(ChapterSequence.created_at.desc())
-                    .limit(1)
-                )
-            )
-            .scalars()
-            .first()
-        )
+    sequence = rows.cp_sequence if cp is not None else None
     hard_max_values = [
         (p.body or {}).get("word_budget", {}).get("hard_max")
         for p in approved_sp
@@ -574,3 +504,243 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
         provider_rate_limited=len(rate_limited_sp) > 0,
         can_draft=can_draft,
     )
+
+
+async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) -> DraftReadinessOut:
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise ValueError("chapter not found")
+
+    cp = (
+        await session.execute(
+            select(ChapterPacket)
+            .where(
+                ChapterPacket.chapter_id == chapter_id,
+                ChapterPacket.status == PacketStatus.APPROVED,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    sp_rows = list(
+        (await session.execute(select(ScenePacket).where(ScenePacket.chapter_id == chapter_id))).scalars().all()
+    )
+
+    beats = list(
+        (await session.execute(select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)))
+        .scalars()
+        .all()
+    )
+
+    scene_rows = (
+        await session.execute(
+            select(Scene.scene_no, Scene.prose)
+            .where(Scene.chapter_id == chapter_id)
+            .order_by(Scene.scene_no, Scene.created_at)
+        )
+    ).all()
+    latest_has_prose: dict[int, bool] = {}
+    for scene_no, prose in scene_rows:  # ordered by created_at, so the latest row per scene_no wins
+        latest_has_prose[scene_no] = bool((prose or "").strip())
+
+    active_jobs = (
+        await session.execute(
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.chapter_id == chapter_id,
+                Job.kind == JobKind.DRAFT,
+                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+            )
+        )
+    ).scalar_one() or 0
+
+    malformed = (
+        await session.execute(
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.chapter_id == chapter_id,
+                Job.kind == JobKind.DRAFT,
+                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
+                Job.scene_packet_id.is_(None),
+            )
+        )
+    ).scalar_one() or 0
+
+    sp_required_failed = (
+        await session.execute(
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.chapter_id == chapter_id,
+                Job.kind == JobKind.DRAFT,
+                Job.status == JobStatus.FAILED,
+                Job.last_error.ilike("%ScenePacket%"),
+            )
+        )
+    ).scalar_one() or 0
+
+    budget_sequence = (
+        (
+            await session.execute(
+                select(ChapterSequence)
+                .where(ChapterSequence.chapter_id == chapter_id)
+                .order_by(ChapterSequence.updated_at.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+    cp_sequence = None
+    if cp is not None:
+        cp_sequence = (
+            (
+                await session.execute(
+                    select(ChapterSequence)
+                    .where(
+                        ChapterSequence.chapter_id == chapter_id,
+                        ChapterSequence.chapter_packet_id == cp.id,
+                        ChapterSequence.status != ChapterSequenceStatus.STALE,
+                    )
+                    .order_by(ChapterSequence.created_at.desc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
+
+    return derive_draft_readiness(
+        ReadinessRows(
+            chapter_id=chapter_id,
+            cp=cp,
+            sp_rows=sp_rows,
+            beats=beats,
+            latest_has_prose=latest_has_prose,
+            active_jobs=int(active_jobs),
+            malformed_jobs=int(malformed),
+            sp_required_failed=int(sp_required_failed),
+            budget_sequence=budget_sequence,
+            cp_sequence=cp_sequence,
+        )
+    )
+
+
+async def fetch_book_readiness_rows(session: AsyncSession, book_id: uuid.UUID) -> dict[uuid.UUID, ReadinessRows]:
+    """Book-scoped fetch for the Chapters overview: the same facts `compute_draft_readiness` gathers,
+    in a handful of flat `chapter_id IN (…)` queries instead of ~8 sequential awaits per chapter.
+    Scenes are projected to a prose BOOLEAN so the whole book's prose never crosses the wire."""
+    chapter_ids = list((await session.execute(select(Chapter.id).where(Chapter.book_id == book_id))).scalars().all())
+    if not chapter_ids:
+        return {}
+
+    cp_by_chapter: dict[uuid.UUID, ChapterPacket] = {}
+    cp_rows = (
+        (
+            await session.execute(
+                select(ChapterPacket)
+                .where(
+                    ChapterPacket.chapter_id.in_(chapter_ids),
+                    ChapterPacket.status == PacketStatus.APPROVED,
+                )
+                .order_by(ChapterPacket.chapter_id, ChapterPacket.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for row in cp_rows:  # first row per chapter is the newest approved packet
+        cp_by_chapter.setdefault(row.chapter_id, row)
+
+    sp_by_chapter: dict[uuid.UUID, list[ScenePacket]] = {cid: [] for cid in chapter_ids}
+    for row in (
+        (await session.execute(select(ScenePacket).where(ScenePacket.chapter_id.in_(chapter_ids)))).scalars().all()
+    ):
+        sp_by_chapter[row.chapter_id].append(row)
+
+    beats_by_chapter: dict[uuid.UUID, list[Beat]] = {cid: [] for cid in chapter_ids}
+    for row in (
+        (
+            await session.execute(
+                select(Beat).where(Beat.chapter_id.in_(chapter_ids)).order_by(Beat.chapter_id, Beat.scene_no)
+            )
+        )
+        .scalars()
+        .all()
+    ):
+        beats_by_chapter[row.chapter_id].append(row)
+
+    # Boolean prose projection; trim covers the same whitespace Python's .strip() removes.
+    prose_by_chapter: dict[uuid.UUID, dict[int, bool]] = {cid: {} for cid in chapter_ids}
+    scene_rows = (
+        await session.execute(
+            select(
+                Scene.chapter_id,
+                Scene.scene_no,
+                func.btrim(func.coalesce(Scene.prose, ""), " \t\r\n") != "",
+            )
+            .where(Scene.chapter_id.in_(chapter_ids))
+            .order_by(Scene.chapter_id, Scene.scene_no, Scene.created_at)
+        )
+    ).all()
+    for cid, scene_no, has_prose in scene_rows:  # latest row per (chapter, scene_no) wins
+        prose_by_chapter[cid][scene_no] = bool(has_prose)
+
+    active: dict[uuid.UUID, int] = {cid: 0 for cid in chapter_ids}
+    malformed: dict[uuid.UUID, int] = {cid: 0 for cid in chapter_ids}
+    sp_required_failed: dict[uuid.UUID, int] = {cid: 0 for cid in chapter_ids}
+    job_rows = (
+        await session.execute(
+            select(Job.chapter_id, Job.status, Job.scene_packet_id, Job.last_error).where(
+                Job.chapter_id.in_(chapter_ids),
+                Job.kind == JobKind.DRAFT,
+                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
+            )
+        )
+    ).all()
+    for cid, status, scene_packet_id, last_error in job_rows:
+        if status in (JobStatus.QUEUED, JobStatus.RUNNING):
+            active[cid] += 1
+        if scene_packet_id is None:
+            malformed[cid] += 1
+        if status == JobStatus.FAILED and "scenepacket" in (last_error or "").lower():
+            sp_required_failed[cid] += 1
+
+    seq_by_chapter: dict[uuid.UUID, list[ChapterSequence]] = {cid: [] for cid in chapter_ids}
+    for row in (
+        (await session.execute(select(ChapterSequence).where(ChapterSequence.chapter_id.in_(chapter_ids))))
+        .scalars()
+        .all()
+    ):
+        seq_by_chapter[row.chapter_id].append(row)
+
+    out: dict[uuid.UUID, ReadinessRows] = {}
+    for cid in chapter_ids:
+        cp = cp_by_chapter.get(cid)
+        sequences = seq_by_chapter[cid]
+        budget_sequence = max(sequences, key=lambda s: s.updated_at, default=None)
+        cp_sequence = None
+        if cp is not None:
+            scoped = [s for s in sequences if s.chapter_packet_id == cp.id and s.status != ChapterSequenceStatus.STALE]
+            cp_sequence = max(scoped, key=lambda s: s.created_at, default=None)
+        out[cid] = ReadinessRows(
+            chapter_id=cid,
+            cp=cp,
+            sp_rows=sp_by_chapter[cid],
+            beats=beats_by_chapter[cid],
+            latest_has_prose=prose_by_chapter[cid],
+            active_jobs=active[cid],
+            malformed_jobs=malformed[cid],
+            sp_required_failed=sp_required_failed[cid],
+            budget_sequence=budget_sequence,
+            cp_sequence=cp_sequence,
+        )
+    return out
+
+
+async def compute_book_readiness(session: AsyncSession, book_id: uuid.UUID) -> dict[uuid.UUID, DraftReadinessOut]:
+    rows = await fetch_book_readiness_rows(session, book_id)
+    return {cid: derive_draft_readiness(r) for cid, r in rows.items()}

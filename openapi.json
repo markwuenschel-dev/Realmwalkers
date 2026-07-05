@@ -663,6 +663,54 @@
         }
       }
     },
+    "/books/{book_id}/chapters/overview": {
+      "get": {
+        "tags": [
+          "books"
+        ],
+        "summary": "Chapters Overview",
+        "description": "Per-chapter pipeline facts for the Chapters command center in ONE request: chapter packet\napproval state, scene-contract + prose coverage, contract-violation counts, the authoritative\ndraft gate (identical derivation to GET /chapters/{id}/draft/readiness), and the latest\nproduction run's status + issue/repair counts.",
+        "operationId": "chapters_overview_books__book_id__chapters_overview_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChapterPipelineOut"
+                  },
+                  "title": "Response Chapters Overview Books  Book Id  Chapters Overview Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/books/{book_id}/scenes/clear-draft": {
       "post": {
         "tags": [
@@ -9764,6 +9812,140 @@
         ],
         "title": "ChapterOut"
       },
+      "ChapterPipelineOut": {
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "type": "integer",
+            "title": "Chapter No"
+          },
+          "packet_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packet Status"
+          },
+          "packet_approval_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packet Approval State"
+          },
+          "packet_approval_blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Packet Approval Blockers",
+            "default": []
+          },
+          "scene_packets_total": {
+            "type": "integer",
+            "title": "Scene Packets Total",
+            "default": 0
+          },
+          "scene_packets_approved": {
+            "type": "integer",
+            "title": "Scene Packets Approved",
+            "default": 0
+          },
+          "scene_packets_blocked": {
+            "type": "integer",
+            "title": "Scene Packets Blocked",
+            "default": 0
+          },
+          "scene_packets_stale": {
+            "type": "integer",
+            "title": "Scene Packets Stale",
+            "default": 0
+          },
+          "scene_packets_rate_limited": {
+            "type": "integer",
+            "title": "Scene Packets Rate Limited",
+            "default": 0
+          },
+          "violation_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Violation Counts",
+            "default": {}
+          },
+          "scenes_with_prose": {
+            "type": "integer",
+            "title": "Scenes With Prose",
+            "default": 0
+          },
+          "expected_scenes": {
+            "type": "integer",
+            "title": "Expected Scenes",
+            "default": 0
+          },
+          "assembly_ready": {
+            "type": "boolean",
+            "title": "Assembly Ready",
+            "default": false
+          },
+          "can_draft": {
+            "type": "boolean",
+            "title": "Can Draft",
+            "default": false
+          },
+          "disabled_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled Reason"
+          },
+          "active_draft_jobs": {
+            "type": "integer",
+            "title": "Active Draft Jobs",
+            "default": 0
+          },
+          "provider_rate_limited": {
+            "type": "boolean",
+            "title": "Provider Rate Limited",
+            "default": false
+          },
+          "latest_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChapterRunFactsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_id",
+          "chapter_no"
+        ],
+        "title": "ChapterPipelineOut",
+        "description": "One chapter's pipeline facts for the Chapters command center \u2014 batched server-side so the tab\ncosts ONE request, not 4\u00d7N. The readiness fields mirror DraftReadinessOut's authoritative gate\nexactly (same derivation); packet fields use the chapter packet's approval_state vocabulary."
+      },
       "ChapterRollupOut": {
         "properties": {
           "calls": {
@@ -9871,6 +10053,53 @@
         ],
         "title": "ChapterRollupOut",
         "description": "One chapter's totals for the global cross-chapter comparison."
+      },
+      "ChapterRunFactsOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "current_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Stage"
+          },
+          "issue_count": {
+            "type": "integer",
+            "title": "Issue Count",
+            "default": 0
+          },
+          "repair_task_count": {
+            "type": "integer",
+            "title": "Repair Task Count",
+            "default": 0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "updated_at"
+        ],
+        "title": "ChapterRunFactsOut",
+        "description": "Slim production-run facts for the Chapters pipeline strip (counts from summary_json)."
       },
       "ChapterSequenceOut": {
         "properties": {
