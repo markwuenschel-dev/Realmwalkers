@@ -9,7 +9,16 @@ type S = components["schemas"];
 
 export type ModelSettingOut = S["ModelSettingOut"];
 export type ModelSettingsOut = S["ModelSettingsOut"];
-export type AgentOpsOut = S["AgentOpsOut"];
+// Deterministic editorial-pipeline agents shown read-only in the Agents tab (no model, $0). The
+// generated DTO predates this field, so it's added here until OpenAPI codegen catches up.
+export type EditorialAgentOut = {
+  name: string;
+  label: string;
+  description: string;
+  stage: string;
+  deterministic: boolean;
+};
+export type AgentOpsOut = S["AgentOpsOut"] & { editorial_agents: EditorialAgentOut[] };
 export type TelemetryDeleteOut = {
   deleted_calls: number;
 };
@@ -172,10 +181,41 @@ export type ChapterTelemetryOut = S["ChapterTelemetryOut"];
 export type TelemetryGroupOut = S["TelemetryGroupOut"];
 export type ChapterRollupOut = S["ChapterRollupOut"];
 export type RunRollupOut = S["RunRollupOut"];
+// Production attribution + editorial visibility (Telemetry tab). Hand-written: generated.ts predates
+// these schemas (the orchestrator's codegen will replace them with S["…"] on the next regen).
+// One editorial production run's LLM spend (draft + repair calls sharing a production_run_id).
+export type ProductionRunRollupOut = TelemetryTotals & {
+  production_run_id: string | null;
+  chapter_id: string | null;
+  chapter_no: number | null;
+  status: string | null;
+};
+// One deterministic editorial-orchestration step ($0, no tokens) — pipeline activity, not a cost pool.
+export interface EditorialAgentRunOut {
+  production_run_id: string | null;
+  agent_name: string;
+  agent_role: string;
+  stage: string;
+  status: string;
+  duration_ms: number | null;
+  started_at: string | null;
+  cost_usd: number;
+}
 // `run_total` is the count of all run rows before the limit/offset page slice (the wire schema
-// returns it now, but the generated DTO predates it).
-export type BookTelemetryOut = S["BookTelemetryOut"] & { run_total: number };
-export type LlmCallOut = S["LlmCallOut"];
+// returns it now, but the generated DTO predates it). by_production_run/by_kind/editorial_runs are the
+// new production-attribution rollups (also predating the generated DTO).
+export type BookTelemetryOut = S["BookTelemetryOut"] & {
+  run_total: number;
+  by_production_run: ProductionRunRollupOut[];
+  by_kind: TelemetryGroupOut[];
+  editorial_runs: EditorialAgentRunOut[];
+};
+// `production_run_id`/`job_kind` attribute a call to its production run + distinguish draft vs revision
+// (the generated DTO predates both).
+export type LlmCallOut = S["LlmCallOut"] & {
+  production_run_id?: string | null;
+  job_kind?: string | null;
+};
 export type LlmCallListOut = S["LlmCallListOut"];
 export type RunTelemetryOut = S["RunTelemetryOut"];
 export type TelemetryProblemOut = S["TelemetryProblemOut"];

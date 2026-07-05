@@ -28,13 +28,21 @@ def persist_sink(
     run_id: uuid.UUID | None,
     book_id: uuid.UUID,
     chapter_id: uuid.UUID | None = None,
+    production_run_id: uuid.UUID | None = None,
+    job_kind: str | None = None,
     settings_snapshot: dict[str, Any] | None = None,
 ) -> None:
     """Flush a run's collected per-call telemetry to `llm_calls` (the caller commits). Pure exhaust:
     a bad row is dropped rather than failing the work that produced real output. Rows roll up under
     `run_id` in the Desk's per-run history; pass a fresh uuid4 for work that has no standing run id
     (e.g. summary regeneration) so each invocation is its own run row, or None to land in the legacy
-    bucket."""
+    bucket.
+
+    `production_run_id` soft-links every row to the editorial ProductionRun whose job produced these
+    calls (draft OR repair) so Telemetry can attribute already-captured spend per production run.
+    `job_kind` (draft | revise_full | revise_pass) is stamped into each row's metadata so a
+    draft-vs-revision split stays queryable (`metadata->>'job_kind'`). Both are None for the
+    derive/planning callers that have no owning production run or job."""
     for call_index, rec in enumerate(sink.records):
         try:
             seed_id = uuid.UUID(rec.seed_id) if rec.seed_id else None
@@ -42,11 +50,14 @@ def persist_sink(
             seed_id = None
         meta: dict[str, Any] = dict(rec.metadata or {})
         meta["call_index"] = call_index
+        if job_kind:
+            meta["job_kind"] = job_kind
         if call_index == 0 and settings_snapshot:
             meta["settings_snapshot"] = settings_snapshot
         session.add(
             LlmCall(
                 run_id=run_id,
+                production_run_id=production_run_id,
                 book_id=book_id,
                 chapter_id=chapter_id,
                 scene_no=rec.scene_no,

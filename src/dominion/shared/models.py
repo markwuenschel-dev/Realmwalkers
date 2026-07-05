@@ -287,6 +287,12 @@ class LlmCall(Base):
     # show a single run in isolation (the Packets panel = latest run) and a per-run history (the
     # Telemetry tab) instead of one ever-growing cumulative total. Nullable: legacy rows predate it.
     run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    # Soft link to the editorial ProductionRun whose job produced this call (draft OR repair revision,
+    # both go through generate_one_scene -> persist_sink). Lets Telemetry answer "cost per production
+    # run" without a new cost pool. NO ForeignKey on purpose: production runs get deleted and a hard FK
+    # would block that delete or cascade-erase the exhaust -- a soft link the UI resolves best-effort,
+    # exactly as Activity.production_run_id does. Nullable: derive/planning calls and legacy rows.
+    production_run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     book_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("books.id"), nullable=True)
     chapter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapters.id"), nullable=True)
     scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)

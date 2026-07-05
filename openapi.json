@@ -8343,6 +8343,14 @@
             "type": "array",
             "title": "Agents"
           },
+          "editorial_agents": {
+            "items": {
+              "$ref": "#/components/schemas/EditorialAgentOut"
+            },
+            "type": "array",
+            "title": "Editorial Agents",
+            "default": []
+          },
           "pipeline_estimate": {
             "$ref": "#/components/schemas/PipelineEstimateOut"
           },
@@ -10024,6 +10032,30 @@
             },
             "type": "array",
             "title": "By Model",
+            "default": []
+          },
+          "by_production_run": {
+            "items": {
+              "$ref": "#/components/schemas/ProductionRunRollupOut"
+            },
+            "type": "array",
+            "title": "By Production Run",
+            "default": []
+          },
+          "by_kind": {
+            "items": {
+              "$ref": "#/components/schemas/TelemetryGroupOut"
+            },
+            "type": "array",
+            "title": "By Kind",
+            "default": []
+          },
+          "editorial_runs": {
+            "items": {
+              "$ref": "#/components/schemas/EditorialAgentRunOut"
+            },
+            "type": "array",
+            "title": "Editorial Runs",
             "default": []
           }
         },
@@ -11929,6 +11961,109 @@
         ],
         "title": "DraftScheduleOut"
       },
+      "EditorialAgentOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "deterministic": {
+            "type": "boolean",
+            "title": "Deterministic",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "description",
+          "stage"
+        ],
+        "title": "EditorialAgentOut",
+        "description": "A deterministic editorial-pipeline agent, shown read-only in the Agents tab.\n\nThese agents have no model to configure and cost $0 (pure code). They are metadata-only and are\nNOT part of `agents` (the configurable, model-resolved roles)."
+      },
+      "EditorialAgentRunOut": {
+        "properties": {
+          "production_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production Run Id"
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name"
+          },
+          "agent_role": {
+            "type": "string",
+            "title": "Agent Role"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_name",
+          "agent_role",
+          "stage",
+          "status"
+        ],
+        "title": "EditorialAgentRunOut",
+        "description": "One deterministic editorial-orchestration step (contract_classifier, repair_scheduler, \u2026) inside\na production run. These agents are deterministic \u2014 no model call, no tokens, cost $0 \u2014 so this\nsurfaces the editorial pipeline's ACTIVITY, not a cost pool. Duration/stage make the run legible."
+      },
       "EscalationRuleOut": {
         "properties": {
           "trigger": {
@@ -12638,6 +12773,29 @@
               }
             ],
             "title": "Run Id"
+          },
+          "production_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production Run Id"
+          },
+          "job_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Kind"
           },
           "book_id": {
             "anyOf": [
@@ -14471,6 +14629,130 @@
           "updated_at"
         ],
         "title": "ProductionRunOut"
+      },
+      "ProductionRunRollupOut": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "cache_creation_tokens": {
+            "type": "integer",
+            "title": "Cache Creation Tokens",
+            "default": 0
+          },
+          "cache_read_tokens": {
+            "type": "integer",
+            "title": "Cache Read Tokens",
+            "default": 0
+          },
+          "cache_hit_ratio": {
+            "type": "number",
+            "title": "Cache Hit Ratio",
+            "default": 0.0
+          },
+          "cache_tokens_saved": {
+            "type": "integer",
+            "title": "Cache Tokens Saved",
+            "default": 0
+          },
+          "truncations": {
+            "type": "integer",
+            "title": "Truncations",
+            "default": 0
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors",
+            "default": 0
+          },
+          "fallbacks": {
+            "type": "integer",
+            "title": "Fallbacks",
+            "default": 0
+          },
+          "avg_latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Latency Ms"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "cache_savings_usd": {
+            "type": "number",
+            "title": "Cache Savings Usd",
+            "default": 0.0
+          },
+          "production_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production Run Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "ProductionRunRollupOut",
+        "description": "One editorial production run's LLM spend \u2014 every draft + repair-revision call sharing a\n`production_run_id`. Answers \"cost per production run\": the dollars were always in the book totals,\nthis attributes them. `status`/`chapter_no` label the run where cheap (from production_runs)."
       },
       "ProductionRunStartIn": {
         "properties": {

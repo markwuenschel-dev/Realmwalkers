@@ -2823,6 +2823,11 @@ export interface components {
       presets: components["schemas"]["AgentPresetOut"][];
       /** Agents */
       agents: components["schemas"]["AgentOpsAgentOut"][];
+      /**
+       * Editorial Agents
+       * @default []
+       */
+      editorial_agents: components["schemas"]["EditorialAgentOut"][];
       pipeline_estimate: components["schemas"]["PipelineEstimateOut"];
       /** Tiers */
       tiers: {
@@ -3432,6 +3437,21 @@ export interface components {
        * @default []
        */
       by_model: components["schemas"]["TelemetryGroupOut"][];
+      /**
+       * By Production Run
+       * @default []
+       */
+      by_production_run: components["schemas"]["ProductionRunRollupOut"][];
+      /**
+       * By Kind
+       * @default []
+       */
+      by_kind: components["schemas"]["TelemetryGroupOut"][];
+      /**
+       * Editorial Runs
+       * @default []
+       */
+      editorial_runs: components["schemas"]["EditorialAgentRunOut"][];
     };
     /**
      * CancelJobOut
@@ -4469,6 +4489,55 @@ export interface components {
        */
       repaired_beats: number;
     };
+    /**
+     * EditorialAgentOut
+     * @description A deterministic editorial-pipeline agent, shown read-only in the Agents tab.
+     *
+     *     These agents have no model to configure and cost $0 (pure code). They are metadata-only and are
+     *     NOT part of `agents` (the configurable, model-resolved roles).
+     */
+    EditorialAgentOut: {
+      /** Name */
+      name: string;
+      /** Label */
+      label: string;
+      /** Description */
+      description: string;
+      /** Stage */
+      stage: string;
+      /**
+       * Deterministic
+       * @default true
+       */
+      deterministic: boolean;
+    };
+    /**
+     * EditorialAgentRunOut
+     * @description One deterministic editorial-orchestration step (contract_classifier, repair_scheduler, …) inside
+     *     a production run. These agents are deterministic — no model call, no tokens, cost $0 — so this
+     *     surfaces the editorial pipeline's ACTIVITY, not a cost pool. Duration/stage make the run legible.
+     */
+    EditorialAgentRunOut: {
+      /** Production Run Id */
+      production_run_id?: string | null;
+      /** Agent Name */
+      agent_name: string;
+      /** Agent Role */
+      agent_role: string;
+      /** Stage */
+      stage: string;
+      /** Status */
+      status: string;
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /** Started At */
+      started_at?: string | null;
+      /**
+       * Cost Usd
+       * @default 0
+       */
+      cost_usd: number;
+    };
     /** EscalationRuleOut */
     EscalationRuleOut: {
       /** Trigger */
@@ -4768,6 +4837,10 @@ export interface components {
       id: string;
       /** Run Id */
       run_id?: string | null;
+      /** Production Run Id */
+      production_run_id?: string | null;
+      /** Job Kind */
+      job_kind?: string | null;
       /** Book Id */
       book_id?: string | null;
       /** Chapter Id */
@@ -5617,6 +5690,84 @@ export interface components {
        * Format: date-time
        */
       updated_at: string;
+    };
+    /**
+     * ProductionRunRollupOut
+     * @description One editorial production run's LLM spend — every draft + repair-revision call sharing a
+     *     `production_run_id`. Answers "cost per production run": the dollars were always in the book totals,
+     *     this attributes them. `status`/`chapter_no` label the run where cheap (from production_runs).
+     */
+    ProductionRunRollupOut: {
+      /**
+       * Calls
+       * @default 0
+       */
+      calls: number;
+      /**
+       * Input Tokens
+       * @default 0
+       */
+      input_tokens: number;
+      /**
+       * Output Tokens
+       * @default 0
+       */
+      output_tokens: number;
+      /**
+       * Cache Creation Tokens
+       * @default 0
+       */
+      cache_creation_tokens: number;
+      /**
+       * Cache Read Tokens
+       * @default 0
+       */
+      cache_read_tokens: number;
+      /**
+       * Cache Hit Ratio
+       * @default 0
+       */
+      cache_hit_ratio: number;
+      /**
+       * Cache Tokens Saved
+       * @default 0
+       */
+      cache_tokens_saved: number;
+      /**
+       * Truncations
+       * @default 0
+       */
+      truncations: number;
+      /**
+       * Errors
+       * @default 0
+       */
+      errors: number;
+      /**
+       * Fallbacks
+       * @default 0
+       */
+      fallbacks: number;
+      /** Avg Latency Ms */
+      avg_latency_ms?: number | null;
+      /**
+       * Estimated Cost Usd
+       * @default 0
+       */
+      estimated_cost_usd: number;
+      /**
+       * Cache Savings Usd
+       * @default 0
+       */
+      cache_savings_usd: number;
+      /** Production Run Id */
+      production_run_id?: string | null;
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Status */
+      status?: string | null;
     };
     /** ProductionRunStartIn */
     ProductionRunStartIn: {
