@@ -1480,6 +1480,28 @@ class ClearFinishedJobsOut(BaseModel):
     purged: int
 
 
+class SweeperStatusOut(BaseModel):
+    """Autonomous sweeper liveness + config, merged from the in-process heartbeat and persisted config
+    (workers/sweeper.sweeper_status). `last_tick_at` advancing is the proof the loop is alive; `driving`
+    lists the run ids the sweep is currently pushing; `actions` is what the last tick actually did."""
+
+    # heartbeat (in-process; reset on redeploy)
+    last_tick_at: datetime | None = None
+    ran: bool = False  # did the last tick actually sweep (autonomy on AND not paused)?
+    autonomy_enabled: bool = True
+    paused: bool = False  # the shared queue-pause switch also halts the sweep
+    stale_runs_found: int = 0
+    actions: list[dict[str, Any]] = []  # [{run_id, kind}] the last tick took
+    driving: list[str] = []  # run ids the last tick swept
+    last_error: str | None = None
+    # config (persisted)
+    interval_s: int = 120
+    stale_window_s: int = 120
+    authority_ceiling: str = "chapter_structural"
+    max_attempts: int = 3
+    attempts: dict[str, int] = {}  # run_id -> autonomous apply attempts this process
+
+
 class AutonomyOut(BaseModel):
     """Autonomous self-repair sweeper settings (workers/sweeper.py)."""
 
@@ -1489,6 +1511,10 @@ class AutonomyOut(BaseModel):
     authority_ceiling: str
     max_attempts: int
     retention_days: int
+    # Live heartbeat so the Settings screen (and any autonomy poll) can show the sweeper is alive,
+    # what it last did, and whether it's paused/off — not just the static config. None on the PUT
+    # response body path where the heartbeat isn't recomputed.
+    heartbeat: SweeperStatusOut | None = None
 
 
 class AutonomyUpdateIn(BaseModel):
@@ -1498,6 +1524,172 @@ class AutonomyUpdateIn(BaseModel):
     authority_ceiling: str | None = None
     max_attempts: int | None = None
     retention_days: int | None = None
+
+
+# --- live pipeline dashboard (GET /books/{book_id}/pipeline) ---------------------------------------
+# One fan-out of reads describing everything the production pipeline is doing right now, so the Desk's
+# Pipeline tab can show it at a glance. All the human-facing `reason`/`suggested_action` strings are
+# pre-computed SERVER-SIDE (from current_stage + the latest matching AgentEvent) so the frontend stays
+# thin. The pipeline never assigns blocked/failed/rejected/cancelled to runs/tasks — parking is always
+# `waiting_for_human` + a stage string + an event reason — so those states are not modelled here.
+
+
+class PipelineJobOut(BaseModel):
+    """A draft/revision Job in the pipeline. Live phase/elapsed/cache ride only on RUNNING rows and
+    come from the in-process progress registry — they are null when served by a non-drain process."""
+
+    id: uuid.UUID
+    kind: str
+    status: str
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    # RUNNING only (process-local; may be absent):
+    phase: str | None = None
+    elapsed_s: int | None = None
+    cache_hit_ratio: float | None = None
+    claimed_at: datetime | None = None
+    # QUEUED only:
+    position: int | None = None
+    created_at: datetime | None = None
+    # FAILED only:
+    last_error: str | None = None
+
+
+class PipelineAgentRunOut(BaseModel):
+    """A RUNNING editorial AgentRun (repair/verify/QA step) inside a production run."""
+
+    id: uuid.UUID
+    production_run_id: uuid.UUID
+    agent_name: str
+    stage: str
+    started_at: datetime | None = None
+
+
+class PipelineRunRef(BaseModel):
+    """A production run in the pipeline, with the human reason + suggested action pre-computed."""
+
+    run_id: uuid.UUID
+    chapter_id: uuid.UUID
+    chapter_no: int | None = None
+    status: str
+    current_stage: str | None = None
+    updated_at: datetime
+    reason: str | None = None
+    suggested_action: str | None = None
+    # Machine key the frontend maps to an endpoint + deep-link (approve_apply | verify | decide_issue |
+    # resume | align_scene_count | retry | draft_missing | none).
+    action_kind: str | None = None
+    # Drafting progress ("N of M scenes drafted"), when the run has a sequence + timeline.
+    scenes_drafted: int | None = None
+    scenes_expected: int | None = None
+
+
+class PipelineRepairTaskRef(BaseModel):
+    """A queued/parked repair task, with the reason + suggested action pre-computed."""
+
+    task_id: uuid.UUID
+    production_run_id: uuid.UUID
+    chapter_id: uuid.UUID
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    repair_kind: str
+    authority_level: str
+    status: str
+    requires_human_approval: bool
+    reason: str | None = None
+    suggested_action: str | None = None
+    action_kind: str | None = None
+
+
+class PipelineIssueRef(BaseModel):
+    """An undecided issue (proposed/escalated) waiting on a human triage decision."""
+
+    issue_id: uuid.UUID
+    production_run_id: uuid.UUID
+    chapter_id: uuid.UUID
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    issue_kind: str
+    severity: str
+    status: str
+    claim: str
+    reason: str | None = None
+    suggested_action: str | None = None
+    action_kind: str | None = None
+
+
+class PipelineCompletedRef(BaseModel):
+    """A completed run + its final-chapter status (from the final_chapter artifact)."""
+
+    run_id: uuid.UUID
+    chapter_id: uuid.UUID
+    chapter_no: int | None = None
+    status: str
+    current_stage: str | None = None
+    updated_at: datetime
+    final_chapter_status: str | None = None
+    scenes_drafted: int | None = None
+    scenes_expected: int | None = None
+
+
+class PipelineNowOut(BaseModel):
+    """What is executing right now. The engine is serial — at most one draft and one repair drain in
+    flight per process — so these lists are short by design."""
+
+    jobs: list[PipelineJobOut] = []
+    agent_runs: list[PipelineAgentRunOut] = []
+    runs: list[PipelineRunRef] = []  # production runs with status running/repairing
+    drain_locked: bool = False
+    repair_drain_locked: bool = False
+
+
+class PipelineQueueOut(BaseModel):
+    """What is waiting to run, IN ORDER. `serial` is the honest framing: work drafts/repairs one at a
+    time (a single process-global drain lock), so this is a line, not a parallel fan-out."""
+
+    serial: bool = True
+    note: str = "Work runs one at a time, in order — the engine drafts and repairs sequentially, not in parallel."
+    queue_paused: bool = False
+    jobs_queued: int = 0
+    jobs: list[PipelineJobOut] = []  # ordered queued jobs (with positions)
+    repair_tasks_auto: list[PipelineRepairTaskRef] = []  # queued, auto-drainable
+    repair_tasks_approval: list[PipelineRepairTaskRef] = []  # queued, need your approval first
+    runs_queued: list[PipelineRunRef] = []  # production runs status=queued
+
+
+class PipelineWaitingOut(BaseModel):
+    """Everything parked ON A HUMAN, each with a direct action. Runs stuck in a *blocked* stage move to
+    `blocked` instead; what remains here is genuine review/approve/decide/resume work."""
+
+    runs: list[PipelineRunRef] = []
+    repair_tasks: list[PipelineRepairTaskRef] = []
+    issues: list[PipelineIssueRef] = []
+
+
+class PipelineBlockedOut(BaseModel):
+    """Work stuck on a specific fault (a structural-repair stage, a provider rate limit, a failed draft,
+    or the human queue pause), each with the unblock action."""
+
+    runs: list[PipelineRunRef] = []
+    failed_jobs: list[PipelineJobOut] = []
+    queue_paused: bool = False
+
+
+class PipelineCompletedOut(BaseModel):
+    runs: list[PipelineCompletedRef] = []
+
+
+class PipelineStatusOut(BaseModel):
+    """One live snapshot of the whole production pipeline for a book — the Pipeline dashboard's spine."""
+
+    book_id: uuid.UUID
+    generated_at: datetime
+    now: PipelineNowOut
+    queue: PipelineQueueOut
+    waiting_on_human: PipelineWaitingOut
+    blocked: PipelineBlockedOut
+    completed: PipelineCompletedOut
+    sweeper: SweeperStatusOut
 
 
 class AgentRunOut(_ORM):

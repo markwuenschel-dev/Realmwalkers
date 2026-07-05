@@ -6,11 +6,13 @@ import { api } from "../api/client";
 import type {
   ArtifactOut,
   DraftReadinessOut,
+  IssueDecisionOut,
   IssueOut,
   PacketOut,
   ProductionRunDetailOut,
   ProductionRunOut,
   RepairTaskOut,
+  RepairVerificationOut,
 } from "../api/types";
 import { useDeskData } from "../api/data";
 import { css } from "../css";
@@ -98,6 +100,109 @@ function summaryCount(summary: Record<string, unknown> | null | undefined, key: 
   return typeof value === "number" ? value.toLocaleString() : "—";
 }
 
+// Issue lifecycle → chip tone. Was hard-coded neutral, which made every issue look inert regardless
+// of whether it still needs a decision, is being repaired, or already passed verification.
+function issueStatusChipTone(status: string): ChipTone {
+  switch (status) {
+    case "verified":
+    case "repaired":
+      return "good";
+    case "accepted":
+    case "repair_queued":
+      return "info";
+    case "proposed":
+      return "warn";
+    case "escalated":
+      return "bad";
+    case "rejected":
+    case "merged":
+    case "false_positive":
+    default:
+      return "neutral";
+  }
+}
+
+// Verify verdict → chip tone (RepairVerificationVerdict: accept | reject | needs_another_repair |
+// escalate_to_human). This is the colour that finally tells the user whether a Verify passed.
+function verdictChipTone(verdict: string): ChipTone {
+  switch (verdict) {
+    case "accept":
+      return "good";
+    case "needs_another_repair":
+      return "warn";
+    case "reject":
+    case "escalate_to_human":
+      return "bad";
+    default:
+      return "neutral";
+  }
+}
+
+// The six preservation booleans a RepairVerification records (schemas.py RepairVerificationOut). Each
+// renders as a ✓/✗ chip so "did the fix keep canon/voice/beats intact?" is legible at a glance.
+type PreservationKey =
+  | "target_issue_resolved"
+  | "canon_preserved"
+  | "scene_outcome_preserved"
+  | "voice_preserved"
+  | "required_beats_preserved"
+  | "reader_state_preserved";
+const PRESERVATION_CHECKS: { key: PreservationKey; label: string }[] = [
+  { key: "target_issue_resolved", label: "target resolved" },
+  { key: "canon_preserved", label: "canon" },
+  { key: "scene_outcome_preserved", label: "scene outcome" },
+  { key: "voice_preserved", label: "voice" },
+  { key: "required_beats_preserved", label: "required beats" },
+  { key: "reader_state_preserved", label: "reader state" },
+];
+
+// Structural root-cause repair kinds (workers/repair_triage.STRUCTURAL_ROOT_CAUSES). While one of
+// these is open, triage keeps prose_polish issues accepted-but-untasked ("deferred") — the callout
+// and Re-triage button surface that backlog.
+const STRUCTURAL_ROOT_CAUSES = new Set([
+  "sequence_entry_state",
+  "scene_scope_bleed",
+  "budget_mismatch",
+  "canon_contract_leak",
+]);
+const OPEN_REPAIR_TASK_STATUSES = new Set(["queued", "running", "waiting_for_human", "failed"]);
+
+function relTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+// Match a RepairVerification to its task via the recorded linkage: verification → repair_attempt →
+// repair_task (RepairVerification.repair_attempt_id → RepairAttempt.id → RepairAttempt.repair_task_id).
+// Returns the newest verification for the task, or null if none has been recorded yet.
+function latestVerificationForTask(
+  detail: ProductionRunDetailOut,
+  taskId: string,
+): RepairVerificationOut | null {
+  const attemptIds = new Set(
+    detail.repair_attempts.filter((a) => a.repair_task_id === taskId).map((a) => a.id),
+  );
+  if (!attemptIds.size) return null;
+  const verifs = detail.repair_verifications.filter((v) => attemptIds.has(v.repair_attempt_id));
+  if (!verifs.length) return null;
+  return verifs.reduce((latest, v) =>
+    new Date(v.created_at).getTime() >= new Date(latest.created_at).getTime() ? v : latest,
+  );
+}
+
+// summary_json's status maps are `dict[str, count]` — pull the numeric entries out defensively (the
+// blob is loosely typed on the wire and old runs may omit a key entirely).
+function statusMapEntries(value: unknown): [string, number][] {
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value as Record<string, unknown>).filter(
+    (entry): entry is [string, number] => typeof entry[1] === "number",
+  );
+}
+
 // --- run-stage pipeline ------------------------------------------------------------------------
 // The pinned five-stage production pipeline. Every modern current_stage value maps 1:1; off-path
 // holds (structural repair / provider 429) render as a blocked step; legacy stage strings from the
@@ -173,33 +278,145 @@ function runPipelineSteps(run: { current_stage?: string | null; status: string }
   return at(0, stage ?? "queued");
 }
 
+// Pull a human reason out of an event's structured payload — refusals, blocks and rate-limit parks
+// carry it under a handful of stable keys (payload_json.reason / detail / message / last_error).
+function eventPayloadReason(payload: Record<string, unknown> | null | undefined): string | null {
+  if (!payload) return null;
+  for (const key of ["reason", "detail", "message", "last_error", "error"]) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return null;
+}
+
+// The full per-run replay log (AgentEvent) rendered newest-first in a scrollable column — the old
+// feed clipped it to the last 8, hiding the very transitions the user needed to see what happened.
 function EventFeed({ detail }: { detail: ProductionRunDetailOut }) {
-  const rows = detail.events.slice(-8).reverse();
+  const rows = [...detail.events].reverse();
   if (!rows.length) {
     return <div style={css("color:var(--dim);font-size:13px")}>No production events yet.</div>;
   }
   return (
-    <div style={css("display:flex;flex-direction:column;gap:10px")}>
-      {rows.map((event) => (
-        <div
-          key={event.id}
-          style={css(
-            "display:grid;grid-template-columns:110px 1fr;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg3)",
+    <div
+      data-testid="event-trail"
+      style={css("display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto")}
+    >
+      <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+        {rows.length} event{rows.length === 1 ? "" : "s"} · newest first
+      </div>
+      {rows.map((event) => {
+        const reason = eventPayloadReason(event.payload_json);
+        return (
+          <div
+            key={event.id}
+            style={css(
+              "display:grid;grid-template-columns:120px 1fr auto;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg3)",
+            )}
+          >
+            <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+              {event.stage ?? event.event_type}
+            </div>
+            <div style={css("min-width:0")}>
+              <div style={css("font-size:13px;color:var(--ink)")}>
+                {event.message ?? event.event_type}
+              </div>
+              <div
+                style={css(
+                  "margin-top:2px;font-family:var(--mono);font-size:10.5px;color:var(--dim)",
+                )}
+              >
+                {event.event_type}
+              </div>
+              {reason && (
+                <div
+                  style={css(
+                    "margin-top:6px;padding:6px 9px;border-left:2px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:var(--bg2);font-size:12px;color:var(--dim);line-height:1.4",
+                  )}
+                >
+                  {reason}
+                </div>
+              )}
+            </div>
+            <div
+              style={css(
+                "font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right;white-space:nowrap",
+              )}
+              title={new Date(event.created_at).toLocaleString()}
+            >
+              {relTime(event.created_at)}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// summary_json.{issues_by_status,repair_tasks_by_status,verification_count} as labeled chips, in
+// place of the raw JSON dump the "Run QA" box used to show.
+function StatusBreakdown({ summary }: { summary: Record<string, unknown> | null | undefined }) {
+  const issuesBy = statusMapEntries(summary?.issues_by_status);
+  const tasksBy = statusMapEntries(summary?.repair_tasks_by_status);
+  const rawVerificationCount = summary?.verification_count;
+  const verificationCount = typeof rawVerificationCount === "number" ? rawVerificationCount : 0;
+
+  if (!issuesBy.length && !tasksBy.length && !verificationCount) {
+    return (
+      <div style={css("color:var(--dim);font-size:13px")}>
+        No status breakdown yet — assemble and triage to populate it.
+      </div>
+    );
+  }
+
+  const rowLabel =
+    "font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)";
+  const chipRow = "display:flex;flex-wrap:wrap;gap:6px;margin-top:6px";
+  return (
+    <div data-testid="status-breakdown" style={css("display:flex;flex-direction:column;gap:12px")}>
+      <div>
+        <div style={css(rowLabel)}>Issues by status</div>
+        <div style={css(chipRow)}>
+          {issuesBy.length ? (
+            issuesBy.map(([status, count]) => (
+              <Chip
+                key={status}
+                label={`${status.replace(/_/g, " ")} · ${count}`}
+                tone={issueStatusChipTone(status)}
+                size="sm"
+              />
+            ))
+          ) : (
+            <span style={css("font-size:12px;color:var(--dim)")}>none</span>
           )}
-        >
-          <div style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-            {event.stage ?? event.event_type}
-          </div>
-          <div>
-            <div style={css("font-size:13px;color:var(--ink)")}>
-              {event.message ?? event.event_type}
-            </div>
-            <div style={css("margin-top:4px;font-size:12px;color:var(--dim)")}>
-              {new Date(event.created_at).toLocaleString()}
-            </div>
-          </div>
         </div>
-      ))}
+      </div>
+      <div>
+        <div style={css(rowLabel)}>Repair tasks by status</div>
+        <div style={css(chipRow)}>
+          {tasksBy.length ? (
+            tasksBy.map(([status, count]) => (
+              <Chip
+                key={status}
+                label={`${status.replace(/_/g, " ")} · ${count}`}
+                tone={statusChipTone(status)}
+                size="sm"
+              />
+            ))
+          ) : (
+            <span style={css("font-size:12px;color:var(--dim)")}>none</span>
+          )}
+        </div>
+      </div>
+      <div>
+        <div style={css(rowLabel)}>Verifications recorded</div>
+        <div style={css(chipRow)}>
+          <Chip
+            label={String(verificationCount)}
+            tone={verificationCount ? "info" : "neutral"}
+            size="sm"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -553,6 +770,68 @@ export default function ProductionScreen() {
   const queuedEligibleCount = repairTasks.filter(
     (t) => t.status === "queued" && !t.requires_human_approval,
   ).length;
+
+  // Latest issue-decision per issue (why triage accepted/rejected/escalated it), keyed for the
+  // inline reason on each IssueRow.
+  const decisionByIssue = useMemo(() => {
+    const map = new Map<string, IssueDecisionOut>();
+    for (const decision of detail?.issue_decisions ?? []) {
+      const prev = map.get(decision.issue_id);
+      if (!prev || new Date(decision.created_at) >= new Date(prev.created_at))
+        map.set(decision.issue_id, decision);
+    }
+    return map;
+  }, [detail?.issue_decisions]);
+
+  // Deferred work (D2 + C6): issues triage ACCEPTED but left untasked — no repair task references
+  // them. While a structural root repair is open, prose fixes stay parked here; Re-triage releases
+  // them once the structural repair resolves.
+  const taskedIssueIds = useMemo(
+    () => new Set(repairTasks.flatMap((t) => t.issue_ids)),
+    [repairTasks],
+  );
+  const deferredIssues = issues.filter((i) => i.status === "accepted" && !taskedIssueIds.has(i.id));
+  const deferredCount = deferredIssues.length;
+  const proposedCount = issues.filter((i) => i.status === "proposed").length;
+  const openStructuralRepair = repairTasks.some(
+    (t) => STRUCTURAL_ROOT_CAUSES.has(t.repair_kind) && OPEN_REPAIR_TASK_STATUSES.has(t.status),
+  );
+
+  // Re-triage (was the dead "Auto-triage"): the client guard now fires whenever there is real work —
+  // `proposed` issues to triage OR `deferred` (accepted-but-untasked) issues to release — instead of
+  // only `proposed`, which the inline auto_triage at run creation already drains to zero. Kept as the
+  // manual fallback to the sweeper's automatic re-triage.
+  const onRetriage = () => {
+    if (!detail) return;
+    if (!proposedCount && !deferredCount) {
+      setNotice(
+        issues.length
+          ? `Nothing to re-triage — all ${issues.length} issue${issues.length === 1 ? " is" : "s are"} already triaged and tasked (${repairTasks.length} repair task${repairTasks.length === 1 ? "" : "s"}). Work the Apply / Verify buttons on the repair tasks instead.`
+          : "Nothing to re-triage — this run has no captured issues. Assemble first if you expected some.",
+      );
+      return;
+    }
+    setNotice(null);
+    const tasksBefore = repairTasks.length;
+    const parts: string[] = [];
+    if (proposedCount) parts.push(`${proposedCount} proposed`);
+    if (deferredCount) parts.push(`${deferredCount} deferred`);
+    const total = proposedCount + deferredCount;
+    // Triage only moves issues → repair tasks; artifacts/prose can't change, so the slim refresh
+    // skips the ~670KB detail payload.
+    void runAction("triage", () => api.triageProductionRun(detail.run.id), {
+      reloadRuns: true,
+      refresh: "slim",
+    }).then((out) => {
+      if (!out) return;
+      const released = Math.max(0, out.repair_task_count - tasksBefore);
+      setNotice(
+        released
+          ? `Re-triaged ${parts.join(" + ")} issue${total === 1 ? "" : "s"} — released ${released} new repair task${released === 1 ? "" : "s"}. Apply / Verify them below.`
+          : `Re-triaged ${parts.join(" + ")} issue${total === 1 ? "" : "s"} — no new repair tasks yet; prose fixes stay deferred until the open structural repair resolves.`,
+      );
+    });
+  };
   const sequenceScenes = Array.isArray(detail?.chapter_sequence?.body?.scenes)
     ? detail?.chapter_sequence?.body?.scenes
     : [];
@@ -821,33 +1100,10 @@ export default function ProductionScreen() {
               <Button
                 size="sm"
                 disabled={busy != null}
-                onClick={() => {
-                  // Triage only converts `proposed` issues into repair tasks; with none left it is a
-                  // deterministic no-op that used to look like a dead button. Say so instead.
-                  const proposed = issues.filter((i) => i.status === "proposed").length;
-                  if (!proposed) {
-                    setNotice(
-                      issues.length
-                        ? `Nothing to triage — all ${issues.length} issue${issues.length === 1 ? " is" : "s are"} already triaged (${repairTasks.length} repair task${repairTasks.length === 1 ? "" : "s"} queued). Work the Apply / Verify buttons on the repair tasks instead.`
-                        : "Nothing to triage — this run has no captured issues. Assemble first if you expected some.",
-                    );
-                    return;
-                  }
-                  setNotice(null);
-                  // Triage only moves issues → repair tasks; artifacts/prose can't change, so the
-                  // slim refresh skips the ~670KB detail payload.
-                  void runAction("triage", () => api.triageProductionRun(detail.run.id), {
-                    reloadRuns: true,
-                    refresh: "slim",
-                  }).then((ok) => {
-                    if (ok)
-                      setNotice(
-                        `Triaged ${proposed} proposed issue${proposed === 1 ? "" : "s"} — statuses and repair tasks updated below.`,
-                      );
-                  });
-                }}
+                title="Convert proposed issues into repair tasks and release any deferred (accepted-but-untasked) prose fixes — the manual fallback to the sweeper's automatic re-triage"
+                onClick={onRetriage}
               >
-                {busy === "triage" ? "Triaging…" : "Auto-triage"}
+                {busy === "triage" ? "Re-triaging…" : "Re-triage"}
               </Button>
               <Button
                 size="sm"
@@ -899,6 +1155,7 @@ export default function ProductionScreen() {
                     <IssueRow
                       key={issue.id}
                       issue={issue}
+                      decision={decisionByIssue.get(issue.id) ?? null}
                       onOpenPacket={
                         chapterId
                           ? () =>
@@ -921,6 +1178,29 @@ export default function ProductionScreen() {
 
             <Panel eyebrow="Repair tasks" pad="18px 20px">
               <div style={css("display:flex;flex-direction:column;gap:10px")}>
+                {deferredCount > 0 && openStructuralRepair && (
+                  <div
+                    data-testid="deferred-callout"
+                    style={css(
+                      "border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg2));border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px",
+                    )}
+                  >
+                    <div style={css("font-size:13px;color:var(--ink)")}>
+                      {deferredCount} prose fix{deferredCount === 1 ? "" : "es"} waiting behind a
+                      structural repair.
+                    </div>
+                    <div style={css("font-size:12px;color:var(--dim);line-height:1.45")}>
+                      Triage holds these accepted issues untasked until the structural root-cause
+                      repair resolves. Once it verifies, Re-triage releases them into per-scene
+                      repair tasks.
+                    </div>
+                    <div>
+                      <Button size="sm" disabled={busy != null} onClick={onRetriage}>
+                        {busy === "triage" ? "Re-triaging…" : "Re-triage"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {queuedEligibleCount > 0 && runId && (
                   <div style={css("display:flex;align-items:center;gap:10px;flex-wrap:wrap")}>
                     <Button
@@ -956,6 +1236,7 @@ export default function ProductionScreen() {
                       key={task.id}
                       task={task}
                       busy={busy}
+                      verification={detail ? latestVerificationForTask(detail, task.id) : null}
                       onApply={() =>
                         void runAction(`apply:${task.id}`, () => api.applyRepairTask(task.id), {
                           reloadRuns: true,
@@ -1067,14 +1348,28 @@ export default function ProductionScreen() {
                 </div>
 
                 <div>
-                  <Eyebrow>Run QA</Eyebrow>
-                  <pre
-                    style={css(
-                      "margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--boxbg);font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--ink)",
-                    )}
-                  >
-                    {JSON.stringify(qaArtifact?.body ?? detail?.run.summary_json ?? {}, null, 2)}
-                  </pre>
+                  <Eyebrow>Run QA · status breakdown</Eyebrow>
+                  <div style={css("margin-top:12px")}>
+                    <StatusBreakdown summary={detail?.run.summary_json} />
+                  </div>
+                  {qaArtifact && (
+                    <details style={css("margin-top:12px")}>
+                      <summary
+                        style={css(
+                          "cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--dim)",
+                        )}
+                      >
+                        Chapter QA report (raw)
+                      </summary>
+                      <pre
+                        style={css(
+                          "margin:8px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--boxbg);font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--ink);max-height:320px;overflow:auto",
+                        )}
+                      >
+                        {JSON.stringify(qaArtifact.body, null, 2)}
+                      </pre>
+                    </details>
+                  )}
                 </div>
               </div>
             </div>
@@ -1262,7 +1557,15 @@ function ProductionGatePanel({
   );
 }
 
-function IssueRow({ issue, onOpenPacket }: { issue: IssueOut; onOpenPacket?: () => void }) {
+function IssueRow({
+  issue,
+  decision,
+  onOpenPacket,
+}: {
+  issue: IssueOut;
+  decision?: IssueDecisionOut | null;
+  onOpenPacket?: () => void;
+}) {
   return (
     <div
       style={css(
@@ -1275,13 +1578,30 @@ function IssueRow({ issue, onOpenPacket }: { issue: IssueOut; onOpenPacket?: () 
         </span>
         <span style={css("display:inline-flex;gap:5px;align-items:center")}>
           <Chip label={issue.severity} tone={severityChipTone(issue.severity)} size="sm" />
-          <Chip label={issue.status.replace(/_/g, " ")} tone="neutral" size="sm" />
+          <Chip
+            label={issue.status.replace(/_/g, " ")}
+            tone={issueStatusChipTone(issue.status)}
+            size="sm"
+          />
         </span>
       </div>
       <div style={css("margin-top:6px;font-size:13px;color:var(--ink)")}>{issue.claim}</div>
       <div style={css("margin-top:6px;font-size:12px;color:var(--dim)")}>
         {issue.validator} · {issue.issue_kind}
       </div>
+      {decision && (
+        <div
+          data-testid="issue-decision"
+          style={css(
+            "margin-top:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);font-size:12px;color:var(--dim);line-height:1.45",
+          )}
+        >
+          <span style={css("font-family:var(--mono);color:var(--ink);text-transform:uppercase")}>
+            {decision.decision.replace(/_/g, " ")}
+          </span>
+          {decision.reason ? ` · ${decision.reason}` : ""}
+        </div>
+      )}
       {issue.quote && (
         <div
           style={css(
@@ -1307,12 +1627,14 @@ function IssueRow({ issue, onOpenPacket }: { issue: IssueOut; onOpenPacket?: () 
 function RepairRow({
   task,
   busy,
+  verification,
   onApply,
   onApproveApply,
   onVerify,
 }: {
   task: RepairTaskOut;
   busy: string | null;
+  verification: RepairVerificationOut | null;
   onApply: () => void;
   onApproveApply: () => void;
   onVerify: () => void;
@@ -1385,6 +1707,88 @@ function RepairRow({
           {busy === `verify:${task.id}` ? "Verifying…" : "Verify"}
         </Button>
       </div>
+      {/* Inline "what this does" (C5): each button's target state + what to watch for, so the loop
+          isn't a mystery. */}
+      <div style={css("margin-top:8px;font-size:11.5px;color:var(--dim);line-height:1.5")}>
+        {needsApproval
+          ? "Approve & apply runs this multi-scene repair now → status running; revisions draft in the background (watch the queue indicator), then Verify."
+          : "Apply queues the repair → span patches land immediately, instruction repairs draft a scene revision in the background (watch the queue), then Verify."}{" "}
+        Verify checks the revised prose and records a verdict → accept resolves the issues (task
+        verified); needs-another-repair re-queues the task.
+      </div>
+      <RepairVerificationBlock verification={verification} />
+    </div>
+  );
+}
+
+// The Verify verdict, finally rendered (C1): verdict chip, resolved-vs-remaining issue counts, the
+// regression score, the six preservation booleans as ✓/✗ chips, and any newly-introduced issues.
+// Before this, Verify wrote all of it and the UI showed only a status chip — hence "Verify feels
+// pointless". Matched to its task via repair_attempt → repair_task in latestVerificationForTask().
+function RepairVerificationBlock({ verification }: { verification: RepairVerificationOut | null }) {
+  if (!verification) return null;
+  const resolved = verification.resolved_issue_ids.length;
+  const remaining = verification.remaining_issue_ids.length;
+  const newIssues = verification.new_issues_json ?? [];
+  const regression = verification.regression_score;
+  return (
+    <div
+      data-testid="repair-verification"
+      style={css(
+        "margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2);display:flex;flex-direction:column;gap:8px",
+      )}
+    >
+      <div style={css("display:flex;justify-content:space-between;gap:10px;align-items:center")}>
+        <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+          Verification · {relTime(verification.created_at)}
+        </span>
+        <Chip
+          label={verification.verdict.replace(/_/g, " ")}
+          tone={verdictChipTone(verification.verdict)}
+          size="sm"
+        />
+      </div>
+      <div style={css("display:flex;flex-wrap:wrap;gap:6px")}>
+        <Chip label={`${resolved} resolved`} tone={resolved ? "good" : "neutral"} size="sm" />
+        <Chip label={`${remaining} remaining`} tone={remaining ? "warn" : "neutral"} size="sm" />
+        <Chip
+          label={`regression ${regression}`}
+          tone={regression > 0 ? "warn" : "neutral"}
+          size="sm"
+        />
+      </div>
+      <div style={css("display:flex;flex-wrap:wrap;gap:6px")}>
+        {PRESERVATION_CHECKS.map(({ key, label }) => {
+          const ok = verification[key];
+          return (
+            <Chip
+              key={key}
+              label={`${ok ? "✓" : "✗"} ${label}`}
+              tone={ok ? "good" : "bad"}
+              size="sm"
+            />
+          );
+        })}
+      </div>
+      {newIssues.length > 0 && (
+        <div style={css("font-size:12px;color:var(--dim);line-height:1.45")}>
+          <span style={css("color:var(--warn)")}>
+            {newIssues.length} new issue{newIssues.length === 1 ? "" : "s"} introduced:
+          </span>{" "}
+          {newIssues
+            .map((issue) => {
+              const record = issue as Record<string, unknown>;
+              const text = record.claim ?? record.message ?? record.detail ?? record.issue_kind;
+              return typeof text === "string" ? text : JSON.stringify(issue);
+            })
+            .join(" · ")}
+        </div>
+      )}
+      {verification.reason && (
+        <div style={css("font-size:12px;color:var(--dim);line-height:1.45")}>
+          {verification.reason}
+        </div>
+      )}
     </div>
   );
 }

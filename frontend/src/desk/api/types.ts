@@ -665,3 +665,154 @@ export interface ProductionRunDetailOut {
   repair_attempts: RepairAttemptOut[];
   repair_verifications: RepairVerificationOut[];
 }
+
+// --- live pipeline dashboard (GET /books/{book_id}/pipeline) --------------------------------------
+// Hand-written to mirror shared/schemas.py PipelineStatusOut. Every `reason`/`suggested_action` string
+// is pre-computed server-side; `action_kind` is the machine key this screen maps to an endpoint call
+// or a deep-link. The pipeline never assigns blocked/failed/rejected/cancelled to a run/task, so those
+// states are not modelled — parking is always `waiting_for_human` + a stage + an event reason.
+
+export interface PipelineJobOut {
+  id: string;
+  kind: string;
+  status: string;
+  chapter_no?: number | null;
+  scene_no?: number | null;
+  // RUNNING only (process-local; may be absent):
+  phase?: string | null;
+  elapsed_s?: number | null;
+  cache_hit_ratio?: number | null;
+  claimed_at?: string | null;
+  // QUEUED only:
+  position?: number | null;
+  created_at?: string | null;
+  // FAILED only:
+  last_error?: string | null;
+}
+
+export interface PipelineAgentRunOut {
+  id: string;
+  production_run_id: string;
+  agent_name: string;
+  stage: string;
+  started_at?: string | null;
+}
+
+export interface PipelineRunRef {
+  run_id: string;
+  chapter_id: string;
+  chapter_no?: number | null;
+  status: string;
+  current_stage?: string | null;
+  updated_at: string;
+  reason?: string | null;
+  suggested_action?: string | null;
+  // approve_apply | verify | decide_issue | resume | align_scene_count | retry | draft_missing | none
+  action_kind?: string | null;
+  scenes_drafted?: number | null;
+  scenes_expected?: number | null;
+}
+
+export interface PipelineRepairTaskRef {
+  task_id: string;
+  production_run_id: string;
+  chapter_id: string;
+  chapter_no?: number | null;
+  scene_no?: number | null;
+  repair_kind: string;
+  authority_level: string;
+  status: string;
+  requires_human_approval: boolean;
+  reason?: string | null;
+  suggested_action?: string | null;
+  action_kind?: string | null;
+}
+
+export interface PipelineIssueRef {
+  issue_id: string;
+  production_run_id: string;
+  chapter_id: string;
+  chapter_no?: number | null;
+  scene_no?: number | null;
+  issue_kind: string;
+  severity: string;
+  status: string;
+  claim: string;
+  reason?: string | null;
+  suggested_action?: string | null;
+  action_kind?: string | null;
+}
+
+export interface PipelineCompletedRef {
+  run_id: string;
+  chapter_id: string;
+  chapter_no?: number | null;
+  status: string;
+  current_stage?: string | null;
+  updated_at: string;
+  final_chapter_status?: string | null;
+  scenes_drafted?: number | null;
+  scenes_expected?: number | null;
+}
+
+export interface SweeperStatusOut {
+  last_tick_at?: string | null;
+  ran: boolean;
+  autonomy_enabled: boolean;
+  paused: boolean;
+  stale_runs_found: number;
+  actions: Record<string, unknown>[];
+  driving: string[];
+  last_error?: string | null;
+  interval_s: number;
+  stale_window_s: number;
+  authority_ceiling: string;
+  max_attempts: number;
+  attempts: Record<string, number>;
+}
+
+export interface PipelineNowOut {
+  jobs: PipelineJobOut[];
+  agent_runs: PipelineAgentRunOut[];
+  runs: PipelineRunRef[];
+  drain_locked: boolean;
+  repair_drain_locked: boolean;
+}
+
+export interface PipelineQueueOut {
+  serial: boolean;
+  note: string;
+  queue_paused: boolean;
+  jobs_queued: number;
+  jobs: PipelineJobOut[];
+  repair_tasks_auto: PipelineRepairTaskRef[];
+  repair_tasks_approval: PipelineRepairTaskRef[];
+  runs_queued: PipelineRunRef[];
+}
+
+export interface PipelineWaitingOut {
+  runs: PipelineRunRef[];
+  repair_tasks: PipelineRepairTaskRef[];
+  issues: PipelineIssueRef[];
+}
+
+export interface PipelineBlockedOut {
+  runs: PipelineRunRef[];
+  failed_jobs: PipelineJobOut[];
+  queue_paused: boolean;
+}
+
+export interface PipelineCompletedOut {
+  runs: PipelineCompletedRef[];
+}
+
+export interface PipelineStatusOut {
+  book_id: string;
+  generated_at: string;
+  now: PipelineNowOut;
+  queue: PipelineQueueOut;
+  waiting_on_human: PipelineWaitingOut;
+  blocked: PipelineBlockedOut;
+  completed: PipelineCompletedOut;
+  sweeper: SweeperStatusOut;
+}

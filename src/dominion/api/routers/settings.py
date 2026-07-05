@@ -23,6 +23,7 @@ from dominion.shared.schemas import (
     ModelSettingUpdateIn,
     SmokeTestIn,
     SmokeTestOut,
+    SweeperStatusOut,
 )
 from dominion.workers import sweeper
 
@@ -132,7 +133,7 @@ async def get_agent_stats(session: SessionDep) -> AgentStatsListOut:
     return await agent_ops.build_agent_stats(session)
 
 
-def _autonomy_out(cfg: sweeper.SweeperConfig) -> AutonomyOut:
+def _autonomy_out(cfg: sweeper.SweeperConfig, heartbeat: SweeperStatusOut | None = None) -> AutonomyOut:
     return AutonomyOut(
         autonomy_enabled=cfg.autonomy_enabled,
         interval_s=cfg.interval_s,
@@ -140,13 +141,17 @@ def _autonomy_out(cfg: sweeper.SweeperConfig) -> AutonomyOut:
         authority_ceiling=cfg.ceiling,
         max_attempts=cfg.max_attempts,
         retention_days=cfg.retention_days,
+        heartbeat=heartbeat,
     )
 
 
 @router.get("/autonomy", response_model=AutonomyOut)
 async def get_autonomy(session: SessionDep) -> AutonomyOut:
-    """Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention)."""
-    return _autonomy_out(await sweeper.load_config(session))
+    """Autonomous self-repair sweeper settings (kill switch, cadence, authority ceiling, retention),
+    plus the live sweeper heartbeat so the Settings screen can show the loop is alive and what it did."""
+    cfg = await sweeper.load_config(session)
+    heartbeat = SweeperStatusOut(**await sweeper.sweeper_status(session))
+    return _autonomy_out(cfg, heartbeat)
 
 
 @router.put("/autonomy", response_model=AutonomyOut)
