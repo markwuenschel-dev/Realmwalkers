@@ -353,7 +353,7 @@ describe("ProductionScreen", () => {
     await screen.findByText("Final chapter prose.");
     expect(api.productionRun).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Auto-triage" }));
+    fireEvent.click(screen.getByRole("button", { name: "Re-triage" }));
     await waitFor(() => expect(api.triageProductionRun).toHaveBeenCalledWith("run-1"));
     await waitFor(() => expect(api.productionRunIssues).toHaveBeenCalledWith("run-1"));
     expect(api.productionRunRepairTasks).toHaveBeenCalledWith("run-1");
@@ -486,19 +486,20 @@ describe("ProductionScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Applying…" })).toBeDisabled());
     expect(screen.getByRole("button", { name: "Verify" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Auto-triage" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Re-triage" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Refresh assembly" })).toBeDisabled();
   });
 
-  it("explains the triage no-op instead of silently doing nothing", async () => {
+  it("explains the re-triage no-op instead of silently doing nothing", async () => {
     render(<ProductionScreen />);
     await screen.findByText("Final chapter prose.");
 
-    // The fixture's only issue is already repair_queued — nothing left in `proposed`, so triage
-    // would be a deterministic server-side no-op. The button must say so, not silently succeed.
-    fireEvent.click(screen.getByRole("button", { name: "Auto-triage" }));
+    // The fixture's only issue is already repair_queued (not proposed, and it IS tasked — task-1
+    // references issue-1), so nothing is proposed OR deferred: re-triage is a deterministic no-op.
+    // The button must say so, not silently succeed.
+    fireEvent.click(screen.getByRole("button", { name: "Re-triage" }));
     const notice = await screen.findByTestId("production-notice");
-    expect(notice.textContent).toContain("Nothing to triage");
+    expect(notice.textContent).toContain("Nothing to re-triage");
     expect(api.triageProductionRun).not.toHaveBeenCalled();
 
     fireEvent.click(within(notice).getByRole("button", { name: "Dismiss" }));
@@ -616,5 +617,102 @@ describe("ProductionScreen", () => {
     expect(within(gate).getByText(/chapter packet body is not a JSON object/)).toBeInTheDocument();
     expect(within(gate).getByText("block")).toBeInTheDocument();
     expect(within(gate).getByRole("button", { name: "Go to Packets" })).toBeInTheDocument();
+  });
+
+  it("renders the Verify verdict, resolved/remaining counts, and preservation checks (Part C)", async () => {
+    // The whole point of Part C: a recorded RepairVerification is surfaced, not thrown away. The
+    // verification links to task-1 via repair_attempt (verification.repair_attempt_id →
+    // attempt.id → attempt.repair_task_id === "task-1").
+    const attempt = {
+      id: "attempt-1",
+      repair_task_id: "task-1",
+      attempt_no: 1,
+      model: "claude",
+      issues_addressed: ["issue-1"],
+      new_risks: [],
+      created_at: "2026-07-02T10:05:00Z",
+    };
+    const verification = {
+      id: "verification-1",
+      repair_attempt_id: "attempt-1",
+      verdict: "needs_another_repair",
+      resolved_issue_ids: ["issue-1"],
+      remaining_issue_ids: ["issue-9"],
+      new_issues_json: [{ claim: "New echo introduced." }],
+      target_issue_resolved: false,
+      canon_preserved: true,
+      scene_outcome_preserved: true,
+      voice_preserved: false,
+      required_beats_preserved: true,
+      reader_state_preserved: true,
+      regression_score: 2,
+      created_at: "2026-07-02T10:06:00Z",
+    };
+    vi.mocked(api.productionRun).mockResolvedValue({
+      ...DETAIL,
+      repair_attempts: [attempt],
+      repair_verifications: [verification],
+    });
+
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    const block = await screen.findByTestId("repair-verification");
+    expect(block.textContent).toContain("needs another repair"); // verdict chip
+    expect(block.textContent).toContain("1 resolved");
+    expect(block.textContent).toContain("1 remaining");
+    expect(block.textContent).toContain("regression 2");
+    // Preservation booleans as ✓/✗ chips.
+    expect(block.textContent).toContain("canon");
+    expect(block.textContent).toContain("voice");
+    // Newly-introduced issue surfaced.
+    expect(block.textContent).toContain("New echo introduced.");
+  });
+
+  it("re-triage releases deferred (accepted-but-untasked) issues behind an open structural repair (D2)", async () => {
+    // A structural root repair is open, so triage kept a prose_polish issue accepted-but-untasked.
+    // The old guard only checked `proposed`, so this legitimate deferred case never reached the
+    // backend. The fixed guard fires on `deferred > 0` too.
+    const structuralTask = {
+      ...DETAIL.repair_tasks[0],
+      id: "task-structural",
+      repair_kind: "sequence_entry_state",
+      authority_level: "chapter_structural",
+      status: "waiting_for_human",
+      issue_ids: ["issue-1"],
+      requires_human_approval: true,
+      human_approved_at: null,
+    };
+    const deferredIssue = {
+      ...DETAIL.issues[0],
+      id: "issue-2",
+      status: "accepted",
+      claim: "Prose polish deferred behind the structural repair.",
+    };
+    vi.mocked(api.productionRun).mockResolvedValue({
+      ...DETAIL,
+      issues: [DETAIL.issues[0], deferredIssue],
+      repair_tasks: [structuralTask],
+    });
+    vi.mocked(api.triageProductionRun).mockResolvedValue({
+      run: RUN,
+      issue_count: 2,
+      repair_task_count: 2,
+      latest_verification: null,
+    });
+
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    const callout = await screen.findByTestId("deferred-callout");
+    expect(callout.textContent).toContain("prose fix");
+    expect(callout.textContent).toContain("waiting behind a structural repair");
+
+    // The guard now reaches the backend for the deferred case (was dead before).
+    fireEvent.click(within(callout).getByRole("button", { name: "Re-triage" }));
+    await waitFor(() => expect(api.triageProductionRun).toHaveBeenCalledWith("run-1"));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("Re-triaged");
+    expect(notice.textContent).toContain("1 deferred");
   });
 });
