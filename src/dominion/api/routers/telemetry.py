@@ -22,16 +22,18 @@ from dominion.api.telemetry_delete import (
     delete_run_telemetry,
 )
 from dominion.shared.enums import JobStatus
-from dominion.shared.models import Chapter, Job, LlmCall, Scene, ScenePacket
+from dominion.shared.models import AgentRun, Chapter, Job, LlmCall, ProductionRun, Scene, ScenePacket
 from dominion.shared.schemas import (
     BookTelemetryOut,
     ChapterRollupOut,
     ChapterTelemetryOut,
+    EditorialAgentRunOut,
     GlobalTelemetryDeleteIn,
     LlmCallLinksOut,
     LlmCallListOut,
     LlmCallOut,
     PipelineStepOut,
+    ProductionRunRollupOut,
     RunCompareOut,
     RunRollupOut,
     RunTelemetryOut,
@@ -60,6 +62,18 @@ from dominion.workers.telemetry_draft_problems import detect_draft_not_ready
 
 log = structlog.get_logger()
 router = APIRouter(tags=["telemetry"])
+
+# Editorial-pipeline activity is a bounded recent feed (deterministic $0 agents can be numerous over a
+# book's life; the tab only needs the recent ones to show the pipeline is working).
+_EDITORIAL_RUN_LIMIT = 50
+
+# Job kinds (metadata->>'job_kind') that make up each side of the draft-vs-revision split. Anything
+# else (derive/planning calls with no job_kind) is neither and excluded — this is the original-drafting
+# vs repair comparison, not the whole book's spend.
+_KIND_BUCKETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("draft", ("draft",)),
+    ("revision", ("revise_full", "revise_pass")),
+)
 
 
 def _group(calls: list[LlmCall], key: Callable[[LlmCall], object]) -> list[TelemetryGroupOut]:
@@ -219,6 +233,8 @@ def _call_out(call: LlmCall, links: LlmCallLinksOut | None = None) -> LlmCallOut
     return LlmCallOut(
         id=call.id,
         run_id=call.run_id,
+        production_run_id=call.production_run_id,
+        job_kind=meta.get("job_kind"),
         book_id=call.book_id,
         chapter_id=call.chapter_id,
         scene_no=call.scene_no,
@@ -417,6 +433,88 @@ async def book_telemetry(
                 )
             )
 
+    # by_production_run: the already-captured draft+repair spend, grouped by the soft production_run_id
+    # link. Same measures as by_run; status/chapter_no come from production_runs (cheap join in Python).
+    prod_model_rows = (
+        await session.execute(
+            select(LlmCall.production_run_id, LlmCall.chapter_id, LlmCall.model, *_agg_cols())
+            .where(LlmCall.book_id == book_id, LlmCall.production_run_id.isnot(None))
+            .group_by(LlmCall.production_run_id, LlmCall.chapter_id, LlmCall.model)
+        )
+    ).all()
+    by_production_run: list[ProductionRunRollupOut] = []
+    if prod_model_rows:
+        prod_runs = {
+            pr.id: pr
+            for pr in (await session.execute(select(ProductionRun).where(ProductionRun.book_id == book_id))).scalars()
+        }
+        by_prod_rows: dict[uuid.UUID, list[Any]] = {}
+        for r in prod_model_rows:
+            by_prod_rows.setdefault(r.production_run_id, []).append(r)
+        for prid, agg_rows in by_prod_rows.items():
+            pr = prod_runs.get(prid)
+            cid = pr.chapter_id if pr else next((r.chapter_id for r in agg_rows if r.chapter_id is not None), None)
+            ch = chapters.get(cid) if cid is not None else None
+            by_production_run.append(
+                ProductionRunRollupOut(
+                    production_run_id=prid,
+                    chapter_id=cid,
+                    chapter_no=ch.chapter_no if ch else None,
+                    status=pr.status if pr else None,
+                    **totals_from_model_rows(agg_rows),
+                )
+            )
+        by_production_run.sort(key=lambda r: (r.estimated_cost_usd, r.calls), reverse=True)
+
+    # by_kind: draft vs revision (from metadata->>'job_kind'). One small per-bucket query grouped by
+    # model only — the job_kind filter lives in WHERE, so nothing groups by a JSON expression (which
+    # renders mismatched bound params in SELECT vs GROUP BY and trips Postgres). Empty buckets drop out.
+    by_kind: list[TelemetryGroupOut] = []
+    for label, kinds in _KIND_BUCKETS:
+        kind_rows = (
+            await session.execute(
+                select(LlmCall.model, *_agg_cols())
+                .where(LlmCall.book_id == book_id, LlmCall.metadata_["job_kind"].astext.in_(kinds))
+                .group_by(LlmCall.model)
+            )
+        ).all()
+        if kind_rows:
+            by_kind.append(TelemetryGroupOut(key=label, **totals_from_model_rows(kind_rows)))
+    by_kind.sort(key=lambda g: g.calls, reverse=True)
+
+    # editorial_runs: the deterministic orchestration agents that ran for this book's production runs.
+    # No LLM call, no cost — this is pipeline-activity visibility, bounded to the recent feed.
+    editorial_rows = (
+        await session.execute(
+            select(
+                AgentRun.production_run_id,
+                AgentRun.agent_name,
+                AgentRun.agent_role,
+                AgentRun.stage,
+                AgentRun.status,
+                AgentRun.duration_ms,
+                AgentRun.started_at,
+            )
+            .join(ProductionRun, ProductionRun.id == AgentRun.production_run_id)
+            .where(ProductionRun.book_id == book_id)
+            .order_by(func.coalesce(AgentRun.started_at, AgentRun.created_at).desc())
+            .limit(_EDITORIAL_RUN_LIMIT)
+        )
+    ).all()
+    editorial_runs = [
+        EditorialAgentRunOut(
+            production_run_id=r.production_run_id,
+            agent_name=r.agent_name,
+            agent_role=r.agent_role,
+            stage=r.stage,
+            status=r.status,
+            duration_ms=r.duration_ms,
+            started_at=r.started_at,
+            cost_usd=0.0,
+        )
+        for r in editorial_rows
+    ]
+
     return BookTelemetryOut(
         totals=TelemetryTotals(**totals_from_model_rows(stage_model_rows)),
         by_chapter=by_chapter,
@@ -424,6 +522,9 @@ async def book_telemetry(
         run_total=run_total,
         by_stage=_group_rows(stage_model_rows, "stage"),
         by_model=_group_rows(stage_model_rows, "model"),
+        by_production_run=by_production_run,
+        by_kind=by_kind,
+        editorial_runs=editorial_runs,
     )
 
 

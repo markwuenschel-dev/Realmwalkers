@@ -17,6 +17,8 @@ import { TelemetryDrawer, useTelemetryDrawer } from "../components/telemetry/Tel
 import type {
   BookTelemetryOut,
   ChapterRollupOut,
+  EditorialAgentRunOut,
+  ProductionRunRollupOut,
   RunRollupOut,
   RunTelemetryOut,
   SceneTelemetryOut,
@@ -38,6 +40,72 @@ function fmtRun(r: RunRollupOut): string {
   const d = new Date(r.started_at);
   const stamp = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   return `${stamp} · ${label}`;
+}
+
+function fmtProductionRun(r: ProductionRunRollupOut): string {
+  const label =
+    r.chapter_no != null
+      ? `Ch ${r.chapter_no}`
+      : (r.production_run_id?.slice(0, 8) ?? "—");
+  return r.status ? `${label} · ${r.status}` : label;
+}
+
+function fmtDuration(ms: number | null): string {
+  if (ms == null) return "—";
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+}
+
+// AgentRun status tone (queued/running/succeeded/failed…), distinct from the ok/warn/error scene tone.
+function agentStatusColor(status: string): string {
+  if (status === "failed" || status === "error") return "var(--bad)";
+  if (status === "running" || status === "queued") return "var(--warn)";
+  return "var(--ok)";
+}
+
+// The editorial pipeline's deterministic orchestration agents (contract_classifier, repair_scheduler,
+// …). They make no model call — every row is $0 / no tokens — so this is an activity list, not a cost
+// table: it shows the pipeline ran, with per-step duration and an explicit deterministic label.
+function EditorialPipelinePanel({ rows }: { rows: EditorialAgentRunOut[] }) {
+  if (rows.length === 0) return null;
+  const cell = "padding:6px 10px;font-family:var(--mono);font-size:11.5px";
+  const head =
+    "padding:6px 10px;font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)";
+  return (
+    <Panel inset pad="14px 16px" eyebrow="Editorial pipeline · deterministic agents">
+      <p style={css("margin:0 0 8px;font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+        Orchestration steps for this book's production runs — deterministic, so $0 · no tokens.
+      </p>
+      <div style={css("overflow:auto;border:1px solid var(--line);border-radius:10px")}>
+        <table style={css("width:100%;border-collapse:collapse")}>
+          <thead>
+            <tr style={css("background:var(--bg2)")}>
+              <th style={css(`${head};text-align:left`)}>Agent</th>
+              <th style={css(`${head};text-align:left`)}>Stage</th>
+              <th style={css(`${head};text-align:left`)}>Status</th>
+              <th style={css(`${head};text-align:right`)}>Duration</th>
+              <th style={css(`${head};text-align:right`)}>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr
+                key={`${r.production_run_id ?? "—"}-${i}`}
+                style={css("border-top:1px solid var(--line)")}
+              >
+                <td style={css(`${cell};color:var(--ink)`)}>{r.agent_name}</td>
+                <td style={css(`${cell};color:var(--dim)`)}>{r.stage.replace(/_/g, " ")}</td>
+                <td style={css(`${cell};color:${agentStatusColor(r.status)}`)}>{r.status}</td>
+                <td style={css(`${cell};text-align:right;color:var(--dim)`)}>
+                  {fmtDuration(r.duration_ms)}
+                </td>
+                <td style={css(`${cell};text-align:right;color:var(--dim)`)}>$0 · deterministic</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
 }
 
 const RUN_PAGE = 5;
@@ -345,6 +413,18 @@ export default function TelemetryScreen() {
             />
           </Panel>
 
+          {data.by_production_run.length > 0 && (
+            <Panel inset pad="14px 16px" eyebrow="By production run · cost per run">
+              <TotalsTable<ProductionRunRollupOut>
+                label="Production run"
+                rows={data.by_production_run}
+                rowKey={(r) => r.production_run_id ?? "—"}
+                nameOf={fmtProductionRun}
+                emptyText="No production-run spend recorded yet."
+              />
+            </Panel>
+          )}
+
           <Panel inset pad="14px 16px" eyebrow="By run (newest first)">
             <TotalsTable<RunRollupOut>
               label="Run"
@@ -395,7 +475,17 @@ export default function TelemetryScreen() {
                 onRowClick={(r) => openView({ kind: "stage", stage: r.key, bookId })}
               />
             </Panel>
+            <Panel inset pad="14px 16px" eyebrow="Draft vs revision">
+              <TotalsTable<TelemetryGroupOut>
+                label="Kind"
+                rows={data.by_kind}
+                nameOf={(r) => (r.key === "revision" ? "Revision (repair)" : "Draft (original)")}
+                emptyText="No drafting or revision calls recorded yet."
+              />
+            </Panel>
           </div>
+
+          <EditorialPipelinePanel rows={data.editorial_runs} />
 
           <ProblemsPanel bookId={bookId} onOpen={openView} reloadKey={problemsReloadKey} />
 

@@ -489,6 +489,32 @@ class RunRollupOut(TelemetryTotals):
     title: str | None = None
 
 
+class ProductionRunRollupOut(TelemetryTotals):
+    """One editorial production run's LLM spend — every draft + repair-revision call sharing a
+    `production_run_id`. Answers "cost per production run": the dollars were always in the book totals,
+    this attributes them. `status`/`chapter_no` label the run where cheap (from production_runs)."""
+
+    production_run_id: uuid.UUID | None = None
+    chapter_id: uuid.UUID | None = None
+    chapter_no: int | None = None
+    status: str | None = None
+
+
+class EditorialAgentRunOut(BaseModel):
+    """One deterministic editorial-orchestration step (contract_classifier, repair_scheduler, …) inside
+    a production run. These agents are deterministic — no model call, no tokens, cost $0 — so this
+    surfaces the editorial pipeline's ACTIVITY, not a cost pool. Duration/stage make the run legible."""
+
+    production_run_id: uuid.UUID | None = None
+    agent_name: str
+    agent_role: str
+    stage: str
+    status: str
+    duration_ms: int | None = None
+    started_at: datetime | None = None
+    cost_usd: float = 0.0  # always 0 — deterministic orchestration, not an LLM call
+
+
 class BookTelemetryOut(BaseModel):
     """Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,
     and models — the cross-chapter/scene view the global Telemetry tab renders."""
@@ -499,6 +525,12 @@ class BookTelemetryOut(BaseModel):
     run_total: int = 0  # total run rows before limit/offset slicing (for "load older")
     by_stage: list[TelemetryGroupOut] = []
     by_model: list[TelemetryGroupOut] = []
+    # Production attribution + editorial visibility (no new cost pool — pure attribution/display):
+    # per-production-run spend, a draft-vs-revision split (keyed "draft"/"revision"), and the
+    # deterministic orchestration agents that ran (each $0).
+    by_production_run: list[ProductionRunRollupOut] = []
+    by_kind: list[TelemetryGroupOut] = []
+    editorial_runs: list[EditorialAgentRunOut] = []
 
 
 class LlmCallLinksOut(BaseModel):
@@ -516,6 +548,10 @@ class LlmCallOut(BaseModel):
 
     id: uuid.UUID
     run_id: uuid.UUID | None = None
+    production_run_id: uuid.UUID | None = None
+    # Draft-vs-revision provenance lifted from metadata (draft | revise_full | revise_pass); None for
+    # derive/planning calls that don't come from a scene-draft job.
+    job_kind: str | None = None
     book_id: uuid.UUID | None = None
     chapter_id: uuid.UUID | None = None
     scene_no: int | None = None

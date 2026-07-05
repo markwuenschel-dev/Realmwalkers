@@ -322,6 +322,10 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
         run_id=job.run_id,
         book_id=ctx.book_id,
         chapter_id=ctx.chapter_id,
+        # Attribute this scene's already-captured spend to its production run (draft or repair) and tag
+        # the row with the job kind so Telemetry can split cost per run and draft-vs-revision.
+        production_run_id=job.production_run_id,
+        job_kind=job.kind,
         settings_snapshot=telemetry_settings_snapshot(),
     )
     return scene

@@ -59,6 +59,10 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
     # Per-call telemetry diagnostics (context budget breakdown, section name, fallback flags, …).
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS metadata JSONB",
+    # Production attribution: soft link (no FK) tying a draft/repair call's spend to its ProductionRun,
+    # so Telemetry can show cost per production run. Existing llm_calls table needs this ADD COLUMN;
+    # create_all only provisions fresh DBs.
+    "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS production_run_id UUID",
     "ALTER TABLE agent_ops_state ADD COLUMN IF NOT EXISTS globals_json JSONB",
     # Production driver scoping: tie draft jobs (and therefore timeline updates) to a ProductionRun.
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS production_run_id UUID",
@@ -115,6 +119,7 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_llm_calls_chapter_id ON llm_calls (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_llm_calls_book_id ON llm_calls (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_llm_calls_run_id ON llm_calls (run_id)",
+    "CREATE INDEX IF NOT EXISTS ix_llm_calls_production_run_id ON llm_calls (production_run_id)",
     "CREATE INDEX IF NOT EXISTS ix_runs_book_id ON runs (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_chapter_sequences_chapter_id ON chapter_sequences (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_production_runs_chapter_id ON production_runs (chapter_id)",
