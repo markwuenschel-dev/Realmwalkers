@@ -2,6 +2,18 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-07-05 — Marcus⇄Serra Duel Ladder + age locks + story-ownership pass
+
+Canonized two author handoffs (Duel Ladder shape; Story Ownership) and the character age locks.
+
+- **New — Duel Ladder (series-spine combat pattern).** `marcus_serra_relationship.md` **§18** now owns the five recurring Marcus⇄Serra fights: (0) interrupted/no winner *(= SCENE-001)* · (1) Serra clean win · (2) Serra ends it, no known winner · (3) Marcus narrow, expensive win · (4) Marcus would win, both know, neither forces it. **Shape locked; placement open** (R-06). Long-arc: *Serra's wins less certain, Marcus's more expensive, apex needle turns toward Marcus without diminishing her.*
+- **INV-1 Axis G added** (`relationship_invariants.md`): locks the five outcomes and the apex ceiling-tilt as **orthogonal to Axis A parity** — standing stays FIXED; only the later-blooming final ceiling tilts. Both-poles guard against "Marcus surpasses Serra" drift and against collapsing Fight 2 (neither knows) into Fight 4 (both know).
+- **New — Story-Ownership addendum.** `marcus_serra_relationship.md` **§19**: page-time ≠ ownership; four-layer scene test; universe-through-their-wound; Serra's equal causal weight; physical scene-endings; the required four-line per-scene planning note (echoed in `book1/manuscript/_SCENE_TEMPLATE.md`).
+- **Power-language ladder extended (Book-2+ trajectory).** Marcus: Mage → **Planar Mage** → martial **Realmwalker** → **Aether-integrated unique class** (`mc.md`). Serra: Warrior → **Tempest** (danger-path) → **Worldbreaker** → unique Worldbreaker expression (`serra_hawthorne.md`). Propagated to `classes.md` (cast quick-ref, path notes, Cast-Linked Specializations: +Tempest, +Planar Mage) and `character_power_architecture.md` (Layer 3 + cast table). Book 1 unchanged: Marcus = Mage (Realmwalker acquired late, unaffordable); Serra = Warrior (interface dormant to finale).
+- **Character age locks** (author decision; owner = `cast_index.md` → Character Age Locks): Seb 33 · Marcus 31 · Serra 29 · Mathias 27 · Mara 26 · Brent 26 · Illyri ~25 (incarnate form presents; true age ancient). Filled the `Age: TBD` field in all seven dossiers.
+- **Name discipline.** Fixed the last live "Sarah" leak (`_SCENE_TEMPLATE.md` — "Sarah Hawthorne / Serra" → "Serra Hawthorne / Serra, 'Sarah' retired"). All other "Sarah" occurrences were already correct retirement records.
+- **Serra's early-Realm weapon reversed.** She carries **no weapon of her own** and arms herself by **disarming an opponent and taking their weapon** (a Muay Thai striker — dangerous unarmed). Retires the "fire-hardened wooden spear" (and the older "improvised blade") — supersedes CHANGELOG 2026-06-2x §3 blade→spear note. Threaded into the scene map as a **shown beat** — new **Ch 6A.2 "First blood / the disarm"** (she wakes unarmed, takes a threat head-on, disarms it, keeps the weapon), which originates the Ch-8 "she's armed, he has nothing" contrast. Propagated to `serra_hawthorne.md` (Continuity Notes), `scene_queue.md` (Act-3 power-state + NEW-001), `book1_chapter_plan.md` (Ch-6A scene map 6A.1/6A.2 + Ch-8 beats), `book1_chapter_timeline.md` (Ch 6A + Ch 8).
+
 ## 2026-06-29 — Luck/Fortune subsystem adapter pass
 
 - **New canonical owner:** `litrpg_system/luck_fortune.md` (probability-flow SSOT).

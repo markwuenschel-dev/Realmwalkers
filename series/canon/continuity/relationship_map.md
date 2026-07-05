@@ -49,6 +49,8 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 **Trajectory:** The Book 1 emotional climax is the finale fight that becomes a severance — working as a team one last time is the very thing that breaks them open. Book 2 inherits the question of whether a cut thread can be re-tied — pointed, given that Marcus is the man who reads and walks threads and Serra is the woman who severs them. The romance and the plot are the same engine in two registers: **Marcus builds threads; Serra cuts knots.**
 
+**Series-scale combat trajectory (shape locked, placement open):** their recurring duels are relationship/identity mirrors, not power-scaling — the **Duel Ladder** (`marcus_serra_relationship.md` §18; outcomes in **INV-1 Axis G**). Across it, *Serra's wins grow less certain, Marcus's wins grow more expensive,* and at the apex his later-blooming ceiling turns the needle toward him **without diminishing her.** Standing parity stays FIXED throughout (INV-1 Axis A).
+
 **What she gives him that no one else does:** She sees courage in him before he does. Specifically: she sees that he acts despite panic, not because he isn't afraid. He thinks his fear makes him weak. She knows otherwise.
 
 **What he gives her that no one else does:** He is perceptive enough to see past the performance — to the person who is almost never actually known. She's not sure whether that's terrifying or the thing she's been waiting for. It is the same not-knowing that stopped her on Earth.

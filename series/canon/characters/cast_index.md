@@ -23,12 +23,30 @@ known_entities: [illyristranthe, illyri, ily, ayla]
 | Name | Earth Name | Realm Name | Role | Status | File |
 |---|---|---|---|---|---|
 | Marcus Vye | Marcus Vye | Marcus (uses own name) | Protagonist / Astria ML engineer (Earth) / Realm Walker / Neurochromatic Eyes | Active | `major/mc.md` |
-| Serra Hawthorne | Serra Hawthorne | Serra | Deuteragonist / Ashblade / Pressure-Severance Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
+| Serra Hawthorne | Serra Hawthorne | Serra | Deuteragonist / Warrior → Worldbreaker (Book-2 dir.) / Severance Pulse Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
 | Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Pyric Blood / Mirror-rival to Marcus | Active | `major/seb.md` |
 | Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Specular Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
 | Mathias Sterling | Mathias Sterling | TBD | Aetherfall Ranger/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
 | Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Warden → Reckoner (Book-2 dir.) / Piezoelectric Bones (open) | Active — survives Book 1 | `major/brent.md` |
 | Illyristranthe | N/A | Illyristranthe / Illyri / Ily | Ancient celestial consciousness — diminished fragment / Attached to Marcus's implant | Active — internal | `major/illyristranthe.md` |
+
+---
+
+## Character Age Locks
+
+> **Owner for character ages.** Dossiers cite this table. Ages are locked (author decision); flippable only by explicit author revision. Story-year is Book-1 present; hold these consistent in all planning and prose.
+
+| Character | Age | Note |
+|---|---|---|
+| Sebastion "Seb" Rainier | 33 | Eldest of the six; guild leader. |
+| Marcus Vye | 31 | Protagonist. |
+| Serra Hawthorne | 29 | Deuteragonist. |
+| Mathias Sterling | 27 | — |
+| Mara Valeria | 26 | — |
+| Brent Donovan | 26 | Same age as Mara. |
+| Illyristranthe (Illyri) | ~25 (incarnate form) | Celestial; her restored/incarnate body *presents* at about 25. True age is ancient/indeterminate — the number is how she reads when embodied, not her real age. |
+
+*(The six span 26–33; Marcus 31 and Serra 29 sit two years apart, both mid-cohort.)*
 
 ---
 

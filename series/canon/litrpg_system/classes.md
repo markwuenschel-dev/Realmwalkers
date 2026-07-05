@@ -11,7 +11,7 @@ status: canon
 > **Rarity ladder:** Common → Uncommon → Rare → Epic → Fabled → Legendary → Mythic → Unique. **Rarer classes cost more XP _and_ more energy per level.** XP thresholds and scene XP formulas live in `xp_progression_formulas.md`; do not duplicate full XP equations here.
 > **Classes are earned through behavior, not selected.** The Realm recognizes what someone repeatedly becomes.
 > **Attribute model:** Classes do not grant bonus attribute-point cadence. They define Prime/Core attribute multipliers that shape how efficiently relevant attributes express through that class.
-> **Cast quick-ref:** Marcus = Mage → **Realmwalker** (Legendary); Serra = **Warrior** → **Worldbreaker** (Mythic; Book-2 direction); Seb = Warrior → **Reaver** (specialization, broker grants it *early*); Mara = **Psion** (Rare) → **Arbiter** *(placeholder specialization; Book-2 direction; rename likely because of Marcus's Arbiter Aspect)*; Mathias = **Scout** → **Emissary** *(specialization; Book-2 direction)*; Brent = **Warden** → **Reckoner** *(specialization; Book-2 direction)*.
+> **Cast quick-ref:** Marcus = Mage → **Planar Mage** → **Realmwalker** (Legendary) → Aether-integrated **unique class** (endgame); Serra = **Warrior** → **Tempest** → **Worldbreaker** (Mythic; Book-2 direction) → unique Worldbreaker expression (endgame); Seb = Warrior → **Reaver** (specialization, broker grants it *early*); Mara = **Psion** (Rare) → **Arbiter** *(placeholder specialization; Book-2 direction; rename likely because of Marcus's Arbiter Aspect)*; Mathias = **Scout** → **Emissary** *(specialization; Book-2 direction)*; Brent = **Warden** → **Reckoner** *(specialization; Book-2 direction)*. *(Marcus's Planar Mage / Aether-unique and Serra's Tempest / unique-Worldbreaker stages are Book-2+ trajectory — the power-language ladder tracked by the Marcus⇄Serra Duel Ladder, `marcus_serra_relationship.md` §18.)*
 
 ---
 
@@ -48,7 +48,7 @@ Class taxonomy does not own the whole power system. A full Realm build resolves 
 - **Domain** is the power-source/expression category.
 - **Items** are external tools, artifacts, Uniques, and relics.
 
-A class and an interface can align, conflict, or partially overlap, but they are not the same layer. Serra's **Warrior** class and **Pressure-Severance Interface** both point forward, but Warrior is the Realm's method-label while Pressure-Severance is her personal substrate architecture. Marcus's **Realmwalker** class is not the same thing as his Neurochromatic Eyes or the Eyes of Meszkhal.
+A class and an interface can align, conflict, or partially overlap, but they are not the same layer. Serra's **Warrior** class and **Severance Pulse Interface** both point forward, but Warrior is the Realm's method-label while Severance Pulse is her personal substrate architecture. Marcus's **Realmwalker** class is not the same thing as his Neurochromatic Eyes or the Eyes of Meszkhal.
 
 ### XP Progression Formula Ownership
 
@@ -373,8 +373,8 @@ Agent rule: do not automatically promote every impressive class to Fabled. Use t
 
 | Character | Path | Attribute emphasis |
 |---|---|---|
-| Marcus | Mage → Realmwalker | Mage begins INT/WIS/CHA; Realmwalker later adds Planar movement pressure, likely WIS/INT/END plus Planar-specific cost rules. |
-| Serra | Warrior → Worldbreaker | Warrior STR/CON/END, with Worldbreaker likely promoting WIS or FAI/OCC-equivalent commitment/severance pressure once defined. |
+| Marcus | Mage → Planar Mage → Realmwalker → Aether unique | Mage begins INT/WIS/CHA; **Planar Mage** adds Planar-domain route-making; **Realmwalker** adds Planar movement pressure (WIS/INT/END plus Planar-specific cost) and a *martial* integration (AGI/DEX enter as he learns to fight inside the exchange); the **Aether-integrated unique class** synthesizes casting/movement/perception/body. |
+| Serra | Warrior → Tempest → Worldbreaker → unique | Warrior STR/CON/END; **Tempest** is the danger-path storm/mobility specialization (motion + pressure + storm-front force); **Worldbreaker** likely promotes WIS or commitment/severance-pressure attributes once defined; the unique Worldbreaker expression is severance-at-scale matured. |
 | Seb | Warrior → Reaver | Warrior base with Reaver bending END/CON/STR toward consumption, blood, pain, momentum, and dangerous overextension. |
 | Mara | Psion → Arbiter placeholder | Psion WIS/CHA/INT, with Mirror-Salience interface separate from class. |
 | Mathias | Scout → Emissary | Scout AGI/END/WIS, Emissary likely promotes CHA/INT for first-contact and diplomacy. |
@@ -390,7 +390,9 @@ Specializations / evolved directions tied to the main cast. **Book-2 trajectory 
 |---|---|---|---|
 | **Reaver** | Warrior specialization | Consumes advantage, pain, blood, lives, momentum, or enemy collapse to keep pushing past normal limits. Broker grants it early to Seb, bending his leadership-under-desperation into dangerous self/other consumption. | Seb |
 | **Reckoner** | Warden specialization | Accounts for **cost / consequence / debt / transferred risk**; makes the bill visible and **forces it answered**. Not “tank” — responsibility over what must not fail, with a hard edge that names who benefits from harm being hard to see. | Brent |
-| **Worldbreaker** | Warrior → Mythic lane | Breaks the impossible opposition; **severance-at-scale**; parallel to **Realmwalker**. Folds precise Severance Pulse into overwhelming frontline force, not a generic bruiser. Also appears in Mythic Options above. | Serra |
+| **Tempest** | Warrior specialization | **Danger-path** storm-front expression: a battle-mobility warrior who turns commitment into motion, pressure, and storm-front force (*"break through; commit harder"*). The destructive tilt of Serra's strength — carrying her over-pride — **before** Worldbreaker. Not evil, not yet severance-at-scale. Book-2 trajectory. | Serra |
+| **Worldbreaker** | Warrior → Mythic lane | Breaks the impossible opposition; **severance-at-scale**; parallel to **Realmwalker**. Folds precise Severance Pulse into overwhelming frontline force, not a generic bruiser. Endgame = a **unique Worldbreaker expression**. Also appears in Mythic Options above. | Serra |
+| **Planar Mage** | Mage specialization (Planar domain) | **Planar route-making**: field alteration, route creation, gap-closing (*"reframe the field; find another route"*). The stage between general Mage and the Legendary **Realmwalker** title. Book-2 trajectory. | Marcus |
 | **Emissary** | Scout specialization | **Contact / diplomacy / first-contact**; opens doors socially, politically, culturally where others trigger rejection. Class spec only — unrelated to Mathias's Enteric Lattice interface, which is unchanged. | Mathias |
 | **Arbiter** *(placeholder; rename on lock)* | Psion specialization | Determines **which interpretation survives the room**; Mindblade-like combat expression: psychic cutting, severing mental bindings, precision execution. Name is a placeholder because it collides with Marcus's Mage **Arbiter Aspect** (`mc.md`, Book-1 canon, kept as-is). | Mara |
 

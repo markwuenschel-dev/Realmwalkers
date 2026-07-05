@@ -14,7 +14,7 @@
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
 | Soul Level | TBD — deferred (do not assign) |
-| Age | TBD |
+| Age | 26 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | Large, outcome-obsessed family; civil-engineering background |
 | Guild Role (Earth) | Healer/Support — Aetherfall roster |
 | Realm Role | Warden (base) → Reckoner (specialization; Book-2 direction) — protects people/systems/boundaries, makes transferred cost visible and demands it be answered |

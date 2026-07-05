@@ -23,13 +23,13 @@ status: active
 | Realm Name | **Marcus** — no alias; he keeps his real name (refusing to perform a new self) |
 | True Name | Dangerous and hidden — unassigned in canon; can be used for metaphysical control |
 | Soul Level | TBD — deferred (do not assign) |
-| Age | TBD |
+| Age | 31 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | TBD |
 | Guild Role (Earth) | Core member — high-level strategic/systems player; guild not yet explicitly named beyond Aetherfall |
 | Realm Role | Protagonist / Ocular Interface user / Eriadne anchor / claims a ruin-fringe foothold *(settlement-building → Book 2)* |
 | Power Interface | Neurochromatic Eyes (interface — *perception*, accurate) |
 | Key Item | Eyes of Meszkhal — **Unique item** (Xazzidiuk's gift; *interpretation*/false-certainty + copycat & +100% skill-XP; SEPARATE from the interface) |
-| Realm Class | Mage (general) → **Realmwalker** (Legendary — planar-crossing), late Book 1 |
+| Realm Class | Mage (general) → **Planar Mage** (planar route-making; Book 2) → **Realmwalker** (Legendary — planar-crossing; class acquired late Book 1) → Aether-integrated **unique class** (endgame) |
 | Current Location | En route to or arriving at Eriadne |
 | Current Allegiance | None yet — forming |
 
@@ -634,6 +634,17 @@ The contrast with Serra: she runs a single-form assassin — maximum commitment,
 **The upgrade (late Book 1):** his class upgrades to **Realmwalker** (Legendary; `classes.md`) — the planar-crossing **class** (one word), *distinct from* **the Realm Walkers** / **Realm Walkers** cosmic collective that recruits him (faction, two words; `cosmology.md`). His emergent perception flags him to the Walkers, and **an actual Walker comes and recruits him directly, late in Book 1.**
 
 **The catch — too powerful for his level.** **Realmwalker** is **Legendary-tier**: far more XP per level than a common class, and its marquee ability — walking between planes, worlds, or distant points in the Realm — demands enormous energy. At ~level 20 Marcus **cannot afford it.** The upgrade reads as getting *screwed*, not chosen: handed the keys to something he can't drive, on a class that now levels slower than everyone else's. Owning a power he can't use is the engine of his progression into Book 2. (Mechanics: `core_rules.md`, Class Tiers. Faction: **the Realm Walkers** / **Realm Walkers**, `cosmology.md`.) The Meszkhal item's false-certainty is the **Endless Reach**'s pull — Chaos as *desire*, not madness — the forbidden path he has to refuse.
+
+### Combat-identity ladder (trajectory; Book 2+) — Mage → Planar Mage → martial Realmwalker → Aether unique
+
+His combat identity evolves across the series. This is the **power-language ladder** the Marcus⇄Serra Duel Ladder tracks (`marcus_serra_relationship.md` §18):
+
+- **Mage (general)** — intellect/perception-leaning caster who is still trying to *solve* combat from **outside** the exchange. Real violence punishes his setup time (Duel Ladder Fight 1).
+- **Planar Mage** — the planar route-maker: field alteration, route creation, gap-closing — *"go around; reframe the field; find another route."* His Planar-domain focus (`classes.md`) before full Realmwalker embodiment (Fight 2).
+- **Martial Realmwalker** — magic and movement stop being separate disciplines. He becomes a **martial mage** who fights in the seam between melee and magic: steps, strikes, parries, wards, spatial crossings, and spell-shaping as one integrated combat language. He does **not** become a Warrior; he learns to *inhabit* combat physically instead of solving it from the outside (Fight 3). His Aspect forms (Sentinel/Predator embodied modes, Arbiter/Oracle ranged/control) echo here without shapeshifting shortcuts.
+- **Aether-integrated unique class (endgame)** — the realized synthesis of perception + martial movement + planar traversal + **Aether** expression + Realmwalker return/finding + interface depth. His **later-blooming ceiling** finally comes online (Fight 4). **Aether** is the higher-order synthesis of the eight Elemental Domains (`classes.md`); reserve it for this endgame/interface territory, never Book-1 flavor.
+
+*(Trajectory only. **Book 1:** Marcus is a general **Mage**; the **Realmwalker** class is acquired late Book 1 but is too expensive to use — see "The catch" above. Planar Mage, the martial integration, and the Aether unique class are **Book 2+**.)*
 
 ---
 

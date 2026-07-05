@@ -35,6 +35,7 @@ status: active
 | Possible Intimate Nickname | **Ily** — optional/provisional; use only if later earned in-story |
 | Kind | Ancient celestial being / celestial consciousness — a diminished fragment |
 | Current State | Substantial wisp / anchored remnant |
+| Incarnate Form Age | **Incarnate form presents at ~25** when embodied (age lock; `cast_index.md` → Character Age Locks). True celestial age is ancient/indeterminate — the ~25 is how the restored body reads, not her real age. |
 | Attached | To Marcus's implant/core, since his death & resurrection |
 | Role | Guide / commentator / damaged witness — asks better questions, does not hand answers |
 | Later Role | Restored final-party member; true seventh/protagonist-group member |

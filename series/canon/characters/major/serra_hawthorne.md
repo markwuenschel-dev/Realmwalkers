@@ -21,10 +21,10 @@ status: active
 | Realm Name | Serra |
 | True Name | — unassigned |
 | Soul Level | TBD — deferred (do not assign) |
-| Age | TBD |
+| Age | 29 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | Self-made; ordinary warm-family background, no connections or shortcuts |
 | Guild Role (Earth) | Disruptor-Assassin; tandem with Mara Valeria |
-| Realm Class | Warrior (base, Book 1) → Worldbreaker (Mythic evolved direction; Book 2) |
+| Realm Class | Warrior (base, Book 1) → **Tempest** (danger-path specialization; Book 2) → Worldbreaker (Mythic evolved direction; Book 2+) → unique Worldbreaker expression (endgame) |
 | Realm Role | Disruptor / Severance Pulse Interface user / Intermittent — comes and goes |
 | Power Interface | Severance Pulse Interface |
 | Current Location | Separates from Marcus; solo arc in progress |
@@ -530,9 +530,13 @@ Worldbreaker has an emotional root: healthy Serra wants earned presence — proo
 
 The parallel to Marcus's ocular system: **Marcus sees the weak point. Serra makes it fail.** Different interfaces. Complementary and occasionally catastrophic in combination. *(Book 2+ expression via Worldbreaker; Book 1 = **Warrior** — not structure-breaking.)*
 
-### Class Direction — Worldbreaker (Book 2)
+### Class Direction — Warrior → Tempest → Worldbreaker (Book 2+)
 
-**Warrior** (base, Book 1) → **Worldbreaker** (Mythic evolved direction; **Book 2**). Worldbreaker is the *severance-at-scale* expression of Severance Pulse — it "breaks the impossible opposition," a parallel-not-copy to Marcus's **Realmwalker** ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
+**Full ladder (trajectory; planted in Book 1, unlocked later):** **Warrior** (base, Book 1) → **Tempest** (danger-path specialization; Book 2) → **Worldbreaker** (Mythic evolved direction; Book 2+) → a **unique Worldbreaker expression** (series endgame). **Book 1 = Warrior fundamentals only** (interface dormant until the Act-5 finale).
+
+**Tempest** is the first visible *danger-path* expression of her warrior evolution — the storm-front tilt of her strength toward its destructive pole. Not evil, and not yet severance-at-scale: a battle-mobility warrior who turns commitment into motion, pressure, and storm-front force — *"break through; commit harder; make the opposition fail."* It carries her **over-pride** (not simple arrogance): the dangerous conviction that if she commits harder than anyone else, the world should yield first. Tempest is where that conviction begins to *reward* the part of her that wants the world to confess she mattered (see *Thematic Resonance* above; the Duel Ladder Fight 2 in `marcus_serra_relationship.md` §18 is this stage on the page).
+
+**Worldbreaker** is the *severance-at-scale* expression of Severance Pulse — it "breaks the impossible opposition," a parallel-not-copy to Marcus's **Realmwalker** ("crosses the impossible gap"). It folds her precise-severance interface into overwhelming frontline force: she is **not** a generic bruiser disconnected from severance — the scale-up *is* her interface, widened. The endgame **unique Worldbreaker expression** is the mature (or dangerous) answer to severance-at-scale: breaking structures, pressure fields, imposed systems, and perhaps metaphysical arrangements once she understands where they bear weight. (Retires the earlier "Challenger / Champion / Avatar" evolved lane.)
 
 ---
 
@@ -663,6 +667,7 @@ Serra is the other half of the **endgame axis**. Her terminal function is **brea
 - **Her one rule, "I don't ask people to stay" (CCB-007 R-5):** enacted at the Realm second kiss, **cost-breaks** at the severance; never stated on the page, never collapsed into the Myrmidon "being seen" beat. (See *The One Rule*.)
 - **Ellie / Coach K layer:** formative wound is misaligned devotion, not lovelessness or trauma. Ellie is a working name and can change; the function is locked unless revised: shared motion became a future for Serra before it was a future for the other person.
 - **Warmth discipline:** warmth is genuine but governed. Do not write her as fake, manipulative, or secretly cold.
+- **Early-Realm arming (Muay Thai striker):** Serra carries **no weapon of her own.** A striker on Earth (Muay Thai / jiu-jitsu; *Ordinary Life Texture* above), she is dangerous unarmed and arms herself by **disarming an opponent and taking their weapon** — so any blade she has at the Ch-8 reunion is one she took, **not** one she crafted (retires the "fire-hardened wooden spear" and "improvised blade" framings). Planning owner of the Act-3 weapon-state: `scene_queue.md` (Act-3 power-state) + `book1_chapter_plan.md`.
 
 ---
 

@@ -21,7 +21,7 @@ status: active
 | Realm Name | TBD — unassigned |
 | True Name | — unassigned |
 | Soul Level | TBD — deferred (do not assign) |
-| Age | TBD |
+| Age | 27 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | Average suburban background |
 | Guild Role (Earth) | Ranger/Hunter — scout, observer, the guild's eyes |
 | Realm Role | Scout / contact-driven explorer — reaches things no one else has managed to reach |
@@ -1211,7 +1211,7 @@ The temptation is:
 
 Mathias's long-term value is **stewardship**, and he is **more valuable alive** than as a death.
 
-As Marcus and Serra climb toward the Realm/cosmic axis — Riftwalker / Realmwalker direction for Marcus, Worldbreaker direction for Serra — Mathias is the one suited to **watch over Eriadne for them**.
+As Marcus and Serra climb toward the Realm/cosmic axis — Realmwalker direction for Marcus, Worldbreaker direction for Serra — Mathias is the one suited to **watch over Eriadne for them**.
 
 This initially looks counterintuitive.
 

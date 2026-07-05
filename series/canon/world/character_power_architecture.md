@@ -55,8 +55,8 @@ The Realm class does not have to match the Aetherfall class. It reflects what th
 Realm classes develop through use, not through selection. The interface may label something early, but the character earns and shapes the class through what they do. Specializations unlock progressively as the class develops.
 
 Examples:
-- Marcus: Mage → Realmwalker (Legendary; planar-crossing) — *Veilwalker design retired*
-- Serra: Warrior
+- Marcus: Mage → **Planar Mage** → Realmwalker (Legendary; planar-crossing) → Aether-integrated **unique class** *(Planar Mage / Aether-unique = Book-2+ trajectory; Veilwalker design retired)*
+- Serra: Warrior → **Tempest** → Worldbreaker → unique Worldbreaker expression *(Tempest onward = Book-2+ trajectory; Book 1 = Warrior only)*
 - Mara: Psion (rare; synergizes with Specular Salience)
 - Brent: Warden → Reckoner (Book-2 dir.)
 - Seb: Warrior → Reaver (broker-granted early)
@@ -133,8 +133,8 @@ The eyes are his interface; the Realmwalker class is his planar-crossing path. T
 
 | Character | Earth Identity | Aetherfall Class | Realm Class | Interface |
 |---|---|---|---|---|
-| Marcus | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Realmwalker** (Legendary) | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
-| Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** | Severance Pulse |
+| Marcus | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Planar Mage** → **Realmwalker** (Legendary) → Aether unique *(B2+ traj.)* | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
+| Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** → **Tempest** → **Worldbreaker** → unique *(B2+ traj.; B1 = Warrior)* | Severance Pulse |
 | Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Specular Salience Transduction |
 | Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Pyric Blood |
 | Brent Donovan | Civil engineer | Healer/Support | **Warden** → **Reckoner** (Book-2 dir.) | Piezoelectric Bones |
