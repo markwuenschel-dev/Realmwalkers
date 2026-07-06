@@ -36,8 +36,7 @@ src/dominion/
               memory/       canon_rag, summaries, ledger, seed      learning/  edit distillation
 frontend/     Next.js (App Router) + TS — the Writers' Desk (Inbox, Scene review, Chapters, Packets,
               Diff, Manuscript, Ledger, Production, Telemetry, Settings). Screens read live data via
-              desk/api/; the Next BFF proxies same-origin /api/desk/* to FastAPI. src/legacy/ is the
-              superseded Vite-era review app, kept for reference (not imported by the Desk).
+              desk/api/; the Next BFF proxies same-origin /api/desk/* to FastAPI.
 scripts/      init_db.py, export_openapi.py, verify.sh, ci_pyright_changed.sh
 tests/        pytest suite (router, packets, draft queue, API) — runs against real Postgres in CI
 docs/         DESIGN.md, BUILD.md, ROADMAP.md, DEPLOY.md, contract_first_drafting.md
