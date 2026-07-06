@@ -45,25 +45,33 @@ from dominion.workers.length import planner as length_planner
 from dominion.workers.packet import latest_approved as latest_approved_chapter_packet
 from dominion.workers.packet import master as packet_master
 from dominion.workers.packet.validation import leading_roster_name
+from dominion.workers.production_support import (
+    create_artifact as _create_artifact,
+)
+from dominion.workers.production_support import (
+    create_issue as _create_issue,
+)
+from dominion.workers.production_support import (
+    hash_payload as _hash_payload,
+)
+from dominion.workers.production_support import (
+    issue_signature as _issue_signature,
+)
+from dominion.workers.production_support import (
+    latest_approved_packet as _latest_approved_packet,
+)
+from dominion.workers.production_support import (
+    now as _now,
+)
+from dominion.workers.production_support import (
+    record_event as _record_event,
+)
 from dominion.workers.scene_packet import inputs as scene_packet_inputs
 from dominion.workers.scene_scope import DUPLICATE_IRREVERSIBLE_BEAT, SCENE_SCOPE_BLEED, evaluate_scene_scope
 
 # L6 (run orchestration): pure stage machine — pinned stage strings + deterministic gates that must
 # fail BEFORE any LLM spend. Persistence stays here; decisions live in run_stages (DB-free, tested).
 from dominion.workers import run_stages  # isort: skip
-
-_hash_payload = production._hash_payload
-_now = production._now
-_record_event = production._record_event
-_start_agent_run = production._start_agent_run
-_finish_agent_run = production._finish_agent_run
-_create_artifact = production._create_artifact
-_latest_approved_packet = production._latest_approved_packet
-_recommended_action_from_critique = production._recommended_action_from_critique
-_critique_span = production._critique_span
-_issue_signature = production._issue_signature
-_create_issue = production._create_issue
-_update_run_summary = production._update_run_summary
 
 
 async def latest_chapter_sequence(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterSequence | None:

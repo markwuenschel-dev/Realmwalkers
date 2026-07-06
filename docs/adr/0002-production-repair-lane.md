@@ -1,0 +1,3 @@
+# Production repair loop lives behind the Production Run Facade
+
+The repair loop owns issue triage, issue decisions, repair task creation, repair application, verification, rejection, and rollback in a dedicated `production_repair` lane. Callers outside the production-run implementation continue to use the public `dominion.workers.production` facade methods, while the facade delegates inward to the repair lane; private repair helpers move completely and are not kept as facade shims. This keeps the public production-run interface small for routers, background workers, sweepers, and tests while concentrating the repair state machine in one module.

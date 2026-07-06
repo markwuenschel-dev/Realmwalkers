@@ -286,7 +286,7 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
         try:
             # SAVEPOINT: a "still drafting" verify raises after possibly touching rows — isolate it.
             async with session.begin_nested():
-                await production.verify_repair_task(session, task.id)  # emits repair_verified via _record_event
+                await production.verify_repair_task(session, task.id)  # emits repair_verified via support.record_event
             actions.append({"run_id": rid, "kind": "verified"})
         except ValueError:
             pass  # revision still drafting — a later tick will pick it up

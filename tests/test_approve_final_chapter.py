@@ -13,8 +13,9 @@ import pytest
 
 from dominion.shared.enums import ProductionRunStatus
 from dominion.shared.models import Artifact, Book, Chapter, ProductionRun
-from dominion.workers import production
-from dominion.workers.production import _hash_payload, approve_final_chapter
+from dominion.workers import production_support
+from dominion.workers.production import approve_final_chapter
+from dominion.workers.production_support import hash_payload
 
 
 async def _run_with_final_chapter(s) -> tuple[ProductionRun, Artifact]:
@@ -34,7 +35,7 @@ async def _run_with_final_chapter(s) -> tuple[ProductionRun, Artifact]:
         version=1,
         status="active",
         body=body,
-        content_hash=_hash_payload(body),
+        content_hash=hash_payload(body),
     )
     s.add(art)
     await s.flush()
@@ -48,7 +49,7 @@ async def test_approve_stamps_artifact_and_completes(db_factory):
         assert result.status == ProductionRunStatus.COMPLETED
         # Same session identity map -> `art` reflects the in-place stamp the tool applied.
         assert art.body["final_chapter_status"] == "approved_by_human"
-        assert art.content_hash == _hash_payload(art.body)  # hash stays consistent with the stamped body
+        assert art.content_hash == hash_payload(art.body)  # hash stays consistent with the stamped body
 
 
 async def test_approve_is_fail_closed_when_stamp_raises(db_factory, monkeypatch):
@@ -60,7 +61,7 @@ async def test_approve_is_fail_closed_when_stamp_raises(db_factory, monkeypatch)
         def boom(_value: object) -> str:
             raise RuntimeError("hash backend down")
 
-        monkeypatch.setattr(production, "_hash_payload", boom)
+        monkeypatch.setattr(production_support, "hash_payload", boom)
         with pytest.raises(RuntimeError):
             await approve_final_chapter(s, run.id)
         assert run.status != ProductionRunStatus.COMPLETED  # fail-closed: still not completed

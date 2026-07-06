@@ -73,9 +73,9 @@ async def test_clear_all_dismisses_everything(db_factory):
 
 
 async def test_production_event_mirrors_into_feed(db_factory):
-    # _record_event is the production chokepoint; every event must also appear in the central feed.
+    # record_event is the production chokepoint; every event must also appear in the central feed.
     from dominion.shared.models import ProductionRun
-    from dominion.workers import production
+    from dominion.workers import production_support
 
     async with db_factory() as s:
         book, chapter = await _seed_book_chapter(s)
@@ -83,7 +83,9 @@ async def test_production_event_mirrors_into_feed(db_factory):
         s.add(run)
         await s.flush()
 
-        await production._record_event(s, run_id=run.id, event_type="run_started", message="Production run started")
+        await production_support.record_event(
+            s, run_id=run.id, event_type="run_started", message="Production run started"
+        )
         await s.commit()
 
         rows = await activity_router.list_activity(s, book_id=book.id)

@@ -167,7 +167,7 @@ async def drain_queued_repair_tasks() -> None:
         from dominion.shared.db import SessionFactory
         from dominion.shared.enums import RepairTaskStatus
         from dominion.shared.models import ProductionRun, RepairTask
-        from dominion.workers import production
+        from dominion.workers import production, production_support
 
         while True:
             if _queue_paused:
@@ -202,7 +202,7 @@ async def drain_queued_repair_tasks() -> None:
                         parked.status = RepairTaskStatus.WAITING_FOR_HUMAN
                         run = await session.get(ProductionRun, parked.production_run_id)
                         if run is not None:
-                            await production._record_event(
+                            await production_support.record_event(
                                 session,
                                 run_id=run.id,
                                 event_type="repair_drain_error",
