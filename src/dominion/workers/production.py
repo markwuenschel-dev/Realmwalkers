@@ -3758,14 +3758,14 @@ async def approve_final_chapter(session: AsyncSession, run_id: uuid.UUID) -> Pro
     artifact = await latest_final_chapter(session, run_id)
     if artifact is None:
         raise ValueError("final chapter is not ready")
-    # Upgrade explicit final status per production engine rules
-    try:
-        body = dict(artifact.body or {})
-        body["final_chapter_status"] = "approved_by_human"
-        artifact.body = body
-        artifact.content_hash = _hash_payload(body)
-    except Exception:
-        pass
+    # Upgrade explicit final status per production engine rules. Fail-closed: if the artifact can't be
+    # stamped (and its hash kept consistent), let it propagate rather than marking the run COMPLETED
+    # with an unmarked artifact carrying a stale hash. The stamp is a dict copy + json-backed hash over
+    # a JSON body, so it does not raise on valid data — but silence here is a correctness hole (C9).
+    body = dict(artifact.body or {})
+    body["final_chapter_status"] = "approved_by_human"
+    artifact.body = body
+    artifact.content_hash = _hash_payload(body)
     run.status = ProductionRunStatus.COMPLETED
     run.current_stage = "final_ready"
     await _record_event(
