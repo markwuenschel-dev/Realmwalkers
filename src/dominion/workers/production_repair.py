@@ -163,6 +163,8 @@ def _infer_repair_kind(issue: Issue) -> str:
         return "dialogue"
     if issue.validator == "sensory":
         return "expand"
+    if issue.validator == "combat":
+        return "combat"
     if issue.validator in {"continuity", "state_drift"}:
         return "continuity"
     if issue.validator == "voice":
@@ -184,16 +186,25 @@ def _infer_authority(issue: Issue) -> RepairAuthorityLevel:
     return RepairAuthorityLevel.SCENE_LOCAL
 
 
+# repair_kind -> enrichment pass name to re-run for a scene-local repair (None = full scene revision).
+# Every value must be a real router.DRAFT_PASSES lane name. Each enrichment lane that also runs as a
+# review lane (OPEN-8: combat/sensory/dialogue) must appear here so a lane reviewer's critique is
+# repaired by that lane's own pass — combat was silently missing (validator "combat" fell through
+# _infer_repair_kind to "reader_context", which maps nowhere -> full revision). Enforced by
+# tests/test_repair_lane_routing.py.
+_REPAIR_KIND_TO_PASS: dict[str, str | None] = {
+    "dialogue": "dialogue",
+    "expand": "sensory",
+    "combat": "combat",
+    "continuity": None,
+    "style": None,
+    "transition": None,
+    "word_budget": None,
+}
+
+
 def _target_pass_for_task(task: RepairTask) -> str | None:
-    mapping = {
-        "dialogue": "dialogue",
-        "expand": "sensory",
-        "continuity": None,
-        "style": None,
-        "transition": None,
-        "word_budget": None,
-    }
-    return mapping.get(task.repair_kind)
+    return _REPAIR_KIND_TO_PASS.get(task.repair_kind)
 
 
 def _highest_authority(issues: list[Issue]) -> RepairAuthorityLevel:
