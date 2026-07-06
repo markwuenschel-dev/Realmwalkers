@@ -269,7 +269,7 @@ async def test_scope_issue_severity_passes_through_unified_vocab(db_factory, mon
     # Pre-unification, assembly collapsed every non-"block" scope finding to "warn" when persisting it
     # as an Issue — a `repair` finding lost its tier before triage ever saw it. The finding already
     # speaks the unified vocabulary, so its severity must survive verbatim.
-    from dominion.workers import production as production_worker
+    from dominion.workers import production_sequence
 
     def fake_qa(*args, **kwargs):
         return {
@@ -287,7 +287,10 @@ async def test_scope_issue_severity_passes_through_unified_vocab(db_factory, mon
             ],
         }
 
-    monkeypatch.setattr(production_worker, "run_chapter_draft_qa", fake_qa)
+    # Patch at the definition module: production_sequence's assembly path now calls its local
+    # run_chapter_draft_qa directly (no longer via the production facade), and patching here also
+    # intercepts the facade path, so it is the robust seam regardless of caller.
+    monkeypatch.setattr(production_sequence, "run_chapter_draft_qa", fake_qa)
 
     async with db_factory() as s:
         _book, chapter, _scene, _packet = await _seed_chapter(s, seed_count=1, add_critique=False)

@@ -12,6 +12,7 @@ import uuid
 from collections import Counter, defaultdict
 from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +39,6 @@ from dominion.shared.models import (
 )
 from dominion.shared.severity import issue_gates
 from dominion.shared.text_match import as_str_list, names_present
-from dominion.workers import production
 from dominion.workers.canon_guards import scan_packet_prose
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.length import planner as length_planner
@@ -72,6 +72,8 @@ from dominion.workers.scene_scope import DUPLICATE_IRREVERSIBLE_BEAT, SCENE_SCOP
 # L6 (run orchestration): pure stage machine — pinned stage strings + deterministic gates that must
 # fail BEFORE any LLM spend. Persistence stays here; decisions live in run_stages (DB-free, tested).
 from dominion.workers import run_stages  # isort: skip
+
+log = structlog.get_logger()
 
 
 async def latest_chapter_sequence(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterSequence | None:
@@ -872,7 +874,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
 
     approved_packet = await latest_approved_chapter_packet(session, run.chapter_id)
     packet_body = approved_packet.body if approved_packet is not None else None
-    chapter_draft_qa = production.run_chapter_draft_qa(
+    chapter_draft_qa = run_chapter_draft_qa(
         sequence.body if sequence else None,
         scene_rows,
         chapter_text,
@@ -1379,7 +1381,9 @@ async def update_timeline_after_scene(
     run.current_stage = run_stages.STAGE_SCENE_QA
     await session.flush()
 
-    # Refresh artifact for visibility (best effort)
+    # Refresh artifact for visibility (best effort). The timeline row itself was already flushed
+    # above; this only rebuilds the display artifact, so a failure must not abort the scene — but it
+    # must not be swallowed silently either (the old bare `pass` hid every refresh failure).
     try:
         await _create_artifact(
             session,
@@ -1395,7 +1399,11 @@ async def update_timeline_after_scene(
             },
         )
     except Exception:
-        pass
+        log.warning(
+            "draft_run_timeline_artifact_refresh_failed",
+            production_run_id=str(production_run_id),
+            exc_info=True,
+        )
 
     return tl
 

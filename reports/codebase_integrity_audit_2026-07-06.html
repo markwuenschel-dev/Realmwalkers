@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realmwalkers — Codebase Integrity Audit (2026-07-06)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d222c; --ink:#e6e9ef; --muted:#9aa4b2;
+    --line:#2a303c; --accent:#7aa2f7; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+    --chip:#232936;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7f9; --panel:#ffffff; --panel2:#f0f2f5; --ink:#1b1f27; --muted:#5b6472;
+      --line:#e2e6ec; --accent:#3050c8; --good:#1a7f37; --warn:#9a6700; --bad:#cf222e; --chip:#eef1f5; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 22px 80px;}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+  h2{font-size:19px;margin:38px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  h3{font-size:15px;margin:0 0 8px}
+  .sub{color:var(--muted);font-size:13.5px}
+  code,.mono{font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace;font-size:12.5px}
+  .grid{display:grid;gap:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .tablewrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .pill{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .pass{background:rgba(63,185,80,.15);color:var(--good)}
+  .warnp{background:rgba(210,153,34,.16);color:var(--warn)}
+  .badp{background:rgba(248,81,73,.15);color:var(--bad)}
+  .chip{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11.5px;color:var(--muted);margin:0 4px 4px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:15px 17px;margin:0 0 14px}
+  .card.rec{border-left-color:var(--accent)}
+  .card.high{border-left-color:var(--bad)}
+  .card.med{border-left-color:var(--warn)}
+  .card.low{border-left-color:var(--muted)}
+  .cardhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .cid{font-weight:700;font-size:15px}
+  .scores{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 6px}
+  .score{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:12px}
+  .score b{font-variant-numeric:tabular-nums}
+  .kv{margin:7px 0 0;font-size:13.5px}
+  .kv b{color:var(--muted);font-weight:600}
+  ul{margin:6px 0 0;padding-left:20px}
+  li{margin:2px 0}
+  .rej{color:var(--muted);font-size:13.5px}
+  .flag{font-size:12px;color:var(--muted);margin-top:14px}
+  a{color:var(--accent)}
+  .lead{font-size:14.5px;color:var(--muted);max-width:78ch}
+  .tag-fact{color:var(--good)} .tag-inf{color:var(--warn)} .tag-unk{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Codebase Integrity Audit — Realmwalkers</h1>
+  <div class="sub">Loop run: 2026-07-06 (report 2) · branch <code>main</code> @ <code>113784d</code> · package <code>dominion</code> (FastAPI) + <code>frontend</code> (Next 16 / React 19) · Stage 1–2 (recover/scan → report + ledger) · <b>report-only, then stop</b></div>
+  <p class="lead" style="margin-top:14px">
+    Fresh scan at a new HEAD. Since the prior report (<code>b3f139d</code>, 2026-07-05) the monolithic <code>workers/production.py</code> was split into a delegating facade plus <code>production_sequence.py</code>, <code>production_repair.py</code>, <code>production_support.py</code>, and <code>production_delete.py</code> (PRs #172/#173), and combat/voice canon markdown was updated. Evidence below is from running the real toolchain (ruff, pyright, mypy-strict, pytest-collect, OpenAPI export, tsc, oxlint, vitest, codegen drift) plus three read-only inferential sweeps (backend wiring/latent-bug, dead-code/stale-path, frontend health) that also re-verified every still-open prior candidate at this HEAD. Deterministic findings (tool output) are separated from inferential ones. <b>No production code was changed; the working tree is clean.</b> Per the invocation, this run stops after producing the report + ledger — no candidate is selected.
+  </p>
+
+  <div class="panel" style="margin-top:16px;border-left:4px solid var(--good)">
+    <h3 style="margin-bottom:6px">Carry-over from prior loops (report 1 · <code>b3f139d</code>)</h3>
+    <div class="sub" style="margin-bottom:6px">Loops 1–3 shipped to <code>main</code>: <b>C1</b> sensory tag/lane fix + guard (<code>0f919e2</code>), <b>C7</b> repair-queue apply tests (<code>4618300</code>), <b>C9</b> fail-closed approve (<code>0b13339</code>), <b>C5</b> duplicate UI primitives (<code>ee81ee5</code>), <b>C8</b> docs (<code>e0663a0</code>, <em>partial</em> — see D10). Still-open prior candidates were re-verified at this HEAD and carried into the new ledger with fresh IDs: <b>C2→D6</b>, <b>C3-app→D7</b>, <b>C4→D8</b>, <b>C6→D9</b>, <b>C8-residual→D10</b>. New split-refactor findings are <b>D1–D5</b>.</div>
+  </div>
+
+  <div class="panel" style="margin-top:14px;border-left:4px solid var(--good)">
+    <h3 style="margin-bottom:6px">Swarm runs · 2026-07-06 · branch <code>fix/d1-repair-conflict-status-literal</code> (6 commits, not yet merged)</h3>
+    <div class="sub" style="margin-bottom:8px">Human-directed swarm planner. <b>D1</b> ran first as a standalone fitness-check. Then a boundary-partitioned batch swarm took <b>D9, D8b, D10, D3, D4</b>: a parallel wave (D8b frontend, D10 docs — disjoint trees, no shared DB/node) plus a serial backend lane (D3→D4 both edit <code>production_sequence.py</code>; D9 script deletes) run by the captain to avoid same-file and shared-test-DB conflicts.</div>
+    <table>
+      <tr><th>Candidate</th><th>Branch/mode</th><th>Verification</th><th>Commit</th></tr>
+      <tr><td>D1 · span-conflict status literal</td><td>fitness-check</td><td>RED→GREEN proof; full suite 525; ruff+pyright clean</td><td><code>e3e6e01</code></td></tr>
+      <tr><td>D9 · throwaway scripts in image</td><td>direct-fix</td><td>0 references (only own docstrings); dir-COPY keeps real scripts</td><td><code>0d81f35</code></td></tr>
+      <tr><td>D3 · facade back-call</td><td>direct-fix + connected-impact</td><td>orphaned import removed; coupled monkeypatch seam repointed to definition module; 34 passed</td><td><code>c2c9497</code></td></tr>
+      <tr><td>D8b · unused telemetry test helper</td><td>direct-fix (agent lane)</td><td>tsc 0, vitest 244/244, oxlint 0 err</td><td><code>fa86b49</code></td></tr>
+      <tr><td>D10 · residual <code>legacy/</code> doc refs</td><td>direct-fix (agent lane)</td><td>relocated refs repointed to real endpoints; removed CLIs marked, no invented paths</td><td><code>09702f0</code></td></tr>
+      <tr><td>D4 · silent timeline-refresh swallow</td><td>direct-fix</td><td>structlog warn+exc_info; 49 passed; ruff+pyright clean</td><td><code>2af0abb</code></td></tr>
+    </table>
+    <div class="sub" style="margin-top:8px"><b>One failure-interrupt (handled):</b> D3 initially broke <code>test_scope_issue_severity_passes_through_unified_vocab</code> — it monkeypatched the <em>facade</em> symbol to intercept the internal call, which the direct call bypassed. Fixed by repointing the patch to <code>production_sequence.run_chapter_draft_qa</code> (the definition module — intercepts both paths); assertion unchanged. <b>Still open:</b> D2, D5, D6, D7, D8a, D8c. <b>D10 adjacent follow-up:</b> <code>LEARNING_FROM_EDITS.md:85</code> lists an in-editor exemplar action as "to do" though the endpoint now exists — half-stale, left out of scope.</div>
+  </div>
+
+  <h2>1 · Code-health map (deterministic)</h2>
+  <div class="panel tablewrap">
+  <table>
+    <tr><th>Surface</th><th>Check</th><th>Result</th><th>Detail</th></tr>
+    <tr><td>Backend lint</td><td>ruff check + format</td><td><span class="pill pass">CLEAN</span></td><td>221 files, 0 findings, all formatted</td></tr>
+    <tr><td>Backend types (gating)</td><td>pyright (standard, CI job)</td><td><span class="pill pass">CLEAN</span></td><td>0 errors / 0 warnings / 0 info, 145 files</td></tr>
+    <tr><td>Backend tests</td><td>pytest collection</td><td><span class="pill pass">CLEAN</span></td><td>517 tests collect (was 511), no import breakage</td></tr>
+    <tr><td>API contract</td><td>openapi.json regen vs committed</td><td><span class="pill pass">IN SYNC</span></td><td>byte-identical (only a CRLF/LF artifact)</td></tr>
+    <tr><td>FE↔BE types</td><td>openapi-typescript codegen drift</td><td><span class="pill pass">NO DRIFT</span></td><td>regen diff was oxfmt line-wrap only (union formatting); no schema change</td></tr>
+    <tr><td>Frontend types</td><td>tsc --noEmit</td><td><span class="pill pass">CLEAN</span></td><td>0 errors</td></tr>
+    <tr><td>Frontend lint</td><td>oxlint</td><td><span class="pill pass">CLEAN</span></td><td>1 advisory (<code>diff.ts:11</code> no-new-array), 0 errors — unchanged</td></tr>
+    <tr><td>Frontend tests</td><td>vitest</td><td><span class="pill pass">CLEAN</span></td><td>244/244 across 24 files</td></tr>
+    <tr><td>Backend types (strict)</td><td>mypy strict (<code>src</code>)</td><td><span class="pill warnp">86 ERRORS / 22 files</span></td><td><b>Not run by CI.</b> Top: <code>production_repair.py</code> 15, <code>production_sequence.py</code> 10, <code>telemetry.py</code> 10, <code>sweeper.py</code> 9. Incl. 6 stale <code>type: ignore</code> (<code>agent_policy.py:77,96,98</code>; <code>production_sequence.py:601-603</code> — relocated by the split). <b>(D6)</b></td></tr>
+    <tr><td>CI wiring</td><td><code>scripts/ci_mypy_changed.sh</code></td><td><span class="pill warnp">ORPHANED</span></td><td>466 B, referenced nowhere; its pyright twin is wired into <code>ci.yml:107</code> + <code>verify.sh:18</code> + <code>justfile:21</code>. <b>(D6)</b></td></tr>
+    <tr><td>Repair span-conflict gate</td><td>overlapping-repair query</td><td><span class="pill pass">FIXED</span></td><td><s>filtered on <code>"repair_queued"</code></s> → now a typed <code>_OPEN_REPAIR_STATUSES</code> constant (queued/running/waiting_for_human), guarded by a partition test. <b>(D1 — shipped, branch)</b></td></tr>
+    <tr><td>Combat repair lane</td><td>critique → repair-kind → pass</td><td><span class="pill badp">NO ROUTE</span></td><td>Combat registered as pass + reviewer, but <code>_infer_repair_kind</code>/<code>_target_pass_for_task</code> have no <code>combat</code> branch → falls through to full revision. <b>(D2)</b></td></tr>
+  </table>
+  </div>
+  <p class="sub" style="margin-top:8px"><b>Confirmed</b>: everything above is tool-verified or line-quoted. <b>Unknown</b>: full-suite pytest against a real Postgres was not run in this environment (collection only) — CI runs it on every push and <code>main</code> is currently green.</p>
+
+  <h2>2 · Active seams &amp; integration points</h2>
+  <div class="panel tablewrap">
+  <table>
+    <tr><th>Seam</th><th>Authoritative contract</th><th>Health</th></tr>
+    <tr><td>Backend API ↔ Frontend</td><td><code>openapi.json</code> → <code>desk/api/generated.ts</code> (codegen)</td><td><span class="pill pass">healthy — single source, drift-checked in CI</span></td></tr>
+    <tr><td>Production Run Facade ↔ split lanes</td><td><code>production.py</code> delegates to <code>production_sequence</code> / <code>_repair</code> / <code>_support</code> / <code>_delete</code></td><td><span class="pill pass">healthy — pure delegating facade; all consumers call live facade methods; minor circular call-back (D3)</span></td></tr>
+    <tr><td>RepairTask.status vocabulary</td><td><code>enums.RepairTaskStatus</code> (7 members)</td><td><span class="pill pass">healthy — conflict gate keys on a typed, partition-guarded constant (D1 fixed)</span></td></tr>
+    <tr><td>Beat.tags → passes / review lanes</td><td><code>router.py</code> keyed off each pass/reviewer <code>.name</code> (post-C1 fix)</td><td><span class="pill warnp">healthy for sensory/dialogue; combat has pass+reviewer but no repair route (D2)</span></td></tr>
+    <tr><td>Issue.validator → repair-kind → target pass</td><td><code>_infer_repair_kind</code> + <code>_target_pass_for_task</code> maps</td><td><span class="pill warnp">partial — sensory/dialogue round-trip to their pass; combat drops to reader_context (D2)</span></td></tr>
+    <tr><td>Static type gate</td><td>ruff + pyright-changed (CI) · mypy strict (defined, unenforced)</td><td><span class="pill warnp">partial — mypy strict not wired; orphan helper (D6)</span></td></tr>
+    <tr><td>Public server ↔ FastAPI</td><td>Next standalone (public) proxies <code>/api/desk/*</code> → FastAPI (internal)</td><td><span class="pill pass">healthy — BFF real (Dockerfile); Vite static-SPA mount dead-but-present (D7)</span></td></tr>
+  </table>
+  </div>
+
+  <h2>3 · Candidate ledger</h2>
+  <p class="sub">Every candidate is independently selectable. Scores 1–10 — Leverage (impact of fixing) · Locality (how contained) · Enforceability (can we add a durable check) · Risk (blast radius). Recommended first pick highlighted.</p>
+
+  <div class="card rec high">
+    <div class="cardhead"><span class="cid">D1 · Repair span-conflict gate filters on an invalid status literal (<code>"repair_queued"</code>)</span><span class="pill pass">FIXED · check-added (swarm)</span></div>
+    <div><span class="chip">Data / Schema / Contract</span><span class="chip">Bug &amp; Correctness</span><span class="chip">Wiring</span><span class="chip">confirmed (line-quoted)</span></div>
+    <div class="kv"><b>Location:</b> <code>workers/production_repair.py:650</code> — <code>RepairTask.status.in_(["queued", "running", "repair_queued"])</code> inside the overlapping-span conflict query in <code>apply_repair_task</code>. Contract: <code>shared/enums.py:267</code> <code>RepairTaskStatus</code> = {queued, running, waiting_for_human, verified, rejected, failed, cancelled}. <code>"repair_queued"</code> is not a member — it exists only on <code>IssueStatus</code> (<code>enums.py:242</code>).</div>
+    <div class="kv"><b>Friction / failure mode:</b> two independent defects in one predicate. (1) <span class="tag-fact">Dead arm</span>: <code>"repair_queued"</code> can never equal a <code>RepairTask.status</code>, so that third literal matches nothing — silent, no error. (2) <span class="tag-inf">Gap</span>: the set omits <code>waiting_for_human</code>, so a conflicting span-repair parked for a human is <em>not</em> seen as in-flight, letting a second overlapping repair through the conflict gate on the same scene span.</div>
+    <div class="kv"><b>Root seam / rule violated:</b> a controlled vocabulary (<code>RepairTaskStatus</code>) must have exactly one authoritative definition, and every query that filters on it must reference real members — never a free string borrowed from a sibling enum. This is the same class as the prior C1 sensory-tag bug: a literal that compiles but silently never matches.</div>
+    <div class="kv"><b>Facts vs inference:</b> <span class="tag-fact">CONFIRMED</span> the literal and the enum are line-quoted; the dead arm is mechanical. <span class="tag-inf">DECISION</span> whether <code>waiting_for_human</code> (and/or <code>running</code>) belongs in the in-flight conflict set is a repair-semantics choice, to be pinned in the candidate gate — the mechanical fix (drop the invalid literal / use enum members) is safe on its own.</div>
+    <div class="scores">
+      <span class="score">Leverage <b>8</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>9</b></span><span class="score">Risk <b>3</b></span>
+    </div>
+    <div class="kv"><b>Recommended branch:</b> fitness-check — state the rule → add a failing check asserting every status literal used in repair queries is a valid <code>RepairTaskStatus</code> member (a lint-style AST/grep test, or a typed helper) → replace the string list with enum members → decide the <code>waiting_for_human</code> question with a test that pins the intended conflict semantics → green → prove.</div>
+    <div class="kv"><b>Enforceable check:</b> test that the conflict query's status set equals an explicit, enum-typed constant (e.g. <code>_IN_FLIGHT_REPAIR_STATUSES: set[RepairTaskStatus]</code>), plus a guard that no repair query references a string not in <code>RepairTaskStatus</code>. Prevents any future cross-enum literal from slipping into a status filter.</div>
+    <div class="kv"><b>Adjacent / out of scope:</b> broader repair-conflict redesign; other repair queries beyond this predicate unless the guard surfaces them; the combat-lane routing (D2).</div>
+    <div class="kv" style="border-top:1px solid var(--line);margin-top:11px;padding-top:9px"><b>✔ Swarm result (fitness-check, 2026-07-06):</b> Replaced the string list at <code>production_repair.py:650</code> with a typed module constant <code>_OPEN_REPAIR_STATUSES = (QUEUED, RUNNING, WAITING_FOR_HUMAN)</code>, plus a companion <code>_TERMINAL_REPAIR_STATUSES</code>. <b>Decision (operator-confirmed):</b> <code>waiting_for_human</code> counts as in-flight — a repair overlapping a human-parked repair now also parks, consistent with <code>pipeline_status.py:407</code> and the gate's own conflict→<code>WAITING_FOR_HUMAN</code> transition. New <code>tests/test_repair_conflict_status.py</code> (8 tests): behavioral — waiting_for_human/running overlaps block, terminal + non-overlapping do not; contract guard — in-flight set ⊆ <code>RepairTaskStatus</code> (catches any foreign literal like the old <code>"repair_queued"</code>), and open ∪ terminal <em>partitions</em> the enum so a future status can't silently fall through. <b>Proven to bite:</b> the waiting_for_human block test was RED on current code (<em>newcomer → running</em>) before the fix, GREEN after. <b>Verification:</b> ruff + pyright clean; <b>full suite 525 passed / 0 fail</b>. Diff scoped to <code>production_repair.py</code> (+23/−1) + the new test. <b>On branch <code>fix/d1-repair-conflict-status-literal</code></b> (not yet merged).</div>
+  </div>
+
+  <div class="card high">
+    <div class="cardhead"><span class="cid">D2 · Combat lane has a pass + reviewer but no repair route (asymmetry)</span><span class="pill warnp">open · needs-human-decision</span></div>
+    <div><span class="chip">Wiring / Integration</span><span class="chip">Architecture Fitness</span><span class="chip">confirmed (asymmetry)</span></div>
+    <div class="kv"><b>Location:</b> <code>router.py:22,37</code> register <code>combat_pass</code> and <code>combat_reviewer</code> (OPEN-8: combat runs as both a pass and a review lane, symmetric with sensory/dialogue). But <code>production_repair.py:137-152</code> <code>_infer_repair_kind</code> has no <code>combat</code> branch (dialogue→dialogue, sensory→expand, voice→style, pacing→transition, …, else <code>reader_context</code>), and <code>production_repair.py:165-174</code> <code>_target_pass_for_task</code> maps dialogue/expand/continuity/style/transition/word_budget but has no <code>combat</code> / <code>reader_context</code> key.</div>
+    <div class="kv"><b>Friction / failure mode:</b> a combat-reviewer critique is classified as <code>reader_context</code> → <code>_target_pass_for_task</code> returns <code>None</code> → the repair is a full scene revision, never the dedicated combat enrichment pass. Sensory and dialogue critiques <em>do</em> round-trip back to their own pass; combat is the lone lane registered as pass+reviewer without a repair route.</div>
+    <div class="kv"><b>Root seam / rule violated:</b> a lane declared as pass + reviewer should have a coherent repair route back to that pass, or the asymmetry should be explicit and tested. <span class="tag-fact">CONFIRMED</span> the asymmetry (producer, both maps, and reviewer registration all quoted). <span class="tag-inf">INFERENCE / DECISION</span> whether it is a latent gap or an intentional "combat issues get full revision" policy — this is a product/SME call, so the candidate <b>pauses auto mode</b>.</div>
+    <div class="scores"><span class="score">Leverage <b>6</b></span><span class="score">Locality <b>7</b></span><span class="score">Enforceability <b>6</b></span><span class="score">Risk <b>4</b></span></div>
+    <div class="kv"><b>Recommended branch:</b> design (decide combat-repair intent) → if a route is intended, fitness-check adding <code>combat</code> to both maps + a symmetry test asserting every registered pass with a matching reviewer has a repair route. If full-revision is intended, encode that explicitly + document. Enforceable check either way: a test that every <code>DRAFT_PASSES</code> lane is reachable from some <code>repair_kind</code> or explicitly exempt.</div>
+    <div class="kv"><b>Adjacent / out of scope:</b> D1's status literal; redesigning the repair-kind taxonomy beyond adding/exempting combat.</div>
+  </div>
+
+  <div class="card med">
+    <div class="cardhead"><span class="cid">D6 · mypy strict configured but unenforced + orphaned <code>ci_mypy_changed.sh</code></span><span class="pill warnp">open · needs-human-decision</span><span class="sub">(was C2)</span></div>
+    <div><span class="chip">Build / CI</span><span class="chip">Architecture Fitness</span><span class="chip">Static</span></div>
+    <div class="kv"><b>Location:</b> <code>pyproject.toml</code> <code>[tool.mypy] strict=true</code> + <code>justfile:16-17</code> (<code>uv run mypy src</code>), but CI's static job (<code>ci.yml:98-107</code>) runs only ruff + <code>ci_pyright_changed.sh</code>. <code>scripts/ci_mypy_changed.sh</code> (466 B) is wired nowhere. Full <code>mypy src</code> = 86 errors / 22 files (top: <code>production_repair.py</code> 15, <code>production_sequence.py</code> 10, <code>telemetry.py</code> 10, <code>sweeper.py</code> 9), incl. 6 stale <code>type: ignore</code> (<code>agent_policy.py:77,96,98</code>; <code>production_sequence.py:601-603</code>).</div>
+    <div class="kv"><b>Root seam / rule:</b> a configured check that nothing runs is a false sense of safety — either enforce it (on changed files, going forward) or retire the config + orphan script. <span class="tag-inf">DECISION</span> enforcing on changed files would make a PR touching the split lanes fail until cleaned — churn/coupling. <b>needs-human-decision</b> (hard-stops auto mode).</div>
+    <div class="scores"><span class="score">Leverage <b>6</b></span><span class="score">Locality <b>5</b></span><span class="score">Enforceability <b>8</b></span><span class="score">Risk <b>5</b></span></div>
+    <div class="kv"><b>Branch:</b> design (enforce-on-changed vs retire) — or a narrow, safe direct-fix that only deletes the 6 stale <code>type: ignore</code> comments (Leverage 2, Risk 1), which mypy already flags as <code>unused-ignore</code>.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">D7 · Dead pre-Next static-SPA mount in <code>api/main.py</code></span><span class="pill warnp">open · deletes reachable-looking code</span><span class="sub">(was C3-app)</span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Stale path</span></div>
+    <div class="kv"><b>Location:</b> <code>api/main.py:158-171</code> — <code>_STATIC_DIR</code> (default <code>frontend/dist</code>) guards a <code>/assets</code> mount + <code>spa_fallback</code>. Retired Vite single-service path. <span class="tag-fact">CONFIRMED dead in the image</span>: the Dockerfile builds Next <code>standalone</code> (<code>Dockerfile:16,63-64</code>) and never produces <code>frontend/dist</code>; <code>.dockerignore:12</code> excludes it, so <code>_STATIC_DIR.is_dir()</code> is always False. <code>export_openapi.py:20</code> also forces it off. No other deploy mode references it.</div>
+    <div class="scores"><span class="score">Leverage <b>4</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>3</b></span><span class="score">Risk <b>3</b></span></div>
+    <div class="kv"><b>Branch:</b> triage/direct-fix — confirm no deploy mode relies on it (deletion of reachable-<em>looking</em> code → confirm first), then remove the block + <code>frontend/dist</code> default.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">D8 · 9 stranded frontend <code>api.*</code> client methods + 2 dead telemetry exports</span><span class="pill warnp">D8b SHIPPED (<code>fa86b49</code>) · D8a/D8c open</span><span class="sub">(was C4)</span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Frontend</span></div>
+    <div class="kv"><b>Location:</b> <code>desk/api/client.ts</code> — <code>dismissActivity</code>(208), <code>startRun</code>(221), <code>batchRun</code>(224), <code>approveBeats</code>(226), <code>updateBeat</code>(231), <code>deleteBeat</code>(233), <code>createBeat</code>(235), <code>knowledge</code>(467), <code>modelSettings</code>(477). <span class="tag-fact">CONFIRMED</span> re-verified at HEAD: 0 member-access call sites outside <code>client.ts</code>; no <code>api[...]</code>, spread, or destructure consumers anywhere (the <code>startRun</code> at <code>ProductionScreen.tsx:719</code> is a local, invoked bare — a false positive). Plus two dead exports: <code>truncationAdvice</code> (<code>components/telemetry/telemetryDiagnosis.ts:43</code> — its two siblings are imported by <code>RunDiagnostics.tsx:7</code>, this one is not) and <code>resetTelemetryCacheForTests</code> (<code>screens/TelemetryScreen.tsx:125</code> — labeled test-only, no test imports it).</div>
+    <div class="scores"><span class="score">Leverage <b>3</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>5</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch / re-report (loop-3 hard-stop still stands):</b> split into three independently-selectable cards — <b>D8a</b> remove the 9 unused client methods (<em>needs the mirror-vs-prune decision</em>: they are a typed client mirroring live backend routes; "keep as complete mirror" vs "prune to usage" is an architecture call — several routes may also have been retired in the split, worth a route cross-check first); <b>D8b</b> remove <code>resetTelemetryCacheForTests</code> (unused test helper, safe direct-fix); <b>D8c</b> <code>truncationAdvice</code> (confirm no near-term diagnosis caller, then remove). One seam per card.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">D9 · Throwaway diagnostic scripts tracked &amp; shipped in the image</span><span class="pill pass">SHIPPED (swarm) · <code>0d81f35</code></span><span class="sub">(was C6)</span></div>
+    <div><span class="chip">Build / CI</span><span class="chip">Maintainability</span></div>
+    <div class="kv"><b>Location:</b> <code>scripts/diag_scene_budget.py:1</code> (self-declared "Throwaway diagnostic… Safe to delete") and <code>scripts/debug_validate_contract.py:6-9</code> (usage points at a nonexistent gitignored <code>tmp/packet.json</code>). <span class="tag-fact">CONFIRMED</span> both are <code>COPY</code>ed into the image via <code>Dockerfile:58</code> (<code>COPY scripts/ ./scripts/</code>) and never invoked (0 call sites). Companion orphan <code>ci_mypy_changed.sh</code> is tracked in D6.</div>
+    <div class="scores"><span class="score">Leverage <b>4</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>4</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix — remove the throwaway scripts from the tree (one concern: retired diagnostics). Optional enforceable follow-up: narrow <code>Dockerfile:58</code> so ad-hoc scripts can't silently ride into the image.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">D10 · Residual stale <code>legacy/</code> doc refs survived the C8 fix</span><span class="pill pass">SHIPPED (swarm) · <code>09702f0</code></span><span class="sub">(C8 follow-up)</span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Docs</span></div>
+    <div class="kv"><b>Location:</b> loop-3's C8 (<code>e0663a0</code>) cleaned only <code>README.md</code> + <code>docs/ROADMAP.md</code>. Still stale: <code>docs/LEARNING_FROM_EDITS.md:39,43,83,96,156,158</code> (refs to deleted <code>legacy/set_exemplars.py</code>, <code>legacy/set_voice.py</code>, <code>workers/legacy/learning/distill.py</code>) and <code>docs/agent-briefs/phase2-drafting-unblock.md:252</code> (<code>src/legacy/</code>). <span class="tag-fact">CONFIRMED</span> both <code>src/dominion/workers/legacy</code> and <code>frontend/src/legacy</code> are gone. <span class="tag-inf">INFERENCE</span> these are human docs, not runtime/RAG corpus — verify before treating as a live contract surface.</div>
+    <div class="scores"><span class="score">Leverage <b>2</b></span><span class="score">Locality <b>7</b></span><span class="score">Enforceability <b>4</b></span><span class="score">Risk <b>1</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix (docs only).</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">D3 · <code>production_sequence</code> calls back through the facade it sits behind</span><span class="pill pass">SHIPPED (swarm) · <code>c2c9497</code></span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Wiring</span></div>
+    <div class="kv"><b>Location:</b> <code>production_sequence.py:41</code> <code>from dominion.workers import production</code>, then <code>production_sequence.py:875</code> calls <code>production.run_chapter_draft_qa(...)</code> — whose real impl is the <em>local</em> <code>production_sequence.py:423</code> (the facade at <code>production.py:119</code> just re-dispatches back in). <span class="tag-fact">CONFIRMED</span> a <code>sequence → facade → sequence</code> round-trip; the function-local imports in the facade are what avert an import-time cycle.</div>
+    <div class="kv"><b>Failure mode:</b> works today, but the module depends on the facade meant to sit in front of it — renaming/retiring the facade name would break <code>assemble_run</code> though the real impl is in-module. Fragility left by the split.</div>
+    <div class="scores"><span class="score">Leverage <b>3</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>4</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix — call the local <code>run_chapter_draft_qa</code> directly. Optional import-linter rule forbidding sibling→facade back-imports.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">D4 · Silent swallow in timeline artifact refresh</span><span class="pill pass">SHIPPED (swarm) · <code>2af0abb</code></span></div>
+    <div><span class="chip">Bug &amp; Correctness</span><span class="chip">Observability</span></div>
+    <div class="kv"><b>Location:</b> <code>production_sequence.py:1397-1398</code> — <code>except Exception:</code> / <code>pass</code> around the <code>_create_artifact("draft_run_timeline", …)</code> refresh in <code>update_timeline_after_scene</code>. <span class="tag-fact">CONFIRMED</span> silent swallow. Unlike prior C9, it is <em>not</em> before a COMPLETED/APPROVED transition — the timeline DB row was already flushed (line 1380) and the hard-block path is <code>_block_production_on_timeline_failure</code> (<code>pipeline.py:163-173</code>).</div>
+    <div class="kv"><b>Failure mode:</b> a visibility artifact can silently fail to persist while the run advances — an observability gap, not a state-integrity hole. Low priority.</div>
+    <div class="scores"><span class="score">Leverage <b>3</b></span><span class="score">Locality <b>9</b></span><span class="score">Enforceability <b>5</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix — log-and-continue (or structured warn) instead of bare <code>pass</code>.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">D5 · Verification flag reported from a proxy, not the real constraint</span><span class="pill warnp">open · needs-human-decision</span></div>
+    <div><span class="chip">Bug &amp; Correctness</span><span class="chip">inference</span></div>
+    <div class="kv"><b>Location:</b> <code>production_repair.py:955</code> <code>required_beats_preserved=bool(task.instructions)</code> (chapter-scoped verify); single-scene path uses a similar proxy at <code>production_repair.py:1084</code> (<code>instruction_addressed = bool(task.instructions and after_text)</code>). <span class="tag-inf">INFERENCE</span> <code>required_beats_preserved</code> is <code>True</code> whenever the task merely has instruction text — it does not check that required beats survived the revision. Feeds <code>RepairVerification</code> + the human-facing verdict.</div>
+    <div class="kv"><b>Failure mode:</b> report fidelity — the verdict claims a constraint was preserved without checking it. Pre-existing (not introduced by the split); does not by itself gate <code>COMPLETED</code> (that rides on critique disappearance + <code>ready_for_human</code>). Needs the intended invariant defined before "fixing".</div>
+    <div class="scores"><span class="score">Leverage <b>4</b></span><span class="score">Locality <b>6</b></span><span class="score">Enforceability <b>5</b></span><span class="score">Risk <b>4</b></span></div>
+    <div class="kv"><b>Branch:</b> design — pin what <code>required_beats_preserved</code> must actually assert, then fitness-check the real predicate. <b>needs-human-decision</b>.</div>
+  </div>
+
+  <h2>4 · Broad-cleanup opportunities intentionally rejected (out of scope)</h2>
+  <div class="panel">
+    <ul class="rej">
+      <li><b>The <code>production.py</code> delegation facade + ~30 re-export shims</b> — intentional back-compat surface from the split, and reachable (consumed by <code>worker.py</code>, <code>pipeline.py</code>, <code>background_work.py</code>, <code>routers/production.py</code>, <code>retention.py</code>). Not drift; do not "collapse" it. The only in-facade nit is the D3 back-call.</li>
+      <li><b>Fixing all 86 mypy errors at once</b> — broad cleanup; forbidden. Narrowed into D6's scoped decision.</li>
+      <li><b>Monolithic vs sectioned scene-packet author</b> — duplicate <em>by design</em> (flag-selected, retention-gated). Not a candidate.</li>
+      <li><b>Intentional back-compat shims</b> — <code>LEGACY_REVIEWERS_STAGE</code>, <code>types.ts</code> legacy flag, <code>LEGACY_REPAIR_NOTE</code> (live-used). Keep.</li>
+      <li><b><code>diff.ts:11</code> oxlint <code>no-new-array</code> advisory</b> — real but cosmetic; 0 errors. Not worth a loop.</li>
+      <li><b>Gitignored local cruft</b> — <code>tmp/</code>, <code>mcps/</code> dumps, <code>frontend/dist</code>, <code>.claude/worktrees/</code>. Housekeeping, not committed code.</li>
+    </ul>
+  </div>
+
+  <h2>5 · Unknowns</h2>
+  <div class="panel"><ul>
+    <li>Full pytest with a real Postgres was not executed locally (collection-only, 517 tests). CI runs it per-push and <code>main</code> is green — treated as green, not independently re-verified here.</li>
+    <li><b>D1</b>: whether <code>waiting_for_human</code> (and <code>running</code>) should be in the in-flight span-conflict set — repair-semantics decision, to be pinned in the candidate gate.</li>
+    <li><b>D2</b>: whether combat critiques are <em>meant</em> to route to the combat pass (latent gap) or intentionally take full revision — product/SME call.</li>
+    <li><b>D5</b>: the real invariant <code>required_beats_preserved</code> should assert.</li>
+    <li><b>D8a</b>: mirror-vs-prune for the typed client, and whether the split retired any of the 9 methods' backend routes (route cross-check pending).</li>
+  </ul></div>
+
+  <div class="flag">Report generated during Stage 1–2 of <code>/codebase-integrity-audit-loop</code> (manual mode, "generate the HTML report then stop"). No candidate selected; working tree clean. <b>Next state:</b> existing-report candidate gate — user selects exactly one candidate (recommended first pick: <b>D1</b>), or run <code>--auto --max-turns N</code> to consume the safe/executable candidates (D1 mechanical part, D9, D8b, D10, D3, D4) in ranked order; auto mode will hard-stop on D2/D5/D6/D8a (needs-human-decision) and D7 (deletes reachable-looking code).</div>
+
+</div>
+</body>
+</html>

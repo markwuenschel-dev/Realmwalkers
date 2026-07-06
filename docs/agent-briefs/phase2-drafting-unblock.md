@@ -249,7 +249,7 @@ Make the docs match the shipped production path (post-phase-1). Prefer editing o
   section); layout/CLI examples point to `workers/enqueue` (**deleted** in phase 1 — `learning` promoted,
   legacy CLIs removed); presents **beat-first** drafting as the loop → it's **contract-first** (see
   `docs/contract_first_drafting.md`); dev section shows `mypy` → CI uses **pyright**; drop the
-  `src/legacy/` review-app note.
+  review-app note that pointed at the old `frontend/src/legacy/` tree (that tree has since been deleted).
 - **DESIGN.md:** §1/§2/§13 topology is obsolete (Astro showcase, separate repos, Fly/Render/VPS) → single
   Railway container; still frames drafting beat-first → contract-first.
 - **BUILD.md:** stale `python -m dominion.workers.enqueue` example; beat-first flow; mypy-not-pyright.
