@@ -76,6 +76,17 @@
     <div class="sub" style="margin-top:8px"><b>Not auto-selected (hard-stop categories):</b> <b>C2</b> (mypy enforce-vs-retire — <code>needs-human-decision</code>), <b>C3-app</b> (deletes reachable-looking static-SPA mount — needs deploy-mode confirmation). <b>Remaining open</b> (safe, deferred by max-turns): C4, C6, C8. <b>Next command:</b> <code>/codebase-integrity-audit-loop</code> (manual, pick from the open ledger) or <code>--auto --max-turns 3</code> to continue with C4→C6→C8.</div>
   </div>
 
+  <div class="panel" style="margin-top:14px;border-left:4px solid var(--warn)">
+    <h3 style="margin-bottom:6px">Auto run — loop 3 · 2026-07-06 · <code>--auto --max-turns 3</code> → <b>stopped after 1 turn</b></h3>
+    <div class="sub" style="margin-bottom:8px">Baseline: clean worktree, all loop-1/2 commits pushed to <code>origin/main</code> (operator also committed the canon edit as <code>dc06d03</code>). Ranked the remaining open ledger by safety and took the safest first.</div>
+    <table>
+      <tr><th>Turn</th><th>Candidate</th><th>Branch</th><th>Verification</th><th>Result</th></tr>
+      <tr><td>1</td><td>C8 · stale frontend <code>legacy/</code> doc refs</td><td>direct-fix (docs)</td><td>paths confirmed present at <code>desk/</code>; docs not in RAG corpus</td><td>shipped <code>e0663a0</code></td></tr>
+      <tr><td>2</td><td>C4 · stranded client methods + "dead exports"</td><td>—</td><td>reachability re-verified (0 call sites) but card inaccurate</td><td><span class="pill badp">HARD-STOP</span></td></tr>
+    </table>
+    <div class="sub" style="margin-top:8px"><b>Stop reason:</b> ledger integrity suspect + retire-a-contract-surface judgment + scope spans 3 files/2 concerns (see C4 card). Auto mode halts on a suspect-ledger signal rather than consuming further "delete-this-dead-thing" candidates (C6 makes similar claims) without a human calibration. <b>C6/C8-adjacent unrelated finding:</b> <code>docs/LEARNING_FROM_EDITS.md</code> references a backend <code>src/dominion/workers/legacy/</code> tree that is also absent — separate staleness, file a follow-up. <b>Next command:</b> re-report C4 as C4a/C4b/C4c (see card) and/or <code>/codebase-integrity-audit-loop</code> (manual) to run <b>C6</b> with a fresh reachability check.</div>
+  </div>
+
   <h2>1 · Code-health map (deterministic)</h2>
   <div class="panel">
   <table>
@@ -165,11 +176,12 @@
   </div>
 
   <div class="card low">
-    <div class="cardhead"><span class="cid">C4 · 9 stranded frontend <code>api.*</code> client methods + dead exports</span><span class="pill warnp">open</span></div>
+    <div class="cardhead"><span class="cid">C4 · 9 stranded frontend <code>api.*</code> client methods + dead exports</span><span class="pill badp">needs-human-decision · needs-rereport (loop 3 HARD-STOP)</span></div>
     <div><span class="chip">Maintainability</span><span class="chip">Frontend</span></div>
     <div class="kv"><b>Location:</b> <code>desk/api/client.ts</code> — <code>dismissActivity</code>(208), <code>startRun</code>(221), <code>batchRun</code>(224), <code>approveBeats</code>(226), <code>updateBeat</code>(231), <code>deleteBeat</code>(233), <code>createBeat</code>(235), <code>knowledge</code>(467), <code>modelSettings</code>(477) — no call sites (hidden behind the wholesale <code>api</code> object; stranded when gate-1 authoring UI was removed, <code>Planner.tsx:25-26</code>). Plus dead exports <code>truncationAdvice</code>, <code>resetTelemetryCacheForTests</code>. Backend routes still exist.</div>
     <div class="scores"><span class="score">Leverage <b>3</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>5</b></span><span class="score">Risk <b>2</b></span></div>
     <div class="kv"><b>Branch:</b> direct-fix (scope = frontend client only; do NOT touch backend routes).</div>
+    <div class="kv" style="border-top:1px solid var(--bad);margin-top:11px;padding-top:9px"><b>⛔ Loop 3 — HARD-STOP (nothing deleted).</b> Reachability re-verified precisely: all 9 <code>api.*</code> methods have <b>0 member-access call sites</b> outside <code>client.ts</code> and there is <b>no dynamic <code>api[...]</code> or destructured consumption</b> (<code>api</code> is only ever used as <code>api.foo()</code>; earlier greps hit name collisions — a <em>local</em> <code>startRun</code> in <code>ProductionScreen.tsx:719</code> and the domain word "knowledge"). So they are mechanically dead. <b>But this card can't be auto-executed:</b> (1) <b>ledger integrity</b> — the two "dead exports" are <em>not</em> in the client: <code>truncationAdvice</code> lives in <code>telemetry/telemetryDiagnosis.ts:43</code> and <code>resetTelemetryCacheForTests</code> in <code>TelemetryScreen.tsx:125</code> (a test helper with <b>no test using it</b>), so the card conflates 3 files across 2 concerns while claiming "frontend client only"; (2) <b>judgment</b> — the 9 methods are a <em>typed client mirroring live backend routes</em>; "keep as a complete API mirror for near-term UI" vs "prune to current usage" is an architecture decision, not mechanical cleanup; (3) <b>one-seam rule</b> — dead client surface, dead telemetry diagnostic, and an unused test helper are three separate concerns. <b>Recommended re-report split:</b> C4a = remove the 9 unused client methods (needs the mirror-vs-prune decision); C4b = remove <code>resetTelemetryCacheForTests</code> (unused test helper, safe); C4c = <code>truncationAdvice</code> (confirm no near-term diagnosis caller before removing). <b>No files changed.</b></div>
   </div>
 
   <div class="card low">

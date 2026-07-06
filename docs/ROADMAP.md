@@ -30,7 +30,7 @@ live API (no desk feature left on fixtures).
 
 - The Writers' Desk (`frontend/src/desk/`, ported 1:1 from the prototype in PR #15) runs entirely on
   static fixtures (`desk/data.ts`) with local-only state — zero network calls. A complete typed client
-  already exists for the review app at `frontend/src/legacy/api/client.ts`.
+  already exists at `frontend/src/desk/api/client.ts` (ported from the retired Vite review app).
 - Phase 3 (DESIGN §14) is the last stubbed worker code: the three enrichment passes raise `PassError`
   and the per-lane review-lane reviewers were never written. The router + pipeline soft-fail plumbing
   already exists.
@@ -121,7 +121,7 @@ Original three-PR plan, with status:
   (+`feedback`/`edited_prose`), keep prose/ledger → `POST /scenes/{id}/continuity/resolve`;
   **Chapters** ← `GET /chapters?book_id=` + `/chapters/{id}/scenes` (board drag stays local-only —
   persisting order means renumbering `scene_no`); **Diff** ← `GET /scenes/{id}/versions` reusing
-  `legacy/lib/diff.ts:lineDiff` (adapter pairs del+add into `"change"` rows); **Manuscript** ←
+  `desk/lib/diff.ts:lineDiff` (adapter pairs del+add into `"change"` rows); **Manuscript** ←
   `GET /books/{id}/manuscript`.
 
 ### PR-B — read surfaces + Ledger + entity cards  ✅
@@ -153,7 +153,7 @@ in DESIGN today — proposed here, to fold into DESIGN §3/§15 once settled.
 ## Reuse (don't reinvent)
 - Pass/reviewer templates: `specialists/drafter.py`, `reviewers/pacing.py`; helpers in `reviewers/base.py`.
 - Pipeline soft-fail (OPEN-10) + router are already wired — passes/lanes just slot in.
-- Frontend: `legacy/api/client.ts`, `legacy/types.ts`, `legacy/lib/diff.ts` (`lineDiff`),
+- Frontend: `desk/api/client.ts`, `desk/api/types.ts`, `desk/lib/diff.ts` (`lineDiff`),
   `desk/prose.ts` (`tokenize` substring anchoring). Continuity payload already matches the desk conflict card 1:1.
 
 ## Verification
