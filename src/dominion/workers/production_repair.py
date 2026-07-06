@@ -69,6 +69,28 @@ _AUTHORITY_RANK = {
     RepairAuthorityLevel.HUMAN_REQUIRED: 5,
 }
 
+# Repair statuses that count as an OPEN (in-flight) repair: one that could still mutate a scene span,
+# so a new overlapping repair must not auto-apply on top of it (it parks for a human instead). Keyed to
+# real RepairTaskStatus members -- the conflict query in apply_repair_task previously filtered on the
+# literal "repair_queued", which is an IssueStatus value, NOT a RepairTaskStatus, so that arm was
+# silently dead; and it omitted waiting_for_human -- an open repair everywhere else (see
+# pipeline_status) and the exact status this gate assigns to a parked conflict.
+_OPEN_REPAIR_STATUSES: tuple[RepairTaskStatus, ...] = (
+    RepairTaskStatus.QUEUED,
+    RepairTaskStatus.RUNNING,
+    RepairTaskStatus.WAITING_FOR_HUMAN,
+)
+# Terminal repair statuses: the repair is settled and can no longer change a span, so it never blocks
+# a new overlapping repair. Together with _OPEN_REPAIR_STATUSES this must partition RepairTaskStatus
+# (enforced by tests/test_repair_conflict_status.py) so a future status can't silently belong to
+# neither set and fall through the conflict gate.
+_TERMINAL_REPAIR_STATUSES: tuple[RepairTaskStatus, ...] = (
+    RepairTaskStatus.VERIFIED,
+    RepairTaskStatus.REJECTED,
+    RepairTaskStatus.FAILED,
+    RepairTaskStatus.CANCELLED,
+)
+
 
 @dataclass(frozen=True)
 class RepairTarget:
@@ -647,7 +669,7 @@ async def apply_repair_task(
                         RepairTask.chapter_id == task.chapter_id,
                         RepairTask.scene_no == task.scene_no,
                         RepairTask.id != task.id,
-                        RepairTask.status.in_(["queued", "running", "repair_queued"]),
+                        RepairTask.status.in_(_OPEN_REPAIR_STATUSES),
                     )
                 )
             )
