@@ -121,11 +121,6 @@ interface TelemetryCacheEntry {
 }
 const telemetryCache = new Map<string, TelemetryCacheEntry>();
 
-/** Test-only: module-level session state would otherwise leak between vitest cases. */
-export function resetTelemetryCacheForTests(): void {
-  telemetryCache.clear();
-}
-
 export default function TelemetryScreen() {
   const { bookId, chapters } = useDeskData();
   const router = useRouter();
