@@ -38,7 +38,6 @@ from dominion.shared.models import (
 )
 from dominion.shared.severity import issue_gates
 from dominion.shared.text_match import as_str_list, names_present
-from dominion.workers import production
 from dominion.workers.canon_guards import scan_packet_prose
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
 from dominion.workers.length import planner as length_planner
@@ -872,7 +871,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
 
     approved_packet = await latest_approved_chapter_packet(session, run.chapter_id)
     packet_body = approved_packet.body if approved_packet is not None else None
-    chapter_draft_qa = production.run_chapter_draft_qa(
+    chapter_draft_qa = run_chapter_draft_qa(
         sequence.body if sequence else None,
         scene_rows,
         chapter_text,
