@@ -192,7 +192,7 @@ async def test_delete_production_run_cascades(db_factory):
 async def test_sweeper_triage_realwork_no_greenlet(db_factory):
     # Repro for the prod greenlet_spawn error: the sweeper's other tests seed issues as REPAIR_QUEUED,
     # which makes triage a no-op — so they never exercise triage doing real work (accept → cluster →
-    # create repair task → _record_event → activity mirror). A PROPOSED issue forces that path.
+    # create repair task -> support.record_event -> activity mirror). A PROPOSED issue forces that path.
     sweeper._attempts.clear()
     sweeper._warned_human.clear()
     async with db_factory() as s:

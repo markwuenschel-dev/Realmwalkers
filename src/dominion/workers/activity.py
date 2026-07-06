@@ -48,7 +48,7 @@ async def record_activity(
     detail: str | None = None,
     payload: dict[str, Any] | None = None,
 ) -> Activity:
-    """Append one activity row (+ flush, mirroring production._record_event). The ONLY constructor of
+    """Append one activity row (+ flush, mirroring production_support.record_event). The ONLY constructor of
     Activity rows. Does not commit — the caller's own commit persists it."""
     activity = Activity(
         kind=kind,

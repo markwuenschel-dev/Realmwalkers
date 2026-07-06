@@ -33,7 +33,7 @@ from dominion.shared.schemas import (
     RepairTaskOut,
     RepairVerificationOut,
 )
-from dominion.workers import background_work, production, production_delete
+from dominion.workers import background_work, production, production_delete, production_support
 
 router = APIRouter(tags=["production"])
 
@@ -291,7 +291,7 @@ async def assemble_production_run(run_id: uuid.UUID, session: SessionDep) -> Pro
     detail = await production.production_run_detail(session, run_id)
     run = detail["run"]
     await production.assemble_run(session, run)
-    await production._update_run_summary(session, run)
+    await production_support.update_run_summary(session, run)
     await session.commit()
     return await _action_out(session, run.id)
 
@@ -306,7 +306,7 @@ async def draft_missing_scenes(run_id: uuid.UUID, session: SessionDep) -> Produc
     detail = await production.production_run_detail(session, run_id)
     run = detail["run"]
     await production.queue_draft_jobs_for_missing_sequence_scenes(session, run)
-    await production._update_run_summary(session, run)
+    await production_support.update_run_summary(session, run)
     await session.commit()
     return await _action_out(session, run.id)
 
