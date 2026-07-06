@@ -68,6 +68,21 @@
     <div class="sub" style="margin-bottom:6px">Loops 1–3 shipped to <code>main</code>: <b>C1</b> sensory tag/lane fix + guard (<code>0f919e2</code>), <b>C7</b> repair-queue apply tests (<code>4618300</code>), <b>C9</b> fail-closed approve (<code>0b13339</code>), <b>C5</b> duplicate UI primitives (<code>ee81ee5</code>), <b>C8</b> docs (<code>e0663a0</code>, <em>partial</em> — see D10). Still-open prior candidates were re-verified at this HEAD and carried into the new ledger with fresh IDs: <b>C2→D6</b>, <b>C3-app→D7</b>, <b>C4→D8</b>, <b>C6→D9</b>, <b>C8-residual→D10</b>. New split-refactor findings are <b>D1–D5</b>.</div>
   </div>
 
+  <div class="panel" style="margin-top:14px;border-left:4px solid var(--good)">
+    <h3 style="margin-bottom:6px">Swarm runs · 2026-07-06 · branch <code>fix/d1-repair-conflict-status-literal</code> (6 commits, not yet merged)</h3>
+    <div class="sub" style="margin-bottom:8px">Human-directed swarm planner. <b>D1</b> ran first as a standalone fitness-check. Then a boundary-partitioned batch swarm took <b>D9, D8b, D10, D3, D4</b>: a parallel wave (D8b frontend, D10 docs — disjoint trees, no shared DB/node) plus a serial backend lane (D3→D4 both edit <code>production_sequence.py</code>; D9 script deletes) run by the captain to avoid same-file and shared-test-DB conflicts.</div>
+    <table>
+      <tr><th>Candidate</th><th>Branch/mode</th><th>Verification</th><th>Commit</th></tr>
+      <tr><td>D1 · span-conflict status literal</td><td>fitness-check</td><td>RED→GREEN proof; full suite 525; ruff+pyright clean</td><td><code>e3e6e01</code></td></tr>
+      <tr><td>D9 · throwaway scripts in image</td><td>direct-fix</td><td>0 references (only own docstrings); dir-COPY keeps real scripts</td><td><code>0d81f35</code></td></tr>
+      <tr><td>D3 · facade back-call</td><td>direct-fix + connected-impact</td><td>orphaned import removed; coupled monkeypatch seam repointed to definition module; 34 passed</td><td><code>c2c9497</code></td></tr>
+      <tr><td>D8b · unused telemetry test helper</td><td>direct-fix (agent lane)</td><td>tsc 0, vitest 244/244, oxlint 0 err</td><td><code>fa86b49</code></td></tr>
+      <tr><td>D10 · residual <code>legacy/</code> doc refs</td><td>direct-fix (agent lane)</td><td>relocated refs repointed to real endpoints; removed CLIs marked, no invented paths</td><td><code>09702f0</code></td></tr>
+      <tr><td>D4 · silent timeline-refresh swallow</td><td>direct-fix</td><td>structlog warn+exc_info; 49 passed; ruff+pyright clean</td><td><code>2af0abb</code></td></tr>
+    </table>
+    <div class="sub" style="margin-top:8px"><b>One failure-interrupt (handled):</b> D3 initially broke <code>test_scope_issue_severity_passes_through_unified_vocab</code> — it monkeypatched the <em>facade</em> symbol to intercept the internal call, which the direct call bypassed. Fixed by repointing the patch to <code>production_sequence.run_chapter_draft_qa</code> (the definition module — intercepts both paths); assertion unchanged. <b>Still open:</b> D2, D5, D6, D7, D8a, D8c. <b>D10 adjacent follow-up:</b> <code>LEARNING_FROM_EDITS.md:85</code> lists an in-editor exemplar action as "to do" though the endpoint now exists — half-stale, left out of scope.</div>
+  </div>
+
   <h2>1 · Code-health map (deterministic)</h2>
   <div class="panel tablewrap">
   <table>
@@ -150,7 +165,7 @@
   </div>
 
   <div class="card low">
-    <div class="cardhead"><span class="cid">D8 · 9 stranded frontend <code>api.*</code> client methods + 2 dead telemetry exports</span><span class="pill warnp">open · needs-human-decision · re-report as D8a/b/c</span><span class="sub">(was C4)</span></div>
+    <div class="cardhead"><span class="cid">D8 · 9 stranded frontend <code>api.*</code> client methods + 2 dead telemetry exports</span><span class="pill warnp">D8b SHIPPED (<code>fa86b49</code>) · D8a/D8c open</span><span class="sub">(was C4)</span></div>
     <div><span class="chip">Maintainability</span><span class="chip">Frontend</span></div>
     <div class="kv"><b>Location:</b> <code>desk/api/client.ts</code> — <code>dismissActivity</code>(208), <code>startRun</code>(221), <code>batchRun</code>(224), <code>approveBeats</code>(226), <code>updateBeat</code>(231), <code>deleteBeat</code>(233), <code>createBeat</code>(235), <code>knowledge</code>(467), <code>modelSettings</code>(477). <span class="tag-fact">CONFIRMED</span> re-verified at HEAD: 0 member-access call sites outside <code>client.ts</code>; no <code>api[...]</code>, spread, or destructure consumers anywhere (the <code>startRun</code> at <code>ProductionScreen.tsx:719</code> is a local, invoked bare — a false positive). Plus two dead exports: <code>truncationAdvice</code> (<code>components/telemetry/telemetryDiagnosis.ts:43</code> — its two siblings are imported by <code>RunDiagnostics.tsx:7</code>, this one is not) and <code>resetTelemetryCacheForTests</code> (<code>screens/TelemetryScreen.tsx:125</code> — labeled test-only, no test imports it).</div>
     <div class="scores"><span class="score">Leverage <b>3</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>5</b></span><span class="score">Risk <b>2</b></span></div>
@@ -158,7 +173,7 @@
   </div>
 
   <div class="card low">
-    <div class="cardhead"><span class="cid">D9 · Throwaway diagnostic scripts tracked &amp; shipped in the image</span><span class="pill warnp">open</span><span class="sub">(was C6)</span></div>
+    <div class="cardhead"><span class="cid">D9 · Throwaway diagnostic scripts tracked &amp; shipped in the image</span><span class="pill pass">SHIPPED (swarm) · <code>0d81f35</code></span><span class="sub">(was C6)</span></div>
     <div><span class="chip">Build / CI</span><span class="chip">Maintainability</span></div>
     <div class="kv"><b>Location:</b> <code>scripts/diag_scene_budget.py:1</code> (self-declared "Throwaway diagnostic… Safe to delete") and <code>scripts/debug_validate_contract.py:6-9</code> (usage points at a nonexistent gitignored <code>tmp/packet.json</code>). <span class="tag-fact">CONFIRMED</span> both are <code>COPY</code>ed into the image via <code>Dockerfile:58</code> (<code>COPY scripts/ ./scripts/</code>) and never invoked (0 call sites). Companion orphan <code>ci_mypy_changed.sh</code> is tracked in D6.</div>
     <div class="scores"><span class="score">Leverage <b>4</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>4</b></span><span class="score">Risk <b>2</b></span></div>
@@ -166,7 +181,7 @@
   </div>
 
   <div class="card low">
-    <div class="cardhead"><span class="cid">D10 · Residual stale <code>legacy/</code> doc refs survived the C8 fix</span><span class="pill warnp">open</span><span class="sub">(C8 follow-up)</span></div>
+    <div class="cardhead"><span class="cid">D10 · Residual stale <code>legacy/</code> doc refs survived the C8 fix</span><span class="pill pass">SHIPPED (swarm) · <code>09702f0</code></span><span class="sub">(C8 follow-up)</span></div>
     <div><span class="chip">Maintainability</span><span class="chip">Docs</span></div>
     <div class="kv"><b>Location:</b> loop-3's C8 (<code>e0663a0</code>) cleaned only <code>README.md</code> + <code>docs/ROADMAP.md</code>. Still stale: <code>docs/LEARNING_FROM_EDITS.md:39,43,83,96,156,158</code> (refs to deleted <code>legacy/set_exemplars.py</code>, <code>legacy/set_voice.py</code>, <code>workers/legacy/learning/distill.py</code>) and <code>docs/agent-briefs/phase2-drafting-unblock.md:252</code> (<code>src/legacy/</code>). <span class="tag-fact">CONFIRMED</span> both <code>src/dominion/workers/legacy</code> and <code>frontend/src/legacy</code> are gone. <span class="tag-inf">INFERENCE</span> these are human docs, not runtime/RAG corpus — verify before treating as a live contract surface.</div>
     <div class="scores"><span class="score">Leverage <b>2</b></span><span class="score">Locality <b>7</b></span><span class="score">Enforceability <b>4</b></span><span class="score">Risk <b>1</b></span></div>
@@ -174,7 +189,7 @@
   </div>
 
   <div class="card low">
-    <div class="cardhead"><span class="cid">D3 · <code>production_sequence</code> calls back through the facade it sits behind</span><span class="pill warnp">open</span></div>
+    <div class="cardhead"><span class="cid">D3 · <code>production_sequence</code> calls back through the facade it sits behind</span><span class="pill pass">SHIPPED (swarm) · <code>c2c9497</code></span></div>
     <div><span class="chip">Maintainability</span><span class="chip">Wiring</span></div>
     <div class="kv"><b>Location:</b> <code>production_sequence.py:41</code> <code>from dominion.workers import production</code>, then <code>production_sequence.py:875</code> calls <code>production.run_chapter_draft_qa(...)</code> — whose real impl is the <em>local</em> <code>production_sequence.py:423</code> (the facade at <code>production.py:119</code> just re-dispatches back in). <span class="tag-fact">CONFIRMED</span> a <code>sequence → facade → sequence</code> round-trip; the function-local imports in the facade are what avert an import-time cycle.</div>
     <div class="kv"><b>Failure mode:</b> works today, but the module depends on the facade meant to sit in front of it — renaming/retiring the facade name would break <code>assemble_run</code> though the real impl is in-module. Fragility left by the split.</div>
@@ -183,7 +198,7 @@
   </div>
 
   <div class="card low">
-    <div class="cardhead"><span class="cid">D4 · Silent swallow in timeline artifact refresh</span><span class="pill warnp">open</span></div>
+    <div class="cardhead"><span class="cid">D4 · Silent swallow in timeline artifact refresh</span><span class="pill pass">SHIPPED (swarm) · <code>2af0abb</code></span></div>
     <div><span class="chip">Bug &amp; Correctness</span><span class="chip">Observability</span></div>
     <div class="kv"><b>Location:</b> <code>production_sequence.py:1397-1398</code> — <code>except Exception:</code> / <code>pass</code> around the <code>_create_artifact("draft_run_timeline", …)</code> refresh in <code>update_timeline_after_scene</code>. <span class="tag-fact">CONFIRMED</span> silent swallow. Unlike prior C9, it is <em>not</em> before a COMPLETED/APPROVED transition — the timeline DB row was already flushed (line 1380) and the hard-block path is <code>_block_production_on_timeline_failure</code> (<code>pipeline.py:163-173</code>).</div>
     <div class="kv"><b>Failure mode:</b> a visibility artifact can silently fail to persist while the run advances — an observability gap, not a state-integrity hole. Low priority.</div>
