@@ -2,6 +2,8 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import type { ActiveScene } from "../api/types";
+import Spinner from "./ui/Spinner";
+import ProgressBar from "./ui/ProgressBar";
 
 // Live drafting indicators, in one place so the top bar and the Inbox stay in sync. The data layer
 // polls /jobs/status fast (~1.5s) while a draft is in flight, and the worker reports a sub-stage
@@ -23,32 +25,9 @@ function sceneLabelOf(a: ActiveScene | null): string {
   return `${ch}Scene ${a.scene_no ?? "?"}`;
 }
 
-export function Spinner({ size = 13, color = "var(--info)" }: { size?: number; color?: string }) {
-  return (
-    <span
-      style={css(
-        `display:inline-block;flex:none;width:${size}px;height:${size}px;border-radius:50%;` +
-          `border:2px solid var(--line);border-top-color:${color};animation:spin .8s linear infinite`,
-      )}
-    />
-  );
-}
-
-export function IndeterminateBar({ color = "var(--info)" }: { color?: string }) {
-  return (
-    <div
-      style={css(
-        "position:relative;height:3px;border-radius:3px;background:var(--line);overflow:hidden",
-      )}
-    >
-      <div
-        style={css(
-          `position:absolute;top:0;bottom:0;border-radius:3px;background:${color};animation:indeterminate 1.1s ease-in-out infinite`,
-        )}
-      />
-    </div>
-  );
-}
+// Spinner and the indeterminate progress bar live in ui/ (Spinner.tsx, ProgressBar.tsx) — this file
+// was the original home and the hoisted copies were byte-identical duplicates. Use the canonical ones:
+// ProgressBar with no `value` renders the old IndeterminateBar's indeterminate sweep.
 
 // Compact pill for the top bar — now a BUTTON that opens the Activity drawer (the old dead
 // "N queued" text was the single most-misread element in the Desk). Always rendered, so the
@@ -199,7 +178,7 @@ export function DraftPanel() {
         >
           {active?.phase ?? "drafting…"}
         </div>
-        <IndeterminateBar />
+        <ProgressBar />
         <div
           style={css(
             "display:flex;gap:12px;margin-top:10px;font-family:var(--mono);font-size:10.5px;align-items:center",
