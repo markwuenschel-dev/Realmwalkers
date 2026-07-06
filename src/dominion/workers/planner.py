@@ -62,7 +62,7 @@ def _plan_prompt(*, outline: str, pov: str, omniscient_summary: str | None, cano
         f"Propose at most {max_beats}. "
         "Return ONLY a JSON array (no prose, no code fences). Each item:\n"
         '{"scene_no": int (1-based, sequential), "beat_text": str (1-3 sentences of plan), '
-        '"characters_present": [str], "tags": [str] (any of "combat", "physical_description", '
+        '"characters_present": [str], "tags": [str] (any of "combat", "sensory", '
         '"dialogue"; else []), "expected_state_changes": object|null (declared stat/inventory '
         'deltas, e.g. {"' + pov + '": {"level": "+1"}}), "knowledge_injections": [str] '
         "(facts this POV learns or already knows in the scene)}."

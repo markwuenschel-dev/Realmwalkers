@@ -51,8 +51,8 @@ The router already maps tags→passes in fixed order and the pipeline lands the 
   budget=ctx.budget)` → the transformed full scene. Transform-only system prompt — deepen one
   dimension, preserve everything else, stay in `ctx.pov`, invent no canon, **preserve ```stat``` blocks
   verbatim** (the pipeline runs `render_stat_blocks` on the returned marker form, `pipeline.py:51`).
-  Lanes: combat = fight choreography/spatial clarity/stat-consistent; sensory (tag
-  `physical_description`) = concrete grounded sense detail; dialogue = voice/subtext, honoring
+  Lanes: combat = fight choreography/spatial clarity/stat-consistent; sensory
+  = concrete grounded sense detail; dialogue = voice/subtext, honoring
   `ctx.dialogue_rules` as authoritative.
 - [x] **Failure contract:** let `BudgetExceeded` propagate (pipeline keeps the spine, aborts remaining
   passes); wrap any other exception and empty/degenerate output as `PassError` so the spine still lands
@@ -62,7 +62,7 @@ The router already maps tags→passes in fixed order and the pipeline lands the 
   parse via `reviewers/base.py` helpers (`parse_json_objects`, `advisory_severity`, `Flag`). Advisory
   only — INFO/WARN, never HARD, never mutate.
 - [x] **1c. Router + config** — register the three lanes in `router.TAG_REVIEWERS` keyed by the same
-  tags as the passes (`combat`, `physical_description`, `dialogue`); `reviewers_for()` already merges
+  tags as the passes (`combat`, `sensory`, `dialogue`); `reviewers_for()` already merges
   onto `ALWAYS_REVIEWERS`. Add `enrich_model: str = "claude-sonnet-4-6"` to `shared/config.py`
   (generative → defaults to the draft model; separate knob to tune without code change).
 - [x] **1d. Tests** — rewrite `tests/test_enrichment_passes.py` (currently asserts `PassError` with

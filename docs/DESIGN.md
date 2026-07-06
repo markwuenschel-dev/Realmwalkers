@@ -117,7 +117,7 @@ create table beats (
   chapter_id uuid references chapters(id),   -- POV inherited from chapter
   scene_no int,
   characters_present text[],
-  tags text[],                       -- {combat, physical_description, dialogue, ...}
+  tags text[],                       -- {combat, sensory, dialogue, ...}
   expected_state_changes jsonb,      -- DECLARED stat/inventory deltas, structured
                                      --   e.g. {"Marcus":{"STR":"+3"},"gain":["Sundered Blade"]}
   knowledge_injections text[],       -- author-supplied: "Serra now knows X (told ch.12)"
@@ -230,7 +230,7 @@ START RUN: "draft chapter 4"
 │   current ledger (Oracle read) · prior scene tail (in-chapter)│
 │ Drafter writes the whole scene  ── one continuous spine       │
 │   → if 'combat':               Combat pass sharpens fight     │
-│   → if 'physical_description':  Sensory pass adds concrete detail│
+│   → if 'sensory':              Sensory pass adds concrete detail│
 │   → if 'dialogue':              Dialogue pass punches it up    │
 │ persist scene (status=pending_review, passes_run=[...])       │
 │   → async REVIEW lane (read-only): Continuity always +         │
@@ -273,13 +273,13 @@ The advisory **continuity reviewer** is the opposite job: an LLM that only *repo
 ```python
 DRAFT_PASSES = {                      # enrichment: modify prose during drafting
     "combat":               combat_pass,
-    "physical_description": sensory_pass,
+    "sensory":              sensory_pass,
     "dialogue":             dialogue_pass,
 }
 REVIEWERS = {                         # read-only, advisory
     "always":               [continuity_reviewer],
     "combat":               [combat_reviewer],
-    "physical_description": [sensory_reviewer],
+    "sensory":              [sensory_reviewer],
     "dialogue":             [dialogue_reviewer],
 }
 

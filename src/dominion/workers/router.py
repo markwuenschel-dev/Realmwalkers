@@ -15,13 +15,13 @@ from dominion.workers.reviewers.voice import voice_reviewer
 from dominion.workers.specialists.base import Specialist
 from dominion.workers.specialists.enrich import combat_pass, dialogue_pass, sensory_pass
 
-# Enrichment passes fire only when tagged, and always in this fixed order (determinism).
-_PASS_ORDER: list[str] = ["combat", "physical_description", "dialogue"]
-DRAFT_PASSES: dict[str, Specialist] = {
-    "combat": combat_pass,
-    "physical_description": sensory_pass,
-    "dialogue": dialogue_pass,
-}
+# Enrichment passes fire only when tagged, and always in this fixed order (determinism). Keyed by each
+# pass's own .name so the routing tag can never drift from the lane it names — the sensory lane was
+# silently dead for exactly that reason (the key read "physical_description" while sensory_pass.name is
+# "sensory"). See tests/test_router.py::test_every_producible_lane_tag_is_routable.
+_LANE_PASSES: list[Specialist] = [combat_pass, sensory_pass, dialogue_pass]
+_PASS_ORDER: list[str] = [p.name for p in _LANE_PASSES]
+DRAFT_PASSES: dict[str, Specialist] = {p.name: p for p in _LANE_PASSES}
 
 # Always-on advisory reviewers (read-only). Continuity stays first; voice/pacing/state-drift each
 # gate their own LLM call and stay silent (and free) when they have nothing to assess.
@@ -32,12 +32,9 @@ ALWAYS_REVIEWERS: list[Reviewer] = [
     state_drift_reviewer,
 ]
 # Tag-gated review lanes — same tags as the enrichment passes (OPEN-8: novel runs combat/sensory/
-# dialogue as BOTH a pass and a review lane). reviewers_for() merges these onto ALWAYS_REVIEWERS.
-TAG_REVIEWERS: dict[str, list[Reviewer]] = {
-    "combat": [combat_reviewer],
-    "physical_description": [sensory_reviewer],
-    "dialogue": [dialogue_reviewer],
-}
+# dialogue as BOTH a pass and a review lane). Keyed by each reviewer's own .name for the same
+# no-drift reason as DRAFT_PASSES. reviewers_for() merges these onto ALWAYS_REVIEWERS.
+TAG_REVIEWERS: dict[str, list[Reviewer]] = {r.name: [r] for r in (combat_reviewer, sensory_reviewer, dialogue_reviewer)}
 
 
 def passes_for(tags: list[str]) -> list[Specialist]:
