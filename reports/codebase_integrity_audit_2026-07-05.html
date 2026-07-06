@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realmwalkers — Codebase Integrity Audit (2026-07-05)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d222c; --ink:#e6e9ef; --muted:#9aa4b2;
+    --line:#2a303c; --accent:#7aa2f7; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+    --chip:#232936;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7f9; --panel:#ffffff; --panel2:#f0f2f5; --ink:#1b1f27; --muted:#5b6472;
+      --line:#e2e6ec; --accent:#3050c8; --good:#1a7f37; --warn:#9a6700; --bad:#cf222e; --chip:#eef1f5; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 22px 80px;}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+  h2{font-size:19px;margin:38px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  h3{font-size:15px;margin:0 0 8px}
+  .sub{color:var(--muted);font-size:13.5px}
+  code,.mono{font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace;font-size:12.5px}
+  .grid{display:grid;gap:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .pill{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .pass{background:rgba(63,185,80,.15);color:var(--good)}
+  .warnp{background:rgba(210,153,34,.16);color:var(--warn)}
+  .badp{background:rgba(248,81,73,.15);color:var(--bad)}
+  .chip{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11.5px;color:var(--muted);margin:0 4px 4px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:15px 17px;margin:0 0 14px}
+  .card.rec{border-left-color:var(--accent)}
+  .card.high{border-left-color:var(--bad)}
+  .card.med{border-left-color:var(--warn)}
+  .card.low{border-left-color:var(--muted)}
+  .cardhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .cid{font-weight:700;font-size:15px}
+  .scores{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 6px}
+  .score{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:12px}
+  .score b{font-variant-numeric:tabular-nums}
+  .kv{margin:7px 0 0;font-size:13.5px}
+  .kv b{color:var(--muted);font-weight:600}
+  ul{margin:6px 0 0;padding-left:20px}
+  li{margin:2px 0}
+  .rej{color:var(--muted);font-size:13.5px}
+  .flag{font-size:12px;color:var(--muted);margin-top:14px}
+  a{color:var(--accent)}
+  .lead{font-size:14.5px;color:var(--muted);max-width:75ch}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.two{grid-template-columns:1fr}}
+  .tag-fact{color:var(--good)} .tag-inf{color:var(--warn)} .tag-unk{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Codebase Integrity Audit — Realmwalkers</h1>
+  <div class="sub">Loop run: 2026-07-05 · branch <code>main</code> @ <code>b3f139d</code> · package <code>dominion</code> (FastAPI) + <code>frontend</code> (Next 16 / React 19) · Stage 1–2 (recover/scan → report + ledger)</div>
+  <p class="lead" style="margin-top:14px">
+    Evidence gathered by running the real toolchain (ruff, pyright, mypy, pytest-collect, OpenAPI export, tsc, oxlint, vitest, codegen drift) plus three read-only inferential sweeps (wiring/latent-bug, dead-code/duplicate, frontend health). Deterministic findings (tool output) are separated from inferential ones. No production code was changed. Exactly one candidate is selected per loop.
+  </p>
+
+  <div class="panel" style="margin-top:16px;border-left:4px solid var(--good)">
+    <h3 style="margin-bottom:6px">Auto run — loop 2 · 2026-07-06 · <code>--auto --max-turns 3</code></h3>
+    <div class="sub" style="margin-bottom:8px">Baseline reconciliation: loop-1 <b>C1</b> (verified, uncommitted) was shipped to <code>main</code> as <code>0f919e2</code> per operator choice; the unrelated <code>serra_hawthorne.md</code> canon edit was left untouched in the worktree. Then 3 executable candidates ran in recommended order, each shipped to <code>main</code> with green verification.</div>
+    <table>
+      <tr><th>Turn</th><th>Candidate</th><th>Branch</th><th>Verification</th><th>Commit</th></tr>
+      <tr><td>1</td><td>C7 · repair_draft_queue apply path untested</td><td>fitness-check</td><td>RED→GREEN proof; file 5 passed; ruff clean</td><td><code>4618300</code></td></tr>
+      <tr><td>2</td><td>C9 · swallow before COMPLETED</td><td>direct-fix + check</td><td>fail-closed test RED→GREEN; 17 passed; ruff+pyright clean</td><td><code>0b13339</code></td></tr>
+      <tr><td>3</td><td>C5 · duplicate UI primitives</td><td>direct-fix</td><td>tsc 0; oxfmt/oxlint clean; vitest 244/244</td><td><code>ee81ee5</code></td></tr>
+    </table>
+    <div class="sub" style="margin-top:8px"><b>Not auto-selected (hard-stop categories):</b> <b>C2</b> (mypy enforce-vs-retire — <code>needs-human-decision</code>), <b>C3-app</b> (deletes reachable-looking static-SPA mount — needs deploy-mode confirmation). <b>Remaining open</b> (safe, deferred by max-turns): C4, C6, C8. <b>Next command:</b> <code>/codebase-integrity-audit-loop</code> (manual, pick from the open ledger) or <code>--auto --max-turns 3</code> to continue with C4→C6→C8.</div>
+  </div>
+
+  <h2>1 · Code-health map (deterministic)</h2>
+  <div class="panel">
+  <table>
+    <tr><th>Surface</th><th>Check</th><th>Result</th><th>Detail</th></tr>
+    <tr><td>Backend lint</td><td>ruff check + format</td><td><span class="pill pass">CLEAN</span></td><td>217 files, 0 findings</td></tr>
+    <tr><td>Backend types (gating)</td><td>pyright (standard, CI job)</td><td><span class="pill pass">CLEAN</span></td><td>0 errors / 0 warnings, 142 files</td></tr>
+    <tr><td>Backend tests</td><td>pytest collection</td><td><span class="pill pass">CLEAN</span></td><td>511 tests collect, no import breakage</td></tr>
+    <tr><td>API contract</td><td>openapi.json regen vs committed</td><td><span class="pill pass">IN SYNC</span></td><td>byte-identical (the <code>M</code> flag is a CRLF artifact only)</td></tr>
+    <tr><td>Frontend types</td><td>tsc --noEmit</td><td><span class="pill pass">CLEAN</span></td><td>0 errors</td></tr>
+    <tr><td>Frontend lint</td><td>oxlint</td><td><span class="pill pass">CLEAN</span></td><td>1 advisory warning (<code>diff.ts:11</code> no-new-array), 0 errors</td></tr>
+    <tr><td>Frontend tests</td><td>vitest</td><td><span class="pill pass">CLEAN</span></td><td>244/244 across 24 files</td></tr>
+    <tr><td>FE↔BE types</td><td>openapi-typescript codegen drift</td><td><span class="pill pass">NO DRIFT</span></td><td>generated.ts byte-identical to schema</td></tr>
+    <tr><td>Backend types (strict)</td><td>mypy strict (<code>src</code>)</td><td><span class="pill warnp">86 ERRORS / 21 files</span></td><td><b>Not run by CI</b> — configured in pyproject + justfile only. Mostly hygiene (missing annots, var-reuse narrowing, 6 stale <code>type: ignore</code>); no runtime bug confirmed in the cluster.</td></tr>
+    <tr><td>CI wiring</td><td><code>scripts/ci_mypy_changed.sh</code></td><td><span class="pill warnp">ORPHANED</span></td><td>Referenced nowhere; its pyright twin is wired into CI + verify.sh + justfile.</td></tr>
+    <tr><td>Sensory draft lane</td><td>tag→pass/reviewer routing</td><td><span class="pill badp">SILENTLY DEAD</span></td><td>Producer emits <code>"sensory"</code>; router keys on <code>"physical_description"</code> → pass, review lane, and repair never fire. <b>(Candidate C1)</b></td></tr>
+  </table>
+  </div>
+  <p class="sub" style="margin-top:8px"><b>Confirmed</b>: everything above is tool-verified. <b>Unknown</b>: full-suite pytest with a real Postgres was not run in this environment (collection only) — CI runs it on every push and it is currently green on <code>main</code>.</p>
+
+  <h2>2 · Active seams &amp; integration points</h2>
+  <div class="panel">
+  <table>
+    <tr><th>Seam</th><th>Authoritative contract</th><th>Health</th></tr>
+    <tr><td>Backend API ↔ Frontend</td><td><code>openapi.json</code> → <code>desk/api/generated.ts</code> (codegen)</td><td><span class="pill pass">healthy — single source, drift-checked in CI</span></td></tr>
+    <tr><td>Beat.tags → draft passes / review lanes</td><td><code>router.py</code> (<code>DRAFT_PASSES</code>, <code>TAG_REVIEWERS</code>) keyed by tag literal</td><td><span class="pill badp">broken — vocabulary split (C1/C3)</span></td></tr>
+    <tr><td>Beat.tags writers</td><td>2 producers: <code>scene_packet/beats.py</code> (active, <code>"sensory"</code>) &amp; <code>planner.py</code> (legacy, <code>"physical_description"</code>)</td><td><span class="pill warnp">dual-writer, divergent vocab (C3)</span></td></tr>
+    <tr><td>Scene-packet author</td><td>flag <code>scene_packet_author_sectioned</code> (default true) selects sectioned vs monolithic</td><td><span class="pill pass">healthy — duplicate BY DESIGN, retirement-gated</span></td></tr>
+    <tr><td>Public server ↔ FastAPI</td><td>Next standalone (public) proxies <code>/api/desk/*</code> → FastAPI (internal 8001)</td><td><span class="pill pass">healthy — BFF real (Dockerfile-confirmed); Vite static path retired (C3-app)</span></td></tr>
+    <tr><td>Static type gate</td><td>ruff + pyright-changed (CI) · mypy strict (defined, unenforced)</td><td><span class="pill warnp">partial — mypy strict not wired (C2)</span></td></tr>
+  </table>
+  </div>
+
+  <h2>3 · Candidate ledger</h2>
+  <p class="sub">Every candidate is independently selectable. Scores 1–10 — Leverage (impact of fixing) · Locality (how contained) · Enforceability (can we add a durable check) · Risk (blast radius). Recommended pick highlighted.</p>
+
+  <div class="card rec high">
+    <div class="cardhead"><span class="cid">C1 · Sensory tag/lane vocabulary mismatch — sensory pass &amp; review lane silently dead</span><span class="pill pass">FIXED · check-added (loop 1)</span></div>
+    <div><span class="chip">Wiring / Integration</span><span class="chip">Bug &amp; Correctness</span><span class="chip">confirmed ×2 agents</span></div>
+    <div class="kv"><b>Location:</b> producer <code>scene_packet/beats.py:25,114</code> emits <code>"sensory"</code> → <code>assemble.py:45</code> → <code>ctx.tags</code>. Consumer <code>router.py:19,22,38</code> keys <code>_PASS_ORDER</code>/<code>DRAFT_PASSES</code>/<code>TAG_REVIEWERS</code> on <code>"physical_description"</code>. Dispatch: <code>pipeline.py:88</code> (<code>passes_for</code>→[]), <code>pipeline.py:230</code> (<code>reviewers_for</code>→[]). Repair also dead: <code>production.py:1092</code> maps <code>expand→sensory</code>, filtered out at <code>pipeline.py:89</code>.</div>
+    <div class="kv"><b>Friction / failure mode:</b> for every scene-packet-drafted scene, the sensory enrichment pass, the sensory advisory reviewer, and sensory "expand" repairs never run. Fully silent — an unknown tag yields <code>[]</code>, no error, no log. Combat &amp; dialogue are unaffected (their key == their emitted tag).</div>
+    <div class="kv"><b>Root seam / rule violated:</b> one controlled vocabulary (Beat.tags) must have exactly one authoritative definition shared by producer and router. <code>router.py:36</code>'s own comment says "combat/<b>sensory</b>/dialogue" while its keys say <code>physical_description</code> — the intent is documented, the wiring drifted. <code>enums.ReviewerKind.SENSORY="sensory"</code>, telemetry, and all of <code>production.py</code> already agree on <code>sensory</code>; the router is the lone outlier.</div>
+    <div class="kv"><b>Facts vs inference:</b> <span class="tag-fact">CONFIRMED</span> producer/consumer literals + dead dispatch (quoted, two independent agents). <span class="tag-fact">CONFIRMED</span> masking test: <code>tests/test_router.py:28</code> feeds the router its <em>own</em> vocab (<code>physical_description</code>), so it passes while never exercising the real emitted tag. <span class="tag-inf">INFERENCE</span> legacy planner path is de-emphasized (beat-first drafting disabled per <code>beats.py</code> docstring) but <code>runs.py:89→planner.propose_beats</code> is still endpoint-wired.</div>
+    <div class="scores">
+      <span class="score">Leverage <b>9</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>9</b></span><span class="score">Risk <b>3</b></span>
+    </div>
+    <div class="kv"><b>Recommended branch:</b> fitness-check — state the rule → add a failing vocabulary-coherence check → retarget router keys <code>physical_description→sensory</code> → align <code>planner.py:65</code> prompt vocab (collapses C3 root cause) → fix the masking test → green → prove.</div>
+    <div class="kv"><b>Enforceable check:</b> a test asserting every tag any producer can emit (<code>_LANE_TAGS</code> ∪ planner-allowed tags) is routable — i.e. present in <code>DRAFT_PASSES</code> and/or <code>TAG_REVIEWERS</code>. Prevents any future tag from silently falling into the no-op branch.</div>
+    <div class="kv"><b>Adjacent / out of scope:</b> the broader dual-writer refactor (C3) beyond aligning the tag literal; redesigning the enrichment-pass set; touching combat/dialogue lanes.</div>
+    <div class="kv" style="border-top:1px solid var(--line);margin-top:11px;padding-top:9px"><b>✔ Loop 1 result:</b> Router now keys <code>DRAFT_PASSES</code>/<code>_PASS_ORDER</code>/<code>TAG_REVIEWERS</code> off each pass/reviewer's own <code>.name</code> (<code>router.py:22-24,37</code>) — the tag can no longer drift from the lane it names. Legacy planner prompt vocab aligned to <code>sensory</code> (<code>planner.py:65</code>, collapses C3 root cause). Masking test corrected (<code>test_router.py:28</code>). New guard <code>test_every_producible_lane_tag_is_routable</code> asserts every <code>beats._LANE_TAGS</code> value routes to a pass + review lane. Contract-mirroring docs updated (<code>DESIGN.md</code> ×4, <code>ROADMAP.md</code> ×2). <b>Verification:</b> guard shown RED before fix (<code>'sensory' → []</code>) then GREEN; full suite <b>512 passed / 0 fail / 0 skip</b>; ruff + ruff-format + pyright clean. <b>Behavior change:</b> activates a previously-dead sensory enrichment LLM pass + sensory review lane for sensory-tagged scenes (intended OPEN-8 behavior; will now consume tokens as designed). <b>Migration:</b> active producer always emitted <code>sensory</code>; only the disabled/pruned legacy path minted <code>physical_description</code> → no live rows to backfill. <b>Shipped to <code>main</code> as <code>0f919e2</code></b> (loop-2 auto run, 2026-07-06); <code>test_router.py</code> re-verified 8/8 green before commit.</div>
+  </div>
+
+  <div class="card med">
+    <div class="cardhead"><span class="cid">C7 · <code>repair_draft_queue</code> apply/mutation path is untested (mislabeled test)</span><span class="pill pass">SHIPPED · check-added (loop 2)</span></div>
+    <div><span class="chip">Testing / Fixture</span><span class="chip">Coverage gap</span></div>
+    <div class="kv"><b>Location:</b> <code>tests/test_repair_draft_queue.py:9</code> imports <code>draft_audit.audit_chapter</code> — it tests the read-only <em>audit</em>, not <code>tools/repair_draft_queue.py</code>. The repair CLI's queue-mutation/apply path has no test despite the file name.</div>
+    <div class="kv"><b>Root seam / rule:</b> a data-repair tool that mutates the draft queue is a high-consequence path and must have a regression test at its seam. <span class="tag-fact">CONFIRMED</span> import mismatch; <span class="tag-inf">INFERENCE</span> zero coverage of the mutation branch.</div>
+    <div class="scores"><span class="score">Leverage <b>6</b></span><span class="score">Locality <b>6</b></span><span class="score">Enforceability <b>8</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch:</b> fitness-check — add the missing test exercising <code>repair_draft_queue</code>'s apply path against a seeded queue.</div>
+    <div class="kv" style="border-top:1px solid var(--line);margin-top:11px;padding-top:9px"><b>✔ Loop 2 result:</b> Added 3 tests at the tool's seam in <code>test_repair_draft_queue.py</code> (module now honestly covers both the audit and the tool), binding the tool's module-level <code>SessionFactory</code> to the test factory and asserting against a <em>separately reopened</em> session so a missing commit is caught: <b>relink</b> (<code>--apply</code> persists the beat→packet link through the tool's own commit), <b>cancel</b> (<code>--apply</code> fail-cancels a live DRAFT job with no packet/beat + records why), <b>dry-run</b> (reports the same repairs but leaves the queue untouched). <b>Proven to bite:</b> transiently neutering the relink + commit turned both apply tests RED; restoring the tool returned them GREEN. <b>Verification:</b> file 5 passed; ruff clean. <b>Shipped to <code>main</code> as <code>4618300</code></b> (2026-07-06). No production code touched — pure coverage.</div>
+  </div>
+
+  <div class="card med">
+    <div class="cardhead"><span class="cid">C2 · mypy strict configured but unenforced + orphaned <code>ci_mypy_changed.sh</code></span><span class="pill warnp">open · needs-human-decision</span></div>
+    <div><span class="chip">Build / CI</span><span class="chip">Architecture Fitness</span><span class="chip">Static</span></div>
+    <div class="kv"><b>Location:</b> <code>pyproject.toml</code> <code>[tool.mypy] strict=true</code> + <code>justfile:16</code> <code>typecheck</code>, but CI's static job (<code>ci.yml:107</code>) runs only ruff + <code>ci_pyright_changed.sh</code>. <code>scripts/ci_mypy_changed.sh</code> exists, wired nowhere. Full <code>mypy src</code> = 86 errors / 21 files (incl. 6 stale <code>type: ignore</code> at <code>agent_policy.py:77,96,98</code> &amp; <code>production.py:825-827</code>).</div>
+    <div class="kv"><b>Root seam / rule:</b> a configured check that nothing runs is a false sense of safety; either enforce it (on changed files, going forward) or retire the config + orphan script. <span class="tag-inf">DECISION</span> enforcing on changed files would make a PR that touches <code>production.py</code> (25 errors) fail until cleaned — churn/coupling. This is why it is <b>marked needs-human-decision</b> (would hard-stop auto mode).</div>
+    <div class="scores"><span class="score">Leverage <b>6</b></span><span class="score">Locality <b>5</b></span><span class="score">Enforceability <b>8</b></span><span class="score">Risk <b>5</b></span></div>
+    <div class="kv"><b>Branch:</b> design (decide enforce-on-changed vs retire) — or a narrow direct-fix that only deletes the 6 stale <code>type: ignore</code> comments (Leverage 2, Risk 1).</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">C9 · <code>except Exception: pass</code> before marking a run COMPLETED</span><span class="pill pass">SHIPPED · check-added (loop 2)</span></div>
+    <div><span class="chip">Bug &amp; Correctness</span></div>
+    <div class="kv"><b>Location:</b> <code>workers/production.py:3762-3769</code> (<code>approve_final_chapter</code>). The block that stamps <code>final_chapter_status="approved_by_human"</code> + recomputes <code>content_hash</code> is wrapped in <code>except Exception: pass</code>, then <code>run.status = COMPLETED</code> runs unconditionally. <span class="tag-fact">CONFIRMED</span> silent swallow; <span class="tag-inf">INFERENCE</span> low real-world probability (dict copy + hash rarely raise).</div>
+    <div class="kv"><b>Failure mode:</b> if the stamp/hash raises, the run is still COMPLETED while the artifact was never marked approved and carries a stale hash — silent run/artifact inconsistency, no log.</div>
+    <div class="scores"><span class="score">Leverage <b>4</b></span><span class="score">Locality <b>9</b></span><span class="score">Enforceability <b>6</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix — narrow the except / log-and-reraise or fail the approval; add a test.</div>
+    <div class="kv" style="border-top:1px solid var(--line);margin-top:11px;padding-top:9px"><b>✔ Loop 2 result:</b> Dropped the swallow entirely so the stamp runs unconditionally and any failure propagates — <b>fail-closed</b>: a run is never marked COMPLETED unless its final-chapter artifact was stamped <code>approved_by_human</code> with a consistent hash. Confirmed safe: the stamp is a dict copy + <code>_hash_payload</code> (<code>json.dumps(..., default=str)</code>) over a JSON dict body, so it can't raise on valid data — happy path unchanged. New <code>tests/test_approve_final_chapter.py</code>: happy-path (stamps + completes + hash consistent) and fail-closed (<code>_hash_payload</code> monkeypatched to raise → call raises, run NOT COMPLETED). <b>Verification:</b> fail-closed test RED pre-fix (<em>DID NOT RAISE</em>) then GREEN; production_runs + pipeline_status + activity_feed + new file <b>17 passed</b>; ruff + pyright clean. <b>Shipped to <code>main</code> as <code>0b13339</code></b> (2026-07-06).</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">C3-app · Dead pre-Next static-SPA mount in <code>api/main.py</code></span><span class="pill warnp">open · deletes reachable-looking code</span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Stale path</span></div>
+    <div class="kv"><b>Location:</b> <code>api/main.py:155-171</code> (static mount + <code>spa_fallback</code>, default dir <code>frontend/dist</code>). Retired Vite single-service path; the image ships Next standalone (public) + FastAPI internal, never produces <code>dist</code>, so <code>_STATIC_DIR.is_dir()</code> is always False. <span class="tag-fact">CONFIRMED</span> dead in the image (Dockerfile never copies <code>dist</code>).</div>
+    <div class="scores"><span class="score">Leverage <b>4</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>3</b></span><span class="score">Risk <b>3</b></span></div>
+    <div class="kv"><b>Branch:</b> triage/direct-fix — confirm no deploy mode relies on it, then remove the block + <code>frontend/dist</code> default.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">C4 · 9 stranded frontend <code>api.*</code> client methods + dead exports</span><span class="pill warnp">open</span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Frontend</span></div>
+    <div class="kv"><b>Location:</b> <code>desk/api/client.ts</code> — <code>dismissActivity</code>(208), <code>startRun</code>(221), <code>batchRun</code>(224), <code>approveBeats</code>(226), <code>updateBeat</code>(231), <code>deleteBeat</code>(233), <code>createBeat</code>(235), <code>knowledge</code>(467), <code>modelSettings</code>(477) — no call sites (hidden behind the wholesale <code>api</code> object; stranded when gate-1 authoring UI was removed, <code>Planner.tsx:25-26</code>). Plus dead exports <code>truncationAdvice</code>, <code>resetTelemetryCacheForTests</code>. Backend routes still exist.</div>
+    <div class="scores"><span class="score">Leverage <b>3</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>5</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix (scope = frontend client only; do NOT touch backend routes).</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">C5 · Duplicate frontend UI primitives (Spinner, IndeterminateBar)</span><span class="pill pass">SHIPPED (loop 2)</span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Duplicate</span></div>
+    <div class="kv"><b>Location:</b> <code>desk/components/DraftActivity.tsx:26</code> <code>Spinner</code> duplicates canonical <code>ui/Spinner.tsx</code>; <code>DraftActivity.tsx:37</code> <code>IndeterminateBar</code> duplicates <code>ui/ProgressBar.tsx</code> indeterminate mode. Canonical files' headers say they were hoisted out of DraftActivity; the in-file copies have no external importers.</div>
+    <div class="scores"><span class="score">Leverage <b>3</b></span><span class="score">Locality <b>9</b></span><span class="score">Enforceability <b>3</b></span><span class="score">Risk <b>1</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix — replace in-file copies with the canonical <code>ui/</code> imports.</div>
+    <div class="kv" style="border-top:1px solid var(--line);margin-top:11px;padding-top:9px"><b>✔ Loop 2 result:</b> Imported the canonical <code>ui/Spinner</code> + <code>ui/ProgressBar</code> and deleted the byte-identical in-file copies; <code>&lt;ProgressBar /&gt;</code> with no <code>value</code> renders the old <code>IndeterminateBar</code> sweep. The <code>ui/</code> files had been hoisted but never repointed (nothing imported them) — now wired. Verified repo-wide that no module imported the in-file <code>Spinner</code>/<code>IndeterminateBar</code> (only <code>formatElapsed</code>/<code>DraftPill</code>/<code>ActivityFeed</code>/<code>DraftPanel</code> are imported from this module) → no consumers change, no behavior change. <b>Verification:</b> <code>tsc --noEmit</code> 0 errors; <code>oxfmt --check</code> clean; <code>oxlint</code> 0/0; <b>vitest 244/244</b> across 24 files. <b>Shipped to <code>main</code> as <code>ee81ee5</code></b> (2026-07-06). −27/+6 lines.</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">C6 · Throwaway diagnostic scripts tracked &amp; shipped in the image</span><span class="pill warnp">open</span></div>
+    <div><span class="chip">Build / CI</span><span class="chip">Maintainability</span></div>
+    <div class="kv"><b>Location:</b> <code>scripts/diag_scene_budget.py</code> (self-declared "Throwaway diagnostic… Safe to delete") is tracked <em>and</em> <code>COPY</code>ed into the Docker image (<code>Dockerfile:58</code>), never invoked. Companions: orphaned <code>scripts/ci_mypy_changed.sh</code> (see C2), <code>scripts/debug_validate_contract.py</code> (points at a nonexistent <code>tmp/packet.json</code>).</div>
+    <div class="scores"><span class="score">Leverage <b>4</b></span><span class="score">Locality <b>8</b></span><span class="score">Enforceability <b>4</b></span><span class="score">Risk <b>2</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix — remove the throwaway scripts from the tree + Dockerfile (one concern: retired diagnostics).</div>
+  </div>
+
+  <div class="card low">
+    <div class="cardhead"><span class="cid">C8 · Stale <code>frontend/src/legacy/</code> references in docs</span><span class="pill warnp">open</span></div>
+    <div><span class="chip">Maintainability</span><span class="chip">Docs</span></div>
+    <div class="kv"><b>Location:</b> the <code>legacy/</code> tree is deleted, but <code>README.md:39</code>, <code>docs/ROADMAP.md:33,124,156</code>, <code>docs/agent-briefs/phase2-drafting-unblock.md:252</code> still reference it. (Only the <code>legacy/</code> mentions are stale — the <code>/api/desk</code> BFF mentions on the same lines are correct.) Human docs, not runtime corpus.</div>
+    <div class="scores"><span class="score">Leverage <b>2</b></span><span class="score">Locality <b>7</b></span><span class="score">Enforceability <b>4</b></span><span class="score">Risk <b>1</b></span></div>
+    <div class="kv"><b>Branch:</b> direct-fix (docs only).</div>
+  </div>
+
+  <h2>4 · Broad-cleanup opportunities intentionally rejected (out of scope)</h2>
+  <div class="panel">
+    <ul class="rej">
+      <li><b>Monolithic vs sectioned scene-packet author</b> — duplicate <em>by design</em> (<code>derive.py:124-128</code> flag, default sectioned live, monolithic is the retention-gated fallback exercised by <code>test_scene_packet.py:193</code>). Not drift; retire later after the acceptance window. <b>Not a candidate.</b></li>
+      <li><b>Intentional back-compat shims</b> — <code>LEGACY_REVIEWERS_STAGE</code> (<code>reviewer_telemetry.py:18</code>), <code>types.ts:133</code> legacy flag, <code>LEGACY_REPAIR_NOTE</code> (live-used). Keep.</li>
+      <li><b>Gitignored local cruft</b> — 6 <code>.claude/worktrees/agent-*</code> (2 registered, rest stranded), <code>tmp/</code>, <code>mcps/</code> dumps, <code>frontend/dist</code>. Housekeeping, not committed code.</li>
+      <li><b>Fixing all 86 mypy errors at once</b> — broad cleanup; forbidden. Narrowed into C2's scoped decision.</li>
+      <li><b>Cosmetic path nits</b> in comments/mocks (<code>schemas.py:1202</code>, <code>LedgerScreen.test.tsx</code>, <code>ch1_bad_run_fixtures.py:297-299</code> dead probe entries) — harmless; not worth a loop.</li>
+    </ul>
+  </div>
+
+  <h2>5 · Unknowns</h2>
+  <div class="panel"><ul>
+    <li>Full pytest with real Postgres was not executed locally (collection-only). CI runs it per-push and <code>main</code> is green — treated as green, not independently re-verified here.</li>
+    <li>Whether the legacy <code>planner.propose_beats</code> beat-first path is still user-reachable in production or dead-but-wired. Decides whether C1 must also re-map (not just align) the planner vocabulary. To be resolved in C1's candidate gate.</li>
+  </ul></div>
+
+  <div class="flag">Report generated during Stage 1–2 of <code>/codebase-integrity-audit-loop</code> (manual mode). Next: user selects exactly one candidate → candidate gate → lens → branch → execute → verify → capture.</div>
+
+</div>
+</body>
+</html>
