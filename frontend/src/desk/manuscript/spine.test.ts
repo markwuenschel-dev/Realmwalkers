@@ -229,6 +229,23 @@ describe("chapter node — kind + label", () => {
     expect(c2.kindRecognized).toBe(false);
     expect(c2.label).toBe("Chapter 2");
   });
+
+  it("carries section_type and labels front/back matter from it", () => {
+    const m = ms({
+      chapters: [
+        ch({
+          chapter_no: 1,
+          kind: "back_matter",
+          section_type: "glossary",
+          pov: "",
+          scenes: [scn(1, "Terms.")],
+        }),
+      ],
+    });
+    const c = spineChapters(spineOf(m))[0];
+    expect(c.sectionType).toBe("glossary");
+    expect(c.label).toBe("Glossary");
+  });
 });
 
 describe("derived views", () => {

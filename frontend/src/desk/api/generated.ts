@@ -3906,6 +3906,8 @@ export interface components {
        * @default chapter
        */
       kind: string;
+      /** Section Type */
+      section_type?: string | null;
       /** Epigraph */
       epigraph?: string | null;
       /** Part Id */
@@ -4245,6 +4247,8 @@ export interface components {
       /** Title */
       title?: string | null;
       kind?: components["schemas"]["ChapterKind"] | null;
+      /** Section Type */
+      section_type?: string | null;
       /** Epigraph */
       epigraph?: string | null;
     };
@@ -5093,6 +5097,8 @@ export interface components {
        * @default chapter
        */
       kind: string;
+      /** Section Type */
+      section_type?: string | null;
       /** Epigraph */
       epigraph?: string | null;
       /** Part Id */

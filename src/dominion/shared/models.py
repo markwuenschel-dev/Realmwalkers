@@ -96,6 +96,11 @@ class Chapter(Base):
     # front_matter | back_matter. Display-only — ordering still keys off chapter_no; a plain "chapter"
     # renders "Chapter N", the rest render their own label. server_default keeps pre-existing rows valid.
     kind: Mapped[str] = mapped_column(Text, default="chapter", server_default="chapter")
+    # For front_matter/back_matter chapters: the specific section type (glossary | dramatis_personae |
+    # map | preface | afterword | appendix | acknowledgments | preview | …). Drives the reader label +
+    # semantic tag; NULL/ignored for ordinary chapters. Free text (like a slug) so the catalog can grow
+    # without a migration; the frontend maps known slugs to display names, title-cases the rest.
+    section_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Optional short quote/text shown at the chapter opening, before the prose, in reader + exports.
     epigraph: Mapped[str | None] = mapped_column(Text, nullable=True)
 

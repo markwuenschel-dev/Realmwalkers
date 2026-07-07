@@ -146,6 +146,25 @@ describe("structure + labels agree across all three emitters (one spine)", () =>
     ).toBe("docx");
   });
 
+  it("renders front/back matter by its section type (label + provenance), not as a numbered chapter", () => {
+    const book = ms({
+      chapters: [
+        ch({ chapter_no: 1, scenes: [scn(1, "Story.")] }),
+        ch({
+          chapter_no: 2,
+          kind: "back_matter",
+          section_type: "glossary",
+          pov: "",
+          scenes: [scn(1, "Aether: the ambient magic.")],
+        }),
+      ],
+    });
+    const md = markdownOf(book);
+    assertOrder(md, ["# Chapter 1", "# Glossary"]);
+    expect(md).toContain("section_type=glossary");
+    expect(md).not.toContain("# Chapter 2"); // the glossary is not a numbered chapter
+  });
+
   it("Reader DOCX and Shunn DOCX build from the same book (Parts + rich blocks, no throw)", () => {
     const book = fullBook();
     const reader = runExport(book, "reader_proof", { exportedAt: AT });

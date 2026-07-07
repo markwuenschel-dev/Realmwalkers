@@ -256,6 +256,7 @@ class ChapterOut(_ORM):
     outline: str | None = None
     status: str
     kind: str = "chapter"  # ChapterKind value; str (like status) tolerates any legacy row
+    section_type: str | None = None  # for front/back matter: glossary|map|dramatis_personae|… (free slug)
     epigraph: str | None = None
     part_id: uuid.UUID | None = None  # Part grouping (Book → Part → Chapter); null = ungrouped
 
@@ -267,6 +268,9 @@ class ChapterUpdateIn(BaseModel):
 
     title: str | None = None
     kind: ChapterKind | None = None
+    # Section type for front/back matter (free slug). Sent explicitly as null to clear (the router
+    # applies only fields present in the request body — model_dump(exclude_unset=True)).
+    section_type: str | None = None
     epigraph: str | None = None
 
 
@@ -756,6 +760,7 @@ class ManuscriptChapter(BaseModel):
     title: str | None = None
     pov: str
     kind: str = "chapter"
+    section_type: str | None = None  # for front/back matter: glossary|map|dramatis_personae|… (free slug)
     epigraph: str | None = None
     # Flat wire shape: a chapter carries its Part membership by id (NULL = ungrouped). The frontend
     # spine builder tree-ifies `parts[]` + these `part_id`s into the ordered reading spine.

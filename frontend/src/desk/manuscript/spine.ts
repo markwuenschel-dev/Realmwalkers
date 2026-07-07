@@ -59,6 +59,9 @@ export interface SpineChapterNode {
    *  false so preflight can flag the mismatch (and a prologue never silently becomes "Chapter N"). */
   kind: ChapterKind;
   kindRecognized: boolean;
+  /** Front/back-matter section type (glossary | map | dramatis_personae | …), or null. Drives the
+   *  section label + a semantic tag in the Markdown export; ignored for ordinary chapters. */
+  sectionType: string | null;
   title: string | null;
   pov: string;
   epigraph: string | null;
@@ -133,16 +136,23 @@ function buildChapterNode(ch: ManuscriptOut["chapters"][number]): SpineChapterNo
   const rawKind = ch.kind ?? "chapter";
   const kindRecognized = isKnownChapterKind(rawKind);
   const kind: ChapterKind = kindRecognized ? rawKind : "chapter";
+  const sectionType = ch.section_type ?? null;
   return {
     type: "chapter",
     chapterNo: ch.chapter_no,
     kind,
     kindRecognized,
+    sectionType,
     title: ch.title ?? null,
     pov: ch.pov,
     epigraph: ch.epigraph ?? null,
     // Label off the NORMALIZED kind (unknown → "Chapter N"); the recognized flag carries the anomaly.
-    label: resolveChapterLabel({ kind, title: ch.title, chapter_no: ch.chapter_no }),
+    label: resolveChapterLabel({
+      kind,
+      title: ch.title,
+      section_type: sectionType,
+      chapter_no: ch.chapter_no,
+    }),
     partId: ch.part_id ?? null,
     scenes: [...ch.scenes].sort((a, b) => a.scene_no - b.scene_no).map(buildSceneNode),
   };

@@ -11287,6 +11287,17 @@
             "title": "Kind",
             "default": "chapter"
           },
+          "section_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Type"
+          },
           "epigraph": {
             "anyOf": [
               {
@@ -11917,6 +11928,17 @@
                 "type": "null"
               }
             ]
+          },
+          "section_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Type"
           },
           "epigraph": {
             "anyOf": [
@@ -13668,6 +13690,17 @@
             "type": "string",
             "title": "Kind",
             "default": "chapter"
+          },
+          "section_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Type"
           },
           "epigraph": {
             "anyOf": [

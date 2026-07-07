@@ -82,6 +82,7 @@ const chapterNode = (over: Partial<SpineChapterNode> = {}): SpineChapterNode => 
   chapterNo: 1,
   kind: "chapter",
   kindRecognized: true,
+  sectionType: null,
   title: null,
   pov: "Marcus",
   epigraph: null,

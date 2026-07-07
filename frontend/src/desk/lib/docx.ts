@@ -629,33 +629,45 @@ function readerChapter(ch: SpineChapterNode, policy: ExportPolicy): (Paragraph |
   if (scenes.length === 0) return [];
   const out: (Paragraph | Table)[] = [new Paragraph({ children: [new PageBreak()] })];
   const epigraph = ch.epigraph?.trim();
+  // Front/back matter renders as a titled section: the label already IS the section name (Glossary /
+  // Map / the author title), so no separate title line, and no "POV ·" line (section matter has no POV).
+  const isSection = ch.kind === "front_matter" || ch.kind === "back_matter";
+  const showTitle = !!ch.title && !isSection;
+  const showPov = !isSection && ch.pov.trim().length > 0;
   out.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 480, after: ch.title ? 60 : 80 },
+      spacing: { before: 480, after: showTitle ? 60 : 80 },
       children: [
         new TextRun({ text: ch.label.toUpperCase(), font: "Georgia", bold: true, size: 28 }),
       ],
     }),
   );
-  if (ch.title) {
+  if (showTitle) {
     out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 80 },
-        children: [new TextRun({ text: ch.title, font: "Georgia", italics: true, size: 26 })],
+        children: [
+          new TextRun({ text: ch.title as string, font: "Georgia", italics: true, size: 26 }),
+        ],
       }),
     );
   }
-  out.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: epigraph ? 200 : 320 },
-      children: [
-        new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" }),
-      ],
-    }),
-  );
+  if (showPov) {
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: epigraph ? 200 : 320 },
+        children: [
+          new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" }),
+        ],
+      }),
+    );
+  } else if (!epigraph) {
+    // Keep the space before prose that the POV line would have provided.
+    out.push(new Paragraph({ spacing: { after: 240 }, children: [] }));
+  }
   if (epigraph) {
     out.push(
       new Paragraph({
@@ -950,7 +962,8 @@ function yamlQuote(s: string): string {
 function chapterComment(ch: SpineChapterNode): string {
   const title = ch.title ? ` title=${yamlQuote(ch.title)}` : "";
   const kind = ch.kind !== "chapter" ? ` kind=${ch.kind}` : "";
-  return `<!-- chapter number=${ch.chapterNo}${kind}${title} pov=${yamlQuote(ch.pov)} -->`;
+  const section = ch.sectionType ? ` section_type=${ch.sectionType}` : "";
+  return `<!-- chapter number=${ch.chapterNo}${kind}${section}${title} pov=${yamlQuote(ch.pov)} -->`;
 }
 
 /** Emit one chapter to the Markdown line buffer, using the resolved label + RAW prose (never the

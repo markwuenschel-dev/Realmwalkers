@@ -14,11 +14,13 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from dominion.api.routers import books as books_router
+from dominion.api.routers import chapters as chapters_router
 from dominion.api.routers import parts as parts_router
 from dominion.shared.enums import SceneStatus
 from dominion.shared.models import Book, Chapter, Part, Scene
 from dominion.shared.schemas import (
     ChapterPartAssignIn,
+    ChapterUpdateIn,
     PartCreateIn,
     PartUpdateIn,
 )
@@ -194,6 +196,22 @@ async def test_manuscript_omits_parts_with_no_rendered_chapter(db_factory):
 
         ms = await books_router.manuscript(book.id, s)
         assert [p.title for p in ms.parts] == ["Rendered"]
+
+
+async def test_section_type_roundtrips_via_update_and_manuscript(db_factory):
+    """A front/back-matter chapter's section_type is set via update_chapter and emitted by the manuscript."""
+    async with db_factory() as s:
+        book = await _book(s)
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="", kind="back_matter")
+        s.add(ch)
+        await s.flush()
+        await chapters_router.update_chapter(ch.id, ChapterUpdateIn(section_type="glossary"), s)
+        await _approved_scene(s, ch, 1, "Aether: the ambient magic.")
+        await s.commit()
+
+        ms = await books_router.manuscript(book.id, s)
+        assert ms.chapters[0].kind == "back_matter"
+        assert ms.chapters[0].section_type == "glossary"
 
 
 async def test_manuscript_no_parts_is_backward_compatible(db_factory):

@@ -25,7 +25,7 @@ import type {
   SceneOut,
   VolumeOut,
 } from "../api/types";
-import { partLabel, volumeLabel } from "../manuscript/labels";
+import { partLabel, SECTION_TYPES, volumeLabel } from "../manuscript/labels";
 import type { ExportKind } from "../lib/docx";
 
 const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = {
@@ -902,6 +902,30 @@ function ChapterMetaControls({
           ))}
         </select>
       </label>
+      {(chapter.kind === "front_matter" || chapter.kind === "back_matter") && (
+        <label
+          style={css(
+            "display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)",
+          )}
+        >
+          section
+          <select
+            value={chapter.section_type ?? ""}
+            onChange={(e) => onSave({ section_type: e.target.value || null })}
+            title="Front/back-matter section type — drives the reader heading (Glossary, Map, …)"
+            style={css(
+              "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11.5px;font-family:var(--ui);cursor:pointer",
+            )}
+          >
+            <option value="">— none —</option>
+            {Object.entries(SECTION_TYPES).map(([slug, label]) => (
+              <option key={slug} value={slug}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {parts.length > 0 && (
         <label
           style={css(

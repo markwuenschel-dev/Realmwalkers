@@ -82,6 +82,9 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # (part|act). DEFAULT 'part' backfills existing rows so a pre-v2 part reads as an ordinary Part.
     "ALTER TABLE parts ADD COLUMN IF NOT EXISTS volume_id UUID",
     "ALTER TABLE parts ADD COLUMN IF NOT EXISTS kind TEXT DEFAULT 'part'",
+    # Per-section-type front/back matter: the specific section (glossary/map/dramatis_personae/…) for a
+    # front_matter|back_matter chapter. Nullable free text; ordinary chapters leave it NULL.
+    "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS section_type TEXT",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
