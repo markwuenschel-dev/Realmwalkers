@@ -36,13 +36,14 @@ import {
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
 import { wordCount } from "./format";
 import { bookNumberLabel } from "../manuscript/metadata";
-import { toRoman } from "../manuscript/labels";
+import { partKindWord, toRoman } from "../manuscript/labels";
 import type { ExportPolicy } from "../manuscript/presets";
 import {
   spineCounts,
   type ManuscriptSpine,
   type SpineChapterNode,
   type SpinePartNode,
+  type SpineVolumeNode,
 } from "../manuscript/spine";
 
 // The three export formats every prose-bearing screen offers (Manuscript, Inbox, Scene, Chapters,
@@ -472,6 +473,7 @@ export function buildManuscriptFrom(
     series: null,
     book_no: null,
     subtitle: null,
+    volumes: [],
     parts: [],
     chapters: [...chapters]
       .sort((a, b) => a.chapter_no - b.chapter_no)
@@ -558,8 +560,14 @@ function readerTitlePage(
   return out;
 }
 
-/** A full-width Part divider page: "PART I" over the part title, optional subtitle. */
-function readerPartDivider(part: SpinePartNode): (Paragraph | Table)[] {
+/** A full-width divider page ("PART I" / "ACT I" / "VOLUME I" over the title, optional subtitle). Shared
+ *  by Part and Volume — `eyebrow` is the numbered label word, `size` scales the title (volumes larger). */
+function readerDivider(
+  eyebrow: string,
+  title: string,
+  subtitle: string | null,
+  titleSize: number,
+): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [new Paragraph({ children: [new PageBreak()] })];
   out.push(
     new Paragraph({
@@ -567,7 +575,7 @@ function readerPartDivider(part: SpinePartNode): (Paragraph | Table)[] {
       spacing: { before: 2000, after: 200 },
       children: [
         new TextRun({
-          text: `PART ${toRoman(part.partNo)}`,
+          text: eyebrow,
           font: "Georgia",
           size: 24,
           color: "808080",
@@ -579,17 +587,17 @@ function readerPartDivider(part: SpinePartNode): (Paragraph | Table)[] {
   out.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: part.subtitle ? 80 : 0 },
-      children: [new TextRun({ text: part.title, font: "Georgia", bold: true, size: 40 })],
+      spacing: { after: subtitle ? 80 : 0 },
+      children: [new TextRun({ text: title, font: "Georgia", bold: true, size: titleSize })],
     }),
   );
-  if (part.subtitle) {
+  if (subtitle) {
     out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
           new TextRun({
-            text: part.subtitle,
+            text: subtitle,
             font: "Georgia",
             italics: true,
             size: 24,
@@ -600,6 +608,17 @@ function readerPartDivider(part: SpinePartNode): (Paragraph | Table)[] {
     );
   }
   return out;
+}
+
+/** A Part/Act divider ("PART I" / "ACT I" over the part title). */
+function readerPartDivider(part: SpinePartNode): (Paragraph | Table)[] {
+  const eyebrow = `${partKindWord(part.kind).toUpperCase()} ${toRoman(part.partNo)}`;
+  return readerDivider(eyebrow, part.title, part.subtitle, 40);
+}
+
+/** A Volume divider (the topmost tier — a larger title than a Part). */
+function readerVolumeDivider(volume: SpineVolumeNode): (Paragraph | Table)[] {
+  return readerDivider(`VOLUME ${toRoman(volume.volumeNo)}`, volume.title, volume.subtitle, 48);
 }
 
 /** Render one chapter node into the reader doc: page break, resolved label, title, POV, epigraph, and
@@ -672,18 +691,24 @@ function readerChapter(ch: SpineChapterNode, policy: ExportPolicy): (Paragraph |
   return out;
 }
 
-/** Reader DOCX emitter — consumes the ManuscriptSpine. Renders Part dividers, then each part's chapters
- *  (or ungrouped chapters), each from the spine's resolved labels + pre-parsed blocks. */
+/** Reader DOCX emitter — consumes the ManuscriptSpine. Renders Volume dividers → Part dividers → each
+ *  part's chapters (or ungrouped parts/chapters), from the spine's resolved labels + pre-parsed blocks. */
 export function renderReaderDoc(
   spine: ManuscriptSpine,
   policy: ExportPolicy,
   opts: { renderSubtitle?: string } = {},
 ): Document {
   const children: (Paragraph | Table)[] = [...readerTitlePage(spine, policy, opts.renderSubtitle)];
+  const emitPart = (part: SpinePartNode) => {
+    if (policy.renderParts) children.push(...readerPartDivider(part));
+    for (const ch of part.chapters) children.push(...readerChapter(ch, policy));
+  };
   for (const node of spine.nodes) {
-    if (node.type === "part") {
-      if (policy.renderParts) children.push(...readerPartDivider(node));
-      for (const ch of node.chapters) children.push(...readerChapter(ch, policy));
+    if (node.type === "volume") {
+      if (policy.renderParts) children.push(...readerVolumeDivider(node));
+      for (const part of node.parts) emitPart(part);
+    } else if (node.type === "part") {
+      emitPart(node);
     } else {
       children.push(...readerChapter(node, policy));
     }
@@ -837,14 +862,15 @@ function shunnChapter(ch: SpineChapterNode): Paragraph[] {
   return out;
 }
 
-/** A plain Part divider for Shunn — a centered "PART I — TITLE", no rich styling. */
-function shunnPartDivider(part: SpinePartNode): Paragraph[] {
+/** A plain grouping divider for Shunn — a centered uppercased label ("PART I — TITLE" / "ACT I …" /
+ *  "VOLUME I …"), no rich styling. Consumes the spine's pre-resolved node label. */
+function shunnDivider(label: string): Paragraph[] {
   return [
     new Paragraph({ children: [new PageBreak()] }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 1200, after: 240, ...DOUBLE },
-      children: [shunnRun(part.label.toUpperCase())],
+      children: [shunnRun(label.toUpperCase())],
     }),
   ];
 }
@@ -877,10 +903,16 @@ export function renderShunnDoc(spine: ManuscriptSpine, policy: ExportPolicy): Do
     }),
   ];
 
+  const emitPart = (part: SpinePartNode) => {
+    if (policy.renderParts) children.push(...shunnDivider(part.label));
+    for (const ch of part.chapters) children.push(...shunnChapter(ch));
+  };
   for (const node of spine.nodes) {
-    if (node.type === "part") {
-      if (policy.renderParts) children.push(...shunnPartDivider(node));
-      for (const ch of node.chapters) children.push(...shunnChapter(ch));
+    if (node.type === "volume") {
+      if (policy.renderParts) children.push(...shunnDivider(node.label));
+      for (const part of node.parts) emitPart(part);
+    } else if (node.type === "part") {
+      emitPart(node);
     } else {
       children.push(...shunnChapter(node));
     }
@@ -967,14 +999,24 @@ export function renderMarkdown(
     "",
   );
 
+  const emitPart = (part: SpinePartNode) => {
+    lines.push(
+      `# ${part.label}`,
+      `<!-- part number=${part.partNo} kind=${part.kind}${part.subtitle ? ` subtitle=${yamlQuote(part.subtitle)}` : ""} -->`,
+      "",
+    );
+    for (const ch of part.chapters) markdownChapter(lines, ch);
+  };
   for (const node of spine.nodes) {
-    if (node.type === "part") {
+    if (node.type === "volume") {
       lines.push(
         `# ${node.label}`,
-        `<!-- part number=${node.partNo}${node.subtitle ? ` subtitle=${yamlQuote(node.subtitle)}` : ""} -->`,
+        `<!-- volume number=${node.volumeNo}${node.subtitle ? ` subtitle=${yamlQuote(node.subtitle)}` : ""} -->`,
         "",
       );
-      for (const ch of node.chapters) markdownChapter(lines, ch);
+      for (const part of node.parts) emitPart(part);
+    } else if (node.type === "part") {
+      emitPart(node);
     } else {
       markdownChapter(lines, node);
     }

@@ -73,12 +73,28 @@ export function toRoman(n: number): string {
   return out;
 }
 
-/** "Part I — The Gathering Storm" (title optional → just "Part I"). Roman numbering is the print
- *  convention for parts; the subtitle is intentionally NOT folded in here (emitters render it on its
- *  own line under the part title). */
-export function partLabel(part: { part_no: number; title?: string | null }): string {
-  const head = `Part ${toRoman(part.part_no)}`;
+/** The label WORD for a Part-level grouping: "act" → "Act", anything else → "Part". */
+export function partKindWord(kind: string | null | undefined): "Part" | "Act" {
+  return kind === "act" ? "Act" : "Part";
+}
+
+/** "Part I — The Gathering Storm" / "Act I — …" (title optional → just "Part I"). Roman numbering is the
+ *  print convention; the subtitle is intentionally NOT folded in here (emitters render it on its own line
+ *  under the part title). `kind` selects the word only — an Act is structurally a Part. */
+export function partLabel(part: {
+  part_no: number;
+  title?: string | null;
+  kind?: string | null;
+}): string {
+  const head = `${partKindWord(part.kind)} ${toRoman(part.part_no)}`;
   const title = part.title?.trim();
+  return title ? `${head} — ${title}` : head;
+}
+
+/** "Volume I — The Long Winter" (title optional → just "Volume I"). The top grouping tier. */
+export function volumeLabel(volume: { volume_no: number; title?: string | null }): string {
+  const head = `Volume ${toRoman(volume.volume_no)}`;
+  const title = volume.title?.trim();
   return title ? `${head} — ${title}` : head;
 }
 

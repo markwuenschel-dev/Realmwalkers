@@ -33,6 +33,14 @@ class ChapterKind(StrEnum):
     BACK_MATTER = "back_matter"
 
 
+class PartKind(StrEnum):
+    """The label WORD for a Part-level grouping. Structurally identical either way — an Act is a Part
+    that renders "Act I" instead of "Part I". Display-only, like ChapterKind."""
+
+    PART = "part"
+    ACT = "act"
+
+
 class BeatStatus(StrEnum):
     PROPOSED = "proposed"
     APPROVED = "approved"

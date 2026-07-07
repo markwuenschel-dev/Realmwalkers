@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ProseBlock } from "../prose";
-import type { ManuscriptChapter, ManuscriptOut, ManuscriptScene } from "../api/types";
+import type {
+  ManuscriptChapter,
+  ManuscriptOut,
+  ManuscriptPart,
+  ManuscriptScene,
+  ManuscriptVolume,
+} from "../api/types";
 import { resolveExportMetadata } from "./metadata";
 import { preflight } from "./preflight";
 import { resolvePolicy } from "./presets";
@@ -9,7 +15,9 @@ import {
   SPINE_SCHEMA_VERSION,
   type ManuscriptSpine,
   type SpineChapterNode,
+  type SpinePartNode,
   type SpineSceneNode,
+  type SpineVolumeNode,
 } from "./spine";
 
 const READER = resolvePolicy("reader_proof");
@@ -27,12 +35,28 @@ const ch = (over: Partial<ManuscriptChapter> & { chapter_no: number }): Manuscri
   scenes: [scn(1, "Some prose.")],
   ...over,
 });
+const part = (id: string, part_no: number, over: Partial<ManuscriptPart> = {}): ManuscriptPart => ({
+  id,
+  part_no,
+  title: `Part ${part_no}`,
+  subtitle: null,
+  kind: "part",
+  volume_id: null,
+  ...over,
+});
+const vol = (id: string, volume_no: number): ManuscriptVolume => ({
+  id,
+  volume_no,
+  title: `Vol ${volume_no}`,
+  subtitle: null,
+});
 const ms = (over: Partial<ManuscriptOut>): ManuscriptOut => ({
   book_id: "b",
   title: "T",
   series: null,
   book_no: null,
   subtitle: null,
+  volumes: [],
   parts: [],
   chapters: [],
   ...over,
@@ -64,6 +88,18 @@ const chapterNode = (over: Partial<SpineChapterNode> = {}): SpineChapterNode => 
   label: "Chapter 1",
   partId: null,
   scenes: [sceneNode()],
+  ...over,
+});
+const partNode = (over: Partial<SpinePartNode> = {}): SpinePartNode => ({
+  type: "part",
+  id: "p",
+  partNo: 1,
+  kind: "part",
+  title: "Part 1",
+  subtitle: null,
+  volumeId: null,
+  label: "Part I — Part 1",
+  chapters: [chapterNode()],
   ...over,
 });
 const spineWith = (nodes: ManuscriptSpine["nodes"]): ManuscriptSpine => ({
@@ -154,7 +190,7 @@ describe("block-support checks", () => {
 describe("parts checks", () => {
   it("warns on an ungrouped narrative chapter when the book uses Parts", () => {
     const m = ms({
-      parts: [{ id: "p1", part_no: 1, title: "One", subtitle: null }],
+      parts: [part("p1", 1)],
       chapters: [ch({ chapter_no: 1, part_id: "p1" }), ch({ chapter_no: 2, part_id: null })],
     });
     expect(codes(m)).toContain("ungrouped_chapter_with_parts");
@@ -162,7 +198,7 @@ describe("parts checks", () => {
 
   it("warns on a dangling part reference", () => {
     const m = ms({
-      parts: [{ id: "p1", part_no: 1, title: "One", subtitle: null }],
+      parts: [part("p1", 1)],
       chapters: [ch({ chapter_no: 1, part_id: "p1" }), ch({ chapter_no: 2, part_id: "ghost" })],
     });
     expect(codes(m)).toContain("dangling_part_reference");
@@ -171,10 +207,7 @@ describe("parts checks", () => {
   it("warns on non-contiguous part membership", () => {
     // p1 owns chapters 1 and 3; chapter 2 (p2) is interleaved between them.
     const m = ms({
-      parts: [
-        { id: "p1", part_no: 1, title: "One", subtitle: null },
-        { id: "p2", part_no: 2, title: "Two", subtitle: null },
-      ],
+      parts: [part("p1", 1), part("p2", 2)],
       chapters: [
         ch({ chapter_no: 1, part_id: "p1" }),
         ch({ chapter_no: 2, part_id: "p2" }),
@@ -185,28 +218,58 @@ describe("parts checks", () => {
   });
 
   it("warns on an empty part / a part with no rendered chapter (hand-crafted)", () => {
-    const emptyPart = {
-      type: "part" as const,
+    const emptyPart = partNode({
       id: "p",
       partNo: 1,
       title: "Empty",
-      subtitle: null,
       label: "Part I — Empty",
       chapters: [],
-    };
-    const noProsePart = {
-      type: "part" as const,
+    });
+    const noProsePart = partNode({
       id: "p2",
       partNo: 2,
       title: "Blank",
-      subtitle: null,
       label: "Part II — Blank",
       chapters: [chapterNode({ chapterNo: 5, scenes: [sceneNode({ hasProse: false })] })],
-    };
+    });
     const report = preflight(spineWith([emptyPart, noProsePart]), READER);
     const c = report.issues.map((i) => i.code);
     expect(c).toContain("empty_part");
     expect(c).toContain("part_no_rendered_chapter");
+  });
+});
+
+describe("volumes checks", () => {
+  it("warns on an ungrouped part when the book uses Volumes", () => {
+    const m = ms({
+      volumes: [vol("v1", 1)],
+      parts: [part("p1", 1, { volume_id: "v1" }), part("p2", 2, { volume_id: null })],
+      chapters: [ch({ chapter_no: 1, part_id: "p1" }), ch({ chapter_no: 2, part_id: "p2" })],
+    });
+    expect(codes(m)).toContain("ungrouped_part_with_volumes");
+  });
+
+  it("warns on a dangling volume reference", () => {
+    const m = ms({
+      volumes: [vol("v1", 1)],
+      parts: [part("p1", 1, { volume_id: "v1" }), part("p2", 2, { volume_id: "ghost" })],
+      chapters: [ch({ chapter_no: 1, part_id: "p1" }), ch({ chapter_no: 2, part_id: "p2" })],
+    });
+    expect(codes(m)).toContain("dangling_volume_reference");
+  });
+
+  it("warns on a volume whose parts have no prose (hand-crafted)", () => {
+    const volumeNode: SpineVolumeNode = {
+      type: "volume",
+      id: "v",
+      volumeNo: 1,
+      title: "Blank",
+      subtitle: null,
+      label: "Volume I — Blank",
+      parts: [partNode({ chapters: [chapterNode({ scenes: [sceneNode({ hasProse: false })] })] })],
+    };
+    const report = preflight(spineWith([volumeNode]), READER);
+    expect(report.issues.map((i) => i.code)).toContain("volume_no_rendered_chapter");
   });
 });
 

@@ -23,16 +23,17 @@ const ch = (over: Partial<ManuscriptChapter> & { chapter_no: number }): Manuscri
   ...over,
 });
 
-// prologue (ch1) → Part I {2,3} → Part II {4} → epilogue (ch5).
+// prologue (ch1) → Volume I [ Part I {2,3} ] → Act II {4} → epilogue (ch5).
 const book: ManuscriptOut = {
   book_id: "b",
   title: "Realmwalkers",
   series: null,
   book_no: null,
   subtitle: null,
+  volumes: [{ id: "v1", volume_no: 1, title: "The Long Winter", subtitle: null }],
   parts: [
-    { id: "p1", part_no: 1, title: "The Scrim", subtitle: null },
-    { id: "p2", part_no: 2, title: "The Reserve", subtitle: null },
+    { id: "p1", volume_id: "v1", part_no: 1, title: "The Scrim", subtitle: null, kind: "part" },
+    { id: "p2", volume_id: null, part_no: 2, title: "The Reserve", subtitle: null, kind: "act" },
   ],
   chapters: [
     ch({ chapter_no: 1, kind: "prologue", pov: "Narrator" }),
@@ -54,9 +55,17 @@ async function documentXml(doc: Parameters<typeof Packer.toBuffer>[0]): Promise<
 }
 
 describe("Reader DOCX document.xml", () => {
-  it("renders part + kind labels and never numbers a prologue/epilogue", async () => {
+  it("renders volume/part/act + kind labels and never numbers a prologue/epilogue", async () => {
     const xml = await documentXml(renderReaderDoc(spine, resolvePolicy("reader_proof")));
-    for (const label of ["PROLOGUE", "EPILOGUE", "PART I", "CHAPTER 2", "CHAPTER 3", "CHAPTER 4"]) {
+    for (const label of [
+      "VOLUME I",
+      "PART I",
+      "ACT II",
+      "PROLOGUE",
+      "EPILOGUE",
+      "CHAPTER 2",
+      "CHAPTER 4",
+    ]) {
       expect(xml).toContain(label);
     }
     // The regression this whole foundation exists to prevent: ch1 (prologue) and ch5 (epilogue) must
@@ -67,9 +76,9 @@ describe("Reader DOCX document.xml", () => {
 });
 
 describe("Shunn DOCX document.xml", () => {
-  it("renders part + kind labels and never numbers a prologue/epilogue", async () => {
+  it("renders volume/part/act + kind labels and never numbers a prologue/epilogue", async () => {
     const xml = await documentXml(renderShunnDoc(spine, resolvePolicy("submission_shunn")));
-    for (const label of ["PROLOGUE", "EPILOGUE", "PART I", "CHAPTER 2"]) {
+    for (const label of ["VOLUME I", "PART I", "ACT II", "PROLOGUE", "EPILOGUE", "CHAPTER 2"]) {
       expect(xml).toContain(label);
     }
     expect(xml).not.toContain("CHAPTER 1");

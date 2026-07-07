@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   chapterLabel,
   isKnownChapterKind,
+  partKindWord,
   partLabel,
   resolveChapterLabel,
   sectionLabel,
   toRoman,
+  volumeLabel,
 } from "./labels";
 
 describe("toRoman", () => {
@@ -31,6 +33,23 @@ describe("partLabel", () => {
     );
     expect(partLabel({ part_no: 2, title: "" })).toBe("Part II");
     expect(partLabel({ part_no: 3 })).toBe("Part III");
+  });
+  it("uses the Act word for kind=act (structurally still a Part)", () => {
+    expect(partLabel({ part_no: 2, title: "Rising", kind: "act" })).toBe("Act II — Rising");
+    expect(partLabel({ part_no: 3, kind: "act" })).toBe("Act III");
+    expect(partKindWord("act")).toBe("Act");
+    expect(partKindWord("part")).toBe("Part");
+    expect(partKindWord(null)).toBe("Part");
+  });
+});
+
+describe("volumeLabel", () => {
+  it("renders 'Volume <roman> — <title>' and drops the dash when untitled", () => {
+    expect(volumeLabel({ volume_no: 1, title: "The Long Winter" })).toBe(
+      "Volume I — The Long Winter",
+    );
+    expect(volumeLabel({ volume_no: 2, title: "" })).toBe("Volume II");
+    expect(volumeLabel({ volume_no: 3 })).toBe("Volume III");
   });
 });
 

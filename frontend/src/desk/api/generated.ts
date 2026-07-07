@@ -561,6 +561,27 @@ export interface paths {
     patch: operations["update_part_parts__part_id__patch"];
     trace?: never;
   };
+  "/parts/{part_id}/volume": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Assign Part Volume
+     * @description Assign a Part to a Volume, or unassign it (`volume_id: null`). The Volume must belong to the same
+     *     book as the Part.
+     */
+    put: operations["assign_part_volume_parts__part_id__volume_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/part": {
     parameters: {
       query?: never;
@@ -580,6 +601,46 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/volumes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Volumes */
+    get: operations["list_volumes_books__book_id__volumes_get"];
+    put?: never;
+    /** Create Volume */
+    post: operations["create_volume_books__book_id__volumes_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/volumes/{volume_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete Volume
+     * @description Delete a Volume and unassign its Parts (volume_id -> NULL). Parts (and their chapters/prose) are
+     *     never touched — removing the Volume ungroups the Parts, it does not delete them.
+     */
+    delete: operations["delete_volume_volumes__volume_id__delete"];
+    options?: never;
+    head?: never;
+    /** Update Volume */
+    patch: operations["update_volume_volumes__volume_id__patch"];
     trace?: never;
   };
   "/beats/{beat_id}": {
@@ -5046,11 +5107,11 @@ export interface components {
      * ManuscriptOut
      * @description The approved manuscript, assembled in reading order (latest approved version per scene).
      *
-     *     Flat by design: `parts[]` is a sibling list and each chapter references its part via `part_id`,
-     *     rather than nesting chapters inside parts on the wire. The normalized tree is built on the frontend
-     *     (ManuscriptSpine), keeping this endpoint backward-compatible (a book with no parts emits `parts: []`
-     *     and every chapter's `part_id` is null). Book export/provenance metadata rides along so the frontend
-     *     ExportMetadata resolver has an authoritative source and the emitters never hard-code project identity.
+     *     Flat by design: `volumes[]`/`parts[]` are sibling lists; a chapter references its part via `part_id`
+     *     and a part references its volume via `volume_id`, rather than nesting on the wire. The normalized tree
+     *     (Book → Volume → Part → Chapter) is built on the frontend (ManuscriptSpine), keeping this endpoint
+     *     backward-compatible (a book with no grouping emits empty lists and null ids). Book export/provenance
+     *     metadata rides along so the frontend ExportMetadata resolver never hard-codes project identity.
      */
     ManuscriptOut: {
       /**
@@ -5067,6 +5128,11 @@ export interface components {
       /** Subtitle */
       subtitle?: string | null;
       /**
+       * Volumes
+       * @default []
+       */
+      volumes: components["schemas"]["ManuscriptVolume"][];
+      /**
        * Parts
        * @default []
        */
@@ -5079,8 +5145,8 @@ export interface components {
     };
     /**
      * ManuscriptPart
-     * @description A Part in export order. Reader labels ("Part One") are derived from `part_no` client-side by the
-     *     shared label contract, never stored here.
+     * @description A Part in export order. Reader labels ("Part One"/"Act One") are derived from `part_no` + `kind`
+     *     client-side by the shared label contract, never stored here. `volume_id` nests it under a Volume.
      */
     ManuscriptPart: {
       /**
@@ -5088,12 +5154,19 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Volume Id */
+      volume_id?: string | null;
       /** Part No */
       part_no: number;
       /** Title */
       title: string;
       /** Subtitle */
       subtitle?: string | null;
+      /**
+       * Kind
+       * @default part
+       */
+      kind: string;
     };
     /** ManuscriptScene */
     ManuscriptScene: {
@@ -5101,6 +5174,23 @@ export interface components {
       scene_no: number;
       /** Prose */
       prose?: string | null;
+    };
+    /**
+     * ManuscriptVolume
+     * @description A Volume in export order (the top grouping tier). Labels derived from `volume_no` client-side.
+     */
+    ManuscriptVolume: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Volume No */
+      volume_no: number;
+      /** Title */
+      title: string;
+      /** Subtitle */
+      subtitle?: string | null;
     };
     /**
      * ModelSettingOut
@@ -5266,7 +5356,8 @@ export interface components {
     /**
      * PartCreateIn
      * @description POST body to create a Part within a book. `part_no` orders parts and drives the reader label;
-     *     it must be unique within the book (the router returns 409 on collision).
+     *     it must be unique within the book (the router returns 409 on collision). `kind` chooses the label
+     *     word (part|act).
      */
     PartCreateIn: {
       /** Part No */
@@ -5275,6 +5366,11 @@ export interface components {
       title: string;
       /** Subtitle */
       subtitle?: string | null;
+      /**
+       * Kind
+       * @default part
+       */
+      kind: string;
     };
     /** PartOut */
     PartOut: {
@@ -5288,12 +5384,19 @@ export interface components {
        * Format: uuid
        */
       book_id: string;
+      /** Volume Id */
+      volume_id?: string | null;
       /** Part No */
       part_no: number;
       /** Title */
       title: string;
       /** Subtitle */
       subtitle?: string | null;
+      /**
+       * Kind
+       * @default part
+       */
+      kind: string;
       /**
        * Created At
        * Format: date-time
@@ -5302,7 +5405,8 @@ export interface components {
     };
     /**
      * PartUpdateIn
-     * @description PATCH body for a Part. Every field optional; only provided fields are written.
+     * @description PATCH body for a Part. Every field optional; only provided fields are written. (Volume assignment
+     *     goes through the dedicated PUT /parts/{id}/volume so cross-book membership is validated.)
      */
     PartUpdateIn: {
       /** Part No */
@@ -5311,6 +5415,17 @@ export interface components {
       title?: string | null;
       /** Subtitle */
       subtitle?: string | null;
+      /** Kind */
+      kind?: string | null;
+    };
+    /**
+     * PartVolumeAssignIn
+     * @description PUT body to (re)assign a Part to a Volume, or unassign it. `volume_id: null` clears the nesting.
+     *     The volume must belong to the same book as the part (the router enforces this).
+     */
+    PartVolumeAssignIn: {
+      /** Volume Id */
+      volume_id?: string | null;
     };
     /**
      * PipelineAgentRunOut
@@ -7519,6 +7634,54 @@ export interface components {
       /** Context */
       ctx?: Record<string, never>;
     };
+    /**
+     * VolumeCreateIn
+     * @description POST body to create a Volume. `volume_no` orders volumes + drives the label; unique within a book.
+     */
+    VolumeCreateIn: {
+      /** Volume No */
+      volume_no: number;
+      /** Title */
+      title: string;
+      /** Subtitle */
+      subtitle?: string | null;
+    };
+    /** VolumeOut */
+    VolumeOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Volume No */
+      volume_no: number;
+      /** Title */
+      title: string;
+      /** Subtitle */
+      subtitle?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * VolumeUpdateIn
+     * @description PATCH body for a Volume. Every field optional; only provided fields are written.
+     */
+    VolumeUpdateIn: {
+      /** Volume No */
+      volume_no?: number | null;
+      /** Title */
+      title?: string | null;
+      /** Subtitle */
+      subtitle?: string | null;
+    };
   };
   responses: never;
   parameters: never;
@@ -8612,6 +8775,41 @@ export interface operations {
       };
     };
   };
+  assign_part_volume_parts__part_id__volume_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        part_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PartVolumeAssignIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   assign_chapter_part_chapters__chapter_id__part_put: {
     parameters: {
       query?: never;
@@ -8634,6 +8832,136 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["PartOut"] | null;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_volumes_books__book_id__volumes_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VolumeOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_volume_books__book_id__volumes_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["VolumeCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VolumeOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_volume_volumes__volume_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        volume_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_volume_volumes__volume_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        volume_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["VolumeUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VolumeOut"];
         };
       };
       /** @description Validation Error */

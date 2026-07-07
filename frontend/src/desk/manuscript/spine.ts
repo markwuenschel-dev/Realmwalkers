@@ -12,12 +12,20 @@ import { beautify } from "../lib/beautify";
 import { wordCount } from "../lib/format";
 import { parseBlocks, type ProseBlock } from "../prose";
 import type { ManuscriptOut } from "../api/types";
-import { isKnownChapterKind, resolveChapterLabel, partLabel, type ChapterKind } from "./labels";
+import {
+  isKnownChapterKind,
+  partLabel,
+  resolveChapterLabel,
+  volumeLabel,
+  type ChapterKind,
+} from "./labels";
 import type { ExportMetadata } from "./metadata";
 
 /** Bump when the spine's SHAPE changes in a way emitters/manifests must notice. Stamped into every
- *  ExportManifest as provenance. */
-export const SPINE_SCHEMA_VERSION = "manuscript-spine/1" as const;
+ *  ExportManifest as provenance. (`/2` added the Volume tier + Part.kind/volumeId.) */
+export const SPINE_SCHEMA_VERSION = "manuscript-spine/2" as const;
+
+export type PartKind = "part" | "act";
 
 /** A low-level, severity-free anomaly found while building the spine (parse time). Preflight reads
  *  these and grades them into policy-aware ExportIssues; keeping them on the node is the provenance the
@@ -64,16 +72,31 @@ export interface SpinePartNode {
   type: "part";
   id: string;
   partNo: number;
+  /** Label word only — an Act is a Part rendered as "Act I". */
+  kind: PartKind;
   title: string;
   subtitle: string | null;
+  /** The Volume this Part is nested under, or null (top-level part). */
+  volumeId: string | null;
   /** `partLabel()`, resolved once. */
   label: string;
   chapters: SpineChapterNode[];
 }
 
-/** A top-level reading unit: a Part (grouping chapters under a divider) or an ungrouped Chapter,
- *  ordered exactly as the manuscript reads. */
-export type SpineNode = SpinePartNode | SpineChapterNode;
+export interface SpineVolumeNode {
+  type: "volume";
+  id: string;
+  volumeNo: number;
+  title: string;
+  subtitle: string | null;
+  /** `volumeLabel()`, resolved once. */
+  label: string;
+  parts: SpinePartNode[];
+}
+
+/** A top-level reading unit: a Volume (grouping Parts), a Part (grouping chapters), or an ungrouped
+ *  Chapter, ordered exactly as the manuscript reads. */
+export type SpineNode = SpineVolumeNode | SpinePartNode | SpineChapterNode;
 
 export interface ManuscriptSpine {
   schemaVersion: typeof SPINE_SCHEMA_VERSION;
@@ -126,44 +149,69 @@ function buildChapterNode(ch: ManuscriptOut["chapters"][number]): SpineChapterNo
 }
 
 /**
- * Tree-ify the flat wire manuscript into the ordered reading spine. Chapters are grouped under their
- * Part (by `part_id`) at the position of the part's FIRST chapter in reading order; ungrouped chapters
- * (or chapters whose `part_id` dangles — references a part not in `parts[]`) render as top-level nodes.
- * Deterministic: input order is normalized by `chapter_no` first, so the spine is identical run to run
- * (which is what makes the golden structure tests meaningful). Non-contiguous part membership does NOT
- * break the build (all of a part's chapters still collect under one node) — preflight flags it instead.
+ * Tree-ify the flat wire manuscript into the ordered reading spine (Book → Volume → Part → Chapter).
+ * A grouping node is emitted at the position of its FIRST member in reading order, and members collect
+ * under it thereafter — so a Part appears where its first chapter reads, and a Volume where its first
+ * part's first chapter reads. Ungrouped chapters, chapters with a dangling `part_id`, and parts with a
+ * dangling `volume_id` render at their natural (higher) level. Deterministic: chapters are normalized by
+ * `chapter_no` first, so the spine is identical run to run (what makes the golden structure tests
+ * meaningful). Non-contiguous membership does NOT break the build — preflight flags it instead.
  */
 export function buildSpine(ms: ManuscriptOut, metadata: ExportMetadata): ManuscriptSpine {
   const partById = new Map(ms.parts.map((p) => [p.id, p]));
+  const volumeById = new Map(ms.volumes.map((v) => [v.id, v]));
   const emittedParts = new Map<string, SpinePartNode>();
+  const emittedVolumes = new Map<string, SpineVolumeNode>();
   const nodes: SpineNode[] = [];
+
+  // Get-or-create the Volume node, pushing it to the top level at first sight.
+  const volumeNodeFor = (v: ManuscriptOut["volumes"][number]): SpineVolumeNode => {
+    let node = emittedVolumes.get(v.id);
+    if (!node) {
+      node = {
+        type: "volume",
+        id: v.id,
+        volumeNo: v.volume_no,
+        title: v.title,
+        subtitle: v.subtitle ?? null,
+        label: volumeLabel(v),
+        parts: [],
+      };
+      emittedVolumes.set(v.id, node);
+      nodes.push(node);
+    }
+    return node;
+  };
+
+  // Get-or-create the Part node, attaching it to its Volume (or the top level) at first sight.
+  const partNodeFor = (p: ManuscriptOut["parts"][number]): SpinePartNode => {
+    let node = emittedParts.get(p.id);
+    if (!node) {
+      node = {
+        type: "part",
+        id: p.id,
+        partNo: p.part_no,
+        kind: p.kind === "act" ? "act" : "part",
+        title: p.title,
+        subtitle: p.subtitle ?? null,
+        volumeId: p.volume_id ?? null,
+        label: partLabel(p),
+        chapters: [],
+      };
+      emittedParts.set(p.id, node);
+      const volume = p.volume_id ? volumeById.get(p.volume_id) : undefined;
+      if (volume) volumeNodeFor(volume).parts.push(node);
+      else nodes.push(node); // ungrouped part, or dangling volume_id → top-level
+    }
+    return node;
+  };
 
   const chaptersInOrder = [...ms.chapters].sort((a, b) => a.chapter_no - b.chapter_no);
   for (const ch of chaptersInOrder) {
     const chNode = buildChapterNode(ch);
-    const partId = chNode.partId;
-    const part = partId ? partById.get(partId) : undefined;
-    if (partId && part) {
-      let partNode = emittedParts.get(partId);
-      if (!partNode) {
-        partNode = {
-          type: "part",
-          id: part.id,
-          partNo: part.part_no,
-          title: part.title,
-          subtitle: part.subtitle ?? null,
-          label: partLabel(part),
-          chapters: [],
-        };
-        emittedParts.set(partId, partNode);
-        nodes.push(partNode);
-      }
-      partNode.chapters.push(chNode);
-    } else {
-      // Ungrouped, or a dangling part_id (part not present in parts[]): render top-level. The dangling
-      // case is a data anomaly preflight surfaces; the spine stays renderable regardless.
-      nodes.push(chNode);
-    }
+    const part = chNode.partId ? partById.get(chNode.partId) : undefined;
+    if (part) partNodeFor(part).chapters.push(chNode);
+    else nodes.push(chNode); // ungrouped, or dangling part_id → top-level
   }
 
   return { schemaVersion: SPINE_SCHEMA_VERSION, metadata, nodes };
@@ -171,14 +219,21 @@ export function buildSpine(ms: ManuscriptOut, metadata: ExportMetadata): Manuscr
 
 // --- derived reading-order views (single source of truth for counts + preflight walks) --------------
 
-/** Every chapter node in reading order (part members flattened in, ungrouped chapters in place). */
-export function spineChapters(spine: ManuscriptSpine): SpineChapterNode[] {
-  return spine.nodes.flatMap((n) => (n.type === "part" ? n.chapters : [n]));
+/** Every volume node in order. */
+export function spineVolumes(spine: ManuscriptSpine): SpineVolumeNode[] {
+  return spine.nodes.filter((n): n is SpineVolumeNode => n.type === "volume");
 }
 
-/** Every part node in order. */
+/** Every part node in reading order (volume members flattened in, top-level parts in place). */
 export function spineParts(spine: ManuscriptSpine): SpinePartNode[] {
-  return spine.nodes.filter((n): n is SpinePartNode => n.type === "part");
+  return spine.nodes.flatMap((n) => (n.type === "volume" ? n.parts : n.type === "part" ? [n] : []));
+}
+
+/** Every chapter node in reading order (recurses volumes → parts → chapters; ungrouped chapters in place). */
+export function spineChapters(spine: ManuscriptSpine): SpineChapterNode[] {
+  return spine.nodes.flatMap((n) =>
+    n.type === "volume" ? n.parts.flatMap((p) => p.chapters) : n.type === "part" ? n.chapters : [n],
+  );
 }
 
 /** Every scene node in reading order. */
@@ -187,6 +242,7 @@ export function spineScenes(spine: ManuscriptSpine): SpineSceneNode[] {
 }
 
 export interface SpineCounts {
+  volumes: number;
   parts: number;
   chapters: number;
   scenes: number;
@@ -198,6 +254,7 @@ export interface SpineCounts {
 export function spineCounts(spine: ManuscriptSpine): SpineCounts {
   const scenes = spineScenes(spine).filter((s) => s.hasProse);
   return {
+    volumes: spineVolumes(spine).length,
     parts: spineParts(spine).length,
     chapters: spineChapters(spine).length,
     scenes: scenes.length,

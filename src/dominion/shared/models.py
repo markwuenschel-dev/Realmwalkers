@@ -37,22 +37,44 @@ class Book(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Volume(Base):
+    """The TOP structural grouping level (Book → Volume → Part → Chapter). A Volume groups Parts, exactly
+    as a Part groups Chapters — the same pattern one tier up. Durable and optional: a book may have no
+    volumes, or partition its parts into ordered volumes via `Part.volume_id`. Ordering keys off
+    `volume_no` (unique within a book); the "Volume One" label is derived from it, never stored."""
+
+    __tablename__ = "volumes"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    volume_no: Mapped[int] = mapped_column(Integer)  # ordering + label; unique within a book (app-enforced)
+    title: Mapped[str] = mapped_column(Text)
+    subtitle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Part(Base):
     """A reader-facing grouping of chapters (Book → Part → Chapter → Scene) — the mid-tier structural
-    spine level between Book and Chapter (Volume/Act later repeat this exact shape).
+    spine level between Book and Chapter.
 
     Durable and optional: a book may have zero parts (every chapter ungrouped) or partition its chapters
     into ordered parts via `Chapter.part_id`. Ordering keys off `part_no` (unique within a book); the
     reader-facing label ("Part One") is derived from it by the shared label contract, never stored.
     Chapters keep their own global `chapter_no` — a Part is a grouping/divider layer, not a renumbering.
-    """
+
+    `kind` chooses the label WORD only: "part" → "Part I", "act" → "Act I" (an Act is structurally
+    identical to a Part — same grouping, different name — so it needs no separate table). `volume_id`
+    optionally nests this Part under a Volume (NULL = top-level part)."""
 
     __tablename__ = "parts"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    # Optional nesting under a Volume (Book → Volume → Part). NULL = ungrouped (top-level part).
+    volume_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("volumes.id"), nullable=True)
     part_no: Mapped[int] = mapped_column(Integer)  # ordering + label source; unique within a book (app-enforced)
     title: Mapped[str] = mapped_column(Text)  # e.g. "The Gathering Storm"
     subtitle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Label word only: part | act (see PartKind). server_default keeps pre-existing rows valid as "part".
+    kind: Mapped[str] = mapped_column(Text, default="part", server_default="part")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -14,7 +14,7 @@ from sqlalchemy import select
 from dominion.api.deps import SessionDep
 from dominion.api.scene_delete import hard_delete_scene
 from dominion.shared.enums import SceneStatus
-from dominion.shared.models import Book, Chapter, ChapterPacket, Part, ProductionRun, Scene
+from dominion.shared.models import Book, Chapter, ChapterPacket, Part, ProductionRun, Scene, Volume
 from dominion.shared.schemas import (
     BookIn,
     BookOut,
@@ -26,6 +26,7 @@ from dominion.shared.schemas import (
     ManuscriptOut,
     ManuscriptPart,
     ManuscriptScene,
+    ManuscriptVolume,
 )
 from dominion.workers.draft_readiness import derive_draft_readiness, fetch_book_readiness_rows
 from dominion.workers.packet.approval_policy import approval_state as packet_approval_state
@@ -99,6 +100,12 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
         .all()
     )
 
+    volumes = (
+        (await session.execute(select(Volume).where(Volume.book_id == book_id).order_by(Volume.volume_no)))
+        .scalars()
+        .all()
+    )
+
     # Every approved scene in the book in ONE query (was one query per chapter — an N+1 on the widest
     # table). Ordered so the first row seen per (chapter_id, scene_no) is the latest version.
     scene_rows = (
@@ -142,9 +149,24 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
     # compile, not a reason to emit a phantom divider in the approved manuscript. The frontend spine
     # builder decides divider placement; the endpoint just supplies the ordered part list + membership.
     out_parts = [
-        ManuscriptPart(id=p.id, part_no=p.part_no, title=p.title, subtitle=p.subtitle)
+        ManuscriptPart(
+            id=p.id,
+            volume_id=p.volume_id,
+            part_no=p.part_no,
+            title=p.title,
+            subtitle=p.subtitle,
+            kind=p.kind,
+        )
         for p in parts
         if p.id in rendered_part_ids
+    ]
+
+    # Only volumes that own a rendered part reach the export (same phantom-divider rule, one tier up).
+    rendered_volume_ids = {p.volume_id for p in parts if p.id in rendered_part_ids and p.volume_id is not None}
+    out_volumes = [
+        ManuscriptVolume(id=v.id, volume_no=v.volume_no, title=v.title, subtitle=v.subtitle)
+        for v in volumes
+        if v.id in rendered_volume_ids
     ]
 
     return ManuscriptOut(
@@ -153,6 +175,7 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
         series=book.series,
         book_no=book.book_no,
         subtitle=book.subtitle,
+        volumes=out_volumes,
         parts=out_parts,
         chapters=out_chapters,
     )

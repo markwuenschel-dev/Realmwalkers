@@ -15,12 +15,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
-from dominion.shared.models import Book, Chapter, Part
+from dominion.shared.models import Book, Chapter, Part, Volume
 from dominion.shared.schemas import (
     ChapterPartAssignIn,
     PartCreateIn,
     PartOut,
     PartUpdateIn,
+    PartVolumeAssignIn,
 )
 
 router = APIRouter(tags=["parts"])
@@ -67,7 +68,13 @@ async def create_part(book_id: uuid.UUID, body: PartCreateIn, session: SessionDe
     await _require_book(session, book_id)
     if await _part_no_taken(session, book_id, body.part_no):
         raise HTTPException(status_code=409, detail=f"part_no {body.part_no} already exists in this book")
-    part = Part(book_id=book_id, part_no=body.part_no, title=body.title, subtitle=body.subtitle)
+    part = Part(
+        book_id=book_id,
+        part_no=body.part_no,
+        title=body.title,
+        subtitle=body.subtitle,
+        kind=body.kind,
+    )
     session.add(part)
     await session.commit()
     return part
@@ -84,6 +91,29 @@ async def update_part(part_id: uuid.UUID, body: PartUpdateIn, session: SessionDe
         part.title = body.title
     if body.subtitle is not None:
         part.subtitle = body.subtitle
+    if body.kind is not None:
+        part.kind = body.kind
+    await session.commit()
+    return part
+
+
+@router.put("/parts/{part_id}/volume", response_model=PartOut)
+async def assign_part_volume(
+    part_id: uuid.UUID, body: PartVolumeAssignIn, session: SessionDep
+) -> Part:
+    """Assign a Part to a Volume, or unassign it (`volume_id: null`). The Volume must belong to the same
+    book as the Part."""
+    part = await _require_part(session, part_id)
+    if body.volume_id is None:
+        part.volume_id = None
+        await session.commit()
+        return part
+    volume = await session.get(Volume, body.volume_id)
+    if volume is None:
+        raise HTTPException(status_code=404, detail="volume not found")
+    if volume.book_id != part.book_id:
+        raise HTTPException(status_code=400, detail="volume and part belong to different books")
+    part.volume_id = volume.id
     await session.commit()
     return part
 
