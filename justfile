@@ -14,7 +14,7 @@ lint:
     uv run ruff check src tests
 
 typecheck:
-    uv run mypy src
+    uv run pyright
 
 # PR-scoped pyright — same as CI static job (see scripts/ci_pyright_changed.sh).
 typecheck-changed:

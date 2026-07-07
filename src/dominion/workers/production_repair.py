@@ -163,6 +163,8 @@ def _infer_repair_kind(issue: Issue) -> str:
         return "dialogue"
     if issue.validator == "sensory":
         return "expand"
+    if issue.validator == "combat":
+        return "combat"
     if issue.validator in {"continuity", "state_drift"}:
         return "continuity"
     if issue.validator == "voice":
@@ -184,16 +186,39 @@ def _infer_authority(issue: Issue) -> RepairAuthorityLevel:
     return RepairAuthorityLevel.SCENE_LOCAL
 
 
+# repair_kind -> enrichment pass name to re-run for a scene-local repair (None = full scene revision).
+# Every value must be a real router.DRAFT_PASSES lane name. Each enrichment lane that also runs as a
+# review lane (OPEN-8: combat/sensory/dialogue) must appear here so a lane reviewer's critique is
+# repaired by that lane's own pass — combat was silently missing (validator "combat" fell through
+# _infer_repair_kind to "reader_context", which maps nowhere -> full revision). Enforced by
+# tests/test_repair_lane_routing.py.
+_REPAIR_KIND_TO_PASS: dict[str, str | None] = {
+    "dialogue": "dialogue",
+    "expand": "sensory",
+    "combat": "combat",
+    "continuity": None,
+    "style": None,
+    "transition": None,
+    "word_budget": None,
+}
+
+
 def _target_pass_for_task(task: RepairTask) -> str | None:
-    mapping = {
-        "dialogue": "dialogue",
-        "expand": "sensory",
-        "continuity": None,
-        "style": None,
-        "transition": None,
-        "word_budget": None,
-    }
-    return mapping.get(task.repair_kind)
+    return _REPAIR_KIND_TO_PASS.get(task.repair_kind)
+
+
+def _required_beats_preserved(*, packet_binding_preserved: bool, instruction_present: bool) -> bool:
+    """Report-fidelity flag surfaced on RepairVerification: did the repair keep the scene's required beats?
+
+    A revised scene that stays bound to its original scene packet has not dropped that scene's required
+    beats (re-binding to a different packet is how those beats get lost), combined with the repair
+    actually carrying an instruction. This is the single source of truth for both RepairVerification
+    paths, which previously disagreed: the single-scene path already derived this from the packet
+    binding, while the chapter-scoped path used a bare ``bool(task.instructions)`` proxy that was
+    effectively always True. Advisory only — no automated verdict gates on this flag; it informs the
+    human approver.
+    """
+    return packet_binding_preserved and instruction_present
 
 
 def _highest_authority(issues: list[Issue]) -> RepairAuthorityLevel:
@@ -974,7 +999,10 @@ async def _verify_chapter_scoped_repair(
         canon_preserved=not any(c.reviewer == "continuity" and c.severity in ("hard", "block") for c in new_critiques),
         scene_outcome_preserved=outcome_preserved,
         voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
-        required_beats_preserved=bool(task.instructions),
+        required_beats_preserved=_required_beats_preserved(
+            packet_binding_preserved=outcome_preserved,
+            instruction_present=bool(task.instructions),
+        ),
         reader_state_preserved=not any(
             c.reviewer in {"continuity", "state_drift"} and c.severity in ("hard", "block") for c in new_critiques
         ),
@@ -1230,9 +1258,9 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         ),
         scene_outcome_preserved=revised.scene_packet_id == base_scene.scene_packet_id,
         voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
-        required_beats_preserved=(
-            revised.scene_packet_id == base_scene.scene_packet_id
-            and bool(direct_checks.get("instruction_addressed", True))
+        required_beats_preserved=_required_beats_preserved(
+            packet_binding_preserved=revised.scene_packet_id == base_scene.scene_packet_id,
+            instruction_present=bool(direct_checks.get("instruction_addressed", True)),
         ),
         reader_state_preserved=not any(
             c.reviewer in {"continuity", "state_drift"} and c.severity in ("hard", "block") for c in new_critiques

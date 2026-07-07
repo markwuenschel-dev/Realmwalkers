@@ -599,10 +599,11 @@ def evaluate_chapter_sequence(body: dict[str, Any]) -> dict[str, Any]:
             if scene_no is not None and scene_no not in beat_owners[beat]:
                 beat_owners[beat].append(scene_no)
 
-        budget = scene.get("word_budget") if isinstance(scene.get("word_budget"), dict) else {}
-        planned_total_words += _int_or_none(budget.get("target")) or 0  # type: ignore[arg-type]
-        planned_max_words += _int_or_none(budget.get("max")) or 0  # type: ignore[arg-type]
-        planned_hard_max_words += _int_or_none(budget.get("hard_max")) or 0  # type: ignore[arg-type]
+        _word_budget = scene.get("word_budget")
+        budget = _word_budget if isinstance(_word_budget, dict) else {}
+        planned_total_words += _int_or_none(budget.get("target")) or 0
+        planned_max_words += _int_or_none(budget.get("max")) or 0
+        planned_hard_max_words += _int_or_none(budget.get("hard_max")) or 0
 
         if index == 0 or scene.get("independent_draft_allowed"):
             # An independent scene may open away from the previous exit by design.
