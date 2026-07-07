@@ -343,10 +343,7 @@ async def _run_canon_rebuild(book_id: uuid.UUID) -> None:
                 source="canon",
                 kind="canon_rebuild_done",
                 severity="success",
-                title=(
-                    f"Canon rebuilt · {out['indexed']} new, {out['skipped']} unchanged, "
-                    f"{out['retired']} retired"
-                ),
+                title=(f"Canon rebuilt · {out['indexed']} new, {out['skipped']} unchanged, {out['retired']} retired"),
                 book_id=book_id,
             )
             await session.commit()
@@ -369,9 +366,7 @@ async def _run_canon_rebuild(book_id: uuid.UUID) -> None:
 
 
 @router.post("/books/{book_id}/canon/ingest", status_code=202, response_model=CanonRebuildStartedOut)
-async def ingest_canon(
-    book_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
-) -> CanonRebuildStartedOut:
+async def ingest_canon(book_id: uuid.UUID, session: SessionDep, background: BackgroundTasks) -> CanonRebuildStartedOut:
     """Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
     read-only Canon tab into the RAG the drafter/planner actually query.
 
@@ -509,9 +504,7 @@ async def bulk_delete_canon(book_id: uuid.UUID, req: CanonCleanupIn, session: Se
 
 
 @router.post("/books/{book_id}/canon/rebuild", status_code=202, response_model=CanonRebuildStartedOut)
-async def rebuild_canon(
-    book_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
-) -> CanonRebuildStartedOut:
+async def rebuild_canon(book_id: uuid.UUID, session: SessionDep, background: BackgroundTasks) -> CanonRebuildStartedOut:
     """Clean rebuild of repo-ingested canon from on-disk docs (series/canon) — the named alias of
     POST .../canon/ingest, sharing the same async background rebuild. Re-indexes only repo rows
     (doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched."""

@@ -25,6 +25,7 @@ def test_embed_many_matches_single_and_preserves_order():
 def test_embed_many_empty():
     assert embed_many([]) == []
 
+
 # --- owner router (pure) --------------------------------------------------------------------------
 
 
@@ -101,9 +102,7 @@ async def test_ingest_content_change_retires_old_chunk_no_duplicate(db_factory, 
         book = await _book(s)
         await canon_rag.ingest_incremental(s, book_id=book.id, root=root)
         await s.commit()
-        n_before = len(
-            (await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all()
-        )
+        n_before = len((await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all())
 
         # Rewrite that heading's body with distinctly different content.
         f.write_text("# Mechanics\n\nMana pools regenerate at dawn under the second moon.\n", encoding="utf-8")
@@ -112,9 +111,7 @@ async def test_ingest_content_change_retires_old_chunk_no_duplicate(db_factory, 
         assert out["indexed"] >= 1  # the changed chunk was re-embedded + inserted
         assert out["retired"] >= 1  # the old-content row was retired
 
-        after = (
-            (await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all()
-        )
+        after = (await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all()
         bodies = [r.body or "" for r in after]
         assert len(after) == n_before  # replaced in place — no duplicate growth
         assert any("Mana pools" in b for b in bodies)  # new content present
