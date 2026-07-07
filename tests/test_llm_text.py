@@ -26,7 +26,7 @@ def test_interior_backticks_not_at_edges_are_preserved() -> None:
 
 def test_leading_fence_without_closing_fence() -> None:
     # A leading fence with no trailing fence: the fence line is dropped, remainder kept.
-    raw = "```json\n{\"a\": 1}"
+    raw = '```json\n{"a": 1}'
     assert strip_fences(raw) == '{"a": 1}'
 
 
