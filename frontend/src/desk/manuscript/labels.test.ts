@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   chapterLabel,
   isKnownChapterKind,
+  partKindWord,
   partLabel,
   resolveChapterLabel,
   sectionLabel,
+  sectionTypeLabel,
   toRoman,
+  volumeLabel,
 } from "./labels";
 
 describe("toRoman", () => {
@@ -31,6 +34,23 @@ describe("partLabel", () => {
     );
     expect(partLabel({ part_no: 2, title: "" })).toBe("Part II");
     expect(partLabel({ part_no: 3 })).toBe("Part III");
+  });
+  it("uses the Act word for kind=act (structurally still a Part)", () => {
+    expect(partLabel({ part_no: 2, title: "Rising", kind: "act" })).toBe("Act II — Rising");
+    expect(partLabel({ part_no: 3, kind: "act" })).toBe("Act III");
+    expect(partKindWord("act")).toBe("Act");
+    expect(partKindWord("part")).toBe("Part");
+    expect(partKindWord(null)).toBe("Part");
+  });
+});
+
+describe("volumeLabel", () => {
+  it("renders 'Volume <roman> — <title>' and drops the dash when untitled", () => {
+    expect(volumeLabel({ volume_no: 1, title: "The Long Winter" })).toBe(
+      "Volume I — The Long Winter",
+    );
+    expect(volumeLabel({ volume_no: 2, title: "" })).toBe("Volume II");
+    expect(volumeLabel({ volume_no: 3 })).toBe("Volume III");
   });
 });
 
@@ -62,6 +82,43 @@ describe("sectionLabel", () => {
   it("delegates to chapterLabel for non-section kinds", () => {
     expect(sectionLabel({ kind: "chapter", title: "Ignored", chapter_no: 2 })).toBe("Chapter 2");
     expect(sectionLabel({ kind: "prologue", title: "Ignored", chapter_no: 1 })).toBe("Prologue");
+  });
+  it("prefers explicit title, then section_type display name, then kind label", () => {
+    // title wins
+    expect(
+      sectionLabel({
+        kind: "back_matter",
+        title: "Glossary of Terms",
+        section_type: "glossary",
+        chapter_no: 30,
+      }),
+    ).toBe("Glossary of Terms");
+    // no title → section_type display name
+    expect(
+      sectionLabel({ kind: "back_matter", title: null, section_type: "glossary", chapter_no: 30 }),
+    ).toBe("Glossary");
+    expect(
+      sectionLabel({
+        kind: "front_matter",
+        title: null,
+        section_type: "dramatis_personae",
+        chapter_no: 1,
+      }),
+    ).toBe("Dramatis Personae");
+    // neither → kind label
+    expect(
+      sectionLabel({ kind: "front_matter", title: null, section_type: null, chapter_no: 1 }),
+    ).toBe("Front Matter");
+  });
+});
+
+describe("sectionTypeLabel", () => {
+  it("maps known slugs, title-cases unknown ones, and returns undefined for blank", () => {
+    expect(sectionTypeLabel("glossary")).toBe("Glossary");
+    expect(sectionTypeLabel("dramatis_personae")).toBe("Dramatis Personae");
+    expect(sectionTypeLabel("family_tree")).toBe("Family Tree"); // unknown slug → title-cased
+    expect(sectionTypeLabel("")).toBeUndefined();
+    expect(sectionTypeLabel(null)).toBeUndefined();
   });
 });
 

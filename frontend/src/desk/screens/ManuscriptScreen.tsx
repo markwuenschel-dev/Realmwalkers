@@ -9,8 +9,8 @@ import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import ProseBlocks from "../components/ProseBlocks";
 import { beautify } from "../lib/beautify";
 import { Button, Chip } from "../components/ui";
-import type { ManuscriptOut, ManuscriptPart } from "../api/types";
-import { chapterLabel, toRoman } from "../manuscript/labels";
+import type { ManuscriptOut, ManuscriptPart, ManuscriptVolume } from "../api/types";
+import { chapterLabel, partKindWord, toRoman } from "../manuscript/labels";
 import { bookNumberLabel } from "../manuscript/metadata";
 
 // Shunn standard manuscript format counts ~250 words to a page.
@@ -119,27 +119,41 @@ export default function ManuscriptScreen() {
     .filter(Boolean)
     .join(" · ");
 
-  // Reading-order render list: Part dividers interleaved with their chapters (only prose-bearing
+  const volumeById = useMemo(
+    () => new Map((active?.volumes ?? []).map((v) => [v.id, v])),
+    [active],
+  );
+
+  // Reading-order render list: Volume + Part dividers interleaved with their chapters (only prose-bearing
   // chapters render). Mirrors the spine the emitters walk, so the on-screen reader and the exports agree
-  // on where a Part opens.
+  // on where a Volume/Part opens.
   type RenderItem =
+    | { kind: "volume"; volume: ManuscriptVolume }
     | { kind: "part"; part: ManuscriptPart }
     | { kind: "chapter"; ch: ManuscriptOut["chapters"][number] };
   const renderItems = useMemo<RenderItem[]>(() => {
     const items: RenderItem[] = [];
     let lastPart: string | null = null;
+    let lastVolume: string | null = null;
     for (const ch of active?.chapters ?? []) {
       if (!ch.scenes.some((s) => (s.prose ?? "").trim())) continue;
       const pid = ch.part_id ?? null;
-      if (pid && pid !== lastPart) {
-        const part = partById.get(pid);
-        if (part) items.push({ kind: "part", part });
+      const part = pid ? partById.get(pid) : undefined;
+      const vid = part?.volume_id ?? null;
+      if (vid && vid !== lastVolume) {
+        const volume = volumeById.get(vid);
+        if (volume) {
+          items.push({ kind: "volume", volume });
+          lastPart = null; // force the part divider to re-emit under the new volume
+        }
       }
+      lastVolume = vid;
+      if (pid && pid !== lastPart && part) items.push({ kind: "part", part });
       lastPart = pid;
       items.push({ kind: "chapter", ch });
     }
     return items;
-  }, [active, partById]);
+  }, [active, partById, volumeById]);
 
   const exportMarkdown = async () => {
     const ms = compiled();
@@ -389,6 +403,40 @@ export default function ManuscriptScreen() {
         )}
 
         {renderItems.map((item) => {
+          if (item.kind === "volume") {
+            const volume = item.volume;
+            return (
+              <div
+                key={`vol-${volume.id}`}
+                className="ms-volume"
+                style={css("text-align:center;margin:24px 0 64px;padding-bottom:32px")}
+              >
+                <div
+                  style={css(
+                    "font-family:var(--mono);font-size:13px;letter-spacing:.34em;text-transform:uppercase;color:var(--accent);margin-bottom:14px",
+                  )}
+                >
+                  Volume {toRoman(volume.volume_no)}
+                </div>
+                <div
+                  style={css(
+                    "font-family:var(--display);font-weight:500;font-size:42px;color:var(--ink)",
+                  )}
+                >
+                  {volume.title}
+                </div>
+                {volume.subtitle ? (
+                  <div
+                    style={css(
+                      "font-family:var(--display);font-style:italic;font-size:17px;color:var(--dim);margin-top:8px",
+                    )}
+                  >
+                    {volume.subtitle}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
           if (item.kind === "part") {
             const part = item.part;
             return (
@@ -404,7 +452,7 @@ export default function ManuscriptScreen() {
                     "font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent);margin-bottom:12px",
                   )}
                 >
-                  Part {toRoman(part.part_no)}
+                  {partKindWord(part.kind)} {toRoman(part.part_no)}
                 </div>
                 <div
                   style={css(

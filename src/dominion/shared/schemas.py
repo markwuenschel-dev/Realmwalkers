@@ -113,32 +113,63 @@ class BookOut(_ORM):
     created_at: datetime
 
 
-# --- Parts: the Book → Part → Chapter grouping level (renderer-neutral export foundation) ----------
+# --- Volumes + Parts: the Book → Volume → Part → Chapter grouping tiers -----------------------------
 
 
-class PartCreateIn(BaseModel):
-    """POST body to create a Part within a book. `part_no` orders parts and drives the reader label;
-    it must be unique within the book (the router returns 409 on collision)."""
+class VolumeCreateIn(BaseModel):
+    """POST body to create a Volume. `volume_no` orders volumes + drives the label; unique within a book."""
 
-    part_no: int
+    volume_no: int
     title: str
     subtitle: str | None = None
 
 
+class VolumeUpdateIn(BaseModel):
+    """PATCH body for a Volume. Every field optional; only provided fields are written."""
+
+    volume_no: int | None = None
+    title: str | None = None
+    subtitle: str | None = None
+
+
+class VolumeOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    volume_no: int
+    title: str
+    subtitle: str | None = None
+    created_at: datetime
+
+
+class PartCreateIn(BaseModel):
+    """POST body to create a Part within a book. `part_no` orders parts and drives the reader label;
+    it must be unique within the book (the router returns 409 on collision). `kind` chooses the label
+    word (part|act)."""
+
+    part_no: int
+    title: str
+    subtitle: str | None = None
+    kind: str = "part"
+
+
 class PartUpdateIn(BaseModel):
-    """PATCH body for a Part. Every field optional; only provided fields are written."""
+    """PATCH body for a Part. Every field optional; only provided fields are written. (Volume assignment
+    goes through the dedicated PUT /parts/{id}/volume so cross-book membership is validated.)"""
 
     part_no: int | None = None
     title: str | None = None
     subtitle: str | None = None
+    kind: str | None = None
 
 
 class PartOut(_ORM):
     id: uuid.UUID
     book_id: uuid.UUID
+    volume_id: uuid.UUID | None = None
     part_no: int
     title: str
     subtitle: str | None = None
+    kind: str = "part"
     created_at: datetime
 
 
@@ -147,6 +178,13 @@ class ChapterPartAssignIn(BaseModel):
     The part must belong to the same book as the chapter (the router enforces this)."""
 
     part_id: uuid.UUID | None = None
+
+
+class PartVolumeAssignIn(BaseModel):
+    """PUT body to (re)assign a Part to a Volume, or unassign it. `volume_id: null` clears the nesting.
+    The volume must belong to the same book as the part (the router enforces this)."""
+
+    volume_id: uuid.UUID | None = None
 
 
 class BeatOut(_ORM):
@@ -218,6 +256,7 @@ class ChapterOut(_ORM):
     outline: str | None = None
     status: str
     kind: str = "chapter"  # ChapterKind value; str (like status) tolerates any legacy row
+    section_type: str | None = None  # for front/back matter: glossary|map|dramatis_personae|… (free slug)
     epigraph: str | None = None
     part_id: uuid.UUID | None = None  # Part grouping (Book → Part → Chapter); null = ungrouped
 
@@ -229,6 +268,9 @@ class ChapterUpdateIn(BaseModel):
 
     title: str | None = None
     kind: ChapterKind | None = None
+    # Section type for front/back matter (free slug). Sent explicitly as null to clear (the router
+    # applies only fields present in the request body — model_dump(exclude_unset=True)).
+    section_type: str | None = None
     epigraph: str | None = None
 
 
@@ -718,6 +760,7 @@ class ManuscriptChapter(BaseModel):
     title: str | None = None
     pov: str
     kind: str = "chapter"
+    section_type: str | None = None  # for front/back matter: glossary|map|dramatis_personae|… (free slug)
     epigraph: str | None = None
     # Flat wire shape: a chapter carries its Part membership by id (NULL = ungrouped). The frontend
     # spine builder tree-ifies `parts[]` + these `part_id`s into the ordered reading spine.
@@ -726,11 +769,22 @@ class ManuscriptChapter(BaseModel):
 
 
 class ManuscriptPart(BaseModel):
-    """A Part in export order. Reader labels ("Part One") are derived from `part_no` client-side by the
-    shared label contract, never stored here."""
+    """A Part in export order. Reader labels ("Part One"/"Act One") are derived from `part_no` + `kind`
+    client-side by the shared label contract, never stored here. `volume_id` nests it under a Volume."""
 
     id: uuid.UUID
+    volume_id: uuid.UUID | None = None
     part_no: int
+    title: str
+    subtitle: str | None = None
+    kind: str = "part"
+
+
+class ManuscriptVolume(BaseModel):
+    """A Volume in export order (the top grouping tier). Labels derived from `volume_no` client-side."""
+
+    id: uuid.UUID
+    volume_no: int
     title: str
     subtitle: str | None = None
 
@@ -738,11 +792,11 @@ class ManuscriptPart(BaseModel):
 class ManuscriptOut(BaseModel):
     """The approved manuscript, assembled in reading order (latest approved version per scene).
 
-    Flat by design: `parts[]` is a sibling list and each chapter references its part via `part_id`,
-    rather than nesting chapters inside parts on the wire. The normalized tree is built on the frontend
-    (ManuscriptSpine), keeping this endpoint backward-compatible (a book with no parts emits `parts: []`
-    and every chapter's `part_id` is null). Book export/provenance metadata rides along so the frontend
-    ExportMetadata resolver has an authoritative source and the emitters never hard-code project identity.
+    Flat by design: `volumes[]`/`parts[]` are sibling lists; a chapter references its part via `part_id`
+    and a part references its volume via `volume_id`, rather than nesting on the wire. The normalized tree
+    (Book → Volume → Part → Chapter) is built on the frontend (ManuscriptSpine), keeping this endpoint
+    backward-compatible (a book with no grouping emits empty lists and null ids). Book export/provenance
+    metadata rides along so the frontend ExportMetadata resolver never hard-codes project identity.
     """
 
     book_id: uuid.UUID
@@ -750,6 +804,7 @@ class ManuscriptOut(BaseModel):
     series: str | None = None
     book_no: int | None = None
     subtitle: str | None = None
+    volumes: list[ManuscriptVolume] = []
     parts: list[ManuscriptPart] = []
     chapters: list[ManuscriptChapter] = []
 

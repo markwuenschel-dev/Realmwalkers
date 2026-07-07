@@ -27,6 +27,7 @@ export interface ExportManifest {
   spineSchemaVersion: typeof SPINE_SCHEMA_VERSION;
   rendererVersion: typeof RENDERER_VERSION;
   counts: {
+    volumes: number;
     parts: number;
     chapters: number;
     scenes: number;

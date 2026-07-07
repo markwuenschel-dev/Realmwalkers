@@ -36,13 +36,15 @@ import {
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
 import { wordCount } from "./format";
 import { bookNumberLabel } from "../manuscript/metadata";
-import { toRoman } from "../manuscript/labels";
+import { partKindWord, toRoman } from "../manuscript/labels";
+import { readerStyleDefs, STYLE } from "../manuscript/docxStyles";
 import type { ExportPolicy } from "../manuscript/presets";
 import {
   spineCounts,
   type ManuscriptSpine,
   type SpineChapterNode,
   type SpinePartNode,
+  type SpineVolumeNode,
 } from "../manuscript/spine";
 
 // The three export formats every prose-bearing screen offers (Manuscript, Inbox, Scene, Chapters,
@@ -338,10 +340,28 @@ function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
   });
 }
 
-function paraFor(text: string, book: boolean, indentFirstLine = false): Paragraph {
+// When present, book body paragraphs reference the named Body / BodyFirst styles (Reader DOCX) instead
+// of carrying inline font/size — the style provides the typography, keeping this file's layout code free
+// of one-off run formatting.
+type BodyStyleIds = { body: string; first: string } | undefined;
+
+function paraFor(
+  text: string,
+  book: boolean,
+  indentFirstLine = false,
+  bodyStyles?: BodyStyleIds,
+): Paragraph {
   // Book paragraphs use a first-line indent as the paragraph cue (classic print novel), with NO extra
   // space between paragraphs. The FIRST paragraph of a scene / after a scene break is left un-indented
   // (print convention), signalled by indentFirstLine=false from renderBlocks.
+  if (book && bodyStyles) {
+    // Named-style path: the Body/BodyFirst style owns font, size, alignment, and the indent cue; runs
+    // carry only their own inline emphasis (bold/italic/code), inheriting the rest from the style.
+    return new Paragraph({
+      style: indentFirstLine ? bodyStyles.body : bodyStyles.first,
+      children: inlineRuns(text),
+    });
+  }
   return book
     ? new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
@@ -355,7 +375,11 @@ function paraFor(text: string, book: boolean, indentFirstLine = false): Paragrap
       });
 }
 
-function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[] {
+function renderBlocks(
+  blocks: ProseBlock[],
+  book: boolean,
+  bodyStyles?: BodyStyleIds,
+): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const pushTable = (t: Table) => {
     out.push(t);
@@ -407,7 +431,7 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
         );
         break;
       default:
-        out.push(paraFor(b.text, book, book && seenBookPara));
+        out.push(paraFor(b.text, book, book && seenBookPara, bodyStyles));
         seenBookPara = true;
         break;
     }
@@ -472,6 +496,7 @@ export function buildManuscriptFrom(
     series: null,
     book_no: null,
     subtitle: null,
+    volumes: [],
     parts: [],
     chapters: [...chapters]
       .sort((a, b) => a.chapter_no - b.chapter_no)
@@ -500,203 +525,146 @@ export function manuscriptWordCount(ms: ManuscriptOut): number {
   return ms.chapters.flatMap((c) => c.scenes).reduce((acc, s) => acc + wordCount(s.prose), 0);
 }
 
-/** Reader DOCX title page — series line + spelled-out book number come from ExportMetadata (never
- *  hard-coded); the render descriptor (approved/draft mode, or a fragment label) is passed by the
- *  pipeline. A fragment/standalone book with no series metadata simply omits those lines. */
-function readerTitlePage(
-  spine: ManuscriptSpine,
-  policy: ExportPolicy,
-  renderSubtitle?: string,
-): Paragraph[] {
-  const { metadata } = spine;
-  const out: Paragraph[] = [];
-  const bookLine = bookNumberLabel(metadata.bookNumber);
-  if (policy.includeSeriesLine && (metadata.series || bookLine)) {
-    const head = [metadata.series?.toUpperCase(), bookLine].filter(Boolean).join(" · ");
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 2400, after: 240 },
-        children: [new TextRun({ text: head, font: "Georgia", size: 20, color: "808080" })],
-      }),
-    );
-  }
-  out.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: out.length ? 0 : 2400, after: 200 },
-      children: [new TextRun({ text: metadata.title, font: "Georgia", bold: true, size: 56 })],
-    }),
-  );
-  if (policy.includeSubtitle && metadata.subtitle) {
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 120 },
-        children: [
-          new TextRun({ text: metadata.subtitle, font: "Georgia", italics: true, size: 26 }),
-        ],
-      }),
-    );
-  }
-  if (renderSubtitle) {
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({
-            text: renderSubtitle,
-            font: "Georgia",
-            italics: true,
-            size: 24,
-            color: "808080",
-          }),
-        ],
-      }),
-    );
-  }
-  return out;
-}
+const READER_BODY_STYLES = { body: STYLE.body, first: STYLE.bodyFirst };
 
-/** A full-width Part divider page: "PART I" over the part title, optional subtitle. */
-function readerPartDivider(part: SpinePartNode): (Paragraph | Table)[] {
-  const out: (Paragraph | Table)[] = [new Paragraph({ children: [new PageBreak()] })];
-  out.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 2000, after: 200 },
-      children: [
-        new TextRun({
-          text: `PART ${toRoman(part.partNo)}`,
-          font: "Georgia",
-          size: 24,
-          color: "808080",
-          characterSpacing: 40,
-        }),
-      ],
-    }),
-  );
-  out.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: part.subtitle ? 80 : 0 },
-      children: [new TextRun({ text: part.title, font: "Georgia", bold: true, size: 40 })],
-    }),
-  );
-  if (part.subtitle) {
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({
-            text: part.subtitle,
-            font: "Georgia",
-            italics: true,
-            size: 24,
-            color: "808080",
-          }),
-        ],
-      }),
-    );
-  }
-  return out;
-}
+/**
+ * The Reader DOCX layout state machine. It walks the ManuscriptSpine and accumulates style-referencing
+ * paragraphs — every character/alignment decision lives in the named stylesheet (`readerStyleDefs`), so
+ * this class only chooses WHICH style and the contextual spacing. That's the whole point of the slice:
+ * no inline one-off run formatting, so the styling can be re-skinned by editing the stylesheet (or the
+ * policy that feeds it) without touching this layout code.
+ */
+class ReaderLayout {
+  readonly children: (Paragraph | Table)[] = [];
+  constructor(private readonly policy: ExportPolicy) {}
 
-/** Render one chapter node into the reader doc: page break, resolved label, title, POV, epigraph, and
- *  its scenes (from the pre-parsed spine blocks — no re-parsing, no label re-derivation here). Returns
- *  nothing when the chapter has no prose (an empty chapter is skipped; preflight flags it). */
-function readerChapter(ch: SpineChapterNode, policy: ExportPolicy): (Paragraph | Table)[] {
-  const scenes = ch.scenes.filter((s) => s.hasProse);
-  if (scenes.length === 0) return [];
-  const out: (Paragraph | Table)[] = [new Paragraph({ children: [new PageBreak()] })];
-  const epigraph = ch.epigraph?.trim();
-  out.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 480, after: ch.title ? 60 : 80 },
-      children: [
-        new TextRun({ text: ch.label.toUpperCase(), font: "Georgia", bold: true, size: 28 }),
-      ],
-    }),
-  );
-  if (ch.title) {
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 80 },
-        children: [new TextRun({ text: ch.title, font: "Georgia", italics: true, size: 26 })],
-      }),
+  private styled(style: string, text: string, spacing?: Record<string, number>): void {
+    this.children.push(
+      new Paragraph({ style, ...(spacing ? { spacing } : {}), children: [new TextRun(text)] }),
     );
   }
-  out.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: epigraph ? 200 : 320 },
-      children: [
-        new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" }),
-      ],
-    }),
-  );
-  if (epigraph) {
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 320 },
-        children: [
-          new TextRun({
-            text: epigraph,
-            font: "Georgia",
-            italics: true,
-            size: 22,
-            color: "606060",
-          }),
-        ],
-      }),
-    );
+
+  private pageBreak(): void {
+    this.children.push(new Paragraph({ children: [new PageBreak()] }));
   }
-  scenes.forEach((sc, si) => {
-    if (si > 0) {
-      out.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 160, after: 160 },
-          children: [
-            new TextRun({ text: policy.sceneBreakGlyph || "⁂", size: 24, color: "808080" }),
-          ],
-        }),
-      );
+
+  /** Title page — series line + spelled-out book number from ExportMetadata (never hard-coded); the
+   *  render descriptor (approved/draft mode, or a fragment label) is passed by the pipeline. */
+  titlePage(metadata: ManuscriptSpine["metadata"], renderSubtitle?: string): void {
+    const bookLine = bookNumberLabel(metadata.bookNumber);
+    const hasHead = this.policy.includeSeriesLine && !!(metadata.series || bookLine);
+    if (hasHead) {
+      const head = [metadata.series?.toUpperCase(), bookLine].filter(Boolean).join(" · ");
+      this.styled(STYLE.seriesLine, head, { before: 2400, after: 240 });
     }
-    // Blocks are already parsed (from the beautified prose) in the spine — the emitter never re-parses.
-    for (const el of renderBlocks(sc.blocks, true)) out.push(el);
-  });
-  return out;
+    this.styled(STYLE.bookTitle, metadata.title, { before: hasHead ? 0 : 2400, after: 200 });
+    if (this.policy.includeSubtitle && metadata.subtitle) {
+      this.styled(STYLE.bookSubtitle, metadata.subtitle, { after: 120 });
+    }
+    if (renderSubtitle) this.styled(STYLE.renderDescriptor, renderSubtitle);
+  }
+
+  private divider(
+    eyebrowStyle: string,
+    eyebrow: string,
+    titleStyle: string,
+    title: string,
+    subtitle: string | null,
+  ): void {
+    this.pageBreak();
+    this.styled(eyebrowStyle, eyebrow, { before: 2000, after: 200 });
+    this.styled(titleStyle, title, { after: subtitle ? 80 : 0 });
+    if (subtitle) this.styled(STYLE.dividerSubtitle, subtitle);
+  }
+
+  volumeDivider(v: SpineVolumeNode): void {
+    this.divider(
+      STYLE.volumeEyebrow,
+      `VOLUME ${toRoman(v.volumeNo)}`,
+      STYLE.volumeTitle,
+      v.title,
+      v.subtitle,
+    );
+  }
+
+  partDivider(p: SpinePartNode): void {
+    const eyebrow = `${partKindWord(p.kind).toUpperCase()} ${toRoman(p.partNo)}`;
+    this.divider(STYLE.partEyebrow, eyebrow, STYLE.partTitle, p.title, p.subtitle);
+  }
+
+  /** One chapter: page break, resolved label, optional title/POV/epigraph, then its scenes (from the
+   *  pre-parsed spine blocks — no re-parsing here). Front/back matter renders as a titled section (the
+   *  label already IS the section name), so no duplicate title line and no POV line. Skips a
+   *  prose-less chapter (preflight flags it). */
+  chapter(ch: SpineChapterNode): void {
+    const scenes = ch.scenes.filter((s) => s.hasProse);
+    if (scenes.length === 0) return;
+    this.pageBreak();
+    const epigraph = ch.epigraph?.trim();
+    const isSection = ch.kind === "front_matter" || ch.kind === "back_matter";
+    const showTitle = !!ch.title && !isSection;
+    const showPov = !isSection && ch.pov.trim().length > 0;
+
+    this.styled(STYLE.chapterLabel, ch.label.toUpperCase(), {
+      before: 480,
+      after: showTitle ? 60 : 80,
+    });
+    if (showTitle) this.styled(STYLE.chapterTitle, ch.title as string, { after: 80 });
+    if (showPov) {
+      this.styled(STYLE.povLine, `POV · ${ch.pov}`, { after: epigraph ? 200 : 320 });
+    } else if (!epigraph) {
+      // Preserve the space before prose the POV line would have provided.
+      this.children.push(new Paragraph({ spacing: { after: 240 }, children: [] }));
+    }
+    if (epigraph) this.styled(STYLE.epigraph, epigraph, { after: 320 });
+
+    scenes.forEach((sc, si) => {
+      if (si > 0) {
+        this.styled(STYLE.sceneBreak, this.policy.sceneBreakGlyph || "⁂", {
+          before: 160,
+          after: 160,
+        });
+      }
+      for (const el of renderBlocks(sc.blocks, true, READER_BODY_STYLES)) this.children.push(el);
+    });
+  }
 }
 
-/** Reader DOCX emitter — consumes the ManuscriptSpine. Renders Part dividers, then each part's chapters
- *  (or ungrouped chapters), each from the spine's resolved labels + pre-parsed blocks. */
+/** Reader DOCX emitter — consumes the ManuscriptSpine via the ReaderLayout state machine, rendering
+ *  Volume dividers → Part dividers → each part's chapters (or ungrouped parts/chapters) from the spine's
+ *  resolved labels + pre-parsed blocks, referencing the named stylesheet built from the policy. */
 export function renderReaderDoc(
   spine: ManuscriptSpine,
   policy: ExportPolicy,
   opts: { renderSubtitle?: string } = {},
 ): Document {
-  const children: (Paragraph | Table)[] = [...readerTitlePage(spine, policy, opts.renderSubtitle)];
+  const layout = new ReaderLayout(policy);
+  layout.titlePage(spine.metadata, opts.renderSubtitle);
+  const emitPart = (part: SpinePartNode) => {
+    if (policy.renderParts) layout.partDivider(part);
+    for (const ch of part.chapters) layout.chapter(ch);
+  };
   for (const node of spine.nodes) {
-    if (node.type === "part") {
-      if (policy.renderParts) children.push(...readerPartDivider(node));
-      for (const ch of node.chapters) children.push(...readerChapter(ch, policy));
+    if (node.type === "volume") {
+      if (policy.renderParts) layout.volumeDivider(node);
+      for (const part of node.parts) emitPart(part);
+    } else if (node.type === "part") {
+      emitPart(node);
     } else {
-      children.push(...readerChapter(node, policy));
+      layout.chapter(node);
     }
   }
 
+  const m = convertInchesToTwip(policy.pageSetup.marginInches || 1);
   return new Document({
     creator: "Writers' Desk",
     title: spine.metadata.title,
+    styles: readerStyleDefs(policy),
     sections: [
       {
-        properties: { page: { margin: pageMargin } },
+        properties: { page: { margin: { top: m, bottom: m, left: m, right: m } } },
         footers: { default: pageFooter() },
-        children,
+        children: layout.children,
       },
     ],
   });
@@ -837,14 +805,15 @@ function shunnChapter(ch: SpineChapterNode): Paragraph[] {
   return out;
 }
 
-/** A plain Part divider for Shunn — a centered "PART I — TITLE", no rich styling. */
-function shunnPartDivider(part: SpinePartNode): Paragraph[] {
+/** A plain grouping divider for Shunn — a centered uppercased label ("PART I — TITLE" / "ACT I …" /
+ *  "VOLUME I …"), no rich styling. Consumes the spine's pre-resolved node label. */
+function shunnDivider(label: string): Paragraph[] {
   return [
     new Paragraph({ children: [new PageBreak()] }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 1200, after: 240, ...DOUBLE },
-      children: [shunnRun(part.label.toUpperCase())],
+      children: [shunnRun(label.toUpperCase())],
     }),
   ];
 }
@@ -877,10 +846,16 @@ export function renderShunnDoc(spine: ManuscriptSpine, policy: ExportPolicy): Do
     }),
   ];
 
+  const emitPart = (part: SpinePartNode) => {
+    if (policy.renderParts) children.push(...shunnDivider(part.label));
+    for (const ch of part.chapters) children.push(...shunnChapter(ch));
+  };
   for (const node of spine.nodes) {
-    if (node.type === "part") {
-      if (policy.renderParts) children.push(...shunnPartDivider(node));
-      for (const ch of node.chapters) children.push(...shunnChapter(ch));
+    if (node.type === "volume") {
+      if (policy.renderParts) children.push(...shunnDivider(node.label));
+      for (const part of node.parts) emitPart(part);
+    } else if (node.type === "part") {
+      emitPart(node);
     } else {
       children.push(...shunnChapter(node));
     }
@@ -918,7 +893,8 @@ function yamlQuote(s: string): string {
 function chapterComment(ch: SpineChapterNode): string {
   const title = ch.title ? ` title=${yamlQuote(ch.title)}` : "";
   const kind = ch.kind !== "chapter" ? ` kind=${ch.kind}` : "";
-  return `<!-- chapter number=${ch.chapterNo}${kind}${title} pov=${yamlQuote(ch.pov)} -->`;
+  const section = ch.sectionType ? ` section_type=${ch.sectionType}` : "";
+  return `<!-- chapter number=${ch.chapterNo}${kind}${section}${title} pov=${yamlQuote(ch.pov)} -->`;
 }
 
 /** Emit one chapter to the Markdown line buffer, using the resolved label + RAW prose (never the
@@ -967,14 +943,24 @@ export function renderMarkdown(
     "",
   );
 
+  const emitPart = (part: SpinePartNode) => {
+    lines.push(
+      `# ${part.label}`,
+      `<!-- part number=${part.partNo} kind=${part.kind}${part.subtitle ? ` subtitle=${yamlQuote(part.subtitle)}` : ""} -->`,
+      "",
+    );
+    for (const ch of part.chapters) markdownChapter(lines, ch);
+  };
   for (const node of spine.nodes) {
-    if (node.type === "part") {
+    if (node.type === "volume") {
       lines.push(
         `# ${node.label}`,
-        `<!-- part number=${node.partNo}${node.subtitle ? ` subtitle=${yamlQuote(node.subtitle)}` : ""} -->`,
+        `<!-- volume number=${node.volumeNo}${node.subtitle ? ` subtitle=${yamlQuote(node.subtitle)}` : ""} -->`,
         "",
       );
-      for (const ch of node.chapters) markdownChapter(lines, ch);
+      for (const part of node.parts) emitPart(part);
+    } else if (node.type === "part") {
+      emitPart(node);
     } else {
       markdownChapter(lines, node);
     }

@@ -77,6 +77,14 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS series TEXT",
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS book_no INTEGER",
     "ALTER TABLE books ADD COLUMN IF NOT EXISTS subtitle TEXT",
+    # Structural export v2: the top grouping tier (Book → Volume → Part → Chapter). The new `volumes`
+    # table is provisioned by create_all; parts gain an optional volume link + a label-word kind
+    # (part|act). DEFAULT 'part' backfills existing rows so a pre-v2 part reads as an ordinary Part.
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS volume_id UUID",
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS kind TEXT DEFAULT 'part'",
+    # Per-section-type front/back matter: the specific section (glossary/map/dramatis_personae/…) for a
+    # front_matter|back_matter chapter. Nullable free text; ordinary chapters leave it NULL.
+    "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS section_type TEXT",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -124,6 +132,8 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_chapters_book_id ON chapters (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_chapters_part_id ON chapters (part_id)",
     "CREATE INDEX IF NOT EXISTS ix_parts_book_id ON parts (book_id)",
+    "CREATE INDEX IF NOT EXISTS ix_parts_volume_id ON parts (volume_id)",
+    "CREATE INDEX IF NOT EXISTS ix_volumes_book_id ON volumes (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_beats_chapter_id ON beats (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_critiques_scene_id ON critiques (scene_id)",
     "CREATE INDEX IF NOT EXISTS ix_scene_packets_chapter_no ON scene_packets (chapter_id, scene_no)",

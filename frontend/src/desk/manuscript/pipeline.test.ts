@@ -4,7 +4,12 @@
 // (raw for Markdown), that hard-coded project metadata is gone, and that a manifest always ships.
 
 import { describe, expect, it } from "vitest";
-import type { ManuscriptChapter, ManuscriptOut, ManuscriptScene } from "../api/types";
+import type {
+  ManuscriptChapter,
+  ManuscriptOut,
+  ManuscriptPart,
+  ManuscriptScene,
+} from "../api/types";
 import { resolveExportMetadata } from "./metadata";
 import { buildManifest } from "./manifest";
 import { preflight } from "./preflight";
@@ -26,12 +31,27 @@ const ch = (over: Partial<ManuscriptChapter> & { chapter_no: number }): Manuscri
   scenes: [scn(1, "Prose here.")],
   ...over,
 });
+const part = (
+  id: string,
+  part_no: number,
+  title: string,
+  over: Partial<ManuscriptPart> = {},
+): ManuscriptPart => ({
+  id,
+  part_no,
+  title,
+  subtitle: null,
+  kind: "part",
+  volume_id: null,
+  ...over,
+});
 const ms = (over: Partial<ManuscriptOut>): ManuscriptOut => ({
   book_id: "b",
   title: "Realmwalkers",
   series: null,
   book_no: null,
   subtitle: null,
+  volumes: [],
   parts: [],
   chapters: [],
   ...over,
@@ -41,10 +61,7 @@ const ms = (over: Partial<ManuscriptOut>): ManuscriptOut => ({
  *  epigraph, a LitRPG interface panel, a raw em-dash source, and an editorial marker. */
 const fullBook = (over: Partial<ManuscriptOut> = {}): ManuscriptOut =>
   ms({
-    parts: [
-      { id: "p1", part_no: 1, title: "The Scrim", subtitle: null },
-      { id: "p2", part_no: 2, title: "The Reserve", subtitle: "descent" },
-    ],
+    parts: [part("p1", 1, "The Scrim"), part("p2", 2, "The Reserve", { subtitle: "descent" })],
     chapters: [
       ch({
         chapter_no: 1,
@@ -103,6 +120,49 @@ describe("structure + labels agree across all three emitters (one spine)", () =>
     // chapter_no 1 is the prologue and 5 is the epilogue — neither may appear as "Chapter 1/5".
     expect(md).not.toContain("# Chapter 1");
     expect(md).not.toContain("# Chapter 5");
+  });
+
+  it("renders the Volume → Part → Chapter tiers (and Act labels) in reading order", () => {
+    const book = ms({
+      volumes: [{ id: "v1", volume_no: 1, title: "The Long Winter", subtitle: null }],
+      parts: [
+        part("p1", 1, "Frost", { volume_id: "v1" }),
+        part("p2", 2, "Rising", { kind: "act" }), // an Act, ungrouped
+      ],
+      chapters: [ch({ chapter_no: 1, part_id: "p1" }), ch({ chapter_no: 2, part_id: "p2" })],
+    });
+    const md = markdownOf(book);
+    assertOrder(md, [
+      "# Volume I — The Long Winter",
+      "# Part I — Frost",
+      "# Chapter 1",
+      "# Act II — Rising",
+      "# Chapter 2",
+    ]);
+    // Volume + Act render on the DOCX surfaces too (build without throwing).
+    expect(runExport(book, "reader_proof", { exportedAt: AT }).artifact?.kind).toBe("docx");
+    expect(
+      runExport(book, "submission_shunn", { author: "A", exportedAt: AT }).artifact?.kind,
+    ).toBe("docx");
+  });
+
+  it("renders front/back matter by its section type (label + provenance), not as a numbered chapter", () => {
+    const book = ms({
+      chapters: [
+        ch({ chapter_no: 1, scenes: [scn(1, "Story.")] }),
+        ch({
+          chapter_no: 2,
+          kind: "back_matter",
+          section_type: "glossary",
+          pov: "",
+          scenes: [scn(1, "Aether: the ambient magic.")],
+        }),
+      ],
+    });
+    const md = markdownOf(book);
+    assertOrder(md, ["# Chapter 1", "# Glossary"]);
+    expect(md).toContain("section_type=glossary");
+    expect(md).not.toContain("# Chapter 2"); // the glossary is not a numbered chapter
   });
 
   it("Reader DOCX and Shunn DOCX build from the same book (Parts + rich blocks, no throw)", () => {
@@ -167,7 +227,13 @@ describe("manifest ships with every export", () => {
     expect(man.source).toBe("writers-desk");
     expect(man.preset).toBe("editorial_review");
     expect(man.exportedAt).toBe(AT);
-    expect(man.counts).toEqual({ parts: 2, chapters: 5, scenes: 5, words: expect.any(Number) });
+    expect(man.counts).toEqual({
+      volumes: 0,
+      parts: 2,
+      chapters: 5,
+      scenes: 5,
+      words: expect.any(Number),
+    });
     expect(man.counts.words).toBeGreaterThan(0);
     expect(man.spineSchemaVersion).toBeTruthy();
     expect(man.sourceSchemaVersion).toBeTruthy();

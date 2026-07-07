@@ -11,8 +11,10 @@ import type { ExportPolicy, ExportPreset } from "./presets";
 import {
   spineChapters,
   spineParts,
+  spineVolumes,
   type ManuscriptSpine,
   type SpineChapterNode,
+  type SpinePartNode,
   type SpineSceneNode,
 } from "./spine";
 
@@ -346,6 +348,52 @@ function checkParts(spine: ManuscriptSpine, out: ExportIssue[]): void {
   }
 }
 
+// --- volumes integrity (the top grouping tier) ------------------------------------------------------
+
+function checkVolumes(spine: ManuscriptSpine, out: ExportIssue[]): void {
+  const volumes = spineVolumes(spine);
+  if (volumes.length === 0) return;
+
+  // A Volume that renders no chapter (all its parts empty) would emit a bare divider.
+  for (const v of volumes) {
+    const renderable = v.parts.some((p) =>
+      p.chapters.some((c) => c.scenes.some((s) => s.hasProse)),
+    );
+    if (!renderable) {
+      out.push({
+        severity: "warn",
+        code: v.parts.length === 0 ? "empty_volume" : "volume_no_rendered_chapter",
+        message:
+          v.parts.length === 0
+            ? `${v.label} has no parts.`
+            : `${v.label}'s parts have no prose — it will render an empty divider.`,
+        location: { label: v.label },
+      });
+    }
+  }
+
+  // A top-level Part while Volumes are in use: either a dangling volume_id (stronger anomaly) or an
+  // unassigned part (usually an oversight — mirrors the ungrouped-chapter check one tier up).
+  const topLevelParts = spine.nodes.filter((n): n is SpinePartNode => n.type === "part");
+  for (const p of topLevelParts) {
+    if (p.volumeId) {
+      out.push({
+        severity: "warn",
+        code: "dangling_volume_reference",
+        message: `${p.label} references a Volume that is not in the manuscript; it renders ungrouped.`,
+        location: { partNo: p.partNo, label: p.label },
+      });
+    } else {
+      out.push({
+        severity: "warn",
+        code: "ungrouped_part_with_volumes",
+        message: `${p.label} is not assigned to a Volume, but this book uses Volumes.`,
+        location: { partNo: p.partNo, label: p.label },
+      });
+    }
+  }
+}
+
 /**
  * Run the full preflight over a spine under a policy. Pure (no I/O); deterministic given the spine.
  * `blocked` is true only for a submission-safe preset with at least one error and no override.
@@ -367,6 +415,7 @@ export function preflight(
     for (const sc of ch.scenes) checkScene(ch, sc, policy, issues);
   }
   checkParts(spine, issues);
+  checkVolumes(spine, issues);
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warn").length;

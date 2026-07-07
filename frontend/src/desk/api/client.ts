@@ -21,6 +21,7 @@ import type {
   ChapterOut,
   ChapterPartAssignIn,
   ChapterUpdateIn,
+  PartVolumeAssignIn,
   CharacterStateIn,
   CharacterStateOut,
   ActivityOut,
@@ -56,6 +57,9 @@ import type {
   PartCreateIn,
   PartOut,
   PartUpdateIn,
+  VolumeCreateIn,
+  VolumeOut,
+  VolumeUpdateIn,
   PacketProposeOut,
   PacketUpdateIn,
   PacketWarnings,
@@ -232,6 +236,15 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+  assignPartVolume: (partId: string, body: PartVolumeAssignIn) =>
+    http<PartOut>(`/parts/${partId}/volume`, { method: "PUT", body: JSON.stringify(body) }),
+  // --- volumes (Book → Volume → Part → Chapter) ---------------------------------------------------
+  listVolumes: (bookId: string) => http<VolumeOut[]>(`/books/${bookId}/volumes`),
+  createVolume: (bookId: string, body: VolumeCreateIn) =>
+    http<VolumeOut>(`/books/${bookId}/volumes`, { method: "POST", body: JSON.stringify(body) }),
+  updateVolume: (volumeId: string, body: VolumeUpdateIn) =>
+    http<VolumeOut>(`/volumes/${volumeId}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteVolume: (volumeId: string) => http<null>(`/volumes/${volumeId}`, { method: "DELETE" }),
   chapterBeats: (chapterId: string) => http<BeatOut[]>(`/chapters/${chapterId}/beats`),
   chapterScenes: (chapterId: string) => http<SceneOut[]>(`/chapters/${chapterId}/scenes`),
   createHumanScene: (chapterId: string, body: HumanSceneIn) =>

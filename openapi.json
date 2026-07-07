@@ -1610,6 +1610,60 @@
         }
       }
     },
+    "/parts/{part_id}/volume": {
+      "put": {
+        "tags": [
+          "parts"
+        ],
+        "summary": "Assign Part Volume",
+        "description": "Assign a Part to a Volume, or unassign it (`volume_id: null`). The Volume must belong to the same\nbook as the Part.",
+        "operationId": "assign_part_volume_parts__part_id__volume_put",
+        "parameters": [
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Part Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartVolumeAssignIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapters/{chapter_id}/part": {
       "put": {
         "tags": [
@@ -1658,6 +1712,192 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/volumes": {
+      "get": {
+        "tags": [
+          "volumes"
+        ],
+        "summary": "List Volumes",
+        "operationId": "list_volumes_books__book_id__volumes_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VolumeOut"
+                  },
+                  "title": "Response List Volumes Books  Book Id  Volumes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "volumes"
+        ],
+        "summary": "Create Volume",
+        "operationId": "create_volume_books__book_id__volumes_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/volumes/{volume_id}": {
+      "patch": {
+        "tags": [
+          "volumes"
+        ],
+        "summary": "Update Volume",
+        "operationId": "update_volume_volumes__volume_id__patch",
+        "parameters": [
+          {
+            "name": "volume_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Volume Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "volumes"
+        ],
+        "summary": "Delete Volume",
+        "description": "Delete a Volume and unassign its Parts (volume_id -> NULL). Parts (and their chapters/prose) are\nnever touched \u2014 removing the Volume ungroups the Parts, it does not delete them.",
+        "operationId": "delete_volume_volumes__volume_id__delete",
+        "parameters": [
+          {
+            "name": "volume_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Volume Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -11047,6 +11287,17 @@
             "title": "Kind",
             "default": "chapter"
           },
+          "section_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Type"
+          },
           "epigraph": {
             "anyOf": [
               {
@@ -11677,6 +11928,17 @@
                 "type": "null"
               }
             ]
+          },
+          "section_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Type"
           },
           "epigraph": {
             "anyOf": [
@@ -13429,6 +13691,17 @@
             "title": "Kind",
             "default": "chapter"
           },
+          "section_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Type"
+          },
           "epigraph": {
             "anyOf": [
               {
@@ -13512,6 +13785,14 @@
             ],
             "title": "Subtitle"
           },
+          "volumes": {
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptVolume"
+            },
+            "type": "array",
+            "title": "Volumes",
+            "default": []
+          },
           "parts": {
             "items": {
               "$ref": "#/components/schemas/ManuscriptPart"
@@ -13535,7 +13816,7 @@
           "title"
         ],
         "title": "ManuscriptOut",
-        "description": "The approved manuscript, assembled in reading order (latest approved version per scene).\n\nFlat by design: `parts[]` is a sibling list and each chapter references its part via `part_id`,\nrather than nesting chapters inside parts on the wire. The normalized tree is built on the frontend\n(ManuscriptSpine), keeping this endpoint backward-compatible (a book with no parts emits `parts: []`\nand every chapter's `part_id` is null). Book export/provenance metadata rides along so the frontend\nExportMetadata resolver has an authoritative source and the emitters never hard-code project identity."
+        "description": "The approved manuscript, assembled in reading order (latest approved version per scene).\n\nFlat by design: `volumes[]`/`parts[]` are sibling lists; a chapter references its part via `part_id`\nand a part references its volume via `volume_id`, rather than nesting on the wire. The normalized tree\n(Book \u2192 Volume \u2192 Part \u2192 Chapter) is built on the frontend (ManuscriptSpine), keeping this endpoint\nbackward-compatible (a book with no grouping emits empty lists and null ids). Book export/provenance\nmetadata rides along so the frontend ExportMetadata resolver never hard-codes project identity."
       },
       "ManuscriptPart": {
         "properties": {
@@ -13543,6 +13824,18 @@
             "type": "string",
             "format": "uuid",
             "title": "Id"
+          },
+          "volume_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume Id"
           },
           "part_no": {
             "type": "integer",
@@ -13562,6 +13855,11 @@
               }
             ],
             "title": "Subtitle"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "part"
           }
         },
         "type": "object",
@@ -13571,7 +13869,7 @@
           "title"
         ],
         "title": "ManuscriptPart",
-        "description": "A Part in export order. Reader labels (\"Part One\") are derived from `part_no` client-side by the\nshared label contract, never stored here."
+        "description": "A Part in export order. Reader labels (\"Part One\"/\"Act One\") are derived from `part_no` + `kind`\nclient-side by the shared label contract, never stored here. `volume_id` nests it under a Volume."
       },
       "ManuscriptScene": {
         "properties": {
@@ -13596,6 +13894,42 @@
           "scene_no"
         ],
         "title": "ManuscriptScene"
+      },
+      "ManuscriptVolume": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "volume_no": {
+            "type": "integer",
+            "title": "Volume No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "volume_no",
+          "title"
+        ],
+        "title": "ManuscriptVolume",
+        "description": "A Volume in export order (the top grouping tier). Labels derived from `volume_no` client-side."
       },
       "ModelSettingOut": {
         "properties": {
@@ -13966,6 +14300,11 @@
               }
             ],
             "title": "Subtitle"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "part"
           }
         },
         "type": "object",
@@ -13974,7 +14313,7 @@
           "title"
         ],
         "title": "PartCreateIn",
-        "description": "POST body to create a Part within a book. `part_no` orders parts and drives the reader label;\nit must be unique within the book (the router returns 409 on collision)."
+        "description": "POST body to create a Part within a book. `part_no` orders parts and drives the reader label;\nit must be unique within the book (the router returns 409 on collision). `kind` chooses the label\nword (part|act)."
       },
       "PartOut": {
         "properties": {
@@ -13987,6 +14326,18 @@
             "type": "string",
             "format": "uuid",
             "title": "Book Id"
+          },
+          "volume_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume Id"
           },
           "part_no": {
             "type": "integer",
@@ -14006,6 +14357,11 @@
               }
             ],
             "title": "Subtitle"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "part"
           },
           "created_at": {
             "type": "string",
@@ -14057,11 +14413,41 @@
               }
             ],
             "title": "Subtitle"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
           }
         },
         "type": "object",
         "title": "PartUpdateIn",
-        "description": "PATCH body for a Part. Every field optional; only provided fields are written."
+        "description": "PATCH body for a Part. Every field optional; only provided fields are written. (Volume assignment\ngoes through the dedicated PUT /parts/{id}/volume so cross-book membership is validated.)"
+      },
+      "PartVolumeAssignIn": {
+        "properties": {
+          "volume_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume Id"
+          }
+        },
+        "type": "object",
+        "title": "PartVolumeAssignIn",
+        "description": "PUT body to (re)assign a Part to a Volume, or unassign it. `volume_id: null` clears the nesting.\nThe volume must belong to the same book as the part (the router enforces this)."
       },
       "PipelineAgentRunOut": {
         "properties": {
@@ -18660,6 +19046,123 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VolumeCreateIn": {
+        "properties": {
+          "volume_no": {
+            "type": "integer",
+            "title": "Volume No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "volume_no",
+          "title"
+        ],
+        "title": "VolumeCreateIn",
+        "description": "POST body to create a Volume. `volume_no` orders volumes + drives the label; unique within a book."
+      },
+      "VolumeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "volume_no": {
+            "type": "integer",
+            "title": "Volume No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "book_id",
+          "volume_no",
+          "title",
+          "created_at"
+        ],
+        "title": "VolumeOut"
+      },
+      "VolumeUpdateIn": {
+        "properties": {
+          "volume_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume No"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "title": "VolumeUpdateIn",
+        "description": "PATCH body for a Volume. Every field optional; only provided fields are written."
       }
     }
   }

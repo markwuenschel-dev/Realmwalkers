@@ -73,12 +73,28 @@ export function toRoman(n: number): string {
   return out;
 }
 
-/** "Part I — The Gathering Storm" (title optional → just "Part I"). Roman numbering is the print
- *  convention for parts; the subtitle is intentionally NOT folded in here (emitters render it on its
- *  own line under the part title). */
-export function partLabel(part: { part_no: number; title?: string | null }): string {
-  const head = `Part ${toRoman(part.part_no)}`;
+/** The label WORD for a Part-level grouping: "act" → "Act", anything else → "Part". */
+export function partKindWord(kind: string | null | undefined): "Part" | "Act" {
+  return kind === "act" ? "Act" : "Part";
+}
+
+/** "Part I — The Gathering Storm" / "Act I — …" (title optional → just "Part I"). Roman numbering is the
+ *  print convention; the subtitle is intentionally NOT folded in here (emitters render it on its own line
+ *  under the part title). `kind` selects the word only — an Act is structurally a Part. */
+export function partLabel(part: {
+  part_no: number;
+  title?: string | null;
+  kind?: string | null;
+}): string {
+  const head = `${partKindWord(part.kind)} ${toRoman(part.part_no)}`;
   const title = part.title?.trim();
+  return title ? `${head} — ${title}` : head;
+}
+
+/** "Volume I — The Long Winter" (title optional → just "Volume I"). The top grouping tier. */
+export function volumeLabel(volume: { volume_no: number; title?: string | null }): string {
+  const head = `Volume ${toRoman(volume.volume_no)}`;
+  const title = volume.title?.trim();
   return title ? `${head} — ${title}` : head;
 }
 
@@ -93,27 +109,65 @@ export function chapterLabel(ch: { kind?: string | null; chapter_no: number }): 
   return KIND_LABEL[kind as Exclude<ChapterKind, "chapter">];
 }
 
-/** Label for front/back-matter section chapters, preferring the author's own title ("Glossary",
- *  "Dramatis Personae", "Map") and falling back to the generic kind label. This is the hook the future
- *  per-section-type slice sharpens (a `section_type` field) WITHOUT any emitter change. For non-section
- *  kinds it delegates to `chapterLabel`. */
+/** Display names for the known front/back-matter section types. Free-slug on the wire, so an unknown
+ *  slug is title-cased (`dramatis_personae` → "Dramatis Personae") rather than rejected — the catalog
+ *  can grow without a migration. Ordered roughly front-matter → back-matter for the editor dropdown. */
+export const SECTION_TYPES: Record<string, string> = {
+  preface: "Preface",
+  foreword: "Foreword",
+  introduction: "Introduction",
+  dramatis_personae: "Dramatis Personae",
+  map: "Map",
+  timeline: "Timeline",
+  pronunciation: "Pronunciation Guide",
+  epigraph: "Epigraph",
+  afterword: "Afterword",
+  acknowledgments: "Acknowledgments",
+  glossary: "Glossary",
+  appendix: "Appendix",
+  author_note: "Author's Note",
+  about_author: "About the Author",
+  preview: "Preview",
+};
+
+function titleCaseSlug(slug: string): string {
+  return slug
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Display name for a section-type slug (known → catalog name, unknown → title-cased), or undefined for
+ *  a blank/absent value. */
+export function sectionTypeLabel(sectionType: string | null | undefined): string | undefined {
+  const t = (sectionType ?? "").trim();
+  if (!t) return undefined;
+  return SECTION_TYPES[t] ?? titleCaseSlug(t);
+}
+
+/** Label for front/back-matter section chapters. Priority: the author's explicit title (a custom heading
+ *  like "Map of the Northern Reach") → the section-type display name ("Glossary", "Dramatis Personae") →
+ *  the generic kind label. For non-section kinds it delegates to `chapterLabel`. */
 export function sectionLabel(ch: {
   kind?: string | null;
   title?: string | null;
+  section_type?: string | null;
   chapter_no: number;
 }): string {
   const kind = ch.kind ?? "chapter";
   if (kind === "front_matter" || kind === "back_matter") {
-    return ch.title?.trim() || KIND_LABEL[kind];
+    return ch.title?.trim() || sectionTypeLabel(ch.section_type) || KIND_LABEL[kind];
   }
   return chapterLabel(ch);
 }
 
 /** The one dispatcher the spine uses to resolve a chapter node's primary label: section kinds prefer
- *  their title (`sectionLabel`), everything else is `chapterLabel`. */
+ *  their title / section type (`sectionLabel`), everything else is `chapterLabel`. */
 export function resolveChapterLabel(ch: {
   kind?: string | null;
   title?: string | null;
+  section_type?: string | null;
   chapter_no: number;
 }): string {
   return isSectionKind(ch.kind) ? sectionLabel(ch) : chapterLabel(ch);

@@ -23,8 +23,9 @@ import type {
   ManuscriptChapter,
   PartOut,
   SceneOut,
+  VolumeOut,
 } from "../api/types";
-import { partLabel } from "../manuscript/labels";
+import { partLabel, SECTION_TYPES, volumeLabel } from "../manuscript/labels";
 import type { ExportKind } from "../lib/docx";
 
 const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = {
@@ -111,6 +112,44 @@ export default function ChaptersScreen() {
   const assignPart = async (chapterId: string, partId: string | null) => {
     await api.assignChapterPart(chapterId, { part_id: partId });
     await Promise.all([data.refreshAll(), data.refreshManuscript()]);
+  };
+  const setPartKind = async (partId: string, kind: string) => {
+    await api.updatePart(partId, { kind });
+    await Promise.all([loadParts(), data.refreshManuscript()]);
+  };
+  const assignPartVolume = async (partId: string, volumeId: string | null) => {
+    await api.assignPartVolume(partId, { volume_id: volumeId });
+    await Promise.all([loadParts(), data.refreshManuscript()]);
+  };
+
+  // Volumes (the top grouping tier). Fetched separately for the same reason as parts.
+  const [volumes, setVolumes] = useState<VolumeOut[]>([]);
+  const loadVolumes = useCallback(async () => {
+    if (!data.bookId) return;
+    try {
+      setVolumes(await api.listVolumes(data.bookId));
+    } catch {
+      setVolumes((prev) => prev);
+    }
+  }, [data.bookId]);
+  useEffect(() => {
+    void loadVolumes();
+  }, [loadVolumes]);
+
+  const createVolume = async (title: string) => {
+    if (!data.bookId || !title.trim()) return;
+    const nextNo = volumes.reduce((m, v) => Math.max(m, v.volume_no), 0) + 1;
+    await api.createVolume(data.bookId, { volume_no: nextNo, title: title.trim() });
+    await loadVolumes();
+  };
+  const renameVolume = async (volumeId: string, title: string) => {
+    if (!title.trim()) return;
+    await api.updateVolume(volumeId, { title: title.trim() });
+    await Promise.all([loadVolumes(), data.refreshManuscript()]);
+  };
+  const removeVolume = async (volumeId: string) => {
+    await api.deleteVolume(volumeId);
+    await Promise.all([loadVolumes(), loadParts(), data.refreshManuscript()]);
   };
 
   // current state of each (chapter, scene) — derived once in the data layer. A latest row can only be
@@ -318,11 +357,20 @@ export default function ChaptersScreen() {
 
         <Panel eyebrow="Pacing · per chapter" pad="20px 22px">
           <div style={css("display:flex;flex-direction:column;gap:18px")}>
+            <VolumesManager
+              volumes={volumes}
+              onCreate={(t) => void createVolume(t)}
+              onRename={(id, t) => void renameVolume(id, t)}
+              onDelete={(id) => void removeVolume(id)}
+            />
             <PartsManager
               parts={parts}
+              volumes={volumes}
               onCreate={(t) => void createPart(t)}
               onRename={(id, t) => void renamePart(id, t)}
               onDelete={(id) => void removePart(id)}
+              onSetKind={(id, k) => void setPartKind(id, k)}
+              onAssignVolume={(id, v) => void assignPartVolume(id, v)}
             />
             {data.chapters.length === 0 && (
               <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
@@ -854,6 +902,30 @@ function ChapterMetaControls({
           ))}
         </select>
       </label>
+      {(chapter.kind === "front_matter" || chapter.kind === "back_matter") && (
+        <label
+          style={css(
+            "display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)",
+          )}
+        >
+          section
+          <select
+            value={chapter.section_type ?? ""}
+            onChange={(e) => onSave({ section_type: e.target.value || null })}
+            title="Front/back-matter section type — drives the reader heading (Glossary, Map, …)"
+            style={css(
+              "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11.5px;font-family:var(--ui);cursor:pointer",
+            )}
+          >
+            <option value="">— none —</option>
+            {Object.entries(SECTION_TYPES).map(([slug, label]) => (
+              <option key={slug} value={slug}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {parts.length > 0 && (
         <label
           style={css(
@@ -953,60 +1025,205 @@ function ChapterExportLinks({
 const LINK_BTN =
   "font-family:var(--mono);font-size:10.5px;color:var(--dim);background:none;border:none;cursor:pointer;padding:0";
 
-// Parts editor: create / rename / delete the Book → Part → Chapter groupings themselves. Assigning a
-// chapter to a part happens per-chapter in ChapterMetaControls. Deleting a part keeps its chapters (they
-// just un-group), matching the backend's unassign-not-cascade behavior.
+const GROUP_PANEL =
+  "display:flex;flex-direction:column;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg2b)";
+const GROUP_EYEBROW =
+  "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)";
+const GROUP_INPUT =
+  "width:180px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:12px;font-family:var(--ui)";
+const GROUP_SELECT =
+  "background:var(--bg2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:2px 5px;font-size:10.5px;font-family:var(--ui);cursor:pointer";
+
+// A small inline create form shared by the Parts and Volumes managers.
+function GroupCreateRow({ label, onCreate }: { label: string; onCreate: (title: string) => void }) {
+  const [title, setTitle] = useState("");
+  const submit = () => {
+    if (title.trim()) {
+      onCreate(title);
+      setTitle("");
+    }
+  };
+  return (
+    <div style={css("display:flex;align-items:center;gap:7px")}>
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && submit()}
+        placeholder={`new ${label} title…`}
+        style={css(GROUP_INPUT)}
+      />
+      <Button size="sm" disabled={!title.trim()} onClick={submit}>
+        + Add {label}
+      </Button>
+    </div>
+  );
+}
+
+// Parts editor: create / rename / delete the Book → Part → Chapter groupings, plus per-part the label
+// word (Part/Act) and Volume nesting. Assigning a chapter to a part happens per-chapter in
+// ChapterMetaControls. Deleting a part keeps its chapters (they just un-group), matching the backend.
 function PartsManager({
   parts,
+  volumes,
+  onCreate,
+  onRename,
+  onDelete,
+  onSetKind,
+  onAssignVolume,
+}: {
+  parts: PartOut[];
+  volumes: VolumeOut[];
+  onCreate: (title: string) => void;
+  onRename: (partId: string, title: string) => void;
+  onDelete: (partId: string) => void;
+  onSetKind: (partId: string, kind: string) => void;
+  onAssignVolume: (partId: string, volumeId: string | null) => void;
+}) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const sorted = [...parts].sort((a, b) => a.part_no - b.part_no);
+  const sortedVolumes = [...volumes].sort((a, b) => a.volume_no - b.volume_no);
+
+  return (
+    <div style={css(GROUP_PANEL)}>
+      <div style={css(GROUP_EYEBROW)}>Parts</div>
+      {sorted.map((p) => (
+        <div
+          key={p.id}
+          style={css(
+            "display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:var(--bg3)",
+          )}
+        >
+          {editing === p.id ? (
+            <>
+              <input
+                autoFocus
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onRename(p.id, editTitle);
+                    setEditing(null);
+                  } else if (e.key === "Escape") setEditing(null);
+                }}
+                style={css("width:150px;" + GROUP_INPUT)}
+              />
+              <button
+                onClick={() => {
+                  onRename(p.id, editTitle);
+                  setEditing(null);
+                }}
+                style={css(LINK_BTN)}
+              >
+                save
+              </button>
+              <button onClick={() => setEditing(null)} style={css(LINK_BTN)}>
+                cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <span
+                style={css(
+                  "font-family:var(--display);font-size:12.5px;color:var(--ink);min-width:120px",
+                )}
+              >
+                {partLabel(p)}
+              </span>
+              {/* label word: Part vs Act */}
+              <select
+                value={p.kind ?? "part"}
+                onChange={(e) => onSetKind(p.id, e.target.value)}
+                title="Label word — an Act is structurally a Part"
+                style={css(GROUP_SELECT)}
+              >
+                <option value="part">Part</option>
+                <option value="act">Act</option>
+              </select>
+              {sortedVolumes.length > 0 && (
+                <select
+                  value={p.volume_id ?? ""}
+                  onChange={(e) => onAssignVolume(p.id, e.target.value || null)}
+                  title="Nest this Part under a Volume"
+                  style={css(GROUP_SELECT)}
+                >
+                  <option value="">No volume</option>
+                  {sortedVolumes.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {volumeLabel(v)}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                title="Rename part"
+                onClick={() => {
+                  setEditing(p.id);
+                  setEditTitle(p.title);
+                }}
+                style={css(`${LINK_BTN};margin-left:auto`)}
+              >
+                edit
+              </button>
+              <button
+                title="Delete part — its chapters are kept and un-grouped"
+                onClick={() => {
+                  if (confirm(`Delete ${partLabel(p)}? Its chapters are kept and un-grouped.`))
+                    onDelete(p.id);
+                }}
+                style={css(`${LINK_BTN};color:var(--warn)`)}
+              >
+                ×
+              </button>
+            </>
+          )}
+        </div>
+      ))}
+      <GroupCreateRow label="part" onCreate={onCreate} />
+    </div>
+  );
+}
+
+// Volumes editor: create / rename / delete the top grouping tier. Assigning a Part to a Volume happens
+// per-part in PartsManager. Deleting a Volume keeps its Parts (they un-nest), matching the backend.
+function VolumesManager({
+  volumes,
   onCreate,
   onRename,
   onDelete,
 }: {
-  parts: PartOut[];
+  volumes: VolumeOut[];
   onCreate: (title: string) => void;
-  onRename: (partId: string, title: string) => void;
-  onDelete: (partId: string) => void;
+  onRename: (volumeId: string, title: string) => void;
+  onDelete: (volumeId: string) => void;
 }) {
-  const [newTitle, setNewTitle] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
-  const sorted = [...parts].sort((a, b) => a.part_no - b.part_no);
+  const sorted = [...volumes].sort((a, b) => a.volume_no - b.volume_no);
 
   return (
-    <div
-      style={css(
-        "display:flex;flex-direction:column;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg2b)",
-      )}
-    >
-      <div
-        style={css(
-          "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)",
-        )}
-      >
-        Parts
-      </div>
+    <div style={css(GROUP_PANEL)}>
+      <div style={css(GROUP_EYEBROW)}>Volumes</div>
       {sorted.length > 0 && (
         <div style={css("display:flex;flex-wrap:wrap;gap:7px")}>
-          {sorted.map((p) =>
-            editing === p.id ? (
-              <span key={p.id} style={css("display:inline-flex;align-items:center;gap:5px")}>
+          {sorted.map((v) =>
+            editing === v.id ? (
+              <span key={v.id} style={css("display:inline-flex;align-items:center;gap:5px")}>
                 <input
                   autoFocus
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      onRename(p.id, editTitle);
+                      onRename(v.id, editTitle);
                       setEditing(null);
                     } else if (e.key === "Escape") setEditing(null);
                   }}
-                  style={css(
-                    "width:150px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;font-family:var(--ui)",
-                  )}
+                  style={css("width:150px;" + GROUP_INPUT)}
                 />
                 <button
                   onClick={() => {
-                    onRename(p.id, editTitle);
+                    onRename(v.id, editTitle);
                     setEditing(null);
                   }}
                   style={css(LINK_BTN)}
@@ -1019,29 +1236,29 @@ function PartsManager({
               </span>
             ) : (
               <span
-                key={p.id}
+                key={v.id}
                 style={css(
                   "display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:3px 8px;background:var(--bg3)",
                 )}
               >
                 <span style={css("font-family:var(--display);font-size:12.5px;color:var(--ink)")}>
-                  {partLabel(p)}
+                  {volumeLabel(v)}
                 </span>
                 <button
-                  title="Rename part"
+                  title="Rename volume"
                   onClick={() => {
-                    setEditing(p.id);
-                    setEditTitle(p.title);
+                    setEditing(v.id);
+                    setEditTitle(v.title);
                   }}
                   style={css(LINK_BTN)}
                 >
                   edit
                 </button>
                 <button
-                  title="Delete part — its chapters are kept and un-grouped"
+                  title="Delete volume — its parts are kept and un-nested"
                   onClick={() => {
-                    if (confirm(`Delete ${partLabel(p)}? Its chapters are kept and un-grouped.`))
-                      onDelete(p.id);
+                    if (confirm(`Delete ${volumeLabel(v)}? Its parts are kept and un-nested.`))
+                      onDelete(v.id);
                   }}
                   style={css(`${LINK_BTN};color:var(--warn)`)}
                 >
@@ -1052,32 +1269,7 @@ function PartsManager({
           )}
         </div>
       )}
-      <div style={css("display:flex;align-items:center;gap:7px")}>
-        <input
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && newTitle.trim()) {
-              onCreate(newTitle);
-              setNewTitle("");
-            }
-          }}
-          placeholder="new part title…"
-          style={css(
-            "width:180px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:12px;font-family:var(--ui)",
-          )}
-        />
-        <Button
-          size="sm"
-          disabled={!newTitle.trim()}
-          onClick={() => {
-            onCreate(newTitle);
-            setNewTitle("");
-          }}
-        >
-          + Add part
-        </Button>
-      </div>
+      <GroupCreateRow label="volume" onCreate={onCreate} />
     </div>
   );
 }

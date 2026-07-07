@@ -42,10 +42,17 @@ export type BookUpdateIn = S["BookUpdateIn"];
 // Book → Part → Chapter grouping (renderer-neutral export foundation). Wire is flat: `parts[]` is a
 // sibling list on ManuscriptOut and each chapter carries `part_id`; the spine builder tree-ifies it.
 export type PartOut = S["PartOut"];
-export type PartCreateIn = S["PartCreateIn"];
+// `kind` has a server default ("part"), so callers may omit it — the generated schema marks it required.
+export type PartCreateIn = Omit<S["PartCreateIn"], "kind"> & { kind?: string };
 export type PartUpdateIn = S["PartUpdateIn"];
 export type ChapterPartAssignIn = S["ChapterPartAssignIn"];
+export type PartVolumeAssignIn = S["PartVolumeAssignIn"];
 export type ManuscriptPart = S["ManuscriptPart"];
+// Volumes — the top grouping tier (Book → Volume → Part → Chapter).
+export type VolumeOut = S["VolumeOut"];
+export type VolumeCreateIn = S["VolumeCreateIn"];
+export type VolumeUpdateIn = S["VolumeUpdateIn"];
+export type ManuscriptVolume = S["ManuscriptVolume"];
 export type ChapterOut = Omit<S["ChapterOut"], "title" | "outline"> & {
   title: string | null;
   outline: string | null;
