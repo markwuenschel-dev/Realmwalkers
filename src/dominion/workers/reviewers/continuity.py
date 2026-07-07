@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from dominion.shared.agent_policy import quality_effort, quality_temperature
 from dominion.shared.config import settings
 from dominion.shared.enums import Severity
+from dominion.shared.llm_text import strip_fences
 from dominion.workers.llm_escalation import complete_with_rate_limit_fallback
 from dominion.workers.reviewers.base import Flag, parse_json_objects
 
@@ -93,18 +94,9 @@ def _knowledge_prompt(prose: str, pov: str, pov_summary: str | None, reader_stat
     )
 
 
-def _strip_fences(s: str) -> str:
-    s = s.strip()
-    if s.startswith("```"):
-        s = s.split("\n", 1)[1] if "\n" in s else ""
-        if s.rstrip().endswith("```"):
-            s = s.rstrip()[:-3]
-    return s.strip()
-
-
 def _parse(raw: str) -> list[dict[str, Any]]:
     try:
-        data = json.loads(_strip_fences(raw))
+        data = json.loads(strip_fences(raw))
     except (json.JSONDecodeError, ValueError):
         return []
     return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
