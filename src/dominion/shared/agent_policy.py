@@ -74,7 +74,7 @@ def resolve_policy(agent: AgentDefinition, policy_json: dict[str, Any] | None) -
     ql = pj.get("quality_level", "balanced")
     if ql not in QUALITY_PROFILES:
         ql = "balanced"
-    profile = QUALITY_PROFILES[ql]  # type: ignore[index]
+    profile = QUALITY_PROFILES[ql]
     never_fb = pj.get("never_fallback")
     if never_fb is None:
         never_set = frozenset(agent.never_fallback_tiers)
@@ -93,9 +93,9 @@ def resolve_policy(agent: AgentDefinition, policy_json: dict[str, Any] | None) -
         can_write_summaries=perms.can_write_summaries,
         can_update_canon=perms.can_update_canon,
         can_only_suggest=perms.can_only_suggest,
-        quality_level=ql,  # type: ignore[arg-type]
+        quality_level=ql,
         semantic_escalation=bool(pj.get("semantic_escalation", semantic_default)),
-        backend=backend,  # type: ignore[arg-type]
+        backend=backend,
         temperature=float(profile["temperature"]),
         effort=str(profile["effort"]),
         prompt_suffix=str(profile.get("prompt_suffix", "")),

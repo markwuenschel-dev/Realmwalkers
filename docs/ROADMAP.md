@@ -157,7 +157,7 @@ in DESIGN today — proposed here, to fold into DESIGN §3/§15 once settled.
   `desk/prose.ts` (`tokenize` substring anchoring). Continuity payload already matches the desk conflict card 1:1.
 
 ## Verification
-- **Phase 3:** `pytest -q`, `ruff check src tests`, `mypy src`. End-to-end: enqueue a beat tagged
+- **Phase 3:** `pytest -q`, `ruff check src tests`, `pyright`. End-to-end: enqueue a beat tagged
   `combat`/`dialogue`, `python -m dominion.workers.worker --once` (needs `ANTHROPIC_API_KEY` + Postgres),
   confirm `scene.passes_run` includes the lane and a lane critique appears.
 - **Frontend:** `cd frontend && npm run build` after each PR. Manual: API on :8000 + `npm run dev` on
