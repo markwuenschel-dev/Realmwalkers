@@ -4,11 +4,7 @@
 import type {
   AnnotationIn,
   AnnotationOut,
-  BatchRunOut,
-  BatchRunStart,
-  BeatCreateIn,
   BeatOut,
-  BeatUpdateIn,
   BookIn,
   BookOut,
   BookTelemetryOut,
@@ -47,12 +43,10 @@ import type {
   FailedJobOut,
   IssueOut,
   JobsStatusOut,
-  KnowledgeFactOut,
   LlmCallListOut,
   LlmCallOut,
   ManuscriptOut,
   ModelSettingOut,
-  ModelSettingsOut,
   AgentOpsOut,
   AgentStatsListOut,
   SmokeTestOut,
@@ -74,8 +68,6 @@ import type {
   RepairVerificationOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
-  RunStartIn,
-  RunStartOut,
   RunCompareOut,
   RunTelemetryOut,
   SceneDetail,
@@ -205,7 +197,6 @@ export const api = {
     http<ActivityOut[]>(
       `/activity${qs({ book_id: bookId, limit: limit != null ? String(limit) : undefined })}`,
     ),
-  dismissActivity: (id: string) => http<ActivityOut>(`/activity/${id}/dismiss`, { method: "POST" }),
   clearActivity: (body: ActivityClearIn) =>
     http<ActivityClearOut>("/activity/clear", { method: "POST", body: JSON.stringify(body) }),
 
@@ -214,26 +205,10 @@ export const api = {
   setAutonomy: (body: AutonomyUpdateIn) =>
     http<AutonomyOut>("/settings/autonomy", { method: "PUT", body: JSON.stringify(body) }),
 
-  // --- gate 1: books, runs, chapters, beats -------------------------------------------------------
+  // --- gate 1: books ------------------------------------------------------------------------------
   books: () => http<BookOut[]>("/books"),
   createBook: (body: BookIn) =>
     http<BookOut>("/books", { method: "POST", body: JSON.stringify(body) }),
-  startRun: (body: RunStartIn) =>
-    http<RunStartOut>("/runs", { method: "POST", body: JSON.stringify(body) }),
-  // Plan several chapters in one call; auto_draft runs gate 1 → draft without a manual approve.
-  batchRun: (body: BatchRunStart) =>
-    http<BatchRunOut>("/runs/batch", { method: "POST", body: JSON.stringify(body) }),
-  approveBeats: (chapterId: string, beatIds?: string[]) =>
-    http<{ chapter_id: string; approved: number; message: string }>(
-      `/chapters/${chapterId}/beats/approve`,
-      { method: "POST", body: JSON.stringify({ beat_ids: beatIds ?? null }) },
-    ),
-  updateBeat: (beatId: string, body: BeatUpdateIn) =>
-    http<BeatOut>(`/beats/${beatId}`, { method: "PUT", body: JSON.stringify(body) }),
-  deleteBeat: (beatId: string) =>
-    http<{ deleted: string }>(`/beats/${beatId}`, { method: "DELETE" }),
-  createBeat: (chapterId: string, body: BeatCreateIn) =>
-    http<BeatOut>(`/chapters/${chapterId}/beats`, { method: "POST", body: JSON.stringify(body) }),
 
   // --- chapters + history -------------------------------------------------------------------------
   chapters: (bookId: string) => http<ChapterOut[]>(`/chapters${qs({ book_id: bookId })}`),
@@ -463,9 +438,6 @@ export const api = {
   // --- draft-attempt provenance (preserved prose stages for a scene) ------------------------------
   draftAttempts: (sceneId: string) => http<DraftAttemptOut[]>(`/scenes/${sceneId}/draft-attempts`),
 
-  // --- knowledge ledger ---------------------------------------------------------------------------
-  knowledge: (bookId: string) => http<KnowledgeFactOut[]>(`/books/${bookId}/knowledge`),
-
   // --- canon / planning / style docs (read-only Domain-B markdown) --------------------------------
   // route is /library (not /docs — FastAPI serves Swagger UI at /docs).
   docs: () => http<DocMeta[]>("/library"),
@@ -474,7 +446,6 @@ export const api = {
     http<DocDetail>(`/library/${path.split("/").map(encodeURIComponent).join("/")}`),
 
   // --- runtime model selection per agent ----------------------------------------------------------
-  modelSettings: () => http<ModelSettingsOut>("/settings/models"),
   setModel: (setting: string, tier: string, provider: string = "anthropic") =>
     http<ModelSettingOut>("/settings/models", {
       method: "PUT",
