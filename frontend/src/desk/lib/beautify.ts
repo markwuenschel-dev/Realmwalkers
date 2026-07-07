@@ -49,7 +49,14 @@ function isDelimiterRow(line: string): boolean {
 /** A blank-line-delimited run that must be preserved verbatim (never unwrapped or re-punctuated). */
 function isStructuralRun(run: string[]): boolean {
   const first = run[0];
-  if (BOX.test(first) || HEADING.test(first) || HR.test(first) || UL.test(first) || OL.test(first) || BQ.test(first)) {
+  if (
+    BOX.test(first) ||
+    HEADING.test(first) ||
+    HR.test(first) ||
+    UL.test(first) ||
+    OL.test(first) ||
+    BQ.test(first)
+  ) {
     return true;
   }
   // pipe table = header row immediately followed by a delimiter row (matches parseBlocks)

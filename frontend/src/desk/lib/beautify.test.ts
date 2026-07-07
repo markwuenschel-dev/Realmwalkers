@@ -6,7 +6,9 @@ import { beautify } from "./beautify";
 describe("beautify — prose re-flow", () => {
   it("re-flows a hard-wrapped paragraph into one line", () => {
     const wrapped = "It was a dark and stormy\nnight, and the rain\nfell in torrents.";
-    expect(beautify(wrapped)).toBe("It was a dark and stormy night, and the rain fell in torrents.");
+    expect(beautify(wrapped)).toBe(
+      "It was a dark and stormy night, and the rain fell in torrents.",
+    );
   });
 
   it("leaves blank-line-separated paragraphs as separate paragraphs (agent-prose no-op)", () => {
@@ -62,7 +64,9 @@ describe("beautify → parseBlocks (the paragraph structure the export consumes)
   const paras = (t: string) => parseBlocks(beautify(t)).filter((b) => b.kind === "p");
 
   it("collapses a hard-wrapped paragraph into ONE paragraph block", () => {
-    expect(paras("It was a dark and stormy\nnight, and the rain\nfell in torrents.")).toHaveLength(1);
+    expect(paras("It was a dark and stormy\nnight, and the rain\nfell in torrents.")).toHaveLength(
+      1,
+    );
   });
 
   it("keeps two blank-line-separated paragraphs as TWO paragraph blocks", () => {

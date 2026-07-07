@@ -720,7 +720,8 @@ export function buildShunnDoc(
           }),
         );
       }
-      for (const para of shunnPlainBlocks(parseBlocks(beautify(sc.prose ?? "")))) children.push(para);
+      for (const para of shunnPlainBlocks(parseBlocks(beautify(sc.prose ?? ""))))
+        children.push(para);
     });
   }
 
