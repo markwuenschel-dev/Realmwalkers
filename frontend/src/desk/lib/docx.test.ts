@@ -6,6 +6,7 @@ import {
   buildManuscriptDoc,
   buildManuscriptFrom,
   buildManuscriptMarkdown,
+  buildShunnDoc,
   formatInterfaceShunnHeader,
   manuscriptHasProse,
   manuscriptWordCount,
@@ -113,6 +114,31 @@ describe("buildManuscriptMarkdown", () => {
   it("records draft flag", () => {
     const md = buildManuscriptMarkdown(sampleManuscript(), { draft: true });
     expect(md).toContain("draft: true");
+  });
+});
+
+describe("day/date markers in the export path", () => {
+  const dayMs = (): ManuscriptOut => ({
+    book_id: "b1",
+    title: "T",
+    chapters: [
+      {
+        chapter_no: 1,
+        title: null,
+        pov: "X",
+        kind: "chapter",
+        scenes: [{ scene_no: 1, prose: "Day 3\n\nI woke on the cold stone floor." }],
+      },
+    ],
+  });
+
+  it("both DOCX builders render a manuscript containing a day marker", () => {
+    expect(buildManuscriptDoc(dayMs())).toBeTruthy();
+    expect(buildShunnDoc(dayMs(), "A. Author", 8)).toBeTruthy();
+  });
+
+  it("keeps the day marker verbatim in the raw-source Markdown export", () => {
+    expect(buildManuscriptMarkdown(dayMs())).toContain("Day 3");
   });
 });
 

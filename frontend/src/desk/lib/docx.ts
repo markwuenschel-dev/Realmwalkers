@@ -49,6 +49,31 @@ const TONE_COLOR: Record<Tone, string> = {
   bad: "A23A52",
 };
 
+// Day/date marker divider: the litRPG `time` surface accent for the label, a muted rule glyph flanking it.
+const TIME_ACCENT = "B45309";
+const TIME_RULE = "9C9C9C";
+
+/** A centered rule with the day/date label sitting on it — `⸻  DAY 3  ⸻`. */
+function timeMarkerPara(label: string): Paragraph {
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 260, after: 260 },
+    children: [
+      new TextRun({ text: "⸻  ", color: TIME_RULE, size: 22 }),
+      new TextRun({
+        text: label,
+        bold: true,
+        allCaps: true,
+        characterSpacing: 30,
+        color: TIME_ACCENT,
+        font: "Georgia",
+        size: 20,
+      }),
+      new TextRun({ text: "  ⸻", color: TIME_RULE, size: 22 }),
+    ],
+  });
+}
+
 const HEADINGS = [
   HeadingLevel.HEADING_1,
   HeadingLevel.HEADING_2,
@@ -335,6 +360,9 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
     switch (b.kind) {
       case "heading":
         out.push(new Paragraph({ heading: HEADINGS[b.level - 1], children: inlineRuns(b.text) }));
+        break;
+      case "time":
+        out.push(timeMarkerPara(b.label));
         break;
       case "ul":
         for (const it of b.items)
@@ -649,6 +677,10 @@ function shunnPlainBlocks(blocks: ProseBlock[]): Paragraph[] {
             spacing: { before: 120, ...DOUBLE },
           }),
         );
+        break;
+      case "time":
+        // Shunn stays format-plain: a centered label, no rule glyph or colour.
+        out.push(shunnCenter(b.label.toUpperCase(), { indent: undefined }));
         break;
       case "ul":
         for (const it of b.items) out.push(shunnBody(`- ${it.replace(/\s+/g, " ").trim()}`));

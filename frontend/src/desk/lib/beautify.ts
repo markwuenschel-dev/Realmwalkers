@@ -9,7 +9,7 @@
 // re-punctuated. For agent prose (already one line per blank-line-separated paragraph) the re-flow is
 // a no-op; only punctuation is normalized.
 
-import { BOX, BQ, FENCE, FENCE_CLOSE, HEADING, HR, OL, UL } from "../prose";
+import { BOX, BQ, FENCE, FENCE_CLOSE, HEADING, HR, OL, timeMarker, UL } from "../prose";
 
 const ESCAPABLE = new Set("\\`*_{}[]()#+-.!&<>|~\"'/:;=?@^$%".split(""));
 
@@ -89,7 +89,22 @@ export function beautify(input: string): string {
     if (isStructuralRun(run)) {
       segments.push(run.join("\n")); // stat window / list / table / heading / rule / callout — verbatim
     } else {
-      segments.push(cleanProse(run.join(" ").replace(/\s+/g, " ").trim())); // re-flow + typeset one paragraph
+      // Re-flow + typeset one paragraph — but a standalone day/date marker line stays on its
+      // own line (a marker butted against body text, with no blank line, still reads as a divider).
+      let buf: string[] = [];
+      const flushBuf = () => {
+        if (buf.length) segments.push(cleanProse(buf.join(" ").replace(/\s+/g, " ").trim()));
+        buf = [];
+      };
+      for (const ln of run) {
+        if (timeMarker(ln)) {
+          flushBuf();
+          segments.push(cleanProse(ln.trim())); // typeset the label (`Day 3 -- Dusk` → `Day 3 — Dusk`)
+        } else {
+          buf.push(ln);
+        }
+      }
+      flushBuf();
     }
   }
   return segments.join("\n\n");

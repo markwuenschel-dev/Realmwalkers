@@ -101,6 +101,7 @@ export type InterfaceSpec = {
 export type ProseBlock =
   | { kind: "p"; text: string; n: number }
   | { kind: "heading"; level: number; text: string }
+  | { kind: "time"; label: string } // in-prose day/date marker → centered rule + label
   | { kind: "ul"; items: string[] }
   | { kind: "ol"; items: string[] }
   | { kind: "callout"; tone: Tone; title: string | null; lines: string[] }
@@ -120,6 +121,44 @@ export const HR = /^\s*([-*_])(?:\s*\1){2,}\s*$/; // ---, ***, ___, - - -
 export const UL = /^\s*[-*+]\s+(.*)$/;
 export const OL = /^\s*\d+[.)]\s+(.*)$/;
 export const BQ = /^\s*>\s?(.*)$/;
+
+// ── In-prose day/date markers ────────────────────────────────────────────────
+// A standalone time marker (a novel's "Day 47" / "March 3rd" section divider) is
+// lifted out of body prose and rendered as a centered rule + label. Four accepted
+// forms — every heuristic form must be the WHOLE (short) line so ordinary prose is
+// never captured; the explicit @day/@date/@time tag is the unambiguous escape hatch
+// (and the only way to mark an in-world calendar the heuristics can't know):
+//   • explicit tag:  @day 3        @date March 3rd        @time Dusk
+//   • day counter:   Day 47        Day 3 — Morning
+//   • calendar date: March 3rd, 1998    Monday — Dusk    the 4th of Emberfall
+export const TIME_TAG = /^@(day|date|time)\b\s*(.*)$/i;
+const MONTHS =
+  "January|February|March|April|May|June|July|August|September|October|November|December";
+const WEEKDAYS = "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday";
+const DASH_SUFFIX = "(?:\\s*[—–-]\\s*\\S.*)?"; // optional " — time-of-day"; dash only (a comma keeps prose)
+const DAY_COUNTER = new RegExp(`^Day\\s+\\d+${DASH_SUFFIX}$`, "i");
+const CALENDAR = new RegExp(
+  "^(?:" +
+    `(?:${MONTHS})\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,?\\s+\\d{1,4})?` + // March 3rd, 1998
+    `|(?:${WEEKDAYS})${DASH_SUFFIX}` + // Monday — Dusk
+    `|(?:the\\s+)?\\d{1,2}(?:st|nd|rd|th)\\s+of\\s+[A-Za-z][\\w'’-]*` + // the 4th of Emberfall
+    ")$",
+  "i",
+);
+
+/** The reader-facing label if `line` is a standalone day/date marker, else null. */
+export function timeMarker(line: string): string | null {
+  const t = line.trim();
+  const tag = TIME_TAG.exec(t);
+  if (tag) {
+    const body = tag[2].trim();
+    if (!body) return null;
+    // "@day 3" → "Day 3"; "@date …" / "@time …" keep their body verbatim.
+    return tag[1].toLowerCase() === "day" && /^\d/.test(body) ? `Day ${body}` : body;
+  }
+  if (t.length > 48) return null; // markers are terse; a length cap guards the heuristic forms
+  return DAY_COUNTER.test(t) || CALENDAR.test(t) ? t : null;
+}
 
 // GitHub admonitions + the Realmwalkers status tags → a callout tone (DESIGN export note §2/§5).
 const ADMON: Record<string, Tone> = {
@@ -381,6 +420,15 @@ export function parseBlocks(text: string): ProseBlock[] {
       const [items, next] = collect(lines, i, OL);
       i = next;
       out.push({ kind: "ol", items });
+      continue;
+    }
+
+    // standalone day/date marker → its own centered-rule block (checked last, so any
+    // structural line above wins and prose is only diverted on a whole-line match)
+    const marker = timeMarker(line);
+    if (marker) {
+      out.push({ kind: "time", label: marker });
+      i++;
       continue;
     }
 

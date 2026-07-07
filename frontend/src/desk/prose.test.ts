@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBlocks, parseInline, parseInterfaceSpec } from "./prose";
+import { parseBlocks, parseInline, parseInterfaceSpec, timeMarker } from "./prose";
 
 describe("parseInterfaceSpec", () => {
   it("parses typed key=value pairs", () => {
@@ -87,5 +87,53 @@ describe("parseInline", () => {
       { t: "text", s: " and " },
       { t: "code", s: "code" },
     ]);
+  });
+});
+
+describe("timeMarker", () => {
+  it("detects day counters, with or without a time-of-day suffix", () => {
+    expect(timeMarker("Day 2")).toBe("Day 2");
+    expect(timeMarker("Day 47")).toBe("Day 47");
+    expect(timeMarker("Day 3 — Morning")).toBe("Day 3 — Morning");
+    expect(timeMarker("Day 12 - Dusk")).toBe("Day 12 - Dusk");
+  });
+
+  it("detects calendar dates and in-world 'Nth of X' forms", () => {
+    expect(timeMarker("March 3rd")).toBe("March 3rd");
+    expect(timeMarker("March 3rd, 1998")).toBe("March 3rd, 1998");
+    expect(timeMarker("Monday")).toBe("Monday");
+    expect(timeMarker("Monday — Dusk")).toBe("Monday — Dusk");
+    expect(timeMarker("the 4th of Emberfall")).toBe("the 4th of Emberfall");
+  });
+
+  it("honours the explicit @day / @date / @time escape hatch", () => {
+    expect(timeMarker("@day 3")).toBe("Day 3");
+    expect(timeMarker("@day 3 — Morning")).toBe("Day 3 — Morning");
+    expect(timeMarker("@date The Long Dark of Second Winter")).toBe(
+      "The Long Dark of Second Winter",
+    );
+    expect(timeMarker("@time Just before dawn")).toBe("Just before dawn");
+    expect(timeMarker("@day")).toBeNull(); // bare tag with no body is not a marker
+  });
+
+  it("never diverts ordinary prose that merely starts date-like", () => {
+    expect(timeMarker("Day 3, and then everything changed forever.")).toBeNull(); // comma keeps prose
+    expect(timeMarker("Day 3 was the longest of my life.")).toBeNull();
+    expect(timeMarker("March forward, soldier.")).toBeNull();
+    expect(timeMarker("May I have a word with you?")).toBeNull();
+    expect(timeMarker("A full paragraph of prose about Monday morning traffic jams.")).toBeNull();
+  });
+});
+
+describe("parseBlocks — day/date markers", () => {
+  it("lifts a standalone marker into its own time block", () => {
+    const blocks = parseBlocks("Day 3\n\nI woke on the cold stone floor.");
+    expect(blocks[0]).toEqual({ kind: "time", label: "Day 3" });
+    expect(blocks[1].kind).toBe("p");
+  });
+
+  it("leaves a date-like sentence as an ordinary paragraph", () => {
+    const blocks = parseBlocks("Day 3 was the longest of my life.");
+    expect(blocks[0].kind).toBe("p");
   });
 });

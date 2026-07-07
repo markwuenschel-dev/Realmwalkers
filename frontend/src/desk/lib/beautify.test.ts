@@ -80,6 +80,26 @@ describe("beautify → parseBlocks (the paragraph structure the export consumes)
   });
 });
 
+describe("beautify — day/date markers", () => {
+  it("keeps a standalone marker as its own time block, not body prose", () => {
+    const blocks = parseBlocks(beautify("Day 3\n\nI woke on the cold stone floor."));
+    expect(blocks[0]).toEqual({ kind: "time", label: "Day 3" });
+    expect(blocks.some((b) => b.kind === "p")).toBe(true);
+  });
+
+  it("splits a marker butted against body text (no blank line) instead of re-flowing it in", () => {
+    const blocks = parseBlocks(beautify("Day 2\nIn that fleeting moment, I existed."));
+    expect(blocks[0]).toEqual({ kind: "time", label: "Day 2" });
+    expect(blocks[1].kind).toBe("p");
+    if (blocks[1].kind === "p") expect(blocks[1].text).toBe("In that fleeting moment, I existed.");
+  });
+
+  it("typesets a marker label and resolves the @day escape hatch", () => {
+    const blocks = parseBlocks(beautify("@day 3 -- Dusk"));
+    expect(blocks[0]).toEqual({ kind: "time", label: "Day 3 — Dusk" });
+  });
+});
+
 describe("beautify — mixed manuscript document", () => {
   it("re-flows prose but preserves an interspersed stat window", () => {
     const doc =
