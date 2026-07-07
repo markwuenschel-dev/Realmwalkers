@@ -275,6 +275,22 @@ function ProseBlocks({
                 style={css("border:none;border-top:1px solid var(--line);margin:1.8em 0")}
               />
             );
+          case "time":
+            // Centered rule + label — a day/date section divider (matches the DOCX export).
+            return (
+              <div key={i} style={css("display:flex;align-items:center;gap:.9em;margin:1.9em 0")}>
+                <span style={css("flex:1;border-top:1px solid var(--line)")} />
+                <span
+                  style={css(
+                    "font-family:var(--display);font-size:.76em;font-weight:600;" +
+                      "letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;color:#B45309",
+                  )}
+                >
+                  {b.label}
+                </span>
+                <span style={css("flex:1;border-top:1px solid var(--line)")} />
+              </div>
+            );
           case "stat":
             return <StatWindow key={i} lines={b.lines} />;
           case "code":
