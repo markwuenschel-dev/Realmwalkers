@@ -7,6 +7,7 @@ import { wordCount } from "../lib/format";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import ProseBlocks from "../components/ProseBlocks";
+import { beautify } from "../lib/beautify";
 import { Button, Chip } from "../components/ui";
 import type { ManuscriptOut } from "../api/types";
 
@@ -389,7 +390,7 @@ export default function ManuscriptScreen() {
                         ⁂
                       </div>
                     )}
-                    <ProseBlocks text={sc.prose ?? ""} proseSize={proseSize} />
+                    <ProseBlocks text={beautify(sc.prose ?? "")} proseSize={proseSize} />
                   </Fragment>
                 ))}
               </div>

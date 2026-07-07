@@ -110,14 +110,16 @@ export type ProseBlock =
   | { kind: "interface"; spec: InterfaceSpec; lines: string[] } // ``` + @interface directive
   | { kind: "table"; head: string[]; rows: string[][]; align: Align[] };
 
-const BOX = /^\s*[┌│├└]/; // first non-space char of a rendered stat-window line
-const FENCE = /^\s*```/;
-const FENCE_CLOSE = /^\s*```\s*$/;
-const HEADING = /^(#{1,6})\s+(.*)$/;
-const HR = /^\s*([-*_])(?:\s*\1){2,}\s*$/; // ---, ***, ___, - - -
-const UL = /^\s*[-*+]\s+(.*)$/;
-const OL = /^\s*\d+[.)]\s+(.*)$/;
-const BQ = /^\s*>\s?(.*)$/;
+// Exported so the manuscript `beautify()` pre-parse (lib/beautify.ts) classifies blocks with the SAME
+// structural detection this parser uses — so it never unwraps a stat window / list / table / fence.
+export const BOX = /^\s*[┌│├└]/; // first non-space char of a rendered stat-window line
+export const FENCE = /^\s*```/;
+export const FENCE_CLOSE = /^\s*```\s*$/;
+export const HEADING = /^(#{1,6})\s+(.*)$/;
+export const HR = /^\s*([-*_])(?:\s*\1){2,}\s*$/; // ---, ***, ___, - - -
+export const UL = /^\s*[-*+]\s+(.*)$/;
+export const OL = /^\s*\d+[.)]\s+(.*)$/;
+export const BQ = /^\s*>\s?(.*)$/;
 
 // GitHub admonitions + the Realmwalkers status tags → a callout tone (DESIGN export note §2/§5).
 const ADMON: Record<string, Tone> = {
