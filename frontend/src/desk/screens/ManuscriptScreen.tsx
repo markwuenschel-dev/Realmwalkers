@@ -9,7 +9,9 @@ import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import ProseBlocks from "../components/ProseBlocks";
 import { beautify } from "../lib/beautify";
 import { Button, Chip } from "../components/ui";
-import type { ManuscriptOut } from "../api/types";
+import type { ManuscriptOut, ManuscriptPart } from "../api/types";
+import { chapterLabel, toRoman } from "../manuscript/labels";
+import { bookNumberLabel } from "../manuscript/metadata";
 
 // Shunn standard manuscript format counts ~250 words to a page.
 const WORDS_PER_PAGE = 250;
@@ -103,42 +105,65 @@ export default function ManuscriptScreen() {
 
   const compiled = (): ManuscriptOut | null => (active ? { ...active, chapters } : null);
 
-  // Reader-facing chapter label: non-'chapter' kinds show their own name (Prologue/Interlude/…) with
-  // no number; a plain chapter stays "Chapter N".
-  const chapterLabel = (ch: { kind?: string | null; chapter_no: number }): string => {
-    const named: Record<string, string> = {
-      prologue: "Prologue",
-      interlude: "Interlude",
-      epilogue: "Epilogue",
-      front_matter: "Front Matter",
-      back_matter: "Back Matter",
-    };
-    return ch.kind && ch.kind !== "chapter"
-      ? (named[ch.kind] ?? ch.kind)
-      : `Chapter ${ch.chapter_no}`;
-  };
+  const modeSubtitle = isDraft
+    ? "working draft — all scenes, including unapproved"
+    : "the approved manuscript, in reading order";
+
+  // Reader label + part lookup now come from the shared export contract — the on-screen reader, the
+  // three emitters, and preflight all agree on how a Prologue or a Part is titled.
+  const partById = useMemo(() => new Map((active?.parts ?? []).map((p) => [p.id, p])), [active]);
+
+  // De-hardcoded book identity line (was a literal "Book One"): series + spelled-out book number from
+  // the book's metadata. Empty for a book with no series identity.
+  const bookLine = [active?.series?.toUpperCase(), bookNumberLabel(active?.book_no ?? undefined)]
+    .filter(Boolean)
+    .join(" · ");
+
+  // Reading-order render list: Part dividers interleaved with their chapters (only prose-bearing
+  // chapters render). Mirrors the spine the emitters walk, so the on-screen reader and the exports agree
+  // on where a Part opens.
+  type RenderItem =
+    | { kind: "part"; part: ManuscriptPart }
+    | { kind: "chapter"; ch: ManuscriptOut["chapters"][number] };
+  const renderItems = useMemo<RenderItem[]>(() => {
+    const items: RenderItem[] = [];
+    let lastPart: string | null = null;
+    for (const ch of active?.chapters ?? []) {
+      if (!ch.scenes.some((s) => (s.prose ?? "").trim())) continue;
+      const pid = ch.part_id ?? null;
+      if (pid && pid !== lastPart) {
+        const part = partById.get(pid);
+        if (part) items.push({ kind: "part", part });
+      }
+      lastPart = pid;
+      items.push({ kind: "chapter", ch });
+    }
+    return items;
+  }, [active, partById]);
 
   const exportMarkdown = async () => {
     const ms = compiled();
     if (!ms) return;
-    const exp = await import("../lib/docx");
-    exp.saveMarkdown(
-      exp.buildManuscriptMarkdown(ms, { draft: isDraft }),
-      exp.markdownFilename(titleStem + draftSuffix),
-    );
+    const { exportAndSave } = await import("../manuscript/exportActions");
+    await exportAndSave(ms, {
+      preset: "editorial_review",
+      filenameStem: titleStem + draftSuffix,
+      draft: isDraft,
+      archival: true,
+    });
   };
 
   const exportDocx = async () => {
     const ms = compiled();
     if (!ms) return;
-    const docx = await import("../lib/docx");
-    await docx.saveDocx(
-      docx.buildManuscriptDoc(
-        ms,
-        isDraft ? "working draft — all scenes, including unapproved" : undefined,
-      ),
-      docx.docxFilename(titleStem + draftSuffix),
-    );
+    const { exportAndSave } = await import("../manuscript/exportActions");
+    await exportAndSave(ms, {
+      preset: "reader_proof",
+      filenameStem: titleStem + draftSuffix,
+      draft: isDraft,
+      renderSubtitle: modeSubtitle,
+      archival: true,
+    });
   };
 
   const exportShunn = async () => {
@@ -146,11 +171,38 @@ export default function ManuscriptScreen() {
     if (!ms) return;
     const name = resolveAuthorName(author, saveAuthor);
     if (!name) return;
-    const docx = await import("../lib/docx");
-    await docx.saveDocx(
-      docx.buildShunnDoc(ms, name, totalWords),
-      docx.docxFilename(`${titleStem}_shunn${draftSuffix}`),
-    );
+    const { exportAndSave } = await import("../manuscript/exportActions");
+    // Shunn is submission-safe: preflight can BLOCK on errors. Try once honoring the gate; if blocked,
+    // show what failed and let the human force an explicit override.
+    const result = await exportAndSave(ms, {
+      preset: "submission_shunn",
+      filenameStem: `${titleStem}_shunn${draftSuffix}`,
+      author: name,
+      draft: isDraft,
+      archival: true,
+    });
+    if (result.preflight.blocked) {
+      const errs = result.preflight.issues.filter((i) => i.severity === "error");
+      const detail = errs
+        .slice(0, 8)
+        .map((i) => `• ${i.location?.label ? `${i.location.label}: ` : ""}${i.message}`)
+        .join("\n");
+      const more = errs.length > 8 ? `\n…and ${errs.length - 8} more.` : "";
+      if (
+        confirm(
+          `Shunn preflight found ${errs.length} submission-blocking issue${errs.length === 1 ? "" : "s"}:\n\n${detail}${more}\n\nExport anyway?`,
+        )
+      ) {
+        await exportAndSave(ms, {
+          preset: "submission_shunn",
+          filenameStem: `${titleStem}_shunn${draftSuffix}`,
+          author: name,
+          draft: isDraft,
+          override: true,
+          archival: true,
+        });
+      }
+    }
   };
 
   return (
@@ -299,13 +351,15 @@ export default function ManuscriptScreen() {
             "text-align:center;margin-bottom:64px;padding-bottom:40px;border-bottom:1px solid var(--line)",
           )}
         >
-          <div
-            style={css(
-              "font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:20px",
-            )}
-          >
-            Book One
-          </div>
+          {bookLine ? (
+            <div
+              style={css(
+                "font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:20px",
+              )}
+            >
+              {bookLine}
+            </div>
+          ) : null}
           <h1
             style={css(
               "margin:0 0 18px;font-family:var(--display);font-weight:500;font-size:46px;letter-spacing:-.01em;color:var(--ink)",
@@ -334,11 +388,52 @@ export default function ManuscriptScreen() {
           </p>
         )}
 
-        {chapters.map((ch) => {
+        {renderItems.map((item) => {
+          if (item.kind === "part") {
+            const part = item.part;
+            return (
+              <div
+                key={`part-${part.id}`}
+                className="ms-part"
+                style={css(
+                  "text-align:center;margin:16px 0 60px;padding-bottom:28px;border-bottom:1px solid var(--line)",
+                )}
+              >
+                <div
+                  style={css(
+                    "font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent);margin-bottom:12px",
+                  )}
+                >
+                  Part {toRoman(part.part_no)}
+                </div>
+                <div
+                  style={css(
+                    "font-family:var(--display);font-weight:500;font-size:34px;color:var(--ink)",
+                  )}
+                >
+                  {part.title}
+                </div>
+                {part.subtitle ? (
+                  <div
+                    style={css(
+                      "font-family:var(--display);font-style:italic;font-size:16px;color:var(--dim);margin-top:8px",
+                    )}
+                  >
+                    {part.subtitle}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
+          const ch = item.ch;
           const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
           if (scenes.length === 0) return null;
           return (
-            <section key={ch.chapter_no} className="ms-chapter" style={css("margin-bottom:54px")}>
+            <section
+              key={`ch-${ch.chapter_no}`}
+              className="ms-chapter"
+              style={css("margin-bottom:54px")}
+            >
               {/* chapter header — spans the full measure, even in two-column */}
               <div style={css("text-align:center;margin-bottom:30px")}>
                 <div

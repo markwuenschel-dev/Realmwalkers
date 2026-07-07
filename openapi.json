@@ -620,6 +620,60 @@
         }
       }
     },
+    "/books/{book_id}": {
+      "patch": {
+        "tags": [
+          "books"
+        ],
+        "summary": "Update Book",
+        "description": "Update a book's title/premise and export/provenance metadata. Only provided fields are written.",
+        "operationId": "update_book_books__book_id__patch",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/books/{book_id}/manuscript": {
       "get": {
         "tags": [
@@ -1353,6 +1407,254 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DraftScheduleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{book_id}/parts": {
+      "get": {
+        "tags": [
+          "parts"
+        ],
+        "summary": "List Parts",
+        "operationId": "list_parts_books__book_id__parts_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PartOut"
+                  },
+                  "title": "Response List Parts Books  Book Id  Parts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "parts"
+        ],
+        "summary": "Create Part",
+        "operationId": "create_part_books__book_id__parts_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parts/{part_id}": {
+      "patch": {
+        "tags": [
+          "parts"
+        ],
+        "summary": "Update Part",
+        "operationId": "update_part_parts__part_id__patch",
+        "parameters": [
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Part Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "parts"
+        ],
+        "summary": "Delete Part",
+        "description": "Delete a Part and unassign its chapters (part_id -> NULL). Prose is never touched: a Part is a\ngrouping layer, so removing it ungroups the chapters, it does not delete them.",
+        "operationId": "delete_part_parts__part_id__delete",
+        "parameters": [
+          {
+            "name": "part_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Part Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chapters/{chapter_id}/part": {
+      "put": {
+        "tags": [
+          "parts"
+        ],
+        "summary": "Assign Chapter Part",
+        "description": "Assign a chapter to a Part, or unassign it (`part_id: null`). The Part must belong to the same\nbook as the chapter. Returns the assigned Part, or null when unassigned.",
+        "operationId": "assign_chapter_part_chapters__chapter_id__part_put",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChapterPartAssignIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PartOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Assign Chapter Part Chapters  Chapter Id  Part Put"
                 }
               }
             }
@@ -9933,6 +10235,39 @@
               }
             ],
             "title": "Premise"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series"
+          },
+          "book_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book No"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
           }
         },
         "type": "object",
@@ -9940,7 +10275,7 @@
           "title"
         ],
         "title": "BookIn",
-        "description": "POST body to create a book."
+        "description": "POST body to create a book. Export/provenance metadata is optional and, when omitted, stays\nNULL \u2014 a new book does NOT inherit any series identity implicitly (see models.Book)."
       },
       "BookOut": {
         "properties": {
@@ -9963,6 +10298,39 @@
               }
             ],
             "title": "Premise"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series"
+          },
+          "book_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book No"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
           },
           "created_at": {
             "type": "string",
@@ -10062,6 +10430,68 @@
         "type": "object",
         "title": "BookTelemetryOut",
         "description": "Global telemetry for a book: overall totals plus comparison rollups across chapters, stages,\nand models \u2014 the cross-chapter/scene view the global Telemetry tab renders."
+      },
+      "BookUpdateIn": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "premise": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premise"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series"
+          },
+          "book_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book No"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "title": "BookUpdateIn",
+        "description": "PATCH body for a book's export/provenance metadata. Every field optional; only provided fields\nare written (a field set to None cannot be distinguished from 'absent' here, so the router treats\nunset as no-op and an explicit clear is a separate concern the UI doesn't need yet)."
       },
       "CancelJobOut": {
         "properties": {
@@ -10627,6 +11057,18 @@
               }
             ],
             "title": "Epigraph"
+          },
+          "part_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Id"
           }
         },
         "type": "object",
@@ -10638,6 +11080,25 @@
           "status"
         ],
         "title": "ChapterOut"
+      },
+      "ChapterPartAssignIn": {
+        "properties": {
+          "part_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Id"
+          }
+        },
+        "type": "object",
+        "title": "ChapterPartAssignIn",
+        "description": "PUT body to (re)assign a chapter to a Part, or unassign it. `part_id: null` clears the grouping.\nThe part must belong to the same book as the chapter (the router enforces this)."
       },
       "ChapterPipelineOut": {
         "properties": {
@@ -12979,6 +13440,18 @@
             ],
             "title": "Epigraph"
           },
+          "part_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Id"
+          },
           "scenes": {
             "items": {
               "$ref": "#/components/schemas/ManuscriptScene"
@@ -13006,6 +13479,47 @@
             "type": "string",
             "title": "Title"
           },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series"
+          },
+          "book_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book No"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptPart"
+            },
+            "type": "array",
+            "title": "Parts",
+            "default": []
+          },
           "chapters": {
             "items": {
               "$ref": "#/components/schemas/ManuscriptChapter"
@@ -13021,7 +13535,43 @@
           "title"
         ],
         "title": "ManuscriptOut",
-        "description": "The approved manuscript, assembled in reading order (latest approved version per scene)."
+        "description": "The approved manuscript, assembled in reading order (latest approved version per scene).\n\nFlat by design: `parts[]` is a sibling list and each chapter references its part via `part_id`,\nrather than nesting chapters inside parts on the wire. The normalized tree is built on the frontend\n(ManuscriptSpine), keeping this endpoint backward-compatible (a book with no parts emits `parts: []`\nand every chapter's `part_id` is null). Book export/provenance metadata rides along so the frontend\nExportMetadata resolver has an authoritative source and the emitters never hard-code project identity."
+      },
+      "ManuscriptPart": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "part_no": {
+            "type": "integer",
+            "title": "Part No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "part_no",
+          "title"
+        ],
+        "title": "ManuscriptPart",
+        "description": "A Part in export order. Reader labels (\"Part One\") are derived from `part_no` client-side by the\nshared label contract, never stored here."
       },
       "ManuscriptScene": {
         "properties": {
@@ -13395,6 +13945,123 @@
         "type": "object",
         "title": "PacketUpdateIn",
         "description": "PUT body to adjudicate/edit a proposed packet. Only provided fields are applied. The human\nedits the body, clears open questions, and may raise the confidence after reviewing flags."
+      },
+      "PartCreateIn": {
+        "properties": {
+          "part_no": {
+            "type": "integer",
+            "title": "Part No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "part_no",
+          "title"
+        ],
+        "title": "PartCreateIn",
+        "description": "POST body to create a Part within a book. `part_no` orders parts and drives the reader label;\nit must be unique within the book (the router returns 409 on collision)."
+      },
+      "PartOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "part_no": {
+            "type": "integer",
+            "title": "Part No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "book_id",
+          "part_no",
+          "title",
+          "created_at"
+        ],
+        "title": "PartOut"
+      },
+      "PartUpdateIn": {
+        "properties": {
+          "part_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part No"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          }
+        },
+        "type": "object",
+        "title": "PartUpdateIn",
+        "description": "PATCH body for a Part. Every field optional; only provided fields are written."
       },
       "PipelineAgentRunOut": {
         "properties": {

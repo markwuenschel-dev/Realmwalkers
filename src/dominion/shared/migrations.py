@@ -68,6 +68,15 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS production_run_id UUID",
     # Approve & apply for human-approval repair tasks: when the human explicitly approved execution.
     "ALTER TABLE repair_tasks ADD COLUMN IF NOT EXISTS human_approved_at TIMESTAMPTZ",
+    # Renderer-neutral export foundation: chapters can group into a Part (the new `parts` table is
+    # provisioned by create_all; only this FK column needs adding to the existing chapters table), and
+    # books carry export/provenance metadata so the emitters stop hard-coding project identity. The
+    # metadata columns are added WITHOUT a server DEFAULT so new books land NULL (no implicit Dominion
+    # identity); pre-existing Dominion rows are backfilled by the timestamp-guarded UPDATEs below.
+    "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS part_id UUID",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS series TEXT",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS book_no INTEGER",
+    "ALTER TABLE books ADD COLUMN IF NOT EXISTS subtitle TEXT",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -85,6 +94,16 @@ _BACKFILLS: tuple[str, ...] = (
     # inside artifact bodies keep the old spelling forever, so readers tolerate both.
     "UPDATE issues SET severity = 'block' WHERE severity = 'hard'",
     "UPDATE critiques SET severity = 'block' WHERE severity = 'hard'",
+    # Export-metadata backfill: stamp the Dominion identity onto books that predate the metadata columns,
+    # WITHOUT stamping it onto books created afterward. The IS NULL gate alone can't do that here — new
+    # books also carry NULL (no server default) and would be wrongly backfilled on the next boot. So the
+    # guard is a FIXED created_at cutoff (the migration's authoring date): every existing book is older
+    # than it and gets the Dominion values once; any book created after the cutoff never matches, so a
+    # standalone/new-series book keeps its NULL identity. Idempotent (IS NULL fails once filled).
+    """UPDATE books SET series = 'Dominion Realm'
+       WHERE series IS NULL AND created_at < TIMESTAMPTZ '2026-07-07 00:00:00+00'""",
+    """UPDATE books SET book_no = 1
+       WHERE book_no IS NULL AND created_at < TIMESTAMPTZ '2026-07-07 00:00:00+00'""",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
@@ -103,6 +122,8 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_scenes_chapter_no_version ON scenes (chapter_id, scene_no, version)",
     "CREATE INDEX IF NOT EXISTS ix_scenes_status ON scenes (status)",
     "CREATE INDEX IF NOT EXISTS ix_chapters_book_id ON chapters (book_id)",
+    "CREATE INDEX IF NOT EXISTS ix_chapters_part_id ON chapters (part_id)",
+    "CREATE INDEX IF NOT EXISTS ix_parts_book_id ON parts (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_beats_chapter_id ON beats (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_critiques_scene_id ON critiques (scene_id)",
     "CREATE INDEX IF NOT EXISTS ix_scene_packets_chapter_no ON scene_packets (chapter_id, scene_no)",

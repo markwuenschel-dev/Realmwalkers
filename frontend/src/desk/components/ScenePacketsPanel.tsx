@@ -261,6 +261,7 @@ export function ScenePacketsPanel({
     setExportingScene({ packetId, kind });
     try {
       const exp = await import("../lib/docx");
+      const { exportAndSave } = await import("../manuscript/exportActions");
       const title = `Chapter ${chapterMeta?.chapter_no ?? "?"} · Scene ${scene.scene_no}`;
       const ms = exp.buildManuscriptFrom(title, [
         {
@@ -272,16 +273,23 @@ export function ScenePacketsPanel({
       ]);
       const stem = `scene_ch${chapterMeta?.chapter_no ?? "x"}_s${scene.scene_no}_v${scene.version}`;
       if (kind === "md") {
-        exp.saveMarkdown(exp.buildManuscriptMarkdown(ms), exp.markdownFilename(stem));
+        await exportAndSave(ms, { preset: "editorial_review", filenameStem: stem, override: true });
       } else if (kind === "docx") {
-        await exp.saveDocx(exp.buildManuscriptDoc(ms, title), exp.docxFilename(stem));
+        await exportAndSave(ms, {
+          preset: "reader_proof",
+          filenameStem: stem,
+          renderSubtitle: title,
+          override: true,
+        });
       } else {
         const name = resolveAuthorName(author, saveAuthor);
         if (!name) return;
-        await exp.saveDocx(
-          exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
-          exp.docxFilename(`${stem}_shunn`),
-        );
+        await exportAndSave(ms, {
+          preset: "submission_shunn",
+          filenameStem: `${stem}_shunn`,
+          author: name,
+          override: true,
+        });
       }
     } finally {
       setExportingScene(null);

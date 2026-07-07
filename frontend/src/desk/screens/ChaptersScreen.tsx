@@ -21,8 +21,10 @@ import type {
   ChapterPipelineOut,
   ChapterUpdateIn,
   ManuscriptChapter,
+  PartOut,
   SceneOut,
 } from "../api/types";
+import { partLabel } from "../manuscript/labels";
 import type { ExportKind } from "../lib/docx";
 
 const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = {
@@ -74,6 +76,42 @@ export default function ChaptersScreen() {
   useEffect(() => {
     void loadOverview();
   }, [loadOverview]);
+
+  // Parts (Book → Part → Chapter grouping). Fetched separately from the manuscript compile because the
+  // manuscript only carries parts that already own a rendered chapter, whereas the editor must list
+  // every part (including a freshly-created, still-empty one) so chapters can be assigned to it.
+  const [parts, setParts] = useState<PartOut[]>([]);
+  const loadParts = useCallback(async () => {
+    if (!data.bookId) return;
+    try {
+      setParts(await api.listParts(data.bookId));
+    } catch {
+      setParts((prev) => prev);
+    }
+  }, [data.bookId]);
+  useEffect(() => {
+    void loadParts();
+  }, [loadParts]);
+
+  const createPart = async (title: string) => {
+    if (!data.bookId || !title.trim()) return;
+    const nextNo = parts.reduce((m, p) => Math.max(m, p.part_no), 0) + 1;
+    await api.createPart(data.bookId, { part_no: nextNo, title: title.trim() });
+    await loadParts();
+  };
+  const renamePart = async (partId: string, title: string) => {
+    if (!title.trim()) return;
+    await api.updatePart(partId, { title: title.trim() });
+    await Promise.all([loadParts(), data.refreshManuscript()]);
+  };
+  const removePart = async (partId: string) => {
+    await api.deletePart(partId);
+    await Promise.all([loadParts(), data.refreshAll()]);
+  };
+  const assignPart = async (chapterId: string, partId: string | null) => {
+    await api.assignChapterPart(chapterId, { part_id: partId });
+    await Promise.all([data.refreshAll(), data.refreshManuscript()]);
+  };
 
   // current state of each (chapter, scene) — derived once in the data layer. A latest row can only be
   // `superseded` when the scene was rejected (revisions create a newer version, so a superseded row is
@@ -130,24 +168,29 @@ export default function ChaptersScreen() {
     setExportingChapter({ id: c.id, kind });
     try {
       const exp = await import("../lib/docx");
+      const { exportAndSave } = await import("../manuscript/exportActions");
       const title = `Chapter ${c.chapter_no}${c.title ? `: ${c.title}` : ""}`;
       const ms = exp.buildManuscriptFrom(title, [mc]);
       const stem = `chapter_${c.chapter_no}${c.title ? `_${c.title}` : ""}`;
       if (kind === "md") {
-        exp.saveMarkdown(exp.buildManuscriptMarkdown(ms), exp.markdownFilename(stem));
+        await exportAndSave(ms, { preset: "editorial_review", filenameStem: stem, override: true });
       } else if (kind === "docx") {
         const bookTitle = data.books.find((b) => b.id === data.bookId)?.title;
-        await exp.saveDocx(
-          exp.buildManuscriptDoc(ms, bookTitle ? `from ${bookTitle}` : undefined),
-          exp.docxFilename(stem),
-        );
+        await exportAndSave(ms, {
+          preset: "reader_proof",
+          filenameStem: stem,
+          renderSubtitle: bookTitle ? `from ${bookTitle}` : undefined,
+          override: true,
+        });
       } else {
         const name = resolveAuthorName(author, saveAuthor);
         if (!name) return;
-        await exp.saveDocx(
-          exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
-          exp.docxFilename(`${stem}_shunn`),
-        );
+        await exportAndSave(ms, {
+          preset: "submission_shunn",
+          filenameStem: `${stem}_shunn`,
+          author: name,
+          override: true,
+        });
       }
     } finally {
       setExportingChapter(null);
@@ -275,6 +318,12 @@ export default function ChaptersScreen() {
 
         <Panel eyebrow="Pacing · per chapter" pad="20px 22px">
           <div style={css("display:flex;flex-direction:column;gap:18px")}>
+            <PartsManager
+              parts={parts}
+              onCreate={(t) => void createPart(t)}
+              onRename={(id, t) => void renamePart(id, t)}
+              onDelete={(id) => void removePart(id)}
+            />
             {data.chapters.length === 0 && (
               <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
                 <span style={css("font-family:var(--mono);font-size:12px;color:var(--dim)")}>
@@ -342,7 +391,9 @@ export default function ChaptersScreen() {
                     )}
                     <ChapterMetaControls
                       chapter={c}
+                      parts={parts}
                       onSave={(patch) => void data.updateChapter(c.id, patch)}
+                      onAssignPart={(partId) => void assignPart(c.id, partId)}
                     />
                     <div style={css("margin-top:8px")}>
                       {writeFor === c.id ? (
@@ -762,10 +813,14 @@ const KIND_OPTIONS: { value: string; label: string }[] = [
 // so neither re-runs the planner nor touches prose. Display-only downstream — ordering stays chapter_no.
 function ChapterMetaControls({
   chapter,
+  parts,
   onSave,
+  onAssignPart,
 }: {
   chapter: ChapterOut;
+  parts: PartOut[];
   onSave: (patch: ChapterUpdateIn) => void;
+  onAssignPart: (partId: string | null) => void;
 }) {
   const [editingEpigraph, setEditingEpigraph] = useState(false);
   const [draft, setDraft] = useState(chapter.epigraph ?? "");
@@ -799,6 +854,32 @@ function ChapterMetaControls({
           ))}
         </select>
       </label>
+      {parts.length > 0 && (
+        <label
+          style={css(
+            "display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)",
+          )}
+        >
+          part
+          <select
+            value={chapter.part_id ?? ""}
+            onChange={(e) => onAssignPart(e.target.value || null)}
+            title="Group this chapter under a Part (display-only; chapter numbering stays global)"
+            style={css(
+              "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11.5px;font-family:var(--ui);cursor:pointer",
+            )}
+          >
+            <option value="">No part</option>
+            {[...parts]
+              .sort((a, b) => a.part_no - b.part_no)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {partLabel(p)}
+                </option>
+              ))}
+          </select>
+        </label>
+      )}
       {editingEpigraph ? (
         <textarea
           autoFocus
@@ -865,6 +946,138 @@ function ChapterExportLinks({
       {link("docx", "Export Reader DOCX")}
       <span style={css("color:var(--dim);opacity:.4")}>·</span>
       {link("shunn", "Export Shunn DOCX")}
+    </div>
+  );
+}
+
+const LINK_BTN =
+  "font-family:var(--mono);font-size:10.5px;color:var(--dim);background:none;border:none;cursor:pointer;padding:0";
+
+// Parts editor: create / rename / delete the Book → Part → Chapter groupings themselves. Assigning a
+// chapter to a part happens per-chapter in ChapterMetaControls. Deleting a part keeps its chapters (they
+// just un-group), matching the backend's unassign-not-cascade behavior.
+function PartsManager({
+  parts,
+  onCreate,
+  onRename,
+  onDelete,
+}: {
+  parts: PartOut[];
+  onCreate: (title: string) => void;
+  onRename: (partId: string, title: string) => void;
+  onDelete: (partId: string) => void;
+}) {
+  const [newTitle, setNewTitle] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const sorted = [...parts].sort((a, b) => a.part_no - b.part_no);
+
+  return (
+    <div
+      style={css(
+        "display:flex;flex-direction:column;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg2b)",
+      )}
+    >
+      <div
+        style={css(
+          "font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)",
+        )}
+      >
+        Parts
+      </div>
+      {sorted.length > 0 && (
+        <div style={css("display:flex;flex-wrap:wrap;gap:7px")}>
+          {sorted.map((p) =>
+            editing === p.id ? (
+              <span key={p.id} style={css("display:inline-flex;align-items:center;gap:5px")}>
+                <input
+                  autoFocus
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      onRename(p.id, editTitle);
+                      setEditing(null);
+                    } else if (e.key === "Escape") setEditing(null);
+                  }}
+                  style={css(
+                    "width:150px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;font-family:var(--ui)",
+                  )}
+                />
+                <button
+                  onClick={() => {
+                    onRename(p.id, editTitle);
+                    setEditing(null);
+                  }}
+                  style={css(LINK_BTN)}
+                >
+                  save
+                </button>
+                <button onClick={() => setEditing(null)} style={css(LINK_BTN)}>
+                  cancel
+                </button>
+              </span>
+            ) : (
+              <span
+                key={p.id}
+                style={css(
+                  "display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:3px 8px;background:var(--bg3)",
+                )}
+              >
+                <span style={css("font-family:var(--display);font-size:12.5px;color:var(--ink)")}>
+                  {partLabel(p)}
+                </span>
+                <button
+                  title="Rename part"
+                  onClick={() => {
+                    setEditing(p.id);
+                    setEditTitle(p.title);
+                  }}
+                  style={css(LINK_BTN)}
+                >
+                  edit
+                </button>
+                <button
+                  title="Delete part — its chapters are kept and un-grouped"
+                  onClick={() => {
+                    if (confirm(`Delete ${partLabel(p)}? Its chapters are kept and un-grouped.`))
+                      onDelete(p.id);
+                  }}
+                  style={css(`${LINK_BTN};color:var(--warn)`)}
+                >
+                  ×
+                </button>
+              </span>
+            ),
+          )}
+        </div>
+      )}
+      <div style={css("display:flex;align-items:center;gap:7px")}>
+        <input
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && newTitle.trim()) {
+              onCreate(newTitle);
+              setNewTitle("");
+            }
+          }}
+          placeholder="new part title…"
+          style={css(
+            "width:180px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:12px;font-family:var(--ui)",
+          )}
+        />
+        <Button
+          size="sm"
+          disabled={!newTitle.trim()}
+          onClick={() => {
+            onCreate(newTitle);
+            setNewTitle("");
+          }}
+        >
+          + Add part
+        </Button>
+      </div>
     </div>
   );
 }
