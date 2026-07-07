@@ -24,6 +24,7 @@ from dominion.shared.models import (
     Job,
     ScenePacket,
 )
+from dominion.shared.schemas import ScenePacketUpdateIn
 from dominion.workers.context import ScenePacketRequiredError, assemble_context
 from dominion.workers.scene_packet import approval_policy as sp_policy
 from dominion.workers.scene_packet import author as sp_author
@@ -318,6 +319,49 @@ async def test_derive_beats_prunes_legacy_unlinked_beats(db_factory, monkeypatch
         # The historical FAILED job was detached, not deleted.
         failed_job = (await s.execute(select(Job).where(Job.status == JobStatus.FAILED))).scalars().one()
         assert failed_job.beat_id is None
+
+
+async def test_mark_stale_reconciles_beats(db_factory):
+    """Regression for the reconcile decision: marking an APPROVED scene packet stale drops it from the
+    approved set, so the router reconciles beats — the now-orphaned linked beat is pruned rather than
+    left to dangle the Draft gate as 'unlinked'. Asserts the beat state after the call, not that a
+    function ran."""
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp, _beat = await _approved_scene_packet_with_beat(s, book, ch, cp)
+        await s.commit()
+        # Precondition: exactly the one linked beat exists for the approved packet.
+        before = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert [b.scene_packet_id for b in before] == [sp.id]
+
+        await sp_router.mark_scene_packets_stale(ch.id, s)
+
+        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.STALE
+        # Reconcile EFFECT: the beat of the no-longer-approved packet is pruned (no drafted scene to spare it).
+        remaining = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert remaining == []
+
+
+async def test_update_body_flips_to_proposed_and_reconciles_beats(db_factory):
+    """Regression for the reconcile decision: editing an APPROVED packet's body returns it to PROPOSED
+    and reconciles beats — the orphaned linked beat is pruned so it can't hold the Draft gate. Asserts
+    the beat state after the call."""
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+        sp, _beat = await _approved_scene_packet_with_beat(s, book, ch, cp)
+        await s.commit()
+        before = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert [b.scene_packet_id for b in before] == [sp.id]
+
+        edited = {**_scene_body(), "scene_job": "Marcus hesitates instead."}
+        await sp_router.update_scene_packet(sp.id, ScenePacketUpdateIn(body=edited), s)
+
+        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.PROPOSED  # body edit re-opens approval
+        # Reconcile EFFECT: the beat of the now-proposed packet is pruned.
+        remaining = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
+        assert remaining == []
 
 
 async def _proposed_scene_packet(s, book, ch, cp, *, verdict, warnings) -> ScenePacket:

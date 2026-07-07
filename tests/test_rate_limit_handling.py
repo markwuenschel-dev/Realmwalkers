@@ -373,7 +373,7 @@ async def test_manual_qa_rerun_429_returns_http_429_and_never_touches_the_packet
     async def _rate_limited_qa(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise LlmRateLimited("provider rate limit (429) during manual QA", retry_after_s=9.0, attempts=4)
 
-    monkeypatch.setattr(sp_router.qa_mod, "qa_scene_packet", _rate_limited_qa)
+    monkeypatch.setattr(sp_router.scene_packet_pipeline, "qa_scene_packet", _rate_limited_qa)
     session = _StubSession(row)
 
     with pytest.raises(HTTPException) as exc_info:
