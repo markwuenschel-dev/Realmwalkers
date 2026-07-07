@@ -38,26 +38,20 @@ def set_phase(job_id: str | None, phase: str) -> None:
     """Record the current phase for a job, preserving the original start time across phase changes."""
     if not job_id:
         return
-    try:
-        existing = _phases.get(job_id)
-        started = existing[1] if existing else time.time()
-        _phases[job_id] = (phase, started)
-    except Exception:  # noqa: BLE001 — progress reporting must never break the draft
-        pass
+    existing = _phases.get(job_id)
+    started = existing[1] if existing else time.time()
+    _phases[job_id] = (phase, started)
 
 
 def get(job_id: str | None) -> tuple[str | None, int | None]:
     """Current (phase, elapsed_seconds) for a job, or (None, None) if untracked."""
     if not job_id:
         return None, None
-    try:
-        entry = _phases.get(job_id)
-        if not entry:
-            return None, None
-        phase, started = entry
-        return phase, int(time.time() - started)
-    except Exception:  # noqa: BLE001
+    entry = _phases.get(job_id)
+    if not entry:
         return None, None
+    phase, started = entry
+    return phase, int(time.time() - started)
 
 
 def set_cache_stats(
