@@ -6619,7 +6619,7 @@
           "world"
         ],
         "summary": "Ingest Canon",
-        "description": "Rebuild the retrieval index from the on-disk canon docs (series/canon) \u2014 the bridge from the\nread-only Canon tab into the RAG the drafter/planner actually query.\n\nLedger \u201cClean rebuild from docs\u201d deletes stale repo-ingested canon chunks (doc_path IS NOT NULL)\nand rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL).\nDelegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).",
+        "description": "Rebuild the retrieval index from the on-disk canon docs (series/canon) \u2014 the bridge from the\nread-only Canon tab into the RAG the drafter/planner actually query.\n\nASYNC: the heavy delete/re-embed used to run inside this request and time out (HTTP 499) on a full\ncorpus. It now runs in the background (`_run_canon_rebuild`) with batched embeds + incremental\nskip-unchanged, preserving hand-authored entries (doc_path IS NULL). This handler records a 'started'\nactivity, schedules the work, and returns 202 immediately; completion appears in the Activity feed.",
         "operationId": "ingest_canon_books__book_id__canon_ingest_post",
         "parameters": [
           {
@@ -6634,12 +6634,12 @@
           }
         ],
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CanonIngestOut"
+                  "$ref": "#/components/schemas/CanonRebuildStartedOut"
                 }
               }
             }
@@ -6771,7 +6771,7 @@
           "world"
         ],
         "summary": "Rebuild Canon",
-        "description": "Clean rebuild of repo-ingested canon from on-disk docs (series/canon) \u2014 the named alias of\nPOST .../canon/ingest, delegating to the same ingest_rebuild. Deletes/re-ingests only repo rows\n(doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched.",
+        "description": "Clean rebuild of repo-ingested canon from on-disk docs (series/canon) \u2014 the named alias of\nPOST .../canon/ingest, sharing the same async background rebuild. Re-indexes only repo rows\n(doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched.",
         "operationId": "rebuild_canon_books__book_id__canon_rebuild_post",
         "parameters": [
           {
@@ -6786,12 +6786,12 @@
           }
         ],
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CanonIngestOut"
+                  "$ref": "#/components/schemas/CanonRebuildStartedOut"
                 }
               }
             }
@@ -11141,40 +11141,17 @@
         "title": "CanonEntityUpdateIn",
         "description": "Edit a canon entity. Only provided fields are applied; body changes trigger a re-embed."
       },
-      "CanonIngestOut": {
+      "CanonRebuildStartedOut": {
         "properties": {
-          "indexed": {
-            "type": "integer",
-            "title": "Indexed"
-          },
-          "skipped": {
-            "type": "integer",
-            "title": "Skipped",
-            "default": 0
-          },
-          "retired": {
-            "type": "integer",
-            "title": "Retired",
-            "default": 0
-          },
-          "total": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Total"
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "started"
           }
         },
         "type": "object",
-        "required": [
-          "indexed"
-        ],
-        "title": "CanonIngestOut",
-        "description": "Result of a canon ingest/rebuild from on-disk docs (series/canon).\n\nFor the Ledger \"Clean rebuild from docs\" (hard path): repo-ingested rows\n(doc_path IS NOT NULL) are deleted first, then re-ingested from current files.\n`retired` counts prior repo rows removed. `indexed` is the fresh count.\n`total` is the resulting live repo-ingested corpus size."
+        "title": "CanonRebuildStartedOut",
+        "description": "202 acknowledgment for the async canon rebuild. The heavy delete/re-embed no longer runs inside\nthe request (that caused HTTP 499 timeouts on a full corpus) \u2014 it runs in the background with batched\nembeddings and incremental skip-unchanged; watch the Activity feed for the 'Canon rebuilt \u00b7 \u2026'\ncompletion (or 'Canon rebuild failed')."
       },
       "CanonRetireOut": {
         "properties": {

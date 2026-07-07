@@ -97,6 +97,56 @@ async def embed_async(text: str) -> list[float]:
     return await asyncio.to_thread(embed, text)
 
 
+# Batch size per OpenAI embeddings call — one HTTP round trip returns this many vectors, so a full
+# canon re-index goes from N sequential calls to N/64. Kept modest so a batch stays well within request
+# size / token limits and the per-call timeout.
+_EMBED_BATCH = 64
+
+
+def _openai_embed_many(texts: list[str]) -> list[list[float]]:
+    """One OpenAI embeddings call for a list of inputs. The API echoes each result's `index`; we sort by
+    it so the returned order matches the input order. Raises on any error (caller falls back per batch)."""
+    resp = httpx.post(
+        _OPENAI_URL,
+        headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+        json={"model": settings.embedding_model, "input": [t or " " for t in texts]},
+        timeout=settings.embedding_time_budget_s,
+    )
+    resp.raise_for_status()
+    data = sorted(resp.json()["data"], key=lambda d: d["index"])
+    if len(data) != len(texts):
+        raise ValueError(f"embedding count {len(data)} != inputs {len(texts)}")
+    vecs = [[float(x) for x in d["embedding"]] for d in data]
+    for v in vecs:
+        if len(v) != DIM:
+            raise ValueError(f"embedding dim {len(v)} != expected {DIM}")
+    return vecs
+
+
+def embed_many(texts: list[str]) -> list[list[float]]:
+    """Embed many texts, order preserved. Batches OpenAI calls (chunked by `_EMBED_BATCH`); a failed
+    batch falls back to the deterministic hash vector for that batch, so a provider hiccup never breaks a
+    rebuild. The hash backend (offline/CI/tests) embeds each item directly."""
+    if not texts:
+        return []
+    if not _use_openai():
+        return [_hash_embed(t) for t in texts]
+    out: list[list[float]] = []
+    for i in range(0, len(texts), _EMBED_BATCH):
+        batch = texts[i : i + _EMBED_BATCH]
+        try:
+            out.extend(_openai_embed_many(batch))
+        except Exception as exc:  # noqa: BLE001 — never let an embedding outage break a rebuild
+            log.warning("embedding.openai_batch_failed", error=str(exc), note="hash fallback for batch")
+            out.extend(_hash_embed(t) for t in batch)
+    return out
+
+
+async def embed_many_async(texts: list[str]) -> list[list[float]]:
+    """`embed_many()` off the event loop (same thread-offload rationale as `embed_async`)."""
+    return await asyncio.to_thread(embed_many, texts)
+
+
 def embedding_version() -> str:
     """Identifier for the vector space the active backend produces. Bumped implicitly by switching
     provider/model, so stale chunks from another backend get re-embedded on the next ingest."""

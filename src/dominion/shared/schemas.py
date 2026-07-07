@@ -1159,6 +1159,15 @@ class CanonIngestOut(BaseModel):
     total: int | None = None
 
 
+class CanonRebuildStartedOut(BaseModel):
+    """202 acknowledgment for the async canon rebuild. The heavy delete/re-embed no longer runs inside
+    the request (that caused HTTP 499 timeouts on a full corpus) — it runs in the background with batched
+    embeddings and incremental skip-unchanged; watch the Activity feed for the 'Canon rebuilt · …'
+    completion (or 'Canon rebuild failed')."""
+
+    status: str = "started"
+
+
 class CanonCleanupIn(BaseModel):
     """Select canon rows for a cleanup action (preview / retire / bulk delete) — Workstream H.
 

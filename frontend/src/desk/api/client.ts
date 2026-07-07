@@ -15,7 +15,7 @@ import type {
   CanonEntityIn,
   CanonEntityOut,
   CanonEntityUpdateIn,
-  CanonIngestOut,
+  CanonRebuildStartedOut,
   CanonRetireOut,
   ChapterCreateIn,
   ChapterOut,
@@ -549,7 +549,7 @@ export const api = {
     http<CanonEntityOut>(`/canon/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteCanon: (id: string) => http<{ deleted: string }>(`/canon/${id}`, { method: "DELETE" }),
   ingestCanon: (bookId: string) =>
-    http<CanonIngestOut>(`/books/${bookId}/canon/ingest`, { method: "POST" }),
+    http<CanonRebuildStartedOut>(`/books/${bookId}/canon/ingest`, { method: "POST" }),
   // --- stale-canon cleanup (Workstream H): preview -> soft retire / hard bulk delete / rebuild -----
   // Dry-run: report what the same selection would retire/delete (manual rows protected). Mutates nothing.
   canonCleanupPreview: (bookId: string, req: CanonCleanupIn) =>
@@ -572,7 +572,7 @@ export const api = {
     }),
   // Clean rebuild of repo-ingested canon from on-disk docs (hand-authored / manual rows untouched).
   rebuildCanon: (bookId: string) =>
-    http<CanonIngestOut>(`/books/${bookId}/canon/rebuild`, { method: "POST" }),
+    http<CanonRebuildStartedOut>(`/books/${bookId}/canon/rebuild`, { method: "POST" }),
 
   // --- world threads (curated) --------------------------------------------------------------------
   threads: (bookId: string) => http<ThreadOut[]>(`/books/${bookId}/threads`),

@@ -12,6 +12,7 @@ import hashlib
 import re
 import uuid
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.models import Book, CanonEntity
-from dominion.workers.memory.embedding import embed_async, embedding_version
+from dominion.workers.memory.embedding import embed_async, embed_many_async, embedding_version
 from dominion.workers.memory.owner_router import _RULES
 
 _PASSAGE_KIND = "passage"
@@ -227,18 +228,22 @@ async def ingest_incremental(
     Returns {indexed, skipped, retired}. The caller commits.
     """
     root = Path(root)
-    existing = {
-        (r.doc_path, r.heading_path, r.content_hash): r
-        for r in (
+    existing_rows = list(
+        (
             await session.execute(
                 select(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.doc_path.isnot(None))
             )
         ).scalars()
-    }
-    seen_keys: set[tuple[str | None, str | None]] = set()
-    indexed = skipped = 0
-
+    )
+    existing_by_key = {(r.doc_path, r.heading_path, r.content_hash): r for r in existing_rows}
+    kept_ids: set[uuid.UUID] = set()
+    skipped = 0
     version = embedding_version()  # encodes the active embedding backend + model
+
+    # Phase 1: walk the docs and split each chunk into "kept as-is" vs "needs (re)embedding". A chunk is
+    # kept only when its content AND the embedding backend are unchanged; a content edit or a provider
+    # switch (which changes `version`) makes it pending.
+    pending: list[dict[str, Any]] = []
     for path in sorted(root.rglob("*")):
         if not _is_ingestable(path):
             continue
@@ -247,37 +252,54 @@ async def ingest_incremental(
         owner_topic, priority = _owner_meta(path)
         for heading_path, chunk in _chunk_by_heading(path.read_text(encoding="utf-8")):
             chash = _content_hash(chunk)
-            seen_keys.add((doc_path, heading_path))
-            row = existing.get((doc_path, heading_path, chash))
-            # Skip only when both the content AND the embedding backend are unchanged; a provider
-            # switch changes `version`, forcing a re-embed into the new vector space.
+            row = existing_by_key.get((doc_path, heading_path, chash))
             if row is not None and row.embedding_version == version:
+                kept_ids.add(row.id)
                 skipped += 1
                 continue
-            session.add(
-                CanonEntity(
-                    book_id=book_id,
-                    kind=row_kind,
-                    name=path.stem,
-                    body=chunk,
-                    embedding=await embed_async(chunk),
-                    source="repo_ingested",
-                    status="active",
-                    doc_path=doc_path,
-                    heading_path=heading_path or None,
-                    owner_topic=owner_topic,
-                    source_priority=priority,
-                    content_hash=chash,
-                    embedding_model=settings.embedding_model,
-                    embedding_version=version,
-                )
+            pending.append(
+                {
+                    "doc_path": doc_path,
+                    "heading_path": heading_path or None,
+                    "chunk": chunk,
+                    "chash": chash,
+                    "kind": row_kind,
+                    "name": path.stem,
+                    "owner_topic": owner_topic,
+                    "priority": priority,
+                }
             )
-            indexed += 1
 
-    # retire chunks whose (doc_path, heading_path) vanished from disk
+    # Phase 2: embed ALL pending chunks in one batched pass (chunked internally), then insert. This is
+    # the speedup that keeps a full re-index from timing out (was one blocking embed per chunk).
+    vectors = await embed_many_async([p["chunk"] for p in pending])
+    for p, vec in zip(pending, vectors, strict=True):
+        session.add(
+            CanonEntity(
+                book_id=book_id,
+                kind=p["kind"],
+                name=p["name"],
+                body=p["chunk"],
+                embedding=vec,
+                source="repo_ingested",
+                status="active",
+                doc_path=p["doc_path"],
+                heading_path=p["heading_path"],
+                owner_topic=p["owner_topic"],
+                source_priority=p["priority"],
+                content_hash=p["chash"],
+                embedding_model=settings.embedding_model,
+                embedding_version=version,
+            )
+        )
+    indexed = len(pending)
+
+    # Phase 3: retire every prior repo row we did NOT keep — vanished docs, changed content, AND
+    # stale-version rows we just re-embedded. Retiring by ROW IDENTITY (not by doc/heading) is what stops
+    # a content edit from leaving the old chunk behind as a duplicate.
     retired = 0
-    for (ex_doc, ex_heading, _chash), row in existing.items():
-        if (ex_doc, ex_heading) not in seen_keys:
+    for row in existing_rows:
+        if row.id not in kept_ids:
             await session.delete(row)
             retired += 1
 

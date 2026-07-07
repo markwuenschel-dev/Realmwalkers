@@ -172,15 +172,15 @@ export default function LedgerScreen() {
       // The rebuild replaces the corpus wholesale (new entity ids) — the once-per-session canon
       // body upgrade must re-run on the next full load or palette body search goes dark.
       invalidateCanonBodies(bookId);
-      const o = await api.rebuildCanon(bookId);
-      const tot = o.total ?? o.indexed;
-      const ret = o.retired ?? 0;
-      setNotice(
-        `Clean rebuild complete: ${tot} live repo passage(s), ${ret} stale indexed row(s) purged.`,
-      );
+      // The re-index now runs in the BACKGROUND (a full corpus re-embed used to 499-time out inside the
+      // request). The endpoint returns immediately; completion — 'Canon rebuilt · N new, …' — appears in
+      // the Activity drawer. Reload the ledger so any already-committed changes show; the fresh corpus
+      // lands on the next load once the background pass finishes.
+      await api.rebuildCanon(bookId);
+      setNotice("Canon rebuild started — progress and completion appear in the Activity drawer.");
       await reloadCanon();
     } catch {
-      setNotice("Rebuild failed — check the API logs.");
+      setNotice("Couldn't start the rebuild — check the API logs.");
     } finally {
       setIngesting(false);
     }

@@ -10,11 +10,13 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+import structlog
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import ColumnElement, delete, func, null, or_, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.config import settings
+from dominion.shared.db import SessionFactory
 from dominion.shared.models import Book, CanonEntity, Chapter, CharacterState, KnowledgeFact
 from dominion.shared.schemas import (
     CanonBulkDeleteOut,
@@ -24,15 +26,17 @@ from dominion.shared.schemas import (
     CanonEntityIn,
     CanonEntityOut,
     CanonEntityUpdateIn,
-    CanonIngestOut,
+    CanonRebuildStartedOut,
     CanonRetireOut,
     CharacterStateIn,
     CharacterStateOut,
     KnowledgeFactOut,
 )
+from dominion.workers.activity import record_activity
 from dominion.workers.memory import canon_rag
 from dominion.workers.memory.embedding import embed_async, embedding_version
 
+log = structlog.get_logger()
 router = APIRouter(tags=["world"])
 
 # …/src/dominion/api/routers/world.py -> repo root (mirrors docs.py); shared canon docs live under series/.
@@ -325,24 +329,69 @@ async def delete_canon(canon_id: uuid.UUID, session: SessionDep) -> dict[str, st
     return {"deleted": str(canon_id)}
 
 
-@router.post("/books/{book_id}/canon/ingest", response_model=CanonIngestOut)
-async def ingest_canon(book_id: uuid.UUID, session: SessionDep) -> CanonIngestOut:
+async def _run_canon_rebuild(book_id: uuid.UUID) -> None:
+    """Background canon re-index: incremental (skip-unchanged), batched embeddings, correct retire — with
+    progress in the Activity feed. Runs on its OWN session (the request's is long closed). This is what
+    keeps a full re-embed off the request path, so the endpoint returns instantly instead of 499-timing
+    out behind the proxy. Errors are recorded to the feed, never raised (nothing awaits this)."""
+    root = _PROJECT_ROOT / "series" / "canon"
+    try:
+        async with SessionFactory() as session:
+            out = await canon_rag.ingest_incremental(session, book_id=book_id, root=root)
+            await record_activity(
+                session,
+                source="canon",
+                kind="canon_rebuild_done",
+                severity="success",
+                title=(
+                    f"Canon rebuilt · {out['indexed']} new, {out['skipped']} unchanged, "
+                    f"{out['retired']} retired"
+                ),
+                book_id=book_id,
+            )
+            await session.commit()
+    except Exception as exc:  # noqa: BLE001 — surface the failure to the feed, don't crash the loop
+        log.warning("canon.rebuild_failed", book_id=str(book_id), error=str(exc))
+        try:
+            async with SessionFactory() as session:
+                await record_activity(
+                    session,
+                    source="canon",
+                    kind="canon_rebuild_failed",
+                    severity="error",
+                    title="Canon rebuild failed",
+                    detail=str(exc),
+                    book_id=book_id,
+                )
+                await session.commit()
+        except Exception:  # noqa: BLE001
+            log.warning("canon.rebuild_failed_record_failed", book_id=str(book_id))
+
+
+@router.post("/books/{book_id}/canon/ingest", status_code=202, response_model=CanonRebuildStartedOut)
+async def ingest_canon(
+    book_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
+) -> CanonRebuildStartedOut:
     """Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
     read-only Canon tab into the RAG the drafter/planner actually query.
 
-    Ledger “Clean rebuild from docs” deletes stale repo-ingested canon chunks (doc_path IS NOT NULL)
-    and rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL).
-    Delegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).
+    ASYNC: the heavy delete/re-embed used to run inside this request and time out (HTTP 499) on a full
+    corpus. It now runs in the background (`_run_canon_rebuild`) with batched embeds + incremental
+    skip-unchanged, preserving hand-authored entries (doc_path IS NULL). This handler records a 'started'
+    activity, schedules the work, and returns 202 immediately; completion appears in the Activity feed.
     """
     await _require_book(book_id, session)
-    out = await canon_rag.ingest_rebuild(session, book_id=book_id, root=_PROJECT_ROOT / "series" / "canon")
-    await session.commit()
-    return CanonIngestOut(
-        indexed=out["indexed"],
-        skipped=out["skipped"],
-        retired=out["retired"],
-        total=out["indexed"] + out["skipped"],
+    await record_activity(
+        session,
+        source="canon",
+        kind="canon_rebuild_started",
+        severity="info",
+        title="Canon rebuild started…",
+        book_id=book_id,
     )
+    await session.commit()
+    background.add_task(_run_canon_rebuild, book_id)
+    return CanonRebuildStartedOut(status="started")
 
 
 # --- Canon cleanup: status-aware retire / bulk-delete / rebuild (Workstream H) ---------------------
@@ -459,9 +508,11 @@ async def bulk_delete_canon(book_id: uuid.UUID, req: CanonCleanupIn, session: Se
     return CanonBulkDeleteOut(deleted=len(doomed), protected_manual=protected)
 
 
-@router.post("/books/{book_id}/canon/rebuild", response_model=CanonIngestOut)
-async def rebuild_canon(book_id: uuid.UUID, session: SessionDep) -> CanonIngestOut:
+@router.post("/books/{book_id}/canon/rebuild", status_code=202, response_model=CanonRebuildStartedOut)
+async def rebuild_canon(
+    book_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
+) -> CanonRebuildStartedOut:
     """Clean rebuild of repo-ingested canon from on-disk docs (series/canon) — the named alias of
-    POST .../canon/ingest, delegating to the same ingest_rebuild. Deletes/re-ingests only repo rows
+    POST .../canon/ingest, sharing the same async background rebuild. Re-indexes only repo rows
     (doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched."""
-    return await ingest_canon(book_id, session)
+    return await ingest_canon(book_id, session, background)
