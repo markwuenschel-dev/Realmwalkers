@@ -30,6 +30,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import ChapterStatus, SceneStatus
 from dominion.shared.models import Book, Chapter, Scene
@@ -258,8 +259,8 @@ def main() -> None:
         description="Import drafted manuscript scenes as approved prior state + build memory (Phase 2)."
     )
     parser.add_argument("--book", required=True)
-    parser.add_argument("--scenes-dir", default="book1/manuscript/scenes")
-    parser.add_argument("--canon-dir", default="series/canon")
+    parser.add_argument("--scenes-dir", default=settings.scenes_dir)
+    parser.add_argument("--canon-dir", default=settings.canon_dir)
     parser.add_argument("--no-canon", action="store_true", help="skip rebuilding the canon RAG index")
     parser.add_argument(
         "--no-summaries",

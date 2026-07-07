@@ -165,6 +165,14 @@ class Settings(BaseSettings):
     # it wins over the per-POV voice spec where they disagree (see drafter._voice_system).
     dialogue_rules_path: str = "series/style/dialogue_rules.md"
 
+    # Post-split monorepo ingest source dirs (series/canon + book1/manuscript). Centralized here so the
+    # worker CLIs (canon_rag.py, seed.py) read one source of truth instead of duplicating the literal
+    # paths in each argparse default — a folder rename now changes one place. Relative paths resolve
+    # from the project root (falling back to CWD), like dialogue_rules_path above. Env-override via the
+    # DOMINION_ prefix: DOMINION_CANON_DIR, DOMINION_SCENES_DIR.
+    canon_dir: str = "series/canon"
+    scenes_dir: str = "book1/manuscript/scenes"
+
     # Voice exemplars (LEARNING_FROM_EDITS Tier 2): the drafter few-shots on the author's curated
     # approved prose, loaded from PovProfile.exemplar_scene_ids. Capped so a handful of passages can't
     # crowd the scene's token budget — count of passages, and chars kept from each.
