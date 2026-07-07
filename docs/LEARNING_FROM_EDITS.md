@@ -85,8 +85,9 @@ faithful pair, instead of diffing against the marker-form `agent_original`.
 - [x] **Authoring path:** the `POST /scenes/{id}/exemplar` endpoint (`api/routers/scenes.py`) upserts the
   list; it touches only `exemplar_scene_ids`, leaving `voice_spec` untouched, so the two are independent.
   (The former `legacy/set_exemplars.py` / `set_voice.py` terminal CLIs have since been removed.)
-- [ ] **In-editor "use as voice exemplar" action** (and/or auto-suggest heavily-edited scenes) — still
-  to do; it writes the same `exemplar_scene_ids` field the CLI does.
+- [x] **In-editor "use as voice exemplar" action** — `api.setExemplar` (`client.ts`) wired via
+  `useDeskSceneActions`, writing the same `exemplar_scene_ids` field. Auto-suggesting heavily-edited
+  scenes as exemplars is still to do.
 - Effect: the drafter few-shots on *your* approved/edited prose for that POV, immediately, no
   training. Reversible (un-mark to remove). Best lever for **voice**.
 
