@@ -34,6 +34,7 @@ import {
   type Surface,
 } from "./litrpgSurfaces";
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
+import { beautify } from "./beautify";
 import { wordCount } from "./format";
 
 // The three export formats every prose-bearing screen offers (Manuscript, Inbox, Scene, Chapters,
@@ -304,11 +305,15 @@ function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
   });
 }
 
-function paraFor(text: string, book: boolean): Paragraph {
+function paraFor(text: string, book: boolean, indentFirstLine = false): Paragraph {
+  // Book paragraphs use a first-line indent as the paragraph cue (classic print novel), with NO extra
+  // space between paragraphs. The FIRST paragraph of a scene / after a scene break is left un-indented
+  // (print convention), signalled by indentFirstLine=false from renderBlocks.
   return book
     ? new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
         spacing: { line: 320, lineRule: "auto" },
+        ...(indentFirstLine ? { indent: { firstLine: convertInchesToTwip(0.3) } } : {}),
         children: inlineRuns(text, { font: "Georgia", size: 22 }),
       })
     : new Paragraph({
@@ -324,6 +329,7 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
     out.push(new Paragraph(""));
   };
   const neutral = neutralSurface();
+  let seenBookPara = false; // first book paragraph of the scene stays un-indented (print convention)
 
   for (const b of blocks) {
     switch (b.kind) {
@@ -365,7 +371,8 @@ function renderBlocks(blocks: ProseBlock[], book: boolean): (Paragraph | Table)[
         );
         break;
       default:
-        out.push(paraFor(b.text, book));
+        out.push(paraFor(b.text, book, book && seenBookPara));
+        seenBookPara = true;
         break;
     }
   }
@@ -541,7 +548,7 @@ export function buildManuscriptDoc(
           }),
         );
       }
-      for (const el of renderBlocks(parseBlocks(sc.prose ?? ""), true)) children.push(el);
+      for (const el of renderBlocks(parseBlocks(beautify(sc.prose ?? "")), true)) children.push(el);
     });
   }
 
@@ -713,7 +720,8 @@ export function buildShunnDoc(
           }),
         );
       }
-      for (const para of shunnPlainBlocks(parseBlocks(sc.prose ?? ""))) children.push(para);
+      for (const para of shunnPlainBlocks(parseBlocks(beautify(sc.prose ?? ""))))
+        children.push(para);
     });
   }
 
