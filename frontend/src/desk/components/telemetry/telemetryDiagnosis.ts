@@ -39,18 +39,3 @@ export function cacheHealthByStage(calls: LlmCallOut[]): CacheStageRow[] {
 export function formatSettingsKey(key: string): string {
   return key.replace(/_/g, " ");
 }
-
-export function truncationAdvice(call: LlmCallOut): string {
-  const meta = (call.metadata ?? {}) as Record<string, unknown>;
-  const stop = meta.stop_reason;
-  if (call.stage.startsWith("scene_packet")) {
-    return "Increase scene_packet max_tokens or shorten the chapter prefix / scene context.";
-  }
-  if (call.stage === "drafter") {
-    return "Increase draft max_tokens or reduce beats/scene packet size in context.";
-  }
-  if (stop === "max_tokens") {
-    return "Output hit max_tokens — raise the stage limit or shorten the prompt.";
-  }
-  return "Inspect context sections; shorten prompt or raise max_tokens for this stage.";
-}

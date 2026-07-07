@@ -41,6 +41,13 @@ from dominion.shared.models import (
 )
 from dominion.workers import production_support as support
 from dominion.workers import repair_triage
+from dominion.workers.beat_preservation import (
+    SCENE_BREAK,
+    beats_preserved,
+    ordered_unique,
+    required_beats_for_scene,
+    required_beats_for_scenes,
+)
 from dominion.workers.job_scheduler import schedule_revision
 
 # L6 (run orchestration): pure stage machine -- pinned stage strings + deterministic gates that must
@@ -205,20 +212,6 @@ _REPAIR_KIND_TO_PASS: dict[str, str | None] = {
 
 def _target_pass_for_task(task: RepairTask) -> str | None:
     return _REPAIR_KIND_TO_PASS.get(task.repair_kind)
-
-
-def _required_beats_preserved(*, packet_binding_preserved: bool, instruction_present: bool) -> bool:
-    """Report-fidelity flag surfaced on RepairVerification: did the repair keep the scene's required beats?
-
-    A revised scene that stays bound to its original scene packet has not dropped that scene's required
-    beats (re-binding to a different packet is how those beats get lost), combined with the repair
-    actually carrying an instruction. This is the single source of truth for both RepairVerification
-    paths, which previously disagreed: the single-scene path already derived this from the packet
-    binding, while the chapter-scoped path used a bare ``bool(task.instructions)`` proxy that was
-    effectively always True. Advisory only — no automated verdict gates on this flag; it informs the
-    human approver.
-    """
-    return packet_binding_preserved and instruction_present
 
 
 def _highest_authority(issues: list[Issue]) -> RepairAuthorityLevel:
@@ -890,12 +883,15 @@ async def _verify_chapter_scoped_repair(
             "drafting (watch the queue indicator); verify again once every revised scene lands"
         )
     outcome_preserved = True
+    revised_regions: list[tuple[int, str, str]] = []  # (scene_no, before_prose, after_prose)
     for attempt, revised in revised_by_attempt:
         attempt.revised_text = revised.prose
         attempt.word_count_after = revised.word_count
         base = await session.get(Scene, uuid.UUID(str((attempt.patch_json or {}).get("scene_id"))))
         if base is not None and revised.scene_packet_id != base.scene_packet_id:
             outcome_preserved = False
+        region_scene_no = int((attempt.patch_json or {}).get("scene_no") or (base.scene_no if base else 0))
+        revised_regions.append((region_scene_no, (base.prose if base else "") or "", revised.prose or ""))
 
     revised_scenes = [revised for _, revised in revised_by_attempt]
     scene_no_by_id = {scene.id: scene.scene_no for scene in revised_scenes}
@@ -978,6 +974,24 @@ async def _verify_chapter_scoped_repair(
         )
     )
     anchor_attempt = revised_by_attempt[-1][0]
+    # Required-beat preservation over the whole revised chapter region: concatenate the revised scenes'
+    # before/after prose so a beat that legitimately RELOCATED between revised scenes (chapter-scoped
+    # repairs restructure scenes) still counts as preserved. Union the scenes' required beats.
+    from dominion.workers.production_sequence import latest_chapter_sequence
+
+    chapter_seq = await latest_chapter_sequence(session, task.chapter_id)
+    region_scene_nos = [sn for sn, _, _ in revised_regions]
+    beats_by_scene = required_beats_for_scenes(chapter_seq, region_scene_nos)
+    region_beats = (
+        None
+        if beats_by_scene is None
+        else ordered_unique(beat for sn in region_scene_nos for beat in beats_by_scene.get(sn, []))
+    )
+    beats_result = beats_preserved(
+        SCENE_BREAK.join(before for _, before, _ in revised_regions),
+        SCENE_BREAK.join(after for _, _, after in revised_regions),
+        region_beats,
+    )
     verification = RepairVerification(
         repair_attempt_id=anchor_attempt.id,
         agent_run_id=verifier.id,
@@ -999,10 +1013,7 @@ async def _verify_chapter_scoped_repair(
         canon_preserved=not any(c.reviewer == "continuity" and c.severity in ("hard", "block") for c in new_critiques),
         scene_outcome_preserved=outcome_preserved,
         voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
-        required_beats_preserved=_required_beats_preserved(
-            packet_binding_preserved=outcome_preserved,
-            instruction_present=bool(task.instructions),
-        ),
+        required_beats_preserved=beats_result.preserved,
         reader_state_preserved=not any(
             c.reviewer in {"continuity", "state_drift"} and c.severity in ("hard", "block") for c in new_critiques
         ),
@@ -1016,6 +1027,17 @@ async def _verify_chapter_scoped_repair(
             "revised_scene_ids": [str(scene.id) for scene in revised_scenes],
             "new_critique_count": len(new_critiques),
             "mode": "chapter_scoped_fan_out",
+            "required_beats_check": {
+                "scope": "chapter_scoped",
+                "status": beats_result.status,
+                "preserved": beats_result.preserved,
+                "checked_count": beats_result.checked_count,
+                "present_before_count": beats_result.present_before_count,
+                "dropped_count": len(beats_result.dropped_beats),
+                "dropped_beats": list(beats_result.dropped_beats),
+                "reason": beats_result.reason,
+                "scene_numbers": region_scene_nos,
+            },
         },
     )
     session.add(verification)
@@ -1234,6 +1256,12 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
             else RepairVerificationVerdict.NEEDS_ANOTHER_REPAIR
         )
     )
+    # Required-beat preservation delta for this single scene (before-prose vs the revised prose).
+    from dominion.workers.production_sequence import latest_chapter_sequence
+
+    single_scene_seq = await latest_chapter_sequence(session, base_scene.chapter_id)
+    scene_beats = required_beats_for_scene(single_scene_seq, base_scene.scene_no)
+    beats_result = beats_preserved(before_text, after_text, scene_beats)
     verification = RepairVerification(
         repair_attempt_id=attempt.id,
         agent_run_id=verifier.id,
@@ -1258,10 +1286,7 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         ),
         scene_outcome_preserved=revised.scene_packet_id == base_scene.scene_packet_id,
         voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
-        required_beats_preserved=_required_beats_preserved(
-            packet_binding_preserved=revised.scene_packet_id == base_scene.scene_packet_id,
-            instruction_present=bool(direct_checks.get("instruction_addressed", True)),
-        ),
+        required_beats_preserved=beats_result.preserved,
         reader_state_preserved=not any(
             c.reviewer in {"continuity", "state_drift"} and c.severity in ("hard", "block") for c in new_critiques
         ),
@@ -1275,6 +1300,17 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
             "revised_scene_id": str(revised.id),
             "new_critique_count": len(new_critiques),
             "direct_checks": direct_checks,
+            "required_beats_check": {
+                "scope": "single_scene",
+                "status": beats_result.status,
+                "preserved": beats_result.preserved,
+                "checked_count": beats_result.checked_count,
+                "present_before_count": beats_result.present_before_count,
+                "dropped_count": len(beats_result.dropped_beats),
+                "dropped_beats": list(beats_result.dropped_beats),
+                "reason": beats_result.reason,
+                "scene_no": base_scene.scene_no,
+            },
         },
     )
     session.add(verification)
