@@ -7,6 +7,24 @@ from sqlalchemy import select
 
 from dominion.shared.models import Book, CanonEntity
 from dominion.workers.memory import canon_rag, owner_router
+from dominion.workers.memory.embedding import DIM, embed, embed_many
+
+# --- batched embedding (pure; hash backend under test) --------------------------------------------
+
+
+def test_embed_many_matches_single_and_preserves_order():
+    """The batched path used by the rebuild returns one vector per input, in order, matching embed()."""
+    texts = ["the sky hummed", "marcus drew his blade", ""]
+    many = embed_many(texts)
+    assert len(many) == 3
+    assert all(len(v) == DIM for v in many)
+    assert many[0] == embed("the sky hummed")
+    assert many[1] == embed("marcus drew his blade")
+
+
+def test_embed_many_empty():
+    assert embed_many([]) == []
+
 
 # --- owner router (pure) --------------------------------------------------------------------------
 
@@ -70,6 +88,34 @@ async def test_ingest_stores_metadata_and_skips_unchanged(db_factory, tmp_path):
         second = await canon_rag.ingest_incremental(s, book_id=book.id, root=root)
         await s.commit()
         assert second["indexed"] == 0 and second["skipped"] >= 1
+
+
+async def test_ingest_content_change_retires_old_chunk_no_duplicate(db_factory, tmp_path):
+    """A content edit must REPLACE the chunk (retire old row + insert new), never leave a stale duplicate
+    — the bug that forced the slow full-delete 'rebuild'. Retire is by row identity, so the old-content
+    row for the same (doc, heading) is removed."""
+    root = tmp_path / "canon"
+    root.mkdir()
+    f = root / "mechanics.md"
+    f.write_text("# Mechanics\n\nTier is the spell strength axis.\n", encoding="utf-8")
+    async with db_factory() as s:
+        book = await _book(s)
+        await canon_rag.ingest_incremental(s, book_id=book.id, root=root)
+        await s.commit()
+        n_before = len((await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all())
+
+        # Rewrite that heading's body with distinctly different content.
+        f.write_text("# Mechanics\n\nMana pools regenerate at dawn under the second moon.\n", encoding="utf-8")
+        out = await canon_rag.ingest_incremental(s, book_id=book.id, root=root)
+        await s.commit()
+        assert out["indexed"] >= 1  # the changed chunk was re-embedded + inserted
+        assert out["retired"] >= 1  # the old-content row was retired
+
+        after = (await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all()
+        bodies = [r.body or "" for r in after]
+        assert len(after) == n_before  # replaced in place — no duplicate growth
+        assert any("Mana pools" in b for b in bodies)  # new content present
+        assert not any("spell strength axis" in b for b in bodies)  # old content gone
 
 
 async def test_ingest_leaves_hand_authored_entities_untouched(db_factory, tmp_path):

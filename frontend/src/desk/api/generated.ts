@@ -2165,9 +2165,10 @@ export interface paths {
      * @description Rebuild the retrieval index from the on-disk canon docs (series/canon) — the bridge from the
      *     read-only Canon tab into the RAG the drafter/planner actually query.
      *
-     *     Ledger “Clean rebuild from docs” deletes stale repo-ingested canon chunks (doc_path IS NOT NULL)
-     *     and rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL).
-     *     Delegates to ingest_rebuild (full delete of non-null doc_path rows + re-ingest).
+     *     ASYNC: the heavy delete/re-embed used to run inside this request and time out (HTTP 499) on a full
+     *     corpus. It now runs in the background (`_run_canon_rebuild`) with batched embeds + incremental
+     *     skip-unchanged, preserving hand-authored entries (doc_path IS NULL). This handler records a 'started'
+     *     activity, schedules the work, and returns 202 immediately; completion appears in the Activity feed.
      */
     post: operations["ingest_canon_books__book_id__canon_ingest_post"];
     delete?: never;
@@ -2233,7 +2234,7 @@ export interface paths {
     /**
      * Rebuild Canon
      * @description Clean rebuild of repo-ingested canon from on-disk docs (series/canon) — the named alias of
-     *     POST .../canon/ingest, delegating to the same ingest_rebuild. Deletes/re-ingests only repo rows
+     *     POST .../canon/ingest, sharing the same async background rebuild. Re-indexes only repo rows
      *     (doc_path IS NOT NULL); hand-authored / manual rows (doc_path IS NULL) are NEVER touched.
      */
     post: operations["rebuild_canon_books__book_id__canon_rebuild_post"];
@@ -3813,29 +3814,18 @@ export interface components {
       body?: string | null;
     };
     /**
-     * CanonIngestOut
-     * @description Result of a canon ingest/rebuild from on-disk docs (series/canon).
-     *
-     *     For the Ledger "Clean rebuild from docs" (hard path): repo-ingested rows
-     *     (doc_path IS NOT NULL) are deleted first, then re-ingested from current files.
-     *     `retired` counts prior repo rows removed. `indexed` is the fresh count.
-     *     `total` is the resulting live repo-ingested corpus size.
+     * CanonRebuildStartedOut
+     * @description 202 acknowledgment for the async canon rebuild. The heavy delete/re-embed no longer runs inside
+     *     the request (that caused HTTP 499 timeouts on a full corpus) — it runs in the background with batched
+     *     embeddings and incremental skip-unchanged; watch the Activity feed for the 'Canon rebuilt · …'
+     *     completion (or 'Canon rebuild failed').
      */
-    CanonIngestOut: {
-      /** Indexed */
-      indexed: number;
+    CanonRebuildStartedOut: {
       /**
-       * Skipped
-       * @default 0
+       * Status
+       * @default started
        */
-      skipped: number;
-      /**
-       * Retired
-       * @default 0
-       */
-      retired: number;
-      /** Total */
-      total?: number | null;
+      status: string;
     };
     /**
      * CanonRetireOut
@@ -11910,12 +11900,12 @@ export interface operations {
     requestBody?: never;
     responses: {
       /** @description Successful Response */
-      200: {
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["CanonIngestOut"];
+          "application/json": components["schemas"]["CanonRebuildStartedOut"];
         };
       };
       /** @description Validation Error */
@@ -12011,12 +12001,12 @@ export interface operations {
     requestBody?: never;
     responses: {
       /** @description Successful Response */
-      200: {
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["CanonIngestOut"];
+          "application/json": components["schemas"]["CanonRebuildStartedOut"];
         };
       };
       /** @description Validation Error */

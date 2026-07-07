@@ -94,11 +94,7 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
         .all()
     )
 
-    parts = (
-        (await session.execute(select(Part).where(Part.book_id == book_id).order_by(Part.part_no)))
-        .scalars()
-        .all()
-    )
+    parts = (await session.execute(select(Part).where(Part.book_id == book_id).order_by(Part.part_no))).scalars().all()
 
     volumes = (
         (await session.execute(select(Volume).where(Volume.book_id == book_id).order_by(Volume.volume_no)))

@@ -106,9 +106,7 @@ describe("LedgerScreen canon cleanup", () => {
     vi.mocked(api.bulkDeleteCanon)
       .mockReset()
       .mockResolvedValue({ deleted: 1, protected_manual: 0 });
-    vi.mocked(api.rebuildCanon)
-      .mockReset()
-      .mockResolvedValue({ indexed: 3, skipped: 0, retired: 2, total: 3 });
+    vi.mocked(api.rebuildCanon).mockReset().mockResolvedValue({ status: "started" });
   });
 
   it("loads canon via listCanon and shows a source + status badge per row", async () => {

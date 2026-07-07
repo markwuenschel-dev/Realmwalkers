@@ -489,6 +489,10 @@ export default function ProductionScreen() {
   // the slim endpoints on every step, artifacts via a full reload on the steps that can change them
   // (assemble/apply/start). repair_attempts/verifications refresh on full reloads only.
   const [jsonOpen, setJsonOpen] = useState(false);
+  // Collapse the two full-length blobs (chapter outline + assembled/final prose) so the Production tab
+  // reads as pipeline state, not a wall of text. Both default collapsed.
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [assembledOpen, setAssembledOpen] = useState(false);
   // Info-toned outcome line (never an error): triage is a deterministic no-op when no issue is still
   // `proposed`, which used to read as "the button did nothing". Cleared on any run/chapter switch.
   const [notice, setNotice] = useState<string | null>(null);
@@ -983,9 +987,25 @@ export default function ProductionScreen() {
                 : "No chapter selected"}
             </div>
             {chapter?.outline && (
-              <p style={css("margin:8px 0 0;color:var(--dim);font-size:13px;line-height:1.55")}>
-                {chapter.outline}
-              </p>
+              <div style={css("margin-top:8px")}>
+                <button
+                  onClick={() => setOutlineOpen((v) => !v)}
+                  style={css(
+                    "background:none;border:none;cursor:pointer;padding:0;font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;align-items:center;gap:5px",
+                  )}
+                >
+                  <span>{outlineOpen ? "▾" : "▸"}</span> Outline
+                </button>
+                {outlineOpen && (
+                  <p
+                    style={css(
+                      "margin:6px 0 0;color:var(--dim);font-size:13px;line-height:1.55;max-height:220px;overflow-y:auto",
+                    )}
+                  >
+                    {chapter.outline}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -1302,16 +1322,40 @@ export default function ProductionScreen() {
           <Panel pad="18px 20px">
             <div style={css("display:grid;grid-template-columns:1.15fr .85fr;gap:18px")}>
               <div>
-                <Eyebrow>{finalArtifact ? "Final chapter" : "Assembled chapter"}</Eyebrow>
-                <div style={css("margin-top:14px")}>
-                  {finalText ? (
-                    <ProseBlocks text={finalText} proseSize="16px" />
-                  ) : (
-                    <div style={css("color:var(--dim);font-size:13px")}>
+                {finalText ? (
+                  <>
+                    <button
+                      onClick={() => setAssembledOpen((v) => !v)}
+                      style={css(
+                        "background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:8px",
+                      )}
+                    >
+                      <Eyebrow>{finalArtifact ? "Final chapter" : "Assembled chapter"}</Eyebrow>
+                      <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
+                        {assembledOpen ? "▾" : "▸"}{" "}
+                        {finalText.trim().split(/\s+/).length.toLocaleString()} words
+                      </span>
+                    </button>
+                    {/* Collapsed via max-height (not unmounted) so the prose stays available to find/search
+                        even while hidden; expanded gives a bounded, scrollable box instead of a wall. */}
+                    <div
+                      style={css(
+                        assembledOpen
+                          ? "margin-top:14px;max-height:480px;overflow-y:auto;padding-right:8px;border-top:1px solid var(--hairline)"
+                          : "max-height:0;overflow:hidden",
+                      )}
+                    >
+                      <ProseBlocks text={finalText} proseSize="16px" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Eyebrow>{finalArtifact ? "Final chapter" : "Assembled chapter"}</Eyebrow>
+                    <div style={css("margin-top:14px;color:var(--dim);font-size:13px")}>
                       No assembled chapter prose is available on this run yet.
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
 
               <div style={css("display:flex;flex-direction:column;gap:18px")}>

@@ -22,7 +22,7 @@ import type {
   BookOut,
   CanonEntityIn,
   CanonEntityOut,
-  CanonIngestOut,
+  CanonRebuildStartedOut,
   CanonEntityUpdateIn,
   ChapterOut,
   ChapterUpdateIn,
@@ -77,7 +77,7 @@ export interface DeskData {
   // "what happened". `clearActivityFeed` dismisses finished activity + purges DONE jobs.
   activityFeed: ActivityOut[];
   refreshActivity: () => Promise<void>;
-  clearActivityFeed: () => Promise<void>;
+  clearActivityFeed: (scope?: "all" | "finished") => Promise<void>;
   // Activity drawer + completion toasts (Atelier). recentJobs is null until first gated poll.
   recentJobs: import("./types").RecentJobsOut | null;
   refreshRecentJobs: () => Promise<void>;
@@ -131,7 +131,7 @@ export interface DeskData {
   deleteCanon: (id: string) => Promise<void>;
   // Ledger "Clean rebuild from docs" action. Returns the full result (indexed, skipped, retired, total)
   // so the UI can report how many stale repo-ingested rows were purged.
-  ingestCanon: () => Promise<CanonIngestOut | null>;
+  ingestCanon: () => Promise<CanonRebuildStartedOut | null>;
   distillRules: (pov?: string) => Promise<number>;
   decideRuleProposal: (id: string, body: RuleProposalDecisionIn) => Promise<void>;
   addAnnotation: (body: AnnotationIn) => Promise<void>;
@@ -203,17 +203,22 @@ export function useDeskDataState(activityOpen = false): DeskData {
     activityOpen,
     collections.jobs.running || collections.jobs.queued > 0,
   );
-  const clearActivityFeed = useCallback(async () => {
-    try {
-      await Promise.all([
-        api.clearActivity({ scope: "finished", book_id: bookId ?? undefined }),
-        api.clearFinishedJobs(bookId ?? undefined),
-      ]);
-      await Promise.all([refreshActivity(), refreshRecentJobs()]);
-    } catch {
-      pushToast({ tone: "error", message: "Couldn't clear finished activity" });
-    }
-  }, [bookId, refreshActivity, refreshRecentJobs, pushToast]);
+  const clearActivityFeed = useCallback(
+    async (scope: "all" | "finished" = "finished") => {
+      try {
+        await Promise.all([
+          // "finished" soft-hides only terminal job history; "all" clears everything showing (errors,
+          // canon/packet/sweeper events, run lifecycle) — the latter is what "Clear all" needs.
+          api.clearActivity({ scope, book_id: bookId ?? undefined }),
+          api.clearFinishedJobs(bookId ?? undefined),
+        ]);
+        await Promise.all([refreshActivity(), refreshRecentJobs()]);
+      } catch {
+        pushToast({ tone: "error", message: "Couldn't clear activity" });
+      }
+    },
+    [bookId, refreshActivity, refreshRecentJobs, pushToast],
+  );
 
   // Queue control (Desk Control Round). Cancel repaints the drawer + queue count immediately;
   // pause flips optimistically off the authoritative response.

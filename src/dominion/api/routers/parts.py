@@ -55,11 +55,7 @@ async def _part_no_taken(
 @router.get("/books/{book_id}/parts", response_model=list[PartOut])
 async def list_parts(book_id: uuid.UUID, session: SessionDep) -> list[Part]:
     await _require_book(session, book_id)
-    rows = (
-        (await session.execute(select(Part).where(Part.book_id == book_id).order_by(Part.part_no)))
-        .scalars()
-        .all()
-    )
+    rows = (await session.execute(select(Part).where(Part.book_id == book_id).order_by(Part.part_no))).scalars().all()
     return list(rows)
 
 
@@ -98,9 +94,7 @@ async def update_part(part_id: uuid.UUID, body: PartUpdateIn, session: SessionDe
 
 
 @router.put("/parts/{part_id}/volume", response_model=PartOut)
-async def assign_part_volume(
-    part_id: uuid.UUID, body: PartVolumeAssignIn, session: SessionDep
-) -> Part:
+async def assign_part_volume(part_id: uuid.UUID, body: PartVolumeAssignIn, session: SessionDep) -> Part:
     """Assign a Part to a Volume, or unassign it (`volume_id: null`). The Volume must belong to the same
     book as the Part."""
     part = await _require_part(session, part_id)
@@ -123,9 +117,7 @@ async def delete_part(part_id: uuid.UUID, session: SessionDep) -> None:
     """Delete a Part and unassign its chapters (part_id -> NULL). Prose is never touched: a Part is a
     grouping layer, so removing it ungroups the chapters, it does not delete them."""
     part = await _require_part(session, part_id)
-    chapters = (
-        (await session.execute(select(Chapter).where(Chapter.part_id == part.id))).scalars().all()
-    )
+    chapters = (await session.execute(select(Chapter).where(Chapter.part_id == part.id))).scalars().all()
     for ch in chapters:
         ch.part_id = None
     await session.delete(part)
@@ -133,9 +125,7 @@ async def delete_part(part_id: uuid.UUID, session: SessionDep) -> None:
 
 
 @router.put("/chapters/{chapter_id}/part", response_model=PartOut | None)
-async def assign_chapter_part(
-    chapter_id: uuid.UUID, body: ChapterPartAssignIn, session: SessionDep
-) -> Part | None:
+async def assign_chapter_part(chapter_id: uuid.UUID, body: ChapterPartAssignIn, session: SessionDep) -> Part | None:
     """Assign a chapter to a Part, or unassign it (`part_id: null`). The Part must belong to the same
     book as the chapter. Returns the assigned Part, or null when unassigned."""
     chapter = await session.get(Chapter, chapter_id)

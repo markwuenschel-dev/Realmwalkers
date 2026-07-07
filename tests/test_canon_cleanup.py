@@ -207,7 +207,9 @@ async def test_rebuild_preserves_manual_rows(db_factory):
         await s.flush()
         mid = manual.id
 
-        await world_router.rebuild_canon(book.id, s)  # clean rebuild from series/canon on disk
+        # The rebuild endpoint is now an async scheduler (returns 202, work runs in a background task);
+        # exercise the work it schedules directly so this stays a synchronous assertion.
+        await canon_rag.ingest_incremental(s, book_id=book.id, root=world_router._PROJECT_ROOT / "series" / "canon")
 
         survivor = await s.get(CanonEntity, mid)
         assert survivor is not None and survivor.source == "manual" and survivor.status == "active"

@@ -313,9 +313,23 @@ export default function ActivityDrawer() {
             label="Recent activity"
             actions={
               activityFeed.length > 0 ? (
-                <Button size="sm" variant="ghost" onClick={() => void clearActivityFeed()}>
-                  Clear finished
-                </Button>
+                <span style={css("display:flex;align-items:center;gap:6px")}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void clearActivityFeed("finished")}
+                  >
+                    Clear finished
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void clearActivityFeed("all")}
+                    title="Dismiss everything in the feed — errors, canon/packet events, run history"
+                  >
+                    Clear all
+                  </Button>
+                </span>
               ) : undefined
             }
           >

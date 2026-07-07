@@ -167,7 +167,8 @@ export type CanonEntityOut = S["CanonEntityOut"];
 export type CanonEntityIn = S["CanonEntityIn"];
 export type CanonEntityUpdateIn = S["CanonEntityUpdateIn"];
 export type CharacterStateIn = S["CharacterStateIn"];
-export type CanonIngestOut = S["CanonIngestOut"];
+// Async canon rebuild ack (202) — the re-index runs in the background; completion shows in the Activity feed.
+export type CanonRebuildStartedOut = S["CanonRebuildStartedOut"];
 // Stale-canon cleanup (Workstream H): status-aware select -> preview -> soft retire / hard delete.
 export type CanonCleanupIn = S["CanonCleanupIn"];
 export type CanonCleanupItemOut = S["CanonCleanupItemOut"];
