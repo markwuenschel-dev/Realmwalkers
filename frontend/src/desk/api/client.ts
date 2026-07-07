@@ -19,6 +19,7 @@ import type {
   CanonRetireOut,
   ChapterCreateIn,
   ChapterOut,
+  ChapterPartAssignIn,
   ChapterUpdateIn,
   CharacterStateIn,
   CharacterStateOut,
@@ -52,6 +53,9 @@ import type {
   SmokeTestOut,
   HumanSceneIn,
   PacketOut,
+  PartCreateIn,
+  PartOut,
+  PartUpdateIn,
   PacketProposeOut,
   PacketUpdateIn,
   PacketWarnings,
@@ -216,6 +220,18 @@ export const api = {
     http<ChapterOut>("/chapters", { method: "POST", body: JSON.stringify(body) }),
   updateChapter: (chapterId: string, body: ChapterUpdateIn) =>
     http<ChapterOut>(`/chapters/${chapterId}`, { method: "PATCH", body: JSON.stringify(body) }),
+  // --- parts (Book → Part → Chapter grouping) -----------------------------------------------------
+  listParts: (bookId: string) => http<PartOut[]>(`/books/${bookId}/parts`),
+  createPart: (bookId: string, body: PartCreateIn) =>
+    http<PartOut>(`/books/${bookId}/parts`, { method: "POST", body: JSON.stringify(body) }),
+  updatePart: (partId: string, body: PartUpdateIn) =>
+    http<PartOut>(`/parts/${partId}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deletePart: (partId: string) => http<null>(`/parts/${partId}`, { method: "DELETE" }),
+  assignChapterPart: (chapterId: string, body: ChapterPartAssignIn) =>
+    http<PartOut | null>(`/chapters/${chapterId}/part`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   chapterBeats: (chapterId: string) => http<BeatOut[]>(`/chapters/${chapterId}/beats`),
   chapterScenes: (chapterId: string) => http<SceneOut[]>(`/chapters/${chapterId}/scenes`),
   createHumanScene: (chapterId: string, body: HumanSceneIn) =>

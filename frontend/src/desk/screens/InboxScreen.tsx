@@ -102,11 +102,13 @@ export default function InboxScreen() {
     setExportingAs("md");
     try {
       const exp = await import("../lib/docx");
+      const { exportAndSave } = await import("../manuscript/exportActions");
       const ms = exp.buildManuscriptFrom(selectedTitle(), chapters);
-      exp.saveMarkdown(
-        exp.buildManuscriptMarkdown(ms),
-        exp.markdownFilename(`selected_scenes_${sel.count}`),
-      );
+      await exportAndSave(ms, {
+        preset: "editorial_review",
+        filenameStem: `selected_scenes_${sel.count}`,
+        override: true,
+      });
     } finally {
       setExportingAs(null);
     }
@@ -118,11 +120,14 @@ export default function InboxScreen() {
     setExportingAs("docx");
     try {
       const exp = await import("../lib/docx");
+      const { exportAndSave } = await import("../manuscript/exportActions");
       const ms = exp.buildManuscriptFrom(selectedTitle(), chapters);
-      await exp.saveDocx(
-        exp.buildManuscriptDoc(ms, "selected scenes"),
-        exp.docxFilename(`selected_scenes_${sel.count}`),
-      );
+      await exportAndSave(ms, {
+        preset: "reader_proof",
+        filenameStem: `selected_scenes_${sel.count}`,
+        renderSubtitle: "selected scenes",
+        override: true,
+      });
     } finally {
       setExportingAs(null);
     }
@@ -134,13 +139,16 @@ export default function InboxScreen() {
     setExportingAs("shunn");
     try {
       const exp = await import("../lib/docx");
+      const { exportAndSave } = await import("../manuscript/exportActions");
       const ms = exp.buildManuscriptFrom(selectedTitle(), chapters);
       const name = resolveAuthorName(author, saveAuthor);
       if (!name) return;
-      await exp.saveDocx(
-        exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
-        exp.docxFilename(`selected_scenes_${sel.count}_shunn`),
-      );
+      await exportAndSave(ms, {
+        preset: "submission_shunn",
+        filenameStem: `selected_scenes_${sel.count}_shunn`,
+        author: name,
+        override: true,
+      });
     } finally {
       setExportingAs(null);
     }

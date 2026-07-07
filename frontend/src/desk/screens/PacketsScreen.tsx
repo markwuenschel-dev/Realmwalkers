@@ -292,24 +292,29 @@ export default function PacketsScreen() {
     setExportingChapter(kind);
     try {
       const exp = await import("../lib/docx");
+      const { exportAndSave } = await import("../manuscript/exportActions");
       const title = `Chapter ${chapter.chapter_no}${chapter.title ? `: ${chapter.title}` : ""}`;
       const ms = exp.buildManuscriptFrom(title, [manuscriptChapter]);
       const stem = `chapter_${chapter.chapter_no}${chapter.title ? `_${chapter.title}` : ""}`;
       if (kind === "md") {
-        exp.saveMarkdown(exp.buildManuscriptMarkdown(ms), exp.markdownFilename(stem));
+        await exportAndSave(ms, { preset: "editorial_review", filenameStem: stem, override: true });
       } else if (kind === "docx") {
         const bookTitle = data.books.find((b) => b.id === data.bookId)?.title;
-        await exp.saveDocx(
-          exp.buildManuscriptDoc(ms, bookTitle ? `from ${bookTitle}` : undefined),
-          exp.docxFilename(stem),
-        );
+        await exportAndSave(ms, {
+          preset: "reader_proof",
+          filenameStem: stem,
+          renderSubtitle: bookTitle ? `from ${bookTitle}` : undefined,
+          override: true,
+        });
       } else {
         const name = resolveAuthorName(author, saveAuthor);
         if (!name) return;
-        await exp.saveDocx(
-          exp.buildShunnDoc(ms, name, exp.manuscriptWordCount(ms)),
-          exp.docxFilename(`${stem}_shunn`),
-        );
+        await exportAndSave(ms, {
+          preset: "submission_shunn",
+          filenameStem: `${stem}_shunn`,
+          author: name,
+          override: true,
+        });
       }
     } finally {
       setExportingChapter(null);

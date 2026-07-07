@@ -81,17 +81,72 @@ class ContinuityResolveIn(BaseModel):
 
 
 class BookIn(BaseModel):
-    """POST body to create a book."""
+    """POST body to create a book. Export/provenance metadata is optional and, when omitted, stays
+    NULL — a new book does NOT inherit any series identity implicitly (see models.Book)."""
 
     title: str
     premise: str | None = None
+    series: str | None = None
+    book_no: int | None = None
+    subtitle: str | None = None
+
+
+class BookUpdateIn(BaseModel):
+    """PATCH body for a book's export/provenance metadata. Every field optional; only provided fields
+    are written (a field set to None cannot be distinguished from 'absent' here, so the router treats
+    unset as no-op and an explicit clear is a separate concern the UI doesn't need yet)."""
+
+    title: str | None = None
+    premise: str | None = None
+    series: str | None = None
+    book_no: int | None = None
+    subtitle: str | None = None
 
 
 class BookOut(_ORM):
     id: uuid.UUID
     title: str
     premise: str | None = None
+    series: str | None = None
+    book_no: int | None = None
+    subtitle: str | None = None
     created_at: datetime
+
+
+# --- Parts: the Book → Part → Chapter grouping level (renderer-neutral export foundation) ----------
+
+
+class PartCreateIn(BaseModel):
+    """POST body to create a Part within a book. `part_no` orders parts and drives the reader label;
+    it must be unique within the book (the router returns 409 on collision)."""
+
+    part_no: int
+    title: str
+    subtitle: str | None = None
+
+
+class PartUpdateIn(BaseModel):
+    """PATCH body for a Part. Every field optional; only provided fields are written."""
+
+    part_no: int | None = None
+    title: str | None = None
+    subtitle: str | None = None
+
+
+class PartOut(_ORM):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    part_no: int
+    title: str
+    subtitle: str | None = None
+    created_at: datetime
+
+
+class ChapterPartAssignIn(BaseModel):
+    """PUT body to (re)assign a chapter to a Part, or unassign it. `part_id: null` clears the grouping.
+    The part must belong to the same book as the chapter (the router enforces this)."""
+
+    part_id: uuid.UUID | None = None
 
 
 class BeatOut(_ORM):
@@ -164,6 +219,7 @@ class ChapterOut(_ORM):
     status: str
     kind: str = "chapter"  # ChapterKind value; str (like status) tolerates any legacy row
     epigraph: str | None = None
+    part_id: uuid.UUID | None = None  # Part grouping (Book → Part → Chapter); null = ungrouped
 
 
 class ChapterUpdateIn(BaseModel):
@@ -663,14 +719,38 @@ class ManuscriptChapter(BaseModel):
     pov: str
     kind: str = "chapter"
     epigraph: str | None = None
+    # Flat wire shape: a chapter carries its Part membership by id (NULL = ungrouped). The frontend
+    # spine builder tree-ifies `parts[]` + these `part_id`s into the ordered reading spine.
+    part_id: uuid.UUID | None = None
     scenes: list[ManuscriptScene] = []
 
 
+class ManuscriptPart(BaseModel):
+    """A Part in export order. Reader labels ("Part One") are derived from `part_no` client-side by the
+    shared label contract, never stored here."""
+
+    id: uuid.UUID
+    part_no: int
+    title: str
+    subtitle: str | None = None
+
+
 class ManuscriptOut(BaseModel):
-    """The approved manuscript, assembled in reading order (latest approved version per scene)."""
+    """The approved manuscript, assembled in reading order (latest approved version per scene).
+
+    Flat by design: `parts[]` is a sibling list and each chapter references its part via `part_id`,
+    rather than nesting chapters inside parts on the wire. The normalized tree is built on the frontend
+    (ManuscriptSpine), keeping this endpoint backward-compatible (a book with no parts emits `parts: []`
+    and every chapter's `part_id` is null). Book export/provenance metadata rides along so the frontend
+    ExportMetadata resolver has an authoritative source and the emitters never hard-code project identity.
+    """
 
     book_id: uuid.UUID
     title: str
+    series: str | None = None
+    book_no: int | None = None
+    subtitle: str | None = None
+    parts: list[ManuscriptPart] = []
     chapters: list[ManuscriptChapter] = []
 
 

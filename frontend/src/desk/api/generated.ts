@@ -240,6 +240,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/books/{book_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update Book
+     * @description Update a book's title/premise and export/provenance metadata. Only provided fields are written.
+     */
+    patch: operations["update_book_books__book_id__patch"];
+    trace?: never;
+  };
   "/books/{book_id}/manuscript": {
     parameters: {
       query?: never;
@@ -495,6 +515,67 @@ export interface paths {
      * @description Queue draft jobs for approved beats with validated ScenePackets — canonical contract-first entry.
      */
     post: operations["draft_chapter_chapters__chapter_id__draft_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/books/{book_id}/parts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Parts */
+    get: operations["list_parts_books__book_id__parts_get"];
+    put?: never;
+    /** Create Part */
+    post: operations["create_part_books__book_id__parts_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/parts/{part_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete Part
+     * @description Delete a Part and unassign its chapters (part_id -> NULL). Prose is never touched: a Part is a
+     *     grouping layer, so removing it ungroups the chapters, it does not delete them.
+     */
+    delete: operations["delete_part_parts__part_id__delete"];
+    options?: never;
+    head?: never;
+    /** Update Part */
+    patch: operations["update_part_parts__part_id__patch"];
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/part": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Assign Chapter Part
+     * @description Assign a chapter to a Part, or unassign it (`part_id: null`). The Part must belong to the same
+     *     book as the chapter. Returns the assigned Part, or null when unassigned.
+     */
+    put: operations["assign_chapter_part_chapters__chapter_id__part_put"];
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -3364,13 +3445,20 @@ export interface components {
     };
     /**
      * BookIn
-     * @description POST body to create a book.
+     * @description POST body to create a book. Export/provenance metadata is optional and, when omitted, stays
+     *     NULL — a new book does NOT inherit any series identity implicitly (see models.Book).
      */
     BookIn: {
       /** Title */
       title: string;
       /** Premise */
       premise?: string | null;
+      /** Series */
+      series?: string | null;
+      /** Book No */
+      book_no?: number | null;
+      /** Subtitle */
+      subtitle?: string | null;
     };
     /** BookOut */
     BookOut: {
@@ -3383,6 +3471,12 @@ export interface components {
       title: string;
       /** Premise */
       premise?: string | null;
+      /** Series */
+      series?: string | null;
+      /** Book No */
+      book_no?: number | null;
+      /** Subtitle */
+      subtitle?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -3452,6 +3546,24 @@ export interface components {
        * @default []
        */
       editorial_runs: components["schemas"]["EditorialAgentRunOut"][];
+    };
+    /**
+     * BookUpdateIn
+     * @description PATCH body for a book's export/provenance metadata. Every field optional; only provided fields
+     *     are written (a field set to None cannot be distinguished from 'absent' here, so the router treats
+     *     unset as no-op and an explicit clear is a separate concern the UI doesn't need yet).
+     */
+    BookUpdateIn: {
+      /** Title */
+      title?: string | null;
+      /** Premise */
+      premise?: string | null;
+      /** Series */
+      series?: string | null;
+      /** Book No */
+      book_no?: number | null;
+      /** Subtitle */
+      subtitle?: string | null;
     };
     /**
      * CancelJobOut
@@ -3735,6 +3847,17 @@ export interface components {
       kind: string;
       /** Epigraph */
       epigraph?: string | null;
+      /** Part Id */
+      part_id?: string | null;
+    };
+    /**
+     * ChapterPartAssignIn
+     * @description PUT body to (re)assign a chapter to a Part, or unassign it. `part_id: null` clears the grouping.
+     *     The part must belong to the same book as the chapter (the router enforces this).
+     */
+    ChapterPartAssignIn: {
+      /** Part Id */
+      part_id?: string | null;
     };
     /**
      * ChapterPipelineOut
@@ -4911,6 +5034,8 @@ export interface components {
       kind: string;
       /** Epigraph */
       epigraph?: string | null;
+      /** Part Id */
+      part_id?: string | null;
       /**
        * Scenes
        * @default []
@@ -4920,6 +5045,12 @@ export interface components {
     /**
      * ManuscriptOut
      * @description The approved manuscript, assembled in reading order (latest approved version per scene).
+     *
+     *     Flat by design: `parts[]` is a sibling list and each chapter references its part via `part_id`,
+     *     rather than nesting chapters inside parts on the wire. The normalized tree is built on the frontend
+     *     (ManuscriptSpine), keeping this endpoint backward-compatible (a book with no parts emits `parts: []`
+     *     and every chapter's `part_id` is null). Book export/provenance metadata rides along so the frontend
+     *     ExportMetadata resolver has an authoritative source and the emitters never hard-code project identity.
      */
     ManuscriptOut: {
       /**
@@ -4929,11 +5060,40 @@ export interface components {
       book_id: string;
       /** Title */
       title: string;
+      /** Series */
+      series?: string | null;
+      /** Book No */
+      book_no?: number | null;
+      /** Subtitle */
+      subtitle?: string | null;
+      /**
+       * Parts
+       * @default []
+       */
+      parts: components["schemas"]["ManuscriptPart"][];
       /**
        * Chapters
        * @default []
        */
       chapters: components["schemas"]["ManuscriptChapter"][];
+    };
+    /**
+     * ManuscriptPart
+     * @description A Part in export order. Reader labels ("Part One") are derived from `part_no` client-side by the
+     *     shared label contract, never stored here.
+     */
+    ManuscriptPart: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Part No */
+      part_no: number;
+      /** Title */
+      title: string;
+      /** Subtitle */
+      subtitle?: string | null;
     };
     /** ManuscriptScene */
     ManuscriptScene: {
@@ -5102,6 +5262,55 @@ export interface components {
       } | null;
       /** Confidence */
       confidence?: string | null;
+    };
+    /**
+     * PartCreateIn
+     * @description POST body to create a Part within a book. `part_no` orders parts and drives the reader label;
+     *     it must be unique within the book (the router returns 409 on collision).
+     */
+    PartCreateIn: {
+      /** Part No */
+      part_no: number;
+      /** Title */
+      title: string;
+      /** Subtitle */
+      subtitle?: string | null;
+    };
+    /** PartOut */
+    PartOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Part No */
+      part_no: number;
+      /** Title */
+      title: string;
+      /** Subtitle */
+      subtitle?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /**
+     * PartUpdateIn
+     * @description PATCH body for a Part. Every field optional; only provided fields are written.
+     */
+    PartUpdateIn: {
+      /** Part No */
+      part_no?: number | null;
+      /** Title */
+      title?: string | null;
+      /** Subtitle */
+      subtitle?: string | null;
     };
     /**
      * PipelineAgentRunOut
@@ -7746,6 +7955,41 @@ export interface operations {
       };
     };
   };
+  update_book_books__book_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BookUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BookOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   manuscript_books__book_id__manuscript_get: {
     parameters: {
       query?: never;
@@ -8225,6 +8469,171 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DraftScheduleOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_parts_books__book_id__parts_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_part_books__book_id__parts_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PartCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_part_parts__part_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        part_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_part_parts__part_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        part_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PartUpdateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  assign_chapter_part_chapters__chapter_id__part_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChapterPartAssignIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartOut"] | null;
         };
       };
       /** @description Validation Error */

@@ -34,8 +34,16 @@ import {
   type Surface,
 } from "./litrpgSurfaces";
 import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
-import { beautify } from "./beautify";
 import { wordCount } from "./format";
+import { bookNumberLabel } from "../manuscript/metadata";
+import { toRoman } from "../manuscript/labels";
+import type { ExportPolicy } from "../manuscript/presets";
+import {
+  spineCounts,
+  type ManuscriptSpine,
+  type SpineChapterNode,
+  type SpinePartNode,
+} from "../manuscript/spine";
 
 // The three export formats every prose-bearing screen offers (Manuscript, Inbox, Scene, Chapters,
 // Packets): plain semantic Markdown, the styled Reader DOCX, and the plain-format Shunn DOCX.
@@ -437,11 +445,13 @@ export function buildDocDoc(title: string, content: string): Document {
 
 // --- wrapping arbitrary scenes as a ManuscriptOut -----------------------------------------------
 // Every screen that shows prose (Inbox's selected scenes, a single scene, a single chapter, a scene
-// packet's drafted scene) wraps its own data as a one-off ManuscriptOut here and feeds it straight
-// into buildManuscriptMarkdown / buildManuscriptDoc / buildShunnDoc below — so a Markdown / Reader-DOCX
-// / Shunn-DOCX export looks byte-for-byte identical (same fonts, structure, front matter) no matter
-// which screen triggered it. This is the only place that shape gets assembled; the builders themselves
-// never know whether they're rendering the whole book, one chapter, or one scene.
+// packet's drafted scene) wraps its own data as a one-off ManuscriptOut here and feeds it straight into
+// the export pipeline (manuscript/pipeline.runExport) — so a Markdown / Reader-DOCX / Shunn-DOCX export
+// looks identical (same fonts, structure, front matter, labels) no matter which screen triggered it.
+// This is the only place that shape gets assembled; the pipeline + emitters never know whether they're
+// rendering the whole book, one chapter, or one scene. A fragment has no Parts and no book metadata, so
+// `parts` is empty, each chapter's `part_id` is null, and series/book_no/subtitle stay null (a fragment
+// must NOT inherit book identity — the old code hard-coded "BOOK ONE" onto every fragment; it no longer).
 
 export interface ManuscriptChapterInput {
   chapter_no: number;
@@ -459,6 +469,10 @@ export function buildManuscriptFrom(
   return {
     book_id: "",
     title,
+    series: null,
+    book_no: null,
+    subtitle: null,
+    parts: [],
     chapters: [...chapters]
       .sort((a, b) => a.chapter_no - b.chapter_no)
       .map((c) => ({
@@ -467,122 +481,217 @@ export function buildManuscriptFrom(
         pov: c.pov,
         kind: c.kind ?? "chapter",
         epigraph: c.epigraph ?? null,
+        part_id: null,
         scenes: [...c.scenes].sort((a, b) => a.scene_no - b.scene_no),
       })),
   };
 }
 
-/** Whether any scene in a manuscript-shaped document has prose — the same gate the Manuscript screen
- *  uses to disable its export buttons before anything has been drafted/approved. */
+/** Whether any scene in a manuscript-shaped document has prose — the gate the export buttons use before
+ *  anything has been drafted/approved. (Convenience over the wire shape; the spine exposes the same via
+ *  `spineHasProse`.) */
 export function manuscriptHasProse(ms: ManuscriptOut): boolean {
   return ms.chapters.some((c) => c.scenes.some((s) => (s.prose ?? "").trim()));
 }
 
-/** Total word count across every scene — what buildShunnDoc's byline word estimate needs. */
+/** Total word count across every scene. (Convenience over the wire shape; the manifest's authoritative
+ *  count comes from `spineCounts`.) */
 export function manuscriptWordCount(ms: ManuscriptOut): number {
   return ms.chapters.flatMap((c) => c.scenes).reduce((acc, s) => acc + wordCount(s.prose), 0);
 }
 
-export function buildManuscriptDoc(
-  manuscript: ManuscriptOut,
-  subtitle = "the approved manuscript, in reading order",
-): Document {
-  const title = manuscript.title || "Untitled";
-  const children: (Paragraph | Table)[] = [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 2400, after: 240 },
-      children: [new TextRun({ text: "BOOK ONE", font: "Georgia", size: 20, color: "808080" })],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
-      children: [new TextRun({ text: title, font: "Georgia", bold: true, size: 56 })],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: subtitle,
-          font: "Georgia",
-          italics: true,
-          size: 24,
-          color: "808080",
-        }),
-      ],
-    }),
-  ];
-
-  for (const ch of manuscript.chapters) {
-    const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
-    if (scenes.length === 0) continue;
-    children.push(new Paragraph({ children: [new PageBreak()] }));
-    // Non-'chapter' kinds render their own label (PROLOGUE / INTERLUDE / EPILOGUE / FRONT MATTER /
-    // BACK MATTER) with no number; a plain chapter stays "CHAPTER N".
-    const headingText =
-      ch.kind && ch.kind !== "chapter"
-        ? ch.kind.replace(/_/g, " ").toUpperCase()
-        : `CHAPTER ${ch.chapter_no}`;
-    const epigraph = ch.epigraph?.trim();
-    children.push(
+/** Reader DOCX title page — series line + spelled-out book number come from ExportMetadata (never
+ *  hard-coded); the render descriptor (approved/draft mode, or a fragment label) is passed by the
+ *  pipeline. A fragment/standalone book with no series metadata simply omits those lines. */
+function readerTitlePage(
+  spine: ManuscriptSpine,
+  policy: ExportPolicy,
+  renderSubtitle?: string,
+): Paragraph[] {
+  const { metadata } = spine;
+  const out: Paragraph[] = [];
+  const bookLine = bookNumberLabel(metadata.bookNumber);
+  if (policy.includeSeriesLine && (metadata.series || bookLine)) {
+    const head = [metadata.series?.toUpperCase(), bookLine].filter(Boolean).join(" · ");
+    out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 480, after: ch.title ? 60 : 80 },
-        children: [new TextRun({ text: headingText, font: "Georgia", bold: true, size: 28 })],
+        spacing: { before: 2400, after: 240 },
+        children: [new TextRun({ text: head, font: "Georgia", size: 20, color: "808080" })],
       }),
     );
-    if (ch.title) {
-      children.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 80 },
-          children: [new TextRun({ text: ch.title, font: "Georgia", italics: true, size: 26 })],
-        }),
-      );
-    }
-    children.push(
+  }
+  out.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: out.length ? 0 : 2400, after: 200 },
+      children: [new TextRun({ text: metadata.title, font: "Georgia", bold: true, size: 56 })],
+    }),
+  );
+  if (policy.includeSubtitle && metadata.subtitle) {
+    out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: epigraph ? 200 : 320 },
+        spacing: { after: 120 },
         children: [
-          new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" }),
+          new TextRun({ text: metadata.subtitle, font: "Georgia", italics: true, size: 26 }),
         ],
       }),
     );
-    if (epigraph) {
-      children.push(
+  }
+  if (renderSubtitle) {
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: renderSubtitle,
+            font: "Georgia",
+            italics: true,
+            size: 24,
+            color: "808080",
+          }),
+        ],
+      }),
+    );
+  }
+  return out;
+}
+
+/** A full-width Part divider page: "PART I" over the part title, optional subtitle. */
+function readerPartDivider(part: SpinePartNode): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [new Paragraph({ children: [new PageBreak()] })];
+  out.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 2000, after: 200 },
+      children: [
+        new TextRun({
+          text: `PART ${toRoman(part.partNo)}`,
+          font: "Georgia",
+          size: 24,
+          color: "808080",
+          characterSpacing: 40,
+        }),
+      ],
+    }),
+  );
+  out.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: part.subtitle ? 80 : 0 },
+      children: [new TextRun({ text: part.title, font: "Georgia", bold: true, size: 40 })],
+    }),
+  );
+  if (part.subtitle) {
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: part.subtitle,
+            font: "Georgia",
+            italics: true,
+            size: 24,
+            color: "808080",
+          }),
+        ],
+      }),
+    );
+  }
+  return out;
+}
+
+/** Render one chapter node into the reader doc: page break, resolved label, title, POV, epigraph, and
+ *  its scenes (from the pre-parsed spine blocks — no re-parsing, no label re-derivation here). Returns
+ *  nothing when the chapter has no prose (an empty chapter is skipped; preflight flags it). */
+function readerChapter(ch: SpineChapterNode, policy: ExportPolicy): (Paragraph | Table)[] {
+  const scenes = ch.scenes.filter((s) => s.hasProse);
+  if (scenes.length === 0) return [];
+  const out: (Paragraph | Table)[] = [new Paragraph({ children: [new PageBreak()] })];
+  const epigraph = ch.epigraph?.trim();
+  out.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 480, after: ch.title ? 60 : 80 },
+      children: [
+        new TextRun({ text: ch.label.toUpperCase(), font: "Georgia", bold: true, size: 28 }),
+      ],
+    }),
+  );
+  if (ch.title) {
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: [new TextRun({ text: ch.title, font: "Georgia", italics: true, size: 26 })],
+      }),
+    );
+  }
+  out.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: epigraph ? 200 : 320 },
+      children: [
+        new TextRun({ text: `POV · ${ch.pov}`, font: "Georgia", size: 18, color: "808080" }),
+      ],
+    }),
+  );
+  if (epigraph) {
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 320 },
+        children: [
+          new TextRun({
+            text: epigraph,
+            font: "Georgia",
+            italics: true,
+            size: 22,
+            color: "606060",
+          }),
+        ],
+      }),
+    );
+  }
+  scenes.forEach((sc, si) => {
+    if (si > 0) {
+      out.push(
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 320 },
+          spacing: { before: 160, after: 160 },
           children: [
-            new TextRun({
-              text: epigraph,
-              font: "Georgia",
-              italics: true,
-              size: 22,
-              color: "606060",
-            }),
+            new TextRun({ text: policy.sceneBreakGlyph || "⁂", size: 24, color: "808080" }),
           ],
         }),
       );
     }
-    scenes.forEach((sc, si) => {
-      if (si > 0) {
-        children.push(
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 160, after: 160 },
-            children: [new TextRun({ text: "⁂", size: 24, color: "808080" })],
-          }),
-        );
-      }
-      for (const el of renderBlocks(parseBlocks(beautify(sc.prose ?? "")), true)) children.push(el);
-    });
+    // Blocks are already parsed (from the beautified prose) in the spine — the emitter never re-parses.
+    for (const el of renderBlocks(sc.blocks, true)) out.push(el);
+  });
+  return out;
+}
+
+/** Reader DOCX emitter — consumes the ManuscriptSpine. Renders Part dividers, then each part's chapters
+ *  (or ungrouped chapters), each from the spine's resolved labels + pre-parsed blocks. */
+export function renderReaderDoc(
+  spine: ManuscriptSpine,
+  policy: ExportPolicy,
+  opts: { renderSubtitle?: string } = {},
+): Document {
+  const children: (Paragraph | Table)[] = [...readerTitlePage(spine, policy, opts.renderSubtitle)];
+  for (const node of spine.nodes) {
+    if (node.type === "part") {
+      if (policy.renderParts) children.push(...readerPartDivider(node));
+      for (const ch of node.chapters) children.push(...readerChapter(ch, policy));
+    } else {
+      children.push(...readerChapter(node, policy));
+    }
   }
 
   return new Document({
     creator: "Writers' Desk",
-    title,
+    title: spine.metadata.title,
     sections: [
       {
         properties: { page: { margin: pageMargin } },
@@ -698,24 +807,63 @@ function shunnPlainBlocks(blocks: ProseBlock[]): Paragraph[] {
   return out;
 }
 
-export function buildShunnDoc(
-  manuscript: ManuscriptOut,
-  author: string,
-  wordCount: number,
-): Document {
-  const title = manuscript.title || "Untitled";
-  const byline = author.trim() || "Author";
+/** One chapter, plain Shunn format. Uses the spine's resolved label (uppercased) — so a Prologue reads
+ *  "PROLOGUE", never "CHAPTER N" (the bug this refactor kills) — and the pre-parsed, flattened blocks. */
+function shunnChapter(ch: SpineChapterNode): Paragraph[] {
+  const scenes = ch.scenes.filter((s) => s.hasProse);
+  if (scenes.length === 0) return [];
+  const out: Paragraph[] = [new Paragraph({ children: [new PageBreak()] })];
+  out.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 1200, after: 240, ...DOUBLE },
+      children: [
+        shunnRun(`${ch.label.toUpperCase()}${ch.title ? ` — ${ch.title.toUpperCase()}` : ""}`),
+      ],
+    }),
+  );
+  scenes.forEach((sc, si) => {
+    if (si > 0) {
+      out.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: DOUBLE,
+          children: [shunnRun("#")],
+        }),
+      );
+    }
+    for (const para of shunnPlainBlocks(sc.blocks)) out.push(para);
+  });
+  return out;
+}
+
+/** A plain Part divider for Shunn — a centered "PART I — TITLE", no rich styling. */
+function shunnPartDivider(part: SpinePartNode): Paragraph[] {
+  return [
+    new Paragraph({ children: [new PageBreak()] }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 1200, after: 240, ...DOUBLE },
+      children: [shunnRun(part.label.toUpperCase())],
+    }),
+  ];
+}
+
+/** Shunn DOCX emitter — consumes the ManuscriptSpine. Byline + word count come from ExportMetadata and
+ *  the spine counts; rich LitRPG blocks are flattened by `shunnPlainBlocks` (submission-safe). */
+export function renderShunnDoc(spine: ManuscriptSpine, policy: ExportPolicy): Document {
+  const title = spine.metadata.title;
+  const byline =
+    (policy.includeAuthorByline ? spine.metadata.author : undefined)?.trim() || "Author";
   const surname = byline.split(/\s+/).pop() || byline;
   const titleUpper = title.toUpperCase();
   const rightTab = convertInchesToTwip(6.5);
+  const words = spineCounts(spine).words;
 
   const children: Paragraph[] = [
     new Paragraph({
       tabStops: [{ type: TabStopType.RIGHT, position: rightTab }],
-      children: [
-        shunnRun(byline),
-        shunnRun(`\tabout ${roundWords(wordCount).toLocaleString()} words`),
-      ],
+      children: [shunnRun(byline), shunnRun(`\tabout ${roundWords(words).toLocaleString()} words`)],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -729,32 +877,13 @@ export function buildShunnDoc(
     }),
   ];
 
-  for (const ch of manuscript.chapters) {
-    const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
-    if (scenes.length === 0) continue;
-    children.push(new Paragraph({ children: [new PageBreak()] }));
-    children.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 1200, after: 240, ...DOUBLE },
-        children: [
-          shunnRun(`CHAPTER ${ch.chapter_no}${ch.title ? ` — ${ch.title.toUpperCase()}` : ""}`),
-        ],
-      }),
-    );
-    scenes.forEach((sc, si) => {
-      if (si > 0) {
-        children.push(
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: DOUBLE,
-            children: [shunnRun("#")],
-          }),
-        );
-      }
-      for (const para of shunnPlainBlocks(parseBlocks(beautify(sc.prose ?? ""))))
-        children.push(para);
-    });
+  for (const node of spine.nodes) {
+    if (node.type === "part") {
+      if (policy.renderParts) children.push(...shunnPartDivider(node));
+      for (const ch of node.chapters) children.push(...shunnChapter(ch));
+    } else {
+      children.push(...shunnChapter(node));
+    }
   }
 
   return new Document({
@@ -778,53 +907,77 @@ export function markdownFilename(title: string): string {
   return (title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript") + ".md";
 }
 
+export function manifestFilename(title: string): string {
+  return (title.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "manuscript") + ".manifest.json";
+}
+
 function yamlQuote(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
-function chapterComment(ch: ManuscriptOut["chapters"][number]): string {
+function chapterComment(ch: SpineChapterNode): string {
   const title = ch.title ? ` title=${yamlQuote(ch.title)}` : "";
-  return `<!-- chapter number=${ch.chapter_no}${title} pov=${yamlQuote(ch.pov)} -->`;
+  const kind = ch.kind !== "chapter" ? ` kind=${ch.kind}` : "";
+  return `<!-- chapter number=${ch.chapterNo}${kind}${title} pov=${yamlQuote(ch.pov)} -->`;
 }
 
-/** Semantic Markdown export — dominion-manuscript/v1 front matter, prose preserved verbatim. */
-export function buildManuscriptMarkdown(
-  manuscript: ManuscriptOut,
-  opts: { draft?: boolean } = {},
+/** Emit one chapter to the Markdown line buffer, using the resolved label + RAW prose (never the
+ *  beautified form — Markdown preserves the safe, verbatim semantic source). */
+function markdownChapter(lines: string[], ch: SpineChapterNode): void {
+  const scenes = ch.scenes.filter((s) => s.hasProse);
+  if (scenes.length === 0) return;
+  // A section chapter's label already IS its title (Glossary, Map…); a normal/prologue label is a bare
+  // "Chapter N"/"Prologue" to which the chapter title is appended.
+  const isSection = ch.kind === "front_matter" || ch.kind === "back_matter";
+  const heading = isSection || !ch.title ? ch.label : `${ch.label} — ${ch.title}`;
+  lines.push(`# ${heading}`, chapterComment(ch), "");
+  scenes.forEach((sc, si) => {
+    lines.push(`<!-- scene index=${si + 1} scene_no=${sc.sceneNo} -->`, "");
+    lines.push(sc.proseRaw);
+    lines.push("");
+  });
+}
+
+/** Semantic Markdown emitter — consumes the ManuscriptSpine. Front matter is metadata-driven (no
+ *  hard-coded series/book/litrpg flags); Part headings group their chapters; prose is preserved verbatim
+ *  (`proseRaw`). `exportedAt` is injected (deterministic for tests) rather than stamped inline. */
+export function renderMarkdown(
+  spine: ManuscriptSpine,
+  _policy: ExportPolicy,
+  opts: { draft: boolean; exportedAt: string },
 ): string {
-  const draft = opts.draft ?? false;
-  const title = manuscript.title || "Untitled";
+  const { metadata } = spine;
   const lines: string[] = [
     "---",
     "schema: dominion-manuscript/v1",
-    `title: ${yamlQuote(title)}`,
-    'series: "Dominion Realm"',
-    "book: 1",
-    `exported_at: ${yamlQuote(new Date().toISOString())}`,
+    `title: ${yamlQuote(metadata.title)}`,
+  ];
+  // Metadata-driven — a standalone/new book with no series identity simply omits these lines.
+  if (metadata.series) lines.push(`series: ${yamlQuote(metadata.series)}`);
+  if (metadata.bookNumber != null) lines.push(`book: ${metadata.bookNumber}`);
+  if (metadata.subtitle) lines.push(`subtitle: ${yamlQuote(metadata.subtitle)}`);
+  lines.push(
+    `exported_at: ${yamlQuote(opts.exportedAt)}`,
     "source: writers-desk",
     "format: semantic-markdown",
-    "interface_style: professional",
-    "litrpg_ui: true",
-    `draft: ${draft}`,
+    `draft: ${opts.draft}`,
     "---",
     "",
-    `# ${title}`,
+    `# ${metadata.title}`,
     "",
-  ];
+  );
 
-  for (const ch of manuscript.chapters) {
-    const scenes = ch.scenes.filter((s) => (s.prose ?? "").trim());
-    if (scenes.length === 0) continue;
-    lines.push(
-      `# Chapter ${ch.chapter_no}${ch.title ? ` — ${ch.title}` : ""}`,
-      chapterComment(ch),
-      "",
-    );
-    scenes.forEach((sc, si) => {
-      lines.push(`<!-- scene index=${si + 1} scene_no=${sc.scene_no} -->`, "");
-      lines.push(sc.prose ?? "");
-      lines.push("");
-    });
+  for (const node of spine.nodes) {
+    if (node.type === "part") {
+      lines.push(
+        `# ${node.label}`,
+        `<!-- part number=${node.partNo}${node.subtitle ? ` subtitle=${yamlQuote(node.subtitle)}` : ""} -->`,
+        "",
+      );
+      for (const ch of node.chapters) markdownChapter(lines, ch);
+    } else {
+      markdownChapter(lines, node);
+    }
   }
 
   return lines.join("\n");
@@ -832,6 +985,20 @@ export function buildManuscriptMarkdown(
 
 export function saveMarkdown(content: string, filename: string): void {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Download an ExportManifest as a JSON provenance sidecar. Typed loosely to avoid a runtime dependency
+ *  from this emitter file on the manifest module (the shape is `manuscript/manifest.ExportManifest`). */
+export function saveManifest(manifest: object, filename: string): void {
+  const blob = new Blob([JSON.stringify(manifest, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

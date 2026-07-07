@@ -26,6 +26,33 @@ class Book(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(Text)
     premise: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Export/provenance metadata (renderer-neutral export foundation): these feed ExportMetadata so the
+    # emitters never hard-code project identity. ALL nullable with NO server default on purpose — a new
+    # book must NOT inherit Dominion identity implicitly. Pre-existing rows are backfilled to the Dominion
+    # values by a timestamp-guarded one-time migration (see migrations._BACKFILLS); books created after
+    # that cutoff stay NULL until the project sets them, and the metadata resolver omits absent fields.
+    series: Mapped[str | None] = mapped_column(Text, nullable=True)  # e.g. "Dominion Realm"; NULL = standalone
+    book_no: Mapped[int | None] = mapped_column(Integer, nullable=True)  # position in series; drives "BOOK ONE"
+    subtitle: Mapped[str | None] = mapped_column(Text, nullable=True)  # real book subtitle (NOT the reader-mode line)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Part(Base):
+    """A reader-facing grouping of chapters (Book → Part → Chapter → Scene) — the mid-tier structural
+    spine level between Book and Chapter (Volume/Act later repeat this exact shape).
+
+    Durable and optional: a book may have zero parts (every chapter ungrouped) or partition its chapters
+    into ordered parts via `Chapter.part_id`. Ordering keys off `part_no` (unique within a book); the
+    reader-facing label ("Part One") is derived from it by the shared label contract, never stored.
+    Chapters keep their own global `chapter_no` — a Part is a grouping/divider layer, not a renumbering.
+    """
+
+    __tablename__ = "parts"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    part_no: Mapped[int] = mapped_column(Integer)  # ordering + label source; unique within a book (app-enforced)
+    title: Mapped[str] = mapped_column(Text)  # e.g. "The Gathering Storm"
+    subtitle: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -35,6 +62,9 @@ class Chapter(Base):
     __tablename__ = "chapters"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    # Optional grouping into a Part (Book → Part → Chapter). NULL = ungrouped (renders under no part
+    # divider); ordering within the book still keys off chapter_no, not part membership.
+    part_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("parts.id"), nullable=True)
     chapter_no: Mapped[int] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)  # plan-call proposes; author edits
     pov: Mapped[str] = mapped_column(Text)  # single narrating character

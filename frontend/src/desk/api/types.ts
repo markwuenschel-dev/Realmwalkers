@@ -38,6 +38,14 @@ export type DecisionIn = S["DecisionIn"];
 export type ContinuityResolveIn = S["ContinuityResolveIn"];
 export type BookOut = S["BookOut"];
 export type BookIn = S["BookIn"];
+export type BookUpdateIn = S["BookUpdateIn"];
+// Book → Part → Chapter grouping (renderer-neutral export foundation). Wire is flat: `parts[]` is a
+// sibling list on ManuscriptOut and each chapter carries `part_id`; the spine builder tree-ifies it.
+export type PartOut = S["PartOut"];
+export type PartCreateIn = S["PartCreateIn"];
+export type PartUpdateIn = S["PartUpdateIn"];
+export type ChapterPartAssignIn = S["ChapterPartAssignIn"];
+export type ManuscriptPart = S["ManuscriptPart"];
 export type ChapterOut = Omit<S["ChapterOut"], "title" | "outline"> & {
   title: string | null;
   outline: string | null;

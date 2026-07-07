@@ -14,15 +14,17 @@ from sqlalchemy import select
 from dominion.api.deps import SessionDep
 from dominion.api.scene_delete import hard_delete_scene
 from dominion.shared.enums import SceneStatus
-from dominion.shared.models import Book, Chapter, ChapterPacket, ProductionRun, Scene
+from dominion.shared.models import Book, Chapter, ChapterPacket, Part, ProductionRun, Scene
 from dominion.shared.schemas import (
     BookIn,
     BookOut,
+    BookUpdateIn,
     ChapterPipelineOut,
     ChapterRunFactsOut,
     ClearDraftScenesOut,
     ManuscriptChapter,
     ManuscriptOut,
+    ManuscriptPart,
     ManuscriptScene,
 )
 from dominion.workers.draft_readiness import derive_draft_readiness, fetch_book_readiness_rows
@@ -44,8 +46,37 @@ async def list_books(session: SessionDep) -> list[Book]:
 
 @router.post("", response_model=BookOut)
 async def create_book(body: BookIn, session: SessionDep) -> Book:
-    book = Book(title=body.title, premise=body.premise)
+    # Export/provenance metadata is written only when provided; a new book left unset stays NULL and
+    # therefore inherits NO series identity (see models.Book — the Dominion backfill is timestamp-guarded
+    # to pre-existing rows only).
+    book = Book(
+        title=body.title,
+        premise=body.premise,
+        series=body.series,
+        book_no=body.book_no,
+        subtitle=body.subtitle,
+    )
     session.add(book)
+    await session.commit()
+    return book
+
+
+@router.patch("/{book_id}", response_model=BookOut)
+async def update_book(book_id: uuid.UUID, body: BookUpdateIn, session: SessionDep) -> Book:
+    """Update a book's title/premise and export/provenance metadata. Only provided fields are written."""
+    book = await session.get(Book, book_id)
+    if book is None:
+        raise HTTPException(status_code=404, detail="book not found")
+    if body.title is not None:
+        book.title = body.title
+    if body.premise is not None:
+        book.premise = body.premise
+    if body.series is not None:
+        book.series = body.series
+    if body.book_no is not None:
+        book.book_no = body.book_no
+    if body.subtitle is not None:
+        book.subtitle = body.subtitle
     await session.commit()
     return book
 
@@ -58,6 +89,12 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
 
     chapters = (
         (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
+        .scalars()
+        .all()
+    )
+
+    parts = (
+        (await session.execute(select(Part).where(Part.book_id == book_id).order_by(Part.part_no)))
         .scalars()
         .all()
     )
@@ -81,10 +118,13 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
         latest_by_chapter.setdefault(sc.chapter_id, {}).setdefault(sc.scene_no, sc)
 
     out_chapters: list[ManuscriptChapter] = []
+    rendered_part_ids: set[uuid.UUID] = set()
     for chapter in chapters:
         latest = latest_by_chapter.get(chapter.id, {})
         if not latest:
             continue
+        if chapter.part_id is not None:
+            rendered_part_ids.add(chapter.part_id)
         out_chapters.append(
             ManuscriptChapter(
                 chapter_no=chapter.chapter_no,
@@ -92,11 +132,30 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
                 pov=chapter.pov,
                 kind=chapter.kind,
                 epigraph=chapter.epigraph,
+                part_id=chapter.part_id,
                 scenes=[ManuscriptScene(scene_no=no, prose=latest[no].prose) for no in sorted(latest)],
             )
         )
 
-    return ManuscriptOut(book_id=book_id, title=book.title, chapters=out_chapters)
+    # Only parts that actually own a RENDERED chapter (one with approved prose) reach the export — an
+    # empty Part, or a Part whose chapters are all undrafted, is a preflight concern for the working-draft
+    # compile, not a reason to emit a phantom divider in the approved manuscript. The frontend spine
+    # builder decides divider placement; the endpoint just supplies the ordered part list + membership.
+    out_parts = [
+        ManuscriptPart(id=p.id, part_no=p.part_no, title=p.title, subtitle=p.subtitle)
+        for p in parts
+        if p.id in rendered_part_ids
+    ]
+
+    return ManuscriptOut(
+        book_id=book_id,
+        title=book.title,
+        series=book.series,
+        book_no=book.book_no,
+        subtitle=book.subtitle,
+        parts=out_parts,
+        chapters=out_chapters,
+    )
 
 
 @router.get("/{book_id}/chapters/overview", response_model=list[ChapterPipelineOut])
