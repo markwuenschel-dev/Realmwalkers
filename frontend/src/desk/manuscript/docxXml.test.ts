@@ -72,6 +72,11 @@ describe("Reader DOCX document.xml", () => {
     // NOT surface as numbered chapters.
     expect(xml).not.toContain("CHAPTER 1");
     expect(xml).not.toContain("CHAPTER 5");
+    // Named styles (not inline formatting): the structural paragraphs + body reference the stylesheet
+    // by id (single-paragraph scenes exercise the first-paragraph body style).
+    for (const styleRef of ['w:val="BookTitle"', 'w:val="ChapterLabel"', 'w:val="BodyFirst"']) {
+      expect(xml).toContain(styleRef);
+    }
   });
 });
 
