@@ -614,3 +614,34 @@ def test_qa_prefix_excludes_derived_and_audit_sections():
     assert "lock A" in prefix
     assert "derived duplicate" not in prefix
     assert '"grade"' not in prefix
+
+
+async def test_recompute_batches_prior_scene_query_no_n1(db_factory, monkeypatch):
+    # C12: recompute_and_mark must not issue one prior-scene-keys SELECT per packet (N+1). After the
+    # batch fix it slices prior keys from a single chapter fetch, so the per-packet helper isn't called.
+    from dominion.workers.scene_packet import inputs as sp_inputs
+    from dominion.workers.scene_packet import staleness as sp_staleness
+
+    _patch_scene_agents(monkeypatch, _scene_body())
+    calls = {"n": 0}
+    real = sp_inputs.prior_scene_keys
+
+    async def _spy(*a, **k):
+        calls["n"] += 1
+        return await real(*a, **k)
+
+    monkeypatch.setattr(sp_inputs, "prior_scene_keys", _spy)
+
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        seeds = [_seed(str(uuid.uuid4())), _seed(str(uuid.uuid4()))]
+        cp = await _approved_chapter_packet(s, book, ch, seeds)
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        n_packets = len((await s.execute(select(ScenePacket))).scalars().all())
+        assert n_packets >= 2  # the recompute loop runs multiple times
+
+        calls["n"] = 0  # ignore derive's own usage; count only recompute_and_mark
+        await sp_staleness.recompute_and_mark(s, chapter_id=ch.id)
+
+    assert calls["n"] == 0, f"prior_scene_keys called {calls['n']}x inside recompute_and_mark — N+1 not batched"

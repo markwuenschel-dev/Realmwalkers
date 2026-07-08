@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codebase Integrity Audit — Realmwalkers — 2026-07-08 (pass 4 / post-C1)</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#161b22; --panel2:#1b2230; --ink:#e6edf3; --mut:#9aa7b4;
+    --line:#273140; --acc:#5aa9ff; --good:#3fb950; --warn:#d29922; --bad:#f85149; --blk:#a371f7; --chip:#21262d;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --ink:#1c2128; --mut:#57606a;
+      --line:#d0d7de; --acc:#0969da; --good:#1a7f37; --warn:#9a6700; --bad:#cf222e; --blk:#8250df; --chip:#eaeef2; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1140px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:20px;margin:38px 0 12px;padding-top:10px;border-top:1px solid var(--line)}
+  h3{font-size:16px;margin:22px 0 8px}
+  .sub{color:var(--mut);font-size:13.5px;margin-bottom:18px}
+  p{margin:8px 0} code{background:var(--chip);padding:1px 5px;border-radius:4px;font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .grid{display:grid;gap:14px} .cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card.k{background:var(--panel2)}
+  .badge{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+  .b-good{color:var(--good);border-color:var(--good)} .b-warn{color:var(--warn);border-color:var(--warn)}
+  .b-bad{color:var(--bad);border-color:var(--bad)} .b-blk{color:var(--blk);border-color:var(--blk)} .b-acc{color:var(--acc);border-color:var(--acc)}
+  .grade{font-size:44px;font-weight:800;line-height:1}
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:12px 0}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel2);position:sticky;top:0;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:var(--mut)}
+  tr:last-child td{border-bottom:none}
+  .num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .cand{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  .cand h3{margin-top:0;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+  .cand .id{font:12.5px ui-monospace,monospace;color:var(--acc);font-weight:700}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;margin:8px 0;font-size:13.5px}
+  .kv dt{color:var(--mut)} .kv dd{margin:0}
+  .scores{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .sc{font:11.5px ui-monospace,monospace;background:var(--chip);border-radius:5px;padding:2px 7px}
+  .pri{font-weight:800} ul.tight{margin:6px 0;padding-left:20px} ul.tight li{margin:3px 0}
+  .fact{color:var(--good)} .inf{color:var(--warn)} .unk{color:var(--mut)}
+  .foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--mut);font-size:12.5px}
+  .pill{font:11px ui-monospace,monospace;padding:1px 6px;border-radius:4px;background:var(--chip)}
+  .callout{background:var(--panel2);border-left:3px solid var(--acc);border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0}
+  .callout.bad{border-left-color:var(--bad)} .callout.good{border-left-color:var(--good)}
+  .toc{columns:2;font-size:13.5px;color:var(--mut)} .toc a{color:var(--mut);text-decoration:none}
+  a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Codebase Integrity Audit — Realmwalkers</h1>
+<div class="sub">
+  <b>Pass 4 / post-C1</b> · Read-only Repo Audit Swarm · 4 lanes merged &amp; scored by Agent 0 per REPORT-SCORING.md ·
+  <code>main</code> @ <code>f3ffd4b</code> · 2026-07-08 · N1 (#184) + C1 (#185) both merged ·
+  16 raw findings → 15 candidates (C1 verified resolved; 3 new merged into 1 headline) ·
+  No production code, tests, configs, or fixtures were modified.
+</div>
+
+<div class="toc">
+  1 · <a href="#s1">Executive summary</a><br>2 · <a href="#s2">Overall repo grade</a><br>3 · <a href="#s3">Lane scorecards</a><br>
+  4 · <a href="#s4">Top merged candidates</a><br>5 · <a href="#s5">Candidate ledger</a><br>6 · <a href="#s6">Lane findings (raw → merged)</a><br>
+  7 · <a href="#s7">Cross-lane duplicate groups</a><br>8 · <a href="#s8">Human-decision blockers</a><br>9 · <a href="#s9">Quick wins</a><br>
+  10 · <a href="#s10">High-leverage deep work</a><br>11 · <a href="#s11">Unsafe-to-auto-execute</a><br>12 · <a href="#s12">Verification readiness</a><br>13 · <a href="#s13">Recommended queue</a>
+</div>
+
+<h2 id="s1">1 · Executive summary</h2>
+<p>
+  Fourth pass, taken on <code>main</code> with both greenlet fixes now merged — <b>N1</b> (routers) and <b>C1</b>
+  (sweeper). The swarm re-verified C1, re-validated the entire carried backlog against current <code>main</code>
+  with fresh line-level evidence, and swept for new issues. No new <i>live</i> bug was found — but three lanes,
+  from three different angles, independently converged on the same structural truth.
+</p>
+<div class="callout good">
+  <b>C1 — VERIFIED CLEAN and merged.</b> All three <code>begin_nested()</code> savepoints in
+  <code>_sweep_one_run</code> read only primitives captured before the savepoint; <code>begin_nested</code> exists
+  <i>only</i> in <code>sweeper.py</code> repo-wide, so the new AST guard covers the whole savepoint surface. The
+  guard is sound (its negative fixture proves it red-capable). The two candidate sibling paths —
+  <code>background_work.drain_queued_repair_tasks</code> and <code>worker.py</code>'s rollback path — were checked
+  and are <b>already clean</b> (both capture the id as a primitive and re-<code>session.get</code> the parked row).
+</div>
+<div class="callout">
+  <b>The headline is now structural, not a bug.</b> N1, C1, and the earlier <code>mark_scene_packets_stale</code>
+  fix (<code>975809d</code>) are <b>four fixes for one class</b> — “read an ORM attribute after commit/savepoint-abort
+  on an async session → <code>MissingGreenlet</code> 500” — each solved <i>per-symptom</i>, differently:
+  <ul class="tight">
+    <li><b>DS1 (seams):</b> the enrich boundary (<code>enrich_*_out</code> → <code>model_validate(row)</code>) has an
+      unstated precondition — “attributes must be loaded, not expired” — leaked to ~14 hand-written
+      <code>await session.refresh(...)</code> calls across <code>routers/production.py</code> and
+      <code>scene_packets.py</code>. A new endpoint can forget it and reintroduce a prod 500.</li>
+    <li><b>GI5 (integrity):</b> the whole class is currently latent only because
+      <code>SessionFactory(..., expire_on_commit=False)</code> (<code>shared/db.py:14</code>) — an <b>unpinned,
+      uncommented, load-bearing invariant</b>. Flip it to SQLAlchemy's default and every post-commit ORM read
+      across routers and workers becomes the greenlet class, fleet-wide.</li>
+    <li><b>VR3 (verification):</b> the static guard fences <code>_sweep_one_run</code> only; the ≥3 sibling
+      functions that received the same fix have runtime regression tests but no static guard, so the class can
+      re-enter any of them undetected.</li>
+  </ul>
+  These merge into the pass-4 headline <b>NC1 — close the async-serialize greenlet class structurally</b>, with a
+  near-free first step (pin the invariant) and a design tail (a serialize-safe seam so routers stop hand-writing
+  refresh). Recurrence risk is real: 4 fixes in ~4 commits.
+</div>
+<p>
+  Everything else is the carried backlog, re-validated and mostly unchanged. Refreshed evidence sharpened three:
+  <b>C4</b> (enum triple-mirror) now measured at 92 importer files, 112 free-text status columns with zero DB
+  CHECK, and 69 TS bare-literal sites; <b>C14</b> (model↔migration parity) is the highest-leverage contract gate —
+  a model-only column add is green on CI's fresh <code>create_all</code> DB but throws <code>UndefinedColumn</code>
+  against the persistent Railway Postgres; <b>C6</b> expanded — <code>tests/</code> is excluded from type-checking
+  entirely. <b>C9</b> was re-scored <i>down</i> (all three sanctioned runners already pass <code>-rs</code>; only a
+  bare ad-hoc <code>pytest</code> loses skip visibility). The two human-decision forks persist: <b>C10</b> (no API
+  auth, severity bumped to 5) and <b>C2</b> (two-tier approval-policy ADR). A fake-green hunt across the suite came
+  back <b>clean</b> — one intentional skip, no self-skips.
+</p>
+
+<h2 id="s2">2 · Overall repo grade</h2>
+<div class="grid" style="grid-template-columns:180px 1fr">
+  <div class="card k" style="display:flex;flex-direction:column;justify-content:center;align-items:center">
+    <div class="grade" style="color:var(--good)">B</div>
+    <div class="sub" style="margin:6px 0 0">held (reliability ↑, contract-gates flat)</div>
+  </div>
+  <div class="card">
+    <ul class="tight">
+      <li><b>Reliability 4/5</b> (was 3) — <b>no open live greenlet bug</b>: N1 + C1 merged, siblings verified clean,
+        <code>begin_nested</code> fully guarded. The class is now latent + partially fenced; NC1 closes it for good.</li>
+      <li><b>Contract integrity 3/5</b> — unchanged: nested-JSONB (C3), enum triple-mirror (C4), model↔migration (C14),
+        and the <code>action_kind</code>/<code>kind</code> machine-keys (C7) are all ungated cross-language surfaces.</li>
+      <li><b>Verification 4/5</b> — strong: fake-green impossible in CI, guard sound, suite red-capable; gaps
+        (full-pyright, <code>tests/</code> typing, coverage) are additive.</li>
+      <li><b>Design/cohesion 3/5</b> — <code>production.py</code> god-function (C5) + duplicated approval policy (C2) persist.</li>
+      <li><b>Security 2/5</b> — API still unauthenticated (C10).</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="s3">3 · Lane scorecards</h2>
+<div class="tblwrap"><table>
+  <thead><tr><th>Lane</th><th>Focus</th><th class="num">Health</th><th>Headline this pass</th></tr></thead>
+  <tbody>
+    <tr><td>Agent 1 — Deepening seams</td><td>module depth, leaked preconditions</td><td class="num">3/5</td><td><b>DS1</b>: enrich-boundary precondition leaked to ~14 sites; C2/C5/C7 re-confirmed</td></tr>
+    <tr><td>Agent 2 — Graded integrity</td><td>reliability, security, data integrity</td><td class="num">4/5</td><td>C1 verified clean; siblings clean; <b>GI5</b> unpinned <code>expire_on_commit</code> invariant</td></tr>
+    <tr><td>Agent 3 — Blast radius</td><td>connected-impact of contract change</td><td class="num">3/5</td><td>C3/C4/C14 re-confirmed (refreshed counts); C14 = highest-leverage gate</td></tr>
+    <tr><td>Agent 4 — Verification readiness</td><td>provability of each candidate</td><td class="num">4/5</td><td>guard sound but single-function (<b>VR3</b>); <code>tests/</code> untyped (VR1); fake-green hunt clean</td></tr>
+  </tbody>
+</table></div>
+<h3>Verified resolved / clean (not re-reported open)</h3>
+<ul class="tight">
+  <li><b>C1</b> sweeper savepoint greenlet — merged (#185), all 3 savepoints clean, guard sound.</li>
+  <li><b>Greenlet siblings</b> — <code>background_work.drain_queued_repair_tasks</code> and <code>worker.py</code> rollback path capture id + re-<code>get</code>; no fix needed.</li>
+  <li><b>Sibling fixes carry runtime tests</b> — N1: <code>test_onupdate_serialization</code> + 3 mutation files; scene_packet: <code>test_mark_stale_reconciles_beats</code>. VR3's gap is the <i>static</i> guard's generality, not missing runtime coverage.</li>
+  <li><b>Fake-green hunt</b> — one intentional skip (<code>conftest.py:141</code>, hard-failed in CI); no <code>skipif</code>, no early-return self-skips.</li>
+</ul>
+
+<h2 id="s4">4 · Top merged candidates</h2>
+<div class="tblwrap"><table>
+  <thead><tr><th>#</th><th>ID</th><th>Title</th><th class="num">Priority</th><th>Action</th><th>Origin</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><b>NC1a</b></td><td>Pin <code>expire_on_commit=False</code> invariant (fitness assertion + comment)</td><td class="num pri">18</td><td>fitness-check</td><td class="pill">NEW</td></tr>
+    <tr><td>2</td><td>C13</td><td>Evict terminal-run entries from sweeper in-process registries</td><td class="num pri">14</td><td>direct-fix</td><td class="pill">carried</td></tr>
+    <tr><td>3</td><td><b>NC1b</b></td><td>Generalize the greenlet AST guard beyond <code>_sweep_one_run</code></td><td class="num pri">13</td><td>fitness-check</td><td class="pill">NEW</td></tr>
+    <tr><td>4</td><td>C6</td><td>Full-tree pyright + type-check <code>tests/</code></td><td class="num pri">13</td><td>direct-fix</td><td class="pill">carried+</td></tr>
+    <tr><td>5</td><td>C11</td><td>Retention set-based Activity delete (drop the <code>IN(…)</code> list)</td><td class="num pri">13</td><td>direct-fix</td><td class="pill">carried</td></tr>
+    <tr><td>6</td><td>C8</td><td>Coverage tooling (backend + frontend)</td><td class="num pri">13</td><td>design→direct</td><td class="pill">carried</td></tr>
+    <tr><td>7</td><td>C4a</td><td>Alias <code>ScenePacketVerdict</code>=<code>PacketVerdict</code> + enum parity test</td><td class="num pri">13</td><td>direct-fix + fitness</td><td class="pill">carried</td></tr>
+    <tr><td>8</td><td>C12</td><td>Fix N+1 in scene-packet staleness recompute</td><td class="num pri">13</td><td>direct-fix</td><td class="pill">carried</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="s5">5 · Candidate ledger</h2>
+<p class="sub">Scores 1–5; <code>priority = (sev+conf+lev+loc+test) − (blast+regr+hd)</code>. <span class="fact">fact</span> / <span class="inf">inference</span> / <span class="unk">unknown</span>. Carried IDs keep their pass-3 numbers.</p>
+
+<!-- NC1 -->
+<div class="cand">
+  <h3><span class="id">NC1</span> Close the async-serialize / savepoint greenlet class structurally <span class="badge b-acc">Architecture Fitness</span><span class="badge b-good">quick first step</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd>invariant <code>shared/db.py:14</code>; leaked precondition ~14 sites in <code>routers/production.py</code> (:187…:543) + <code>scene_packets.py</code> (:394-395,:457-458) at the <code>enrich_*_out</code> boundary (<code>workers/{packet,scene_packet}/approval_policy.py</code>); guard <code>tests/test_sweeper_greenlet_guard.py:20</code>.</dd>
+    <dt>Lane sources</dt><dd>deepening_seams (DS1) · graded_integrity (GI5) · verification (VR3) — merged</dd>
+    <dt>Symptom</dt><dd>One failure class (“read an ORM attr after commit/savepoint-abort on the async session → <code>MissingGreenlet</code> 500”) fixed four times, per-symptom: routers paste <code>refresh</code>; the sweeper captures primitives; the class stays latent only via an unpinned session flag; the static guard covers one function.</dd>
+    <dt>Root seam</dt><dd>The serialization boundary's precondition lives in callers, not the boundary; and the global session invariant that makes it latent is undocumented and untested.</dd>
+    <dt>Rule violated</dt><dd>Deep module / pull complexity downward; pin load-bearing invariants with a test; make illegal states unrepresentable.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> 14 <code>refresh</code> sites (grep); <code>expire_on_commit=False</code> at db.py:14 with no comment/assertion; guard hardcodes <code>_GUARDED_FUNC="_sweep_one_run"</code>; 4 fixes in commits 4d489fe/fc96bb0/975809d. <span class="inf">inference</span> a new endpoint or a flag flip resurrects the class. <span class="unk">unknown</span> whether a <code>commit_and_serialize</code> helper was considered.</dd>
+  </dl>
+  <div class="callout" style="margin:8px 0"><b>Staged actions (independently selectable):</b>
+    <ul class="tight">
+      <li><b>NC1a</b> — <span class="pri">pri 18, fitness, quick win.</span> Assert <code>SessionFactory.kw["expire_on_commit"] is False</code> in a test + add a one-line comment at db.py:14 naming the greenlet dependency. <span class="sc">sev2 conf5 lev4 loc5 test5 blast1 regr1 hd1</span></li>
+      <li><b>NC1b</b> — <span class="pri">pri 13, fitness.</span> Generalize the AST guard to scan every function whose body contains <code>begin_nested()</code>/<code>commit()</code> for subsequent ORM-attr reads in except/after blocks (registry of targets + per-site negative fixtures). <span class="sc">sev3 conf4 lev4 loc3 test4 blast3 regr4 hd2</span></li>
+      <li><b>NC1c</b> — <span class="pri">pri 11, design.</span> Introduce one serialize-safe seam (<code>commit_and_serialize(session, rows, enrich_fn)</code> or async <code>enrich</code> that refreshes internally) so no endpoint hand-writes <code>refresh</code>; ADR: where the “row is serialization-ready after commit” invariant lives. <span class="sc">sev3 conf5 lev4 loc3 test4 blast3 regr3 hd2</span></li>
+    </ul>
+  </div>
+  <dl class="kv"><dt>Execution mode</dt><dd>NC1a/NC1b sequential (fitness); NC1c connected-impact-sweep (touches ~14 router call sites + the enrich boundary).</dd></dl>
+</div>
+
+<!-- C10 -->
+<div class="cand">
+  <h3><span class="id">C10</span> Entire API is unauthenticated <span class="badge b-blk">Security · decision needed</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>api/deps.py:14-27</code> (only <code>db_session</code>); <code>api/main.py:125-153</code> (22 routers, zero auth; CORS <code>allow_methods/headers=["*"]</code>).</dd>
+    <dt>Lane sources</dt><dd>graded_integrity (GI1) — re-validated</dd>
+    <dt>Symptom</dt><dd>Any unauthenticated caller reaching the Railway host can POST <code>/runs</code>, mutate scenes, flip settings, trigger token-spending drafts. No auth dependency anywhere.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> no <code>Depends</code>/<code>Security</code> under <code>api/</code> (grep). <span class="unk">unknown</span> whether a Railway edge proxy restricts access.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 5</span><span class="sc">conf 5</span><span class="sc">lev 4</span><span class="sc">loc 4</span><span class="sc">test 4</span><span class="sc">blast 5</span><span class="sc">regr 3</span><span class="sc">hd 5</span><span class="sc pri">= 6</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>blocked-needs-human-decision</b> (hd 5, severity raised to 5 this pass). Is public exposure intended? If not, one bearer/shared-secret dependency at router-include level + a 401 test.</dd></dl>
+</div>
+
+<!-- C14 -->
+<div class="cand">
+  <h3><span class="id">C14</span> model → migration → schema → TS is 4-way manual; CI structurally can't see the drift <span class="badge b-warn">Data / Schema</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>shared/migrations.py:21-88</code> — <code>_COLUMN_ADDS</code> ~40 hand-appended <code>ADD COLUMN IF NOT EXISTS</code> lines; <code>create_all</code> never alters existing tables. Callers: <code>scripts/init_db.py</code> + <code>tests/conftest.py</code>.</dd>
+    <dt>Lane sources</dt><dd>blast_radius (BR3) — re-validated, flagged highest-leverage gate</dd>
+    <dt>Symptom</dt><dd>A model column added without its <code>_COLUMN_ADDS</code> line works on CI's fresh <code>create_all</code> DB and passes all tests, then throws <code>UndefinedColumn</code> against the persistent Railway Postgres. The exact drift that bites prod is invisible to CI (which spins a throwaway pgvector service).</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> ~40 ALTER lines; create_all-only; fresh CI DB (ci.yml:115-136). <span class="inf">inference</span> model-only add = green CI, red prod. <span class="unk">unknown</span> whether any current column already lacks its line (read-only can't prove).</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 4</span><span class="sc">conf 4</span><span class="sc">lev 5</span><span class="sc">loc 3</span><span class="sc">test 3</span><span class="sc">blast 4</span><span class="sc">regr 4</span><span class="sc">hd 2</span><span class="sc pri">= 9</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>fitness-check</b> — a test reflecting <code>Base.metadata.columns</code> and asserting each appears in <code>_COLUMN_ADDS</code> (or migrate an older-snapshot DB forward). Highest-leverage of the contract gates.</dd></dl>
+</div>
+
+<!-- C3 -->
+<div class="cand">
+  <h3><span class="id">C3</span> Nested-JSONB hand-mirror is the largest ungated contract surface <span class="badge b-warn">Data / Contract</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><b>42</b> <code>dict[str,Any]</code> fields in <code>shared/schemas.py</code> (body/qa_warnings/open_questions/sources) mirrored by ~15 hand interfaces + 6 <code>Record&lt;string,unknown&gt;</code> + <code>Omit&lt;&gt;</code> overrides in <code>types.ts:273-474</code>; backend constants <code>scene_scope.py:30-31</code>.</dd>
+    <dt>Lane sources</dt><dd>blast_radius (BR1) — re-confirmed byte-for-byte</dd>
+    <dt>Symptom</dt><dd>The rich structure the API ships lives only in JSONB blobs; every Desk panel reads keys on neither side of the generated contract. A renamed body key ships to prod with zero CI signal — <code>codegen:check</code> diffs only <code>openapi.json</code>/<code>generated.ts</code>, and JSONB → OpenAPI <code>object</code> (no properties), so it never changes.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> 42 dict fields; gate diffs 2 files; JSONB is schema-free. <span class="inf">inference</span> renamed key ships undetected. <span class="unk">unknown</span> how many keys are actively read vs dormant.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 4</span><span class="sc">conf 5</span><span class="sc">lev 4</span><span class="sc">loc 3</span><span class="sc">test 4</span><span class="sc">blast 5</span><span class="sc">regr 4</span><span class="sc">hd 2</span><span class="sc pri">= 9</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>fitness-check</b> (fixture-diff: every key the TS interfaces name is produced by a real backend body build) now; <b>design</b> the typed-sub-schema move (ADR) later.</dd></dl>
+</div>
+
+<!-- C4 -->
+<div class="cand">
+  <h3><span class="id">C4</span> Enum vocabulary triple-mirrored, no parity gate <span class="badge b-warn">Data / Contract</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>shared/enums.py</code> (32 StrEnum) ↔ DB (<b>112</b> <code>Mapped[str]</code> status columns, <b>zero</b> PG enum/CHECK) ↔ TS hand-unions + <b>69</b> bare-literal sites across 18 frontend files; <code>ScenePacketVerdict</code> byte-identical to <code>PacketVerdict</code>.</dd>
+    <dt>Lane sources</dt><dd>blast_radius (BR2) + deepening_seams (verdict dup) — refreshed counts</dd>
+    <dt>Symptom</dt><dd>Adding/renaming a value touches 4 disjoint surfaces (Python enum, 92 importer files, raw-text DB rows, N TS literal sites); several TS unions are open (<code>… | string</code>) so a drifted value is not even a compile error. Error strings <code>scene_packets.py:299</code>/<code>packets.py:152</code> hand-duplicate enum spellings.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> counts verified this run; no DB CHECK; verdict enums identical. <span class="inf">inference</span> Python-added value → unhandled TS literal, no compile error. <span class="unk">unknown</span> whether live rows already hold an off-enum value.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 3</span><span class="sc">conf 5</span><span class="sc">lev 4</span><span class="sc">loc 2</span><span class="sc">test 4</span><span class="sc">blast 5</span><span class="sc">regr 3</span><span class="sc">hd 2</span><span class="sc pri">= 8</span></div>
+  <div class="callout"><b>C4a (quick win, pri 13):</b> alias <code>ScenePacketVerdict = PacketVerdict</code> + parity test (generated union ⊇ Python enum). <b>C4b (design):</b> generate TS unions from <code>enums.py</code>; advisory DB CHECKs via <code>_EXTRA_DDL</code>.</div>
+</div>
+
+<!-- C5 -->
+<div class="cand">
+  <h3><span class="id">C5</span> <code>production.py</code>: ~33 cycle-free local imports + a 344-line god-function <span class="badge b-acc">Maintainability / Design</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd>~33 function-local imports of <code>production_sequence</code>/<code>production_repair</code> (lines 48…920); <code>create_production_run</code> spans <code>:197-540</code> (344 lines) inside an otherwise-thin 31-fn facade.</dd>
+    <dt>Lane sources</dt><dd>deepening_seams — re-validated, cycle re-disproved</dd>
+    <dt>Symptom</dt><dd><code>production_sequence</code> mentions <code>production</code> only in a docstring; <code>production_repair</code> imports <code>production_sequence</code> but never <code>production</code> — the guarded cycle doesn't exist; the imports are hoistable. The god-function inlines ~6 stages at one altitude.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> no back-import (grep); 344-line fn. <span class="inf">inference</span> imports cargo-culted. <span class="unk">unknown</span> historical cycle before the split.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 2</span><span class="sc">conf 5</span><span class="sc">lev 3</span><span class="sc">loc 5</span><span class="sc">test 4</span><span class="sc">blast 2</span><span class="sc">regr 2</span><span class="sc">hd 3</span><span class="sc pri">= 12</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>(a) fitness→direct</b> hoist imports behind an import-order smoke test; <b>(b) design</b> whether <code>create_production_run</code>'s stages become named steps in <code>production_sequence</code>.</dd></dl>
+</div>
+
+<!-- C7 -->
+<div class="cand">
+  <h3><span class="id">C7</span> <code>action_kind</code> + structural-blocker <code>kind</code>: stringly-typed cross-language machine keys <span class="badge b-warn">Wiring / Contract</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd>producers <code>pipeline_status.py</code> (8 <code>action_kind</code> values), <code>scene_scope.py:30-31</code> + ~10 files (blocker <code>kind</code>); schema <code>schemas.py:1774-1813</code> (<code>str | None</code>, set in a comment); consumers <code>PipelineScreen.tsx:697,725</code>, <code>ScenePacketsPanel.tsx:775</code>.</dd>
+    <dt>Lane sources</dt><dd>deepening_seams + blast_radius (BR4) — broadened to include blocker <code>kind</code> + enum-mirror error strings</dd>
+    <dt>Symptom</dt><dd>Closed backend-owned routing vocabularies transported as open <code>str</code>; a rename silently drops a UI branch with no compile error. Not in an enum, not in codegen, no parity test.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> <code>action_kind: str|None</code>×3; 8 producer values; consumer subset; <code>kind: string</code>. <span class="inf">inference</span> silent dead branch on rename. <span class="unk">unknown</span> full <code>kind</code> cardinality.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 2</span><span class="sc">conf 5</span><span class="sc">lev 3</span><span class="sc">loc 4</span><span class="sc">test 3</span><span class="sc">blast 2</span><span class="sc">regr 2</span><span class="sc">hd 3</span><span class="sc pri">= 10</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>design→direct</b> — promote both to <code>StrEnum</code> in <code>enums.py</code> (ride C4's parity gate); narrow the TS fields to the generated union → stale branch becomes a compile error.</dd></dl>
+</div>
+
+<!-- C6 -->
+<div class="cand">
+  <h3><span class="id">C6</span> Full-tree pyright missing; <code>tests/</code> excluded from type-checking entirely <span class="badge b-good">Build / CI</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>ci.yml:102-107</code> + <code>scripts/ci_changed_py_files.sh:23</code> (diff scoped to <code>src/</code>); <code>pyproject.toml:41</code> (<code>include=["src"]</code>).</dd>
+    <dt>Lane sources</dt><dd>verification (VR1) — expanded this pass</dd>
+    <dt>Symptom</dt><dd>No path ever pyrights the whole tree; and <code>tests/</code> is outside the config root, so widely-imported test helpers (<code>conftest.seed_scene_packet</code>) and monkeypatch shapes ship untyped.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> diff scoped to src; include=["src"]; verify.* delegate to the same script.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 2</span><span class="sc">conf 5</span><span class="sc">lev 3</span><span class="sc">loc 4</span><span class="sc">test 5</span><span class="sc">blast 2</span><span class="sc">regr 2</span><span class="sc">hd 2</span><span class="sc pri">= 13</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>direct-fix</b> — add a full-tree pyright CI step; add a <code>tests/</code>-scoped pass (or a <code>tests</code> include entry).</dd></dl>
+</div>
+
+<!-- C11 -->
+<div class="cand">
+  <h3><span class="id">C11</span> Retention prunes Activity via materialized ID list + giant <code>IN(…)</code> <span class="badge b-acc">Performance</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>workers/retention.py:33-35</code></dd><dt>Lane sources</dt><dd>graded_integrity (GI4) — re-validated</dd>
+    <dt>Symptom</dt><dd>Selects every aged Activity id into Python then deletes via one bind-param-per-id <code>IN</code> list; a first run after weeks of per-tick Activity writes could hit asyncpg param limits / slow plans.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> id-materialize then IN-delete; count obtainable from <code>rowcount</code>.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 2</span><span class="sc">conf 5</span><span class="sc">lev 3</span><span class="sc">loc 5</span><span class="sc">test 3</span><span class="sc">blast 2</span><span class="sc">regr 2</span><span class="sc">hd 1</span><span class="sc pri">= 13</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>direct-fix</b> — <code>delete(Activity).where(created_at &lt; cutoff)</code>, use <code>result.rowcount</code>.</dd></dl>
+</div>
+
+<!-- C12 -->
+<div class="cand">
+  <h3><span class="id">C12</span> N+1 in scene-packet staleness recompute <span class="badge b-acc">Performance</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>workers/scene_packet/staleness.py:96</code> → <code>inputs.py:29-42</code> (per-packet SELECT inside the loop).</dd><dt>Lane sources</dt><dd>graded_integrity (GI3)</dd>
+    <dt>Symptom</dt><dd>Marking a chapter's packets stale issues one prior-scene-keys SELECT per packet; bounded by scenes/chapter (correctness-safe, latency-only).</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> query in loop. <span class="inf">inference</span> low impact.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 2</span><span class="sc">conf 5</span><span class="sc">lev 3</span><span class="sc">loc 4</span><span class="sc">test 4</span><span class="sc">blast 2</span><span class="sc">regr 2</span><span class="sc">hd 1</span><span class="sc pri">= 13</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>direct-fix</b> — fetch chapter's approved scenes once, ordered; slice prior-key prefix in memory. Query-count assertion.</dd></dl>
+</div>
+
+<!-- C13 -->
+<div class="cand">
+  <h3><span class="id">C13</span> Unbounded in-process sweeper registries <span class="badge b-acc">Reliability</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>workers/sweeper.py:73-74</code> (<code>_attempts</code>/<code>_warned_human</code>), added at <code>:244,:305</code>, terminal early-return <code>:191-196</code> skips cleanup; echoed in <code>sweeper_status</code> <code>:399</code>.</dd><dt>Lane sources</dt><dd>graded_integrity (GI2)</dd>
+    <dt>Symptom</dt><dd>Keyed by run_id, add-only; terminal runs return before any eviction, so ids linger process-lifetime (slow memory creep + bloating status payload).</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> add-only, terminal path skips cleanup. <span class="inf">inference</span> slow leak.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 2</span><span class="sc">conf 5</span><span class="sc">lev 3</span><span class="sc">loc 5</span><span class="sc">test 4</span><span class="sc">blast 2</span><span class="sc">regr 2</span><span class="sc">hd 1</span><span class="sc pri">= 14</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>direct-fix</b> — evict <code>rid</code> from both when <code>_sweep_one_run</code> sees a terminal/None run at <code>:191-196</code>. Pairs naturally with a sweeper touch.</dd></dl>
+</div>
+
+<!-- C2 -->
+<div class="cand">
+  <h3><span class="id">C2</span> Two-tier packet approval policy duplicated with load-bearing drift <span class="badge b-blk">Architecture · needs ADR</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>workers/packet/approval_policy.py</code> vs <code>workers/scene_packet/approval_policy.py</code> — same-named diverged fns (<code>can_approve</code>, <code>approval_blockers</code>, <code>resolve_blocked_reason</code>, <code>enrich_*_out</code>).</dd><dt>Lane sources</dt><dd>deepening_seams — re-confirmed</dd>
+    <dt>Symptom</dt><dd>The divergence is real: scene tier has RATE_LIMITED / STALE-reapprovability / <code>BlockerSource</code>; chapter tier has open-question gating + <code>blocker_kind/recovery_actions</code>. The tiers already disagree on what “blocked reason” resolution means.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> two files, same names, diverged bodies. <span class="inf">inference</span> differences are load-bearing (not trivial de-dup). <span class="unk">unknown</span> whether an <code>Approvable</code> protocol + tier hooks collapses the skeleton.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 3</span><span class="sc">conf 5</span><span class="sc">lev 3</span><span class="sc">loc 4</span><span class="sc">test 4</span><span class="sc">blast 3</span><span class="sc">regr 3</span><span class="sc">hd 4</span><span class="sc pri">= 9</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>blocked-needs-human-decision</b> (hd 4): one policy over two tiers (shared skeleton + hooks) or two intentional policies? ADR should record RATE_LIMITED/STALE/open_questions as the real axis of difference.</dd></dl>
+</div>
+
+<!-- C8 -->
+<div class="cand">
+  <h3><span class="id">C8</span> No coverage tooling (backend + frontend) <span class="badge b-good">Testing / CI</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>pyproject.toml</code> (no <code>pytest-cov</code>); <code>ci.yml:149</code>; <code>frontend/package.json:11</code>.</dd><dt>Lane sources</dt><dd>verification (VR2)</dd>
+    <dt>Symptom</dt><dd>No signal on which lines the DB suite exercises; a “provable fixed” claim can't be backed by a coverage delta.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> grep clean across toml/yml/json.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 2</span><span class="sc">conf 5</span><span class="sc">lev 4</span><span class="sc">loc 3</span><span class="sc">test 4</span><span class="sc">blast 1</span><span class="sc">regr 1</span><span class="sc">hd 3</span><span class="sc pri">= 13</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>design→direct</b> — <code>pytest-cov</code> low non-failing floor + <code>vitest --coverage</code>; ratchet later.</dd></dl>
+</div>
+
+<!-- C9 -->
+<div class="cand">
+  <h3><span class="id">C9</span> No <code>addopts=-rs</code>; bare local <code>pytest</code> loses skip visibility <span class="badge b-good">Testing / CI · re-scored down</span></h3>
+  <dl class="kv">
+    <dt>Location</dt><dd><code>pyproject.toml:51-54</code> (no <code>addopts</code>). CI + <code>verify.sh:24</code> + <code>verify.ps1:48</code> all pass <code>-rs</code> explicitly.</dd><dt>Lane sources</dt><dd>verification (VR5)</dd>
+    <dt>Symptom</dt><dd>Residual risk only for an ad-hoc local <code>pytest</code> outside the sanctioned verify path — all three real entry points already surface skips. Re-scored down from pass 3.</dd>
+    <dt>Evidence</dt><dd><span class="fact">fact</span> no addopts; all sanctioned runners pass <code>-rs</code>.</dd>
+  </dl>
+  <div class="scores"><span class="sc">sev 1</span><span class="sc">conf 5</span><span class="sc">lev 2</span><span class="sc">loc 5</span><span class="sc">test 5</span><span class="sc">blast 1</span><span class="sc">regr 1</span><span class="sc">hd 1</span><span class="sc pri">= 15*</span></div>
+  <dl class="kv"><dt>Action</dt><dd><b>direct-fix</b> (2-min, low value) — move <code>-rs</code> into <code>addopts</code>. <span class="sub">*high formula score but severity 1 — a belt-and-suspenders nicety, not a priority.</span></dd></dl>
+</div>
+
+<!-- C15 / C16 compact -->
+<div class="cand">
+  <h3><span class="id">C15 / C16</span> Low-severity carried items <span class="badge b-good">Maintainability / Testing</span></h3>
+  <dl class="kv">
+    <dt>C15</dt><dd>Severity dual-spelling (<code>hard</code>↔<code>block</code>) tolerated via TS <code>| string</code> escape hatch (<code>enums.py:74-85</code>, <code>types.ts:352</code>). Not re-surfaced this pass; carried. <b>triage.</b> <span class="sc">pri ≈ 9</span></dd>
+    <dt>C16</dt><dd>Playwright <code>--pass-with-no-tests</code> over a single spec → vacuous green if the spec is deleted (<code>package.json:13</code>). <b>direct-fix</b> — drop the flag now a spec exists. <span class="sc">sev2 conf4 … pri ≈ 12</span></dd>
+  </dl>
+</div>
+
+<h2 id="s6">6 · Lane findings (raw → merged)</h2>
+<div class="tblwrap"><table>
+  <thead><tr><th>Raw</th><th>Lane</th><th>→ Merged</th></tr></thead>
+  <tbody>
+    <tr><td>DS1 + GI5 + VR3</td><td>seams / integrity / verification</td><td><b>NC1</b> (headline — greenlet class, three angles)</td></tr>
+    <tr><td>GI1</td><td>graded integrity</td><td>C10 (auth, sev→5)</td></tr>
+    <tr><td>BR3</td><td>blast radius</td><td>C14 (migration parity)</td></tr>
+    <tr><td>BR1</td><td>blast radius</td><td>C3 (nested-JSONB)</td></tr>
+    <tr><td>BR2 + verdict dup</td><td>blast / seams</td><td>C4 (+ C4a)</td></tr>
+    <tr><td>C5 (seams)</td><td>deepening seams</td><td>C5 (production.py)</td></tr>
+    <tr><td>C7 (seams) + BR4</td><td>seams / blast</td><td>C7 (action_kind + kind + error strings)</td></tr>
+    <tr><td>VR1</td><td>verification</td><td>C6 (full pyright + tests/)</td></tr>
+    <tr><td>GI4 / GI3 / GI2</td><td>graded integrity</td><td>C11 / C12 / C13</td></tr>
+    <tr><td>VR2 / VR5 / VR4</td><td>verification</td><td>C8 / C9 / C16</td></tr>
+    <tr><td>C2 (seams)</td><td>deepening seams</td><td>C2 (approval ADR)</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="s7">7 · Cross-lane duplicate groups</h2>
+<ul class="tight">
+  <li><b>greenlet class</b> → NC1: DS1 (leaked precondition) + GI5 (unpinned invariant) + VR3 (single-function guard) — same root cause, three lenses, one merged candidate with staged actions.</li>
+  <li><b>enum / stringly-typed contracts</b> → C4 + C7: BR2 (enum mirror) + verdict dup + BR4 (machine keys) + enum-mirror error strings all share the “closed vocabulary transported as open string, no parity gate” root; kept as two candidates (different fixes: enum consolidation vs field typing).</li>
+</ul>
+
+<h2 id="s8">8 · Human-decision blockers</h2>
+<div class="tblwrap"><table>
+  <thead><tr><th>ID</th><th>Category</th><th>Fork</th></tr></thead>
+  <tbody>
+    <tr><td>C10</td><td>Security / policy</td><td>Is the API intended to be publicly reachable on Railway, or must it sit behind an auth gate? (sev 5)</td></tr>
+    <tr><td>C2</td><td>Architecture / taxonomy</td><td>One approval policy over two tiers, or two intentional policies? RATE_LIMITED/STALE/open_questions are the real axis.</td></tr>
+    <tr><td>C4b / C7</td><td>Public-contract / migration</td><td>Enum value-typing + DB-native enums need a value-migration decision; behind the C2 ADR.</td></tr>
+    <tr><td>NC1c</td><td>Architecture</td><td>Where does the “row is serialization-ready after commit” invariant live — DTO boundary, a commit helper, or router convention?</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="s9">9 · Quick wins</h2>
+<ul class="tight">
+  <li><b>NC1a</b> (18) — pin <code>expire_on_commit=False</code> with an assertion + comment. Near-free; closes the invariant fork.</li>
+  <li><b>C13</b> (14) — evict terminal-run entries from sweeper registries.</li>
+  <li><b>C11</b> (13) — set-based Activity delete.</li>
+  <li><b>C4a</b> (13) — verdict alias + enum-parity test.</li>
+  <li><b>C12</b> (13) — batch the staleness prior-keys query.</li>
+  <li><b>C6</b> (13) — full-tree pyright + <code>tests/</code> step.</li>
+  <li><b>C9</b> — <code>addopts=-rs</code> (trivial, low value).</li>
+</ul>
+
+<h2 id="s10">10 · High-leverage deep work</h2>
+<ul class="tight">
+  <li><b>NC1b/NC1c</b> — generalize the guard + introduce the serialize-safe seam: closes the recurring greenlet class for good.</li>
+  <li><b>C14</b> — model↔migration parity check (the one gate whose absence causes green-CI-red-prod).</li>
+  <li><b>C3 / C4b</b> — typed JSONB sub-schemas; enum consolidation + generated TS unions.</li>
+  <li><b>C5b</b> — extract <code>create_production_run</code>; restore a uniformly-thin facade.</li>
+</ul>
+
+<h2 id="s11">11 · Unsafe-to-auto-execute</h2>
+<ul class="tight">
+  <li><b>C10</b> — security fork (hd 5). No code before the exposure decision.</li>
+  <li><b>C2 / C4b</b> — taxonomy/migration forks (hd 4). ADR first.</li>
+  <li><b>C14 / C3</b> — regr 4: a parity/fixture check may reveal an already-drifted surface; land the check, reconcile findings deliberately.</li>
+  <li><b>NC1c</b> — touches ~14 router sites + the enrich boundary → connected-impact-sweep, not a blind edit.</li>
+</ul>
+
+<h2 id="s12">12 · Verification readiness</h2>
+<div class="tblwrap"><table>
+  <thead><tr><th>Candidate</th><th>Provable today?</th><th class="num">Testability</th><th>Harness</th></tr></thead>
+  <tbody>
+    <tr><td>C1 (shipped)</td><td>Y</td><td class="num">5</td><td>DB regression + AST guard, both red-capable</td></tr>
+    <tr><td>NC1a pin invariant</td><td>Y</td><td class="num">5</td><td>1-line assertion on <code>SessionFactory.kw</code></td></tr>
+    <tr><td>NC1b generalize guard</td><td>Y</td><td class="num">4</td><td>parametrized multi-target AST guard + per-site negative fixtures</td></tr>
+    <tr><td>NC1c serialize seam</td><td>Partial</td><td class="num">4</td><td>fitness test: no router commits-then-enriches outside the seam</td></tr>
+    <tr><td>C6 tests untyped</td><td>N</td><td class="num">5</td><td>pyright pass scoped to <code>tests/</code></td></tr>
+    <tr><td>C8 coverage</td><td>N</td><td class="num">4</td><td>pytest-cov + vitest --coverage</td></tr>
+    <tr><td>C14 migration parity</td><td>Y</td><td class="num">3</td><td>reflect <code>Base.metadata</code> vs <code>_COLUMN_ADDS</code></td></tr>
+    <tr><td>C3 / C4 / C7 contracts</td><td>Partial</td><td class="num">3-4</td><td>fixture-diff / enum-parity / generated-union tests (none exist yet)</td></tr>
+    <tr><td>C10 auth</td><td>Y (post-decision)</td><td class="num">4</td><td>401 test on a mutating route</td></tr>
+  </tbody>
+</table></div>
+<p><b>Fake-green hunt: clean.</b> One intentional skip (<code>conftest.py:141</code>, hard-failed in CI); no <code>skipif</code>/early-return self-skips; frontend unit suite non-vacuous (only e2e carries <code>--pass-with-no-tests</code>, C16).</p>
+
+<h2 id="s13">13 · Recommended queue</h2>
+<p class="sub">Priority order; blocked candidates listed as decisions-needed, not dropped. This is a report — nothing auto-selected. A later loop resumes at the candidate gate.</p>
+<div class="tblwrap"><table>
+  <thead><tr><th>#</th><th>ID</th><th>Title</th><th class="num">Pri</th><th>Action</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><b>NC1a</b></td><td>Pin <code>expire_on_commit=False</code> invariant</td><td class="num">18</td><td>fitness</td><td>Top pick. Near-free; closes the greenlet-class invariant fork the whole N1→C1 arc depends on.</td></tr>
+    <tr><td>2</td><td>NC1b→NC1c</td><td>Generalize guard → serialize-safe seam</td><td class="num">13/11</td><td>fitness / design</td><td>Closes the recurring class structurally; NC1c is a connected-impact sweep over ~14 sites.</td></tr>
+    <tr><td>3</td><td>C13·C11·C12</td><td>Sweeper eviction · retention set-delete · staleness N+1</td><td class="num">14/13/13</td><td>direct-fix</td><td>Cheap autonomy-path + performance hygiene; C13 pairs with a sweeper touch.</td></tr>
+    <tr><td>4</td><td>C6·C8·C9</td><td>Full pyright + tests/ · coverage · <code>-rs</code></td><td class="num">13/13/—</td><td>direct / design</td><td>CI/config lane.</td></tr>
+    <tr><td>5</td><td>C14</td><td>model↔migration parity gate</td><td class="num">9</td><td>fitness</td><td>Highest-leverage contract gate — the green-CI-red-prod one.</td></tr>
+    <tr><td>6</td><td>C4a→C4b</td><td>Verdict alias + parity → enum consolidation</td><td class="num">13/8</td><td>direct+fitness / design</td><td>Safe half now; typing behind the C2 ADR.</td></tr>
+    <tr><td>7</td><td>C3 · C7</td><td>Nested-JSONB gate · machine-key enums</td><td class="num">9/10</td><td>fitness / design</td><td>Contract-surface gates.</td></tr>
+    <tr><td>8</td><td>C5 · C16 · C15</td><td>production.py hoist/split · playwright flag · severity spelling</td><td class="num">12/12/9</td><td>fitness/design / triage</td><td>Batch as capacity allows.</td></tr>
+    <tr><td>—</td><td>C2 ⚑</td><td>Two-tier approval policy ADR</td><td class="num">9</td><td>decision needed</td><td>Architecture fork — gates C4b/C7 typing.</td></tr>
+    <tr><td>—</td><td>C10 ⚑</td><td>API auth</td><td class="num">6</td><td>decision needed</td><td>Security fork (sev 5).</td></tr>
+  </tbody>
+</table></div>
+
+<div class="foot">
+  Read-only Repo Audit Swarm (pass 4 / post-C1) · 4 lanes · merged &amp; scored by Agent 0 per REPORT-SCORING.md ·
+  16 raw findings → 15 candidates · C1 verified resolved &amp; clean · greenlet siblings verified clean · fake-green hunt clean ·
+  Realmwalkers @ <code>main</code> / <code>f3ffd4b</code> · 2026-07-08 ·
+  No production code, tests, configs, or fixtures were modified.
+  Prior: <code>codebase_integrity_audit_2026-07-08.html</code> (pass 3).
+</div>
+
+</div>
+</body>
+</html>

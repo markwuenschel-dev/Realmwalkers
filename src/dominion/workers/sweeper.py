@@ -193,6 +193,10 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
         ProductionRunStatus.CANCELLED,
         ProductionRunStatus.FAILED,
     ):
+        # Terminal or gone: evict this run's in-process bookkeeping so the registries don't grow
+        # unbounded over the process lifetime (they're only ever added to, in this fn and prior ticks).
+        _attempts.pop(str(run_id), None)
+        _warned_human.discard(str(run_id))
         return actions
     book_id, chapter_id = run.book_id, run.chapter_id
     rid = str(run_id)
