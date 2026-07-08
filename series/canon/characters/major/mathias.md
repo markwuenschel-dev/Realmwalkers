@@ -23,7 +23,7 @@ status: active
 | Soul Level | TBD — deferred (do not assign) |
 | Age | 27 (age lock; `cast_index.md` → Character Age Locks) |
 | Origin | Average suburban background |
-| Guild Role (Earth) | Ranger/Hunter — scout, observer, the guild's eyes |
+| Guild Role (Earth) | Strider — route-fighter, movement-angle marksman, terrain-line pressure; scout, observer, the guild's eyes |
 | Realm Role | Scout / contact-driven explorer — reaches things no one else has managed to reach |
 | Power Interface | Enteric Lattice (gut/vagal connection-sense) |
 | Current Location | Finds a group quickly after arrival — solo arc is short |
@@ -1045,15 +1045,15 @@ He notices that the enemy team is behaving as though the real move has not enter
 
 ---
 
-## Aetherfall Class — Ranger/Hunter (Scout Specialization)
+## Aetherfall Class — Strider (Scout Specialization)
 
-Not pet-focused. Not animal-bond dependent. Scout-focused, observer-focused, explorer-focused.
+Not pet-focused. Not animal-bond dependent. Not a stationary sniper or nature caster. Scout-focused, observer-focused, explorer-focused — a **route-fighter**: movement-angle marksman, terrain-line pressure, someone who fights by controlling where the fight is allowed to happen, not by holding one position.
 
-The Ranger class fits him because Rangers are the guild's eyes. They notice things. They move ahead, they read terrain and enemy composition, they bring back information the raid needs to make good decisions. Mathias chose this class because it suited how he already thought — wide awareness, patience, the ability to be present in a space without disturbing it.
+The Strider class fits him because Striders are the guild's eyes and its legs. They notice things. They move constantly — angle to angle, height to height, never settling into one firing line — reading terrain and enemy composition, bringing back information the raid needs to make good decisions, and denying the enemy any stable shot at them in return. Mathias chose this class because it suited how he already thought — wide awareness, patience, the ability to be present in a space without disturbing it, and a refusal to stay still long enough to become a target.
 
-He is not a Ranger because he likes killing things. He is a Ranger because Rangers get to discover what's beyond the next hill.
+He is not a Strider because he likes killing things. He is a Strider because Striders get to discover what's beyond the next hill, at the cost of never quite stopping to enjoy it.
 
-**SCENE-001 confirmed (Earth canon):** Mathias is the **404 Ranger/scout** at the pre-Worlds scrim against Dead Hand — measured, reads the room "like he was reading weather off a tree line," with the pause "newcomers mistook for slowness and the rest of them had learned to read as Mathias deciding the thing was worth saying." He is the **first to flag the missing enemy rogue**: he clocks that Dead Hand has stopped milling and is pooling toward their leader ("Something's not settled over there"), then names the actual gap — "They've got one assassin warming up over there. Where's the other one?" His read is what surfaces the night's hinge: the rogue (Serra) hasn't shown **yet** — she logs in late, then duels Marcus on-page before the hijack cuts it short.
+**SCENE-001 confirmed (Earth canon):** Mathias is the **404 Strider/scout** at the pre-Worlds scrim against Dead Hand — measured, reads the room "like he was reading weather off a tree line," with the pause "newcomers mistook for slowness and the rest of them had learned to read as Mathias deciding the thing was worth saying." He is the **first to flag the missing enemy rogue**: he clocks that Dead Hand has stopped milling and is pooling toward their leader ("Something's not settled over there"), then names the actual gap — "They've got one assassin warming up over there. Where's the other one?" His read is what surfaces the night's hinge: the rogue (Serra) hasn't shown **yet** — she logs in late, then duels Marcus on-page before the hijack cuts it short. (SCENE-002 draft: his Strider identity is on-page in the hijack — route-fighting the glacial mage across the terrace/stairwell/bridge, angle to angle, denying her a stable shot at Serra.)
 
 ---
 
@@ -1288,7 +1288,7 @@ This is a major function that requires **no** combat escalation. Killing him is 
 - Explorer mode: roads, people, and places first; creatures/world systems secondary; pure possibility exploration last.
 - Gentle contrarian style: notices when certainty is emotional rather than evidentiary; notices when the group is arguing with the wrong version of the problem.
 - Humor should be mild, curious, and observational, not comic-relief heavy or therapist-diagnostic.
-- Ranger/Hunter in Aetherfall — scout specialization, observer, the guild's eyes.
+- Strider in Aetherfall — scout specialization, route-fighter, observer, the guild's eyes.
 - Realm class locked: **Scout**.
 - Power Interface locked: **Enteric Lattice**.
 - Explicitly not Rogue/Pathfinder direction.
@@ -1301,7 +1301,7 @@ This is a major function that requires **no** combat escalation. Killing him is 
 - Long-term mature role: route-keeper / steward / emissary over Eriadne, ruins, cultural contact, and fragile trust.
 - Staying back while Marcus and Serra leave is maturation, not contradiction: he does not give up the road; he becomes the road others can still use.
 - **Survives Book 1** (injured at the finale; MT-01 resolved) — **no main-six character dies in Book 1.**
-- Four-layer architecture: Earth (curious suburban kid) → Aetherfall (Ranger/scout) → Realm (Scout) → Interface (Enteric Lattice).
+- Four-layer architecture: Earth (curious suburban kid) → Aetherfall (Strider/scout) → Realm (Scout) → Interface (Enteric Lattice).
 
 ---
 

@@ -26,7 +26,7 @@ known_entities: [illyristranthe, illyri, ily, ayla]
 | Serra Hawthorne | Serra Hawthorne | Serra | Deuteragonist / Warrior → Worldbreaker (Book-2 dir.) / Severance Pulse Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
 | Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Pyric Blood / Mirror-rival to Marcus | Active | `major/seb.md` |
 | Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Specular Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
-| Mathias Sterling | Mathias Sterling | TBD | Aetherfall Ranger/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
+| Mathias Sterling | Mathias Sterling | TBD | Aetherfall Strider/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
 | Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Warden → Reckoner (Book-2 dir.) / Piezoelectric Bones (open) | Active — survives Book 1 | `major/brent.md` |
 | Illyristranthe | N/A | Illyristranthe / Illyri / Ily | Ancient celestial consciousness — diminished fragment / Attached to Marcus's implant | Active — internal | `major/illyristranthe.md` |
 

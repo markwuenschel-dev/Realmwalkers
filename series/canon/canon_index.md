@@ -76,6 +76,26 @@ If two files disagree, the **owner** above wins for its topic. **Aggregates lag 
 
 ---
 
+## Chapter 1 — Current Thread Summary (supersedes older Act-1 notes)
+
+> Reconciles all Chapter-1-scoped canon as of the Scene 3 draft. If any older note
+> contradicts this block on a Chapter 1 fact, this block wins per "newest explicit author
+> decisions."
+
+Marcus at home in Charlotte, 2040 → personal ML texture + Astria announcement + a read-but-
+unresolved Serra Discord thread → login to Aetherfall → 404 vs. Dead Hand scrim → Seb wrong-
+late because Micah died shortly before, not during → Serra's late arrival → Serra/Mara attack
+Brent → Marcus/Serra duel, mutual staggered recognition → Astria interrupts via a hijacked/
+escalated Storm Warden cyclone phase → Roth appears (unnamed on-page, visible as a suited
+figure replacing Dead Hand's guild leader) → logout is **selectively** locked, not dead —
+non-selected players can leave, the six cannot → the arena visibly thins as non-selected
+players log out → Kip logs out under Seb's direct order to get word out → Marcus, Seb, Brent,
+Mathias, Serra, and Mara are the six who remain trapped → verbal consent under duress (Marcus,
+Seb, Brent, Mathias on-page in order; Serra a single overheard word; Mara shown, not voiced)
+→ transition → Chapter 1 ends. Chapter 2 opens with Marcus being collected at his apartment.
+
+---
+
 ## Faction File Registry
 
 > Agent entry point for cosmic powers. Template: `factions/_FACTION_TEMPLATE.md`. Hub + cross-power dynamics: `world/cosmology.md`.
