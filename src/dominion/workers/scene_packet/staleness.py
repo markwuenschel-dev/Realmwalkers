@@ -14,8 +14,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared.enums import ScenePacketStatus
-from dominion.shared.models import ChapterPacket, ScenePacket
+from dominion.shared.enums import ScenePacketStatus, SceneStatus
+from dominion.shared.models import ChapterPacket, Scene, ScenePacket
 from dominion.workers.length import planner as length_planner
 from dominion.workers.scene_packet import hash as hash_mod
 from dominion.workers.scene_packet import inputs as sp_inputs
@@ -65,6 +65,20 @@ async def recompute_and_mark(session: AsyncSession, *, chapter_id: uuid.UUID) ->
     if not packets:
         return 0
 
+    # Fetch the chapter's approved scenes ONCE, then slice prior-scene keys in memory (was an N+1: one
+    # SELECT per packet via sp_inputs.prior_scene_keys). Same keys, same order — approved scenes with a
+    # lower scene_no, ordered by scene_no — as prior_scene_keys returns.
+    approved_scenes = (
+        await session.execute(
+            select(Scene.scene_no, Scene.id, Scene.version, Scene.word_count)
+            .where(Scene.chapter_id == chapter_id, Scene.status == SceneStatus.APPROVED)
+            .order_by(Scene.scene_no)
+        )
+    ).all()
+
+    def _prior_scene_keys(before_scene_no: int) -> list[list[Any]]:
+        return [[str(sid), ver, wc] for sno, sid, ver, wc in approved_scenes if sno < before_scene_no]
+
     # Group by chapter packet so we plan word budgets once per chapter-packet body.
     cp_bodies: dict[uuid.UUID, dict[str, Any]] = {}
     cp_budgets: dict[uuid.UUID, dict[str, dict[str, Any]]] = {}
@@ -93,7 +107,7 @@ async def recompute_and_mark(session: AsyncSession, *, chapter_id: uuid.UUID) ->
             None,
         )
         word_budget = cp_budgets[sp.chapter_packet_id].get(str(sp.scene_seed_id), {})
-        prior_keys = await sp_inputs.prior_scene_keys(session, chapter_id=chapter_id, scene_no=sp.scene_no)
+        prior_keys = _prior_scene_keys(sp.scene_no)
         current = hash_mod.source_hash(
             chapter_packet_id=sp.chapter_packet_id,
             chapter_packet_body=body,

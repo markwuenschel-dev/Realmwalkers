@@ -283,3 +283,43 @@ async def test_retention_prunes_aged_exhaust_but_keeps_completed_runs(db_factory
         assert counts["activities"] >= 1 and counts["jobs"] >= 1 and counts["runs"] >= 1
         assert await s.get(ProductionRun, cancelled.id) is None  # abandoned run pruned
         assert await s.get(ProductionRun, completed.id) is not None  # completed run KEPT (manual-only)
+
+
+async def test_retention_prunes_all_aged_activities_and_keeps_fresh(db_factory):
+    # C11: set-based delete removes every aged Activity and reports the true count via rowcount; a fresh
+    # row survives. (Guards the switch off the id-materialization + IN(...) list.)
+    old = datetime.now(UTC) - timedelta(days=60)
+    async with db_factory() as s:
+        book = Book(title="Realmwalkers")
+        s.add(book)
+        await s.flush()
+        for i in range(3):
+            s.add(Activity(kind="draft_done", title=f"old-{i}", source="jobs", book_id=book.id, created_at=old))
+        s.add(Activity(kind="draft_done", title="fresh", source="jobs", book_id=book.id))
+        await s.commit()
+
+        counts = await retention.run_retention(s, days=30)
+        await s.commit()
+
+        assert counts["activities"] == 3  # exactly the three aged rows, counted by rowcount
+        titles = {a.title for a in await activity_router.list_activity(s, book_id=book.id)}
+        assert "fresh" in titles and not any(t.startswith("old-") for t in titles)
+
+
+async def test_sweeper_evicts_registries_for_terminal_run(db_factory):
+    # C13: a run that has reached a terminal state must not leave its id in the in-process registries for
+    # the whole process lifetime — _sweep_one_run evicts it on the terminal early-return.
+    sweeper._attempts.clear()
+    sweeper._warned_human.clear()
+    async with db_factory() as s:
+        _book, _chapter, run, _scenes = await _seed_run(s)
+        run.status = "completed"  # terminal
+        await s.flush()
+        rid = str(run.id)
+        sweeper._attempts[rid] = 2  # stale bookkeeping from earlier ticks
+        sweeper._warned_human.add(rid)
+
+        await sweeper._sweep_one_run(s, run.id, _cfg())
+
+        assert rid not in sweeper._attempts  # evicted
+        assert rid not in sweeper._warned_human

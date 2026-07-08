@@ -29,10 +29,11 @@ async def run_retention(session: AsyncSession, *, days: int) -> dict[str, int]:
         return {"activities": 0, "jobs": 0, "runs": 0}
     cutoff = datetime.now(UTC) - timedelta(days=days)
 
-    # 1) Old activity rows (age is the signal, dismissed or not).
-    act_ids = list((await session.execute(select(Activity.id).where(Activity.created_at < cutoff))).scalars().all())
-    if act_ids:
-        await session.execute(delete(Activity).where(Activity.id.in_(act_ids)))
+    # 1) Old activity rows (age is the signal, dismissed or not). Set-based delete — don't materialize
+    #    every aged id into Python and ship it back as a giant IN(...) list (a first prune after weeks of
+    #    per-tick activity writes could be huge / hit asyncpg's param limit); rowcount gives the count.
+    act_result = await session.execute(delete(Activity).where(Activity.created_at < cutoff))
+    activities_pruned = int(getattr(act_result, "rowcount", 0) or 0)
 
     # 2) DONE jobs past the window (their scenes persist independently).
     jobs_purged = (await purge_done_draft_jobs(session, older_than=cutoff)).purged
@@ -56,7 +57,7 @@ async def run_retention(session: AsyncSession, *, days: int) -> dict[str, int]:
         if await production_delete.delete_production_run(session, rid):
             runs_deleted += 1
 
-    counts = {"activities": len(act_ids), "jobs": jobs_purged, "runs": runs_deleted}
+    counts = {"activities": activities_pruned, "jobs": jobs_purged, "runs": runs_deleted}
     if any(counts.values()):
         await activity.record_activity(
             session,
