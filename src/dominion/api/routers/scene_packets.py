@@ -446,4 +446,9 @@ async def mark_scene_packets_stale(
     # now-orphaned beats. Beats-only: no scene packet is re-derived here.
     await scene_packet_pipeline.reconcile_beats(session, chapter_id=chapter_id)
     await session.commit()
+    # Refresh after commit so each STALE update's server-side `updated_at` (onupdate) is loaded before
+    # enrich serializes it — otherwise model_validate triggers a sync lazy-load on the async session
+    # (MissingGreenlet). Mirrors update_scene_packet's post-commit refresh.
+    for row in rows:
+        await session.refresh(row)
     return [scene_packet_pipeline.enrich_scene_packet_out(r) for r in rows]
