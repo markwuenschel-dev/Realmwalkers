@@ -11,20 +11,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
-
-def _strip_fences(s: str) -> str:
-    s = s.strip()
-    if s.startswith("```"):
-        s = s.split("\n", 1)[1] if "\n" in s else ""
-        if s.rstrip().endswith("```"):
-            s = s.rstrip()[:-3]
-    return s.strip()
+from dominion.shared.llm_text import strip_fences
 
 
 def extract_object(raw: str) -> dict[str, Any] | None:
     """Pull a single JSON object out of a model response, tolerating code fences and a prose
     preamble/suffix. Returns None when no object can be recovered (caller must fail closed)."""
-    s = _strip_fences(raw)
+    s = strip_fences(raw)
     try:
         data = json.loads(s)
         if isinstance(data, dict):

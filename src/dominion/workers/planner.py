@@ -15,6 +15,7 @@ import re
 from typing import Any
 
 from dominion.shared.config import settings
+from dominion.shared.llm_text import strip_fences
 from dominion.workers import llm
 from dominion.workers.budget import TokenBudget
 from dominion.workers.llm_escalation import attempt_with_escalation, policy_for_setting
@@ -38,15 +39,6 @@ _TITLE_SYSTEM = (
     "no trailing punctuation. It must fit the outline and invent nothing it doesn't support. Reply "
     "with the title text ONLY — nothing else."
 )
-
-
-def _strip_fences(s: str) -> str:
-    s = s.strip()
-    if s.startswith("```"):
-        s = s.split("\n", 1)[1] if "\n" in s else ""
-        if s.rstrip().endswith("```"):
-            s = s.rstrip()[:-3]
-    return s.strip()
 
 
 def _plan_prompt(*, outline: str, pov: str, omniscient_summary: str | None, canon: list[str], max_beats: int) -> str:
@@ -123,7 +115,7 @@ def _extract_array(raw: str) -> list[Any]:
     """Pull the beat array out of a model response, tolerating common deviations from "ONLY a JSON
     array": code fences, a prose preamble/suffix, a wrapper object like {"beats": [...]}, or a
     response truncated mid-array by the token cap."""
-    s = _strip_fences(raw)
+    s = strip_fences(raw)
     try:
         data = json.loads(s)
     except (json.JSONDecodeError, ValueError):
@@ -202,7 +194,7 @@ def _clean_title(raw: str) -> str | None:
     """First line of the model's reply, stripped of fences/quotes and any 'Chapter N:'/'Title:'
     prefix it sometimes adds. Returns None for an empty or implausibly long result (treated as a
     non-answer), so a bad title is simply absent rather than garbage shown to the author."""
-    s = _strip_fences(raw).strip()
+    s = strip_fences(raw).strip()
     line = s.splitlines()[0].strip() if s else ""
     line = line.strip("\"'").strip()
     line = re.sub(r"^(chapter\s+\w+\s*[:\-—.]\s*|title\s*[:\-—]\s*)", "", line, flags=re.IGNORECASE)

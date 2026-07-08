@@ -9,12 +9,14 @@ Two tiers:
   it documents — if someone "fixes" the fixture data, the regression tests above
   it stop meaning anything, so the canaries fail first.
 
-* Lane acceptance tests are gated with pytest.importorskip on the lane-owned
-  modules (dominion.workers.scene_scope / budget_reconciliation / canon_guards,
-  and lane 1's chaining post-pass). Green pre-integration; they bite the moment
-  the lane lands. Callable names are resolved through the adapters in
-  tests/ch1_bad_run_fixtures.py — a landed module with an unmatched signature
-  FAILS loudly (AdapterMismatch), it never skips.
+* Lane acceptance tests import the lane-owned modules directly
+  (dominion.workers.scene_scope / budget_reconciliation / canon_guards, and lane
+  1's chaining post-pass dominion.workers.production.chain_scene_entry_states).
+  All four lanes have landed, so a missing module/symbol now ERRORS loudly — it
+  never self-skips. Callable names for lanes 2-4 are still resolved through the
+  adapters in tests/ch1_bad_run_fixtures.py, where a landed module with an
+  unmatched signature FAILS loudly (AdapterMismatch); the import itself no longer
+  skips.
 """
 
 from __future__ import annotations
@@ -27,20 +29,26 @@ import pytest
 
 @pytest.fixture(scope="module")
 def scene_scope():
-    """Lane 2 module — skip (green) until it lands, bite afterwards."""
-    return pytest.importorskip("dominion.workers.scene_scope")
+    """Lane 2 module (landed) — a missing/broken module ERRORS the lane tests, never skips."""
+    import dominion.workers.scene_scope as module
+
+    return module
 
 
 @pytest.fixture(scope="module")
 def budget_reconciliation():
-    """Lane 3 module — skip (green) until it lands, bite afterwards."""
-    return pytest.importorskip("dominion.workers.budget_reconciliation")
+    """Lane 3 module (landed) — a missing/broken module ERRORS the lane tests, never skips."""
+    import dominion.workers.budget_reconciliation as module
+
+    return module
 
 
 @pytest.fixture(scope="module")
 def canon_guards():
-    """Lane 4 module — skip (green) until it lands, bite afterwards."""
-    return pytest.importorskip("dominion.workers.canon_guards")
+    """Lane 4 module (landed) — a missing/broken module ERRORS the lane tests, never skips."""
+    import dominion.workers.canon_guards as module
+
+    return module
 
 
 # ---------------------------------------------------------------------------
@@ -163,13 +171,12 @@ class TestLane1EntryStateChaining:
         """Acceptance (a): after lane 1's post-pass, scene 1 entry ==
         global_entry_state and scene N entry == scene N-1 exit_state (scenes 2-4
         all declare independent_draft_allowed=false)."""
-        name, fn = fx.resolve_lane1_postpass()
-        if fn is None:
-            pytest.skip(
-                "lane 1 chaining post-pass not landed yet "
-                f"(probed {', '.join(fx.LANE1_MODULES)} for {', '.join(fx.LANE1_FUNCS)})"
-            )
-        body = fx.apply_lane1_postpass(fn, copy.deepcopy(fx.sequence_body()))
+        # Lane 1 has landed: pin directly to the real post-pass. A rename/removal
+        # now ERRORS on import instead of silently skipping this acceptance test.
+        from dominion.workers.production import chain_scene_entry_states
+
+        name = "dominion.workers.production.chain_scene_entry_states"
+        body = chain_scene_entry_states(copy.deepcopy(fx.sequence_body()))
         scenes = sorted(body["scenes"], key=lambda s: int(s["scene_no"]))
         assert len(scenes) == fx.SCENE_COUNT
 
@@ -186,26 +193,21 @@ class TestLane1EntryStateChaining:
             assert prev["exit_state"] == original[n - 1]["exit_state"]
 
     def test_derivation_itself_chains_when_lane1_lands_in_place(self):
-        """Complementary check at the derivation seam: if lane 1 patched
-        derive_chapter_sequence directly, re-deriving from the REAL chapter packet
-        body must yield chained entry states. Skips while derivation still emits
-        the bug AND no post-pass exists (pre-integration)."""
-        production = pytest.importorskip("dominion.workers.production")
-        derived = production.derive_chapter_sequence(fx.chapter_packet_body())
+        """Complementary check at the derivation seam: lane 1 patched
+        derive_chapter_sequence directly (it applies chain_scene_entry_states before
+        returning), so re-deriving from the REAL chapter packet body must yield
+        chained entry states. If derivation regresses to emitting the bug, this
+        FAILS loudly — it no longer self-skips."""
+        from dominion.workers.production import derive_chapter_sequence
+
+        derived = derive_chapter_sequence(fx.chapter_packet_body())
         scenes = sorted(derived["scenes"], key=lambda s: int(s["scene_no"]))
-        chained = all(
-            scene["entry_state"] == prev["exit_state"] for prev, scene in zip(scenes, scenes[1:], strict=False)
-        )
-        if not chained and fx.resolve_lane1_postpass()[1] is None:
-            pytest.skip("lane 1 not landed: derivation still emits unchained entry states")
-        if not chained:
-            # A post-pass exists, so derivation output must chain after applying it.
-            _, fn = fx.resolve_lane1_postpass()
-            derived = fx.apply_lane1_postpass(fn, derived)
-            scenes = sorted(derived["scenes"], key=lambda s: int(s["scene_no"]))
         for prev, scene in zip(scenes, scenes[1:], strict=False):
             if scene.get("independent_draft_allowed") is False:
-                assert scene["entry_state"] == prev["exit_state"]
+                assert scene["entry_state"] == prev["exit_state"], (
+                    "derive_chapter_sequence no longer chains dependent scene entry_states "
+                    "onto the prior scene's exit_state (lane 1 regressed)"
+                )
 
 
 # ---------------------------------------------------------------------------

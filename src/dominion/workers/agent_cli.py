@@ -25,7 +25,7 @@ import contextlib
 import json
 import tempfile
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 
@@ -52,22 +52,97 @@ def is_transient_error(exc: BaseException) -> bool:
     return isinstance(exc, AgentCliError) and exc.transient
 
 
-# stdout/stderr (or JSON-envelope) substrings that mean the subscription/API usage cap was hit — mapped
-# to LlmRateLimited so orchestrators classify it as transient infrastructure (the same path as a 429).
+# Free-text substrings that mean the subscription/API usage cap was hit — mapped to LlmRateLimited so
+# orchestrators classify it as transient infrastructure (the same path as a 429). This is the FALLBACK
+# signal, consulted only when the CLI's JSON envelope carries no structured error type (see below): free
+# text is fragile, so we anchor to distinctive phrases. Note the absence of a bare "429" — on its own it
+# false-positives on request IDs, byte counts, timestamps, or generated prose that merely contains "429";
+# a real HTTP rate-limit surfaces it as one of the anchored forms here (or, better, structurally).
 _RATE_LIMIT_MARKERS: tuple[str, ...] = (
     "usage limit",
     "rate limit",
     "rate_limit",
-    "429",
     "too many requests",
     "limit reached",
     "overloaded",
+    "429 too many requests",
+    "http 429",
+    "status 429",
+    "status code 429",
+    "error 429",
+    "(429)",
 )
+
+# Structured (non-free-text) rate-limit signals from the CLI's JSON envelope. These take PRECEDENCE over
+# the substring scan: the Anthropic API's error object exposes a machine-readable `type`, and a 429 / 529
+# surfaces as `rate_limit_error` / `overloaded_error` (see the API error-codes reference). When the CLI
+# propagates that shape in its result envelope's `error` field, we trust it verbatim rather than sniffing
+# text. Kept as a small allowlist so an unrelated error type never masquerades as a rate limit.
+_STRUCTURED_RATE_LIMIT_ERROR_TYPES: frozenset[str] = frozenset({"rate_limit_error", "overloaded_error"})
+
+# CLI result `subtype` values that are DEFINITIVELY hard failures, never a transient rate limit — a
+# max-turns abort is the agent running out of budget, not the provider throttling us. When the envelope
+# carries one of these, we classify "hard" regardless of free text, so a "429" (or "limit") appearing in
+# the model's own generated `result` text cannot flip a real hard failure into a spurious retry.
+_HARD_ERROR_SUBTYPES: frozenset[str] = frozenset({"error_max_turns"})
 
 
 def _looks_rate_limited(text: str) -> bool:
     low = text.lower()
     return any(marker in low for marker in _RATE_LIMIT_MARKERS)
+
+
+def _envelope_rate_limited(envelope: dict[str, Any]) -> bool:
+    """True only for a STRUCTURED rate-limit signal in the CLI's JSON envelope (no text sniffing).
+
+    Trusts two machine-readable shapes: an Anthropic-style `error` object whose `type` is a known
+    rate-limit/overload type, or a `subtype` that explicitly names rate-limiting. Returns False (defer to
+    the substring fallback) for anything else."""
+    err = envelope.get("error")
+    if isinstance(err, dict) and str(err.get("type") or "").strip().lower() in _STRUCTURED_RATE_LIMIT_ERROR_TYPES:
+        return True
+    subtype = str(envelope.get("subtype") or "").strip().lower()
+    return "rate_limit" in subtype or "overloaded" in subtype or "usage_limit" in subtype
+
+
+def _classify_failure(
+    exit_code: int | None,
+    envelope: dict[str, Any] | None,
+    combined_text: str,
+) -> Literal["rate_limit", "hard"]:
+    """Decide whether a CLI failure is a transient rate limit or a hard error.
+
+    Precedence, structured-signals-first:
+      1. A definitive hard-error subtype in the envelope -> "hard" (rules OUT rate-limiting even if the
+         free text happens to contain "429"/"limit").
+      2. A structured rate-limit signal in the envelope -> "rate_limit".
+      3. Fallback: the hardened `_RATE_LIMIT_MARKERS` substring scan over the combined stdout/stderr/detail.
+
+    When no envelope is available (e.g. a non-JSON crash on the non-zero-exit path) behavior is identical
+    to the original free-text-only classification, so the change is backward compatible."""
+    if envelope is not None:
+        subtype = str(envelope.get("subtype") or "").strip().lower()
+        if subtype in _HARD_ERROR_SUBTYPES:
+            return "hard"
+        if _envelope_rate_limited(envelope):
+            return "rate_limit"
+    return "rate_limit" if _looks_rate_limited(combined_text) else "hard"
+
+
+def _try_parse_envelope(stdout: str) -> dict[str, Any] | None:
+    """Best-effort parse of the CLI's JSON result envelope for structured error classification.
+
+    The CLI emits its JSON envelope on stdout even on some non-zero exits, so we try to recover it there
+    too (not only on the success path) — but a failed parse is fine: classification simply falls back to
+    the free-text scan."""
+    stripped = stdout.strip()
+    if not stripped:
+        return None
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def _build_prompt(user: str, prefix_blocks: Sequence[CachedPrefixBlock]) -> str:
@@ -146,7 +221,10 @@ async def run(
 
     if proc.returncode != 0:
         combined = f"{stdout}\n{stderr}"
-        if _looks_rate_limited(combined):
+        # Prefer the CLI's structured error envelope (it may be emitted on stdout even on a non-zero exit)
+        # over free-text sniffing; fall back to the substring scan when no envelope is recoverable.
+        envelope = _try_parse_envelope(stdout)
+        if _classify_failure(proc.returncode, envelope, combined) == "rate_limit":
             raise LlmRateLimited(f"claude CLI usage/rate limit: {(stderr.strip() or stdout.strip())[:400]}")
         raise AgentCliError(
             f"claude CLI exited {proc.returncode}: {(stderr.strip() or stdout.strip())[:400]}",
@@ -158,10 +236,11 @@ async def run(
     except json.JSONDecodeError as exc:
         raise AgentCliError(f"claude CLI returned non-JSON stdout: {stdout[:400]}", transient=False) from exc
 
-    # A successful exit can still carry an error envelope (e.g. a usage cap or max-turns abort).
+    # A successful exit can still carry an error envelope (e.g. a usage cap or max-turns abort). Classify
+    # from the envelope's structured fields first (subtype / error type), then fall back to the detail text.
     if isinstance(payload, dict) and (payload.get("is_error") or str(payload.get("subtype") or "").startswith("error")):
         detail = str(payload.get("result") or payload.get("error") or payload)
-        if _looks_rate_limited(detail):
+        if _classify_failure(proc.returncode, payload, detail) == "rate_limit":
             raise LlmRateLimited(f"claude CLI usage/rate limit: {detail[:400]}")
         raise AgentCliError(f"claude CLI reported error: {detail[:400]}", transient=True)
 

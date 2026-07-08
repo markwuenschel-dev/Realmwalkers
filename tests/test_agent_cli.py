@@ -151,11 +151,83 @@ async def test_runner_usage_limit_message_raises_rate_limited(monkeypatch: pytes
 
 
 async def test_runner_error_envelope_rate_limit_raises_rate_limited(monkeypatch: pytest.MonkeyPatch):
-    # Exit 0 but the JSON envelope reports an error subtype carrying a rate-limit message.
+    # Exit 0 but the JSON envelope reports an error subtype carrying a rate-limit message. No structured
+    # rate-limit signal here (generic subtype, no `error.type`), so the free-text fallback does the work.
     payload = {"is_error": True, "subtype": "error_during_execution", "result": "429 too many requests"}
     _patch_exec(monkeypatch, _FakeProc(stdout=json.dumps(payload).encode()))
     with pytest.raises(LlmRateLimited):
         await agent_cli.run(model="claude-sonnet-5", system="s", user="u", max_tokens=64)
+
+
+# --- classification: structured envelope signals take precedence over free-text sniffing -------------
+
+
+async def test_runner_structured_error_type_rate_limit_retries_without_text_markers(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # The CLI envelope carries the Anthropic structured error type but NO rate-limit words in any text
+    # field — the structured signal alone must classify it as a rate limit.
+    payload = {
+        "is_error": True,
+        "subtype": "error_during_execution",
+        "error": {"type": "rate_limit_error", "message": "capacity exceeded for this account tier"},
+        "result": "the model could not complete the request",
+    }
+    _patch_exec(monkeypatch, _FakeProc(stdout=json.dumps(payload).encode()))
+    with pytest.raises(LlmRateLimited):
+        await agent_cli.run(model="claude-sonnet-5", system="s", user="u", max_tokens=64)
+
+
+async def test_runner_structured_overloaded_type_retries(monkeypatch: pytest.MonkeyPatch):
+    # `overloaded_error` (HTTP 529) is also a structured transient-infra signal, even on a non-zero exit
+    # whose stderr has no rate-limit phrasing.
+    payload = {"is_error": True, "error": {"type": "overloaded_error"}}
+    _patch_exec(monkeypatch, _FakeProc(stdout=json.dumps(payload).encode(), stderr=b"request failed", returncode=1))
+    with pytest.raises(LlmRateLimited):
+        await agent_cli.run(model="claude-sonnet-5", system="s", user="u", max_tokens=64)
+
+
+async def test_runner_structured_hard_error_not_rate_limited_even_with_429_text(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # A definitive hard-error subtype (`error_max_turns`) must NOT be classified as a rate limit, even
+    # though the generated result text contains "429" — the structured signal rules it out, so the caller
+    # gets a hard AgentCliError (not LlmRateLimited).
+    payload = {
+        "is_error": True,
+        "subtype": "error_max_turns",
+        "result": "partial draft mentioning error 429 in the prose",
+    }
+    _patch_exec(monkeypatch, _FakeProc(stdout=json.dumps(payload).encode()))
+    with pytest.raises(AgentCliError) as exc_info:
+        await agent_cli.run(model="claude-sonnet-5", system="s", user="u", max_tokens=64)
+    assert exc_info.value.transient is True
+
+
+async def test_runner_bare_429_in_text_no_longer_false_positives(monkeypatch: pytest.MonkeyPatch):
+    # A non-zero exit whose only "429" is an incidental request id / byte count — no anchored rate-limit
+    # phrase and no structured signal — must be a hard error, not a spurious rate-limit retry.
+    _patch_exec(monkeypatch, _FakeProc(stderr=b"internal error (request 4291f, wrote 42900 bytes)", returncode=1))
+    with pytest.raises(AgentCliError) as exc_info:
+        await agent_cli.run(model="claude-sonnet-5", system="s", user="u", max_tokens=64)
+    assert exc_info.value.transient is True
+
+
+def test_classify_failure_precedence_and_fallback():
+    # Structured hard subtype wins over rate-limit text.
+    assert agent_cli._classify_failure(0, {"subtype": "error_max_turns"}, "usage limit reached") == "hard"
+    # Structured rate-limit error type wins with no text markers.
+    assert agent_cli._classify_failure(1, {"error": {"type": "rate_limit_error"}}, "boom") == "rate_limit"
+    # No envelope -> pure free-text fallback, both directions.
+    assert agent_cli._classify_failure(1, None, "Claude usage limit reached") == "rate_limit"
+    assert agent_cli._classify_failure(1, None, "segfault in worker") == "hard"
+    # Free-text fallback when the envelope has no usable structured signal.
+    assert (
+        agent_cli._classify_failure(0, {"is_error": True, "result": "429 too many requests"}, "429 too many requests")
+        == "rate_limit"
+    )
+    # Bare "429" alone no longer trips the fallback.
+    assert agent_cli._classify_failure(1, None, "trace id 4290, exit 429000") == "hard"
 
 
 async def test_runner_missing_binary_raises_non_transient(monkeypatch: pytest.MonkeyPatch):

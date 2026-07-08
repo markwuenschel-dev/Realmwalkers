@@ -7,19 +7,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from dominion.shared.enums import Severity
+from dominion.shared.llm_text import strip_fences
 
 if TYPE_CHECKING:
     from dominion.workers.context import SceneContext
 
-
-def strip_fences(s: str) -> str:
-    """Drop a leading ```lang fence and trailing ``` from a model response, if present."""
-    s = s.strip()
-    if s.startswith("```"):
-        s = s.split("\n", 1)[1] if "\n" in s else ""
-        if s.rstrip().endswith("```"):
-            s = s.rstrip()[:-3]
-    return s.strip()
+__all__ = ["Flag", "advisory_severity", "parse_json_objects", "strip_fences"]
 
 
 def parse_json_objects(raw: str) -> list[dict[str, Any]]:

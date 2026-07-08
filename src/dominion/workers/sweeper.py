@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import time
 import traceback
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -393,19 +394,39 @@ async def sweeper_status(session) -> dict[str, Any]:
     }
 
 
-async def run_forever() -> None:
+async def _current_interval_s() -> int:
+    """The live tick cadence, re-read from the KV config each loop so a Settings change takes effect on
+    the next sleep. Extracted from `run_forever` so the loop's scheduling can be driven in tests on a
+    fake clock with no DB (inject `read_interval`)."""
+    async with SessionFactory() as session:
+        return (await load_config(session)).interval_s
+
+
+async def run_forever(
+    *,
+    tick: Callable[[], Awaitable[None]] = run_tick,
+    read_interval: Callable[[], Awaitable[int]] = _current_interval_s,
+    sleep: Callable[[float], Awaitable[Any]] = asyncio.sleep,
+    should_stop: Callable[[], bool] | None = None,
+) -> None:
     """The lifespan-owned loop. Sleeps the configured interval between ticks; a tick failure is logged
-    and the loop continues (it must survive transient DB blips across the whole deploy lifetime)."""
+    and the loop continues (it must survive transient DB blips across the whole deploy lifetime).
+
+    The four collaborators all default to the real ones, so production behavior is unchanged — they are a
+    pure test seam. `tick`/`read_interval`/`sleep` let a test drive scheduling on a fake clock (no
+    wall-clock wait, no DB); `should_stop` (default None = never stops, exactly as before) lets a test run
+    the loop a fixed number of iterations and then exit cleanly."""
     log.info("sweeper.started")
     while True:
         interval = 120
         try:
-            await run_tick()
-            async with SessionFactory() as session:
-                interval = (await load_config(session)).interval_s
+            await tick()
+            interval = await read_interval()
         except asyncio.CancelledError:
             log.info("sweeper.stopped")
             raise
         except Exception as exc:  # noqa: BLE001 — never let the loop die on a tick error
             log.error("sweeper.tick_error", error=str(exc))
-        await asyncio.sleep(interval)
+        if should_stop is not None and should_stop():
+            return
+        await sleep(interval)

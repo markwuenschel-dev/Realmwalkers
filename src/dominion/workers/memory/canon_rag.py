@@ -14,6 +14,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+import structlog
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +23,8 @@ from dominion.shared.db import SessionFactory
 from dominion.shared.models import Book, CanonEntity
 from dominion.workers.memory.embedding import embed_async, embed_many_async, embedding_version
 from dominion.workers.memory.owner_router import _RULES
+
+log = structlog.get_logger()
 
 _PASSAGE_KIND = "passage"
 _TARGET_CHARS = 1000
@@ -49,6 +52,11 @@ _KIND_BY_FOLDER: dict[str, str] = {
 }
 _DEFAULT_INGEST_KIND = "lore"
 
+# Top-level folders we've already warned about falling back for, so a rebuild that walks many files
+# under the same unmapped folder logs the warning ONCE per folder instead of once per file (mirrors
+# embedding.py's `_warned_no_key` dedupe). Process-lifetime state; a warning, never a gate.
+_warned_unmapped_folders: set[str] = set()
+
 # Extensions we treat as canon source text.
 _INGEST_SUFFIXES = {".md", ".markdown", ".txt"}
 
@@ -71,9 +79,32 @@ def _is_ingestable(path: Path) -> bool:
 
 
 def _kind_for(doc_path: str) -> str:
-    """Map a chunk's relative doc_path to its display kind by top-level folder."""
+    """Map a chunk's relative doc_path to its display kind by top-level folder.
+
+    A folder not in `_KIND_BY_FOLDER` (a new or renamed canon folder, or a root-level doc) falls back
+    to `_DEFAULT_INGEST_KIND`. That fallback is intentionally NON-fatal so an evolving corpus keeps
+    ingesting — but it can silently MIS-categorize an entire new folder as "lore", so we emit a loud,
+    structured WARNING naming the unmapped folder and the kind it fell back to (deduped to once per
+    folder per process). Fix by adding the folder to `_KIND_BY_FOLDER`.
+
+    NOTE: a strict mode that HARD-FAILS on an unmapped folder was deliberately not enabled — it's a
+    human/migration judgment call (it could break an existing corpus mid-rebuild). It could be layered
+    on later behind a setting (e.g. `settings.canon_ingest_strict_kinds`), defaulting off.
+    """
     top = doc_path.split("/", 1)[0] if "/" in doc_path else ""
-    return _KIND_BY_FOLDER.get(top, _DEFAULT_INGEST_KIND)
+    kind = _KIND_BY_FOLDER.get(top)
+    if kind is not None:
+        return kind
+    if top not in _warned_unmapped_folders:
+        _warned_unmapped_folders.add(top)
+        log.warning(
+            "canon_ingest.unmapped_folder",
+            folder=top or "<root>",
+            fell_back_to=_DEFAULT_INGEST_KIND,
+            known_folders=sorted(_KIND_BY_FOLDER),
+            hint="add this folder to canon_rag._KIND_BY_FOLDER to tag it with a real kind",
+        )
+    return _DEFAULT_INGEST_KIND
 
 
 # Filename → owner topic / source priority. Owner files (relationship invariants, cast, mechanics, …)
@@ -347,7 +378,7 @@ async def _build(book_title: str, root: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="(Re)build the canon RAG index from text/markdown files.")
     parser.add_argument("--book", required=True)
-    parser.add_argument("--path", default="series/canon")
+    parser.add_argument("--path", default=settings.canon_dir)
     args = parser.parse_args()
     asyncio.run(_build(args.book, args.path))
 

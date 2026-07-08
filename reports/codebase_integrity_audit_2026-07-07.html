@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codebase Integrity Audit — Realmwalkers — 2026-07-07</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --ink:#e7e9ee; --mut:#9aa3b2;
+    --line:#2a2f3a; --acc:#6ea8fe; --good:#4ec9a3; --warn:#e0b64b; --bad:#e0685f;
+    --chip:#232936; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 24px 96px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:20px;margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:22px 0 8px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:24px}
+  p{margin:8px 0}
+  a{color:var(--acc)}
+  code{background:var(--chip);padding:1px 6px;border-radius:5px;font:12.5px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}
+  .grade{display:inline-flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 22px;margin:6px 0 4px}
+  .grade .big{font-size:44px;font-weight:700;color:var(--good)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin:12px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+  .card .lbl{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .card .val{font-size:15px;margin-top:4px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .t-design{background:#2a2350;color:#c3b6ff}
+  .t-directfix{background:#173a2c;color:#7de3b8}
+  .t-fitness{background:#1c3550;color:#8ec5ff}
+  .t-triage{background:#3a3418;color:#e6cf7a}
+  .t-diagnose{background:#3a2320;color:#f0a89f}
+  .t-reject{background:#2a2f3a;color:#9aa3b2}
+  .pri{font-weight:700;font-variant-numeric:tabular-nums}
+  .pri.hi{color:var(--good)} .pri.mid{color:var(--warn)} .pri.lo{color:var(--mut)}
+  .blocked{color:var(--bad);font-weight:600}
+  .cand{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0;box-shadow:var(--shadow)}
+  .cand h3{margin:0 0 6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .cid{font:12px ui-monospace,monospace;background:var(--acc);color:#0b0d12;padding:2px 8px;border-radius:6px;font-weight:700}
+  .cand .meta{color:var(--mut);font-size:12.5px;margin:2px 0 10px}
+  .scores{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .sc{background:var(--chip);border-radius:6px;padding:2px 8px;font-size:11.5px;color:var(--mut)}
+  .sc b{color:var(--ink)}
+  .sc.neg b{color:var(--warn)}
+  .ev{margin:8px 0;padding-left:0;list-style:none}
+  .ev li{margin:5px 0;padding:7px 10px;background:var(--panel2);border-left:2px solid var(--acc);border-radius:0 6px 6px 0;font-size:12.5px}
+  .ev code{background:transparent;padding:0;color:var(--acc)}
+  .kv{margin:6px 0;font-size:13.5px}
+  .kv b{color:var(--mut);font-weight:600}
+  .note{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;margin:10px 0}
+  .lane-hd{display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:50%}
+  ul.tight{margin:6px 0;padding-left:20px} ul.tight li{margin:4px 0;font-size:13.5px}
+  .callout{border-left:3px solid var(--warn);background:rgba(224,182,75,.06);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+  .callout.bad{border-color:var(--bad);background:rgba(224,104,95,.06)}
+  .callout.good{border-color:var(--good);background:rgba(78,201,163,.06)}
+  .mono{font:12.5px ui-monospace,monospace}
+  .foot{margin-top:60px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  .pill{display:inline-block;background:var(--chip);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--mut);margin:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Codebase Integrity Audit — Realmwalkers</h1>
+<div class="sub">
+  Read-only Repo Audit Swarm · 4 expert lanes merged &amp; scored · 2026-07-07 ·
+  Branch <code>main</code> @ <code>afd03a8</code> · Scoring spine: REPORT-SCORING.md ·
+  <b>Analysis only — no code was modified.</b>
+</div>
+
+<!-- 1. EXECUTIVE SUMMARY -->
+<h2>1 · Executive summary</h2>
+<p>
+  Four read-only lanes (deepening seams, graded integrity, blast-radius, verification readiness)
+  swept the Python FastAPI backend (<code>src/dominion</code>, ~29k LOC), the React/TS frontend
+  (<code>frontend/src</code>, 154 files), and the test/CI surface. The picture is a
+  <b>disciplined, well-defended codebase with a small number of concentrated, high-leverage risks</b>
+  — not a repo in drift.
+</p>
+<p>Strong foundations the lanes independently confirmed with evidence:</p>
+<ul class="tight">
+  <li>SQL is fully parameterized (zero string-interpolated queries); subprocess uses <code>exec</code> + argv (no <code>shell=True</code>); no sync-blocking calls in async paths; CORS defaults to empty origins.</li>
+  <li>Broad <code>except Exception</code> handlers are overwhelmingly annotated (<code># noqa: BLE001</code> + justification + structured logging) — deliberate, not sloppy.</li>
+  <li>The two hardest test dependencies are seamed: Postgres is real in CI with a <code>DOMINION_REQUIRE_DB</code> hard-fail, and the LLM is mocked at one well-known point with orchestration decisions extracted into pure functions.</li>
+</ul>
+<p>The risks cluster into five themes:</p>
+<ol class="tight">
+  <li><b>An ungated cross-language type mirror</b> — <code>frontend/src/desk/api/types.ts</code> hand-redefines ~14 DTOs the OpenAPI codegen now emits, with no drift gate. The single highest-leverage seam (C1).</li>
+  <li><b>Duplicated packet-tier domain logic</b> — <code>packet/</code> vs <code>scene_packet/</code> fork approval policy, facade depth, and enum families (C3, C4, C5, C11).</li>
+  <li><b>Two ~1,500-line god-modules with circular-import shims</b> on the drafting critical path (C2), currently un-provable end-to-end (C16).</li>
+  <li><b>Fake-green &amp; drift-blind CI gates</b> — a no-op Playwright e2e gate, diff-scoped pyright, and zero coverage signal (C12, C13, C14).</li>
+  <li><b>Two acknowledged-but-open risks</b> — a known-unfixed <code>greenlet_spawn</code> race in the always-on sweeper (C7) and zero API authentication (C6).</li>
+</ol>
+
+<!-- 2. OVERALL GRADE -->
+<h2>2 · Overall repo grade</h2>
+<div class="grade"><span class="big">B+</span>
+  <div>A healthy, security-conscious codebase with excellent test-dependency seams and disciplined error handling.
+  Held back from A-range by two god-modules on the critical path, an ungated hand-mirror between Python and TS,
+  two fake-green CI gates, and two open acknowledged risks (sweeper race, no API auth).</div>
+</div>
+<p class="sub" style="margin-top:10px">
+  Grade justified from the lane scorecards below, not asserted: category grades average ~3.4/5 with no category
+  below 3, strong security/data/perf hygiene (4s), and weaknesses that are <i>contained and named</i> rather than systemic.
+</p>
+
+<!-- 3. LANE SCORECARDS -->
+<h2>3 · Lane scorecards</h2>
+<div class="cards">
+  <div class="card"><div class="lbl">Deepening seams</div><div class="val"><b>B</b> — Good consolidation discipline (<code>shared/severity.py</code>, shared parse), but the two-tier packet system left approval logic, facades, and enum families forked.</div></div>
+  <div class="card"><div class="lbl">Graded integrity</div><div class="val"><b>B+</b> — Maintainability 3, Reliability 3, Security 3, Test-quality 4, Data-integrity 4, Performance 4 (per-category table below).</div></div>
+  <div class="card"><div class="lbl">Blast radius</div><div class="val"><b>B–</b> — One large ungated hand-mirror (<code>types.ts</code>) is the dominant coordinated-change risk; source tree otherwise clean of stale <code>novel/</code> paths.</div></div>
+  <div class="card"><div class="lbl">Verification readiness</div><div class="val"><b>B</b> — More testable than most repos this size; gaps are at the edges (fake-green e2e, diff-scoped pyright, no coverage, no whole-run harness).</div></div>
+</div>
+
+<h3>Graded-integrity per-category scorecard (1–5, higher = healthier)</h3>
+<table>
+  <tr><th>Category</th><th>Grade</th><th>Justification</th></tr>
+  <tr><td>Maintainability</td><td>3</td><td>Two 1,500-line modules + several 150–265-line functions on the critical path (C2); offset by clear docstrings and disciplined naming.</td></tr>
+  <tr><td>Reliability</td><td>3</td><td>Excellent error-classification discipline and per-run isolation, but one acknowledged-unfixed race (C7) and a fragile string classifier (C9).</td></tr>
+  <tr><td>Security</td><td>3</td><td>Parameterized SQL, safe subprocess, non-wildcard CORS default — but zero API auth (C6), resting on network topology.</td></tr>
+  <tr><td>Test quality</td><td>4</td><td>256 assertion/mock hits across 30 test files; heavy but purposeful mocking. No skipped/xfail/assert-True fake-green in unit tests (but see C12/C17 for gate-level fake-green).</td></tr>
+  <tr><td>Data integrity</td><td>4</td><td>Explicit commit-in-handler pattern with rollback-on-error; batched <code>IN (...)</code> fetches avoid N+1. Footgun: a handler that forgets to commit silently rolls back on close.</td></tr>
+  <tr><td>Performance</td><td>4</td><td>No sync-blocking in async paths; deliberate N+1 avoidance via book-scoped batch queries. Per-scene loop bounded by the serial engine.</td></tr>
+</table>
+
+<!-- 4. TOP MERGED CANDIDATES -->
+<h2>4 · Top merged candidates</h2>
+<p>21 candidates after dedup (from 27 raw lane findings). The five that matter most:</p>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Why it leads</th><th>Priority</th><th>Action</th></tr>
+  <tr><td><b>C1</b></td><td>types.ts ungated hand-mirror of generated OpenAPI DTOs</td><td>Highest leverage (5): one gate/decision neutralizes 4 findings. Latent drift bomb across the Python↔TS boundary.</td><td class="pri mid">10</td><td><span class="tag t-design">design</span></td></tr>
+  <tr><td><b>C12</b></td><td>Playwright e2e gate is a permanent fake-green no-op</td><td>Highest priority score (17): a green CI check that exercises nothing, cheap to fix, near-zero risk.</td><td class="pri hi">17</td><td><span class="tag t-triage">triage</span></td></tr>
+  <tr><td><b>C8</b></td><td>LLM code-fence stripping duplicated 4×</td><td>Cleanest quick win (15): trivial, high-confidence, near-zero risk consolidation.</td><td class="pri hi">15</td><td><span class="tag t-directfix">direct-fix</span></td></tr>
+  <tr><td><b>C3</b></td><td>Missing scene_packet facade → router orchestration leak</td><td>Strong (14): high locality, low blast radius, removes caller-knowledge leakage in the busiest router.</td><td class="pri hi">14</td><td><span class="tag t-design">design</span></td></tr>
+  <tr><td><b>C6</b></td><td>No authentication on any API endpoint</td><td>Security posture rests entirely on Railway network topology; destructive + token-spending endpoints exposed if the host leaks.</td><td class="pri lo">9 ⚑</td><td><span class="tag t-design">design</span></td></tr>
+</table>
+
+<!-- 5. CANDIDATE LEDGER -->
+<h2>5 · Candidate ledger</h2>
+<p class="sub">Full schema per REPORT-SCORING.md. Every candidate is independently selectable. Scores are 1–5; <code>priority = (severity+confidence+leverage+locality+testability) − (blast_radius+regression_risk+human_decision_risk)</code>, range −10…+22.</p>
+
+<!-- C1 -->
+<div class="cand" id="C1">
+  <h3><span class="cid">C1</span> types.ts: ungated hand-mirror of generated OpenAPI DTOs <span class="tag t-design">design → fitness-check</span></h3>
+  <div class="meta">lanes: blast_radius, deepening_seams · dup-group <code>ts-hand-mirror</code> · merged_from: BR-1, BR-2, BR-3, DS-4 · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> <code>frontend/src/desk/api/types.ts</code> is a large hand-maintained mirror of the Python DTO layer. It (a) fully hand-writes ~14 DTOs that <code>generated.ts</code> now emits, (b) carries stale <code>S["X"] &amp; {…}</code> extensions whose comment ("generated DTO predates this field") is now false and which risk collapsing to <code>never</code>, (c) hand-declares the live <code>POST /runs/batch</code> contract as "not yet in OpenAPI" under a divergent name (<code>BatchRunStart</code> vs backend <code>BatchRunStartIn</code>), and (d) overlays nullability (<code>Omit&lt;…,"prose"&gt; &amp; {prose: string|null}</code>) because the backend Pydantic models mark nullable fields as required. Nothing gates <code>types.ts</code> against drift — <code>codegen:check</code> only covers <code>openapi.json↔generated.ts</code>.</div>
+  <div class="kv"><b>Root cause:</b> <code>types.ts</code> predates codegen; codegen caught up but the manual definitions were never converted to <code>S["…"]</code> re-exports, and no check compares the two. Backend response models declare nullable/defaulted fields as required, so the generated schema is authoritative-but-wrong.</div>
+  <ul class="ev">
+    <li><code>frontend/src/desk/api/types.ts:507–873</code> — ChapterSequenceOut, ArtifactOut, AgentRunOut, IssueOut, RepairTaskOut, ProductionRunOut, the whole Pipeline* tree hand-declared as interfaces; all now exist as generated <code>components["schemas"]</code>.</li>
+    <li><code>frontend/src/desk/api/types.ts:220–234</code> — BookTelemetryOut/LlmCallOut <code>&amp;</code>-extensions duplicate fields <code>generated.ts:3585,5019</code> already declares; comment is false.</li>
+    <li><code>frontend/src/desk/api/types.ts:252–282</code> — batch-run types "not yet in OpenAPI"; but <code>src/dominion/api/routers/runs.py:208</code> has <code>@router.post("/batch", response_model=BatchRunOut)</code> live.</li>
+    <li><code>frontend/src/desk/api/types.ts:34,56,13</code> — nullability overlays (prose, title, outline) + "added here until OpenAPI codegen catches up" markers (also 45,200,221,230).</li>
+    <li><code>.github/workflows/ci.yml:178</code> — <code>pnpm codegen:check</code> gates openapi.json↔generated.ts only; no check validates <code>types.ts</code>.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>4</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>5</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>5</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri mid">10</b></span>
+  </div>
+  <div class="note"><b>Human-decision (schema-or-architecture):</b> pick the mirror policy — re-export generated DTOs and delete the hand copies, <i>or</i> keep the overlay and add a <code>types.ts↔generated.ts</code> conformance gate. The nullability overlays (D) are real per-field schema decisions needing sign-off. Recommended sequencing: fix Pydantic <code>Optional</code>/<code>None</code> typing at source → regen → delete overlays → add drift gate (fitness-check). One decision neutralizes BR-1/BR-2/BR-3 at once.</div>
+</div>
+
+<!-- C12 -->
+<div class="cand" id="C12">
+  <h3><span class="cid">C12</span> Playwright e2e gate is a permanent fake-green no-op <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-1 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> The full-tier CI "frontend" job builds Next, boots a server, installs Chromium, and runs <code>pnpm e2e</code> — but there are zero e2e specs and the script passes anyway. Every main push reports a green end-to-end check that exercised nothing.</div>
+  <div class="kv"><b>Root cause:</b> <code>e2e</code> = <code>playwright test --pass-with-no-tests</code>; <code>testDir</code> points at <code>./tests/e2e</code> which does not exist.</div>
+  <ul class="ev">
+    <li><code>frontend/package.json:13</code> — <code>"e2e": "playwright test --pass-with-no-tests"</code>: no specs → unconditional pass.</li>
+    <li><code>frontend/playwright.config.ts:4</code> — <code>testDir "./tests/e2e"</code> absent; only node_modules specs exist.</li>
+    <li><code>.github/workflows/ci.yml:190</code> — spends Chromium download + build + server boot to run an empty suite.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>5</b></span>
+    <span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>1</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri hi">17</b></span>
+  </div>
+  <div class="note">Fix options: add one real smoke spec (Desk loads, pipeline renders) so the gate bites, <i>or</i> drop the gate + Chromium install until specs exist. Decision needed on whether e2e coverage is wanted now — hence triage, not blind direct-fix.</div>
+</div>
+
+<!-- C8 -->
+<div class="cand" id="C8">
+  <h3><span class="cid">C8</span> LLM code-fence stripping duplicated 4× <span class="tag t-directfix">direct-fix</span></h3>
+  <div class="meta">lane: deepening_seams · merged_from: DS-6 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> The "strip a leading <code>```lang</code> fence + trailing <code>```</code> from a model response" operation is implemented four times under three names — duplicated domain language, cheap and contained.</div>
+  <div class="kv"><b>Root cause:</b> No shared "LLM response text hygiene" util; each parser rolled its own.</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/packet/parse.py:15</code> — <code>_strip_fences</code> private copy.</li>
+    <li><code>src/dominion/workers/reviewers/base.py:15</code> — <code>strip_fences</code> (exported, same body).</li>
+    <li><code>src/dominion/workers/planner.py:43</code> — third <code>_strip_fences</code> copy.</li>
+    <li><code>src/dominion/workers/reviewers/continuity.py:96</code> — fourth copy (in a package whose <code>base.py</code> already defines it).</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>1</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>2</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>5</b></span>
+    <span class="sc neg">blast <b>1</b></span><span class="sc neg">regr <b>1</b></span><span class="sc neg">human <b>1</b></span>
+    <span class="sc">priority <b class="pri hi">15</b></span>
+  </div>
+  <div class="note">Promote <code>reviewers/base.strip_fences</code> (or a new <code>shared/llm_text.py</code>) to the single source; delete the three copies. Add a unit test as the enforceable check.</div>
+</div>
+
+<!-- C3 -->
+<div class="cand" id="C3">
+  <h3><span class="cid">C3</span> Missing scene_packet facade → router orchestration leak <span class="tag t-design">design</span></h3>
+  <div class="meta">lane: deepening_seams · dup-group <code>scene_packet-facade</code> · merged_from: DS-2 · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> <code>workers/packet/__init__.py</code> ships a 567-line facade (one clean pipeline API); <code>workers/scene_packet/__init__.py</code> is 3 lines. So <code>api/routers/scene_packets.py</code> imports and orchestrates 7 internal submodules — the highest submodule fan-in of any router. The seam that should sit at the package boundary sits inside the HTTP handler instead (shallow-module / caller-knowledge leakage).</div>
+  <div class="kv"><b>Root cause:</b> The scene_packet package never grew a facade equivalent to <code>packet/__init__.py</code>.</div>
+  <ul class="ev">
+    <li><code>src/dominion/api/routers/scene_packets.py:42</code> — imports 7 distinct <code>workers.*</code> submodules (derive, beats, qa, parse, two approval_policy modules, packet); <code>production.py</code> imports 1 facade.</li>
+    <li><code>src/dominion/workers/scene_packet/__init__.py:1</code> — 3 lines, exports only projections; no pipeline API.</li>
+    <li><code>src/dominion/workers/packet/__init__.py:150</code> — <code>latest_approved</code>/<code>propose_packet</code> facade shape scene_packet lacks.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri hi">14</b></span>
+  </div>
+  <div class="note">Introduce a scene_packet facade (derive+beats+qa+approve as package-level fns) mirroring <code>packet/__init__.py</code>. Low blast radius (only <code>scene_packets.py</code> + a couple tools import the internals). Natural home for C4's invariant.</div>
+</div>
+
+<!-- C4 -->
+<div class="cand" id="C4">
+  <h3><span class="cid">C4</span> derive→beats temporal coupling repeated in the router <span class="tag t-directfix">direct-fix</span></h3>
+  <div class="meta">lane: deepening_seams · dup-group <code>scene_packet-facade</code> · merged_from: DS-3 · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> The invariant "any change to scene packets requires re-deriving beats" is encoded as two sequential calls the HTTP handler must remember, repeated at 4 sites. A new endpoint that mutates scene packets and forgets the beats re-derive silently drifts draft readiness.</div>
+  <div class="kv"><b>Root cause:</b> No single "scene packets changed" operation owns the downstream beats re-derive; the ordering lives in the router (symptom of C3's missing facade).</div>
+  <ul class="ev">
+    <li><code>src/dominion/api/routers/scene_packets.py:83</code> — <code>derive_scene_packets(...)</code> immediately followed by <code>derive_beats(...)</code>.</li>
+    <li><code>…:150</code> — identical pairing in the sync path.</li>
+    <li><code>…:365</code> (and <code>398</code>) — approve/batch-approve endpoints repeat the invariant a 3rd and 4th time.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri hi">13</b></span>
+  </div>
+  <div class="note">Fold the beats re-derive into the derive/approve worker fns (or the C3 facade). Capture a CONTEXT note: "beats are a projection of scene packets; re-derive on every scene-packet mutation." Independently shippable, but cleanest done <i>with</i> C3.</div>
+</div>
+
+<!-- C9 -->
+<div class="cand" id="C9">
+  <h3><span class="cid">C9</span> Rate-limit classification via fragile stderr substring matching <span class="tag t-triage">triage → direct-fix</span></h3>
+  <div class="meta">lane: graded_integrity · merged_from: GI-4 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> The <code>agent_cli</code> backend decides rate-limit (retry) vs hard-fail by scanning combined stdout/stderr for hardcoded substrings. A wording change upstream, or an unrelated error containing "429"/"overloaded", mis-routes retry/no-retry.</div>
+  <div class="kv"><b>Root cause:</b> The Claude CLI exposes no structured error code on the failure path, so classification falls back to string sniffing.</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/agent_cli.py:57</code> — <code>_RATE_LIMIT_MARKERS</code> substring set matched case-insensitively.</li>
+    <li><code>src/dominion/workers/agent_cli.py:148</code> — on non-zero exit, <code>combined = stdout + stderr</code> is scanned; false negative burns a real rate-limit, false positive retries an unretryable error into the budget.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>2</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>5</b></span>
+    <span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri mid">12</b></span>
+  </div>
+  <div class="note">Off by default (agent_cli backend), which caps blast radius. Prefer the CLI's JSON envelope subtype/error fields (already parsed at <code>agent_cli.py:162</code>) over free-text where available. Highly testable and local.</div>
+</div>
+
+<!-- C14 -->
+<div class="cand" id="C14">
+  <h3><span class="cid">C14</span> No coverage measurement or floor anywhere <span class="tag t-fitness">fitness-check</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-3 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> No pytest-cov / coverage tooling in pyproject, justfile, or CI. Nothing surfaces which src modules have zero execution, so a whole untested module can be added — or a tested one silently lose its only test — with no gate reacting.</div>
+  <div class="kv"><b>Root cause:</b> pytest runs as <code>pytest -q -rs</code> with no <code>--cov</code>; no coverage dependency declared.</div>
+  <ul class="ev">
+    <li><code>pyproject.toml:25</code> — dev deps = pytest, pytest-asyncio, ruff, pyright; no pytest-cov/coverage.</li>
+    <li><code>.github/workflows/ci.yml:149</code> — <code>uv run --no-sync pytest -q -rs</code>; no coverage/threshold.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri mid">12</b></span>
+  </div>
+  <div class="note">Add <code>pytest-cov</code> + report (not necessarily a hard floor at first — start with a report artifact, then set a ratchet). Makes the C16/C18 gaps visible instead of invisible.</div>
+</div>
+
+<!-- C21 -->
+<div class="cand" id="C21">
+  <h3><span class="cid">C21</span> Defensive try/except over infallible dict ops in progress.py <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: graded_integrity · merged_from: GI-6 · execution: sequential · <b>low value (leverage 1)</b></div>
+  <div class="kv"><b>Summary:</b> <code>progress.py</code> wraps plain in-process dict reads/writes in broad try/except that silently <code>pass</code> or return None, guarding operations that cannot realistically raise — hiding any genuine future bug in the module.</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/progress.py:45</code> — try/except around <code>_phases.get</code> + tuple assign then <code>except Exception: pass</code> (no log).</li>
+    <li><code>src/dominion/workers/progress.py:59</code> — try/except around <code>int(time.time() - started)</code> returning (None, None).</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>1</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>1</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>1</b></span><span class="sc neg">regr <b>1</b></span><span class="sc neg">human <b>1</b></span>
+    <span class="sc">priority <b class="pri mid">12</b></span>
+  </div>
+  <div class="note">High priority score is an artifact of near-zero risk; actual value is low (leverage 1). Fold into a broader "progress.py tidy" only if that module is touched for another reason.</div>
+</div>
+
+<!-- C13 -->
+<div class="cand" id="C13">
+  <h3><span class="cid">C13</span> CI pyright is changed-files-only — cross-module type drift never re-checked <span class="tag t-fitness">fitness-check</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-2 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> The static job type-checks only files changed vs merge base. A change to a shared type/signature can break unchanged consumers and CI stays green. Full <code>pyright</code> exists in the justfile but CI never runs it.</div>
+  <ul class="ev">
+    <li><code>.github/workflows/ci.yml:102</code> — "pyright (changed files)" runs <code>scripts/ci_pyright_changed.sh</code>, not full pyright.</li>
+    <li><code>scripts/ci_pyright_changed.sh:8</code> — scope is the <code>git diff</code> vs origin/main, not the project.</li>
+    <li><code>justfile:16</code> — full <code>typecheck: uv run pyright</code> exists but is unwired from CI.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>4</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri mid">11</b></span>
+  </div>
+  <div class="note">Add a scheduled or pre-merge full <code>pyright</code> job (blast_radius 4 = fixing latent errors it surfaces may touch many files). Directly reinforces C1's cross-language contract integrity.</div>
+</div>
+
+<!-- C15 -->
+<div class="cand" id="C15">
+  <h3><span class="cid">C15</span> DB tests self-skip silently in local runs <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-4 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> ~36 of 82 test files skip when Postgres is unreachable. Only CI sets <code>DOMINION_REQUIRE_DB</code> to turn skips into failures. <code>just test</code> on a machine without Postgres yields a green run that quietly skipped every DB-backed test — the exact behavior that hides a broken DB path until CI.</div>
+  <ul class="ev">
+    <li><code>tests/conftest.py:141</code> — <code>pytest.skip(msg)</code> when Postgres unreachable and <code>DOMINION_REQUIRE_DB</code> unset.</li>
+    <li><code>justfile:10</code> — <code>test: uv run pytest -q</code>: no <code>DOMINION_REQUIRE_DB</code>, no <code>-rs</code>; local skips are silent.</li>
+    <li><code>.github/workflows/ci.yml:136</code> — only CI sets the hard-fail net.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri mid">11</b></span>
+  </div>
+  <div class="note">Add <code>-rs</code> to <code>just test</code> so skips are at least visible; optionally a <code>just test-db</code> target that sets <code>DOMINION_REQUIRE_DB=1</code>. Human-decision note: the project runs deployment-only (no localhost), so "local" here means a contributor machine — decide whether that path is supported at all.</div>
+</div>
+
+<!-- C17 -->
+<div class="cand" id="C17">
+  <h3><span class="cid">C17</span> ch1 golden lane-acceptance tests self-skip via function-name probing <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-6 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> The lane-1 acceptance tests resolve the implementation by probing a hardcoded list of candidate function names; if the real function is named outside that list, the test calls <code>pytest.skip</code> and goes green instead of failing. The Tier-2 "bite when the lane lands" guarantee depends on name-matching.</div>
+  <ul class="ev">
+    <li><code>tests/test_ch1_pipeline_regression.py:168</code> — <code>pytest.skip("lane 1 chaining post-pass not landed yet")</code> when the name probe returns None.</li>
+    <li><code>…:200</code> — second self-skip on the same pattern.</li>
+    <li><code>…:31</code> — <code>importorskip</code> fixtures skip on any import/name drift.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>2</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>1</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri mid">11</b></span>
+  </div>
+  <div class="note">Pin the implementation to an explicit stable symbol (fail if absent) instead of name-probing. Human-decision note: whether these acceptance tests are meant to still be "waiting for the lane" or should now hard-assert.</div>
+</div>
+
+<!-- C5 -->
+<div class="cand" id="C5">
+  <h3><span class="cid">C5</span> Duplicated packet vs scene_packet approval/gate policy <span class="tag t-design">design</span></h3>
+  <div class="meta">lane: deepening_seams · merged_from: DS-1 · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> <code>packet/approval_policy.py</code> and <code>scene_packet/approval_policy.py</code> model the same "approval gate" concept twice (can_approve, approval_blockers, approval_state, status-from-QA, enrich_*_out) and have drifted: scene grew RATE_LIMITED/blocker_source/apply_qa_rerun; chapter grew blocker_kind/recovery_actions/diagnostics. A policy fix must be re-derived by hand in each place.</div>
+  <div class="kv"><b>Root cause:</b> Two packet tiers with shared lifecycle vocabulary but no shared gate abstraction; each StrEnum family forces a separate copy.</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/packet/approval_policy.py:105</code> — <code>approval_state()</code> without RATE_LIMITED/STALE handling.</li>
+    <li><code>src/dominion/workers/scene_packet/approval_policy.py:119</code> — same shape + RATE_LIMITED + <code>_HELD_STATUSES</code>; identical docstring rationale.</li>
+    <li><code>src/dominion/workers/scene_packet/approval_policy.py:72</code> — <code>infer_blocker_source()</code> exists only on the scene tier; chapter has <code>resolve_blocker_source/kind/diagnostics</code> — same concept, incompatible shapes.</li>
+    <li><code>src/dominion/shared/severity.py:1</code> — proves consolidation is house style; approval_policy is the outlier.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri mid">10</b></span>
+  </div>
+  <div class="note"><b>ADR needed:</b> is the two-tier packet system permanent, and should there be one generic <code>ApprovalGate[StatusEnum, VerdictEnum]</code>? Answer determines unify-vs-deliberately-fork. Shares the "two-tier packet system" design question with C3/C11.</div>
+</div>
+
+<!-- C10 -->
+<div class="cand" id="C10">
+  <h3><span class="cid">C10</span> action_kind cross-language string enum — new server values silently invisible <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: blast_radius · merged_from: BR-4 · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> The pipeline dashboard emits <code>action_kind</code> ∈ 8 values; the frontend special-cases only a few via <code>=== "…"</code> literal comparisons, the rest fall through to a generic deep-link. A new server <code>action_kind</code> gets no dedicated control and is invisible to any exhaustiveness check (typed <code>string | null</code>).</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/pipeline_status.py:76,81,86,91,112,312,344,359,479</code> — 8 producer literals (align_scene_count, retry, resume, draft_missing, approve_apply, verify, decide_issue, none).</li>
+    <li><code>frontend/src/desk/screens/PipelineScreen.tsx:697,725</code> — only <code>approve_apply</code>, <code>draft_missing</code>, <code>decide_issue</code> get bespoke handling; others fall to the generic button.</li>
+    <li><code>frontend/src/desk/api/types.ts:766</code> — 8-value set documented in a comment but typed <code>string | null</code> (no union) — no compiler enforcement.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>3</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri mid">9</b></span>
+  </div>
+  <div class="note"><b>Human-decision (cross-boundary routing):</b> whether the generic "Open in Production" fallback for resume/align_scene_count/retry/verify is intended or a gap depends on product intent. Making <code>action_kind</code> a named enum/TS union gives exhaustiveness. Adjacent to C11.</div>
+</div>
+
+<!-- C6 -->
+<div class="cand" id="C6">
+  <h3><span class="cid">C6</span> No authentication on any API endpoint <span class="tag t-design">design</span> <span class="blocked">⚑ human-decision (security)</span></h3>
+  <div class="meta">lane: graded_integrity · merged_from: GI-2 · execution: blocked-needs-human-decision</div>
+  <div class="kv"><b>Summary:</b> Every FastAPI route is unauthenticated; <code>Depends(...)</code> is used only for DB-session injection. The FastAPI service is directly reachable at the Railway backend URL, exposing destructive write endpoints (canon rebuild, job delete, token-spending redraft, settings mutation) to anyone who knows the URL.</div>
+  <div class="kv"><b>Root cause:</b> Design assumes a same-origin single-service deploy; the security model rests on network topology, not the app.</div>
+  <ul class="ev">
+    <li><code>src/dominion/api/deps.py:8</code> — the only shared dependency is <code>db_session</code>; no auth/security dependency exists.</li>
+    <li><code>src/dominion/api/main.py:125</code> — CORSMiddleware is the only middleware; <code>allow_methods=["*"]</code>/<code>allow_headers=["*"]</code> (inert while origins empty).</li>
+    <li><code>src/dominion/shared/config.py:255</code> — comment confirms "the browser never calls the API cross-origin."</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>4</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>4</b></span>
+    <span class="sc">priority <b class="pri lo">9</b></span>
+  </div>
+  <div class="callout bad"><b>Blocked on decision (security / production safety):</b> add a shared-secret header at the BFF↔API seam, rely on Railway private networking, or add real auth. Severity capped by single-user + Railway-private context, but a leaked/guessable backend hostname exposes token-spending and destructive endpoints. <code>human_decision_risk = 4</code> → queues behind the decision regardless of priority.</div>
+</div>
+
+<!-- C19 -->
+<div class="cand" id="C19">
+  <h3><span class="cid">C19</span> LLM test seam is an unenforced monkeypatch convention <span class="tag t-design">design → fitness-check</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-5 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> Every LLM stub does <code>monkeypatch.setattr(llm, "complete", fake)</code>. This works only because all callers use the <code>import llm; llm.complete</code> idiom. A single future <code>from …llm import complete</code> direct import would silently escape the mock and a test could attempt a live/hanging call. Correct today, structurally fragile and undiscoverable.</div>
+  <ul class="ev">
+    <li><code>tests/test_drafter.py:40</code> — <code>monkeypatch.setattr(llm, "complete", fake_complete)</code>, the load-bearing pattern.</li>
+    <li><code>src/dominion/workers/specialists/drafter.py:9</code> — <code>from dominion.workers import llm</code> then <code>llm.complete(...)</code> — the convention the mock relies on.</li>
+    <li><code>src/dominion/workers/scene_packet/derive.py:35</code> — direct symbol imports from <code>llm</code> already exist; one more line importing <code>complete</code> directly breaks the seam unnoticed.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>3</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span>
+    <span class="sc">priority <b class="pri mid">8</b></span>
+  </div>
+  <div class="note">Options: an import-linter rule forbidding <code>from …llm import complete</code>, or a conftest autouse guard that fails any test attempting a live call. Turns a convention into an enforceable check.</div>
+</div>
+
+<!-- C7 -->
+<div class="cand" id="C7">
+  <h3><span class="cid">C7</span> Acknowledged-but-unfixed greenlet_spawn race in the sweeper <span class="tag t-diagnose">diagnose</span></h3>
+  <div class="meta">lane: graded_integrity · merged_from: GI-1 · execution: sequential (diagnosing-bugs flow)</div>
+  <div class="kv"><b>Summary:</b> The sweeper's per-run driver catches a data-specific <code>greenlet_spawn</code> error that fires <i>outside</i> its wrapped stages on one real production run; the failure is logged and swallowed but never diagnosed, and no synthetic run reproduces it. The sweeper runs ON by default and spends tokens, so one class of real runs is silently skipped every tick.</div>
+  <div class="kv"><b>Root cause (hypothesized):</b> an async DB access crosses the SQLAlchemy greenlet boundary outside the try-wrapped stages — likely a lazy attribute load on a detached ORM object after the session closed.</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/sweeper.py:365</code> — <code>except Exception as exc:  # noqa: BLE001</code> with comment documenting the known, live, unreproduced greenlet_spawn.</li>
+    <li><code>src/dominion/workers/sweeper.py:361</code> — fresh session per run; if any ORM object escapes the <code>async with SessionFactory()</code> block and is touched later, a lazy load fires post-close.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>2</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri lo">7</b></span>
+  </div>
+  <div class="note">Testability is low precisely because it's data-specific; capturing the offending run's data as a fixture is the unlock. Route through the diagnosing-bugs flow. C18 (sweeper-loop test seam) is the missing harness that would make a regression test possible.</div>
+</div>
+
+<!-- C20 -->
+<div class="cand" id="C20">
+  <h3><span class="cid">C20</span> Canon RAG folder-name taxonomy + hardcoded monorepo paths <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: blast_radius · merged_from: BR-6 · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> The canon RAG indexer tags ingested chunks by a literal folder→kind map with a silent <code>"lore"</code> fallback, and the ingest/seed workers hardcode the post-split paths (<code>series/canon</code>, <code>book1/manuscript/scenes</code>) as argparse defaults rather than config. Renaming/adding a canon folder silently mis-categorizes; the monorepo layout is duplicated across worker literals.</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/memory/canon_rag.py:42–53</code> — <code>_KIND_BY_FOLDER</code> + <code>_DEFAULT_INGEST_KIND = "lore"</code> (unmapped folders silently → lore).</li>
+    <li><code>src/dominion/workers/memory/canon_rag.py:350</code> — <code>--path default="series/canon"</code>.</li>
+    <li><code>src/dominion/workers/memory/seed.py:261–262</code> — duplicated layout literals.</li>
+    <li><code>src/dominion/shared/config.py:166</code> — only ONE canon path is in config; no single source for the layout.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>3</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri lo">7</b></span>
+  </div>
+  <div class="note"><b>Human-decision (migration/backfill):</b> the runtime RAG corpus treats folder names as the contract; the silent "lore" fallback masks mis-ingest. Centralize the layout in config and decide whether an unmapped folder should error rather than default. Successor risk to the retired <code>novel/</code> hardcoding.</div>
+</div>
+
+<!-- C16 -->
+<div class="cand" id="C16">
+  <h3><span class="cid">C16</span> No integration harness for the multi-scene serial production run <span class="tag t-design">design</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-7 · execution: sequential · <b>prerequisite for C2</b></div>
+  <div class="kv"><b>Summary:</b> Stage decisions (<code>run_stages.py</code>) and single-job driving (<code>worker.run_once</code>) are well tested, but the driver that sequences a full chapter run across scenes → chapter QA → assembly (<code>production.py</code>/<code>production_sequence.py</code>) has no end-to-end harness. A cross-stage regression (ordering, state hand-off) is provable only by hand / a live Railway run.</div>
+  <ul class="ev">
+    <li><code>tests/test_run_orchestration.py:40</code> — tests call stage decisions in isolation (pure, no run driver).</li>
+    <li><code>tests/test_production_runs.py:213</code> — imports a single stage (<code>run_chapter_draft_qa</code>), not a full multi-scene run driver.</li>
+    <li><code>src/dominion/workers/worker.py:80</code> — <code>run_once</code> processes exactly one job; cross-scene sequencing lives elsewhere and lacks an equivalent injectable end-to-end test.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>3</b></span><span class="sc">conf <b>3</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>3</b></span>
+    <span class="sc neg">blast <b>4</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri lo">6</b></span>
+  </div>
+  <div class="note">A fixture that drives book→chapter→run to completion through the real stage machine with mocked LLM. This harness is the precondition that makes C2's refactor safe to attempt.</div>
+</div>
+
+<!-- C18 -->
+<div class="cand" id="C18">
+  <h3><span class="cid">C18</span> Sweeper periodic loop + live-embedding retrieval path lack test seams <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: verification_readiness · merged_from: VR-8 · execution: sequential</div>
+  <div class="kv"><b>Summary:</b> The autonomous sweeper (ON by default, spends tokens) has tick logic covered but not the interval-driven scheduling loop. Separately, conftest forces <code>DOMINION_EMBEDDING_PROVIDER=hash</code> for every test, so the real embedding provider path + canon_rag retrieval is never executed under test.</div>
+  <ul class="ev">
+    <li><code>tests/conftest.py:22</code> — <code>os.environ["DOMINION_EMBEDDING_PROVIDER"] = "hash"</code>: live embed path bypassed suite-wide.</li>
+    <li><code>tests/test_sweeper.py:22</code> — tick tests only; no test drives the periodic loop itself.</li>
+    <li><code>src/dominion/workers/sweeper.py:1</code> — the core runaway-autonomy guardrail; scheduling driver uncovered.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>3</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>3</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri lo">6</b></span>
+  </div>
+  <div class="note">Make the loop driver injectable (interval clock as a seam); add a fake-client test that exercises the live embedding path at least once. Enables a regression test for C7.</div>
+</div>
+
+<!-- C2 -->
+<div class="cand" id="C2">
+  <h3><span class="cid">C2</span> production_sequence/production_repair god-modules + circular-import shims <span class="tag t-design">design</span></h3>
+  <div class="meta">lanes: graded_integrity, deepening_seams · dup-group <code>production-god-modules</code> · merged_from: GI-3, GI-5, DS-7 · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> Two ~1,500-line (63–65KB) modules concentrate the pipeline's core logic (assembly, timeline, QA, contract classification, repair triage, verification, rollback) in units hard to test/review/modify. They remain cyclically coupled: <code>production_repair</code> defines <code>_latest_scene_map</code>/<code>assemble_run</code> as thin wrappers doing function-local <code>import production_sequence</code> to dodge a circular import.</div>
+  <div class="kv"><b>Root cause:</b> The split put shared assembly/scene-map helpers on the sequence side, forcing repair to reach back in via lazy imports — a boundary drawn by file size, not responsibility.</div>
+  <ul class="ev">
+    <li><code>src/dominion/workers/production_sequence.py:801</code> — <code>assemble_run</code> ~264 lines; module total 1,533 lines with 150–265-line functions on the critical path.</li>
+    <li><code>src/dominion/workers/production_repair.py:58,64</code> — <code>_latest_scene_map</code>/<code>assemble_run</code> forward-to-<code>production_sequence</code> shims with function-local imports; module total 1,531 lines.</li>
+    <li><code>src/dominion/workers/production.py:143,155</code> — identical delegating-wrapper + in-body import pattern (confirms 3-way cyclic coupling).</li>
+    <li><b>Sub-note (trivial):</b> <code>production_sequence.py:780–783</code> — dead if/else where both branches assign the same value.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>2</b></span><span class="sc">test <b>2</b></span>
+    <span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>3</b></span>
+    <span class="sc">priority <b class="pri lo">5</b></span>
+  </div>
+  <div class="note"><b>Design question first:</b> what is the real responsibility boundary between "sequence" and "repair"? Extract the shared assembly/scene-map helpers into a neutral <code>production_core</code>/<code>production_assembly</code> module both import top-level, deleting the lazy-import shims. <b>Gate: land C16's end-to-end harness first</b> — this refactor is on the serial drafting critical path and currently un-provable. Prime future-defect surface but low priority as a blind move.</div>
+</div>
+
+<!-- C11 -->
+<div class="cand" id="C11">
+  <h3><span class="cid">C11</span> Enum vocabulary not single-sourced across the Python↔TS boundary <span class="tag t-triage">triage</span> <span class="blocked">⚑ human-decision (schema)</span></h3>
+  <div class="meta">lanes: deepening_seams, blast_radius · dup-group <code>enum-vocabulary</code> · merged_from: DS-5, BR-5 · execution: blocked-needs-human-decision</div>
+  <div class="kv"><b>Summary:</b> The status/verdict vocabulary is copied. <b>Python side (DS-5):</b> <code>PacketVerdict</code>/<code>ScenePacketVerdict</code> are byte-identical (docstring says "mirrors PacketVerdict"); PROPOSED/APPROVED/BLOCKED and QUEUED/RUNNING/FAILED/CANCELLED recur across many StrEnums. <b>TS side (BR-5):</b> LengthStatus, ScenePacketStatus, RuleKind, ReviewerKind don't surface as named OpenAPI schemas, so <code>types.ts</code> hand-writes them as literal unions consumed as <code>X | string</code> (the <code>| string</code> escape hatch defeats drift detection).</div>
+  <ul class="ev">
+    <li><code>src/dominion/shared/enums.py:181</code> — <code>ScenePacketVerdict</code> = exact 4 members of <code>PacketVerdict</code> (line 137); docstring "(mirrors PacketVerdict)".</li>
+    <li><code>src/dominion/shared/enums.py:238,275</code> — ChapterSequenceStatus / RepairTaskStatus repeat lifecycle sets shared with other enums.</li>
+    <li><code>frontend/src/desk/api/types.ts:286–295</code> — hand-written unions LengthStatus/RuleKind/ScenePacketStatus; <code>openapi.json</code> grep count 0 for these (vs Decision/GateMode/Severity which ARE re-exported).</li>
+    <li><code>frontend/src/desk/screens/SceneScreen.tsx:1672</code> — consumed as <code>LengthStatus | string | null</code>.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>2</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>3</b></span>
+    <span class="sc neg">blast <b>4</b></span><span class="sc neg">regr <b>3</b></span><span class="sc neg">human <b>4</b></span>
+    <span class="sc">priority <b class="pri lo">5</b></span>
+  </div>
+  <div class="callout"><b>Blocked on decision (schema-or-architecture):</b> enum values are wire-serialized (JSON + OpenAPI), so consolidating members is a contract change. The <i>low-risk slice</i> is a shared <code>Verdict</code> enum reused by both packet tiers (removes the "mirrors" copy) + surfacing the four TS-hand-written enums as named OpenAPI schemas. Deciding whether the lifecycle families are genuinely the same or coincidentally-similar is the fork. <code>human_decision_risk = 4</code> → queues behind decision.</div>
+</div>
+
+<!-- 6. LANE FINDINGS -->
+<h2>6 · Lane findings (raw, preserved under merged candidates)</h2>
+<table>
+  <tr><th>Lane</th><th>Raw findings</th><th>→ merged into</th></tr>
+  <tr><td><b>Deepening seams</b> (Agent 1)</td><td>DS-1 approval-policy dup · DS-2 asymmetric facade · DS-3 derive→beats coupling · DS-4 types.ts nullability overlay · DS-5 enum families · DS-6 fence-strip dup · DS-7 god-modules + shims</td><td>C5 · C3 · C4 · C1 · C11 · C8 · C2</td></tr>
+  <tr><td><b>Graded integrity</b> (Agent 2)</td><td>GI-1 sweeper race · GI-2 no auth · GI-3 god-functions · GI-4 rate-limit classifier · GI-5 facade wrappers/import cycle · GI-6 progress try/except</td><td>C7 · C6 · C2 · C9 · C2 · C21</td></tr>
+  <tr><td><b>Blast radius</b> (Agent 3)</td><td>BR-1 hand DTOs · BR-2 stale &amp;-extensions · BR-3 batch contract · BR-4 action_kind · BR-5 hand enum unions · BR-6 canon RAG paths</td><td>C1 · C1 · C1 · C10 · C11 · C20</td></tr>
+  <tr><td><b>Verification readiness</b> (Agent 4)</td><td>VR-1 playwright no-op · VR-2 pyright changed-only · VR-3 no coverage · VR-4 db skip · VR-5 mock seam · VR-6 golden name-probe · VR-7 no run harness · VR-8 sweeper/embed test</td><td>C12 · C13 · C14 · C15 · C19 · C17 · C16 · C18</td></tr>
+</table>
+
+<!-- 7. CROSS-LANE DUPLICATE GROUPS -->
+<h2>7 · Cross-lane duplicate groups</h2>
+<table>
+  <tr><th>Group</th><th>Merged candidate</th><th>Provenance</th><th>Why merged</th></tr>
+  <tr><td><code>ts-hand-mirror</code></td><td><b>C1</b></td><td>BR-1, BR-2, BR-3 (blast) + DS-4 (seams)</td><td>Same file cluster (<code>types.ts</code>) &amp; same architectural decision (single source of wire truth + drift gate). One decision neutralizes all four.</td></tr>
+  <tr><td><code>production-god-modules</code></td><td><b>C2</b></td><td>GI-3, GI-5 (integrity) + DS-7 (seams)</td><td>GI-5 and DS-7 are the same import-cycle/shim finding; GI-3 is the module size. Same root seam.</td></tr>
+  <tr><td><code>scene_packet-facade</code></td><td><b>C3</b> + <b>C4</b></td><td>DS-2, DS-3 (seams)</td><td>Both symptoms of the missing scene_packet facade; kept as two candidates because the fixes differ (build facade vs fold invariant into worker) and each is independently selectable.</td></tr>
+  <tr><td><code>enum-vocabulary</code></td><td><b>C11</b></td><td>DS-5 (Python) + BR-5 (TS)</td><td>Same "enum vocabulary not single-sourced" root, both sides of the language boundary.</td></tr>
+</table>
+<p class="sub">Two-tier packet system (<code>packet/</code> vs <code>scene_packet/</code>) is the shared design question behind C3, C4, C5, and C11 — a single ADR ("is the two-tier system permanent, and where does the shared abstraction live?") governs all four.</p>
+
+<!-- 8. HUMAN-DECISION BLOCKERS -->
+<h2>8 · Human-decision blockers</h2>
+<p class="sub">Named against connected-impact-sweep's <code>## Human-decision categories</code>. These queue behind their decision regardless of priority score.</p>
+<table>
+  <tr><th>Candidate</th><th>Category</th><th>The fork</th></tr>
+  <tr><td><b>C6</b> ⚑</td><td>Security / production safety</td><td>Add a shared-secret header at the BFF↔API seam, rely on Railway private networking, or add real auth. (<code>human_decision_risk 4</code>)</td></tr>
+  <tr><td><b>C11</b> ⚑</td><td>Data schema / architecture direction</td><td>Enum values are wire-serialized — consolidating members is a contract change. Are the lifecycle families genuinely the same lifecycle or coincidentally similar? (<code>human_decision_risk 4</code>)</td></tr>
+  <tr><td>C1</td><td>Public/external contract + migration/backfill</td><td>Mirror policy (re-export vs overlay+gate) and per-field nullability decisions on Pydantic response models. (<code>human_decision_risk 3</code> — soft; decompose so the gate can land without the contract changes)</td></tr>
+  <tr><td>C5</td><td>Architecture direction</td><td>ADR: is the two-tier packet system permanent; one generic <code>ApprovalGate</code> or deliberately forked?</td></tr>
+  <tr><td>C10</td><td>Cross-boundary routing</td><td>Is the generic frontend fallback for resume/align_scene_count/retry/verify intended, or a coverage gap?</td></tr>
+  <tr><td>C20</td><td>Migration / default / backfill</td><td>Should an unmapped canon folder error, or keep defaulting to "lore"? Centralize layout in config.</td></tr>
+  <tr><td>C15, C17</td><td>(soft) test-policy</td><td>Whether local-machine DB runs are supported (C15); whether the ch1 acceptance tests should still "wait for the lane" or hard-assert (C17).</td></tr>
+</table>
+
+<!-- 9. QUICK WINS -->
+<h2>9 · Quick wins <span class="sub" style="font-size:13px">(high priority, high locality, low blast radius)</span></h2>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Priority</th><th>Loc</th><th>Blast</th><th>Action</th></tr>
+  <tr><td><b>C12</b></td><td>Kill/fill the fake-green Playwright gate</td><td class="pri hi">17</td><td>5</td><td>2</td><td><span class="tag t-triage">triage</span></td></tr>
+  <tr><td><b>C8</b></td><td>Consolidate the 4 code-fence strippers</td><td class="pri hi">15</td><td>5</td><td>1</td><td><span class="tag t-directfix">direct-fix</span></td></tr>
+  <tr><td><b>C4</b></td><td>Fold derive→beats invariant into the worker</td><td class="pri hi">13</td><td>4</td><td>2</td><td><span class="tag t-directfix">direct-fix</span></td></tr>
+  <tr><td><b>C9</b></td><td>Rate-limit classifier → JSON envelope fields</td><td class="pri mid">12</td><td>5</td><td>2</td><td><span class="tag t-triage">triage</span></td></tr>
+  <tr><td><b>C15</b></td><td>Make local test skips visible (<code>-rs</code>)</td><td class="pri mid">11</td><td>4</td><td>2</td><td><span class="tag t-triage">triage</span></td></tr>
+</table>
+
+<!-- 10. HIGH-LEVERAGE DEEP WORK -->
+<h2>10 · High-leverage deep work <span class="sub" style="font-size:13px">(high leverage, larger blast radius — worth a design pass)</span></h2>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Leverage</th><th>Blast</th><th>Why it's worth the design pass</th></tr>
+  <tr><td><b>C1</b></td><td>types.ts single source of wire truth + drift gate</td><td>5</td><td>5</td><td>One decision neutralizes 4 findings and closes the whole Python↔TS drift class. The strategic item despite a mid priority score.</td></tr>
+  <tr><td><b>C5</b></td><td>Unify packet/scene_packet approval gate</td><td>4</td><td>3</td><td>Removes the "fix it twice" tax on all future approval-policy changes; needs the two-tier ADR.</td></tr>
+  <tr><td><b>C3</b></td><td>scene_packet facade</td><td>4</td><td>2</td><td>High leverage at low blast radius — closes the busiest router's caller-knowledge leak and gives C4 a home.</td></tr>
+  <tr><td><b>C13</b></td><td>Full pyright in CI</td><td>4</td><td>4</td><td>Closes the cross-module type-drift hole that makes C1 dangerous; blast reflects latent errors it will surface.</td></tr>
+  <tr><td><b>C14</b></td><td>Coverage signal</td><td>4</td><td>3</td><td>Makes the C16/C18 test gaps visible instead of invisible; foundation for a ratchet.</td></tr>
+</table>
+
+<!-- 11. UNSAFE TO AUTO-EXECUTE -->
+<h2>11 · Unsafe-to-auto-execute work <span class="sub" style="font-size:13px">(high human-decision or regression risk)</span></h2>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Human</th><th>Regr</th><th>Why it needs a human/harness first</th></tr>
+  <tr><td><b>C6</b></td><td>API auth</td><td>4</td><td>2</td><td>Security posture decision; blocked-needs-human-decision.</td></tr>
+  <tr><td><b>C11</b></td><td>Enum consolidation</td><td>4</td><td>3</td><td>Wire-serialized values → contract change; blocked-needs-human-decision.</td></tr>
+  <tr><td><b>C2</b></td><td>God-module refactor</td><td>3</td><td>3</td><td>On the serial drafting critical path and un-provable until C16's harness exists.</td></tr>
+  <tr><td><b>C7</b></td><td>Sweeper greenlet race</td><td>3</td><td>3</td><td>Data-specific, not reproducible synthetically; needs the offending run's data as a fixture (diagnosing-bugs flow).</td></tr>
+  <tr><td><b>C1</b></td><td>types.ts (nullability slice)</td><td>3</td><td>3</td><td>The per-field Pydantic nullability changes are real schema decisions; the drift-gate slice is safe, the contract slice is not.</td></tr>
+</table>
+
+<!-- 12. VERIFICATION READINESS -->
+<h2>12 · Verification readiness</h2>
+<p>
+  The backend is <b>more testable than most codebases this size</b>: Postgres is real in CI (<code>pgvector/pgvector:pg16</code>) with a truncating test DB and a <code>DOMINION_REQUIRE_DB</code> hard-fail forbidding silent skips; the LLM is mocked at one point (<code>llm.complete</code>); orchestration decisions are extracted into pure functions (<code>run_stages.py</code>). No <code>--cov</code>, no <code>flaky</code>, no <code>xfail</code>, only one bounded <code>asyncio.sleep(0.02)</code> — the suite is neither flaky nor slow-by-sleep. The genuine gaps are at the <b>edges</b> (C12, C13, C14) and in the <b>whole-run / live-embedding / sweeper-loop</b> paths (C16, C18).
+</p>
+<table>
+  <tr><th>Module / area</th><th>Has tests?</th><th>Testable w/o live deps?</th><th>Risk</th></tr>
+  <tr><td>worker.py (single-job driver)</td><td>yes</td><td>yes — session_factory injected</td><td>low</td></tr>
+  <tr><td>run_stages.py (stage decisions)</td><td>yes</td><td>yes — pure</td><td>low</td></tr>
+  <tr><td>scene_packet/* · packet/* · reviewers/*</td><td>yes</td><td>yes</td><td>low</td></tr>
+  <tr><td>repair (production_repair, triage, beats)</td><td>yes (×8)</td><td>yes</td><td>low–med</td></tr>
+  <tr><td>llm.py (retry / rate-limit)</td><td>yes</td><td>yes</td><td>low</td></tr>
+  <tr><td>agent_cli.py (subprocess)</td><td>yes</td><td>yes — subprocess mocked</td><td>med</td></tr>
+  <tr><td><b>whole-chapter run driver</b> (production.py / production_sequence.py)</td><td>partial (per-stage only)</td><td>partial</td><td><b>med–high (C16)</b></td></tr>
+  <tr><td>sweeper.py scheduling loop</td><td>partial (tick only)</td><td>partial</td><td>med (C18)</td></tr>
+  <tr><td>memory/embedding.py live provider + canon_rag</td><td>partial (hash-forced)</td><td>no for live path</td><td>med (C18)</td></tr>
+  <tr><td>oracle.py / planner.py / owner_router.py</td><td>thin / indirect</td><td>yes if seamed</td><td>med–low</td></tr>
+  <tr><td>Frontend desk/lib utilities</td><td>yes (vitest)</td><td>yes (jsdom)</td><td>low</td></tr>
+  <tr><td>Frontend screens/components</td><td>partial</td><td>yes (Testing Library)</td><td>med</td></tr>
+  <tr><td><b>Frontend e2e (Playwright)</b></td><td><b>none (empty testDir)</b></td><td>n/a</td><td><b>fake-green gate (C12)</b></td></tr>
+</table>
+<div class="callout">
+  <b>Harnesses that must exist before certain fixes can be proven:</b>
+  C2 (god-module refactor) needs <b>C16</b>'s whole-run harness; C7 (sweeper race) needs <b>C18</b>'s loop seam + captured data; any live-RAG relevance change needs <b>C18</b>'s embedding seam. And because CI pyright is diff-scoped (C13) and there's no coverage floor (C14), <b>green CI is not proof of no drift</b> — cross-lane merges must not treat it as such.
+</div>
+
+<!-- 13. RECOMMENDED QUEUE -->
+<h2>13 · Recommended queue</h2>
+<p class="sub">Priority order. Blocked candidates are listed as decisions-needed, not dropped. This is a report — nothing here is auto-selected; the next loop resumes at the candidate gate.</p>
+<table>
+  <tr><th>#</th><th>ID</th><th>Title</th><th>Priority</th><th>Action</th><th>Notes</th></tr>
+  <tr><td>1</td><td><b>C12</b></td><td>Playwright fake-green gate</td><td class="pri hi">17</td><td><span class="tag t-triage">triage</span></td><td>Cheapest real integrity gain.</td></tr>
+  <tr><td>2</td><td><b>C8</b></td><td>Code-fence stripper dup</td><td class="pri hi">15</td><td><span class="tag t-directfix">direct-fix</span></td><td>Trivial, near-zero risk.</td></tr>
+  <tr><td>3</td><td><b>C1</b></td><td>types.ts drift gate ⭐</td><td class="pri mid">10</td><td><span class="tag t-design">design</span></td><td><b>Highest leverage.</b> Do the safe drift-gate + generated-reexport slice first; queue the nullability contract changes behind sign-off.</td></tr>
+  <tr><td>4</td><td><b>C3</b>+<b>C4</b></td><td>scene_packet facade + beats invariant</td><td class="pri hi">14/13</td><td><span class="tag t-design">design</span></td><td>Do together; C4 lands inside the C3 facade.</td></tr>
+  <tr><td>5</td><td><b>C13</b>+<b>C14</b></td><td>Full pyright + coverage in CI</td><td class="pri mid">11/12</td><td><span class="tag t-fitness">fitness-check</span></td><td>Close the drift-blind gates; reinforces C1.</td></tr>
+  <tr><td>6</td><td><b>C9</b></td><td>Rate-limit classifier</td><td class="pri mid">12</td><td><span class="tag t-triage">triage</span></td><td>Local, highly testable.</td></tr>
+  <tr><td>7</td><td><b>C5</b></td><td>Unify approval gate</td><td class="pri mid">10</td><td><span class="tag t-design">design</span></td><td>Needs the two-tier ADR (shared with C3/C11).</td></tr>
+  <tr><td>8</td><td>C15·C17·C19·C10·C20·C21</td><td>Triage tier</td><td class="pri mid">8–12</td><td>mixed</td><td>Individually small; batch as capacity allows.</td></tr>
+  <tr><td>9</td><td><b>C16</b> → <b>C2</b></td><td>Run harness, then god-module refactor</td><td class="pri lo">6→5</td><td><span class="tag t-design">design</span></td><td>Strict order: harness first, refactor second.</td></tr>
+  <tr><td>—</td><td><b>C6</b> ⚑</td><td>API auth</td><td class="pri lo">9</td><td class="blocked">decision needed</td><td>Security fork — answer before scheduling.</td></tr>
+  <tr><td>—</td><td><b>C11</b> ⚑</td><td>Enum consolidation</td><td class="pri lo">5</td><td class="blocked">decision needed</td><td>Wire-contract fork — answer before scheduling.</td></tr>
+  <tr><td>—</td><td><b>C7</b></td><td>Sweeper race</td><td class="pri lo">7</td><td><span class="tag t-diagnose">diagnose</span></td><td>Needs captured run data; route via diagnosing-bugs.</td></tr>
+</table>
+
+<div class="foot">
+  Read-only Repo Audit Swarm · 4 lanes (deepening seams · graded integrity · blast radius · verification readiness) · merged &amp; scored by Agent 0 per REPORT-SCORING.md ·
+  27 raw findings → 21 deduplicated candidates · Realmwalkers @ <code>main afd03a8</code> · 2026-07-07 ·
+  No production code, tests, configs, or fixtures were modified. Prior audits: <code>codebase_integrity_audit_2026-07-05.html</code>, <code>…07-06.html</code>.
+</div>
+
+</div>
+</body>
+</html>

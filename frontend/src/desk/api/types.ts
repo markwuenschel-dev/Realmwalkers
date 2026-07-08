@@ -9,19 +9,10 @@ type S = components["schemas"];
 
 export type ModelSettingOut = S["ModelSettingOut"];
 export type ModelSettingsOut = S["ModelSettingsOut"];
-// Deterministic editorial-pipeline agents shown read-only in the Agents tab (no model, $0). The
-// generated DTO predates this field, so it's added here until OpenAPI codegen catches up.
-export type EditorialAgentOut = {
-  name: string;
-  label: string;
-  description: string;
-  stage: string;
-  deterministic: boolean;
-};
-export type AgentOpsOut = S["AgentOpsOut"] & { editorial_agents: EditorialAgentOut[] };
-export type TelemetryDeleteOut = {
-  deleted_calls: number;
-};
+// Deterministic editorial-pipeline agents shown read-only in the Agents tab (no model, $0).
+export type EditorialAgentOut = S["EditorialAgentOut"];
+export type AgentOpsOut = S["AgentOpsOut"];
+export type TelemetryDeleteOut = S["TelemetryDeleteOut"];
 export type AgentGlobalsOut = S["AgentGlobalsOut"];
 export type AgentOpsAgentOut = S["AgentOpsAgentOut"];
 export type AgentPresetOut = S["AgentPresetOut"];
@@ -197,8 +188,11 @@ export type ChapterTelemetryOut = S["ChapterTelemetryOut"];
 export type TelemetryGroupOut = S["TelemetryGroupOut"];
 export type ChapterRollupOut = S["ChapterRollupOut"];
 export type RunRollupOut = S["RunRollupOut"];
-// Production attribution + editorial visibility (Telemetry tab). Hand-written: generated.ts predates
-// these schemas (the orchestrator's codegen will replace them with S["…"] on the next regen).
+// Production attribution + editorial visibility (Telemetry tab). These schemas ARE in generated.ts now
+// (S["ProductionRunRollupOut"] / S["EditorialAgentRunOut"]), but the generated versions mark the
+// attribution/activity fields OPTIONAL (`?:`) where these hand types assert them required-present.
+// Kept hand-written on purpose so consumers keep the stricter presence guarantee; collapsing to the
+// generated shape is a deferred consumer/contract decision, not part of the safe realignment.
 // One editorial production run's LLM spend (draft + repair calls sharing a production_run_id).
 export type ProductionRunRollupOut = TelemetryTotals & {
   production_run_id: string | null;
@@ -217,21 +211,17 @@ export interface EditorialAgentRunOut {
   started_at: string | null;
   cost_usd: number;
 }
-// `run_total` is the count of all run rows before the limit/offset page slice (the wire schema
-// returns it now, but the generated DTO predates it). by_production_run/by_kind/editorial_runs are the
-// new production-attribution rollups (also predating the generated DTO).
+// S["BookTelemetryOut"] now declares run_total/by_production_run/by_kind/editorial_runs, so this could
+// collapse to a plain re-export — EXCEPT by_production_run/editorial_runs would then use the generated
+// element types, whose attribution/activity fields are optional. The extension re-pins them to the
+// stricter hand ProductionRunRollupOut/EditorialAgentRunOut, so it is kept until that drift is resolved.
 export type BookTelemetryOut = S["BookTelemetryOut"] & {
   run_total: number;
   by_production_run: ProductionRunRollupOut[];
   by_kind: TelemetryGroupOut[];
   editorial_runs: EditorialAgentRunOut[];
 };
-// `production_run_id`/`job_kind` attribute a call to its production run + distinguish draft vs revision
-// (the generated DTO predates both).
-export type LlmCallOut = S["LlmCallOut"] & {
-  production_run_id?: string | null;
-  job_kind?: string | null;
-};
+export type LlmCallOut = S["LlmCallOut"];
 export type LlmCallListOut = S["LlmCallListOut"];
 export type RunTelemetryOut = S["RunTelemetryOut"];
 export type TelemetryProblemOut = S["TelemetryProblemOut"];
@@ -249,37 +239,16 @@ export type DecisionKind = S["Decision"];
 export type SuggestionStatus = S["SuggestionStatus"];
 export type RuleProposalStatus = S["RuleProposalStatus"];
 
-// --- batch runs (POST /runs/batch — new endpoint, not yet in OpenAPI) ----------------------------
+// --- batch runs (POST /runs/batch) ---------------------------------------------------------------
 // Stage several chapters and plan them all in one call; `auto_draft` runs gate 1 → draft unattended.
-
-export interface BatchChapterSpec {
-  chapter_no: number;
-  pov: string;
-  outline: string;
-  max_beats?: number | null;
-  target_words?: number | null;
-}
-
-export interface BatchRunStart {
-  book_id: string;
-  chapters: BatchChapterSpec[];
-  gate_mode?: GateMode | string;
-  token_budget?: number | null;
-  auto_draft: boolean;
-}
-
-export interface BatchChapterResult {
-  chapter_id: string;
-  chapter_no: number;
-  pov: string;
-  beat_count: number;
-  queued_jobs: number;
-}
-
-export interface BatchRunOut {
-  run_id: string;
-  results: BatchChapterResult[];
-}
+// Now in OpenAPI: re-exported from the generated DTOs. NOTE: generated BatchRunStartIn marks
+// `gate_mode` required (no `| string`) where the old hand type had it optional — see report.
+export type BatchChapterSpec = S["BatchChapterSpec"];
+export type BatchRunStartIn = S["BatchRunStartIn"];
+/** @deprecated use BatchRunStartIn (generated name). */
+export type BatchRunStart = S["BatchRunStartIn"];
+export type BatchChapterResult = S["BatchChapterResultOut"];
+export type BatchRunOut = S["BatchRunOut"];
 
 // --- frontend refinements (not in OpenAPI or looser on the wire) ---------------------------------
 
@@ -504,195 +473,23 @@ export type ScenePacketUpdateIn = Omit<S["ScenePacketUpdateIn"], "body"> & {
   body?: ScenePacketBody | null;
 };
 
-export interface ChapterSequenceOut {
-  id: string;
-  book_id: string;
-  chapter_id: string;
-  chapter_packet_id: string;
-  status: string;
-  target_words?: number | null;
-  max_words?: number | null;
-  hard_max_words?: number | null;
-  target_scene_count?: number | null;
-  hard_max_scene_count?: number | null;
-  body: Record<string, unknown>;
-  qa_verdict?: string | null;
-  qa_warnings?: Record<string, unknown> | null;
-  source_hash?: string | null;
-  stale_reason?: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// Production-orchestration DTOs (Production tab) — now generated 1:1 from shared/schemas.py.
+export type ChapterSequenceOut = S["ChapterSequenceOut"];
+export type ArtifactOut = S["ArtifactOut"];
+export type ArtifactDependencyOut = S["ArtifactDependencyOut"];
+export type AgentRunOut = S["AgentRunOut"];
+export type AgentEventOut = S["AgentEventOut"];
+export type IssueOut = S["IssueOut"];
+export type IssueDecisionOut = S["IssueDecisionOut"];
+export type RepairTaskOut = S["RepairTaskOut"];
+export type RepairAttemptOut = S["RepairAttemptOut"];
+export type RepairVerificationOut = S["RepairVerificationOut"];
+export type ProductionRunOut = S["ProductionRunOut"];
 
-export interface ArtifactOut {
-  id: string;
-  production_run_id?: string | null;
-  artifact_type: string;
-  domain_table?: string | null;
-  domain_id?: string | null;
-  version: number;
-  status: string;
-  body: Record<string, unknown>;
-  content_hash: string;
-  created_by_agent_run_id?: string | null;
-  created_at: string;
-}
-
-export interface ArtifactDependencyOut {
-  id: string;
-  artifact_id: string;
-  depends_on_artifact_id: string;
-  dependency_kind: string;
-  dependency_hash?: string | null;
-  created_at: string;
-}
-
-export interface AgentRunOut {
-  id: string;
-  production_run_id: string;
-  agent_name: string;
-  agent_role: string;
-  model?: string | null;
-  status: string;
-  stage: string;
-  input_artifact_ids: string[];
-  output_artifact_ids?: string[] | null;
-  prompt_hash?: string | null;
-  input_hash?: string | null;
-  output_hash?: string | null;
-  token_input?: number | null;
-  token_output?: number | null;
-  cost_estimate?: number | null;
-  duration_ms?: number | null;
-  error?: string | null;
-  payload_json?: Record<string, unknown> | null;
-  created_at: string;
-  started_at?: string | null;
-  completed_at?: string | null;
-}
-
-export interface AgentEventOut {
-  id: string;
-  production_run_id: string;
-  agent_run_id?: string | null;
-  event_type: string;
-  stage?: string | null;
-  message?: string | null;
-  payload_json?: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface IssueOut {
-  id: string;
-  production_run_id: string;
-  chapter_id: string;
-  artifact_type: string;
-  artifact_id: string;
-  scene_id?: string | null;
-  scene_no?: number | null;
-  validator: string;
-  issue_kind: string;
-  severity: string;
-  quote?: string | null;
-  span_start?: number | null;
-  span_end?: number | null;
-  claim: string;
-  contract_reference?: string | null;
-  recommended_action: string;
-  confidence?: number | null;
-  auto_repair_allowed: boolean;
-  status: string;
-  payload_json?: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface IssueDecisionOut {
-  id: string;
-  issue_id: string;
-  decided_by: string;
-  decision: string;
-  reason?: string | null;
-  agent_run_id?: string | null;
-  created_at: string;
-}
-
-export interface RepairTaskOut {
-  id: string;
-  production_run_id: string;
-  chapter_id: string;
-  scene_id?: string | null;
-  scene_no?: number | null;
-  repair_kind: string;
-  authority_level: string;
-  status: string;
-  issue_ids: string[];
-  target_spans?: Record<string, unknown> | null;
-  instructions: string;
-  preserve: string[];
-  must_change: string[];
-  must_not_change: string[];
-  allowed_operations: string[];
-  forbidden_operations: string[];
-  word_delta_target?: number | null;
-  requires_human_approval: boolean;
-  // Stamped by Approve & apply — distinguishes an approval-hold from a conflict-hold.
-  human_approved_at?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface RepairAttemptOut {
-  id: string;
-  repair_task_id: string;
-  agent_run_id?: string | null;
-  attempt_no: number;
-  model: string;
-  patch_json?: Record<string, unknown> | null;
-  revised_text?: string | null;
-  change_summary?: string | null;
-  issues_addressed: string[];
-  new_risks: string[];
-  word_count_before?: number | null;
-  word_count_after?: number | null;
-  created_at: string;
-}
-
-export interface RepairVerificationOut {
-  id: string;
-  repair_attempt_id: string;
-  agent_run_id?: string | null;
-  verdict: string;
-  resolved_issue_ids: string[];
-  remaining_issue_ids: string[];
-  new_issues_json?: Record<string, unknown>[] | null;
-  target_issue_resolved: boolean;
-  canon_preserved: boolean;
-  scene_outcome_preserved: boolean;
-  voice_preserved: boolean;
-  required_beats_preserved: boolean;
-  reader_state_preserved: boolean;
-  regression_score: number;
-  reason?: string | null;
-  payload_json?: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface ProductionRunOut {
-  id: string;
-  book_id: string;
-  chapter_id: string;
-  status: string;
-  mode: string;
-  target_words?: number | null;
-  hard_max_words?: number | null;
-  current_stage?: string | null;
-  source_hash?: string | null;
-  settings_json?: Record<string, unknown> | null;
-  summary_json?: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
-}
-
+// KEPT hand-written: generated ProductionRunCreateIn marks `mode` and `auto_triage` required (they carry
+// server defaults, which openapi-typescript emits as required). Callers omit them (e.g. ProductionScreen
+// calls startProductionRun({ chapter_id, auto_triage }) with no `mode`), so re-exporting the generated
+// shape would break those call sites. Optionality realignment is a deferred contract decision.
 export interface ProductionRunCreateIn {
   chapter_id: string;
   mode?: string;
@@ -701,174 +498,25 @@ export interface ProductionRunCreateIn {
   auto_triage?: boolean;
 }
 
-export interface ProductionRunActionOut {
-  run: ProductionRunOut;
-  issue_count: number;
-  repair_task_count: number;
-  latest_verification?: RepairVerificationOut | null;
-}
-
-export interface ProductionRunDetailOut {
-  run: ProductionRunOut;
-  chapter_sequence?: ChapterSequenceOut | null;
-  artifacts: ArtifactOut[];
-  dependencies: ArtifactDependencyOut[];
-  agent_runs: AgentRunOut[];
-  events: AgentEventOut[];
-  issues: IssueOut[];
-  issue_decisions: IssueDecisionOut[];
-  repair_tasks: RepairTaskOut[];
-  repair_attempts: RepairAttemptOut[];
-  repair_verifications: RepairVerificationOut[];
-}
+export type ProductionRunActionOut = S["ProductionRunActionOut"];
+export type ProductionRunDetailOut = S["ProductionRunDetailOut"];
 
 // --- live pipeline dashboard (GET /books/{book_id}/pipeline) --------------------------------------
-// Hand-written to mirror shared/schemas.py PipelineStatusOut. Every `reason`/`suggested_action` string
-// is pre-computed server-side; `action_kind` is the machine key this screen maps to an endpoint call
-// or a deep-link. The pipeline never assigns blocked/failed/rejected/cancelled to a run/task, so those
-// states are not modelled — parking is always `waiting_for_human` + a stage + an event reason.
-
-export interface PipelineJobOut {
-  id: string;
-  kind: string;
-  status: string;
-  chapter_no?: number | null;
-  scene_no?: number | null;
-  // RUNNING only (process-local; may be absent):
-  phase?: string | null;
-  elapsed_s?: number | null;
-  cache_hit_ratio?: number | null;
-  claimed_at?: string | null;
-  // QUEUED only:
-  position?: number | null;
-  created_at?: string | null;
-  // FAILED only:
-  last_error?: string | null;
-}
-
-export interface PipelineAgentRunOut {
-  id: string;
-  production_run_id: string;
-  agent_name: string;
-  stage: string;
-  started_at?: string | null;
-}
-
-export interface PipelineRunRef {
-  run_id: string;
-  chapter_id: string;
-  chapter_no?: number | null;
-  status: string;
-  current_stage?: string | null;
-  updated_at: string;
-  reason?: string | null;
-  suggested_action?: string | null;
-  // approve_apply | verify | decide_issue | resume | align_scene_count | retry | draft_missing | none
-  action_kind?: string | null;
-  scenes_drafted?: number | null;
-  scenes_expected?: number | null;
-}
-
-export interface PipelineRepairTaskRef {
-  task_id: string;
-  production_run_id: string;
-  chapter_id: string;
-  chapter_no?: number | null;
-  scene_no?: number | null;
-  repair_kind: string;
-  authority_level: string;
-  status: string;
-  requires_human_approval: boolean;
-  reason?: string | null;
-  suggested_action?: string | null;
-  action_kind?: string | null;
-}
-
-export interface PipelineIssueRef {
-  issue_id: string;
-  production_run_id: string;
-  chapter_id: string;
-  chapter_no?: number | null;
-  scene_no?: number | null;
-  issue_kind: string;
-  severity: string;
-  status: string;
-  claim: string;
-  reason?: string | null;
-  suggested_action?: string | null;
-  action_kind?: string | null;
-}
-
-export interface PipelineCompletedRef {
-  run_id: string;
-  chapter_id: string;
-  chapter_no?: number | null;
-  status: string;
-  current_stage?: string | null;
-  updated_at: string;
-  final_chapter_status?: string | null;
-  scenes_drafted?: number | null;
-  scenes_expected?: number | null;
-}
-
-export interface SweeperStatusOut {
-  last_tick_at?: string | null;
-  ran: boolean;
-  autonomy_enabled: boolean;
-  paused: boolean;
-  stale_runs_found: number;
-  actions: Record<string, unknown>[];
-  driving: string[];
-  last_error?: string | null;
-  interval_s: number;
-  stale_window_s: number;
-  authority_ceiling: string;
-  max_attempts: number;
-  attempts: Record<string, number>;
-}
-
-export interface PipelineNowOut {
-  jobs: PipelineJobOut[];
-  agent_runs: PipelineAgentRunOut[];
-  runs: PipelineRunRef[];
-  drain_locked: boolean;
-  repair_drain_locked: boolean;
-}
-
-export interface PipelineQueueOut {
-  serial: boolean;
-  note: string;
-  queue_paused: boolean;
-  jobs_queued: number;
-  jobs: PipelineJobOut[];
-  repair_tasks_auto: PipelineRepairTaskRef[];
-  repair_tasks_approval: PipelineRepairTaskRef[];
-  runs_queued: PipelineRunRef[];
-}
-
-export interface PipelineWaitingOut {
-  runs: PipelineRunRef[];
-  repair_tasks: PipelineRepairTaskRef[];
-  issues: PipelineIssueRef[];
-}
-
-export interface PipelineBlockedOut {
-  runs: PipelineRunRef[];
-  failed_jobs: PipelineJobOut[];
-  queue_paused: boolean;
-}
-
-export interface PipelineCompletedOut {
-  runs: PipelineCompletedRef[];
-}
-
-export interface PipelineStatusOut {
-  book_id: string;
-  generated_at: string;
-  now: PipelineNowOut;
-  queue: PipelineQueueOut;
-  waiting_on_human: PipelineWaitingOut;
-  blocked: PipelineBlockedOut;
-  completed: PipelineCompletedOut;
-  sweeper: SweeperStatusOut;
-}
+// Now generated from shared/schemas.py PipelineStatusOut — re-exported below. Every `reason`/
+// `suggested_action` string is pre-computed server-side; `action_kind` is the machine key this screen
+// maps to an endpoint call or deep-link (approve_apply | verify | decide_issue | resume |
+// align_scene_count | retry | draft_missing | none). The pipeline never assigns
+// blocked/failed/rejected/cancelled to a run/task, so those states are not modelled.
+export type PipelineJobOut = S["PipelineJobOut"];
+export type PipelineAgentRunOut = S["PipelineAgentRunOut"];
+export type PipelineRunRef = S["PipelineRunRef"];
+export type PipelineRepairTaskRef = S["PipelineRepairTaskRef"];
+export type PipelineIssueRef = S["PipelineIssueRef"];
+export type PipelineCompletedRef = S["PipelineCompletedRef"];
+export type SweeperStatusOut = S["SweeperStatusOut"];
+export type PipelineNowOut = S["PipelineNowOut"];
+export type PipelineQueueOut = S["PipelineQueueOut"];
+export type PipelineWaitingOut = S["PipelineWaitingOut"];
+export type PipelineBlockedOut = S["PipelineBlockedOut"];
+export type PipelineCompletedOut = S["PipelineCompletedOut"];
+export type PipelineStatusOut = S["PipelineStatusOut"];
