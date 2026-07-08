@@ -224,7 +224,12 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
     for task in tasks:
         if task.human_approved_at is not None:
             continue  # already approved; the drain / a prior tick handles execution
-        if not _within_ceiling(task.authority_level, cfg.ceiling):
+        # Capture identity + authority as primitives BEFORE the savepoint. A mid-apply failure rolls the
+        # savepoint back and expires this row's flushed attributes, so ANY post-rollback read — even
+        # task.id — becomes a sync lazy-load on the async session (MissingGreenlet, observed at prod).
+        # Mirrors background_work.drain_queued_repair_tasks, which captures task_id before its try.
+        tid, task_id, authority = str(task.id), task.id, task.authority_level
+        if not _within_ceiling(authority, cfg.ceiling):
             needs_human = True
             continue
         if _attempts.get(rid, 0) >= cfg.max_attempts:
@@ -234,20 +239,20 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
             # SAVEPOINT so a mid-apply failure rolls back only this task, not the whole run's tick.
             async with session.begin_nested():
                 await production.apply_repair_task(
-                    session, task.id, human_approved=True, approval_reason="autonomous sweeper"
+                    session, task_id, human_approved=True, approval_reason="autonomous sweeper"
                 )
             _attempts[rid] = _attempts.get(rid, 0) + 1
             actions.append({"run_id": rid, "kind": "repair_applied"})
             await activity.record_activity(
                 session,
                 kind="sweeper_repair",
-                title=f"Sweeper auto-approved a {task.authority_level.replace('_', ' ')} repair",
+                title=f"Sweeper auto-approved a {authority.replace('_', ' ')} repair",
                 source="sweeper",
                 severity="info",
                 book_id=book_id,
                 chapter_id=chapter_id,
                 production_run_id=run_id,
-                payload={"repair_task_id": str(task.id), "authority_level": task.authority_level},
+                payload={"repair_task_id": tid, "authority_level": authority},
             )
         except ValueError as exc:
             # e.g. "draft the missing scenes first" — the sweeper can't resolve it; leave for a human.
@@ -263,11 +268,11 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
                 chapter_id=chapter_id,
                 production_run_id=run_id,
                 detail=str(exc),
-                payload={"repair_task_id": str(task.id)},
+                payload={"repair_task_id": tid},
             )
         except Exception as exc:  # noqa: BLE001 — unexpected apply failure; log the stage + move on
             needs_human = True
-            log.error("sweeper.stage_error", run=rid, stage="apply", task=str(task.id), error=str(exc))
+            log.error("sweeper.stage_error", run=rid, stage="apply", task=tid, error=str(exc))
 
     # 2) Auto-verify applied repairs whose revision jobs have landed (tolerate "not ready yet").
     applied = (
@@ -284,15 +289,16 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
         .all()
     )
     for task in applied:
+        tid, task_id = str(task.id), task.id  # primitives before the savepoint (see the apply loop)
         try:
             # SAVEPOINT: a "still drafting" verify raises after possibly touching rows — isolate it.
             async with session.begin_nested():
-                await production.verify_repair_task(session, task.id)  # emits repair_verified via support.record_event
+                await production.verify_repair_task(session, task_id)  # emits repair_verified via support.record_event
             actions.append({"run_id": rid, "kind": "verified"})
         except ValueError:
             pass  # revision still drafting — a later tick will pick it up
         except Exception as exc:  # noqa: BLE001 — unexpected verify failure; log the stage + move on
-            log.warning("sweeper.stage_error", run=rid, stage="verify", task=str(task.id), error=str(exc))
+            log.warning("sweeper.stage_error", run=rid, stage="verify", task=tid, error=str(exc))
 
     # 3) Warn once if the run is blocked only on above-ceiling / human-required work.
     if needs_human and rid not in _warned_human:

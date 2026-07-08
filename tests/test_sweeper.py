@@ -221,6 +221,40 @@ async def test_sweeper_triage_realwork_no_greenlet(db_factory):
         await s.commit()
 
 
+async def test_sweeper_apply_raises_midmutation_records_blocked_without_greenlet(db_factory, monkeypatch):
+    # C1 regression: when apply_repair_task raises AFTER mutating the task inside the sweeper's
+    # begin_nested() savepoint, the rollback expires the mutated ORM attributes. The except branch must
+    # build its "sweeper_blocked" activity from primitives captured before the savepoint — never by
+    # reading the expired ORM object (a sync lazy-load on the async session -> MissingGreenlet).
+    # Observed RED at sweeper.py:266 (str(task.id) in the except-ValueError record_activity payload);
+    # green after the primitive-capture fix.
+    from dominion.workers import production
+
+    sweeper._attempts.clear()
+    sweeper._warned_human.clear()
+    async with db_factory() as s:
+        book, _chapter, run, scenes = await _seed_run(s)
+        _task = await _approval_task(s, run, scenes, authority=RepairAuthorityLevel.CHAPTER_STRUCTURAL)
+
+        async def boom(session, task_id, **kwargs):
+            # Faithful to apply_repair_task: mutate the live session-identity row, flush it into the
+            # savepoint, then raise so the sweeper's savepoint rolls back and expires those attributes.
+            t = await session.get(RepairTask, task_id)
+            t.human_approved_at = datetime.now(UTC)
+            t.status = RepairTaskStatus.RUNNING
+            await session.flush()
+            raise ValueError("draft the missing scenes first")
+
+        monkeypatch.setattr(production, "apply_repair_task", boom)
+
+        # Must not raise MissingGreenlet / greenlet_spawn.
+        await sweeper._sweep_one_run(s, run.id, _cfg())
+        await s.commit()
+
+        acts = await activity_router.list_activity(s, book_id=book.id)
+        assert any(a.kind == "sweeper_blocked" and a.severity == "warn" for a in acts)
+
+
 async def test_retention_prunes_aged_exhaust_but_keeps_completed_runs(db_factory):
     old = datetime.now(UTC) - timedelta(days=60)
     async with db_factory() as s:
