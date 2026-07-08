@@ -416,6 +416,32 @@ async def test_proposed_packet_with_advisory_qa_is_approvable(db_factory, monkey
         assert (await s.get(ScenePacket, warn_with_legacy_block_issue.id)).status == ScenePacketStatus.APPROVED
 
 
+async def test_batch_approve_returns_well_formed_out_list(db_factory, monkeypatch):
+    """N1 red-capable: batch-approve mutates each packet (approved), commits, then serializes the list
+    via `enrich_scene_packet_out` (→ ScenePacketOut.model_validate). Without the post-commit
+    `session.refresh(r)` loop the server-side `updated_at` (onupdate) is expired at flush and the
+    serialize triggers a sync lazy-load on the async session → MissingGreenlet. Red on the unpatched
+    router, green with the refresh loop. See docs/plans/n1-greenlet-enrich-after-commit-contract.md."""
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        book, ch = await _seed_book_chapter(s)
+        cp = await _approved_chapter_packet(
+            s,
+            book,
+            ch,
+            [_seed(str(uuid.uuid4()), scene_no=1, scene_type="combat"), _seed(str(uuid.uuid4()), scene_no=2)],
+        )
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        rows = (await s.execute(select(ScenePacket).where(ScenePacket.chapter_id == ch.id))).scalars().all()
+        assert len(rows) >= 2  # two proposed, approve-eligible packets
+
+        out = await sp_router.approve_scene_packets(ch.id, s)
+        assert len(out) == len(rows)
+        assert all(o.updated_at is not None for o in out)  # the column that greenlet-500s when unrefreshed
+        assert any(o.status == ScenePacketStatus.APPROVED for o in out)
+
+
 async def test_blocked_packet_cannot_be_approved(db_factory):
     """Behavior-freeze: a BLOCKED scene packet (deterministic/author/infrastructure gate) still 409s."""
     async with db_factory() as s:

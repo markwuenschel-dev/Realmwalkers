@@ -388,6 +388,11 @@ async def approve_scene_packets(
         packet_ids=body.packet_ids if body else None,
     )
     await session.commit()
+    # Refresh each row so its server-side `updated_at` (onupdate) is loaded before enrich serializes it
+    # — otherwise model_validate triggers a sync lazy-load on the async session (MissingGreenlet).
+    # Mirrors the mark-stale fix below. (N1)
+    for r in rows:
+        await session.refresh(r)
     log.info("scene_packet.batch_approved", chapter=str(chapter_id), approved=approved, derived_beats=derived)
     return [scene_packet_pipeline.enrich_scene_packet_out(r) for r in rows]
 

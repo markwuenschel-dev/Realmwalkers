@@ -184,6 +184,7 @@ async def cancel_production_run(run_id: uuid.UUID, session: SessionDep) -> Produ
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(run)  # commit expires ORM attrs; refresh before serializing (N1)
     return _run_out(run)
 
 
@@ -194,6 +195,7 @@ async def resume_production_run(run_id: uuid.UUID, session: SessionDep) -> Produ
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(run)  # commit expires ORM attrs; refresh before serializing (N1)
     return _run_out(run)
 
 
@@ -352,6 +354,7 @@ async def apply_repair_task(task_id: uuid.UUID, session: SessionDep, background:
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(task)  # commit expires ORM attrs; refresh before serializing (N1)
     # An instruction-based repair queues a scene revision Job; nothing else drains it here (same
     # pattern as /jobs/draft-next). Without this kick the job sits QUEUED and Verify 409s ("no
     # revised scene") forever — which read as "Apply did nothing". No-op when already draining or
@@ -379,6 +382,7 @@ async def approve_and_apply_repair_task(
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(task)  # commit expires ORM attrs; refresh before serializing (N1)
     # Same kick as /apply: the fan-out queues revision Jobs that nothing else would drain here.
     background.add_task(background_work.drain_queued_jobs)
     return RepairTaskOut.model_validate(task)
@@ -407,6 +411,7 @@ async def reject_repair_task(
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(task)  # commit expires ORM attrs; refresh before serializing (N1)
     return RepairTaskOut.model_validate(task)
 
 
@@ -419,6 +424,7 @@ async def rollback_repair_task(
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(task)  # commit expires ORM attrs; refresh before serializing (N1)
     return RepairTaskOut.model_validate(task)
 
 
@@ -445,6 +451,7 @@ async def derive_chapter_sequence(chapter_id: uuid.UUID, session: SessionDep) ->
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(sequence)  # commit expires ORM attrs; refresh before serializing (N1)
     return ChapterSequenceOut.model_validate(sequence)
 
 
@@ -457,6 +464,7 @@ async def update_chapter_sequence(
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(sequence)  # commit expires ORM attrs; refresh before serializing (N1)
     return ChapterSequenceOut.model_validate(sequence)
 
 
@@ -490,6 +498,7 @@ async def approve_chapter_sequence(sequence_id: uuid.UUID, session: SessionDep) 
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(sequence)  # commit expires ORM attrs; refresh before serializing (N1)
     return ChapterSequenceOut.model_validate(sequence)
 
 
@@ -502,6 +511,7 @@ async def revise_chapter_sequence(
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(sequence)  # commit expires ORM attrs; refresh before serializing (N1)
     return ChapterSequenceOut.model_validate(sequence)
 
 
@@ -530,4 +540,5 @@ async def approve_final_chapter(run_id: uuid.UUID, session: SessionDep) -> Produ
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
+    await session.refresh(run)  # commit expires ORM attrs; refresh before serializing (N1)
     return _run_out(run)
