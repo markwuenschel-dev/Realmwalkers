@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codebase Integrity Audit (Pass 2) — Realmwalkers — 2026-07-07</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--panel2:#1d212b;--ink:#e7e9ee;--mut:#9aa3b2;--line:#2a2f3a;--acc:#6ea8fe;--good:#4ec9a3;--warn:#e0b64b;--bad:#e0685f;--chip:#232936;--shadow:0 1px 3px rgba(0,0,0,.4);}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 24px 96px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:20px;margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:22px 0 8px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:24px}
+  p{margin:8px 0} a{color:var(--acc)}
+  code{background:var(--chip);padding:1px 6px;border-radius:5px;font:12.5px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}
+  .grade{display:inline-flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 22px;margin:6px 0 4px}
+  .grade .big{font-size:44px;font-weight:700;color:var(--warn)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin:12px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+  .card .lbl{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .card .val{font-size:15px;margin-top:4px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .t-design{background:#2a2350;color:#c3b6ff} .t-directfix{background:#173a2c;color:#7de3b8}
+  .t-fitness{background:#1c3550;color:#8ec5ff} .t-triage{background:#3a3418;color:#e6cf7a}
+  .t-diagnose{background:#3a2320;color:#f0a89f} .t-reject{background:#2a2f3a;color:#9aa3b2}
+  .pri{font-weight:700;font-variant-numeric:tabular-nums} .pri.hi{color:var(--good)} .pri.mid{color:var(--warn)} .pri.lo{color:var(--mut)}
+  .blocked{color:var(--bad);font-weight:600}
+  .cand{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0;box-shadow:var(--shadow)}
+  .cand.top{border-color:var(--bad)}
+  .cand h3{margin:0 0 6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .cid{font:12px ui-monospace,monospace;background:var(--acc);color:#0b0d12;padding:2px 8px;border-radius:6px;font-weight:700}
+  .cid.new{background:var(--bad);color:#fff}
+  .cand .meta{color:var(--mut);font-size:12.5px;margin:2px 0 10px}
+  .scores{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .sc{background:var(--chip);border-radius:6px;padding:2px 8px;font-size:11.5px;color:var(--mut)} .sc b{color:var(--ink)} .sc.neg b{color:var(--warn)}
+  .ev{margin:8px 0;padding-left:0;list-style:none}
+  .ev li{margin:5px 0;padding:7px 10px;background:var(--panel2);border-left:2px solid var(--acc);border-radius:0 6px 6px 0;font-size:12.5px}
+  .ev code{background:transparent;padding:0;color:var(--acc)}
+  .kv{margin:6px 0;font-size:13.5px} .kv b{color:var(--mut);font-weight:600}
+  .note{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;margin:10px 0}
+  ul.tight{margin:6px 0;padding-left:20px} ul.tight li{margin:4px 0;font-size:13.5px}
+  .callout{border-left:3px solid var(--warn);background:rgba(224,182,75,.06);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+  .callout.bad{border-color:var(--bad);background:rgba(224,104,95,.06)} .callout.good{border-color:var(--good);background:rgba(78,201,163,.06)}
+  .foot{margin-top:60px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  .strike{text-decoration:line-through;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Codebase Integrity Audit — Realmwalkers <span style="color:var(--mut);font-size:18px">· Pass 2</span></h1>
+<div class="sub">
+  Read-only Repo Audit Swarm (second pass) · 4 lanes merged &amp; scored · 2026-07-07 ·
+  <code>main</code> @ <code>2b6e18b</code> (post-Wave-1) · Scoring spine: REPORT-SCORING.md · <b>Analysis only — no code modified.</b>
+</div>
+
+<!-- 1 -->
+<h2>1 · Executive summary</h2>
+<p>
+  Second audit pass after Wave 1 (PR #182) merged 10 candidates. Wave 1 <b>held up cleanly</b> — the lanes independently
+  re-verified the scene_packet facade closed its router leak, <code>types.ts</code> was slimmed to generated re-exports,
+  config paths centralized, and 8 new test assets landed (whole-run harness, sweeper loop/embed seams, e2e smoke, reconcile
+  regressions, fence-strip test). No Wave-1 regressions were found.
+</p>
+<p>The pass is dominated by one discovery and a re-scored backlog:</p>
+<ul class="tight">
+  <li><b>The greenlet <code>MissingGreenlet</code> bug fixed at ship time is a systemic class (N1).</b> The graded-integrity lane enumerated <b>~12 sibling handlers</b> — mostly in <code>api/routers/production.py</code> — that mutate an <code>onupdate</code>-<code>updated_at</code> model, commit, then serialize via <code>model_validate</code>/<code>enrich</code> <b>without</b> <code>session.refresh()</code>: each a latent 500. Only 3 sites carry the fix. This is the headline candidate and pulls the <b>reliability grade down to 2/5</b>.</li>
+  <li>The four <b>structural verification gates</b> (full pyright in CI, coverage tooling, local DB-skip visibility, enforced LLM mock seam) all re-verify unchanged (C13/C14/C15/C19).</li>
+  <li>The <b>two-tier packet duplication</b> (approval policy C5, enum vocabulary C11) and the <b>types.ts contract surface</b> (drift gate still absent C1; nested-JSON hand-mirrors are the largest unguarded surface) persist.</li>
+  <li><b>C2</b> sharpened: <code>production.py</code>'s ~33 circular-import shims guard a cycle that <b>doesn't exist on the observed edges</b> — a cheap hoist plus a real god-module design question.</li>
+  <li><b>C6 (no API auth)</b> and <b>C11 (enum consolidation)</b> remain human-decision-blocked.</li>
+</ul>
+<div class="callout good">
+  <b>Captain adjudication — one lane finding rejected.</b> The verification lane's <b>VR2-6</b> claimed the Wave-1 greenlet fix is "fake-green" because <code>expire_on_commit=False</code> makes the refresh a no-op. This is <b>refuted</b> on two grounds: (1) the graded-integrity lane's mechanism analysis — server-side <code>onupdate</code> columns are expired at flush <i>regardless</i> of <code>expire_on_commit</code>; and (2) direct observed evidence — the first CI run <i>literally failed</i> on <code>test_mark_stale_reconciles_beats</code> with the greenlet error and passed only once the refresh was added. That test <b>is</b> red-capable in CI. VR2-6 is not carried into the ledger.
+</div>
+
+<!-- 2 -->
+<h2>2 · Overall repo grade</h2>
+<div class="grade"><span class="big">B</span>
+  <div>Down a half-step from Wave 1's B+. The codebase's discipline, security hygiene, and (now-improved) test breadth are intact, but pass 2 <b>surfaced a systemic latent-500 class</b> (~12 unrefreshed enrich-after-commit sites) that makes <b>reliability the weak axis (2/5)</b> until N1 lands. The bugs were always present; the grade reflects that they are now known and unremediated.</div>
+</div>
+
+<!-- 3 -->
+<h2>3 · Lane scorecards</h2>
+<div class="cards">
+  <div class="card"><div class="lbl">Deepening seams</div><div class="val"><b>B</b> — scene_packet facade verified clean (one residual, DS2-4). <code>production.py</code> phantom shims + god-modules (C2) sharpened; approval/enum duplication persists.</div></div>
+  <div class="card"><div class="lbl">Graded integrity</div><div class="val"><b>B–</b> — Reliability ↓ to <b>2</b> on the systemic greenlet class; Maintainability 3, Security 3, Test-quality 4, Data-integrity 4, Performance 4.</div></div>
+  <div class="card"><div class="lbl">Blast radius</div><div class="val"><b>B–</b> — types.ts drift gate still absent; nested-JSON hand-mirrors (BR2-2) are the largest unguarded contract surface; 4 optionality drifts survive.</div></div>
+  <div class="card"><div class="lbl">Verification readiness</div><div class="val"><b>B</b> — Wave 1 raised the floor (4 blind surfaces now driven); the 4 structural gates unchanged; 2 new seam-quality gaps (sweeper default wiring, untested generation modules).</div></div>
+</div>
+
+<!-- Wave 1 resolved -->
+<h3>Wave 1 — verified resolved (not re-reported)</h3>
+<p class="sub">C8 fence-strip · C9 rate-limit classifier · C3+C4 scene_packet facade + beats reconcile · C12 e2e smoke · C16 whole-run harness · C17 ch1 fake-green skips · C18 sweeper/embed seams · C20 canon-RAG hardening · C21 progress guards · C1 (safe slice — ~30 DTOs → generated re-exports). The greenlet fix in <code>mark_scene_packets_stale</code> shipped correctly but revealed the class below.</p>
+
+<!-- 4 -->
+<h2>4 · Top merged candidates</h2>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Why it leads</th><th>Priority</th><th>Action</th></tr>
+  <tr><td><b>N1</b> 🔴</td><td>Greenlet enrich-after-commit — systemic class (~12 sites)</td><td>Confirmed live-500 class (CI-proven mechanism); highest leverage (5); a clean fitness-check makes it non-recurring.</td><td class="pri hi">13</td><td><span class="tag t-directfix">direct-fix</span> +<span class="tag t-fitness">fitness</span></td></tr>
+  <tr><td><b>N10</b></td><td>No coverage tooling (C14)</td><td>Highest priority score; would have <i>measured</i> the N1 gap instead of leaving it to a lane's grep.</td><td class="pri hi">16</td><td><span class="tag t-fitness">fitness-check</span></td></tr>
+  <tr><td><b>N9</b></td><td>CI pyright changed-files-only (C13)</td><td>Cross-module type drift ships green; directly guards the wire contract.</td><td class="pri hi">13</td><td><span class="tag t-fitness">fitness-check</span></td></tr>
+  <tr><td><b>N5</b></td><td>types.ts drift gate + hand-mirrors (C1-remainder)</td><td>The enforceable gate Wave 1 deferred; nested-JSON mirrors are the largest unguarded surface.</td><td class="pri mid">12</td><td><span class="tag t-fitness">fitness</span>/<span class="tag t-design">design</span></td></tr>
+  <tr><td><b>N4</b></td><td>Duplicated approval-gate (C5)</td><td>One approval protocol encoded twice; drifting (RATE_LIMITED/STALE only on scene tier).</td><td class="pri mid">12</td><td><span class="tag t-design">design</span></td></tr>
+</table>
+
+<!-- 5 -->
+<h2>5 · Candidate ledger</h2>
+<p class="sub"><code>priority = (severity+confidence+leverage+locality+testability) − (blast_radius+regression_risk+human_decision_risk)</code>. 🔴 = new this pass. Carried candidates show their prior ID.</p>
+
+<!-- N1 -->
+<div class="cand top" id="N1">
+  <h3><span class="cid new">N1</span> Greenlet enrich-after-commit is a systemic class — ~12 unrefreshed sibling handlers <span class="tag t-directfix">direct-fix</span> <span class="tag t-fitness">+ fitness-check</span></h3>
+  <div class="meta">lane: graded_integrity (+ linked: C7 sweeper race) · prior: new · category: Bug · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> The Wave-1 <code>mark_scene_packets_stale</code> 500 has ~12 twins. Each mutates a model whose <code>updated_at</code> uses <code>onupdate=func.now()</code> (server-computed), commits, then serializes the row via <code>model_validate</code>/<code>enrich_*_out</code> (which reads the <b>required</b> <code>updated_at</code>) <b>without</b> a preceding <code>session.refresh()</code>. SQLAlchemy expires server-computed columns at flush even under <code>expire_on_commit=False</code>, so the read is a sync lazy-load on the async session → <code>MissingGreenlet</code> 500.</div>
+  <div class="kv"><b>Root cause:</b> No single serialize/refresh seam for the 5 <code>onupdate</code> models (ScenePacket, ChapterSequence, ProductionRun, RepairTask, DraftRunTimeline); each handler hand-rolls mutate→commit→enrich and 3 remembered the refresh, ~12 didn't.</div>
+  <ul class="ev">
+    <li><code>shared/db.py:14</code> <code>expire_on_commit=False</code>; <code>shared/models.py:280,305,637,812,880</code> — the 5 <code>onupdate updated_at</code> models; <code>schemas.py:1602,1771,1970</code> Out schemas make <code>updated_at</code> required (forces the read).</li>
+    <li><b>Fixed (prove the pattern):</b> <code>scene_packets.py:306</code> (update), <code>:453</code> (mark-stale, Wave-1), <code>production.py:472</code> (align_sequence_scene_count) — all carry the refresh + identical comment.</li>
+    <li><b>At risk (mutate+commit+serialize, no refresh):</b> <code>scene_packets.py:390</code> batch-approve; <code>production.py:186</code> cancel, <code>:196</code> resume, <code>:532</code> approve-final, <code>:354/:381</code> apply/approve-apply repair, <code>:409</code> reject, <code>:421</code> rollback, <code>:459</code> update-sequence, <code>:492</code> approve-sequence, <code>:504</code> revise-sequence, <code>:447</code> derive-sequence.</li>
+  </ul>
+  <div class="scores">
+    <span class="sc">sev <b>4</b></span><span class="sc">conf <b>4</b></span><span class="sc">lev <b>5</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span>
+    <span class="sc neg">blast <b>4</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span><span class="sc">priority <b class="pri hi">13</b></span>
+  </div>
+  <div class="note"><b>Preferred fix (not whack-a-mole):</b> a single enrichment seam — either the Out-builders <code>refresh</code> the row they return, a <code>refresh_then(session,row)</code> wrapper, or add <code>updated_at</code> to <code>RETURNING</code>/<code>eager_defaults</code> so no reload is needed. <b>Enforceable check:</b> a fitness test/lint asserting "no <code>model_validate</code>/enrich of an <code>onupdate</code> model after commit without a preceding refresh" makes the class non-recurring. Batch-approve (<code>scene_packets.py:390</code>, highest-traffic) first. <b>Likely also kills C7</b> (see N2).</div>
+</div>
+
+<!-- N10 -->
+<div class="cand" id="N10">
+  <h3><span class="cid">N10</span> No coverage tooling anywhere <span class="tag t-fitness">fitness-check</span></h3>
+  <div class="meta">lane: verification_readiness · prior: C14 · category: Build/CI</div>
+  <div class="kv"><b>Summary:</b> No <code>pytest-cov</code>/coverage dep, no <code>--cov</code>, no gate. Every "is X tested?" answer in this audit is read, not measured — including the N1 gap, which a coverage report over the production router would have flagged.</div>
+  <ul class="ev">
+    <li><code>pyproject.toml:25</code> dev extras = pytest/pytest-asyncio/ruff/pyright; <code>.github/workflows/ci.yml:149</code> <code>pytest -q -rs</code> (no --cov); repo-wide grep for coverage = 0 matches.</li>
+  </ul>
+  <div class="scores"><span class="sc">sev <b>2</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>5</b></span><span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>1</b></span><span class="sc neg">human <b>2</b></span><span class="sc">priority <b class="pri hi">16</b></span></div>
+  <div class="note">Start with a report artifact (not a hard floor), then ratchet. Part of the serialized "Wave 3" CI/config lane.</div>
+</div>
+
+<!-- N9 -->
+<div class="cand" id="N9">
+  <h3><span class="cid">N9</span> CI pyright is changed-files-only — whole-repo type drift ships green <span class="tag t-fitness">fitness-check</span></h3>
+  <div class="meta">lane: verification_readiness · prior: C13 · category: Build/CI</div>
+  <div class="kv"><b>Summary:</b> The static job type-checks only files changed vs merge-base; full <code>pyright</code> (in justfile) never runs in CI. A signature edit that breaks a distant caller ships green.</div>
+  <ul class="ev"><li><code>.github/workflows/ci.yml:107</code> runs <code>scripts/ci_pyright_changed.sh</code>; <code>scripts/ci_pyright_changed.sh:8-13</code> scopes to the diff (empty → exit 0); <code>justfile:16</code> full <code>typecheck</code> unwired.</li></ul>
+  <div class="scores"><span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span><span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span><span class="sc">priority <b class="pri hi">13</b></span></div>
+  <div class="note">A scheduled/full-tier full-pyright job. Directly reinforces N5's wire-contract integrity. Serialized "Wave 3" lane.</div>
+</div>
+
+<!-- N5 -->
+<div class="cand" id="N5">
+  <h3><span class="cid">N5</span> types.ts drift gate absent + nested-JSON hand-mirrors + optionality drifts <span class="tag t-fitness">fitness</span> <span class="tag t-design">design</span></h3>
+  <div class="meta">lanes: blast_radius · prior: C1-remainder · merged_from: BR2-1, BR2-2, BR2-3, BR2-6 · category: Data/Schema/Contract · execution: connected-impact-sweep</div>
+  <div class="kv"><b>Summary:</b> Wave 1's safe slice shrank the hand-mirror but left the guard unbuilt. (a) <b>BR2-1</b> — <code>codegen:check</code> diffs only <code>openapi.json</code>↔<code>generated.ts</code>; nothing validates the ~250 hand lines in <code>types.ts</code>. (b) <b>BR2-2</b> — packet/scene-packet bodies are opaque JSONB (<code>dict[str,Any]</code>), so ~180 lines of <code>PacketBody</code>/<code>ScenePacketBody</code>/<code>QaIssue</code> mirrors have <i>no</i> schema anchor at all — the largest unguarded surface. (c) <b>BR2-3</b> — 4 optionality drifts survive (<code>ProductionRunCreateIn.mode/auto_triage</code>, <code>ProductionRunRollupOut</code>, <code>EditorialAgentRunOut</code>, <code>BatchRunStartIn.gate_mode</code>). (d) <b>BR2-6</b> — redundant nullability overlays remain.</div>
+  <ul class="ev">
+    <li><code>frontend/package.json:19</code> codegen:check scope; <code>.github/workflows/ci.yml:178</code> no types.ts assertion.</li>
+    <li><code>schemas.py:420,423</code> opaque JSONB body/sources → <code>types.ts:308-336,459-470</code> hand mirrors (PacketBody, ScenePacketBody).</li>
+    <li><code>schemas.py:2032,595,606,333</code> the 4 drifting DTOs → <code>types.ts:489-499,197-213,244-247</code> hand overlays.</li>
+  </ul>
+  <div class="scores"><span class="sc">sev <b>4</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>5</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span><span class="sc neg">blast <b>5</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>3</b></span><span class="sc">priority <b class="pri mid">12</b></span></div>
+  <div class="note"><b>Human-decision (schema-or-architecture / public-contract):</b> what the gate asserts (structural equality vs. "referenced <code>S[...]</code> keys still exist"); whether to promote JSONB bodies to real Pydantic sub-models (BR2-2); and per-field optionality moves (BR2-3). The drift-gate (BR2-1) is the high-leverage enforceable slice; BR2-6 overlay cleanup is a mechanical fitness-check.</div>
+</div>
+
+<!-- N4 -->
+<div class="cand" id="N4">
+  <h3><span class="cid">N4</span> Duplicated approval-gate domain language (packet vs scene_packet) <span class="tag t-design">design</span></h3>
+  <div class="meta">lane: deepening_seams · prior: C5 · category: Maintainability/Architecture</div>
+  <div class="kv"><b>Summary:</b> <code>packet/approval_policy.py</code> (153) and <code>scene_packet/approval_policy.py</code> (240) reimplement one approval protocol — identical function names + <code>(state, reasons)</code> vocabulary + <code>resolve_blocked_reason</code> lookup + <code>enrich model_copy</code> shape — with divergent bodies (scene adds RATE_LIMITED/STALE/blocker_source).</div>
+  <ul class="ev">
+    <li><code>packet/approval_policy.py:89-117</code> vs <code>scene_packet/approval_policy.py:99-130</code> — same names, forked bodies.</li>
+    <li><code>packet/approval_policy.py:51-60</code> vs <code>scene_packet/approval_policy.py:56-69</code> — <code>resolve_blocked_reason</code> near-identical, forked.</li>
+  </ul>
+  <div class="scores"><span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span><span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>3</b></span><span class="sc">priority <b class="pri mid">12</b></span></div>
+  <div class="note">Extract the <code>(state,reasons)</code> protocol + <code>resolve_blocked_reason</code> helper + enrich shape as a shared gate mixin — <b>not</b> a forced merge (bodies genuinely differ). Needs the two-tier-packet ADR (shared with N6).</div>
+</div>
+
+<!-- N6 -->
+<div class="cand" id="N6">
+  <h3><span class="cid">N6</span> Enum vocabulary not single-sourced across Python↔TS <span class="tag t-fitness">fitness-check</span> <span class="blocked">⚑ human-decision</span></h3>
+  <div class="meta">lanes: blast_radius, deepening_seams · prior: C11 · merged_from: BR2-5, DS2-3 · category: Data/Schema/Contract</div>
+  <div class="kv"><b>Summary:</b> DTO fields annotate status as bare <code>str</code> (e.g. <code>ScenePacketOut.status: str</code>), erasing the StrEnum from OpenAPI, so the frontend hand-writes unions (ScenePacketStatus, LengthStatus, RuleKind) — and <code>ChapterKind</code> is triple-copied (union + KNOWN array + SECTION array in <code>labels.ts</code>). A member add is invisible to the TS side. Contrast: GateMode/Decision/SuggestionStatus <i>do</i> reach OpenAPI and are re-exported — the seam is inconsistent, not uniformly hand-rolled.</div>
+  <ul class="ev">
+    <li><code>enums.py:168-178,190-197</code> vs <code>types.ts:255-264</code> hand unions; <code>schemas.py:417</code> <code>status: str</code> erases the enum; <code>desk/manuscript/labels.ts:6-26</code> ChapterKind triple-copy.</li>
+  </ul>
+  <div class="scores"><span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>3</b></span><span class="sc">test <b>5</b></span><span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span><span class="sc">priority <b class="pri mid">12</b></span></div>
+  <div class="callout"><b>Enforceable slice (no wire change):</b> an enum-parity fitness check — each hand union's members == the generated schema enum (or the Python StrEnum). <b>Human-decision (schema/compat):</b> typing DTO fields with the enum vs. keeping <code>str</code> for legacy-row tolerance (several enums note "readers tolerate both spellings") is a wire-serialization decision → the full consolidation stays <code>blocked-needs-human-decision</code>.</div>
+</div>
+
+<!-- N7 -->
+<div class="cand" id="N7">
+  <h3><span class="cid">N7</span> action_kind cross-language routing — new value routes to the wrong default <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: blast_radius · prior: C10 · category: Wiring/Integration</div>
+  <div class="kv"><b>Summary:</b> <code>pipeline_status.py</code> emits 8 <code>action_kind</code> values; <code>PipelineScreen.tsx</code> branches on bare <code>===</code> literals with binary fallbacks (any non-<code>approve_apply</code> → Verify button; only <code>draft_missing</code>/<code>decide_issue</code> show the packets pane). Typed <code>str|null</code> — no exhaustiveness. A new server value silently mis-routes.</div>
+  <ul class="ev"><li><code>schemas.py:1776</code> <code>action_kind: str|None</code>; <code>pipeline_status.py:72-117,479</code> 8 producer literals; <code>PipelineScreen.tsx:697,725</code> literal branches + fallbacks.</li></ul>
+  <div class="scores"><span class="sc">sev <b>3</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span><span class="sc neg">blast <b>3</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>4</b></span><span class="sc">priority <b class="pri mid">11</b></span></div>
+  <div class="note"><b>Human-decision (cross-boundary routing):</b> whether the generic fallback for resume/align/retry/verify is intended product behavior. Making <code>action_kind</code> a named enum/TS union gives exhaustiveness. Adjacent to N6.</div>
+</div>
+
+<!-- N13 -->
+<div class="cand" id="N13">
+  <h3><span class="cid new">N13</span> Residual reconcile-beats leak — router hand-reconciles after inline status mutations <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: deepening_seams · prior: new (DS2-4) · category: Architecture Fitness · overlaps N1's mutation sites</div>
+  <div class="kv"><b>Summary:</b> The facade folded derive/approve→beats, but <code>update_scene_packet</code> and <code>mark_scene_packets_stale</code> still mutate <code>status</code> inline in the router and must remember <code>reconcile_beats</code> — the same temporal-coupling-at-call-site the facade was built to kill, surviving for the two status-flip endpoints (the facade docstring admits it).</div>
+  <ul class="ev"><li><code>scene_packets.py:290-304</code> (update), <code>:439-447</code> (mark-stale) inline <code>row.status=</code> + manual reconcile; <code>scene_packet/__init__.py:10-16</code> docstring acknowledges the residual.</li></ul>
+  <div class="scores"><span class="sc">sev <b>2</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>2</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>4</b></span><span class="sc neg">blast <b>1</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>2</b></span><span class="sc">priority <b class="pri mid">13</b></span></div>
+  <div class="note">Two thin facade methods (<code>edit_scene_packet_status</code>/<code>mark_stale</code>) that mutate + reconcile + refresh in one place — would also naturally carry N1's refresh for these two handlers. Natural to fold into N1's connected-impact sweep.</div>
+</div>
+
+<!-- N11 -->
+<div class="cand" id="N11">
+  <h3><span class="cid">N11</span> DB tests self-skip locally; <code>just test</code> can't surface it <span class="tag t-triage">triage</span></h3>
+  <div class="meta">lane: verification_readiness · prior: C15 · category: Testing</div>
+  <div class="kv"><b>Summary:</b> The DB-backed majority skips when Postgres is unreachable; only CI sets <code>DOMINION_REQUIRE_DB</code>. <code>just test</code> has no <code>-rs</code>, so a local green bar may represent almost nothing.</div>
+  <ul class="ev"><li><code>tests/conftest.py:137-141</code> skip path; <code>ci.yml:136</code> CI-only require; <code>justfile:10</code> no <code>-rs</code>.</li></ul>
+  <div class="scores"><span class="sc">sev <b>2</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>3</b></span><span class="sc">loc <b>4</b></span><span class="sc">test <b>4</b></span><span class="sc neg">blast <b>2</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>3</b></span><span class="sc">priority <b class="pri mid">11</b></span></div>
+  <div class="note">Add <code>-rs</code> to <code>just test</code>; optional <code>just test-db</code>. Serialized "Wave 3" lane.</div>
+</div>
+
+<!-- N8 -->
+<div class="cand" id="N8">
+  <h3><span class="cid">N8</span> No authentication on any API endpoint <span class="tag t-design">design</span> <span class="blocked">⚑ human-decision (security)</span></h3>
+  <div class="meta">lane: graded_integrity · prior: C6 · category: Bug/Security · execution: blocked-needs-human-decision</div>
+  <div class="kv"><b>Summary:</b> Unchanged from Wave 1. <code>deps.py</code> exposes only a DB-session dependency; no auth anywhere. Destructive + token-spending endpoints reachable at the public Railway URL.</div>
+  <ul class="ev"><li><code>api/deps.py:1-28</code> only <code>SessionDep</code>; <code>api/main.py:125-127</code> only CORS; <code>config.py:266-270</code> cors default-empty (hygiene ok, not authz).</li></ul>
+  <div class="scores"><span class="sc">sev <b>4</b></span><span class="sc">conf <b>5</b></span><span class="sc">lev <b>4</b></span><span class="sc">loc <b>5</b></span><span class="sc">test <b>4</b></span><span class="sc neg">blast <b>5</b></span><span class="sc neg">regr <b>2</b></span><span class="sc neg">human <b>4</b></span><span class="sc">priority <b class="pri mid">11</b></span></div>
+  <div class="callout bad"><b>Blocked on decision (security):</b> shared-secret header at the BFF↔API seam vs. accept the risk for a private single-user Railway deploy. <code>human_decision_risk 4</code> → queues behind the decision.</div>
+</div>
+
+<!-- Compact ledger for the rest -->
+<h3>Remaining ledger (lower priority / carried)</h3>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Prior</th><th>Scores (S/C/L/Lo/T · B/R/H)</th><th>Pri</th><th>Action</th></tr>
+  <tr><td><b>N2</b></td><td>Sweeper <code>greenlet_spawn</code> race — likely the same class as N1</td><td>C7</td><td>3/3/3/3/2 · 2/2/2</td><td class="pri lo">7</td><td><span class="tag t-diagnose">diagnose</span></td></tr>
+  <tr><td><b>N3</b></td><td><code>production.py</code> ~33 phantom circular-import shims + god-modules</td><td>C2</td><td>3/4/4/3/3 · 3/3/3</td><td class="pri lo">8</td><td><span class="tag t-design">design</span></td></tr>
+  <tr><td><b>N12</b></td><td>LLM mock seam unenforced (direct import would escape)</td><td>C19</td><td>3/4/4/3/4 · 4/3/2</td><td class="pri lo">9</td><td><span class="tag t-fitness">fitness</span></td></tr>
+  <tr><td><b>N14</b></td><td><code>background_work.py</code> leaks repair-domain into generic queue-drain</td><td>new</td><td>2/4/2/4/3 · 2/3/2</td><td class="pri lo">8</td><td><span class="tag t-triage">triage</span></td></tr>
+  <tr><td><b>N15</b></td><td>Strict-xfail ERRORs (not xfails) if its DB fixture throws; flip-risk if bug nondeterministic</td><td>new</td><td>2/4/2/5/4 · 2/3/2</td><td class="pri mid">10</td><td><span class="tag t-triage">triage</span></td></tr>
+  <tr><td><b>N16</b></td><td>Sweeper loop tests inject all 4 collaborators → default wiring never runs</td><td>new</td><td>2/4/2/4/3 · 2/2/1</td><td class="pri mid">10</td><td><span class="tag t-triage">triage</span></td></tr>
+  <tr><td><b>N17</b></td><td>Untested generation modules (planner/oracle/owner_router; enrichment/reviewer lanes)</td><td>new</td><td>3/3/3/2/3 · 4/3/3</td><td class="pri lo">4</td><td><span class="tag t-triage">triage</span></td></tr>
+  <tr><td class="strike">VR2-6</td><td class="strike">Greenlet fix "fake-green"</td><td>—</td><td colspan="2"><span class="tag t-reject">rejected</span></td><td>refuted by N1 mechanism + CI evidence</td></tr>
+</table>
+
+<!-- 6 -->
+<h2>6 · Lane findings (raw → merged)</h2>
+<table>
+  <tr><th>Lane</th><th>Findings → merged candidate</th></tr>
+  <tr><td><b>Deepening seams</b></td><td>DS2-1→N3 · DS2-2→N4 · DS2-3→N6 · DS2-4→N13 · DS2-5→N14 · (facade verified clean)</td></tr>
+  <tr><td><b>Graded integrity</b></td><td>GI2-1→<b>N1</b> · GI2-2→N8 · GI2-3→N2 · GI2-4→N3</td></tr>
+  <tr><td><b>Blast radius</b></td><td>BR2-1/BR2-2/BR2-3/BR2-6→N5 · BR2-4→N7 · BR2-5→N6</td></tr>
+  <tr><td><b>Verification readiness</b></td><td>VR2-1→N9 · VR2-2→N10 · VR2-3→N11 · VR2-4→N12 · VR2-5→N15 · <span class="strike">VR2-6 rejected</span> · VR2-7→N16 · VR2-8→N17</td></tr>
+</table>
+
+<!-- 7 -->
+<h2>7 · Cross-lane duplicate groups</h2>
+<table>
+  <tr><th>Group</th><th>Candidate</th><th>Provenance</th></tr>
+  <tr><td><code>greenlet-enrich-class</code></td><td><b>N1</b> (+ N2 linked, N13 overlapping)</td><td>GI2-1 primary; GI2-3 (C7) same class; DS2-4 shares the two mutation handlers</td></tr>
+  <tr><td><code>production-god-modules</code></td><td><b>N3</b></td><td>DS2-1 (phantom shims) + GI2-4 (module size + scattered status transitions)</td></tr>
+  <tr><td><code>types.ts-contract</code></td><td><b>N5</b></td><td>BR2-1 (gate) + BR2-2 (JSONB mirrors) + BR2-3 (optionality) + BR2-6 (overlays)</td></tr>
+  <tr><td><code>enum-vocabulary</code></td><td><b>N6</b></td><td>BR2-5 (Python↔wire) + DS2-3 (TS unions + ChapterKind triple-copy)</td></tr>
+</table>
+<p class="sub">The two-tier packet ADR still governs N4, N6, N13 (and N7 is adjacent). N1's serialize/refresh seam is coupled to N3's god-module state-machine sprawl — consolidating the production state machine would de-risk both N1 and N2.</p>
+
+<!-- 8 -->
+<h2>8 · Human-decision blockers</h2>
+<table>
+  <tr><th>Candidate</th><th>Category</th><th>The fork</th></tr>
+  <tr><td><b>N8</b> ⚑</td><td>Security</td><td>Shared-secret header vs. accept-risk on a private Railway deploy. (unchanged)</td></tr>
+  <tr><td><b>N6</b> ⚑</td><td>Schema / migration-compat</td><td>Type DTO fields with the enum (wire change) vs. keep <code>str</code> for legacy-spelling tolerance. The parity <i>check</i> is unblocked; the field-typing is not.</td></tr>
+  <tr><td>N5</td><td>Public-contract + architecture</td><td>What the drift gate asserts; whether to promote JSONB bodies to Pydantic sub-models; per-field optionality moves.</td></tr>
+  <tr><td>N7</td><td>Cross-boundary routing</td><td>Is the generic <code>action_kind</code> fallback intended or a gap?</td></tr>
+  <tr><td>N4</td><td>Architecture</td><td>Should the two packet tiers share an approval-gate abstraction?</td></tr>
+</table>
+
+<!-- 9 -->
+<h2>9 · Quick wins</h2>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Pri</th><th>Loc</th><th>Blast</th></tr>
+  <tr><td><b>N10</b></td><td>Coverage report in CI</td><td class="pri hi">16</td><td>5</td><td>2</td></tr>
+  <tr><td><b>N13</b></td><td>Two facade methods for status-flip endpoints (folds into N1)</td><td class="pri hi">13</td><td>5</td><td>1</td></tr>
+  <tr><td><b>N9</b></td><td>Full pyright CI job</td><td class="pri hi">13</td><td>4</td><td>3</td></tr>
+  <tr><td><b>N11</b></td><td><code>-rs</code> on <code>just test</code></td><td class="pri mid">11</td><td>4</td><td>2</td></tr>
+</table>
+
+<!-- 10 -->
+<h2>10 · High-leverage deep work</h2>
+<table>
+  <tr><th>ID</th><th>Title</th><th>Lev</th><th>Blast</th><th>Why</th></tr>
+  <tr><td><b>N1</b></td><td>Greenlet serialize/refresh seam + fitness check</td><td>5</td><td>4</td><td>Kills a ~12-site latent-500 class and prevents recurrence; likely resolves N2.</td></tr>
+  <tr><td><b>N5</b></td><td>types.ts drift gate + JSONB mirror strategy</td><td>5</td><td>5</td><td>Closes the whole Python↔TS drift class Wave 1 only partially addressed.</td></tr>
+  <tr><td><b>N3</b></td><td>Production state-machine re-cut (de-shim + own the transitions)</td><td>4</td><td>3</td><td>The scattered status transitions are <i>why</i> N1/N2 recur — one owning seam de-risks both.</td></tr>
+</table>
+
+<!-- 11 -->
+<h2>11 · Unsafe-to-auto-execute</h2>
+<table>
+  <tr><th>ID</th><th>Human</th><th>Regr</th><th>Why</th></tr>
+  <tr><td><b>N8</b></td><td>4</td><td>2</td><td>Security posture decision.</td></tr>
+  <tr><td><b>N6</b> (field-typing)</td><td>2*</td><td>2</td><td>Wire-serialization + legacy-spelling compat; the parity check is safe, the typing isn't.</td></tr>
+  <tr><td><b>N3</b></td><td>3</td><td>3</td><td>God-module refactor on the serial critical path; only the drafter-only slice is test-covered (see §12). De-shim is low-risk; the re-cut is not.</td></tr>
+  <tr><td><b>N2</b></td><td>2</td><td>2</td><td>Data-specific, unreproduced; instrument the captured traceback before fixing.</td></tr>
+</table>
+
+<!-- 12 -->
+<h2>12 · Verification readiness</h2>
+<p>Wave 1 raised the floor: the whole serial chapter run, the live embedding branch, the sweeper scheduling loop, and the fence stripper are now driven; the e2e gate bites; reconcile regressions guard the beat-pruning decision; and the strict-xfail is a self-removing tripwire for the <code>missing_scene</code> bug. Unchanged: no full pyright in CI (N9), zero coverage tooling (N10), local DB-skip invisibility (N11), unenforced LLM seam (N12). New gaps: the sweeper loop's <b>default composition</b> is never run (all 4 collaborators injected — N16), and the whole-run harness deliberately switches enrichment/reviewer lanes OFF, so those paths + the post-assembly issue lifecycle are green-uncovered (N17).</p>
+<div class="callout">
+  <b>Un-provable until a harness exists:</b> an <b>N3</b> production re-cut can only be proven against the drafter-only harness slice — enrichment/reviewer lanes and the post-assembly issue lifecycle have no green test. <b>N1</b>'s fix is regression-guarded in CI for the two scene_packet handlers (the reconcile tests exercise the enrich path — CI-proven), but the ~12 production.py siblings need their own red-capable tests or the N1 fitness lint. Any planner/oracle/owner_router fix is currently un-provable (N17).
+</div>
+
+<!-- 13 -->
+<h2>13 · Recommended queue</h2>
+<p class="sub">Priority order; blocked candidates listed as decisions-needed. This is a report — nothing auto-selected; a later loop resumes at the candidate gate.</p>
+<table>
+  <tr><th>#</th><th>ID</th><th>Title</th><th>Pri</th><th>Action</th><th>Notes</th></tr>
+  <tr><td>1</td><td><b>N1</b> 🔴</td><td>Greenlet enrich-after-commit class (+N13, +likely N2)</td><td class="pri hi">13</td><td><span class="tag t-directfix">direct-fix</span> +<span class="tag t-fitness">fitness</span></td><td><b>Top pick.</b> Confirmed live-500 class; a serialize/refresh seam + fitness lint fixes all ~12 sites and prevents recurrence. Fold in N13.</td></tr>
+  <tr><td>2</td><td><b>N10</b>+<b>N9</b>+<b>N11</b></td><td>CI hardening (coverage, full pyright, skip-visibility)</td><td class="pri hi">16/13/11</td><td><span class="tag t-fitness">fitness</span></td><td>The serialized "Wave 3" CI/config lane (also N12).</td></tr>
+  <tr><td>3</td><td><b>N5</b></td><td>types.ts drift gate + JSONB mirror strategy</td><td class="pri mid">12</td><td><span class="tag t-fitness">fitness</span>/<span class="tag t-design">design</span></td><td>Build the gate (safe); decide JSONB/optionality (design).</td></tr>
+  <tr><td>4</td><td><b>N6</b></td><td>Enum parity check</td><td class="pri mid">12</td><td><span class="tag t-fitness">fitness</span></td><td>Parity check unblocked; field-typing behind the ADR.</td></tr>
+  <tr><td>5</td><td><b>N4</b></td><td>Unify approval gate</td><td class="pri mid">12</td><td><span class="tag t-design">design</span></td><td>Two-tier packet ADR (shared with N6/N13/N7).</td></tr>
+  <tr><td>6</td><td><b>N7</b></td><td>action_kind exhaustiveness</td><td class="pri mid">11</td><td><span class="tag t-triage">triage</span></td><td>Routing-intent decision first.</td></tr>
+  <tr><td>7</td><td><b>N3</b> → <b>N2</b></td><td>De-shim production.py, then diagnose the sweeper race</td><td class="pri lo">8/7</td><td><span class="tag t-design">design</span></td><td>Cheap de-shim (after a smoke-import cycle check); god-module re-cut is a design pass; N2 likely resolved by N1.</td></tr>
+  <tr><td>8</td><td>N12·N14·N15·N16·N17</td><td>Triage tier</td><td class="pri lo">4–10</td><td>mixed</td><td>Batch as capacity allows.</td></tr>
+  <tr><td>—</td><td><b>N8</b> ⚑</td><td>API auth</td><td class="pri mid">11</td><td class="blocked">decision needed</td><td>Security fork.</td></tr>
+</table>
+
+<div class="foot">
+  Read-only Repo Audit Swarm (pass 2) · 4 lanes · merged &amp; scored by Agent 0 per REPORT-SCORING.md ·
+  23 raw findings → 17 candidates (1 rejected with evidence) · Realmwalkers @ <code>main 2b6e18b</code> · 2026-07-07 ·
+  No production code, tests, configs, or fixtures were modified. Prior: <code>codebase_integrity_audit_2026-07-07.html</code> (pass 1 / Wave 1).
+</div>
+
+</div>
+</body>
+</html>
