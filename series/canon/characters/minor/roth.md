@@ -52,7 +52,7 @@ Roth is institutional power wearing patience as a face. He is the man who arrive
 
 ### Baseline Strengths
 - Composed, controlled, institutionally fluent
-- Frames coercion as necessity — "Bureaucracy leaves us very little choice" (the launch-teaser / hijack line, per the SCENE-002/003 brief; **not yet canonized on-page** — confirm at SCENE-002 canonization)
+- Frames coercion as necessity through legally broad, technically true phrasing — the locked Scene 3 line is **"You may log out at any time"**, delivered before the six discover "you" doesn't include them. This is his primary consent-capture instrument: true enough to defend, false enough to be monstrous. ("Bureaucracy leaves us very little choice" is retired as the hijack line — superseded by the above; do not use both.)
 - Makes the inevitable sound reasonable
 
 ### Failure Mode
@@ -70,6 +70,8 @@ Roth is institutional power wearing patience as a face. He is the man who arrive
 
 ### Earth Life
 *TBD — established only as an Astria figure, the face of the launch teaser, with the badge/access Marcus's side of the building does not have.*
+
+**Physical manifestation at the hijack (Scene 3, drafted):** he appears visually, not just as a voice — a man in a gray business suit standing where Dead Hand's guild leader was, un-rigged for the encounter (no character model, no idle animation, ordinary shoes on broken stone). He does not move for the remainder of the scene. Locked image, pending scene acceptance.
 
 ### Affiliation
 Astria. He is on the side of the building "you needed a different badge to enter" — the device side, the part that produced the quantum processor marketed to "reshape the very fabric of our lives." He is the human face Astria puts on the intrusion into Marcus's private competitive life.
@@ -107,7 +109,7 @@ The face of the inciting intrusion: Astria commandeering the scrim. He carries t
 - Full name / title / exact role at Astria?
 - Is "Roth" ever surfaced on-page, or does he stay the unnamed suited figure?
 - His relationship to the device side of Astria and to whoever (or whatever) is actually steering the control-cohort outcomes Marcus caught — ⚠ likely connected; unestablished.
-- Confirm the "Bureaucracy leaves us very little choice" line at SCENE-002 canonization (currently brief-sourced, not on-page canon).
+- ~~Confirm the "Bureaucracy leaves us very little choice" line at SCENE-002 canonization.~~ **RESOLVED:** retired as the hijack line — superseded by the locked Scene 3 line **"You may log out at any time"** (see Baseline Strengths). Do not use both.
 - Does he recur past the Earth acts?
 
 ---

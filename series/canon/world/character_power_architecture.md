@@ -138,7 +138,7 @@ The eyes are his interface; the Realmwalker class is his planar-crossing path. T
 | Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Specular Salience Transduction |
 | Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Pyric Blood |
 | Brent Donovan | Civil engineer | Healer/Support | **Warden** → **Reckoner** (Book-2 dir.) | Piezoelectric Bones |
-| Mathias Sterling | TBD (IT/infrastructure lean) | Ranger (Scout) | **Scout** | Enteric Lattice |
+| Mathias Sterling | TBD (IT/infrastructure lean) | Strider (Scout) | **Scout** | Enteric Lattice |
 | Illyristranthe (Illyri) | N/A — celestial | N/A | N/A | Ancient celestial interface — diminished fragment |
 
 ---

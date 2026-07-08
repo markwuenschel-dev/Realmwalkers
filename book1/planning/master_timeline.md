@@ -35,9 +35,9 @@
 | Marcus working late at Astria (ML engineer) on a model anomaly — a control cohort producing outcomes it shouldn't; he distrusts a confident model that can't explain itself | Marcus |
 | Scrim begins — 404:Aim Not Found vs. Dead Hand; Seb, Brent, Mathias present | Marcus |
 | **Serra (Dead Hand's star rogue) logs in late**; the Marcus/Serra duel — recognition through play, equals, interrupted before it resolves; Mara hidden and unidentified by both Marcus and Mathias (**Dead Hand's salience-suppressed second assassin, Serra's tandem** — never surfaced) | Marcus |
-| Astria seizes the session — Roth's voice runs consent capture (procedure, not pitch); manufactured tornado boss voids scrim logic; logout dead | Full group |
-| **Seb's brother dies during the scrim** — the rescue lever Astria built the offer around collapses in real time; Seb's consent becomes grief, not rescue | Seb / Full group |
-| Marcus, Seb, Brent, Mathias verbally consent under duress; Dead Hand exits (Serra was on-page — her duel with Marcus cut short by the seize) | Core four |
+| Astria seizes the session — Roth's voice runs consent capture (procedure, not pitch); Astria hijacks/escalates the Storm Warden's existing cyclone phase (not a separate manufactured boss); logout selectively locked — works for non-selected players, dead for the six | Full group |
+| **Seb's brother Micah dies shortly before the scrim, not during it** — the reason for his late login; Astria's Scene 3 consent capture does not depend on a rescue lever (that's Book-2+ Broker material). Seb's consent reads as grief-shaped over-control | Seb / Full group |
+| Marcus, Seb, Brent, Mathias verbally consent under duress; Dead Hand **thins** — non-selected Dead Hand players log out once the lock proves selective, Serra and Mara do not (her duel with Marcus cut short by the seize); Kip and other non-selected 404 players log out, Kip under Seb's direct order | All six |
 
 ### June 28 (Earth Day 1)
 | Event | POV |

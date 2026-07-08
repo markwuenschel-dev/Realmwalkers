@@ -147,7 +147,7 @@ This is where Marcus's **Neurochromatic eyes first turn on** — and where the *
 
 **Charge:** He was their center. They were his reason.
 
-**Dynamic:** Seb's leadership was real — genuinely good at it, genuinely cared about the people under him. His brother's treatment need was the lever Astria built the offer around — a real lever on a real wound — but the brother dies during the Day 0 scrim, before consent. The lever collapses in real time: the reason Seb came is gone before he signs, and he signs anyway, from grief and freefall. In the Realm, with the brother dead and the guild scattered, the question becomes what he becomes when the thing he would have paid any price for is already lost — and a voice offers to give it back.
+**Dynamic:** Seb's leadership was real — genuinely good at it, genuinely cared about the people under him. His brother's treatment need was the lever Astria built the offer around — a real lever on a real wound — but his brother, Micah, dies shortly before the Day 0 scrim, not during it, before consent (it's why Seb logs in late). The lever is already gone: the reason Seb came is gone before he signs, and he signs anyway, from grief and freefall. In the Realm, with the brother dead and the guild scattered, the question becomes what he becomes when the thing he would have paid any price for is already lost — and a voice offers to give it back.
 
 **Current status:** Separated from the guild. Brother recently dead — the wound the cross-world broker will exploit. Arc bending toward the power source that will define him.
 

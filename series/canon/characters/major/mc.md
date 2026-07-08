@@ -607,6 +607,8 @@ The following elements originate entirely from the author's writing and should b
 
 > **SCENE-001 confirmed (Earth canon):** Marcus's Aetherfall class is **Aspect** — four-form / adaptive. He is **NOT an archer** ("Aim Not Found" is the guild's ironic name, not his role). In SCENE-001 he loads into the scrim lobby in **matte-black plate** ("a man in matte-black plate standing in a warehouse"), the avatar reading wrong for the staging-warehouse room the way it always does.
 
+> **Switching mechanic (locked):** Aspect forms are combat shells layered over Marcus's scanned biometric base avatar. A switch takes roughly one second: the first half **strips** the old shell (exposing the bare scan underneath), the second half **loads** the new one. No Aspect ability is usable until the new shell fully loads — there is always a bare window between forms. This is not magical, instinctive, or system-label-based; it is mechanical and costs a real, visible window every time. Serra's SCENE-001 recognition of Marcus happens specifically because she damages/exposes him during one of these strip-windows — the mechanism must stay consistent wherever a switch is shown on-page (SCENE-002 draft: an attempted mid-hijack switch fails to complete during the load half, leaving him stalled bare-shelled — same underlying mechanic, new failure mode).
+
 ### Core Identity
 The Aspect is a multi-form class with four distinct operational modes. Most players pick their strongest form and treat the others as situational. Marcus rotates all four in real time based on what the fight needs. This is not standard — the cognitive load of tracking four resource systems simultaneously while reading a team fight is prohibitive for almost everyone.
 
