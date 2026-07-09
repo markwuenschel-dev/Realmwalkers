@@ -1,48 +1,58 @@
-"""Fitness check for the C1 greenlet class: no ORM-attribute reads on a loop row inside `_sweep_one_run`'s
-except handlers.
+"""Fitness check for the greenlet class: no ORM-row attribute reads inside the except handler of ANY
+savepoint-bearing function in sweeper.py.
 
-Every `except` in `_sweep_one_run` follows a `session.begin_nested()` savepoint. On a mid-stage failure the
-savepoint rolls back and expires the row's flushed attributes, so reading `task.<attr>` / `run.<attr>` there
-(even `task.id`) is a sync lazy-load on the async session -> MissingGreenlet. The fix captures primitives
-(`tid`, `task_id`, `authority`) before the savepoint; this check keeps a future edit from reintroducing the
-class. Pure static analysis — no DB, always runs.
+Every `session.begin_nested()` savepoint that rolls back on a mid-stage failure expires the flushed
+row's attributes, so reading `task.<attr>` / `run.<attr>` in the following except (even `task.id`) is a
+sync lazy-load on the async session -> MissingGreenlet (the N1/C1 class). The fix captures primitives
+before the savepoint. This scans every function that opens a savepoint — not just `_sweep_one_run` — so a
+new savepoint helper can't silently reintroduce the class. Pure static analysis; no DB, always runs.
+
+Scope/known bound: keyed to the literal loop-row names below and to `sweeper.py` (the only module that
+uses `begin_nested`). A renamed loop var or a savepoint added in another module would slip past — widen
+`_ORM_ROW_NAMES` / `_GUARDED_MODULES` when that happens.
 """
 
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from pathlib import Path
 
 import dominion.workers.sweeper as sweeper_mod
 
-# Loop rows whose attributes must never be read inside an except handler in the guarded function.
+# Loop rows whose attributes must never be read inside an except handler after a savepoint.
 _ORM_ROW_NAMES = {"task", "run"}
-_GUARDED_FUNC = "_sweep_one_run"
 
 
-def _orm_reads_in_except(source: str, func_name: str) -> list[tuple[int, str]]:
-    """Return (lineno, "name.attr") for every ORM-row attribute read inside an except handler of the
-    named function. Scoped to func_name because every except there sits after a begin_nested savepoint."""
+def _savepoint_functions(source: str) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
+    """Every function/coroutine whose body opens a `.begin_nested()` savepoint."""
     tree = ast.parse(source)
-    target = next(
-        (n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef | ast.FunctionDef) and n.name == func_name),
-        None,
-    )
-    assert target is not None, f"{func_name} not found in source"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef) and any(
+            isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and c.func.attr == "begin_nested"
+            for c in ast.walk(node)
+        ):
+            yield node
+
+
+def _orm_reads_in_except(func: ast.AsyncFunctionDef | ast.FunctionDef) -> list[tuple[int, str]]:
+    """(lineno, "name.attr") for every ORM-row attribute read inside an except handler of `func`."""
     violations: list[tuple[int, str]] = []
-    for handler in (n for n in ast.walk(target) if isinstance(n, ast.ExceptHandler)):
+    for handler in (n for n in ast.walk(func) if isinstance(n, ast.ExceptHandler)):
         for node in ast.walk(handler):
             if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in _ORM_ROW_NAMES:
                 violations.append((node.lineno, f"{node.value.id}.{node.attr}"))
     return violations
 
 
-def test_sweeper_sweep_one_run_has_no_orm_reads_in_except():
+def test_sweeper_savepoint_functions_have_no_orm_reads_in_except():
     source = Path(sweeper_mod.__file__).read_text(encoding="utf-8")
-    violations = _orm_reads_in_except(source, _GUARDED_FUNC)
-    assert not violations, (
-        f"{_GUARDED_FUNC} reads ORM-row attributes inside an except handler (post-savepoint lazy-load / "
-        f"MissingGreenlet risk): {violations}. Capture a primitive before the savepoint instead."
+    funcs = list(_savepoint_functions(source))
+    assert funcs, "guard is inert: no begin_nested() savepoint found in sweeper.py"
+    problems = {f.name: v for f in funcs if (v := _orm_reads_in_except(f))}
+    assert not problems, (
+        f"savepoint function(s) read ORM-row attributes inside an except handler (post-savepoint "
+        f"lazy-load / MissingGreenlet risk): {problems}. Capture a primitive before the savepoint instead."
     )
 
 
@@ -57,5 +67,6 @@ def test_guard_flags_a_post_savepoint_orm_read():
         "        except Exception as exc:\n"
         "            log.error('boom', authority=task.authority_level)\n"
     )
-    violations = _orm_reads_in_except(bad, _GUARDED_FUNC)
-    assert (7, "task.authority_level") in violations
+    funcs = list(_savepoint_functions(bad))
+    assert len(funcs) == 1
+    assert (7, "task.authority_level") in _orm_reads_in_except(funcs[0])
