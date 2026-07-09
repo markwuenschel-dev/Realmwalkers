@@ -1,0 +1,3 @@
+# SceneFidelity model governance
+
+All adapters use one `scene_fidelity_model` role, one approved fidelity-capable fallback chain, and one bounded inflight setting. If no approved fallback is available, the adapter is incomplete; export-required incompleteness holds Production Run completion. Reports record requested and actual model, fallback use, model-role/config fingerprint, adapter telemetry, prompt version, facade version, and schema version. Prompt-version changes are provenance by default and require re-evaluation only when explicitly marked for recheck; per-mode model overrides require fixture evidence.

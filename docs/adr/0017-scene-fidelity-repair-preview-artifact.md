@@ -1,0 +1,3 @@
+# SceneFidelity repair previews
+
+After SceneFidelity creates an actionable Fidelity Critique, the system creates an immutable bounded repair-preview Artifact tied to that Critique, its report, source DraftAttempt, clause identifiers, prose hash, and packet fingerprint. The preview shows a diff, rationale, and preservation boundary but never changes the current Scene. Author acceptance or editing materializes a new normal scene revision and triggers fresh evaluation; rejection preserves the Critique and original evidence. A Repair Preview is never primarily owned by a later Production Run Issue.
