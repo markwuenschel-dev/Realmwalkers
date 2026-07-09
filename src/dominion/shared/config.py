@@ -2,13 +2,27 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _ENV_FILE = _REPO_ROOT / ".env"
+_log = logging.getLogger("dominion.config")
+
+
+def _to_asyncpg(v: str) -> str:
+    """Normalize a postgres URL to the asyncpg driver scheme the app connects with."""
+    if v.startswith("postgresql+asyncpg://"):
+        return v
+    for scheme in ("postgresql://", "postgres://"):
+        if v.startswith(scheme):
+            return "postgresql+asyncpg://" + v[len(scheme) :]
+    return v
 
 
 class Settings(BaseSettings):
@@ -24,13 +38,37 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _async_driver(cls, v: str) -> str:
-        for scheme in ("postgresql+asyncpg://",):
-            if v.startswith(scheme):
-                return v
-        for scheme in ("postgresql://", "postgres://"):
-            if v.startswith(scheme):
-                return "postgresql+asyncpg://" + v[len(scheme) :]
-        return v
+        return _to_asyncpg(v)
+
+    @model_validator(mode="after")
+    def _prefer_private_db_network(self) -> Settings:
+        """Never talk to Postgres over Railway's PUBLIC proxy if a private-network URL is available.
+
+        Every byte to a `*.proxy.rlwy.net` host leaves Railway's network and is billed as egress; the
+        `*.railway.internal` private domain is free. `DOMINION_DATABASE_URL` wins over the injected
+        `DATABASE_URL` by alias order, so a proxy URL set there would shadow a free private one — swap
+        to the private URL when one exists, and warn loudly when it doesn't."""
+        host = urlsplit(self.database_url).hostname or ""
+        if not host.endswith(".proxy.rlwy.net"):
+            return self
+        for var in ("DATABASE_URL", "DATABASE_PRIVATE_URL", "DATABASE_INTERNAL_URL"):
+            alt = os.environ.get(var, "")
+            if ".railway.internal" in alt:
+                self.database_url = _to_asyncpg(alt)
+                _log.warning(
+                    "db: DOMINION_DATABASE_URL pointed at the public proxy (%s) — switched to the private "
+                    "network host %s to avoid billed egress.",
+                    host,
+                    urlsplit(self.database_url).hostname,
+                )
+                return self
+        _log.warning(
+            "db: connecting over Railway's PUBLIC proxy (%s) — every query is billed as egress. Point "
+            "DOMINION_DATABASE_URL at the private '<service>.railway.internal:5432' URL, or unset it so the "
+            "injected private DATABASE_URL is used.",
+            host,
+        )
+        return self
 
     # Anthropic (the key uses its own conventional env var, not the DOMINION_ prefix)
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
