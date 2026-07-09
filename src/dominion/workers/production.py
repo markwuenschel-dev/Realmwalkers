@@ -37,6 +37,11 @@ from dominion.shared.models import (
     Scene,
     ScenePacket,
 )
+
+# Hoisted to module scope: production_sequence / production_repair do NOT import production back (nor does
+# anything in their import closure), so the old circular-import guard — a local re-import inside every
+# delegating function — was unnecessary. tests/test_production_import.py pins that this stays acyclic.
+from dominion.workers import production_repair, production_sequence
 from dominion.workers import production_support as support
 
 # L6 (run orchestration): pure stage machine — pinned stage strings + deterministic gates that must
@@ -45,13 +50,11 @@ from dominion.workers import run_stages  # isort: skip
 
 
 async def latest_chapter_sequence(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterSequence | None:
-    from dominion.workers import production_sequence
 
     return await production_sequence.latest_chapter_sequence(session, chapter_id)
 
 
 async def latest_draft_timeline(session: AsyncSession, production_run_id: uuid.UUID) -> DraftRunTimeline | None:
-    from dominion.workers import production_sequence
 
     return await production_sequence.latest_draft_timeline(session, production_run_id)
 
@@ -66,7 +69,6 @@ def _contract_item(
     source_reference: str,
     confidence: float = 1.0,
 ) -> dict[str, Any]:
-    from dominion.workers import production_sequence
 
     return production_sequence._contract_item(
         text=text,
@@ -82,25 +84,21 @@ def _contract_item(
 def derive_contract_classification(
     packet_body: dict[str, Any], open_questions: dict[str, Any] | None
 ) -> dict[str, Any]:
-    from dominion.workers import production_sequence
 
     return production_sequence.derive_contract_classification(packet_body, open_questions)
 
 
 def derive_chapter_sequence(packet_body: dict[str, Any]) -> dict[str, Any]:
-    from dominion.workers import production_sequence
 
     return production_sequence.derive_chapter_sequence(packet_body)
 
 
 def chain_scene_entry_states(body: dict[str, Any]) -> dict[str, Any]:
-    from dominion.workers import production_sequence
 
     return production_sequence.chain_scene_entry_states(body)
 
 
 def _int_or_none(value: Any) -> int | None:
-    from dominion.workers import production_sequence
 
     return production_sequence._int_or_none(value)
 
@@ -111,7 +109,6 @@ _ROSTER_NAME_STOPWORDS: frozenset[str] = frozenset({"the", "a", "an", "of"})
 
 
 def _roster_name_tokens(entry: str) -> list[str]:
-    from dominion.workers import production_sequence
 
     return production_sequence._roster_name_tokens(entry)
 
@@ -123,49 +120,41 @@ def run_chapter_draft_qa(
     packet_body: dict[str, Any] | None = None,
     open_questions: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    from dominion.workers import production_sequence
 
     return production_sequence.run_chapter_draft_qa(sequence_body, scene_rows, full_prose, packet_body, open_questions)
 
 
 def evaluate_chapter_sequence(body: dict[str, Any]) -> dict[str, Any]:
-    from dominion.workers import production_sequence
 
     return production_sequence.evaluate_chapter_sequence(body)
 
 
 async def ensure_chapter_sequence(session: AsyncSession, packet: ChapterPacket) -> ChapterSequence:
-    from dominion.workers import production_sequence
 
     return await production_sequence.ensure_chapter_sequence(session, packet)
 
 
 async def _latest_scene_map(session: AsyncSession, chapter_id: uuid.UUID) -> dict[int, Scene]:
-    from dominion.workers import production_sequence
 
     return await production_sequence._latest_scene_map(session, chapter_id)
 
 
 async def _scene_packet_map(session: AsyncSession, chapter_id: uuid.UUID) -> dict[int, ScenePacket]:
-    from dominion.workers import production_sequence
 
     return await production_sequence._scene_packet_map(session, chapter_id)
 
 
 async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
-    from dominion.workers import production_sequence
 
     return await production_sequence.assemble_run(session, run)
 
 
 async def queue_draft_jobs_for_missing_sequence_scenes(session: AsyncSession, run: ProductionRun) -> list[uuid.UUID]:
-    from dominion.workers import production_sequence
 
     return await production_sequence.queue_draft_jobs_for_missing_sequence_scenes(session, run)
 
 
 async def ensure_draft_run_timeline(session: AsyncSession, run: ProductionRun) -> DraftRunTimeline:
-    from dominion.workers import production_sequence
 
     return await production_sequence.ensure_draft_run_timeline(session, run)
 
@@ -173,7 +162,6 @@ async def ensure_draft_run_timeline(session: AsyncSession, run: ProductionRun) -
 async def update_timeline_after_scene(
     session: AsyncSession, production_run_id: uuid.UUID | None, scene: Scene
 ) -> DraftRunTimeline | None:
-    from dominion.workers import production_sequence
 
     return await production_sequence.update_timeline_after_scene(session, production_run_id, scene)
 
@@ -181,7 +169,6 @@ async def update_timeline_after_scene(
 async def _block_production_on_timeline_failure(
     session: AsyncSession, production_run_id: uuid.UUID, error: str
 ) -> None:
-    from dominion.workers import production_sequence
 
     return await production_sequence._block_production_on_timeline_failure(session, production_run_id, error)
 
@@ -189,7 +176,6 @@ async def _block_production_on_timeline_failure(
 async def mark_run_provider_rate_limited(
     session: AsyncSession, production_run_id: uuid.UUID, error: str
 ) -> ProductionRun | None:
-    from dominion.workers import production_sequence
 
     return await production_sequence.mark_run_provider_rate_limited(session, production_run_id, error)
 
@@ -533,8 +519,6 @@ async def create_production_run(
 
     await assemble_run(session, run)
     if auto_triage:
-        from dominion.workers import production_repair
-
         await production_repair.triage_production_run(session, run.id)
     await support.update_run_summary(session, run)
     return run
@@ -563,7 +547,6 @@ async def list_book_production_runs(session: AsyncSession, book_id: uuid.UUID) -
 
 
 async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> ProductionRun:
-    from dominion.workers import production_repair
 
     return await production_repair.triage_production_run(session, run_id)
 
@@ -575,7 +558,6 @@ async def apply_repair_task(
     human_approved: bool = False,
     approval_reason: str | None = None,
 ) -> RepairTask:
-    from dominion.workers import production_repair
 
     return await production_repair.apply_repair_task(
         session, task_id, human_approved=human_approved, approval_reason=approval_reason
@@ -583,7 +565,6 @@ async def apply_repair_task(
 
 
 async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> RepairVerification:
-    from dominion.workers import production_repair
 
     return await production_repair.verify_repair_task(session, task_id)
 
@@ -700,13 +681,11 @@ async def production_run_detail(session: AsyncSession, run_id: uuid.UUID) -> dic
 
 
 async def derive_chapter_sequence_for_chapter(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterSequence:
-    from dominion.workers import production_sequence
 
     return await production_sequence.derive_chapter_sequence_for_chapter(session, chapter_id)
 
 
 async def chapter_sequence_qa(session: AsyncSession, sequence_id: uuid.UUID) -> dict[str, Any]:
-    from dominion.workers import production_sequence
 
     return await production_sequence.chapter_sequence_qa(session, sequence_id)
 
@@ -714,19 +693,16 @@ async def chapter_sequence_qa(session: AsyncSession, sequence_id: uuid.UUID) -> 
 async def update_chapter_sequence(
     session: AsyncSession, sequence_id: uuid.UUID, body: dict[str, Any], reason: str | None = None
 ) -> ChapterSequence:
-    from dominion.workers import production_sequence
 
     return await production_sequence.update_chapter_sequence(session, sequence_id, body, reason)
 
 
 async def align_sequence_scene_count(session: AsyncSession, sequence_id: uuid.UUID) -> ChapterSequence:
-    from dominion.workers import production_sequence
 
     return await production_sequence.align_sequence_scene_count(session, sequence_id)
 
 
 async def approve_chapter_sequence(session: AsyncSession, sequence_id: uuid.UUID) -> ChapterSequence:
-    from dominion.workers import production_sequence
 
     return await production_sequence.approve_chapter_sequence(session, sequence_id)
 
@@ -798,7 +774,6 @@ async def decide_issue(
     reason: str | None = None,
     merged_into_issue_id: uuid.UUID | None = None,
 ) -> Issue:
-    from dominion.workers import production_repair
 
     return await production_repair.decide_issue(
         session,
@@ -810,19 +785,16 @@ async def decide_issue(
 
 
 async def production_run_repair_tasks(session: AsyncSession, run_id: uuid.UUID) -> list[RepairTask]:
-    from dominion.workers import production_repair
 
     return await production_repair.production_run_repair_tasks(session, run_id)
 
 
 async def reject_repair_task(session: AsyncSession, task_id: uuid.UUID, reason: str | None = None) -> RepairTask:
-    from dominion.workers import production_repair
 
     return await production_repair.reject_repair_task(session, task_id, reason)
 
 
 async def rollback_repair_task(session: AsyncSession, task_id: uuid.UUID, reason: str | None = None) -> RepairTask:
-    from dominion.workers import production_repair
 
     return await production_repair.rollback_repair_task(session, task_id, reason)
 
@@ -917,7 +889,6 @@ async def resume_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
     run = await session.get(ProductionRun, run_id)
     if run is None:
         raise ValueError("production run not found")
-    from dominion.workers import production_repair
 
     has_pending_repairs = any(
         task.status in {RepairTaskStatus.QUEUED, RepairTaskStatus.RUNNING}

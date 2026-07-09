@@ -99,12 +99,10 @@ jobs:
         run: uv run --no-sync ruff check src tests
       - name: ruff format (check)
         run: uv run --no-sync ruff format --check src tests
-      - name: pyright (changed files)
-        env:
-          GITHUB_BASE_REF: ${{ github.base_ref }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-        run: bash scripts/ci_pyright_changed.sh
+      - name: pyright (full src)
+        # Full-tree type check over src/ (pyproject scopes pyright to ["src"]). Was changed-files-only,
+        # which let a type regression in an untouched module ship unseen; src type-checks clean today.
+        run: uv run --no-sync pyright
 
   # ---- tests: real Postgres+pgvector on Python 3.14. --------------------------------------------
   tests:

@@ -52,3 +52,6 @@ reportMissingParameterType = "none"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
+# -rs surfaces skip reasons on every invocation (CI already passes it; this makes a bare local
+# `pytest` show the same, so a silently-skipped DB suite can't read as green). See conftest DB gate.
+addopts = "-rs"
