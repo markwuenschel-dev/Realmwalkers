@@ -1,0 +1,34 @@
+{
+  "id": "mutual_escalation_preserved",
+  "class": "delta_reviewed",
+  "title": "A mutually escalated relationship turn is preserved and must NOT flag.",
+  "purpose": "True-negative guard: when both parties actively drive the escalation, the relationship_turn adapter must return `satisfied` with positive prose evidence, not a false `lost`. Judgment fixture: a change here requires a written false-positive delta review (ADR 0015).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-mutual",
+        "mode": "relationship_turn",
+        "post_draft_policy": "advisory",
+        "clauses": [
+          {
+            "clause_id": "cl-mutual-drive",
+            "enforcement": "hard",
+            "statement": "The escalation is mutual: each party takes at least one initiating action, not one pursuing and one merely yielding.",
+            "satisfaction_criterion": {
+              "evidence_kind": "action",
+              "statement": "Both characters take an initiating action toward the other within the turn."
+            },
+            "depends_on_clause_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "prose": "She closed the last of the distance and set her hand flat against his chest. He covered it with his own, then tilted her chin up until she was looking at him. \"Say it,\" she told him. \"You first,\" he said, and did.",
+  "expect": {
+    "clause_evaluation": {"clause_id": "cl-mutual-drive", "result": "satisfied", "anchor_kind": "satisfaction"},
+    "policy_outcome": {"kind": "diagnostic"},
+    "critique": {"projected": false}
+  }
+}

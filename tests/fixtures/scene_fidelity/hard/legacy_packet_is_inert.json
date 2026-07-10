@@ -1,0 +1,16 @@
+{
+  "id": "legacy_packet_is_inert",
+  "class": "hard",
+  "title": "A legacy packet with no fidelity contract is completely inert.",
+  "purpose": "SceneFidelity is forward-only: a packet without fidelity_contract_version:1 and active requirements produces no validation violations, no drafter projection text, no evaluation, no Critiques, and no export holds (ADR 0025).",
+  "packet": {
+    "reader_state": {"pov": "Serra"},
+    "required_beats": ["Serra reaches the tower."]
+  },
+  "expect": {
+    "packet_validation": {"active": false, "violations": []},
+    "drafter_projection": {"fidelity_sections": [], "prompt_text_emitted": false},
+    "evaluation": {"triggered": false},
+    "production_triage": {"operational_hold": false, "materializes_issue": false}
+  }
+}

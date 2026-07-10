@@ -1,0 +1,33 @@
+{
+  "id": "override_does_not_inherit",
+  "class": "hard",
+  "title": "An author override on one draft does not inherit to a later draft's fresh loss.",
+  "purpose": "An override records reason/artifact/clauses and cancels its human-required task, but does not mutate the report and does not inherit to later DraftAttempts; a re-drafted scene that loses the same clause again materializes a NEW (successor) Issue (ADR 0009/0020/0024).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-override",
+        "mode": "relationship_turn",
+        "post_draft_policy": "export_required",
+        "clauses": [
+          {
+            "clause_id": "cl-trust-earned",
+            "enforcement": "hard",
+            "statement": "The reconciliation is earned on-page, not asserted in narration.",
+            "satisfaction_criterion": {
+              "evidence_kind": "interiority",
+              "statement": "A dramatized beat shows the shift in trust before it is named."
+            },
+            "depends_on_clause_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "draft_1": {"clause_result": "lost", "issue_status_after_override": "overridden", "human_task_cancelled": true},
+    "draft_2": {"clause_result": "lost", "inherits_override": false, "materializes_new_issue": true},
+    "override": {"mutates_report": false}
+  }
+}

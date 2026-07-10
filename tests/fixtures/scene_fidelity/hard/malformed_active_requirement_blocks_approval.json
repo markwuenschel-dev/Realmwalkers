@@ -1,0 +1,31 @@
+{
+  "id": "malformed_active_requirement_blocks_approval",
+  "class": "hard",
+  "title": "An active hard clause with no satisfaction criterion blocks packet approval.",
+  "purpose": "Structural validity of active requirements is unconditional: a hard clause missing its one typed satisfaction_criterion, and an unknown mode, are deterministic packet-approval blockers (ADR 0022/0023, plan global constraints).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-malformed",
+        "mode": "combat_blocking",
+        "post_draft_policy": "export_required",
+        "clauses": [
+          {
+            "clause_id": "cl-no-criterion",
+            "enforcement": "hard",
+            "statement": "The disarm must precede the killing blow.",
+            "depends_on_clause_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "packet_validation": {
+      "active": true,
+      "blocks_approval": true,
+      "violation_kinds": ["fidelity_hard_clause_missing_criterion"]
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "stale_report_is_operational_hold",
+  "class": "hard",
+  "title": "A stale export-required report is an operational hold, never a prose failure.",
+  "purpose": "When a report exists but its prose_hash / packet fingerprint / draft_attempt does not match the current scene, production triage MUST raise an incomplete-evaluation operational hold and MUST NOT project a prose Critique or verify/clear an existing Issue (ADR 0010/0022/0019).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-stale-guard",
+        "mode": "spatial_affordance",
+        "post_draft_policy": "export_required",
+        "clauses": [
+          {
+            "clause_id": "cl-door-reachable",
+            "enforcement": "hard",
+            "statement": "The exit the POV reaches for is spatially reachable from where the scene places her.",
+            "satisfaction_criterion": {
+              "evidence_kind": "spatial_relation",
+              "statement": "Prose establishes an unobstructed path from the POV's position to the exit before she uses it."
+            },
+            "depends_on_clause_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "currentness": {
+      "report_prose_hash": "sha256:STALE-does-not-match-current-scene",
+      "current": false,
+      "reason": "prose_hash_mismatch"
+    },
+    "policy_outcome": {"kind": "operational_hold"},
+    "critique": {"projected": false},
+    "production_triage": {"operational_hold": true, "materializes_issue": false, "clears_existing_issue": false}
+  }
+}

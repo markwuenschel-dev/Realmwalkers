@@ -1,0 +1,39 @@
+{
+  "id": "invalid_anchor_is_report_only",
+  "class": "hard",
+  "title": "Invalid evidence anchors stay report-only diagnostics and never create repair work.",
+  "purpose": "When a clause evaluation cites an anchor whose span is out of range or whose quote does not match the evaluated prose, the finding is downgraded to a report-only diagnostic: no Critique, no Repair Preview, no Issue (ADR 0008/0019).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-anchor-guard",
+        "mode": "combat_blocking",
+        "post_draft_policy": "export_required",
+        "clauses": [
+          {
+            "clause_id": "cl-weapon-continuity",
+            "enforcement": "hard",
+            "statement": "A weapon that leaves a hand is re-acquired before it is used again.",
+            "satisfaction_criterion": {
+              "evidence_kind": "sequence",
+              "statement": "Prose shows the weapon returning to the wielder's control before the next strike with it."
+            },
+            "depends_on_clause_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "prose": "He knocked the blade from her grip. It skittered under the cart. She raised her fists.",
+  "expect": {
+    "clause_evaluation": {
+      "clause_id": "cl-weapon-continuity",
+      "result": "lost",
+      "invalid_anchor": {"start": 900, "end": 950, "quote": "a line that is not in the prose"}
+    },
+    "policy_outcome": {"kind": "diagnostic"},
+    "critique": {"projected": false},
+    "repair_preview": {"created": false}
+  }
+}

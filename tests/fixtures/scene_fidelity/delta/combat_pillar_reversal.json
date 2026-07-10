@@ -1,0 +1,47 @@
+{
+  "id": "combat_pillar_reversal",
+  "class": "delta_reviewed",
+  "title": "A valid tactical reversal using an established object must NOT read as a spatial contradiction.",
+  "purpose": "True-negative guard: an object established earlier (a pillar) being used later in a reversal is coherent, not a spatial/affordance loss. combat_blocking and spatial_affordance adapters must return `satisfied`. Judgment fixture: a change requires a written false-positive delta review (ADR 0015).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-reversal",
+        "mode": "combat_blocking",
+        "post_draft_policy": "export_required",
+        "clauses": [
+          {
+            "clause_id": "cl-object-established",
+            "enforcement": "hard",
+            "statement": "Any object decisive to the outcome is established in the space before it is used.",
+            "satisfaction_criterion": {
+              "evidence_kind": "spatial_relation",
+              "statement": "The decisive object appears in the scene's geography before the beat that uses it."
+            },
+            "depends_on_clause_ids": []
+          },
+          {
+            "clause_id": "cl-reversal-reachable",
+            "enforcement": "hard",
+            "statement": "The winning move is physically reachable from the fighter's established position.",
+            "satisfaction_criterion": {
+              "evidence_kind": "spatial_relation",
+              "statement": "A path from the fighter's position to the decisive object is available at the moment of the reversal."
+            },
+            "depends_on_clause_ids": ["cl-object-established"]
+          }
+        ]
+      }
+    ]
+  },
+  "prose": "The hall was ribbed with squat stone pillars, each thicker than a man. Kael gave ground, boot by boot, until his shoulders found the nearest one. When the axe came down he slid around it; the blade bit granite, and in the half-beat it stuck he drove his knife up under the arm.",
+  "expect": {
+    "clause_evaluations": [
+      {"clause_id": "cl-object-established", "result": "satisfied"},
+      {"clause_id": "cl-reversal-reachable", "result": "satisfied", "depends_on_satisfied": true}
+    ],
+    "policy_outcome": {"kind": "diagnostic"},
+    "critique": {"projected": false}
+  }
+}
