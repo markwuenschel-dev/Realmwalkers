@@ -8,7 +8,7 @@ sit unnoticed. Pure static parse of the DDL against `Base.metadata`; no database
 Not covered (needs a schema baseline — tracked as a follow-up): the forward direction, a NEW model
 column forgotten from `_COLUMN_ADDS`. `create_all` builds every current column on a fresh DB, so with no
 older snapshot nothing here can distinguish an original column from a later add — which is exactly the
-drift that boots green on CI but throws `UndefinedColumn` against the persistent Railway Postgres.
+drift that boots green on CI but throws `UndefinedColumn` against the persistent production Postgres.
 """
 
 from __future__ import annotations
