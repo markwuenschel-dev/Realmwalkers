@@ -345,6 +345,50 @@
         }
       }
     },
+    "/scenes/{scene_id}/fidelity": {
+      "get": {
+        "tags": [
+          "scenes"
+        ],
+        "summary": "Scene Fidelity",
+        "description": "Decision-ready fidelity status for a scene: whether a CURRENT report exists, its clause\nevaluations, and any operational (incomplete-evaluation) holds. Read-only and deterministic \u2014 it\nnever triggers evaluation (that is the explicit manual rerun).",
+        "operationId": "scene_fidelity_scenes__scene_id__fidelity_get",
+        "parameters": [
+          {
+            "name": "scene_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneFidelityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scenes/{scene_id}/decision": {
       "post": {
         "tags": [
@@ -2901,6 +2945,211 @@
         }
       }
     },
+    "/scene-packets/{scene_packet_id}/fidelity": {
+      "get": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Get Scene Packet Fidelity",
+        "operationId": "get_scene_packet_fidelity_scene_packets__scene_packet_id__fidelity_get",
+        "parameters": [
+          {
+            "name": "scene_packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Packet Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenePacketFidelityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scene-packets/{scene_packet_id}/fidelity/accept": {
+      "post": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Accept Fidelity Suggestions",
+        "description": "Promote suggested requirements into the active contract with freshly minted identities.",
+        "operationId": "accept_fidelity_suggestions_scene_packets__scene_packet_id__fidelity_accept_post",
+        "parameters": [
+          {
+            "name": "scene_packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Packet Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FidelityAcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenePacketFidelityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scene-packets/{scene_packet_id}/fidelity/refine": {
+      "post": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Refine Fidelity Requirement",
+        "description": "Refine an active requirement in place (identity preserved; non-semantic clarification only).",
+        "operationId": "refine_fidelity_requirement_scene_packets__scene_packet_id__fidelity_refine_post",
+        "parameters": [
+          {
+            "name": "scene_packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Packet Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FidelityRequirementActionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenePacketFidelityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scene-packets/{scene_packet_id}/fidelity/replace": {
+      "post": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Replace Fidelity Requirement",
+        "description": "Replace an active requirement with a freshly minted identity (mode/policy/criterion change).",
+        "operationId": "replace_fidelity_requirement_scene_packets__scene_packet_id__fidelity_replace_post",
+        "parameters": [
+          {
+            "name": "scene_packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Packet Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FidelityRequirementActionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenePacketFidelityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/production-runs": {
       "post": {
         "tags": [
@@ -4787,6 +5036,222 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProductionRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issue_id}/fidelity/preview": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Create Fidelity Preview",
+        "description": "Create an immutable repair preview for one fidelity Issue. The candidate prose is author/tool\nsupplied (a bounded repair-writer produces it); this endpoint never changes the current Scene.",
+        "operationId": "create_fidelity_preview_issues__issue_id__fidelity_preview_post",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Issue Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairPreviewCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fidelity-previews/{preview_id}/accept": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Accept Fidelity Preview",
+        "description": "Accept (or edit) a preview into a NEW author-visible Scene revision (ADR 0017).",
+        "operationId": "accept_fidelity_preview_fidelity_previews__preview_id__accept_post",
+        "parameters": [
+          {
+            "name": "preview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Preview Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairPreviewActionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fidelity-previews/{preview_id}/reject": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Reject Fidelity Preview",
+        "description": "Reject a preview. The Critique, Issue, and current Scene are left intact (ADR 0017).",
+        "operationId": "reject_fidelity_preview_fidelity_previews__preview_id__reject_post",
+        "parameters": [
+          {
+            "name": "preview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Preview Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairPreviewActionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/issues/{issue_id}/fidelity/override": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Override Fidelity Issue",
+        "description": "Author override of a fidelity repair Issue \u2014 requires a reason (ADR 0009).",
+        "operationId": "override_fidelity_issue_issues__issue_id__fidelity_override_post",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Issue Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueOverrideIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueOut"
                 }
               }
             }
@@ -11998,6 +12463,54 @@
         "title": "CharacterStateOut",
         "description": "Hard numbers from the Oracle (CharacterState), with the canon body if the character has one."
       },
+      "ClauseEvaluationOut": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "title": "Requirement Id"
+          },
+          "clause_id": {
+            "type": "string",
+            "title": "Clause Id"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "result": {
+            "type": "string",
+            "title": "Result"
+          },
+          "enforcement": {
+            "type": "string",
+            "title": "Enforcement"
+          },
+          "post_draft_policy": {
+            "type": "string",
+            "title": "Post Draft Policy"
+          },
+          "evidence_valid": {
+            "type": "boolean",
+            "title": "Evidence Valid"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "clause_id",
+          "mode",
+          "result",
+          "enforcement",
+          "post_draft_policy",
+          "evidence_valid",
+          "explanation"
+        ],
+        "title": "ClauseEvaluationOut"
+      },
       "ClearDraftScenesOut": {
         "properties": {
           "purged": {
@@ -12127,6 +12640,53 @@
               }
             ],
             "title": "Scene Packet Id"
+          },
+          "draft_attempt_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Attempt Id"
+          },
+          "source_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Artifact Id"
+          },
+          "finding_signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Signature"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
           }
         },
         "type": "object",
@@ -12844,6 +13404,80 @@
         "title": "FailedJobOut",
         "description": "A FAILED job + why it died, so the Desk can show the actual error instead of a generic note."
       },
+      "FidelityAcceptIn": {
+        "properties": {
+          "requirement_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement Ids"
+          }
+        },
+        "type": "object",
+        "title": "FidelityAcceptIn"
+      },
+      "FidelityRequirementActionIn": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "title": "Requirement Id"
+          },
+          "requirement": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Requirement"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "requirement"
+        ],
+        "title": "FidelityRequirementActionIn"
+      },
+      "FidelityViolationOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "detail",
+          "severity"
+        ],
+        "title": "FidelityViolationOut",
+        "description": "One deterministic breach of the active fidelity contract, for author-facing validation feedback."
+      },
       "GateMode": {
         "type": "string",
         "enum": [
@@ -13152,6 +13786,19 @@
           "created_at"
         ],
         "title": "IssueOut"
+      },
+      "IssueOverrideIn": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "IssueOverrideIn"
       },
       "JobsPauseOut": {
         "properties": {
@@ -16182,6 +16829,77 @@
         ],
         "title": "RepairAttemptOut"
       },
+      "RepairPreviewActionIn": {
+        "properties": {
+          "edited_prose": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited Prose"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "title": "RepairPreviewActionIn"
+      },
+      "RepairPreviewCreateIn": {
+        "properties": {
+          "candidate_prose": {
+            "type": "string",
+            "title": "Candidate Prose"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "candidate_prose"
+        ],
+        "title": "RepairPreviewCreateIn"
+      },
+      "RepairPreviewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "body"
+        ],
+        "title": "RepairPreviewOut"
+      },
       "RepairTaskOut": {
         "properties": {
           "id": {
@@ -17156,6 +17874,64 @@
         ],
         "title": "SceneDetail"
       },
+      "SceneFidelityOut": {
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Scene Id"
+          },
+          "has_report": {
+            "type": "boolean",
+            "title": "Has Report"
+          },
+          "is_current": {
+            "type": "boolean",
+            "title": "Is Current"
+          },
+          "currentness_reason": {
+            "type": "string",
+            "title": "Currentness Reason"
+          },
+          "report_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Artifact Id"
+          },
+          "clause_evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/ClauseEvaluationOut"
+            },
+            "type": "array",
+            "title": "Clause Evaluations",
+            "default": []
+          },
+          "operational_holds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Operational Holds",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "scene_id",
+          "has_report",
+          "is_current",
+          "currentness_reason"
+        ],
+        "title": "SceneFidelityOut",
+        "description": "Decision-ready scene fidelity status: whether a current report exists, its currentness, the merged\nclause evaluations, and any operational (incomplete-evaluation) holds \u2014 distinct from repair holds."
+      },
       "SceneOut": {
         "properties": {
           "id": {
@@ -17407,6 +18183,52 @@
         ],
         "title": "ScenePacketDeriveStatusOut",
         "description": "Status of an in-flight scene-packet derivation (the ScenePacket Author + QA run per scene in the\nbackground, so a large chapter never hangs the request). The Desk polls and refetches the list when\n`running` flips False. `result` carries the counts once the run finishes."
+      },
+      "ScenePacketFidelityOut": {
+        "properties": {
+          "scene_packet_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Scene Packet Id"
+          },
+          "active_requirements": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Active Requirements",
+            "default": []
+          },
+          "suggested_requirements": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Suggested Requirements",
+            "default": []
+          },
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/FidelityViolationOut"
+            },
+            "type": "array",
+            "title": "Violations",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "scene_packet_id",
+          "fingerprint"
+        ],
+        "title": "ScenePacketFidelityOut",
+        "description": "The fidelity state of a ScenePacket: active requirements, inactive suggestions (visually distinct\nin the UI), the canonical fingerprint, and any structural violations of the active contract."
       },
       "ScenePacketOut": {
         "properties": {

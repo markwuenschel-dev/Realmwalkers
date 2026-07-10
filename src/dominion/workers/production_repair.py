@@ -1905,6 +1905,43 @@ async def accept_repair_preview(
     return new_scene
 
 
+async def override_fidelity_issue(
+    session: AsyncSession, *, issue: Issue, reason: str, overridden_by: str = "author"
+) -> Issue:
+    """Author override of a fidelity repair Issue (ADR 0009): record the reason + affected clause, mark
+    the Issue OVERRIDDEN, and CANCEL its human-required RepairTask. The override does not mutate the
+    report and never inherits to later drafts — a fresh loss on a new draft materializes a NEW Issue."""
+    issue.status = IssueStatus.OVERRIDDEN.value
+    ipayload = issue.payload_json or {}
+    issue.payload_json = {
+        **ipayload,
+        "override": {"reason": reason, "by": overridden_by, "clause_id": ipayload.get("clause_id")},
+    }
+    tasks = (
+        (await session.execute(select(RepairTask).where(RepairTask.production_run_id == issue.production_run_id)))
+        .scalars()
+        .all()
+    )
+    for task in tasks:
+        if str(issue.id) in (task.issue_ids or []) and task.status not in (
+            RepairTaskStatus.VERIFIED,
+            RepairTaskStatus.CANCELLED,
+        ):
+            task.status = RepairTaskStatus.CANCELLED
+    await session.flush()
+    run = await session.get(ProductionRun, issue.production_run_id)
+    if run is not None:
+        await support.record_event(
+            session,
+            run_id=run.id,
+            event_type="scene_fidelity_issue_overridden",
+            stage=run.current_stage,
+            message="Author overrode a fidelity repair Issue",
+            payload={"issue_id": str(issue.id), "reason": reason},
+        )
+    return issue
+
+
 async def reject_repair_preview(
     session: AsyncSession, *, preview_artifact_id: uuid.UUID, reason: str | None = None
 ) -> Artifact:
