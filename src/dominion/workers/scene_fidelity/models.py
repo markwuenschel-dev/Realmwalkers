@@ -138,7 +138,15 @@ class ClauseEvaluation(BaseModel):
     clause_id: str
     mode: FidelityMode
     result: ClauseResult
+    # The clause's enforcement + its requirement's policy, copied onto the evaluation so the report is
+    # self-contained for policy (ADR 0003) — project_report_to_critiques needs nothing but the report.
+    enforcement: ClauseEnforcement
+    post_draft_policy: PostDraftPolicy
     evidence_anchors: list[EvidenceAnchor] = Field(default_factory=list)
+    # Whether the cited evidence is SEMANTICALLY valid against the evaluated prose (span in range, quote
+    # matches for contradiction/satisfaction anchors). Computed by the evaluator, which holds the prose;
+    # invalid evidence downgrades a finding to a report-only diagnostic (ADR 0008/0019).
+    evidence_valid: bool = True
     explanation: str
     evaluated_prose_hash: str
     packet_contract_fingerprint: str

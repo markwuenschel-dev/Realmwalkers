@@ -40,6 +40,10 @@ from dominion.workers.scene_fidelity.payloads import (
     SceneFidelityCritiquePayload,
     TriageResult,
 )
+from dominion.workers.scene_fidelity.policy import (
+    policy_outcome_for_clause_evaluation,
+    project_report_to_critiques,
+)
 
 __all__ = [
     "CLOSED_MODES",
@@ -63,6 +67,8 @@ __all__ = [
     "fidelity_contract_fingerprint",
     "finding_signature",
     "is_fidelity_active",
+    "policy_outcome_for_clause_evaluation",
     "project_fidelity_for_drafter",
+    "project_report_to_critiques",
     "validate_active_requirements",
 ]

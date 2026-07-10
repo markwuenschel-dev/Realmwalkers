@@ -24,9 +24,12 @@ from dominion.workers.scene_fidelity import adapters
 from dominion.workers.scene_fidelity.adapters import AdapterOutcome, AdapterRunner
 from dominion.workers.scene_fidelity.contract import fidelity_contract_fingerprint
 from dominion.workers.scene_fidelity.models import (
+    ClauseEnforcement,
     ClauseEvaluation,
     ClauseResult,
+    EvidenceAnchor,
     FidelityMode,
+    PostDraftPolicy,
     SceneFidelityReport,
     active_requirements,
     is_fidelity_active,
@@ -127,7 +130,7 @@ async def evaluate_scene_fidelity(
     outcomes = list(await asyncio.gather(*[_run(m, cs) for m, cs in by_mode.items()]))
     outcomes_by_mode = {o.mode: o for o in outcomes}
 
-    evaluations = _merge(reqs, outcomes_by_mode, prose_hash=prose_hash, fingerprint=fingerprint)
+    evaluations = _merge(reqs, outcomes_by_mode, prose=prose, prose_hash=prose_hash, fingerprint=fingerprint)
     report = SceneFidelityReport(
         report_schema_version=settings.scene_fidelity_report_schema_version,
         scene_id=scene.id,
@@ -145,6 +148,7 @@ def _merge(
     reqs: list[dict[str, Any]],
     outcomes_by_mode: dict[str, AdapterOutcome],
     *,
+    prose: str,
     prose_hash: str,
     fingerprint: str,
 ) -> list[ClauseEvaluation]:
@@ -158,6 +162,7 @@ def _merge(
             continue  # an active packet is validated, but stay defensive on the merge path
         try:
             mode = FidelityMode(req.get("mode"))
+            policy = PostDraftPolicy(req.get("post_draft_policy"))
         except ValueError:
             continue
         outcome = outcomes_by_mode.get(mode.value)
@@ -186,19 +191,45 @@ def _merge(
                     result = ClauseResult.NOT_EVALUATED
                     explanation = "the adapter returned no finding for this clause"
             final_by_key[(req_id, cid)] = result
+            try:
+                enforcement = ClauseEnforcement(clause.get("enforcement"))
+            except ValueError:
+                enforcement = ClauseEnforcement.STANDARD
             evaluations.append(
                 ClauseEvaluation(
                     requirement_id=req_id,
                     clause_id=cid,
                     mode=mode,
                     result=result,
+                    enforcement=enforcement,
+                    post_draft_policy=policy,
                     evidence_anchors=anchors,
+                    evidence_valid=_evidence_valid(result, anchors, prose),
                     explanation=explanation,
                     evaluated_prose_hash=prose_hash,
                     packet_contract_fingerprint=fingerprint,
                 )
             )
     return evaluations
+
+
+def _anchor_valid(anchor: EvidenceAnchor, prose: str) -> bool:
+    """An anchor is semantically valid if its span is in range and — for a contradiction/satisfaction
+    anchor — its quote matches the prose exactly. Omission anchors (expected_beat/transition) need only a
+    valid span, since absence has no quote of its own (ADR 0008)."""
+    if not (0 <= anchor.start <= anchor.end <= len(prose)):
+        return False
+    if anchor.anchor_kind in ("expected_beat", "transition"):
+        return True
+    return prose[anchor.start : anchor.end] == anchor.quote
+
+
+def _evidence_valid(result: ClauseResult, anchors: list[EvidenceAnchor], prose: str) -> bool:
+    """A satisfied/lost verdict must cite at least one valid anchor and cite no invalid one; other results
+    are not evidence-bearing for policy, so they are trivially 'valid'."""
+    if result not in (ClauseResult.SATISFIED, ClauseResult.LOST):
+        return True
+    return bool(anchors) and all(_anchor_valid(a, prose) for a in anchors)
 
 
 def _dependency_ordered(clauses: list[dict[str, Any]], by_id: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
