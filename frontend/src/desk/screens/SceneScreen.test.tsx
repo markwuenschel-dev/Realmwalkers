@@ -48,6 +48,16 @@ vi.mock("../components/ProseBlocks", () => ({
 vi.mock("../api/client", () => ({
   api: {
     draftAttempts: vi.fn().mockResolvedValue([]),
+    // SceneFidelityReview fetches this on mount; return the inert shape so it renders nothing here.
+    sceneFidelity: vi.fn().mockResolvedValue({
+      scene_id: "s",
+      has_report: false,
+      is_current: false,
+      currentness_reason: "no_active_contract",
+      report_artifact_id: null,
+      clause_evaluations: [],
+      operational_holds: [],
+    }),
   },
 }));
 

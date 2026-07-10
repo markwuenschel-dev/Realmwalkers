@@ -7,6 +7,7 @@ import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import CanonCard from "../components/CanonCard";
 import { ProseInline } from "../components/ProseBlocks";
+import SceneFidelityReview from "../components/SceneFidelityReview";
 import type { CardModel } from "../components/CanonCard";
 import { seg, tokenize } from "../prose";
 import type { Token } from "../prose";
@@ -1288,6 +1289,10 @@ export default function SceneScreen() {
               );
             })}
           </div>
+
+          {/* SceneFidelity decision-ready status (ADR 0016). Renders nothing unless the scene's approved
+              packet carries an active fidelity contract, so legacy scenes are visually unchanged. */}
+          <SceneFidelityReview sceneId={cur.id} />
 
           {desk.tab === "continuity" && (
             <Panel eyebrow="Continuity" pad="16px 18px">

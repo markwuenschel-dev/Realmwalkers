@@ -22,6 +22,17 @@ export type AgentStatsOut = S["AgentStatsOut"];
 export type SmokeTestOut = S["SmokeTestOut"];
 export type PipelineEstimateOut = S["PipelineEstimateOut"];
 export type CritiqueOut = S["CritiqueOut"];
+// SceneFidelity author surfaces (ADR 0016).
+export type ScenePacketFidelityOut = S["ScenePacketFidelityOut"];
+export type FidelityViolationOut = S["FidelityViolationOut"];
+export type FidelityAcceptIn = S["FidelityAcceptIn"];
+export type FidelityRequirementActionIn = S["FidelityRequirementActionIn"];
+export type SceneFidelityOut = S["SceneFidelityOut"];
+export type ClauseEvaluationOut = S["ClauseEvaluationOut"];
+export type RepairPreviewOut = S["RepairPreviewOut"];
+export type RepairPreviewCreateIn = S["RepairPreviewCreateIn"];
+export type RepairPreviewActionIn = S["RepairPreviewActionIn"];
+export type IssueOverrideIn = S["IssueOverrideIn"];
 export type SceneOut = Omit<S["SceneOut"], "prose"> & { prose: string | null };
 export type SceneDetail = Omit<S["SceneDetail"], "prose"> & { prose: string | null };
 export type SceneVersionOut = S["SceneVersionOut"];

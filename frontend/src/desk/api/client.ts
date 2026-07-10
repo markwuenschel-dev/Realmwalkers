@@ -617,4 +617,51 @@ export const api = {
     }),
   deleteSuggestion: (id: string) =>
     http<{ deleted: string }>(`/suggestions/${id}`, { method: "DELETE" }),
+
+  // --- SceneFidelity author surfaces (ADR 0016) ---------------------------------------------------
+  scenePacketFidelity: (packetId: string) =>
+    http<import("./types").ScenePacketFidelityOut>(`/scene-packets/${packetId}/fidelity`),
+  acceptFidelitySuggestions: (packetId: string, body: import("./types").FidelityAcceptIn) =>
+    http<import("./types").ScenePacketFidelityOut>(`/scene-packets/${packetId}/fidelity/accept`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  refineFidelityRequirement: (
+    packetId: string,
+    body: import("./types").FidelityRequirementActionIn,
+  ) =>
+    http<import("./types").ScenePacketFidelityOut>(`/scene-packets/${packetId}/fidelity/refine`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  replaceFidelityRequirement: (
+    packetId: string,
+    body: import("./types").FidelityRequirementActionIn,
+  ) =>
+    http<import("./types").ScenePacketFidelityOut>(`/scene-packets/${packetId}/fidelity/replace`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  sceneFidelity: (sceneId: string) =>
+    http<import("./types").SceneFidelityOut>(`/scenes/${sceneId}/fidelity`),
+  createFidelityPreview: (issueId: string, body: import("./types").RepairPreviewCreateIn) =>
+    http<import("./types").RepairPreviewOut>(`/issues/${issueId}/fidelity/preview`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  acceptFidelityPreview: (previewId: string, body: import("./types").RepairPreviewActionIn) =>
+    http<SceneOut>(`/fidelity-previews/${previewId}/accept`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  rejectFidelityPreview: (previewId: string, body: import("./types").RepairPreviewActionIn) =>
+    http<import("./types").RepairPreviewOut>(`/fidelity-previews/${previewId}/reject`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  overrideFidelityIssue: (issueId: string, body: import("./types").IssueOverrideIn) =>
+    http<import("./types").IssueOut>(`/issues/${issueId}/fidelity/override`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
