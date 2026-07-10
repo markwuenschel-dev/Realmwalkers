@@ -39,7 +39,16 @@ This repo only provides the `Dockerfile` that Compose builds.
   vectors. Optional model overrides: `DOMINION_DRAFT_MODEL`, `DOMINION_REVIEW_MODEL`, `DOMINION_ENRICH_MODEL`.
 
 ## Deploy / redeploy (the day-to-day loop)
-Compose builds from the on-box git clone, so a deploy is just pull + rebuild that one service — no registry.
+One command from your machine — it runs the whole loop below over ssh and ends with a health check
+against the public URL:
+```powershell
+./scripts/deploy.ps1                # deploy latest main   (bash twin: ./scripts/deploy.sh)
+./scripts/deploy.ps1 -Ref <sha>     # roll back to a specific commit (deploy.sh: pass the sha as $1)
+```
+Deploys are free per-run: the pull + docker build happen on the box (flat EC2 bill, no registry,
+no metered egress), and DNS is not involved.
+
+What the script does (the manual loop, if you'd rather ssh in yourself):
 ```bash
 ssh -i ~/.ssh/shared-box.pem ubuntu@44.198.76.44          # current Elastic IP
 cd /opt/stack/Realmwalkers && git pull                    # latest main
