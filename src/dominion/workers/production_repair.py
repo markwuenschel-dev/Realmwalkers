@@ -59,6 +59,7 @@ from dominion.workers.scene_fidelity.policy import (
     project_report_to_critiques,
     report_is_current,
 )
+from dominion.workers.scene_fidelity.repair_preview import REPAIR_PREVIEW_ARTIFACT_TYPE, build_preview_body
 
 # L6 (run orchestration): pure stage machine -- pinned stage strings + deterministic gates that must
 # fail BEFORE any LLM spend. Persistence stays here; decisions live in run_stages (DB-free, tested).
@@ -1790,3 +1791,136 @@ async def triage_scene_fidelity_for_production(session: AsyncSession, *, run: Pr
 
     await session.flush()  # persist lifecycle transitions (VERIFIED/SUPERSEDED) within the run txn
     return TriageResult(created_issue_ids=created_issue_ids, operational_holds=operational_holds)
+
+
+# --------------------------------------------------------------------------------------------------
+# SceneFidelity repair previews (Lane 6). A preview is an immutable, bounded proposal tied to one
+# actionable fidelity Issue; it never changes the current Scene. Only the author, by accepting or
+# editing it, materializes a NEW author-visible revision (ADR 0017). Its Artifact BODY is immutable —
+# lifecycle rides the Artifact.status column, not a body edit.
+# --------------------------------------------------------------------------------------------------
+
+
+async def create_repair_preview(
+    session: AsyncSession, *, issue: Issue, candidate_prose: str, rationale: str, edited: bool = False
+) -> Artifact:
+    """Create an immutable RepairPreview Artifact for one repair-eligible fidelity Issue, carrying the
+    diff, evidence window, and preservation boundary. Does NOT touch the current Scene (ADR 0017)."""
+    ipayload = issue.payload_json or {}
+    critique = None
+    if ipayload.get("fidelity_critique_id"):
+        critique = await session.get(Critique, uuid.UUID(ipayload["fidelity_critique_id"]))
+    cpayload = (critique.payload if critique else {}) or {}
+    scene = await session.get(Scene, issue.scene_id) if issue.scene_id else None
+    old_prose = (scene.prose if scene else "") or ""
+
+    body = build_preview_body(
+        source_issue_id=str(issue.id),
+        source_critique_id=str(critique.id) if critique else "",
+        source_report_artifact_id=str(ipayload.get("source_artifact_id") or ""),
+        source_draft_attempt_id=str(cpayload.get("draft_attempt_id") or ""),
+        scene_id=str(issue.scene_id or ""),
+        prose_hash=str(cpayload.get("prose_hash") or ""),
+        packet_fingerprint=str(cpayload.get("packet_contract_fingerprint") or ""),
+        clause_ids=[ipayload["clause_id"]] if ipayload.get("clause_id") else [],
+        anchors=cpayload.get("evidence_anchors") or [],
+        old_prose=old_prose,
+        candidate_prose=candidate_prose,
+        rationale=rationale,
+        edited=edited,
+    )
+    run = await session.get(ProductionRun, issue.production_run_id)
+    assert run is not None  # an Issue always belongs to a run
+    return await support.create_artifact(
+        session,
+        run=run,
+        artifact_type=REPAIR_PREVIEW_ARTIFACT_TYPE,
+        body=body,
+        domain_table="issues",
+        domain_id=issue.id,
+    )
+
+
+async def accept_repair_preview(
+    session: AsyncSession, *, preview_artifact_id: uuid.UUID, edited_prose: str | None = None
+) -> Scene:
+    """Materialize an accepted (or edited) preview into a NEW author-visible Scene revision, supersede the
+    old revision, stale the source evidence, and schedule fresh evaluation. Accept and edit both create a
+    NORMAL new revision — only the prose_source differs (ADR 0017)."""
+    preview = await session.get(Artifact, preview_artifact_id)
+    assert preview is not None
+    body = preview.body or {}
+    scene = await session.get(Scene, uuid.UUID(body["scene_id"]))
+    assert scene is not None
+    new_prose = edited_prose if edited_prose is not None else (body.get("candidate_prose") or "")
+
+    new_scene = Scene(
+        chapter_id=scene.chapter_id,
+        scene_no=scene.scene_no,
+        version=scene.version + 1,
+        parent_scene_id=scene.id,
+        status=SceneStatus.PENDING_REVIEW,
+        scene_packet_id=scene.scene_packet_id,
+        prose=new_prose,
+        prose_source="agent+human_edit" if edited_prose is not None else "agent",
+        word_count=len((new_prose or "").split()),
+    )
+    session.add(new_scene)
+    scene.status = SceneStatus.SUPERSEDED
+    await session.flush()
+
+    # A final DraftAttempt so fresh fidelity evaluation of the new revision has a target (the actual
+    # re-evaluation is scheduled/deferred — never inline here).
+    session.add(
+        DraftAttempt(
+            scene_id=new_scene.id,
+            scene_packet_id=new_scene.scene_packet_id,
+            stage="final_rendered",
+            prose=new_prose,
+            model="human_repair_preview",
+        )
+    )
+    # The source Issue's evidence is now stale; mark it REPAIRED (fresh evaluation VERIFIES or re-opens it).
+    if body.get("source_issue_id"):
+        source_issue = await session.get(Issue, uuid.UUID(body["source_issue_id"]))
+        if source_issue is not None:
+            source_issue.status = IssueStatus.REPAIRED.value
+    preview.status = "materialized"  # body stays immutable; status marks the lifecycle
+    await session.flush()
+
+    run = await session.get(ProductionRun, preview.production_run_id) if preview.production_run_id else None
+    if run is not None:
+        await support.record_event(
+            session,
+            run_id=run.id,
+            event_type="scene_fidelity_repair_accepted",
+            stage=run.current_stage,
+            message="Author accepted a fidelity repair preview; new revision scheduled for re-evaluation",
+            payload={
+                "scene_id": str(new_scene.id),
+                "preview_artifact_id": str(preview.id),
+                "edited": edited_prose is not None,
+            },
+        )
+    return new_scene
+
+
+async def reject_repair_preview(
+    session: AsyncSession, *, preview_artifact_id: uuid.UUID, reason: str | None = None
+) -> Artifact:
+    """Reject a preview. The Critique and Issue stay intact and the current Scene is untouched (ADR 0017)."""
+    preview = await session.get(Artifact, preview_artifact_id)
+    assert preview is not None
+    preview.status = "rejected"
+    await session.flush()
+    run = await session.get(ProductionRun, preview.production_run_id) if preview.production_run_id else None
+    if run is not None:
+        await support.record_event(
+            session,
+            run_id=run.id,
+            event_type="scene_fidelity_repair_rejected",
+            stage=run.current_stage,
+            message="Author rejected a fidelity repair preview",
+            payload={"preview_artifact_id": str(preview.id), "reason": reason},
+        )
+    return preview
