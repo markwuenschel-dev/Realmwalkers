@@ -28,9 +28,11 @@ from typing import Any
 
 import anthropic
 import httpx
+import openai
 import structlog
 from anthropic import AsyncAnthropic
 from anthropic.types import TextBlockParam
+from openai import AsyncOpenAI
 
 from dominion.shared.agent_policy import agent_backend
 from dominion.shared.agent_registry import supports_effort, supports_temperature
@@ -150,6 +152,11 @@ def _is_anthropic_model(model: str) -> bool:
     return not any(model.startswith(prefix) for prefix in _OPENAI_COMPATIBLE_PREFIXES)
 
 
+def _is_openai_responses_model(model: str) -> bool:
+    """Actual OpenAI models use the SDK Responses path; Gemini/xAI retain their compatible chat API."""
+    return model.startswith(("gpt-", "o1-", "o3-", "o4-"))
+
+
 # OpenAI's reasoning models (o-series + the gpt-5 family) require `max_completion_tokens` and reject a
 # non-default `temperature` with a 400; older gpt-4* and xAI's Grok take the classic `max_tokens` + a
 # free temperature. Grok is intentionally excluded — it keeps the classic shape in the request builder.
@@ -184,6 +191,53 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
     if not key:
         raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
     return settings.openai_base_url, key
+
+
+@lru_cache
+def _openai_client(api_key: str) -> AsyncOpenAI:
+    """OpenAI-only SDK client. Compatibility providers deliberately stay on httpx chat completions."""
+    return AsyncOpenAI(api_key=api_key, base_url=settings.openai_base_url, timeout=600.0, max_retries=0)
+
+
+def _responses_request(
+    *,
+    model: str,
+    system: str,
+    user: str,
+    blocks: Sequence[CachedPrefixBlock],
+    max_tokens: int,
+    effort: str | None,
+    text_format: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build the OpenAI Responses payload without changing the public complete() contract."""
+    input_text = "\n\n".join([*(block.text for block in blocks), user]) if blocks else user
+    request: dict[str, Any] = {
+        "model": model,
+        "instructions": system,
+        "input": input_text,
+        "max_output_tokens": max_tokens,
+        "prompt_cache_key": _prompt_cache_key(system, tuple(blocks)),
+        # Product decision: authoring prompts may be retained by OpenAI under the account's default policy.
+        "store": True,
+    }
+    if effort is not None:
+        request["reasoning"] = {"effort": effort}
+    if text_format is not None:
+        request["text"] = {"format": text_format}
+    return request
+
+
+def _responses_usage(raw_usage: Mapping[str, Any] | None, *, status: str | None) -> Usage:
+    raw_usage = raw_usage or {}
+    input_tokens = int(raw_usage.get("input_tokens") or 0)
+    cached_tokens = int((raw_usage.get("input_tokens_details") or {}).get("cached_tokens") or 0)
+    return Usage(
+        input_tokens=max(0, input_tokens - cached_tokens),
+        output_tokens=int(raw_usage.get("output_tokens") or 0),
+        cache_creation_tokens=0,
+        cache_read_tokens=cached_tokens,
+        truncated=status == "incomplete",
+    )
 
 
 @lru_cache
@@ -227,6 +281,10 @@ def _is_transient(exc: BaseException) -> bool:
     # Fallback for any other status error: retry only retryable codes (so 400/401/403/404 do not).
     if isinstance(exc, anthropic.APIStatusError):
         return exc.status_code == 429 or 500 <= exc.status_code < 600
+    if isinstance(exc, (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError)):
+        return True
+    if isinstance(exc, openai.APIStatusError):
+        return exc.status_code == 429 or 500 <= exc.status_code < 600
     return False
 
 
@@ -245,6 +303,10 @@ def _is_rate_limit(exc: BaseException) -> bool:
     if isinstance(exc, anthropic.RateLimitError):
         return True
     if isinstance(exc, anthropic.APIStatusError) and exc.status_code == 429:
+        return True
+    if isinstance(exc, openai.RateLimitError):
+        return True
+    if isinstance(exc, openai.APIStatusError) and exc.status_code == 429:
         return True
     return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
 
@@ -436,6 +498,7 @@ async def complete(
     effort: str | None = None,
     input_budget: int | None = None,
     setting_key: str | None = None,
+    text_format: dict[str, Any] | None = None,
 ) -> tuple[str, Usage]:
     """One LLM call. Retries transient errors with exponential backoff; charges the budget from the
     response usage on success (raises BudgetExceeded if over). Non-transient errors raise at once.
@@ -547,7 +610,7 @@ async def complete(
             create_kwargs["temperature"] = temperature
         elif effort is not None and supports_effort(model):
             create_kwargs["output_config"] = {"effort": effort}
-    else:
+    elif not _is_openai_responses_model(model):
         # OpenAI-compatible chat completions shape: no explicit cache_control blocks — both OpenAI and
         # xAI cache automatically by exact-prefix match instead, so the request only needs the stable
         # content (system, then the caller's stable prefix blocks) to consistently come BEFORE the
@@ -659,6 +722,27 @@ async def complete(
                 resp = await _call_with_retries(
                     lambda: _client().messages.create(**create_kwargs), what="create", stats=retry_stats
                 )
+        elif _is_openai_responses_model(model):
+            api_key = (settings.openai_api_key or "").strip()
+            if not api_key:
+                raise RuntimeError(
+                    "OPENAI_API_KEY is not set — add it to the deploy environment (Railway → Variables)."
+                )
+            create_kwargs = _responses_request(
+                model=model,
+                system=system,
+                user=user,
+                blocks=blocks,
+                max_tokens=max_tokens,
+                effort=effort,
+                text_format=text_format,
+            )
+            async with _provider_slot(model):
+                resp = await _call_with_retries(
+                    lambda: _openai_client(api_key).responses.create(**create_kwargs),
+                    what="responses.create",
+                    stats=retry_stats,
+                )
         else:
             base_url, api_key = _openai_compatible_endpoint(model)
             client = _openai_compatible_client(base_url, api_key)
@@ -729,6 +813,14 @@ async def complete(
             truncated=truncated,
         )
         text = "".join(block.text for block in resp.content if block.type == "text")
+    elif _is_openai_responses_model(model):
+        assert resp is not None
+        response_data = resp.model_dump() if hasattr(resp, "model_dump") else resp
+        status = str(response_data.get("status") or "")
+        usage = _responses_usage(response_data.get("usage"), status=status)
+        text = str(getattr(resp, "output_text", "") or response_data.get("output_text") or "")
+        stop_reason = status
+        truncated = usage.truncated
     else:
         assert http_resp is not None  # set in the try block above for the OpenAI-compatible branch
         body = http_resp.json()

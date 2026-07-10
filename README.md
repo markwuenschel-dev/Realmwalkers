@@ -44,7 +44,8 @@ docs/         DESIGN.md, BUILD.md, ROADMAP.md, DEPLOY.md, contract_first_draftin
 
 ## Running it
 
-The whole app ships as a **single container** (Next.js + FastAPI) deployed on Railway — see
+The whole app ships as a **single container** (Next.js + FastAPI), deployed as one service in the
+shared AWS box's Docker Compose stack (behind Caddy) — see
 [`docs/DEPLOY.md`](docs/DEPLOY.md). The browser loads the desk from Next and calls same-origin
 `/api/desk/*`, which the Next BFF proxies to FastAPI, so there's no separate API host and no CORS.
 

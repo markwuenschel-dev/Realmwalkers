@@ -13,7 +13,7 @@ Success metric, the only one tracked: **scenes you've approved.** Not PRs, not g
 ## 1. Topology — one deployable system
 
 ```
-NOVEL SYSTEM  (one repo, ONE Railway container, one Postgres)
+NOVEL SYSTEM  (one repo, ONE container on the shared box, one Postgres)
 ┌──────────────────────────────────────────────────────────────────┐
 │  Next.js Writers' Desk ──/api/desk/*──► FastAPI ────► Postgres   │
 │   (BFF, same-origin proxy)             (thin layer)  (+pgvector) │
@@ -33,7 +33,7 @@ NOVEL SYSTEM  (one repo, ONE Railway container, one Postgres)
                                      └──────────────────────┘
 ```
 
-Everything ships as a **single container** on Railway: the Dockerfile builds the Next.js frontend
+Everything ships as a **single container** on the shared AWS box: the Dockerfile builds the Next.js frontend
 (standalone output) and runs it alongside FastAPI — Next serves the public port and proxies
 same-origin `/api/desk/*` to FastAPI on an internal port, so there is no separate API host and no
 CORS (see [`DEPLOY.md`](DEPLOY.md)). The ~20-min generation **never** runs in a request handler.
@@ -47,7 +47,7 @@ stops — no separate worker service, and nothing resident between approvals.
 
 | Repo | Contents | Deploy |
 |---|---|---|
-| `Realmwalkers` (this monorepo) | `frontend/` (Next.js BFF + Writers' Desk), `src/dominion/` (`api/` FastAPI, `workers/` Python, `shared/` schema + Pydantic models used by both), `series/` + `book1/` (authored canon) | one Railway service built from the `Dockerfile` (Next standalone + FastAPI in a single container); Postgres → Railway managed (pgvector, persistent volume) |
+| `Realmwalkers` (this monorepo) | `frontend/` (Next.js BFF + Writers' Desk), `src/dominion/` (`api/` FastAPI, `workers/` Python, `shared/` schema + Pydantic models used by both), `series/` + `book1/` (authored canon) | one service in the shared-box Docker Compose stack, built from the `Dockerfile` (Next standalone + FastAPI in a single container), behind Caddy; Postgres → shared `pgvector/pgvector` container, private `realmwalkers` db (persistent volume, internal Docker network only) |
 
 `api/` and `workers/` co-locate deliberately: they share one Postgres schema and one set of Python models, so there's nothing to keep in sync across languages. There is no separate frontend host and no separate worker box — one container, one URL (see [`DEPLOY.md`](DEPLOY.md)).
 
@@ -396,7 +396,7 @@ The Desk `/settings` screen is an **agent operations panel**, not a bare model p
 
 ## 13. Showcase site
 
-Not built — and no longer a separate system. The original plan (Astro, own repo, GH Pages + Netlify) was dropped; the only deployment is the single Railway container (§1/§2). If a public showcase ever happens, it pulls `published = true` canon/scenes through a read-only endpoint. `published` is distinct from `approved` (approving for the manuscript ≠ clearing spoilers for the public); the flag exists in the schema now, unused.
+Not built — and no longer a separate system. The original plan (Astro, own repo, GH Pages + Netlify) was dropped; the only deployment is the single shared-box container (§1/§2). If a public showcase ever happens, it pulls `published = true` canon/scenes through a read-only endpoint. `published` is distinct from `approved` (approving for the manuscript ≠ clearing spoilers for the public); the flag exists in the schema now, unused.
 
 ---
 

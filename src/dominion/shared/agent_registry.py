@@ -27,9 +27,9 @@ PROVIDER_TIERS: dict[str, dict[str, str]] = {
         "opus": "claude-opus-4-8",
     },
     "openai": {
-        "haiku": "gpt-5.4-nano",
-        "sonnet": "gpt-5.4-mini",
-        "opus": "gpt-5.5",
+        "haiku": "gpt-5.6-luna",
+        "sonnet": "gpt-5.6-terra",
+        "opus": "gpt-5.6-sol",
     },
     "google": {
         "sonnet": "gemini-3.5-flash",
@@ -53,6 +53,15 @@ TIERS: dict[str, str] = PROVIDER_TIERS["anthropic"]
 
 _MODEL_TO_PROVIDER_TIER: dict[str, tuple[str, str]] = {
     model: (provider, tier) for provider, tiers in PROVIDER_TIERS.items() for tier, model in tiers.items()
+}
+
+# Persisted per-role overrides can outlive the catalog rollout. They continue to route through the
+# OpenAI Responses adapter, retain their original tier semantics, and become selectable as current
+# catalog values on the next explicit settings update.
+_LEGACY_OPENAI_MODEL_TO_TIER: dict[str, tuple[str, str]] = {
+    "gpt-5.4-nano": ("openai", "haiku"),
+    "gpt-5.4-mini": ("openai", "sonnet"),
+    "gpt-5.5": ("openai", "opus"),
 }
 
 # Maps primary `settings` attribute -> fallback `settings` attribute.
@@ -429,6 +438,9 @@ def provider_and_tier_of(model_id: str | None) -> tuple[str, str] | None:
     hit = _MODEL_TO_PROVIDER_TIER.get(model_id or "")
     if hit is not None:
         return hit
+    legacy_hit = _LEGACY_OPENAI_MODEL_TO_TIER.get(model_id or "")
+    if legacy_hit is not None:
+        return legacy_hit
     for tier in ("opus", "sonnet", "haiku"):
         if tier in (model_id or ""):
             return ("anthropic", tier)
