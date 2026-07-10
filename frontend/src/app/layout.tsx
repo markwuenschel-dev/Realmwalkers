@@ -4,7 +4,7 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "Dominion Realm — Writers' Desk",
+  title: "Atelier — Writers' Desk",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

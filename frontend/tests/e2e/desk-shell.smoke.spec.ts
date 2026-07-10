@@ -26,7 +26,7 @@ test("root redirects into the Desk and the shell renders", async ({ page }) => {
   // provider tree. Its presence proves the React desk shell actually mounted and rendered.
   const banner = page.getByRole("banner");
   await expect(banner).toBeVisible();
-  await expect(banner).toContainText("The Dominion Realm");
+  await expect(banner).toContainText("Atelier");
 
   // The desk navigation must be present with its first, always-on route (Inbox). This is the
   // load-bearing nav landmark the whole app relies on.

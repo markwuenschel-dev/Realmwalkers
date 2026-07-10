@@ -54,9 +54,9 @@ export default function TopBar() {
   const activeId = activeRouteId(pathname);
   const badgeFor = (id: Screen): string | null =>
     id === "inbox" && pending.length ? String(pending.length) : null;
-  // Initial of the active book (the desk is book-scoped); fall back to the Dominion mark.
+  // Initial of the active book (the desk is book-scoped); fall back to the Atelier mark.
   const bookInitial =
-    (books.find((b) => b.id === bookId)?.title ?? "D").trim().charAt(0).toUpperCase() || "D";
+    (books.find((b) => b.id === bookId)?.title ?? "A").trim().charAt(0).toUpperCase() || "A";
 
   return (
     <header
@@ -77,14 +77,14 @@ export default function TopBar() {
               "width:26px;height:26px;border-radius:6px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:15px;color:var(--accent);background:var(--accentSoft)",
             )}
           >
-            D
+            A
           </div>
           <div
             style={css(
               "font-family:var(--display);font-size:15.5px;letter-spacing:.02em;color:var(--ink);white-space:nowrap",
             )}
           >
-            The Dominion Realm <span style={css("color:var(--dim)")}>· Writers' Desk</span>
+            Atelier <span style={css("color:var(--dim)")}>· Writers' Desk</span>
           </div>
         </Link>
         <nav style={css("display:flex;gap:2px")}>
