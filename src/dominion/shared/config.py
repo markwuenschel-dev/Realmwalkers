@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import logging
-import os
 from pathlib import Path
-from urllib.parse import urlsplit
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _ENV_FILE = _REPO_ROOT / ".env"
-_log = logging.getLogger("dominion.config")
 
 
 def _to_asyncpg(v: str) -> str:
@@ -28,8 +24,9 @@ def _to_asyncpg(v: str) -> str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DOMINION_", env_file=_ENV_FILE, extra="ignore")
 
-    # Also accept the bare DATABASE_URL a host like Railway injects, and normalize whatever scheme it
-    # uses (postgres:// or postgresql://) to the async driver the app actually connects with.
+    # The shared-box Compose stack injects DOMINION_DATABASE_URL (a private, internal-only host); a bare
+    # DATABASE_URL is also accepted. Normalize whatever scheme is given (postgres:// or postgresql://) to
+    # the async driver the app actually connects with.
     database_url: str = Field(
         default="postgresql+asyncpg://dominion:dominion@localhost:5432/dominion",
         validation_alias=AliasChoices("DOMINION_DATABASE_URL", "DATABASE_URL"),
@@ -39,36 +36,6 @@ class Settings(BaseSettings):
     @classmethod
     def _async_driver(cls, v: str) -> str:
         return _to_asyncpg(v)
-
-    @model_validator(mode="after")
-    def _prefer_private_db_network(self) -> Settings:
-        """Never talk to Postgres over Railway's PUBLIC proxy if a private-network URL is available.
-
-        Every byte to a `*.proxy.rlwy.net` host leaves Railway's network and is billed as egress; the
-        `*.railway.internal` private domain is free. `DOMINION_DATABASE_URL` wins over the injected
-        `DATABASE_URL` by alias order, so a proxy URL set there would shadow a free private one — swap
-        to the private URL when one exists, and warn loudly when it doesn't."""
-        host = urlsplit(self.database_url).hostname or ""
-        if not host.endswith(".proxy.rlwy.net"):
-            return self
-        for var in ("DATABASE_URL", "DATABASE_PRIVATE_URL", "DATABASE_INTERNAL_URL"):
-            alt = os.environ.get(var, "")
-            if ".railway.internal" in alt:
-                self.database_url = _to_asyncpg(alt)
-                _log.warning(
-                    "db: DOMINION_DATABASE_URL pointed at the public proxy (%s) — switched to the private "
-                    "network host %s to avoid billed egress.",
-                    host,
-                    urlsplit(self.database_url).hostname,
-                )
-                return self
-        _log.warning(
-            "db: connecting over Railway's PUBLIC proxy (%s) — every query is billed as egress. Point "
-            "DOMINION_DATABASE_URL at the private '<service>.railway.internal:5432' URL, or unset it so the "
-            "injected private DATABASE_URL is used.",
-            host,
-        )
-        return self
 
     # Anthropic (the key uses its own conventional env var, not the DOMINION_ prefix)
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
@@ -267,7 +234,7 @@ class Settings(BaseSettings):
     # Ceiling on any single backoff sleep (a provider Retry-After above this still only waits this long).
     llm_retry_max_delay_s: float = 30.0
     # Per-provider ceiling on concurrently in-flight LLM calls in this process (0 = uncapped). The
-    # OpenAI-compatible path (gpt-*/o*-*/grok-*/gemini-*) defaults to 1: gpt-5.4-mini's TPM window is
+    # OpenAI-compatible path (gpt-*/o*-*/grok-*/gemini-*) defaults to 1: current GPT TPM windows are
     # small enough that a concurrent scene author+QA swarm self-inflicts 429s — serialize those calls
     # until real cross-call token budgeting exists (raise to 2 only with verified TPM headroom).
     # Anthropic stays uncapped here; scene_packet_max_inflight_llm already bounds its fan-out.

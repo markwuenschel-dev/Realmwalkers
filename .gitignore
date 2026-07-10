@@ -27,13 +27,9 @@ author notes/
 # worker scratch output (e.g. tmp/packet_internal.json) and local MCP working dirs — never tracked
 tmp/
 mcps/
-# Scratch JSON is ignored at the repo ROOT only (anchored /*.json). NEVER use a bare `*.json` here:
-# the Railway CLI applies these patterns to its upload walk at any depth REGARDLESS of git tracking,
-# so a bare `*.json` silently dropped frontend/package.json, frontend/tsconfig.json, and railway.json
-# from every `railway up` context and broke the deploy (2026-07-03).
+# Scratch JSON is ignored at the repo ROOT only (anchored /*.json). NEVER use a bare `*.json` here —
+# that would also drop tracked nested files like frontend/package.json and frontend/tsconfig.json.
 /*.json
-# railway.json must ride in the upload so Railway reads the service config from the context.
-!/railway.json
 # schema files under src/ are code artifacts that ship in the wheel
 # (e.g. chapter_master_packet.schema.json) — keep them tracked.
 !src/**/*.schema.json

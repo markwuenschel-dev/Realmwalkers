@@ -9,7 +9,7 @@ vi.mock("../../state", () => ({
 
 const PROVIDER_TIERS: Record<string, Record<string, string>> = {
   anthropic: { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-5", opus: "claude-opus-4-8" },
-  openai: { haiku: "gpt-5.4-nano", sonnet: "gpt-5.4-mini", opus: "gpt-5.5" },
+  openai: { haiku: "gpt-5.6-luna", sonnet: "gpt-5.6-terra", opus: "gpt-5.6-sol" },
   google: { sonnet: "gemini-3.5-flash", opus: "gemini-3.1-pro-preview" },
   xai: { opus: "grok-4.3" },
 };
@@ -112,9 +112,9 @@ describe("AgentRow flat model picker", () => {
       "Haiku",
       "Sonnet",
       "Opus",
-      "GPT 5.4 Nano",
-      "GPT 5.4 Mini",
-      "GPT 5.5",
+      "GPT 5.6 Luna",
+      "GPT 5.6 Terra",
+      "GPT 5.6 Sol",
       "Gemini Flash",
       "Gemini Pro",
       "Grok",
@@ -123,7 +123,7 @@ describe("AgentRow flat model picker", () => {
 
   it("picking a model calls onPickTier with its (tier, provider) pair", () => {
     const { onPickTier, primary } = renderOpen();
-    fireEvent.click(primary.getByText("GPT 5.5"));
+    fireEvent.click(primary.getByText("GPT 5.6 Sol"));
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "openai");
   });
 
@@ -153,9 +153,9 @@ describe("AgentRow flat model picker", () => {
 
   it("highlights an active OpenAI model with the OpenAI brand color", () => {
     const { primary } = renderOpen({
-      agent: agent({ provider: "openai", tier: "haiku", model: "gpt-5.4-nano" }),
+      agent: agent({ provider: "openai", tier: "haiku", model: "gpt-5.6-luna" }),
     });
-    const btn = primary.getByText("GPT 5.4 Nano");
+    const btn = primary.getByText("GPT 5.6 Luna");
     expect(btn).toHaveStyle({ background: "#10A37F", color: "#FFFFFF" });
   });
 
@@ -201,14 +201,14 @@ describe("AgentRow flat model picker", () => {
 
   it("fallback row picks a model with (tier, provider), same as primary", () => {
     const { onSetFallback, fallback } = renderOpen();
-    fireEvent.click(fallback.getByText("GPT 5.4 Mini"));
+    fireEvent.click(fallback.getByText("GPT 5.6 Terra"));
     expect(onSetFallback).toHaveBeenCalledWith("draft_model", "sonnet", "openai");
   });
 
   it("only shows models that a partial provider catalog actually offers", () => {
     const { primary } = renderOpen({ providerTiers: { anthropic: PROVIDER_TIERS.anthropic } });
     expect(primary.queryByText("Grok")).not.toBeInTheDocument();
-    expect(primary.queryByText("GPT 5.5")).not.toBeInTheDocument();
+    expect(primary.queryByText("GPT 5.6 Sol")).not.toBeInTheDocument();
   });
 });
 

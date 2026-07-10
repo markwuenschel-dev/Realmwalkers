@@ -28,9 +28,9 @@ const PROVIDER_COLOR: Record<string, string> = {
   xai: "#0A0A0A",
 };
 const MODEL_LABEL: Record<string, string> = {
-  "gpt-5.4-nano": "GPT 5.4 Nano",
-  "gpt-5.4-mini": "GPT 5.4 Mini",
-  "gpt-5.5": "GPT 5.5",
+  "gpt-5.6-luna": "GPT 5.6 Luna",
+  "gpt-5.6-terra": "GPT 5.6 Terra",
+  "gpt-5.6-sol": "GPT 5.6 Sol",
   "gemini-3.5-flash": "Gemini Flash",
   "gemini-3.1-pro-preview": "Gemini Pro",
   "grok-4.3": "Grok",

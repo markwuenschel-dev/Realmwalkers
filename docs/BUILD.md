@@ -6,6 +6,15 @@ for the full architecture and rationale see [`DESIGN.md`](DESIGN.md).
 The system is a human-gated, scene-by-scene **workflow, not an agent**: a worker drafts one scene,
 writes it to Postgres as `pending_review`, and exits. Nothing runs between approvals.
 
+## OpenAI generation
+
+OpenAI text generation uses the Python SDK's Responses API behind `dominion.workers.llm.complete()`.
+The deterministic queue, approval gates, budgets, and telemetry remain provider-neutral; Gemini and
+xAI continue through their OpenAI-compatible Chat Completions endpoints. OpenAI authoring requests
+explicitly set `store: true` (the account's default storage policy), so canon and manuscript prompts
+may be retained by OpenAI. Do not enable provider-hosted tools, Agents SDK, or Realtime in this
+workflow. Embeddings remain on `text-embedding-3-small` until a separately approved re-index.
+
 ## Architecture
 
 ```
@@ -44,7 +53,8 @@ docs/         DESIGN.md (spec), contract_first_drafting.md (drafting contract), 
 
 ## Running it
 
-The app ships as a **single container** (Next.js standalone + FastAPI) deployed on Railway — see
+The app ships as a **single container** (Next.js standalone + FastAPI), deployed as one service in the
+shared AWS box's Docker Compose stack (behind Caddy) — see
 [`DEPLOY.md`](DEPLOY.md). There is no separate local run target: the browser loads the desk from Next
 and calls same-origin `/api/desk/*`, which the BFF proxies to FastAPI (no separate API host, no CORS).
 
