@@ -150,6 +150,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/scenes/{scene_id}/fidelity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Scene Fidelity
+     * @description Decision-ready fidelity status for a scene: whether a CURRENT report exists, its clause
+     *     evaluations, and any operational (incomplete-evaluation) holds. Read-only and deterministic — it
+     *     never triggers evaluation (that is the explicit manual rerun).
+     */
+    get: operations["scene_fidelity_scenes__scene_id__fidelity_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/scenes/{scene_id}/decision": {
     parameters: {
       query?: never;
@@ -963,6 +985,83 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/scene-packets/{scene_packet_id}/fidelity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Scene Packet Fidelity */
+    get: operations["get_scene_packet_fidelity_scene_packets__scene_packet_id__fidelity_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scene-packets/{scene_packet_id}/fidelity/accept": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Accept Fidelity Suggestions
+     * @description Promote suggested requirements into the active contract with freshly minted identities.
+     */
+    post: operations["accept_fidelity_suggestions_scene_packets__scene_packet_id__fidelity_accept_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scene-packets/{scene_packet_id}/fidelity/refine": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Refine Fidelity Requirement
+     * @description Refine an active requirement in place (identity preserved; non-semantic clarification only).
+     */
+    post: operations["refine_fidelity_requirement_scene_packets__scene_packet_id__fidelity_refine_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scene-packets/{scene_packet_id}/fidelity/replace": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Replace Fidelity Requirement
+     * @description Replace an active requirement with a freshly minted identity (mode/policy/criterion change).
+     */
+    post: operations["replace_fidelity_requirement_scene_packets__scene_packet_id__fidelity_replace_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/production-runs": {
     parameters: {
       query?: never;
@@ -1633,6 +1732,87 @@ export interface paths {
     put?: never;
     /** Approve Final Chapter */
     post: operations["approve_final_chapter_production_runs__run_id__approve_final_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/fidelity/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Fidelity Preview
+     * @description Create an immutable repair preview for one fidelity Issue. The candidate prose is author/tool
+     *     supplied (a bounded repair-writer produces it); this endpoint never changes the current Scene.
+     */
+    post: operations["create_fidelity_preview_issues__issue_id__fidelity_preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/fidelity-previews/{preview_id}/accept": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Accept Fidelity Preview
+     * @description Accept (or edit) a preview into a NEW author-visible Scene revision (ADR 0017).
+     */
+    post: operations["accept_fidelity_preview_fidelity_previews__preview_id__accept_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/fidelity-previews/{preview_id}/reject": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reject Fidelity Preview
+     * @description Reject a preview. The Critique, Issue, and current Scene are left intact (ADR 0017).
+     */
+    post: operations["reject_fidelity_preview_fidelity_previews__preview_id__reject_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/fidelity/override": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Override Fidelity Issue
+     * @description Author override of a fidelity repair Issue — requires a reason (ADR 0009).
+     */
+    post: operations["override_fidelity_issue_issues__issue_id__fidelity_override_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -4286,6 +4466,25 @@ export interface components {
       /** Body */
       body?: string | null;
     };
+    /** ClauseEvaluationOut */
+    ClauseEvaluationOut: {
+      /** Requirement Id */
+      requirement_id: string;
+      /** Clause Id */
+      clause_id: string;
+      /** Mode */
+      mode: string;
+      /** Result */
+      result: string;
+      /** Enforcement */
+      enforcement: string;
+      /** Post Draft Policy */
+      post_draft_policy: string;
+      /** Evidence Valid */
+      evidence_valid: boolean;
+      /** Explanation */
+      explanation: string;
+    };
     /**
      * ClearDraftScenesOut
      * @description Result of removing all non-approved scenes (draft compile reset).
@@ -4360,6 +4559,14 @@ export interface components {
       } | null;
       /** Scene Packet Id */
       scene_packet_id?: string | null;
+      /** Draft Attempt Id */
+      draft_attempt_id?: string | null;
+      /** Source Artifact Id */
+      source_artifact_id?: string | null;
+      /** Finding Signature */
+      finding_signature?: string | null;
+      /** Created At */
+      created_at?: string | null;
     };
     /** CustomPresetCreateIn */
     CustomPresetCreateIn: {
@@ -4748,6 +4955,34 @@ export interface components {
       /** Last Error */
       last_error?: string | null;
     };
+    /** FidelityAcceptIn */
+    FidelityAcceptIn: {
+      /** Requirement Ids */
+      requirement_ids?: string[] | null;
+    };
+    /** FidelityRequirementActionIn */
+    FidelityRequirementActionIn: {
+      /** Requirement Id */
+      requirement_id: string;
+      /** Requirement */
+      requirement: {
+        [key: string]: unknown;
+      };
+    };
+    /**
+     * FidelityViolationOut
+     * @description One deterministic breach of the active fidelity contract, for author-facing validation feedback.
+     */
+    FidelityViolationOut: {
+      /** Kind */
+      kind: string;
+      /** Field */
+      field?: string | null;
+      /** Detail */
+      detail: string;
+      /** Severity */
+      severity: string;
+    };
     /**
      * GateMode
      * @enum {string}
@@ -4867,6 +5102,11 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /** IssueOverrideIn */
+    IssueOverrideIn: {
+      /** Reason */
+      reason: string;
     };
     /**
      * JobsPauseOut
@@ -6255,6 +6495,37 @@ export interface components {
        */
       created_at: string;
     };
+    /** RepairPreviewActionIn */
+    RepairPreviewActionIn: {
+      /** Edited Prose */
+      edited_prose?: string | null;
+      /** Reason */
+      reason?: string | null;
+    };
+    /** RepairPreviewCreateIn */
+    RepairPreviewCreateIn: {
+      /** Candidate Prose */
+      candidate_prose: string;
+      /**
+       * Rationale
+       * @default
+       */
+      rationale: string;
+    };
+    /** RepairPreviewOut */
+    RepairPreviewOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Status */
+      status: string;
+      /** Body */
+      body: {
+        [key: string]: unknown;
+      };
+    };
     /** RepairTaskOut */
     RepairTaskOut: {
       /**
@@ -6702,6 +6973,36 @@ export interface components {
        */
       is_exemplar: boolean;
     };
+    /**
+     * SceneFidelityOut
+     * @description Decision-ready scene fidelity status: whether a current report exists, its currentness, the merged
+     *     clause evaluations, and any operational (incomplete-evaluation) holds — distinct from repair holds.
+     */
+    SceneFidelityOut: {
+      /**
+       * Scene Id
+       * Format: uuid
+       */
+      scene_id: string;
+      /** Has Report */
+      has_report: boolean;
+      /** Is Current */
+      is_current: boolean;
+      /** Currentness Reason */
+      currentness_reason: string;
+      /** Report Artifact Id */
+      report_artifact_id?: string | null;
+      /**
+       * Clause Evaluations
+       * @default []
+       */
+      clause_evaluations: components["schemas"]["ClauseEvaluationOut"][];
+      /**
+       * Operational Holds
+       * @default []
+       */
+      operational_holds: string[];
+    };
     /** SceneOut */
     SceneOut: {
       /**
@@ -6809,6 +7110,39 @@ export interface components {
       /** Elapsed S */
       elapsed_s?: number | null;
       result?: components["schemas"]["ScenePacketDeriveOut"] | null;
+    };
+    /**
+     * ScenePacketFidelityOut
+     * @description The fidelity state of a ScenePacket: active requirements, inactive suggestions (visually distinct
+     *     in the UI), the canonical fingerprint, and any structural violations of the active contract.
+     */
+    ScenePacketFidelityOut: {
+      /**
+       * Scene Packet Id
+       * Format: uuid
+       */
+      scene_packet_id: string;
+      /**
+       * Active Requirements
+       * @default []
+       */
+      active_requirements: {
+        [key: string]: unknown;
+      }[];
+      /**
+       * Suggested Requirements
+       * @default []
+       */
+      suggested_requirements: {
+        [key: string]: unknown;
+      }[];
+      /** Fingerprint */
+      fingerprint: string;
+      /**
+       * Violations
+       * @default []
+       */
+      violations: components["schemas"]["FidelityViolationOut"][];
     };
     /**
      * ScenePacketOut
@@ -7908,6 +8242,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["SceneOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  scene_fidelity_scenes__scene_id__fidelity_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneFidelityOut"];
         };
       };
       /** @description Validation Error */
@@ -9644,6 +10009,142 @@ export interface operations {
       };
     };
   };
+  get_scene_packet_fidelity_scene_packets__scene_packet_id__fidelity_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketFidelityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  accept_fidelity_suggestions_scene_packets__scene_packet_id__fidelity_accept_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FidelityAcceptIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketFidelityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  refine_fidelity_requirement_scene_packets__scene_packet_id__fidelity_refine_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FidelityRequirementActionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketFidelityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  replace_fidelity_requirement_scene_packets__scene_packet_id__fidelity_replace_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FidelityRequirementActionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ScenePacketFidelityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   start_production_run_production_runs_post: {
     parameters: {
       query?: never;
@@ -10917,6 +11418,146 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ProductionRunOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_fidelity_preview_issues__issue_id__fidelity_preview_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RepairPreviewCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairPreviewOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  accept_fidelity_preview_fidelity_previews__preview_id__accept_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        preview_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RepairPreviewActionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SceneOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reject_fidelity_preview_fidelity_previews__preview_id__reject_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        preview_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RepairPreviewActionIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepairPreviewOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  override_fidelity_issue_issues__issue_id__fidelity_override_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueOverrideIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
         };
       };
       /** @description Validation Error */
