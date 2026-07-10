@@ -1,0 +1,3 @@
+# SceneFidelity policy matrix
+
+Malformed active requirements block packet approval; invalid evidence remains report-only diagnostics. Advisory findings and findings against standard clauses remain warning Critiques. Only direct contradictions or corroborated omissions against hard clauses in export-required requirements become repair-eligible Critiques and Repair Previews. Policy evaluates every cited clause independently and downgrades ambiguous mixed-clause evidence. Operational missing, stale, or failed export-required evaluation creates an incomplete-evaluation hold rather than a Critique or prose failure. The UI explains when a standard clause cannot create repair work and lets the author explicitly upgrade it.
