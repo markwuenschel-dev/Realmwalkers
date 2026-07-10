@@ -32,7 +32,7 @@ $SYNC
 echo "deploying \$(git rev-parse --short HEAD): \$(git log -1 --format=%s)"
 cd /opt/stack/infra
 docker compose up -d --build realmwalkers
-docker compose logs --tail=$TAIL realmwalkers
+docker compose logs --tail=$TAIL realmwalkers || echo "(log tail failed - check manually; deploy itself already succeeded)"
 EOF
 )
 
@@ -42,7 +42,9 @@ if [ -n "${DRY_RUN:-}" ]; then
 fi
 
 [ -f "$KEY" ] || { echo "SSH key not found: $KEY" >&2; exit 1; }
-printf '%s\n' "$REMOTE" | ssh -i "$KEY" "$BOX" "bash -s"
+# tr guards against CRLF sneaking into the stream (e.g. a CRLF checkout of this file) — a stray \r
+# makes bash on the box see 'realmwalkers\r' and compose reports "no such service".
+printf '%s\n' "$REMOTE" | ssh -i "$KEY" "$BOX" "tr -d '\r' | bash -s"
 
 # Prove the public URL serves the new build — logs alone don't show what Caddy is fronting.
 code=$(curl -fsSL -o /dev/null -w '%{http_code}' --max-time 30 "$URL/") ||

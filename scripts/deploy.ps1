@@ -36,13 +36,16 @@ $sync
 echo "deploying `$(git rev-parse --short HEAD): `$(git log -1 --format=%s)"
 cd /opt/stack/infra
 docker compose up -d --build realmwalkers
-docker compose logs --tail=$Tail realmwalkers
+docker compose logs --tail=$Tail realmwalkers || echo "(log tail failed - check manually; deploy itself already succeeded)"
 "@
 
 if ($DryRun) { Write-Host $remote; exit 0 }
 
 if (-not (Test-Path $SshKey)) { throw "SSH key not found: $SshKey" }
-$remote | ssh -i $SshKey $BoxHost "bash -s"
+# PowerShell's pipe to a native command appends CRLF to the FINAL line (and a CRLF checkout of this
+# file would put \r on every line), so bash on the box would see 'realmwalkers\r' — "no such
+# service". Strip CRs on the remote side before bash reads the script.
+$remote | ssh -i $SshKey $BoxHost "tr -d '\r' | bash -s"
 if ($LASTEXITCODE -ne 0) { throw "deploy failed (ssh exit $LASTEXITCODE)" }
 
 # Prove the public URL serves the new build — logs alone don't show what Caddy is fronting.
