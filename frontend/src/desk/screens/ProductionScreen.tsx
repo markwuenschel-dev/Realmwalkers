@@ -11,6 +11,7 @@ import type {
   PacketOut,
   ProductionRunDetailOut,
   ProductionRunOut,
+  RepairPreviewOut,
   RepairTaskOut,
   RepairVerificationOut,
 } from "../api/types";
@@ -18,6 +19,7 @@ import { useDeskData } from "../api/data";
 import { css } from "../css";
 import GateDisclosure from "../components/GateDisclosure";
 import ProseBlocks from "../components/ProseBlocks";
+import SceneFidelityPreview from "../components/SceneFidelityPreview";
 import { Button, Chip, Eyebrow, MetricCard, Panel, Spinner, Stepper } from "../components/ui";
 import type { ChipTone, Step, StepState } from "../components/ui";
 import { downloadBlob } from "../lib/download";
@@ -1176,6 +1178,7 @@ export default function ProductionScreen() {
                       key={issue.id}
                       issue={issue}
                       decision={decisionByIssue.get(issue.id) ?? null}
+                      onResolved={() => detail && void loadDetail(detail.run.id)}
                       onOpenPacket={
                         chapterId
                           ? () =>
@@ -1601,14 +1604,158 @@ function ProductionGatePanel({
   );
 }
 
+// Terminal fidelity-issue statuses: propose/override no longer apply once the issue is overridden,
+// superseded by a newer report, verified by positive evidence, or otherwise resolved.
+const FIDELITY_ISSUE_TERMINAL = new Set(["overridden", "superseded", "verified", "resolved"]);
+
+const FIDELITY_TEXTAREA =
+  "width:100%;box-sizing:border-box;font-family:var(--mono);font-size:12px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink)";
+const FIDELITY_INPUT =
+  "width:100%;box-sizing:border-box;font-family:var(--ui);font-size:12px;padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);color:var(--ink)";
+
+/** Author-controlled repair for a scene-fidelity Issue (ADR 0017): propose candidate prose → the
+ *  backend diffs it into an immutable RepairPreview Artifact, which the author accepts/edits/rejects
+ *  via SceneFidelityPreview (accept mints a new scene revision). Override records an explicit author
+ *  reason instead. Both are HUMAN_REQUIRED — nothing here auto-rewrites the scene. */
+function FidelityIssueActions({ issue, onResolved }: { issue: IssueOut; onResolved: () => void }) {
+  const [mode, setMode] = useState<"idle" | "propose" | "override">("idle");
+  const [candidate, setCandidate] = useState("");
+  const [rationale, setRationale] = useState("");
+  const [reason, setReason] = useState("");
+  const [preview, setPreview] = useState<RepairPreviewOut | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function propose() {
+    if (!candidate.trim()) return;
+    setBusy(true);
+    try {
+      const p = await api.createFidelityPreview(issue.id, {
+        candidate_prose: candidate,
+        rationale,
+      });
+      setPreview(p);
+      setMode("idle");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function override() {
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      await api.overrideFidelityIssue(issue.id, { reason });
+      setMode("idle");
+      setReason("");
+      onResolved();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (preview) {
+    return (
+      <div style={css("margin-top:10px")} data-testid="fidelity-preview">
+        <SceneFidelityPreview
+          preview={preview}
+          onResolved={() => {
+            setPreview(null);
+            setCandidate("");
+            setRationale("");
+            onResolved();
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (FIDELITY_ISSUE_TERMINAL.has(issue.status)) return null;
+
+  return (
+    <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
+      {mode === "idle" && (
+        <div style={css("display:flex;gap:8px;flex-wrap:wrap")}>
+          <Button size="sm" variant="primary" onClick={() => setMode("propose")}>
+            Propose repair
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setMode("override")}>
+            Override…
+          </Button>
+        </div>
+      )}
+      {mode === "propose" && (
+        <div
+          style={css("display:flex;flex-direction:column;gap:6px")}
+          data-testid="fidelity-propose"
+        >
+          <textarea
+            value={candidate}
+            onChange={(e) => setCandidate(e.target.value)}
+            rows={6}
+            placeholder="Candidate prose for the flagged span — diffed against the current scene into a preview."
+            style={css(FIDELITY_TEXTAREA)}
+          />
+          <input
+            value={rationale}
+            onChange={(e) => setRationale(e.target.value)}
+            placeholder="Rationale (optional)"
+            style={css(FIDELITY_INPUT)}
+          />
+          <div style={css("display:flex;gap:8px")}>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={busy || !candidate.trim()}
+              onClick={propose}
+            >
+              {busy ? "Proposing…" : "Preview repair"}
+            </Button>
+            <Button size="sm" onClick={() => setMode("idle")} disabled={busy}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      {mode === "override" && (
+        <div
+          style={css("display:flex;flex-direction:column;gap:6px")}
+          data-testid="fidelity-override"
+        >
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why is this fidelity finding acceptable as-is? (required)"
+            style={css(FIDELITY_INPUT)}
+          />
+          <div style={css("display:flex;gap:8px")}>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={busy || !reason.trim()}
+              onClick={override}
+            >
+              {busy ? "Overriding…" : "Confirm override"}
+            </Button>
+            <Button size="sm" onClick={() => setMode("idle")} disabled={busy}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function IssueRow({
   issue,
   decision,
   onOpenPacket,
+  onResolved,
 }: {
   issue: IssueOut;
   decision?: IssueDecisionOut | null;
   onOpenPacket?: () => void;
+  onResolved?: () => void;
 }) {
   return (
     <div
@@ -1663,6 +1810,9 @@ function IssueRow({
             {issue.scene_no != null ? "Open scene packet →" : "Open chapter packet →"}
           </Button>
         </div>
+      )}
+      {issue.validator === "scene_fidelity" && onResolved && (
+        <FidelityIssueActions issue={issue} onResolved={onResolved} />
       )}
     </div>
   );

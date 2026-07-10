@@ -7,6 +7,7 @@ import { api } from "../api/client";
 import { formatElapsed } from "./DraftActivity";
 import { Button, Chip, Panel, Spinner, StatusPill } from "./ui";
 import ClearFailedPanel from "./ClearFailedPanel";
+import SceneFidelityRequirements from "./SceneFidelityRequirements";
 import { ChapterTelemetryPanel } from "./Telemetry";
 import { TelemetryDrawer, useTelemetryDrawer } from "./telemetry/TelemetryDrawer";
 import type { TelemetryDrawerView } from "./telemetry/types";
@@ -1245,6 +1246,8 @@ function ScenePacketCard({
                 )}
               </div>
             )}
+
+            <SceneFidelityRequirements packetId={summary.id} />
 
             <SourcesPanel sources={full.sources} />
           </div>
