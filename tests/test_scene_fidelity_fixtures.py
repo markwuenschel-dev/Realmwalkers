@@ -152,14 +152,9 @@ def test_corpus_covers_the_required_hard_contracts() -> None:
 def test_all_five_modes_appear_in_the_corpus() -> None:
     """Closed mode registry coverage (ADR 0011): every typed mode must be exercised by at least one
     active fixture so no adapter ships without a fixture."""
+    expected = {"relationship_turn", "intimacy_blocking", "combat_blocking", "spatial_affordance", "reader_movie"}
     modes: set[str] = set()
     for fixture in iter_fixtures():
         for req in fixture["packet"].get("fidelity_requirements", []) or []:
             modes.add(req["mode"])
-    assert modes == {
-        "relationship_turn",
-        "intimacy_blocking",
-        "combat_blocking",
-        "spatial_affordance",
-        "reader_movie",
-    }, f"corpus is missing modes: {sorted({'relationship_turn', 'intimacy_blocking', 'combat_blocking', 'spatial_affordance', 'reader_movie'} - modes)}"
+    assert modes == expected, f"corpus is missing modes: {sorted(expected - modes)}"
