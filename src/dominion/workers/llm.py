@@ -183,9 +183,7 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
     if model.startswith("gemini-"):
         key = (settings.google_api_key or "").strip()
         if not key:
-            raise RuntimeError(
-                "GEMINI_API_KEY / GOOGLE_API_KEY is not set — add it to the deploy environment."
-            )
+            raise RuntimeError("GEMINI_API_KEY / GOOGLE_API_KEY is not set — add it to the deploy environment.")
         return settings.google_base_url, key
     key = (settings.openai_api_key or "").strip()
     if not key:
@@ -725,9 +723,7 @@ async def complete(
         elif _is_openai_responses_model(model):
             api_key = (settings.openai_api_key or "").strip()
             if not api_key:
-                raise RuntimeError(
-                    "OPENAI_API_KEY is not set — add it to the deploy environment."
-                )
+                raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment.")
             create_kwargs = _responses_request(
                 model=model,
                 system=system,
