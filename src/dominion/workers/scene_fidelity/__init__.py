@@ -16,6 +16,7 @@ from dominion.workers.scene_fidelity.contract import (
     finding_signature,
     validate_active_requirements,
 )
+from dominion.workers.scene_fidelity.drafter_projection import project_fidelity_for_drafter
 from dominion.workers.scene_fidelity.models import (
     CLOSED_MODES,
     AnchorKind,
@@ -62,5 +63,6 @@ __all__ = [
     "fidelity_contract_fingerprint",
     "finding_signature",
     "is_fidelity_active",
+    "project_fidelity_for_drafter",
     "validate_active_requirements",
 ]

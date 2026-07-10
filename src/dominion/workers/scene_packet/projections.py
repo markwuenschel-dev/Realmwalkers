@@ -10,7 +10,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from dominion.workers.packet.parse import str_list
-from dominion.workers.scene_fidelity import active_requirements, fidelity_contract_fingerprint
+from dominion.workers.scene_fidelity import (
+    active_requirements,
+    fidelity_contract_fingerprint,
+    project_fidelity_for_drafter,
+)
 
 # Chapter-level locks that still bind every scene; lifted into the flat drafter contract.
 _CHAPTER_LOCK_KEYS: tuple[str, ...] = (
@@ -37,6 +41,9 @@ class ScenePacketProjections:
     # fingerprint for report currentness. Defaults keep older direct constructions valid.
     fidelity_requirements: list[dict[str, Any]] = field(default_factory=list)
     fidelity_fingerprint: str = ""
+    # Sectioned, dependency-ordered drafter view of the active clauses (Lane 3A). Statements only,
+    # no IDs — it becomes author-facing prompt text.
+    fidelity_drafter: dict[str, Any] = field(default_factory=dict)
 
 
 def project(scene_body: dict[str, Any], chapter_body: dict[str, Any]) -> ScenePacketProjections:
@@ -51,6 +58,7 @@ def project(scene_body: dict[str, Any], chapter_body: dict[str, Any]) -> ScenePa
         drafter_flat=_flat_drafter_contract(scene_body, chapter_body),
         fidelity_requirements=active_requirements(scene_body),
         fidelity_fingerprint=fidelity_contract_fingerprint(scene_body),
+        fidelity_drafter=project_fidelity_for_drafter(scene_body),
     )
 
 

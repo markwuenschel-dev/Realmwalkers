@@ -129,6 +129,42 @@ def _contract_block(ctx: SceneContext) -> str | None:
     return header + "\n\n" + "\n\n".join(sections)
 
 
+def _fidelity_block(ctx: SceneContext) -> str | None:
+    """The approved SceneFidelity obligations for this scene (Lane 3A), as a high-salience block that
+    follows the contract. Statements only — never clause IDs — and a prerequisite is always stated before
+    the payoff that depends on it. None when the scene has no active fidelity contract."""
+    f = ctx.fidelity
+    if not f:
+        return None
+
+    sections: list[str] = []
+    establish = [e for e in (f.get("establish_before_payoff") or []) if isinstance(e, dict)]
+    if establish:
+        lines = [
+            f'- establish "{str(e.get("establish") or "").strip()}" BEFORE "{str(e.get("before") or "").strip()}"'
+            for e in establish
+        ]
+        sections.append("ESTABLISH BEFORE PAYOFF:\n" + "\n".join(lines))
+
+    def block(key: str, label: str) -> None:
+        vals = [str(v).strip() for v in (f.get(key) or []) if str(v).strip()]
+        if vals:
+            sections.append(f"{label}:\n" + "\n".join(f"- {v}" for v in vals))
+
+    block("must_preserve", "PRESERVE")
+    block("scene_state", "SCENE STATE — keep spatially coherent")
+    block("must_not", "DO NOT")
+
+    if not sections:
+        return None
+    header = (
+        "FIDELITY — the approved fidelity obligations for this scene. Honor every one as lived action, "
+        "perception, and consequence; do NOT name or quote these obligations in the prose. Where a payoff "
+        "depends on something established earlier, establish it first."
+    )
+    return header + "\n\n" + "\n\n".join(sections)
+
+
 def _length_instruction(ctx: SceneContext) -> str | None:
     """A firm length instruction from the ScenePacket word budget (falls back to target_words)."""
     wb = ctx.word_budget or {}
@@ -170,6 +206,8 @@ def _beat_prompt(ctx: SceneContext) -> tuple[str | None, str]:
     prefix_parts: list[str] = []
     if contract := _contract_block(ctx):
         prefix_parts.append(contract)
+    if fidelity := _fidelity_block(ctx):
+        prefix_parts.append(fidelity)
     if ctx.canon:
         prefix_parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
     if ctx.pov_summary:
@@ -218,6 +256,8 @@ def _revise_prompt(ctx: SceneContext) -> tuple[str | None, str]:
     prefix_parts: list[str] = []
     if contract := _contract_block(ctx):
         prefix_parts.append(contract)
+    if fidelity := _fidelity_block(ctx):
+        prefix_parts.append(fidelity)
     if ctx.canon:
         prefix_parts.append("Canon (treat as true):\n" + "\n".join(f"- {c}" for c in ctx.canon))
     if ctx.pov_summary:
