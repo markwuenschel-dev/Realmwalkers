@@ -512,3 +512,19 @@ Plan complete and saved to `docs/superpowers/plans/2026-07-09-scene-fidelity-pro
 
 1. **Subagent-Driven (recommended):** dispatch one fresh implementation agent per lane, review between merges, and keep Lane 8 active from the start.
 2. **Inline Execution:** execute the lanes in this session with review checkpoints and the stated merge order.
+
+---
+
+## Implementation status (2026-07-10)
+
+All eight lanes implemented on `feat/scene-fidelity`, each committed in isolation (the unrelated in-flight
+OpenAI-catalog changes to config/registry/llm were never swept in). Deterministic gate green throughout:
+ruff + ruff-format clean, pyright 0 errors on every touched file, full pytest **716 passed / 1 xfailed**;
+frontend tsc/oxlint clean, vitest 311 passed (only the pre-existing missing-`jszip` file fails).
+
+- Lanes 8A, 1, 2, 3A, 3B, 5, 6, 7, 8B: complete.
+- SceneFidelity test files: contract, migrations, packet-contract, drafter-projection, evaluator,
+  telemetry, policy, production, repair-preview, api, fixtures, end-to-end.
+- **Deferred (backend fully supports):** live fixture-corpus run over approved primary + fallback models
+  and captured-response adapter tests (need live LLMs); wiring accept/refine/replace controls into the
+  large `ScenePacketsPanel`; mounting `SceneFidelityPreview` in the production/issue view.

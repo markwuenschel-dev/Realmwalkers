@@ -28,8 +28,8 @@
   "prose": "By the time the guards arrived it was already over. Later, Serra would tell herself she had done what was necessary.",
   "expect": {
     "clause_evaluation": {"clause_id": "cl-shown-not-told", "result": "lost", "anchor_kind": "expected_beat"},
-    "policy_outcome": {"kind": "diagnostic"},
-    "critique": {"projected": false},
-    "note": "Exploratory: informative only. A regression here is reviewed, never gates a merge."
+    "policy_outcome": {"kind": "warning"},
+    "critique": {"projected": true, "severity": "warn"},
+    "note": "Advisory requirement: a lost clause is a WARNING Critique (ADR 0019), never repair-eligible. Exploratory tier: a regression here is reviewed, never gates a merge."
   }
 }

@@ -57,6 +57,30 @@ Policy evaluates **every cited clause independently**.
 - → `SUPERSEDED`: only after a newer current eligible Critique materializes a **successor** Issue; the superseded Issue references its successor.
 - Missing / stale / incomplete evaluation: the Issue stays unresolved and a **separate** operational hold is raised (no automatic transition). "No finding" never clears an Issue.
 
+## Verification status (Lane 8B)
+
+Every cross-lane invariant above is now enforced by a deterministic test:
+
+| Invariant | Enforced by |
+|---|---|
+| One facade behind ScenePacket | `test_scene_fidelity_evaluator.py` (single `evaluate_scene_fidelity` entry) |
+| Closed five-mode registry | `test_scene_fidelity_contract.py::test_closed_mode_registry_is_exactly_five`, fixtures mode-coverage |
+| No malformed active requirement on approval | `test_scene_fidelity_packet_contract.py` (malformed/cycle block the gate) |
+| Suggestions never activate | `test_scene_fidelity_packet_contract.py::test_suggestions_never_block_or_activate`, drafter projection |
+| `advisory`/`export_required` + unconditional structural validity | `test_scene_fidelity_contract.py`, `test_scene_fidelity_policy.py` |
+| Deterministic code owns approval/policy/currentness/export | `test_scene_fidelity_policy.py`, `test_scene_fidelity_production.py` |
+| Hard clause → one typed criterion; no finding ≠ satisfaction | `test_scene_fidelity_contract.py`, `..._production.py::verifies_only_on_satisfied` |
+| Satisfied needs positive evidence; else operational hold | `test_scene_fidelity_evaluator.py`, `..._policy.py`, `..._production.py` |
+| Forward-only / inert without version + active reqs | `test_scene_fidelity_contract.py`, `..._evaluator.py::skips_inert`, `..._api.py` |
+| No backfill / retroactive hold | `..._production.py` (inert packets skipped), forward-only tests |
+| Fidelity RepairTask always HUMAN_REQUIRED; only bounded previews auto-generated | `..._production.py::materializes_human_required`, `..._repair_preview.py` |
+| Policy matrix (ADR 0019) exactly | `test_scene_fidelity_policy.py` (every row) + `test_scene_fidelity_end_to_end.py` (fixtures ↔ policy) |
+| Issue lifecycle VERIFIED/OVERRIDDEN/SUPERSEDED (ADR 0020) | `..._production.py`, `..._end_to_end.py::override_then_fresh_loss` |
+
+Corpus ↔ code cannot silently diverge: `test_scene_fidelity_end_to_end.py::test_fixture_policy_expectations_match_locked_policy` drives every fixture's declared `policy_outcome` through the real policy (it already caught and fixed one wrong fixture expectation).
+
+**Not yet run (needs live models):** the live fixture corpus over approved primary + fallback models, and captured-response tests for the five adapters. The deterministic gate (contract, evaluator merger, policy, triage, previews, API) is fully green; the adapter LLM path is exercised only via injected fakes until the live corpus runs.
+
 ## Promotion log
 
 _Record each model/prompt/fallback/schema/merger/policy change here: change, corpus version, hard result, FP delta, FN delta, rationale._
@@ -64,3 +88,4 @@ _Record each model/prompt/fallback/schema/merger/policy change here: change, cor
 | Date | Change | Corpus ver | Hard | FP Δ | FN Δ | Rationale |
 |---|---|---|---|---|---|---|
 | 2026-07-09 | Lane 8A: corpus skeleton established | 1 | n/a (no evaluator yet) | — | — | Baseline fixture contracts before any adapter exists. |
+| 2026-07-10 | Lanes 1–8 implemented; deterministic gate green | 1 | pass (fake-adapter merger + policy) | — | — | Backend + API + UI complete; ~28 SceneFidelity tests + full suite green. Live-model corpus still pending. |
