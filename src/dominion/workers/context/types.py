@@ -41,6 +41,8 @@ class SceneContext:
     reader_state_contract: dict[str, Any] | None = None
     word_budget: dict[str, Any] | None = None
     reviewer_contract: dict[str, Any] | None = None
+    # Sectioned drafter view of the active SceneFidelity contract (Lane 3A); None when inert.
+    fidelity: dict[str, Any] | None = None
     prior_scene_tail: str | None = None
     prior_prose: str | None = None
     revise_feedback: str | None = None
@@ -87,6 +89,7 @@ class ScenePacketFields:
     reader_state_contract: dict[str, Any]
     reviewer_contract: dict[str, Any]
     contract: dict[str, Any] | None
+    fidelity: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

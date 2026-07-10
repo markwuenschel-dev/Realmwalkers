@@ -22,6 +22,11 @@ class CritiqueOut(_ORM):
     note: str | None = None
     payload: dict[str, Any] | None = None
     scene_packet_id: uuid.UUID | None = None  # which scene contract this critique was raised against
+    # SceneFidelity provenance (ADR 0021); NULL on every non-fidelity critique.
+    draft_attempt_id: uuid.UUID | None = None
+    source_artifact_id: uuid.UUID | None = None
+    finding_signature: str | None = None
+    created_at: datetime | None = None
 
 
 class SceneOut(_ORM):
@@ -2072,3 +2077,79 @@ class ProductionRunDetailOut(BaseModel):
     repair_tasks: list[RepairTaskOut] = []
     repair_attempts: list[RepairAttemptOut] = []
     repair_verifications: list[RepairVerificationOut] = []
+
+
+# --- SceneFidelity (ADR 0016): decision-ready author surfaces --------------------------------------
+
+
+class FidelityViolationOut(BaseModel):
+    """One deterministic breach of the active fidelity contract, for author-facing validation feedback."""
+
+    kind: str
+    field: str | None = None
+    detail: str
+    severity: str
+
+
+class ScenePacketFidelityOut(BaseModel):
+    """The fidelity state of a ScenePacket: active requirements, inactive suggestions (visually distinct
+    in the UI), the canonical fingerprint, and any structural violations of the active contract."""
+
+    scene_packet_id: uuid.UUID
+    active_requirements: list[dict[str, Any]] = []
+    suggested_requirements: list[dict[str, Any]] = []
+    fingerprint: str
+    violations: list[FidelityViolationOut] = []
+
+
+class FidelityAcceptIn(BaseModel):
+    requirement_ids: list[str] | None = None  # None accepts every suggestion
+
+
+class FidelityRequirementActionIn(BaseModel):
+    requirement_id: str
+    requirement: dict[str, Any]
+
+
+class ClauseEvaluationOut(BaseModel):
+    requirement_id: str
+    clause_id: str
+    mode: str
+    result: str
+    enforcement: str
+    post_draft_policy: str
+    evidence_valid: bool
+    explanation: str
+
+
+class SceneFidelityOut(BaseModel):
+    """Decision-ready scene fidelity status: whether a current report exists, its currentness, the merged
+    clause evaluations, and any operational (incomplete-evaluation) holds — distinct from repair holds."""
+
+    scene_id: uuid.UUID
+    has_report: bool
+    is_current: bool
+    currentness_reason: str
+    report_artifact_id: uuid.UUID | None = None
+    clause_evaluations: list[ClauseEvaluationOut] = []
+    operational_holds: list[str] = []
+
+
+class RepairPreviewCreateIn(BaseModel):
+    candidate_prose: str
+    rationale: str = ""
+
+
+class RepairPreviewActionIn(BaseModel):
+    edited_prose: str | None = None  # accept: an edit; absent = accept as-is
+    reason: str | None = None  # reject: the author's reason
+
+
+class RepairPreviewOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    body: dict[str, Any]
+
+
+class IssueOverrideIn(BaseModel):
+    reason: str

@@ -88,4 +88,5 @@ async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.
         reader_state_contract=p.reader_state,
         reviewer_contract=p.reviewer,
         contract=p.drafter_flat or None,
+        fidelity=p.fidelity_drafter or None,
     )

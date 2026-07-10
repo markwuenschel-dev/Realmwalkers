@@ -1,0 +1,42 @@
+{
+  "id": "serra_agency_loss",
+  "class": "hard",
+  "title": "Marcus/Serra agency loss on a hard export-required clause becomes repair-eligible.",
+  "purpose": "A hard clause in an export_required requirement whose evidence is a direct contradiction (Serra's decision is coerced, not self-originated) MUST project a repair-eligible Critique + Repair Preview (ADR 0019/0022).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-serra-agency",
+        "mode": "relationship_turn",
+        "post_draft_policy": "export_required",
+        "clauses": [
+          {
+            "clause_id": "cl-serra-choice",
+            "enforcement": "hard",
+            "statement": "Serra's decision to stay is her own choice, reached without Marcus removing her alternatives.",
+            "satisfaction_criterion": {
+              "evidence_kind": "state_change",
+              "statement": "Serra voices or enacts a decision that originates from her, with an alternative still available to her."
+            },
+            "depends_on_clause_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "prose": "Marcus stepped between Serra and the door. \"There's nothing to decide,\" he said, and the lock clicked shut behind him. She looked at the sealed door, then at his face, and understood there was no version of the night where she left. \"Fine,\" she said. \"I'll stay.\"",
+  "expect": {
+    "packet_validation": {"active": true, "violations": []},
+    "clause_evaluation": {
+      "clause_id": "cl-serra-choice",
+      "result": "lost",
+      "evidence_kind_present": true,
+      "anchor_kind": "contradiction"
+    },
+    "policy_outcome": {"kind": "repair_eligible"},
+    "critique": {"projected": true, "severity": "repair"},
+    "repair_preview": {"created": true},
+    "production_triage": {"materializes_human_required_issue": true}
+  }
+}

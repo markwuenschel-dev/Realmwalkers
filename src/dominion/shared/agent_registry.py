@@ -64,6 +64,8 @@ FALLBACK_ATTR: dict[str, str] = {
     "packet_qa_model": "packet_qa_fallback_model",
     "scene_packet_author_model": "scene_packet_author_fallback_model",
     "scene_packet_qa_model": "scene_packet_qa_fallback_model",
+    # SceneFidelity's single approved fallback chain (ADR 0014): one role, one fallback.
+    "scene_fidelity_model": "scene_fidelity_fallback_model",
 }
 
 STRUCTURAL_ESCALATION_TRIGGERS: tuple[str, ...] = ("truncated", "unparseable")

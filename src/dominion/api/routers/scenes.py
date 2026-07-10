@@ -10,16 +10,23 @@ from sqlalchemy import select
 from dominion.api.deps import SessionDep
 from dominion.api.scene_delete import hard_delete_scene
 from dominion.shared.enums import Decision, SceneStatus
-from dominion.shared.models import Approval, Chapter, Critique, DraftAttempt, PovProfile, Scene
+from dominion.shared.models import Approval, Artifact, Chapter, Critique, DraftAttempt, PovProfile, Scene, ScenePacket
 from dominion.shared.schemas import (
+    ClauseEvaluationOut,
     CritiqueOut,
     DeleteSceneOut,
     DraftAttemptOut,
     ExemplarIn,
     SceneDetail,
+    SceneFidelityOut,
     SceneOut,
     SceneVersionOut,
 )
+from dominion.workers.scene_fidelity import fidelity_contract_fingerprint, is_fidelity_active
+from dominion.workers.scene_fidelity.models import SceneFidelityReport
+from dominion.workers.scene_fidelity.policy import policy_outcome_for_clause_evaluation, report_is_current
+
+_FIDELITY_REPORT_TYPE = "scene_fidelity_report"  # literal to keep the LLM stack out of this router
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 
@@ -197,3 +204,86 @@ async def delete_scene(scene_id: uuid.UUID, session: SessionDep) -> DeleteSceneO
     deleted_id, jobs_purged = await hard_delete_scene(session, scene_id)
     await session.commit()
     return DeleteSceneOut(deleted=deleted_id, jobs_purged=jobs_purged)
+
+
+@router.get("/{scene_id}/fidelity", response_model=SceneFidelityOut)
+async def scene_fidelity(scene_id: uuid.UUID, session: SessionDep) -> SceneFidelityOut:
+    """Decision-ready fidelity status for a scene: whether a CURRENT report exists, its clause
+    evaluations, and any operational (incomplete-evaluation) holds. Read-only and deterministic — it
+    never triggers evaluation (that is the explicit manual rerun)."""
+    scene = await session.get(Scene, scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="scene not found")
+    packet = await session.get(ScenePacket, scene.scene_packet_id) if scene.scene_packet_id else None
+    if packet is None or not is_fidelity_active(dict(packet.body or {})):
+        return SceneFidelityOut(
+            scene_id=scene_id, has_report=False, is_current=False, currentness_reason="no_active_contract"
+        )
+
+    final_attempt = (
+        (
+            await session.execute(
+                select(DraftAttempt)
+                .where(DraftAttempt.scene_id == scene_id, DraftAttempt.stage == "final_rendered")
+                .order_by(DraftAttempt.created_at.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if final_attempt is None:
+        return SceneFidelityOut(
+            scene_id=scene_id, has_report=False, is_current=False, currentness_reason="no_draft_attempt"
+        )
+
+    report_artifact = (
+        (
+            await session.execute(
+                select(Artifact)
+                .where(Artifact.artifact_type == _FIDELITY_REPORT_TYPE, Artifact.domain_id == final_attempt.id)
+                .order_by(Artifact.version.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if report_artifact is None:
+        return SceneFidelityOut(scene_id=scene_id, has_report=False, is_current=False, currentness_reason="no_report")
+
+    current, reason = report_is_current(
+        report_artifact.body or {},
+        scene_packet_id=packet.id,
+        packet_fingerprint=fidelity_contract_fingerprint(dict(packet.body or {})),
+        draft_attempt_id=final_attempt.id,
+        prose=final_attempt.prose or scene.prose or "",
+    )
+    report = SceneFidelityReport.model_validate(report_artifact.body or {})
+    evaluations = [
+        ClauseEvaluationOut(
+            requirement_id=e.requirement_id,
+            clause_id=e.clause_id,
+            mode=e.mode.value,
+            result=e.result.value,
+            enforcement=e.enforcement.value,
+            post_draft_policy=e.post_draft_policy.value,
+            evidence_valid=e.evidence_valid,
+            explanation=e.explanation,
+        )
+        for e in report.clause_evaluations
+    ]
+    holds = [
+        f"{e.clause_id}: {policy_outcome_for_clause_evaluation(e).reason}"
+        for e in report.clause_evaluations
+        if policy_outcome_for_clause_evaluation(e).kind == "operational_hold"
+    ]
+    return SceneFidelityOut(
+        scene_id=scene_id,
+        has_report=True,
+        is_current=current,
+        currentness_reason=reason,
+        report_artifact_id=report_artifact.id,
+        clause_evaluations=evaluations,
+        operational_holds=holds,
+    )

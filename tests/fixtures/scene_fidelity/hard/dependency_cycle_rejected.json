@@ -1,0 +1,39 @@
+{
+  "id": "dependency_cycle_rejected",
+  "class": "hard",
+  "title": "Clause dependency cycles, self-references, and missing targets are rejected at validation.",
+  "purpose": "Clause dependencies are acyclic by stable clause_id; validation rejects missing targets, self-references, duplicate IDs, and cycles as packet-approval blockers (ADR 0012).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-cycle",
+        "mode": "intimacy_blocking",
+        "post_draft_policy": "advisory",
+        "clauses": [
+          {
+            "clause_id": "cl-a",
+            "enforcement": "hard",
+            "statement": "Consent is established before contact.",
+            "satisfaction_criterion": {"evidence_kind": "dialogue", "statement": "A clear consenting line precedes contact."},
+            "depends_on_clause_ids": ["cl-b"]
+          },
+          {
+            "clause_id": "cl-b",
+            "enforcement": "hard",
+            "statement": "Contact escalates only after consent.",
+            "satisfaction_criterion": {"evidence_kind": "action", "statement": "Escalating contact follows the consenting line."},
+            "depends_on_clause_ids": ["cl-a"]
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "packet_validation": {
+      "active": true,
+      "blocks_approval": true,
+      "violation_kinds": ["fidelity_clause_dependency_cycle"]
+    }
+  }
+}

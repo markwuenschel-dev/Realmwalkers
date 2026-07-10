@@ -166,6 +166,19 @@ class Settings(BaseSettings):
     length_auto_expand_under_min: bool = False
     length_hard_fail_over_hard_max: bool = True
 
+    # SceneFidelity model governance (ADR 0014). All mode adapters use ONE role + ONE approved fallback
+    # chain (resolved via agent_registry.FALLBACK_ATTR["scene_fidelity_model"]); if no approved fallback is
+    # available the adapter is incomplete and an export-required incompleteness holds Production Run
+    # completion, never a prose failure. Bounded inflight caps the concurrent mode fan-out. The version
+    # markers are recorded on every report as provenance: a prompt-version bump is provenance by default
+    # and forces re-evaluation only when explicitly marked for recheck.
+    scene_fidelity_model: str = "claude-sonnet-5"
+    scene_fidelity_fallback_model: str = "claude-opus-4-8"
+    scene_fidelity_max_inflight: int = 3
+    scene_fidelity_prompt_version: int = 1
+    scene_fidelity_facade_version: int = 1
+    scene_fidelity_report_schema_version: int = 1
+
     # Hybrid canon retrieval (RAG upgrade). owner_file_boost is added to a chunk's rerank score when it
     # comes from a forced owner file, so owner precedence always beats a semantic-only hit.
     #

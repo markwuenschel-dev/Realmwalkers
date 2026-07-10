@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "note": "The SceneFidelity fixture corpus. `class` gates promotion (ADR 0015): hard fixtures MUST pass exactly; delta_reviewed fixtures require a written false-positive / false-negative delta review; exploratory fixtures are non-blocking. The fixture file for id X of class C lives at <dir(C)>/X.json where dir(hard)=hard/, dir(delta_reviewed)=delta/, dir(exploratory)=exploratory/. Every later lane's tests consume these files; do not remove a hard fixture without updating docs/scene_fidelity_merge_gate.md.",
+  "fixtures": [
+    {"id": "serra_agency_loss", "class": "hard"},
+    {"id": "stale_report_is_operational_hold", "class": "hard"},
+    {"id": "malformed_active_requirement_blocks_approval", "class": "hard"},
+    {"id": "invalid_anchor_is_report_only", "class": "hard"},
+    {"id": "dependency_cycle_rejected", "class": "hard"},
+    {"id": "override_does_not_inherit", "class": "hard"},
+    {"id": "legacy_packet_is_inert", "class": "hard"},
+    {"id": "mutual_escalation_preserved", "class": "delta_reviewed"},
+    {"id": "combat_pillar_reversal", "class": "delta_reviewed"},
+    {"id": "reader_movie_told_not_shown", "class": "exploratory"}
+  ]
+}

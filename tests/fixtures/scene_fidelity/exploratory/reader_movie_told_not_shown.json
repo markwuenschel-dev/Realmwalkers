@@ -1,0 +1,35 @@
+{
+  "id": "reader_movie_told_not_shown",
+  "class": "exploratory",
+  "title": "A decisive action summarized instead of shown weakens the reader's movie (non-blocking).",
+  "purpose": "Exercises the reader_movie mode and the exploratory tier. reader_movie stays perceptual, not universal taste QA (ADR 0011): it asks only whether the reader can perceive the decisive beat, and even as a hard clause it is non-blocking here because the fixture is exploratory (ADR 0015).",
+  "packet": {
+    "fidelity_contract_version": 1,
+    "fidelity_requirements": [
+      {
+        "requirement_id": "req-reader-movie",
+        "mode": "reader_movie",
+        "post_draft_policy": "advisory",
+        "clauses": [
+          {
+            "clause_id": "cl-shown-not-told",
+            "enforcement": "hard",
+            "statement": "The turning action of the scene is rendered so the reader can perceive it, not summarized after the fact.",
+            "satisfaction_criterion": {
+              "evidence_kind": "sensory_anchor",
+              "statement": "The decisive action carries at least one concrete perceptual anchor at the moment it happens."
+            },
+            "depends_on_clause_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "prose": "By the time the guards arrived it was already over. Later, Serra would tell herself she had done what was necessary.",
+  "expect": {
+    "clause_evaluation": {"clause_id": "cl-shown-not-told", "result": "lost", "anchor_kind": "expected_beat"},
+    "policy_outcome": {"kind": "warning"},
+    "critique": {"projected": true, "severity": "warn"},
+    "note": "Advisory requirement: a lost clause is a WARNING Critique (ADR 0019), never repair-eligible. Exploratory tier: a regression here is reviewed, never gates a merge."
+  }
+}

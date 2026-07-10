@@ -31,9 +31,13 @@ from dominion.shared.schemas import (
     DeleteScenePacketOut,
     DeleteScenePacketsOut,
     DraftReadinessOut,
+    FidelityAcceptIn,
+    FidelityRequirementActionIn,
+    FidelityViolationOut,
     ScenePacketApproveIn,
     ScenePacketDeriveOut,
     ScenePacketDeriveStatusOut,
+    ScenePacketFidelityOut,
     ScenePacketOut,
     ScenePacketQaOut,
     ScenePacketSummaryOut,
@@ -44,6 +48,11 @@ from dominion.workers import scene_packet as scene_packet_pipeline
 from dominion.workers.budget import TokenBudget
 from dominion.workers.draft_readiness import compute_draft_readiness
 from dominion.workers.llm import LlmRateLimited, PromptBudgetExceeded
+from dominion.workers.scene_fidelity import (
+    active_requirements,
+    fidelity_contract_fingerprint,
+    validate_active_requirements,
+)
 
 log = structlog.get_logger()
 router = APIRouter(tags=["scene-packets"])
@@ -457,3 +466,76 @@ async def mark_scene_packets_stale(
     for row in rows:
         await session.refresh(row)
     return [scene_packet_pipeline.enrich_scene_packet_out(r) for r in rows]
+
+
+# --- SceneFidelity requirement author actions (ADR 0005/0006/0016/0024) ---------------------------
+# The server mints identity; the author never activates a suggestion in place. Each action re-validates
+# the resulting active contract and returns decision-ready feedback. A malformed result is a 422 and is
+# never persisted; a successful mutation returns an approved packet to `proposed` (re-approval required).
+
+
+def _fidelity_out(row: ScenePacket) -> ScenePacketFidelityOut:
+    body = row.body or {}
+    violations = [FidelityViolationOut(**v.as_dict_core()) for v in validate_active_requirements(body)]
+    return ScenePacketFidelityOut(
+        scene_packet_id=row.id,
+        active_requirements=active_requirements(body),
+        suggested_requirements=[s for s in (body.get("suggested_fidelity_requirements") or []) if isinstance(s, dict)],
+        fingerprint=fidelity_contract_fingerprint(body),
+        violations=violations,
+    )
+
+
+async def _apply_fidelity_mutation(
+    session: AsyncSession, row: ScenePacket, new_body, violations
+) -> ScenePacketFidelityOut:
+    if violations:
+        raise HTTPException(status_code=422, detail=[v.as_dict() for v in violations])
+    row.body = new_body
+    if row.status == ScenePacketStatus.APPROVED:
+        row.status = ScenePacketStatus.PROPOSED
+    await scene_packet_pipeline.reconcile_beats(session, chapter_id=row.chapter_id)
+    await session.commit()
+    await session.refresh(row)
+    return _fidelity_out(row)
+
+
+@router.get("/scene-packets/{scene_packet_id}/fidelity", response_model=ScenePacketFidelityOut)
+async def get_scene_packet_fidelity(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacketFidelityOut:
+    return _fidelity_out(await _get(session, scene_packet_id))
+
+
+@router.post("/scene-packets/{scene_packet_id}/fidelity/accept", response_model=ScenePacketFidelityOut)
+async def accept_fidelity_suggestions(
+    scene_packet_id: uuid.UUID, body: FidelityAcceptIn, session: SessionDep
+) -> ScenePacketFidelityOut:
+    """Promote suggested requirements into the active contract with freshly minted identities."""
+    row = await _get(session, scene_packet_id)
+    new_body, violations = scene_packet_pipeline.accept_suggestions(
+        row.body or {}, requirement_ids=body.requirement_ids
+    )
+    return await _apply_fidelity_mutation(session, row, new_body, violations)
+
+
+@router.post("/scene-packets/{scene_packet_id}/fidelity/refine", response_model=ScenePacketFidelityOut)
+async def refine_fidelity_requirement(
+    scene_packet_id: uuid.UUID, body: FidelityRequirementActionIn, session: SessionDep
+) -> ScenePacketFidelityOut:
+    """Refine an active requirement in place (identity preserved; non-semantic clarification only)."""
+    row = await _get(session, scene_packet_id)
+    new_body, violations = scene_packet_pipeline.refine_requirement(
+        row.body or {}, body.requirement_id, body.requirement
+    )
+    return await _apply_fidelity_mutation(session, row, new_body, violations)
+
+
+@router.post("/scene-packets/{scene_packet_id}/fidelity/replace", response_model=ScenePacketFidelityOut)
+async def replace_fidelity_requirement(
+    scene_packet_id: uuid.UUID, body: FidelityRequirementActionIn, session: SessionDep
+) -> ScenePacketFidelityOut:
+    """Replace an active requirement with a freshly minted identity (mode/policy/criterion change)."""
+    row = await _get(session, scene_packet_id)
+    new_body, violations = scene_packet_pipeline.replace_requirement(
+        row.body or {}, body.requirement_id, body.requirement
+    )
+    return await _apply_fidelity_mutation(session, row, new_body, violations)

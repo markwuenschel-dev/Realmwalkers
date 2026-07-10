@@ -40,6 +40,12 @@ from dominion.workers.scene_packet.approval_policy import (
     enrich_scene_packet_out,
     is_approvable_for_batch,
 )
+from dominion.workers.scene_packet.fidelity import (
+    accept_suggestions,
+    mint_identity,
+    refine_requirement,
+    replace_requirement,
+)
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
 from dominion.workers.scene_packet.projections import ScenePacketProjections, project
 
@@ -64,6 +70,11 @@ __all__ = [
     "apply_qa_rerun",
     "is_approvable_for_batch",
     "valid_scene_packet_body",
+    # SceneFidelity requirement author actions (server mints identity; ADR 0006/0024)
+    "accept_suggestions",
+    "refine_requirement",
+    "replace_requirement",
+    "mint_identity",
 ]
 
 

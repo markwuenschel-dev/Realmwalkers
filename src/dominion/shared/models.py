@@ -454,11 +454,22 @@ class Critique(Base):
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
     scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
     version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    reviewer: Mapped[str] = mapped_column(Text)  # continuity|combat|sensory|...
+    reviewer: Mapped[str] = mapped_column(Text)  # continuity|combat|sensory|...|scene_fidelity
     severity: Mapped[str] = mapped_column(Text)  # info|warn|repair|block (legacy rows: hard == block)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     # for continuity mismatches: {character, prose_value, ledger_value, context_sentence, span}
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # SceneFidelity provenance (ADR 0021), generic + nullable + forward-only. A fidelity Critique is the
+    # operational projection of one report finding: it points at the source DraftAttempt and the immutable
+    # report Artifact (soft links, no FK — mirrors Issue.artifact_id), and carries a finding_signature so
+    # the partial unique index (reviewer, source_artifact_id, finding_signature) keeps projection
+    # idempotent. Legacy critiques leave all four NULL and are unaffected.
+    draft_attempt_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    source_artifact_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    finding_signature: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
 
 
 class Thread(Base):
