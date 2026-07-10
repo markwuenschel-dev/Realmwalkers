@@ -252,6 +252,11 @@ class IssueStatus(StrEnum):
     VERIFIED = "verified"
     ESCALATED = "escalated"
     FALSE_POSITIVE = "false_positive"
+    # SceneFidelity lifecycle (ADR 0020), additive/forward-only. OVERRIDDEN: an author-recorded exception
+    # cancelled the human-required task (never inherits to later drafts). SUPERSEDED: a newer current
+    # eligible Critique materialized a successor Issue, which the superseded Issue references.
+    OVERRIDDEN = "overridden"
+    SUPERSEDED = "superseded"
 
 
 class IssueDecisionKind(StrEnum):

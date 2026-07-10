@@ -39,6 +39,14 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE scenes ADD COLUMN IF NOT EXISTS word_count INTEGER",
     "ALTER TABLE scenes ADD COLUMN IF NOT EXISTS length_status TEXT",
     "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS scene_packet_id UUID",
+    # SceneFidelity provenance (ADR 0021): generic nullable columns on the existing critiques table so a
+    # fidelity Critique can point at its source DraftAttempt + immutable report Artifact and carry a
+    # finding_signature for idempotent projection. Soft links (no FK), matching Issue.artifact_id.
+    # created_at defaults to now() so new rows are ordered; pre-existing rows fill once at ALTER time.
+    "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS draft_attempt_id UUID",
+    "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS source_artifact_id UUID",
+    "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS finding_signature TEXT",
+    "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now()",
     # Retrieval provenance kept on the packet so the Desk can show what canon it was built from.
     "ALTER TABLE scene_packets ADD COLUMN IF NOT EXISTS sources JSONB",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS doc_path TEXT",
@@ -136,6 +144,18 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_volumes_book_id ON volumes (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_beats_chapter_id ON beats (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_critiques_scene_id ON critiques (scene_id)",
+    # SceneFidelity report-projection idempotency (ADR 0021): one fidelity Critique per (report finding).
+    # Partial so it constrains ONLY fully-populated scene_fidelity rows — legacy critiques and NULLs are
+    # untouched. A re-projection of the same finding from the same report Artifact collides here.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_scene_fidelity_critique_report_finding
+       ON critiques (reviewer, source_artifact_id, finding_signature)
+       WHERE reviewer = 'scene_fidelity'
+         AND source_artifact_id IS NOT NULL
+         AND finding_signature IS NOT NULL""",
+    # SceneFidelity triage/UI load path: fidelity critiques for a DraftAttempt, newest first.
+    """CREATE INDEX IF NOT EXISTS ix_scene_fidelity_critique_draft_chrono
+       ON critiques (reviewer, draft_attempt_id, created_at)
+       WHERE reviewer = 'scene_fidelity'""",
     "CREATE INDEX IF NOT EXISTS ix_scene_packets_chapter_no ON scene_packets (chapter_id, scene_no)",
     "CREATE INDEX IF NOT EXISTS ix_chapter_packets_chapter_id ON chapter_packets (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_annotations_scene_id ON annotations (scene_id)",

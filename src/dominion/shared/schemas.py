@@ -22,6 +22,11 @@ class CritiqueOut(_ORM):
     note: str | None = None
     payload: dict[str, Any] | None = None
     scene_packet_id: uuid.UUID | None = None  # which scene contract this critique was raised against
+    # SceneFidelity provenance (ADR 0021); NULL on every non-fidelity critique.
+    draft_attempt_id: uuid.UUID | None = None
+    source_artifact_id: uuid.UUID | None = None
+    finding_signature: str | None = None
+    created_at: datetime | None = None
 
 
 class SceneOut(_ORM):
