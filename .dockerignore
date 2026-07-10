@@ -22,9 +22,9 @@ tests
 docs
 # not needed to build or run the image (keeps the context uploaded to the builder small).
 # NB: series/ and book1/ markdown ARE copied in (runtime canon) — do not add a broad *.md here.
-# NB: file entries are anchored with a leading slash — the Railway CLI indexes the upload with
-# gitignore-style ANY-DEPTH matching (unlike Docker's root-only dockerignore semantics), so a bare
-# `package.json` here silently dropped frontend/package.json from the context and broke the build.
+# NB: root-only entries are anchored with a leading slash. Unanchored patterns match at ANY depth,
+# so a bare `package.json` here would also drop frontend/package.json from the build context —
+# always anchor root files with a leading slash.
 /book2/
 /author notes/
 /mcps/

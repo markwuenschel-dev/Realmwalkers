@@ -23,7 +23,7 @@ RUN npm install -g @anthropic-ai/claude-code
 # --- 2) python + node runtime --------------------------------------------------------------------
 FROM python:3.14-slim AS app
 WORKDIR /app
-# Next serves the public $PORT (Railway sets PORT=8000); FastAPI runs on a distinct internal port so
+# Next serves the public $PORT (Compose sets PORT=3000 on the shared box); FastAPI runs on a distinct internal port so
 # the two never collide. API_BASE points the BFF at that internal port.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src \
@@ -41,7 +41,7 @@ COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
 # Claude Code CLI for the optional per-role "Agent CLI" backend (workers/agent_cli.py). Copy the global
 # node_modules (npm + the CLI + its deps) and the `claude` bin symlink from the node stage. OFF by
 # default — only invoked when a role's policy sets backend="agent_cli". Auth is supplied at RUNTIME as a
-# Railway env var, never baked into the image:
+# deploy env var, never baked into the image:
 #   CLAUDE_CODE_OAUTH_TOKEN  — subscription auth from `claude setup-token` (the cost lever), OR
 #   ANTHROPIC_API_KEY        — metered pay-as-you-go.
 # The runner inherits the container env, so whichever is set authenticates the CLI.
@@ -64,5 +64,5 @@ COPY --from=frontend /app/frontend/.next/standalone ./frontend/
 COPY --from=frontend /app/frontend/.next/static ./frontend/.next/static
 
 # Boot: provision schema (idempotent), start FastAPI on the internal port (8001), then the Next server
-# on the public $PORT. `wait -n` exits (so Railway's ON_FAILURE restart kicks in) if either proc dies.
+# on the public $PORT. `wait -n` exits (so the container's restart policy restarts it) if either proc dies.
 CMD ["bash", "-c", "python scripts/init_db.py && { hypercorn dominion.api.main:app --bind 127.0.0.1:8001 & (cd frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-3000} exec node server.js) & wait -n; }"]

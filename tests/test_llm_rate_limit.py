@@ -105,7 +105,7 @@ async def test_prompt_budget_exceeded_fails_locally_before_any_provider_call():
     # provider (no API key is configured in tests — reaching the endpoint would RuntimeError instead).
     with pytest.raises(llm.PromptBudgetExceeded, match="prompt_budget_exceeded"):
         await llm.complete(
-            model="gpt-5.4-mini",
+            model="gpt-5.6-terra",
             system="You are a test.",
             user="x" * 4000,
             max_tokens=64,
@@ -118,7 +118,7 @@ def test_provider_slot_caps_openai_compatible_path(monkeypatch: pytest.MonkeyPat
     # The OpenAI-compatible path gets a real semaphore sized from settings; 0 disables the cap.
     async def _check() -> None:
         monkeypatch.setattr(settings, "llm_openai_concurrency", 1)
-        slot = llm._provider_slot("gpt-5.4-mini")
+        slot = llm._provider_slot("gpt-5.6-terra")
         assert hasattr(slot, "acquire")  # a real asyncio.Semaphore, not nullcontext
         monkeypatch.setattr(settings, "llm_anthropic_concurrency", 0)
         anthropic_slot = llm._provider_slot("claude-haiku-4-5")

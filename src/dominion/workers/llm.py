@@ -136,7 +136,7 @@ _CACHE_TTL_WARN_S = 270  # 4.5 min — 30s of headroom before the 5-min cliff
 def _client() -> AsyncAnthropic:
     """Lazily constructed so importing this module never requires the key."""
     if not settings.anthropic_api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
+        raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to the deploy environment.")
     return AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 
@@ -172,24 +172,24 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
     chat-completions endpoints, reached by swapping base_url + key — routed by the model-id prefix
     (`grok-*`, `gemini-*`), not a separate SDK path. No new dependency: a plain httpx POST, matching the
     embedding provider's existing convention (workers.memory.embedding)."""
-    # .strip() the key: a value pasted into Railway with a trailing newline/space would otherwise be
+    # .strip() the key: a value pasted into the deploy env with a trailing newline/space would otherwise be
     # sent as `Bearer <key>\n` (or a lone space slips past a truthiness check as `Bearer `), which the
     # provider rejects with a confusing 400 "missing bearer authentication" instead of a clear error.
     if model.startswith("grok-"):
         key = (settings.xai_api_key or "").strip()
         if not key:
-            raise RuntimeError("XAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
+            raise RuntimeError("XAI_API_KEY is not set — add it to the deploy environment.")
         return settings.xai_base_url, key
     if model.startswith("gemini-"):
         key = (settings.google_api_key or "").strip()
         if not key:
             raise RuntimeError(
-                "GEMINI_API_KEY / GOOGLE_API_KEY is not set — add it to the deploy environment (Railway → Variables)."
+                "GEMINI_API_KEY / GOOGLE_API_KEY is not set — add it to the deploy environment."
             )
         return settings.google_base_url, key
     key = (settings.openai_api_key or "").strip()
     if not key:
-        raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment (Railway → Variables).")
+        raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment.")
     return settings.openai_base_url, key
 
 
@@ -726,7 +726,7 @@ async def complete(
             api_key = (settings.openai_api_key or "").strip()
             if not api_key:
                 raise RuntimeError(
-                    "OPENAI_API_KEY is not set — add it to the deploy environment (Railway → Variables)."
+                    "OPENAI_API_KEY is not set — add it to the deploy environment."
                 )
             create_kwargs = _responses_request(
                 model=model,
