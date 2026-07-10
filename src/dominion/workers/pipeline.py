@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.agent_policy import agent_auto_run
 from dominion.shared.config import settings
 from dominion.shared.enums import DraftStage, SceneStatus, Severity
-from dominion.shared.models import Critique, DraftAttempt, Job, Scene
+from dominion.shared.models import Critique, DraftAttempt, Job, Scene, ScenePacket
 from dominion.workers import progress, telemetry, telemetry_db
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context import assemble_context
@@ -174,18 +174,37 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
 
     # Preserve every prose stage + the final rendered output (provenance).
     record(DraftStage.FINAL_RENDERED, rendered_prose, settings.draft_model)
+    final_attempt: DraftAttempt | None = None
     for stage, text, wc, model in attempts:
-        session.add(
-            DraftAttempt(
-                job_id=job.id,
-                scene_id=scene.id,
-                scene_packet_id=ctx.scene_packet_id,
-                stage=stage,
-                prose=text,
-                word_count=wc,
-                model=model,
-            )
+        da = DraftAttempt(
+            job_id=job.id,
+            scene_id=scene.id,
+            scene_packet_id=ctx.scene_packet_id,
+            stage=stage,
+            prose=text,
+            word_count=wc,
+            model=model,
         )
+        session.add(da)
+        if stage == DraftStage.FINAL_RENDERED:
+            final_attempt = da
+
+    # SceneFidelity post-draft evaluation (ADR 0010): fire ONLY after the final author-visible DraftAttempt
+    # is persisted, and only when the approved packet carries an active fidelity contract (the guard lives
+    # in maybe_evaluate_scene_fidelity, so a legacy/inert packet is a cheap no-op). Advisory and never
+    # draft-blocking (ADR 0004): a failure here becomes an operational hold downstream, never a draft
+    # failure — so it must never raise out of the draft path.
+    if final_attempt is not None and ctx.scene_packet_id is not None:
+        await session.flush()  # the report Artifact needs the final DraftAttempt's id
+        try:
+            from dominion.workers.scene_fidelity.evaluator import maybe_evaluate_scene_fidelity
+
+            packet_row = await session.get(ScenePacket, ctx.scene_packet_id)
+            await maybe_evaluate_scene_fidelity(
+                session, scene=scene, draft_attempt=final_attempt, packet=packet_row, trigger="post_draft"
+            )
+        except Exception as exc:
+            log.warning("scene_fidelity.post_draft_evaluation_failed", scene_id=str(scene.id), error=str(exc))
 
     if length_critique is not None:
         sev, note = length_critique

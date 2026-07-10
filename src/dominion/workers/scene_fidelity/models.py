@@ -157,6 +157,9 @@ class SceneFidelityReport(BaseModel):
     prose_hash: str
     packet_contract_fingerprint: str
     clause_evaluations: list[ClauseEvaluation]
+    # Model/prompt/facade provenance (ADR 0014): requested + actual model, fallback use, prompt/facade/
+    # schema versions, per-mode adapter status, and the trigger. Provenance only — never authority.
+    evaluation_telemetry: dict[str, Any] = Field(default_factory=dict)
 
 
 def is_fidelity_active(body: Mapping[str, Any]) -> bool:
