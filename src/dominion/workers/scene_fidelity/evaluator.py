@@ -11,7 +11,6 @@ deterministic code. The adapter runner is injectable so this is fully testable w
 from __future__ import annotations
 
 import asyncio
-import hashlib
 from typing import Any, Literal
 
 from sqlalchemy import func, select
@@ -22,7 +21,7 @@ from dominion.shared.models import Artifact, DraftAttempt, Scene, ScenePacket
 from dominion.workers.budget import TokenBudget
 from dominion.workers.scene_fidelity import adapters
 from dominion.workers.scene_fidelity.adapters import AdapterOutcome, AdapterRunner
-from dominion.workers.scene_fidelity.contract import fidelity_contract_fingerprint
+from dominion.workers.scene_fidelity.contract import fidelity_contract_fingerprint, prose_hash
 from dominion.workers.scene_fidelity.models import (
     ClauseEnforcement,
     ClauseEvaluation,
@@ -50,10 +49,6 @@ _OPERATIONAL_UNCERTAIN: frozenset[ClauseResult] = frozenset(
 )
 
 Trigger = Literal["post_draft", "manual", "production"]
-
-
-def _prose_hash(prose: str) -> str:
-    return "sha256:" + hashlib.sha256((prose or "").encode("utf-8")).hexdigest()
 
 
 async def maybe_evaluate_scene_fidelity(
@@ -89,7 +84,7 @@ async def evaluate_scene_fidelity(
     body = dict(packet.body or {})
     reqs = active_requirements(body)
     prose = draft_attempt.prose or scene.prose or ""
-    prose_hash = _prose_hash(prose)
+    prose_digest = prose_hash(prose)
     fingerprint = fidelity_contract_fingerprint(body)
     scene_context = {"scene_no": scene.scene_no, "pov": (body.get("reader_state") or {}).get("pov")}
 
@@ -130,13 +125,13 @@ async def evaluate_scene_fidelity(
     outcomes = list(await asyncio.gather(*[_run(m, cs) for m, cs in by_mode.items()]))
     outcomes_by_mode = {o.mode: o for o in outcomes}
 
-    evaluations = _merge(reqs, outcomes_by_mode, prose=prose, prose_hash=prose_hash, fingerprint=fingerprint)
+    evaluations = _merge(reqs, outcomes_by_mode, prose=prose, prose_hash=prose_digest, fingerprint=fingerprint)
     report = SceneFidelityReport(
         report_schema_version=settings.scene_fidelity_report_schema_version,
         scene_id=scene.id,
         draft_attempt_id=draft_attempt.id,
         scene_packet_id=packet.id,
-        prose_hash=prose_hash,
+        prose_hash=prose_digest,
         packet_contract_fingerprint=fingerprint,
         clause_evaluations=evaluations,
         evaluation_telemetry=_telemetry(trigger, outcomes),

@@ -31,6 +31,7 @@ from dominion.shared.models import (
     Approval,
     Artifact,
     Critique,
+    DraftAttempt,
     Issue,
     IssueDecision,
     ProductionRun,
@@ -38,6 +39,7 @@ from dominion.shared.models import (
     RepairTask,
     RepairVerification,
     Scene,
+    ScenePacket,
 )
 from dominion.workers import production_support as support
 from dominion.workers import repair_triage
@@ -49,10 +51,22 @@ from dominion.workers.beat_preservation import (
     required_beats_for_scenes,
 )
 from dominion.workers.job_scheduler import schedule_revision
+from dominion.workers.scene_fidelity.contract import fidelity_contract_fingerprint
+from dominion.workers.scene_fidelity.models import ClauseResult, SceneFidelityReport, is_fidelity_active
+from dominion.workers.scene_fidelity.payloads import CritiqueProjection, TriageResult
+from dominion.workers.scene_fidelity.policy import (
+    policy_outcome_for_clause_evaluation,
+    project_report_to_critiques,
+    report_is_current,
+)
 
 # L6 (run orchestration): pure stage machine -- pinned stage strings + deterministic gates that must
 # fail BEFORE any LLM spend. Persistence stays here; decisions live in run_stages (DB-free, tested).
 from dominion.workers import run_stages  # isort: skip
+
+# The SceneFidelity report Artifact type, kept as a literal here to avoid importing the evaluator (which
+# pulls the LLM stack into this early-imported production module).
+_FIDELITY_REPORT_TYPE = "scene_fidelity_report"
 
 
 async def _latest_scene_map(session: AsyncSession, chapter_id: uuid.UUID) -> dict[int, Scene]:
@@ -1529,3 +1543,250 @@ async def rollback_repair_task(session: AsyncSession, task_id: uuid.UUID, reason
     await assemble_run(session, run)
     await support.update_run_summary(session, run)
     return task
+
+
+# --------------------------------------------------------------------------------------------------
+# SceneFidelity production triage (Lane 5). Before a run completes, materialize CURRENT, unresolved,
+# repair-eligible fidelity Critiques into run-owned HUMAN_REQUIRED Issues; treat missing / stale /
+# incomplete evaluation as operational holds, never prose failures (ADR 0010/0018/0019/0020).
+# --------------------------------------------------------------------------------------------------
+
+_OPEN_FIDELITY_STATUSES: frozenset[str] = frozenset(
+    {
+        IssueStatus.PROPOSED.value,
+        IssueStatus.ACCEPTED.value,
+        IssueStatus.MERGED.value,
+        IssueStatus.REPAIR_QUEUED.value,
+        IssueStatus.ESCALATED.value,
+    }
+)
+
+
+async def _latest_final_draft_attempt(session: AsyncSession, scene_id: uuid.UUID) -> DraftAttempt | None:
+    return (
+        (
+            await session.execute(
+                select(DraftAttempt)
+                .where(DraftAttempt.scene_id == scene_id, DraftAttempt.stage == "final_rendered")
+                .order_by(DraftAttempt.created_at.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+async def _latest_fidelity_report(session: AsyncSession, draft_attempt_id: uuid.UUID) -> Artifact | None:
+    return (
+        (
+            await session.execute(
+                select(Artifact)
+                .where(Artifact.artifact_type == _FIDELITY_REPORT_TYPE, Artifact.domain_id == draft_attempt_id)
+                .order_by(Artifact.version.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+async def _open_fidelity_issues_for_clause(
+    session: AsyncSession, *, scene_id: uuid.UUID, clause_id: str
+) -> list[Issue]:
+    rows = (
+        (await session.execute(select(Issue).where(Issue.validator == "scene_fidelity", Issue.scene_id == scene_id)))
+        .scalars()
+        .all()
+    )
+    return [
+        issue
+        for issue in rows
+        if (issue.payload_json or {}).get("clause_id") == clause_id and issue.status in _OPEN_FIDELITY_STATUSES
+    ]
+
+
+async def _fidelity_issue_exists(session: AsyncSession, *, run: ProductionRun, critique_id: uuid.UUID) -> bool:
+    rows = (
+        (
+            await session.execute(
+                select(Issue).where(Issue.production_run_id == run.id, Issue.validator == "scene_fidelity")
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return any((issue.payload_json or {}).get("fidelity_critique_id") == str(critique_id) for issue in rows)
+
+
+async def _persist_fidelity_critique(
+    session: AsyncSession, *, scene: Scene, report_artifact: Artifact, projection: CritiqueProjection
+) -> tuple[Critique, bool]:
+    """Persist one projected fidelity Critique, idempotent by the report-projection unique index
+    (reviewer, source_artifact_id, finding_signature). Returns (critique, created)."""
+    existing = (
+        (
+            await session.execute(
+                select(Critique).where(
+                    Critique.reviewer == "scene_fidelity",
+                    Critique.source_artifact_id == report_artifact.id,
+                    Critique.finding_signature == projection.finding_signature,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if existing is not None:
+        return existing, False
+    critique = Critique(
+        scene_id=scene.id,
+        scene_packet_id=scene.scene_packet_id,
+        reviewer="scene_fidelity",
+        severity=projection.severity,
+        note=projection.note,
+        payload=projection.payload,
+        draft_attempt_id=uuid.UUID(projection.payload["draft_attempt_id"]),
+        source_artifact_id=report_artifact.id,
+        finding_signature=projection.finding_signature,
+    )
+    session.add(critique)
+    await session.flush()
+    return critique, True
+
+
+async def _materialize_fidelity_issue(
+    session: AsyncSession,
+    *,
+    run: ProductionRun,
+    scene: Scene,
+    scene_no: int,
+    report_artifact: Artifact,
+    critique: Critique,
+    projection: CritiqueProjection,
+) -> Issue:
+    """Create a run-owned Issue + a HUMAN_REQUIRED RepairTask for one repair-eligible fidelity Critique,
+    and supersede any prior open Issue for the same scene+clause (ADR 0018/0020). Fidelity repair is
+    ALWAYS human-required — the scheduler must never turn an export hold into an autonomous rewrite."""
+    payload = projection.payload
+    clause_id = payload["clause_id"]
+    prior_open = await _open_fidelity_issues_for_clause(session, scene_id=scene.id, clause_id=clause_id)
+
+    issue = await support.create_issue(
+        session,
+        run=run,
+        artifact_type=_FIDELITY_REPORT_TYPE,
+        artifact_id=report_artifact.id,
+        scene_id=scene.id,
+        scene_no=scene_no,
+        validator="scene_fidelity",
+        issue_kind=str(payload["mode"]),
+        severity="repair",
+        quote=None,
+        span_start=None,
+        span_end=None,
+        claim=projection.note,
+        contract_reference=clause_id,
+        recommended_action="Author-required fidelity repair: resolve the lost clause via an author-controlled preview.",
+        confidence=None,
+        auto_repair_allowed=False,
+        payload={
+            "fidelity_critique_id": str(critique.id),
+            "finding_signature": projection.finding_signature,
+            "requirement_id": payload["requirement_id"],
+            "clause_id": clause_id,
+            "mode": payload["mode"],
+            "source_artifact_id": str(report_artifact.id),
+        },
+    )
+    await _queue_repair_task_from_issues(
+        session,
+        run=run,
+        issues=[issue],
+        authority_level=RepairAuthorityLevel.HUMAN_REQUIRED,
+        repair_kind="fidelity",
+        instruction_preamble="SceneFidelity export hold — author-controlled repair required.",
+    )
+    for prior in prior_open:
+        prior.status = IssueStatus.SUPERSEDED.value
+        prior.payload_json = {**(prior.payload_json or {}), "successor_issue_id": str(issue.id)}
+    return issue
+
+
+async def _verify_satisfied_clauses(session: AsyncSession, *, scene: Scene, report: SceneFidelityReport) -> None:
+    """A prior open fidelity Issue is VERIFIED only by a CURRENT satisfied evaluation of its hard clause
+    with positive evidence — never by the mere absence of a complaint (ADR 0020/0022)."""
+    satisfied = {
+        ev.clause_id for ev in report.clause_evaluations if ev.result == ClauseResult.SATISFIED and ev.evidence_valid
+    }
+    for clause_id in satisfied:
+        for issue in await _open_fidelity_issues_for_clause(session, scene_id=scene.id, clause_id=clause_id):
+            issue.status = IssueStatus.VERIFIED.value
+
+
+async def triage_scene_fidelity_for_production(session: AsyncSession, *, run: ProductionRun) -> TriageResult:
+    """Materialize a run's CURRENT repair-eligible fidelity findings into run-owned Issues, verify clauses
+    that now pass, and collect operational holds. Idempotent: keyed by (production_run_id,
+    fidelity_critique_id), a re-run creates no duplicate Issue. Legacy/inert packets are skipped."""
+    created_issue_ids: list[uuid.UUID] = []
+    operational_holds: list[str] = []
+    latest_scenes = await _latest_scene_map(session, run.chapter_id)
+
+    for scene_no, scene in sorted(latest_scenes.items()):
+        if scene.scene_packet_id is None:
+            continue
+        packet = await session.get(ScenePacket, scene.scene_packet_id)
+        if packet is None or not is_fidelity_active(dict(packet.body or {})):
+            continue  # no active fidelity contract — nothing to triage (forward-only, ADR 0025)
+
+        final_attempt = await _latest_final_draft_attempt(session, scene.id)
+        if final_attempt is None:
+            operational_holds.append(f"scene {scene_no}: no draft attempt to evaluate")
+            continue
+        report_artifact = await _latest_fidelity_report(session, final_attempt.id)
+        if report_artifact is None:
+            operational_holds.append(f"scene {scene_no}: no fidelity evaluation report")
+            continue
+
+        current, reason = report_is_current(
+            report_artifact.body or {},
+            scene_packet_id=packet.id,
+            packet_fingerprint=fidelity_contract_fingerprint(dict(packet.body or {})),
+            draft_attempt_id=final_attempt.id,
+            prose=final_attempt.prose or scene.prose or "",
+        )
+        if not current:
+            operational_holds.append(f"scene {scene_no}: stale evaluation ({reason})")
+            continue
+
+        report = SceneFidelityReport.model_validate(report_artifact.body or {})
+        for evaluation in report.clause_evaluations:
+            if policy_outcome_for_clause_evaluation(evaluation).kind == "operational_hold":
+                operational_holds.append(
+                    f"scene {scene_no}: clause {evaluation.clause_id} incomplete ({evaluation.result.value})"
+                )
+
+        await _verify_satisfied_clauses(session, scene=scene, report=report)
+
+        for projection in project_report_to_critiques(report, source_artifact_id=report_artifact.id):
+            critique, _created = await _persist_fidelity_critique(
+                session, scene=scene, report_artifact=report_artifact, projection=projection
+            )
+            if projection.severity != "repair":
+                continue  # advisory warnings never become run Issues
+            if await _fidelity_issue_exists(session, run=run, critique_id=critique.id):
+                continue  # idempotent by (production_run_id, fidelity_critique_id)
+            issue = await _materialize_fidelity_issue(
+                session,
+                run=run,
+                scene=scene,
+                scene_no=scene_no,
+                report_artifact=report_artifact,
+                critique=critique,
+                projection=projection,
+            )
+            created_issue_ids.append(issue.id)
+
+    await session.flush()  # persist lifecycle transitions (VERIFIED/SUPERSEDED) within the run txn
+    return TriageResult(created_issue_ids=created_issue_ids, operational_holds=operational_holds)

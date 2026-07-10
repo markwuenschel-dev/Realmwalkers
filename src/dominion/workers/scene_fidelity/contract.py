@@ -379,6 +379,12 @@ def _normalize_requirements(reqs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def prose_hash(prose: str) -> str:
+    """The canonical hash of evaluated prose — the same value the evaluator stamps on a report and the
+    currentness check recomputes on the live scene (ADR 0010). One source so they can never diverge."""
+    return "sha256:" + hashlib.sha256((prose or "").encode("utf-8")).hexdigest()
+
+
 def finding_signature(*, requirement_id: str, clause_id: str, result: ClauseResult | str) -> str:
     """A deterministic signature identifying one report finding, for report-projection idempotency.
 

@@ -11,9 +11,9 @@ operational hold — never a prose failure. LLMs never reach here; only the merg
 from __future__ import annotations
 
 import uuid
-from typing import Literal
+from typing import Any, Literal
 
-from dominion.workers.scene_fidelity.contract import finding_signature
+from dominion.workers.scene_fidelity.contract import finding_signature, prose_hash
 from dominion.workers.scene_fidelity.models import (
     ClauseEnforcement,
     ClauseEvaluation,
@@ -69,6 +69,28 @@ def policy_outcome_for_clause_evaluation(evaluation: ClauseEvaluation) -> Policy
     if not hard:
         return PolicyOutcome(kind="warning", reason="standard clause — warning only; the author may upgrade it")
     return PolicyOutcome(kind="repair_eligible", reason="hard export-required clause lost with valid evidence")
+
+
+def report_is_current(
+    report_body: dict[str, Any],
+    *,
+    scene_packet_id: uuid.UUID,
+    packet_fingerprint: str,
+    draft_attempt_id: uuid.UUID,
+    prose: str,
+) -> tuple[bool, str]:
+    """A report is current only when its scene packet, packet fingerprint, source DraftAttempt, and prose
+    hash all match the live scene (ADR 0010). Any mismatch is an operational staleness reason — never a
+    prose failure. Returns (current, reason)."""
+    if report_body.get("scene_packet_id") != str(scene_packet_id):
+        return False, "scene_packet_changed"
+    if report_body.get("packet_contract_fingerprint") != packet_fingerprint:
+        return False, "packet_fingerprint_changed"
+    if report_body.get("draft_attempt_id") != str(draft_attempt_id):
+        return False, "draft_attempt_changed"
+    if report_body.get("prose_hash") != prose_hash(prose):
+        return False, "prose_changed"
+    return True, "current"
 
 
 _SEVERITY_FOR_KIND: dict[str, Literal["warn", "repair"]] = {"warning": "warn", "repair_eligible": "repair"}

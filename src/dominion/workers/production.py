@@ -520,6 +520,20 @@ async def create_production_run(
     await assemble_run(session, run)
     if auto_triage:
         await production_repair.triage_production_run(session, run.id)
+        # SceneFidelity triage: materialize CURRENT repair-eligible fidelity findings into run-owned
+        # HUMAN_REQUIRED Issues + operational holds (ADR 0018). Additive/advisory — guarded so a triage
+        # bug can never break the run's own triage (a legacy chapter with no active fidelity is a no-op).
+        try:
+            await production_repair.triage_scene_fidelity_for_production(session, run=run)
+        except Exception as exc:  # pragma: no cover - defensive; fidelity triage never blocks a run
+            await support.record_event(
+                session,
+                run_id=run.id,
+                event_type="scene_fidelity_triage_failed",
+                stage=run.current_stage,
+                message="SceneFidelity triage failed (non-blocking)",
+                payload={"error": str(exc)},
+            )
     await support.update_run_summary(session, run)
     return run
 
@@ -549,6 +563,11 @@ async def list_book_production_runs(session: AsyncSession, book_id: uuid.UUID) -
 async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> ProductionRun:
 
     return await production_repair.triage_production_run(session, run_id)
+
+
+async def triage_scene_fidelity_for_production(session: AsyncSession, *, run: ProductionRun):
+    """Facade seam for SceneFidelity production triage (ADR 0018) — see production_repair."""
+    return await production_repair.triage_scene_fidelity_for_production(session, run=run)
 
 
 async def apply_repair_task(
