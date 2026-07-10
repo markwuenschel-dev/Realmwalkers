@@ -6,10 +6,11 @@ project() after loading the packet from Postgres; consumers read the results via
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from dominion.workers.packet.parse import str_list
+from dominion.workers.scene_fidelity import active_requirements, fidelity_contract_fingerprint
 
 # Chapter-level locks that still bind every scene; lifted into the flat drafter contract.
 _CHAPTER_LOCK_KEYS: tuple[str, ...] = (
@@ -30,6 +31,12 @@ class ScenePacketProjections:
     reader_state: dict[str, Any]
     reviewer: dict[str, Any]
     drafter_flat: dict[str, Any]
+    # Active SceneFidelity contract, derived from the (already server-normalized) scene body. Only
+    # author-approved `fidelity_requirements` appear; suggestions and legacy packets yield [] and the
+    # empty-contract fingerprint. Lane 3A turns these into drafter sections; Lane 3B/5 use the
+    # fingerprint for report currentness. Defaults keep older direct constructions valid.
+    fidelity_requirements: list[dict[str, Any]] = field(default_factory=list)
+    fidelity_fingerprint: str = ""
 
 
 def project(scene_body: dict[str, Any], chapter_body: dict[str, Any]) -> ScenePacketProjections:
@@ -42,6 +49,8 @@ def project(scene_body: dict[str, Any], chapter_body: dict[str, Any]) -> ScenePa
         reader_state=_reader_state(scene_body),
         reviewer=_reviewer(scene_body, word_budget),
         drafter_flat=_flat_drafter_contract(scene_body, chapter_body),
+        fidelity_requirements=active_requirements(scene_body),
+        fidelity_fingerprint=fidelity_contract_fingerprint(scene_body),
     )
 
 

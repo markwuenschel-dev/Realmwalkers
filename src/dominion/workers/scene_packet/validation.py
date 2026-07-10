@@ -33,6 +33,7 @@ from typing import Any
 
 from dominion.shared.severity import Severity, issue_gates
 from dominion.shared.text_match import as_str_list, collect_strings, get_dotted, names_present
+from dominion.workers.scene_fidelity.contract import validate_active_requirements
 
 # Meta "sources" the model reaches for when it has no real snippet handle: the outline, the packet
 # it was localizing, the seed, the budget, or a bare "inference/canon" label. These are NOT retrieved
@@ -279,6 +280,12 @@ def validate_scene_packet_contract(
                         severity="warn",
                     )
                 )
+
+    # SceneFidelity active-contract validation (ADR 0004/0022/0023): a malformed ACTIVE fidelity
+    # requirement is an unconditional hard packet-approval blocker, regardless of post_draft_policy.
+    # `suggested_fidelity_requirements` are never read here, so suggestions can never block; legacy/inert
+    # packets add nothing. FidelityViolation mirrors ScenePacketViolation, so this adapts one-to-one.
+    violations.extend(ScenePacketViolation(**fv.as_dict_core()) for fv in validate_active_requirements(body))
 
     return violations
 
