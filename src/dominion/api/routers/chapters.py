@@ -236,9 +236,12 @@ async def create_human_scene(
     session: SessionDep,
     background: BackgroundTasks,
 ) -> Scene:
-    """Write a manuscript section by hand. It lands APPROVED (the human is the gate) as a `human`-sourced
-    scene, supersedes any existing version at this scene_no, and folds into the POV summary in the
-    background — so later drafts inherit it via the rolling summary + the in-chapter prior-scene tail."""
+    """Write a manuscript section by hand as a `human`-sourced scene that supersedes any existing
+    version at this scene_no. By default it lands APPROVED (the human is the gate) and folds into the
+    POV summary in the background — so later drafts inherit it via the rolling summary + the
+    in-chapter prior-scene tail. When ``approve_directly=False`` it instead lands PENDING_REVIEW and
+    enters the review inbox; the summary fold is deferred to approval (the /decision APPROVE branch),
+    so an unaccepted draft never leaks into later scenes' context."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
@@ -259,7 +262,7 @@ async def create_human_scene(
         scene_no=body.scene_no,
         version=(prior.version + 1) if prior else 1,
         parent_scene_id=prior.id if prior else None,
-        status=SceneStatus.APPROVED,
+        status=SceneStatus.APPROVED if body.approve_directly else SceneStatus.PENDING_REVIEW,
         prose=prose,
         prose_source="human",
     )
@@ -268,7 +271,10 @@ async def create_human_scene(
     session.add(scene)
     await session.commit()
     await session.refresh(scene)
-    background.add_task(_fold_summary, scene.id)
+    # Fold only when approved directly; a review-first scene folds when the human approves it in the
+    # inbox (the /decision APPROVE branch schedules the fold), so unaccepted text can't leak forward.
+    if body.approve_directly:
+        background.add_task(_fold_summary, scene.id)
     return scene
 
 

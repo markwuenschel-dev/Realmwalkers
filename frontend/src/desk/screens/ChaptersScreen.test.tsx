@@ -185,7 +185,7 @@ describe("ChaptersScreen pipeline command center", () => {
     expect(routerPush).toHaveBeenCalledWith("/inbox");
   });
 
-  it("writes a section by hand via createHumanScene", async () => {
+  it("writes a section by hand for review by default (approve_directly: false)", async () => {
     render(<ChaptersScreen />);
     fireEvent.click((await screen.findAllByText("+ Write section by hand"))[0]);
 
@@ -193,12 +193,35 @@ describe("ChaptersScreen pipeline command center", () => {
     fireEvent.change(screen.getByPlaceholderText("write the prose for this section…"), {
       target: { value: "Hand-written prose." },
     });
+    // default button is "Send for review" — the scene lands in the inbox, not straight to approved
+    fireEvent.click(screen.getByRole("button", { name: "Send for review" }));
+
+    await waitFor(() =>
+      expect(api.createHumanScene).toHaveBeenCalledWith("ch-1", {
+        scene_no: 2,
+        prose: "Hand-written prose.",
+        approve_directly: false,
+      }),
+    );
+  });
+
+  it("accepts a hand-written section directly when the toggle is ticked", async () => {
+    render(<ChaptersScreen />);
+    fireEvent.click((await screen.findAllByText("+ Write section by hand"))[0]);
+
+    fireEvent.change(screen.getByPlaceholderText("scene #"), { target: { value: "2" } });
+    fireEvent.change(screen.getByPlaceholderText("write the prose for this section…"), {
+      target: { value: "Hand-written prose." },
+    });
+    fireEvent.click(screen.getByLabelText("accept directly (skip review)"));
+    // ticking the toggle flips the button to "Save section" and approves on save
     fireEvent.click(screen.getByRole("button", { name: "Save section" }));
 
     await waitFor(() =>
       expect(api.createHumanScene).toHaveBeenCalledWith("ch-1", {
         scene_no: 2,
         prose: "Hand-written prose.",
+        approve_directly: true,
       }),
     );
   });

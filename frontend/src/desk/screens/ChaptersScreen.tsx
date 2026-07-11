@@ -236,21 +236,28 @@ export default function ChaptersScreen() {
     }
   };
 
-  // Write a section by hand → an approved human-authored scene (flows into summaries + prior context).
+  // Write a section by hand → a human-authored scene. Defaults to the review inbox (PENDING_REVIEW);
+  // tick "Accept directly" to land it APPROVED and flow it straight into summaries + prior context.
   const [writeFor, setWriteFor] = useState<string | null>(null); // chapter id whose form is open
   const [sceneNo, setSceneNo] = useState("");
   const [prose, setProse] = useState("");
+  const [approveDirectly, setApproveDirectly] = useState(false); // default: send for review
   const [busy, setBusy] = useState(false);
   const saveSection = async (chapterId: string) => {
     const n = Number(sceneNo);
     if (!Number.isFinite(n) || n < 1 || !prose.trim()) return;
     setBusy(true);
     try {
-      await api.createHumanScene(chapterId, { scene_no: n, prose: prose.trim() });
+      await api.createHumanScene(chapterId, {
+        scene_no: n,
+        prose: prose.trim(),
+        approve_directly: approveDirectly,
+      });
       await data.refreshAll();
       setWriteFor(null);
       setSceneNo("");
       setProse("");
+      setApproveDirectly(false);
       void loadOverview();
     } finally {
       setBusy(false);
@@ -463,12 +470,25 @@ export default function ChaptersScreen() {
                                 "width:90px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12.5px;font-family:var(--ui)",
                               )}
                             />
+                            <label
+                              style={css(
+                                "display:flex;gap:5px;align-items:center;font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer",
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={approveDirectly}
+                                onChange={(e) => setApproveDirectly(e.target.checked)}
+                              />
+                              accept directly (skip review)
+                            </label>
                             <span
                               style={css(
                                 "font-family:var(--mono);font-size:10.5px;color:var(--dim)",
                               )}
                             >
-                              approved on save; supersedes any existing version at this scene number
+                              {approveDirectly ? "approved on save" : "sent for review"}; supersedes
+                              any existing version at this scene number
                             </span>
                           </div>
                           <textarea
@@ -491,11 +511,17 @@ export default function ChaptersScreen() {
                                     ? "Enter a scene number first"
                                     : !prose.trim()
                                       ? "Write the prose first"
-                                      : "Save as an approved human-authored section"
+                                      : approveDirectly
+                                        ? "Save as an approved human-authored section"
+                                        : "Save into the review inbox for approval"
                               }
                               onClick={() => void saveSection(c.id)}
                             >
-                              {busy ? "Saving…" : "Save section"}
+                              {busy
+                                ? "Saving…"
+                                : approveDirectly
+                                  ? "Save section"
+                                  : "Send for review"}
                             </Button>
                             <Button
                               size="sm"
@@ -504,6 +530,7 @@ export default function ChaptersScreen() {
                                 setWriteFor(null);
                                 setSceneNo("");
                                 setProse("");
+                                setApproveDirectly(false);
                               }}
                             >
                               Cancel
@@ -516,6 +543,7 @@ export default function ChaptersScreen() {
                             setWriteFor(c.id);
                             setSceneNo(String(scs.length + 1));
                             setProse("");
+                            setApproveDirectly(false);
                           }}
                           style={css(
                             "font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;padding:2px 0",

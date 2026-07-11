@@ -240,10 +240,13 @@ class ApproveBeatsIn(BaseModel):
 
 
 class HumanSceneIn(BaseModel):
-    """POST body to write a manuscript section by hand — lands APPROVED so it flows into context."""
+    """POST body to write a manuscript section by hand. By default it lands APPROVED (the human is
+    the gate) and flows straight into context; set ``approve_directly=False`` to route it into the
+    review inbox (PENDING_REVIEW) instead, where it clears via the normal /decision verdict."""
 
     scene_no: int
     prose: str
+    approve_directly: bool = True  # False → land in PENDING_REVIEW (the review inbox) instead
 
 
 class RedraftIn(BaseModel):

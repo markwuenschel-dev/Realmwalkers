@@ -426,9 +426,12 @@ export interface paths {
     put?: never;
     /**
      * Create Human Scene
-     * @description Write a manuscript section by hand. It lands APPROVED (the human is the gate) as a `human`-sourced
-     *     scene, supersedes any existing version at this scene_no, and folds into the POV summary in the
-     *     background — so later drafts inherit it via the rolling summary + the in-chapter prior-scene tail.
+     * @description Write a manuscript section by hand as a `human`-sourced scene that supersedes any existing
+     *     version at this scene_no. By default it lands APPROVED (the human is the gate) and folds into the
+     *     POV summary in the background — so later drafts inherit it via the rolling summary + the
+     *     in-chapter prior-scene tail. When ``approve_directly=False`` it instead lands PENDING_REVIEW and
+     *     enters the review inbox; the summary fold is deferred to approval (the /decision APPROVE branch),
+     *     so an unaccepted draft never leaks into later scenes' context.
      */
     post: operations["create_human_scene_chapters__chapter_id__scenes_post"];
     delete?: never;
@@ -5000,13 +5003,20 @@ export interface components {
     };
     /**
      * HumanSceneIn
-     * @description POST body to write a manuscript section by hand — lands APPROVED so it flows into context.
+     * @description POST body to write a manuscript section by hand. By default it lands APPROVED (the human is
+     *     the gate) and flows straight into context; set ``approve_directly=False`` to route it into the
+     *     review inbox (PENDING_REVIEW) instead, where it clears via the normal /decision verdict.
      */
     HumanSceneIn: {
       /** Scene No */
       scene_no: number;
       /** Prose */
       prose: string;
+      /**
+       * Approve Directly
+       * @default true
+       */
+      approve_directly: boolean;
     };
     /** IssueDecisionIn */
     IssueDecisionIn: {
