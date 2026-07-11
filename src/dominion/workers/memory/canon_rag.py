@@ -343,12 +343,20 @@ async def ingest_rebuild(
 ) -> dict[str, int]:
     """Hard clean rebuild of repo-ingested canon chunks for a book from on-disk docs.
 
-    Deletes *all* repo-ingested rows (doc_path IS NOT NULL) for the book first.
-    Then delegates to ingest_incremental to (re)index current files under root
-    (folder-derived kinds, heading paths, content hashes, owner metadata, etc.).
+    Deletes *all* doc/seed-derived rows for the book first, then delegates to
+    ingest_incremental to (re)index current files under root (folder-derived kinds,
+    heading paths, content hashes, owner metadata, etc.).
 
-    Hand-authored canon entries (doc_path IS NULL, e.g. authored in the Ledger UI
-    or seeded via CharacterState bodies) are preserved.
+    The purge targets any row that is NOT hand-authored canon:
+      - doc_path IS NOT NULL      — chunks a prior doc-ingest wrote, and
+      - source == 'repo_ingested' — repo-sourced rows regardless of doc_path, and
+      - kind == 'passage'         — the legacy seed catch-all kind (ingest_path/seed
+                                    wrote these with doc_path NULL, so the old
+                                    doc_path-only predicate could never clean them —
+                                    the "everything stuck under passage" defect).
+    Hand-authored canon (source 'manual', doc_path NULL, a real kind like 'cast')
+    is preserved. After the delete, ingest_incremental re-indexes every doc fresh
+    (nothing left to skip), so the corpus comes back with real folder-derived kinds.
 
     Returns {indexed, skipped, retired} where retired includes the count of rows
     purged in the initial delete + any additional retired by the incremental pass.
@@ -356,7 +364,14 @@ async def ingest_rebuild(
     """
     root = Path(root)
     del_res = await session.execute(
-        delete(CanonEntity).where(CanonEntity.book_id == book_id, CanonEntity.doc_path.isnot(None))
+        delete(CanonEntity).where(
+            CanonEntity.book_id == book_id,
+            or_(
+                CanonEntity.doc_path.isnot(None),
+                CanonEntity.source == "repo_ingested",
+                CanonEntity.kind == _PASSAGE_KIND,
+            ),
+        )
     )
     deleted = int(getattr(del_res, "rowcount", 0) or 0)
 

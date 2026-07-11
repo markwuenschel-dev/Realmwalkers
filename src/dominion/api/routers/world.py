@@ -330,14 +330,16 @@ async def delete_canon(canon_id: uuid.UUID, session: SessionDep) -> dict[str, st
 
 
 async def _run_canon_rebuild(book_id: uuid.UUID) -> None:
-    """Background canon re-index: incremental (skip-unchanged), batched embeddings, correct retire — with
-    progress in the Activity feed. Runs on its OWN session (the request's is long closed). This is what
-    keeps a full re-embed off the request path, so the endpoint returns instantly instead of 499-timing
-    out behind the proxy. Errors are recorded to the feed, never raised (nothing awaits this)."""
+    """Background *clean* canon rebuild: purge all doc/seed-derived rows (incl. the legacy doc_path-NULL
+    'passage' pile that the old incremental path could never clean), then re-index from disk with real
+    folder kinds, batched embeddings — with progress in the Activity feed. Runs on its OWN session (the
+    request's is long closed). This is what keeps a full re-embed off the request path, so the endpoint
+    returns instantly instead of 499-timing out behind the proxy. Errors are recorded to the feed, never
+    raised (nothing awaits this)."""
     root = _PROJECT_ROOT / "series" / "canon"
     try:
         async with SessionFactory() as session:
-            out = await canon_rag.ingest_incremental(session, book_id=book_id, root=root)
+            out = await canon_rag.ingest_rebuild(session, book_id=book_id, root=root)
             await record_activity(
                 session,
                 source="canon",

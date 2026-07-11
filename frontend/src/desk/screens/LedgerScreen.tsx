@@ -292,7 +292,7 @@ export default function LedgerScreen() {
             variant="danger"
             onClick={rebuildIndex}
             disabled={ingesting}
-            title="Ledger “Clean rebuild from docs” deletes stale repo-ingested canon chunks (doc_path IS NOT NULL) and rebuilds from current series/canon while preserving hand-authored entries (doc_path IS NULL)"
+            title="Ledger “Clean rebuild from docs” purges every doc/seed-derived canon chunk (repo-ingested rows and the legacy “passage” pile) and re-indexes from current series/canon with real folder kinds, while preserving hand-authored entries (source “manual”)"
           >
             {ingesting ? "Cleaning…" : "⟳ Clean rebuild from docs"}
           </Button>

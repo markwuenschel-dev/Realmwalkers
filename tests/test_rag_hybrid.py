@@ -201,3 +201,36 @@ async def test_ingest_rebuild_purges_stale_same_path_content_and_preserves_hand_
         assert len(doc_rows) >= 1
         assert any("Illyri" in (b or "") for b in [r.body for r in doc_rows])
         assert len(null_rows) == 1 and "Hand note" in (null_rows[0].body or "")
+
+
+async def test_ingest_rebuild_purges_legacy_passage_pile_but_keeps_manual(db_factory, tmp_path):
+    """The 'everything stuck under passage' defect: seeded rows land kind='passage', source='repo_ingested',
+    doc_path=NULL. The old doc_path-only purge could never see them, so a rebuild left them forever. The
+    clean rebuild must now purge that legacy pile while preserving genuinely hand-authored manual canon."""
+    from sqlalchemy import select
+
+    root = tmp_path / "canon"
+    (root / "characters").mkdir(parents=True)
+    (root / "characters" / "hero.md").write_text("# Protagonist\n\nIllyri leads.\n", encoding="utf-8")
+    async with db_factory() as s:
+        book = await _book(s)
+        # legacy seed output: catch-all 'passage' kind, repo-sourced, NO doc_path (the stuck pile)
+        legacy = CanonEntity(
+            book_id=book.id, kind="passage", name="seed", body="legacy passage blob", source="repo_ingested"
+        )
+        # genuine hand-authored canon: manual source, real kind, no doc_path — must survive
+        hand = CanonEntity(book_id=book.id, kind="lore", name="Note", body="Hand note.", source="manual")
+        s.add_all([legacy, hand])
+        await s.flush()
+
+        out = await canon_rag.ingest_rebuild(s, book_id=book.id, root=root)
+        await s.commit()
+        assert out["retired"] >= 1  # the legacy passage row was purged
+
+        rows = (await s.execute(select(CanonEntity).where(CanonEntity.book_id == book.id))).scalars().all()
+        bodies = [r.body for r in rows]
+        assert not any("legacy passage blob" in (b or "") for b in bodies), "stuck 'passage' pile must be purged"
+        assert not any(r.kind == "passage" for r in rows), "no 'passage'-kinded rows should remain"
+        assert any("Hand note" in (b or "") for b in bodies), "hand-authored manual canon must survive"
+        assert any("Illyri" in (b or "") for b in bodies), "docs re-indexed with real folder kind"
+        assert any(r.kind == "cast" for r in rows), "characters/ doc lands as 'cast', not 'passage'"
