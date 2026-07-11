@@ -128,7 +128,10 @@ async def test_import_prologue_into_book_with_chapter_one_does_not_collide(db_fa
         book = await _book(s)
         # Seed an existing chapter 1 (as the run/planning flow would create it).
         await manuscript.import_manuscript(
-            book.id, ManuscriptImportIn(chapters=[_chapter(1, [(1, "chapter one prose")], pov="M")]), s, BackgroundTasks()
+            book.id,
+            ManuscriptImportIn(chapters=[_chapter(1, [(1, "chapter one prose")], pov="M")]),
+            s,
+            BackgroundTasks(),
         )
         report = await manuscript.import_manuscript(
             book.id,
@@ -142,7 +145,9 @@ async def test_import_prologue_into_book_with_chapter_one_does_not_collide(db_fa
         assert report.scenes_imported == 1
 
         chapters = (
-            (await s.execute(select(Chapter).where(Chapter.book_id == book.id).order_by(Chapter.position))).scalars().all()
+            (await s.execute(select(Chapter).where(Chapter.book_id == book.id).order_by(Chapter.position)))
+            .scalars()
+            .all()
         )
         assert [c.kind for c in chapters] == ["prologue", "chapter"]  # prologue leads
         prologue, chapter_one = chapters
