@@ -275,7 +275,9 @@ class ParsedSceneOut(BaseModel):
 
 
 class ParsedChapterOut(BaseModel):
-    chapter_no: int
+    # The splitter's best-guess display number; None when it couldn't infer one. Display-only — the
+    # editor decides the final kind, and a numberless kind (prologue/…) drops the number entirely.
+    chapter_no: int | None = None
     title: str | None = None
     detected: bool  # True = an explicit "Chapter N" header was found; False = inferred by position
     conflict: bool = False  # this chapter_no already exists in the target book (collision to resolve)
@@ -298,11 +300,15 @@ class ManuscriptImportSceneIn(BaseModel):
 
 
 class ManuscriptImportChapterIn(BaseModel):
-    chapter_no: int
+    # DISPLAY number, only for kind="chapter"; None (and ignored) for a numberless kind. The server
+    # derives reading order from kind + this number (shared/chapter_order.py), never from a raw number.
+    chapter_no: int | None = None
     title: str | None = None
     pov: str = ""  # optional — blank lands the chapter with an empty POV (set later before drafting)
-    kind: str = "chapter"  # reader-facing kind (chapter/prologue/interlude/…); display-only
-    overwrite: bool = False  # must be set to write into a chapter_no that already exists in the book
+    kind: str = "chapter"  # reader-facing kind (chapter/prologue/interlude/…); drives label + reading-order band
+    # Only a NUMBERED chapter can collide (by chapter_no); a numberless kind is always additive. Set to
+    # replace an existing chapter with the same number.
+    overwrite: bool = False
     scenes: list[ManuscriptImportSceneIn]
 
 
@@ -322,10 +328,23 @@ class ManuscriptImportReport(BaseModel):
     warnings: list[str]
 
 
+class ManuscriptScaffoldReport(BaseModel):
+    """Result of scaffolding the standard production skeleton (front/back matter + prologue/epilogue
+    slots, in canonical order). `created`/`skipped` carry the human section names for a one-line toast."""
+
+    created: list[str]  # sections created as empty slots to fill
+    skipped: list[str]  # sections that already existed (idempotent — re-running never duplicates)
+
+
 class ChapterOut(_ORM):
     id: uuid.UUID
     book_id: uuid.UUID
-    chapter_no: int
+    # Reading-order sort key (the ONLY field to order chapters by; see shared/chapter_order.py). Nullable
+    # only for legacy rows the backfill hasn't reached; the app always sets it.
+    position: int | None = None
+    # DISPLAY number only, and NULL for a numberless kind (prologue/interlude/epilogue/front-/back-matter),
+    # which label off `kind`. Identity is `id`; order is `position`.
+    chapter_no: int | None = None
     title: str | None = None
     pov: str
     outline: str | None = None
@@ -381,7 +400,7 @@ class RunStartOut(BaseModel):
 
     run_id: uuid.UUID
     chapter_id: uuid.UUID
-    chapter_no: int
+    chapter_no: int | None = None  # echoes the chapter's display number (None for a numberless kind)
     pov: str
     beats: list[BeatOut] = []
 
@@ -414,7 +433,7 @@ class BatchChapterResultOut(BaseModel):
     """Per-chapter outcome of a batch run, for inline display in the Planner."""
 
     chapter_id: uuid.UUID
-    chapter_no: int
+    chapter_no: int | None = None  # echoes the chapter's display number (None for a numberless kind)
     pov: str
     beat_count: int = 0
     queued_jobs: int = 0  # draft jobs enqueued (only when auto_draft)
@@ -831,7 +850,9 @@ class ManuscriptScene(BaseModel):
 
 
 class ManuscriptChapter(BaseModel):
-    chapter_no: int
+    # Reading-order sort key — the spine builder orders chapters by this alone (see manuscript/spine.ts).
+    position: int | None = None
+    chapter_no: int | None = None  # DISPLAY number; NULL for a numberless kind (labels off `kind`)
     title: str | None = None
     pov: str
     kind: str = "chapter"
@@ -1067,7 +1088,7 @@ class ChapterPipelineOut(BaseModel):
     exactly (same derivation); packet fields use the chapter packet's approval_state vocabulary."""
 
     chapter_id: uuid.UUID
-    chapter_no: int
+    chapter_no: int | None = None  # DISPLAY number; None for a numberless kind (prologue/…)
     # chapter packet (contract axis); packet_* are None when no packet exists yet
     packet_status: str | None = None  # proposed | approved | blocked
     packet_approval_state: str | None = None  # approvable | open_questions | already_approved | blocked

@@ -136,7 +136,7 @@ _SCHEMA_HINT = (
 
 def build_prompt(
     *,
-    chapter_no: int,
+    chapter_no: int | None,
     pov: str,
     outline: str,
     omniscient_summary: str | None,
@@ -146,7 +146,9 @@ def build_prompt(
 ) -> str:
     """Assemble the author's user message. `canon_handles` maps a short handle (C1, C2, …) to its
     canon row meta so the model can cite provenance by handle."""
-    parts: list[str] = [f"CHAPTER {chapter_no} — POV: {pov}"]
+    # chapter_no is display-only and absent for a numberless kind (prologue/…); fall back to "CHAPTER".
+    heading = f"CHAPTER {chapter_no}" if chapter_no is not None else "CHAPTER"
+    parts: list[str] = [f"{heading} — POV: {pov}"]
     if prior_exit_state:
         parts.append(f"Previous chapter ended (entry state for this chapter):\n{prior_exit_state}")
     if next_entry_intent:
@@ -165,7 +167,7 @@ def build_prompt(
 
 async def author_packet(
     *,
-    chapter_no: int,
+    chapter_no: int | None,
     pov: str,
     outline: str,
     omniscient_summary: str | None,

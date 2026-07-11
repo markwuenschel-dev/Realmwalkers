@@ -79,6 +79,7 @@ const sceneNode = (over: Partial<SpineSceneNode> = {}): SpineSceneNode => ({
 });
 const chapterNode = (over: Partial<SpineChapterNode> = {}): SpineChapterNode => ({
   type: "chapter",
+  position: 2_000_001,
   chapterNo: 1,
   kind: "chapter",
   kindRecognized: true,

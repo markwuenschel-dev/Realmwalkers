@@ -56,6 +56,7 @@ import type {
   ManuscriptImportIn,
   ManuscriptImportReport,
   ManuscriptParseIn,
+  ManuscriptScaffoldReport,
   ParsedManuscriptOut,
   PacketOut,
   PartCreateIn,
@@ -264,6 +265,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  // Create the standard production skeleton (front/back matter + prologue/epilogue slots) in canonical
+  // order; idempotent — existing sections are skipped.
+  scaffoldProduction: (bookId: string) =>
+    http<ManuscriptScaffoldReport>(`/books/${bookId}/manuscript/scaffold`, { method: "POST" }),
   redraftScenes: (chapterId: string, sceneIds: string[]) =>
     http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/scenes/redraft`, {
       method: "POST",

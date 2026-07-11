@@ -16,9 +16,24 @@ from sqlalchemy import ARRAY, BigInteger, Boolean, DateTime, Float, ForeignKey, 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from dominion.shared.chapter_order import chapter_position
+
 
 class Base(DeclarativeBase):
     pass
+
+
+def _chapter_default_position(context: Any) -> int:
+    """Populate `Chapter.position` on insert from the row's kind + chapter_no when it isn't given
+    explicitly — so EVERY chapter carries the shared reading-order key, even on direct model construction
+    (tests, seeds, any path that doesn't set it). An explicit `position=` (e.g. an import assigning a
+    numberless section's slot with a per-batch `seq`) is passed by the caller and overrides this default.
+    `chapter_position` treats an absent kind as a plain chapter, so column evaluation order is irrelevant.
+    """
+    params = context.get_current_parameters()
+    return chapter_position(
+        params.get("kind"), params.get("chapter_no"), section_type=params.get("section_type")
+    )
 
 
 class Book(Base):
@@ -85,16 +100,26 @@ class Chapter(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     # Optional grouping into a Part (Book → Part → Chapter). NULL = ungrouped (renders under no part
-    # divider); ordering within the book still keys off chapter_no, not part membership.
+    # divider); reading order keys off `position`, not part membership.
     part_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("parts.id"), nullable=True)
-    chapter_no: Mapped[int] = mapped_column(Integer)
+    # Reading-order sort key — the ONE thing every reader/export/list orders by (see shared/chapter_order.py,
+    # the single source that computes it from kind + chapter_no). Decoupled from the display number so a
+    # numberless section (prologue/epilogue/front-/back-matter) can sort before/after chapters without a
+    # number to collide on. Nullable only until the one-time backfill fills legacy rows; otherwise always
+    # populated — an explicit value from the caller, else derived on insert by _chapter_default_position.
+    position: Mapped[int | None] = mapped_column(Integer, nullable=True, default=_chapter_default_position)
+    # DISPLAY number only ("Chapter 3"), NOT the sort key or identity. NULL for a numberless kind
+    # (prologue/interlude/epilogue/front_matter/back_matter) — those label off `kind`, never a number.
+    # Set only for a plain `chapter`. Identity is `id` (UUID); ordering is `position`.
+    chapter_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)  # plan-call proposes; author edits
     pov: Mapped[str] = mapped_column(Text)  # single narrating character
     outline: Mapped[str | None] = mapped_column(Text, nullable=True)  # input to beat-proposal
     status: Mapped[str] = mapped_column(Text, default="planned")
     # Reader-facing structural role (see ChapterKind): chapter | prologue | interlude | epilogue |
-    # front_matter | back_matter. Display-only — ordering still keys off chapter_no; a plain "chapter"
-    # renders "Chapter N", the rest render their own label. server_default keeps pre-existing rows valid.
+    # front_matter | back_matter. Drives BOTH the reader label (a plain "chapter" renders "Chapter N",
+    # the rest render their own label) AND the reading-order band (via chapter_order.chapter_position).
+    # server_default keeps pre-existing rows valid.
     kind: Mapped[str] = mapped_column(Text, default="chapter", server_default="chapter")
     # For front_matter/back_matter chapters: the specific section type (glossary | dramatis_personae |
     # map | preface | afterword | appendix | acknowledgments | preview | …). Drives the reader label +

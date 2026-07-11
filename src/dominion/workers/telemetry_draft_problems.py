@@ -45,7 +45,11 @@ def _aggregate_breakdown(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 async def detect_draft_not_ready(session: AsyncSession, book_id: uuid.UUID) -> dict[str, Any] | None:
     chapters = list(
-        (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
+        (
+            await session.execute(
+                select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.position, Chapter.id)
+            )
+        )
         .scalars()
         .all()
     )

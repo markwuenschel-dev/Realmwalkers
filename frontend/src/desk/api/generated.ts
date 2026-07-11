@@ -2960,6 +2960,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/books/{book_id}/manuscript/scaffold": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Scaffold Production
+     * @description Create the standard production skeleton — front/back-matter + prologue/epilogue slots, as empty
+     *     chapters ready to fill — in canonical reading order. Idempotent: a section that already exists (same
+     *     kind + section_type) is skipped, so re-running never duplicates. Each slot's `position` is derived
+     *     from the shared reading-order helper (kind + section_type), so the skeleton is correctly ordered the
+     *     moment it's created; an empty slot stays out of exports until it has prose.
+     */
+    post: operations["scaffold_production_books__book_id__manuscript_scaffold_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3581,7 +3605,7 @@ export interface components {
        */
       chapter_id: string;
       /** Chapter No */
-      chapter_no: number;
+      chapter_no?: number | null;
       /** Pov */
       pov: string;
       /**
@@ -4109,8 +4133,10 @@ export interface components {
        * Format: uuid
        */
       book_id: string;
+      /** Position */
+      position?: number | null;
       /** Chapter No */
-      chapter_no: number;
+      chapter_no?: number | null;
       /** Title */
       title?: string | null;
       /** Pov */
@@ -4153,7 +4179,7 @@ export interface components {
        */
       chapter_id: string;
       /** Chapter No */
-      chapter_no: number;
+      chapter_no?: number | null;
       /** Packet Status */
       packet_status?: string | null;
       /** Packet Approval State */
@@ -5371,8 +5397,10 @@ export interface components {
     };
     /** ManuscriptChapter */
     ManuscriptChapter: {
+      /** Position */
+      position?: number | null;
       /** Chapter No */
-      chapter_no: number;
+      chapter_no?: number | null;
       /** Title */
       title?: string | null;
       /** Pov */
@@ -5407,7 +5435,7 @@ export interface components {
     /** ManuscriptImportChapterIn */
     ManuscriptImportChapterIn: {
       /** Chapter No */
-      chapter_no: number;
+      chapter_no?: number | null;
       /** Title */
       title?: string | null;
       /**
@@ -5538,6 +5566,17 @@ export interface components {
        * @default part
        */
       kind: string;
+    };
+    /**
+     * ManuscriptScaffoldReport
+     * @description Result of scaffolding the standard production skeleton (front/back matter + prologue/epilogue
+     *     slots, in canonical order). `created`/`skipped` carry the human section names for a one-line toast.
+     */
+    ManuscriptScaffoldReport: {
+      /** Created */
+      created: string[];
+      /** Skipped */
+      skipped: string[];
     };
     /** ManuscriptScene */
     ManuscriptScene: {
@@ -5727,7 +5766,7 @@ export interface components {
     /** ParsedChapterOut */
     ParsedChapterOut: {
       /** Chapter No */
-      chapter_no: number;
+      chapter_no?: number | null;
       /** Title */
       title?: string | null;
       /** Detected */
@@ -7029,7 +7068,7 @@ export interface components {
        */
       chapter_id: string;
       /** Chapter No */
-      chapter_no: number;
+      chapter_no?: number | null;
       /** Pov */
       pov: string;
       /**
@@ -13888,6 +13927,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ManuscriptImportReport"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  scaffold_production_books__book_id__manuscript_scaffold_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManuscriptScaffoldReport"];
         };
       };
       /** @description Validation Error */

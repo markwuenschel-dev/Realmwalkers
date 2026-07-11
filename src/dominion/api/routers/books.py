@@ -89,7 +89,11 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
         raise HTTPException(status_code=404, detail="book not found")
 
     chapters = (
-        (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
+        (
+            await session.execute(
+                select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.position, Chapter.id)
+            )
+        )
         .scalars()
         .all()
     )
@@ -130,6 +134,7 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
             rendered_part_ids.add(chapter.part_id)
         out_chapters.append(
             ManuscriptChapter(
+                position=chapter.position,
                 chapter_no=chapter.chapter_no,
                 title=chapter.title,
                 pov=chapter.pov,
@@ -189,7 +194,11 @@ async def chapters_overview(book_id: uuid.UUID, session: SessionDep) -> list[Cha
         raise HTTPException(status_code=404, detail="book not found")
 
     chapters = (
-        (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
+        (
+            await session.execute(
+                select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.position, Chapter.id)
+            )
+        )
         .scalars()
         .all()
     )

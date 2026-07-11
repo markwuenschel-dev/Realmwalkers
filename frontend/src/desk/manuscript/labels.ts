@@ -113,33 +113,87 @@ export function volumeLabel(volume: { volume_no: number; title?: string | null }
  *  front/back matter. An UNKNOWN kind falls back to "Chapter N" (so nothing renders a raw enum string);
  *  callers that need to know a kind was unrecognized should check `isKnownChapterKind` separately — the
  *  spine records that as a preflight issue. */
-export function chapterLabel(ch: { kind?: string | null; chapter_no: number }): string {
+export function chapterLabel(ch: { kind?: string | null; chapter_no?: number | null }): string {
   const kind = ch.kind ?? "chapter";
-  if (kind === "chapter" || !isKnownChapterKind(kind)) return `Chapter ${ch.chapter_no}`;
+  // A plain/unknown kind labels off its number; a numberless chapter (chapter_no null) reads just "Chapter".
+  if (kind === "chapter" || !isKnownChapterKind(kind)) {
+    return ch.chapter_no != null ? `Chapter ${ch.chapter_no}` : "Chapter";
+  }
   // Runtime-guaranteed non-'chapter' known kind (the guard above excludes "chapter" and unknown kinds).
   return KIND_LABEL[kind as Exclude<ChapterKind, "chapter">];
 }
 
-/** Display names for the known front/back-matter section types. Free-slug on the wire, so an unknown
- *  slug is title-cased (`dramatis_personae` → "Dramatis Personae") rather than rejected — the catalog
- *  can grow without a migration. Ordered roughly front-matter → back-matter for the editor dropdown. */
+/** Display names for the AUTHORED front/back-matter section types — the ones you write prose for, so
+ *  they're the options in the per-chapter section-type picker. The generated pages (half-title, title
+ *  page, table of contents) are NOT here: the exporter builds those from metadata + the chapter list, so
+ *  they're never authored chapters. Free-slug on the wire, so an unknown slug is title-cased
+ *  (`dramatis_personae` → "Dramatis Personae") rather than rejected — the catalog can grow without a
+ *  migration. Ordered front-matter → back-matter for the editor dropdown. */
 export const SECTION_TYPES: Record<string, string> = {
-  preface: "Preface",
+  copyright: "Copyright",
+  dedication: "Dedication",
+  epigraph: "Epigraph",
   foreword: "Foreword",
+  preface: "Preface",
   introduction: "Introduction",
   dramatis_personae: "Dramatis Personae",
   map: "Map",
   timeline: "Timeline",
   pronunciation: "Pronunciation Guide",
-  epigraph: "Epigraph",
   afterword: "Afterword",
   acknowledgments: "Acknowledgments",
-  glossary: "Glossary",
   appendix: "Appendix",
+  glossary: "Glossary",
   author_note: "Author's Note",
   about_author: "About the Author",
+  author_bio: "Author Bio",
   preview: "Preview",
 };
+
+/** The generated (not authored) production pages the Reader export builds from metadata + the chapter
+ *  list. Slugs match the backend section-order catalog so they slot into the canonical sequence. */
+export const GENERATED_SECTION = {
+  halfTitle: "half_title",
+  titlePage: "title_page",
+  tableOfContents: "table_of_contents",
+} as const;
+
+/** Canonical publishing order of every section slug (authored AND generated) within its front/back-matter
+ *  band: Half-Title → Title Page → Copyright → Dedication → Epigraph → Table of Contents → Preface → …
+ *  body … → Afterword → Acknowledgments → Appendix → Glossary → Author Bio. This is the single frontend
+ *  source the Reader exporter uses to place generated pages relative to authored sections.
+ *  KEEP IN SYNC with the backend `_SECTION_ORDER` in shared/chapter_order.py. */
+export const SECTION_ORDER: readonly string[] = [
+  "half_title",
+  "title_page",
+  "copyright",
+  "dedication",
+  "epigraph",
+  "table_of_contents",
+  "foreword",
+  "preface",
+  "introduction",
+  "dramatis_personae",
+  "map",
+  "timeline",
+  "pronunciation",
+  "afterword",
+  "acknowledgments",
+  "appendix",
+  "glossary",
+  "author_note",
+  "about_author",
+  "author_bio",
+  "about",
+  "preview",
+];
+
+const _SECTION_RANK: Map<string, number> = new Map(SECTION_ORDER.map((slug, i) => [slug, i]));
+
+/** Canonical rank of a section slug within its band; an unknown/absent slug sorts after all known ones. */
+export function sectionRank(sectionType: string | null | undefined): number {
+  return _SECTION_RANK.get((sectionType ?? "").trim()) ?? Number.MAX_SAFE_INTEGER;
+}
 
 function titleCaseSlug(slug: string): string {
   return slug
@@ -164,7 +218,7 @@ export function sectionLabel(ch: {
   kind?: string | null;
   title?: string | null;
   section_type?: string | null;
-  chapter_no: number;
+  chapter_no?: number | null;
 }): string {
   const kind = ch.kind ?? "chapter";
   if (kind === "front_matter" || kind === "back_matter") {
@@ -179,7 +233,7 @@ export function resolveChapterLabel(ch: {
   kind?: string | null;
   title?: string | null;
   section_type?: string | null;
-  chapter_no: number;
+  chapter_no?: number | null;
 }): string {
   return isSectionKind(ch.kind) ? sectionLabel(ch) : chapterLabel(ch);
 }

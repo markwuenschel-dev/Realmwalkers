@@ -105,18 +105,50 @@ async def test_import_accepts_empty_pov(db_factory):
         assert ch.pov == ""
 
 
-async def test_import_sets_chapter_kind_and_allows_chapter_zero(db_factory):
+async def test_import_prologue_is_numberless(db_factory):
+    """A prologue imports with NO chapter number — it labels + orders off `kind`, never a number."""
     async with db_factory() as s:
         book = await _book(s)
         await manuscript.import_manuscript(
             book.id,
-            ManuscriptImportIn(chapters=[_chapter(0, [(1, "prologue prose")], pov="M", kind="prologue")]),
+            ManuscriptImportIn(chapters=[_chapter(None, [(1, "prologue prose")], pov="M", kind="prologue")]),
             s,
             BackgroundTasks(),
         )
         ch = (await s.execute(select(Chapter).where(Chapter.book_id == book.id))).scalar_one()
-        assert ch.chapter_no == 0  # a prologue sorts before chapter 1
+        assert ch.chapter_no is None  # numberless — the whole point: nothing to collide on
         assert ch.kind == "prologue"
+        assert ch.position is not None
+
+
+async def test_import_prologue_into_book_with_chapter_one_does_not_collide(db_factory):
+    """The reported bug: importing a Prologue into a book that already has chapter 1 must NOT be skipped
+    as a chapter-1 conflict, and the prologue must sort BEFORE chapter 1 in reading order."""
+    async with db_factory() as s:
+        book = await _book(s)
+        # Seed an existing chapter 1 (as the run/planning flow would create it).
+        await manuscript.import_manuscript(
+            book.id, ManuscriptImportIn(chapters=[_chapter(1, [(1, "chapter one prose")], pov="M")]), s, BackgroundTasks()
+        )
+        report = await manuscript.import_manuscript(
+            book.id,
+            ManuscriptImportIn(chapters=[_chapter(None, [(1, "prologue prose")], pov="M", kind="prologue")]),
+            s,
+            BackgroundTasks(),
+        )
+        # No conflict, a real import (the old behaviour skipped it as "ch 1 (overwrite to replace)").
+        assert report.skipped_conflicts == []
+        assert report.chapters_created == 1
+        assert report.scenes_imported == 1
+
+        chapters = (
+            (await s.execute(select(Chapter).where(Chapter.book_id == book.id).order_by(Chapter.position))).scalars().all()
+        )
+        assert [c.kind for c in chapters] == ["prologue", "chapter"]  # prologue leads
+        prologue, chapter_one = chapters
+        assert prologue.chapter_no is None
+        assert chapter_one.chapter_no == 1
+        assert prologue.position < chapter_one.position
 
 
 async def test_import_auto_title_schedules_batch_for_untitled_only(db_factory):

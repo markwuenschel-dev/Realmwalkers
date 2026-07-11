@@ -250,6 +250,7 @@ export type ParsedChapterOut = S["ParsedChapterOut"];
 export type ParsedSceneOut = S["ParsedSceneOut"];
 export type ManuscriptImportIn = S["ManuscriptImportIn"];
 export type ManuscriptImportReport = S["ManuscriptImportReport"];
+export type ManuscriptScaffoldReport = S["ManuscriptScaffoldReport"];
 export type GateMode = S["GateMode"];
 
 export type DecisionKind = S["Decision"];

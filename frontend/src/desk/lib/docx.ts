@@ -38,6 +38,7 @@ import { wordCount } from "./format";
 import { bookNumberLabel } from "../manuscript/metadata";
 import { partKindWord, toRoman } from "../manuscript/labels";
 import { readerStyleDefs, STYLE } from "../manuscript/docxStyles";
+import { planReaderProduction } from "../manuscript/readerFrontMatter";
 import type { ExportPolicy } from "../manuscript/presets";
 import {
   spineCounts,
@@ -478,7 +479,8 @@ export function buildDocDoc(title: string, content: string): Document {
 // must NOT inherit book identity — the old code hard-coded "BOOK ONE" onto every fragment; it no longer).
 
 export interface ManuscriptChapterInput {
-  chapter_no: number;
+  position?: number | null; // reading-order sort key; falls back to chapter_no when absent
+  chapter_no?: number | null; // DISPLAY number; null for a numberless kind (prologue/…)
   title?: string | null;
   pov: string;
   kind?: string | null; // ChapterKind; drives the heading label (Prologue/Interlude/… vs "Chapter N")
@@ -490,6 +492,7 @@ export function buildManuscriptFrom(
   title: string,
   chapters: ManuscriptChapterInput[],
 ): ManuscriptOut {
+  const orderKey = (c: ManuscriptChapterInput) => c.position ?? c.chapter_no ?? 0;
   return {
     book_id: "",
     title,
@@ -499,9 +502,10 @@ export function buildManuscriptFrom(
     volumes: [],
     parts: [],
     chapters: [...chapters]
-      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .sort((a, b) => orderKey(a) - orderKey(b))
       .map((c) => ({
-        chapter_no: c.chapter_no,
+        position: c.position ?? null,
+        chapter_no: c.chapter_no ?? null,
         title: c.title ?? null,
         pov: c.pov,
         kind: c.kind ?? "chapter",
@@ -546,6 +550,23 @@ class ReaderLayout {
 
   private pageBreak(): void {
     this.children.push(new Paragraph({ children: [new PageBreak()] }));
+  }
+
+  /** Half-title page — the book title alone on the leading page, ahead of the full title page (the
+   *  standard first leaf of a printed book). Generated from metadata; page-broken from the title page. */
+  halfTitle(metadata: ManuscriptSpine["metadata"]): void {
+    this.styled(STYLE.bookTitle, metadata.title, { before: 3600, after: 0 });
+    this.pageBreak();
+  }
+
+  /** Table of Contents — a generated Contents page listing every non-front-matter section that has prose
+   *  (Prologue, Chapters, Epilogue, back matter) by its resolved label, in reading order. No page numbers:
+   *  those are layout-dependent (Word recomputes them), so a deterministic label list is the honest export. */
+  tableOfContents(entries: readonly string[]): void {
+    if (entries.length === 0) return;
+    this.pageBreak();
+    this.styled(STYLE.chapterLabel, "CONTENTS", { before: 480, after: 240 });
+    for (const label of entries) this.styled(STYLE.body, label, { after: 80 });
   }
 
   /** Title page — series line + spelled-out book number from ExportMetadata (never hard-coded); the
@@ -639,12 +660,24 @@ export function renderReaderDoc(
   opts: { renderSubtitle?: string } = {},
 ): Document {
   const layout = new ReaderLayout(policy);
-  layout.titlePage(spine.metadata, opts.renderSubtitle);
+
+  // Production sequence: the front matter (half-title, title page, authored front-matter sections and the
+  // generated Table of Contents) is planned in canonical publishing order by the pure planner, then the
+  // body follows. Back matter needs no special handling — it sorts last by `position` and flows through
+  // the body walk. The planner is pure/testable; this switch is the only docx-specific rendering.
+  const plan = planReaderProduction(spine, policy);
+  for (const item of plan.front) {
+    if (item.type === "half_title") layout.halfTitle(spine.metadata);
+    else if (item.type === "title_page") layout.titlePage(spine.metadata, opts.renderSubtitle);
+    else if (item.type === "toc") layout.tableOfContents(item.entries);
+    else layout.chapter(item.node);
+  }
+
   const emitPart = (part: SpinePartNode) => {
     if (policy.renderParts) layout.partDivider(part);
     for (const ch of part.chapters) layout.chapter(ch);
   };
-  for (const node of spine.nodes) {
+  for (const node of plan.body) {
     if (node.type === "volume") {
       if (policy.renderParts) layout.volumeDivider(node);
       for (const part of node.parts) emitPart(part);
@@ -894,7 +927,8 @@ function chapterComment(ch: SpineChapterNode): string {
   const title = ch.title ? ` title=${yamlQuote(ch.title)}` : "";
   const kind = ch.kind !== "chapter" ? ` kind=${ch.kind}` : "";
   const section = ch.sectionType ? ` section_type=${ch.sectionType}` : "";
-  return `<!-- chapter number=${ch.chapterNo}${kind}${section}${title} pov=${yamlQuote(ch.pov)} -->`;
+  const number = ch.chapterNo != null ? ` number=${ch.chapterNo}` : ""; // numberless kinds omit it
+  return `<!-- chapter${number}${kind}${section}${title} pov=${yamlQuote(ch.pov)} -->`;
 }
 
 /** Emit one chapter to the Markdown line buffer, using the resolved label + RAW prose (never the

@@ -45,7 +45,7 @@ function buildBlocks(parsed: ParsedManuscriptOut, defaultPov: string): Block[] {
           key: `b${k++}`,
           text,
           brk: chapterStart ? "chapter" : sceneStart ? "scene" : "none",
-          chapterNo: chapterStart ? String(ch.chapter_no) : "",
+          chapterNo: chapterStart && ch.chapter_no != null ? String(ch.chapter_no) : "",
           title: chapterStart ? (ch.title ?? "") : "",
           pov: chapterStart ? defaultPov : "",
           kind: "chapter",
@@ -69,6 +69,7 @@ function toImport(
   let cur: ManuscriptImportIn["chapters"][number] | null = null;
   let paras: string[] = [];
   let sceneNo = 0;
+  let numberedCount = 0; // running count of plain "chapter" blocks — the blank-number fallback
   const flushScene = () => {
     if (cur && paras.length) {
       sceneNo += 1;
@@ -79,15 +80,21 @@ function toImport(
   blocks.forEach((b, i) => {
     if (b.brk === "chapter" || i === 0) {
       flushScene();
-      // Respect an explicit number — including 0 (a prologue sorts before chapter 1). Only a BLANK
-      // number falls back to sequential; `Number(x) || fallback` would wrongly coerce 0 to fallback.
-      const chapterNo = b.chapterNo.trim() === "" ? chapters.length + 1 : Number(b.chapterNo);
+      // A numberless kind (prologue/interlude/epilogue/front-/back-matter) carries NO number — the server
+      // labels it off `kind` and orders it by reading position, so it can't collide. Only a plain
+      // "chapter" gets a chapter_no: an explicit value (including 0), else the next sequential number.
+      const isChapter = b.kind === "chapter";
+      let chapterNo: number | null = null;
+      if (isChapter) {
+        chapterNo = b.chapterNo.trim() === "" ? numberedCount + 1 : Number(b.chapterNo);
+        numberedCount = Math.max(numberedCount, chapterNo);
+      }
       cur = {
         chapter_no: chapterNo,
         title: b.title.trim() || null,
         pov: b.pov.trim(),
         kind: b.kind,
-        overwrite: b.overwrite,
+        overwrite: isChapter && b.overwrite, // only a numbered chapter can collide / overwrite
         scenes: [],
       };
       chapters.push(cur);
@@ -202,7 +209,14 @@ export default function ManuscriptEditor({
         )}
       >
         {blocks.map((b, i) => {
-          const conflict = b.brk === "chapter" && existing.has(Number(b.chapterNo));
+          // Only a numbered chapter can collide; a numberless kind (prologue/…) is always additive.
+          const conflict =
+            b.brk === "chapter" &&
+            b.kind === "chapter" &&
+            b.chapterNo.trim() !== "" &&
+            existing.has(Number(b.chapterNo));
+          const kindLabel =
+            CHAPTER_KIND_OPTIONS.find((k) => k.value === b.kind)?.label ?? "Chapter";
           return (
             <div key={b.key}>
               {/* boundary control */}
@@ -213,14 +227,17 @@ export default function ManuscriptEditor({
                   )}
                 >
                   <strong style={css("font-size:11px;color:var(--accent);letter-spacing:.04em")}>
-                    CHAPTER
+                    {kindLabel.toUpperCase()}
                   </strong>
-                  <input
-                    aria-label="chapter number"
-                    value={b.chapterNo}
-                    onChange={(e) => set(i, { chapterNo: e.target.value.replace(/[^0-9]/g, "") })}
-                    style={css(`${input};width:52px`)}
-                  />
+                  {/* A number belongs only to a plain chapter; a numberless kind labels + orders itself. */}
+                  {b.kind === "chapter" && (
+                    <input
+                      aria-label="chapter number"
+                      value={b.chapterNo}
+                      onChange={(e) => set(i, { chapterNo: e.target.value.replace(/[^0-9]/g, "") })}
+                      style={css(`${input};width:52px`)}
+                    />
+                  )}
                   <input
                     aria-label="chapter title"
                     value={b.title}
