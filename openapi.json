@@ -8799,6 +8799,60 @@
           }
         }
       }
+    },
+    "/books/{book_id}/manuscript/import": {
+      "post": {
+        "tags": [
+          "manuscript"
+        ],
+        "summary": "Import Manuscript",
+        "description": "Import the confirmed chapter/scene structure. Chapters upsert by (book_id, chapter_no) \u2014 a\nchapter number that already exists is refused (reported in skipped_conflicts) unless that chapter\ncarries overwrite=True. Scenes land as `imported`-sourced, PENDING_REVIEW by default (or APPROVED\nwhen approve_directly), superseding any prior version at their scene_no. No LLM title call, and no\nsummary fold on the review path \u2014 folds happen when each scene is approved in the inbox.",
+        "operationId": "import_manuscript_books__book_id__manuscript_import_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManuscriptImportIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManuscriptImportReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -14442,6 +14496,127 @@
         ],
         "title": "ManuscriptFileIn",
         "description": "One dropped file's raw text (read client-side; no server multipart)."
+      },
+      "ManuscriptImportChapterIn": {
+        "properties": {
+          "chapter_no": {
+            "type": "integer",
+            "title": "Chapter No"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "pov": {
+            "type": "string",
+            "title": "Pov",
+            "default": ""
+          },
+          "overwrite": {
+            "type": "boolean",
+            "title": "Overwrite",
+            "default": false
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptImportSceneIn"
+            },
+            "type": "array",
+            "title": "Scenes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_no",
+          "scenes"
+        ],
+        "title": "ManuscriptImportChapterIn"
+      },
+      "ManuscriptImportIn": {
+        "properties": {
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptImportChapterIn"
+            },
+            "type": "array",
+            "title": "Chapters"
+          },
+          "approve_directly": {
+            "type": "boolean",
+            "title": "Approve Directly",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapters"
+        ],
+        "title": "ManuscriptImportIn",
+        "description": "POST body for /manuscript/import \u2014 the confirmed chapter/scene structure from the preview."
+      },
+      "ManuscriptImportReport": {
+        "properties": {
+          "chapters_created": {
+            "type": "integer",
+            "title": "Chapters Created"
+          },
+          "chapters_updated": {
+            "type": "integer",
+            "title": "Chapters Updated"
+          },
+          "scenes_imported": {
+            "type": "integer",
+            "title": "Scenes Imported"
+          },
+          "skipped_conflicts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Skipped Conflicts"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapters_created",
+          "chapters_updated",
+          "scenes_imported",
+          "skipped_conflicts",
+          "warnings"
+        ],
+        "title": "ManuscriptImportReport"
+      },
+      "ManuscriptImportSceneIn": {
+        "properties": {
+          "scene_no": {
+            "type": "integer",
+            "title": "Scene No"
+          },
+          "prose": {
+            "type": "string",
+            "title": "Prose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scene_no",
+          "prose"
+        ],
+        "title": "ManuscriptImportSceneIn"
       },
       "ManuscriptOut": {
         "properties": {

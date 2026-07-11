@@ -57,14 +57,18 @@ async def refresh_on_approval(session: AsyncSession, *, scene_id: uuid.UUID) -> 
             chapter_id=str(scene.chapter_id),
         )
     ):
-        await _upsert(
-            session,
-            book_id=chapter.book_id,
-            scope="pov",
-            pov=chapter.pov,
-            scene=scene,
-            lens=f"what {chapter.pov} has personally experienced and knows",
-        )
+        # A chapter can have an empty POV (e.g. a scene dropped in via the manuscript uploader before a
+        # POV is assigned). Skip the per-POV fold in that case — folding under "" would create a junk
+        # empty-POV summary bucket — and only roll the scene into the omniscient summary.
+        if (chapter.pov or "").strip():
+            await _upsert(
+                session,
+                book_id=chapter.book_id,
+                scope="pov",
+                pov=chapter.pov,
+                scene=scene,
+                lens=f"what {chapter.pov} has personally experienced and knows",
+            )
         await _upsert(
             session,
             book_id=chapter.book_id,

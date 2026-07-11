@@ -53,6 +53,8 @@ import type {
   AgentStatsListOut,
   SmokeTestOut,
   HumanSceneIn,
+  ManuscriptImportIn,
+  ManuscriptImportReport,
   ManuscriptParseIn,
   ParsedManuscriptOut,
   PacketOut,
@@ -256,6 +258,11 @@ export const api = {
     http<ParsedManuscriptOut>(`/books/${bookId}/manuscript/parse`, {
       method: "POST",
       body: JSON.stringify({ files } satisfies ManuscriptParseIn),
+    }),
+  importManuscript: (bookId: string, body: ManuscriptImportIn) =>
+    http<ManuscriptImportReport>(`/books/${bookId}/manuscript/import`, {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
   redraftScenes: (chapterId: string, sceneIds: string[]) =>
     http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/scenes/redraft`, {

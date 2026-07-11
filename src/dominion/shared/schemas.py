@@ -292,6 +292,34 @@ class ParsedManuscriptOut(BaseModel):
     existing_chapter_nos: list[int]
 
 
+class ManuscriptImportSceneIn(BaseModel):
+    scene_no: int
+    prose: str
+
+
+class ManuscriptImportChapterIn(BaseModel):
+    chapter_no: int
+    title: str | None = None
+    pov: str = ""  # optional — blank lands the chapter with an empty POV (set later before drafting)
+    overwrite: bool = False  # must be set to write into a chapter_no that already exists in the book
+    scenes: list[ManuscriptImportSceneIn]
+
+
+class ManuscriptImportIn(BaseModel):
+    """POST body for /manuscript/import — the confirmed chapter/scene structure from the preview."""
+
+    chapters: list[ManuscriptImportChapterIn]
+    approve_directly: bool = False  # default: land scenes in the review inbox (PENDING_REVIEW)
+
+
+class ManuscriptImportReport(BaseModel):
+    chapters_created: int
+    chapters_updated: int
+    scenes_imported: int
+    skipped_conflicts: list[int]  # chapter_nos refused because they exist and overwrite was not set
+    warnings: list[str]
+
+
 class ChapterOut(_ORM):
     id: uuid.UUID
     book_id: uuid.UUID

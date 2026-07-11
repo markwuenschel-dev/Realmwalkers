@@ -1,19 +1,54 @@
 "use client";
 
-// Manuscript uploader — Slice 1: drop files, see the best-effort split. READ-ONLY: this previews the
-// detected chapter/scene structure and flags collisions, but does not import anything yet (boundary
-// editing + import land in later slices). See GitHub #202.
+// Manuscript uploader — drop files, see the best-effort split, and import it into the review inbox.
+// The preview is not yet editable (boundary-correcting arrives in a later slice), but you can set a
+// default POV and import as-is; colliding chapters are skipped. See GitHub #202 (parse), #203 (import).
 import { useState } from "react";
 import { css } from "../css";
 import { api } from "../api/client";
-import { Chip } from "./ui";
-import type { ParsedManuscriptOut } from "../api/types";
+import { useDeskData } from "../api/data";
+import { Button, Chip } from "./ui";
+import type { ManuscriptImportIn, ParsedManuscriptOut } from "../api/types";
 
 export default function ManuscriptUploader({ bookId }: { bookId: string }) {
+  const data = useDeskData();
   const [parsed, setParsed] = useState<ParsedManuscriptOut | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [defaultPov, setDefaultPov] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  const doImport = async () => {
+    if (!parsed) return;
+    setImporting(true);
+    try {
+      const payload: ManuscriptImportIn = {
+        approve_directly: false, // Slice 2: always land in review; the toggle arrives in a later slice
+        chapters: parsed.chapters.map((c) => ({
+          chapter_no: c.chapter_no,
+          title: c.title,
+          pov: defaultPov.trim(),
+          overwrite: false, // conflicts are refused-and-reported; per-chapter overwrite comes later
+          scenes: c.scenes.map((s) => ({ scene_no: s.scene_no, prose: s.prose })),
+        })),
+      };
+      const report = await api.importManuscript(bookId, payload);
+      const skipped = report.skipped_conflicts.length
+        ? `; skipped ch ${report.skipped_conflicts.join(", ")} (already exist)`
+        : "";
+      data.pushToast({
+        tone: report.scenes_imported > 0 ? "success" : "warn",
+        message: `Imported ${report.scenes_imported} scene${report.scenes_imported === 1 ? "" : "s"} into review${skipped}`,
+      });
+      await data.refreshAll();
+      setParsed(null);
+    } catch (e) {
+      data.pushToast({ tone: "error", message: e instanceof Error ? e.message : "import failed" });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -55,7 +90,7 @@ export default function ManuscriptUploader({ bookId }: { bookId: string }) {
           Drop manuscript files here — whole-chapter or multi-scene
         </span>
         <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
-          .md / .txt · multiple files ok · read-only preview (nothing is imported yet)
+          .md / .txt · multiple files ok · review the split, then import to the inbox
         </span>
         <label
           style={css(
@@ -144,6 +179,39 @@ export default function ManuscriptUploader({ bookId }: { bookId: string }) {
               ))}
             </div>
           ))}
+
+          <div
+            style={css("display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:4px")}
+          >
+            <label style={css("display:flex;flex-direction:column;gap:3px")}>
+              <span style={css("font-family:var(--mono);font-size:10px;color:var(--dim)")}>
+                default POV (optional)
+              </span>
+              <input
+                value={defaultPov}
+                onChange={(e) => setDefaultPov(e.target.value)}
+                placeholder="Character name"
+                style={css(
+                  "width:160px;background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12.5px;font-family:var(--ui)",
+                )}
+              />
+            </label>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={importing || sceneCount === 0}
+              onClick={() => void doImport()}
+            >
+              {importing
+                ? "Importing…"
+                : `Import ${sceneCount} scene${sceneCount === 1 ? "" : "s"} for review`}
+            </Button>
+            {parsed.chapters.some((c) => c.conflict) && (
+              <span style={css("font-family:var(--mono);font-size:10px;color:var(--warn)")}>
+                colliding chapters will be skipped (overwrite comes in a later step)
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
