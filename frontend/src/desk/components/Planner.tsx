@@ -228,7 +228,7 @@ export default function Planner() {
               <span style={fieldLabel}>POV character</span>
               <input
                 style={input}
-                placeholder="e.g. Soren"
+                placeholder="Character name"
                 value={pov}
                 onChange={(e) => setPov(e.target.value)}
               />
@@ -362,7 +362,7 @@ export default function Planner() {
                         <span style={fieldLabel}>POV character</span>
                         <input
                           style={input}
-                          placeholder="e.g. Soren"
+                          placeholder="Character name"
                           value={r.pov}
                           onChange={(e) => setBatchRow(i, { pov: e.target.value })}
                         />
