@@ -55,9 +55,7 @@ async def test_scaffold_is_idempotent(db_factory):
         report2 = await manuscript.scaffold_production(book.id, s)
         assert report2.created == []  # second run adds nothing
         assert "Copyright" in report2.skipped
-        count = len(
-            (await s.execute(select(Chapter).where(Chapter.book_id == book.id))).scalars().all()
-        )
+        count = len((await s.execute(select(Chapter).where(Chapter.book_id == book.id))).scalars().all())
         assert count == 10  # no duplicates
 
 

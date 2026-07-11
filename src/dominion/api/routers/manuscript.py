@@ -261,9 +261,7 @@ async def scaffold_production(book_id: uuid.UUID, session: SessionDep) -> Manusc
     if book is None:
         raise HTTPException(status_code=404, detail="book not found")
 
-    existing = (
-        (await session.execute(select(Chapter).where(Chapter.book_id == book_id))).scalars().all()
-    )
+    existing = (await session.execute(select(Chapter).where(Chapter.book_id == book_id))).scalars().all()
 
     def _present(kind: str, section_type: str | None) -> bool:
         return any(c.kind == kind and (c.section_type or None) == section_type for c in existing)

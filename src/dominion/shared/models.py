@@ -31,9 +31,7 @@ def _chapter_default_position(context: Any) -> int:
     `chapter_position` treats an absent kind as a plain chapter, so column evaluation order is irrelevant.
     """
     params = context.get_current_parameters()
-    return chapter_position(
-        params.get("kind"), params.get("chapter_no"), section_type=params.get("section_type")
-    )
+    return chapter_position(params.get("kind"), params.get("chapter_no"), section_type=params.get("section_type"))
 
 
 class Book(Base):
