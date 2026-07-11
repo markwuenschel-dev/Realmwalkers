@@ -117,11 +117,20 @@ def _open_questions(packet: dict[str, Any]) -> list[str]:
     return [str(q).strip() for q in oq if str(q).strip()] if isinstance(oq, list) else []
 
 
-async def _prior_exit_state(session: AsyncSession, *, book_id: uuid.UUID, chapter_no: int) -> str | None:
-    """The previous chapter's approved exit state = this chapter's entry state, if we have it."""
+async def _prior_exit_state(session: AsyncSession, *, chapter: Chapter) -> str | None:
+    """The previous chapter's approved exit state = this chapter's entry state, if we have it.
+
+    "Previous" is the chapter immediately before this one in READING ORDER (`position`), not
+    `chapter_no - 1` — so a chapter that follows a prologue/interlude inherits from that section, and a
+    numberless section resolves a prior at all. Falls back cleanly to None for the first chapter."""
+    if chapter.position is None:
+        return None
     prior_chapter = (
         await session.execute(
-            select(Chapter.id).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no - 1)
+            select(Chapter.id)
+            .where(Chapter.book_id == chapter.book_id, Chapter.position < chapter.position)
+            .order_by(Chapter.position.desc())
+            .limit(1)
         )
     ).scalar_one_or_none()
     if prior_chapter is None:
@@ -272,7 +281,7 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         )
 
     omniscient = await _omniscient_summary(session, book_id)
-    prior_exit = await _prior_exit_state(session, book_id=book_id, chapter_no=chapter.chapter_no)
+    prior_exit = await _prior_exit_state(session, chapter=chapter)
     canon_meta = await canon_rag.retrieve_with_meta(session, book_id=book_id, query=outline, k=_CANON_K)
     handles = {f"C{i}": meta for i, meta in enumerate(canon_meta, start=1)}
 

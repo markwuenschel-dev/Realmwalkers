@@ -66,8 +66,9 @@ export default function ManuscriptScreen() {
   const draftManuscript = useMemo<ManuscriptOut | null>(() => {
     if (!manuscript) return null;
     const chs = [...allChapters]
-      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .sort((a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0))
       .map((ch) => ({
+        position: ch.position,
         chapter_no: ch.chapter_no,
         title: ch.title,
         pov: ch.pov,

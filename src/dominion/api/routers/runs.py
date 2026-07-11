@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, select
 
 from dominion.api.deps import SessionDep
+from dominion.shared.chapter_order import chapter_position
 from dominion.shared.config import settings
 from dominion.shared.enums import BeatStatus, ChapterStatus, RunStatus
 from dominion.shared.models import Beat, Chapter, Run, Summary
@@ -53,7 +54,9 @@ async def _propose_chapter(
         await session.execute(select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no))
     ).scalar_one_or_none()
     if chapter is None:
-        chapter = Chapter(book_id=book_id, chapter_no=chapter_no, pov=pov)
+        chapter = Chapter(
+            book_id=book_id, chapter_no=chapter_no, pov=pov, position=chapter_position("chapter", chapter_no)
+        )
         session.add(chapter)
     chapter.pov = pov
     chapter.outline = outline

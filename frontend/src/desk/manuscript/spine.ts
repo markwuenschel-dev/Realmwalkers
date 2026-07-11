@@ -54,7 +54,12 @@ export interface SpineSceneNode {
 
 export interface SpineChapterNode {
   type: "chapter";
-  chapterNo: number;
+  /** Reading-order sort key (shared/chapter_order.py); the spine orders by this. Null only for a legacy
+   *  row the backfill hasn't reached. */
+  position: number | null;
+  /** DISPLAY number — null for a numberless kind (prologue/interlude/epilogue/front-/back-matter), which
+   *  label off `kind` and never carry a number. */
+  chapterNo: number | null;
   /** Normalized kind. An unrecognized source kind is coerced to "chapter" and `kindRecognized` is set
    *  false so preflight can flag the mismatch (and a prologue never silently becomes "Chapter N"). */
   kind: ChapterKind;
@@ -139,7 +144,8 @@ function buildChapterNode(ch: ManuscriptOut["chapters"][number]): SpineChapterNo
   const sectionType = ch.section_type ?? null;
   return {
     type: "chapter",
-    chapterNo: ch.chapter_no,
+    position: ch.position ?? null,
+    chapterNo: ch.chapter_no ?? null,
     kind,
     kindRecognized,
     sectionType,
@@ -151,7 +157,7 @@ function buildChapterNode(ch: ManuscriptOut["chapters"][number]): SpineChapterNo
       kind,
       title: ch.title,
       section_type: sectionType,
-      chapter_no: ch.chapter_no,
+      chapter_no: ch.chapter_no ?? null,
     }),
     partId: ch.part_id ?? null,
     scenes: [...ch.scenes].sort((a, b) => a.scene_no - b.scene_no).map(buildSceneNode),
@@ -216,7 +222,12 @@ export function buildSpine(ms: ManuscriptOut, metadata: ExportMetadata): Manuscr
     return node;
   };
 
-  const chaptersInOrder = [...ms.chapters].sort((a, b) => a.chapter_no - b.chapter_no);
+  // Reading order is `position` alone (the shared sort key computed server-side; see shared/chapter_order.py)
+  // — decoupled from the display number so a numberless section (prologue/epilogue/…) sorts correctly with
+  // no chapter_no. The endpoint already returns chapters in (position, id) order, so a stable sort here
+  // keeps the spine identical run to run (golden-structure stability) and just re-affirms the key.
+  const orderKey = (c: ManuscriptOut["chapters"][number]) => c.position ?? c.chapter_no ?? 0;
+  const chaptersInOrder = [...ms.chapters].sort((a, b) => orderKey(a) - orderKey(b));
   for (const ch of chaptersInOrder) {
     const chNode = buildChapterNode(ch);
     const part = chNode.partId ? partById.get(chNode.partId) : undefined;

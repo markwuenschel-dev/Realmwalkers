@@ -13,6 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
+from dominion.shared.chapter_order import chapter_position
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import BeatStatus, ChapterStatus, ScenePacketStatus, SceneStatus
 from dominion.shared.models import Beat, Chapter, Scene, ScenePacket, Summary
@@ -67,7 +68,11 @@ async def _fold_summary(scene_id: uuid.UUID) -> None:
 @router.get("", response_model=list[ChapterOut])
 async def list_chapters(book_id: uuid.UUID, session: SessionDep) -> list[Chapter]:
     rows = (
-        (await session.execute(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_no)))
+        (
+            await session.execute(
+                select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.position, Chapter.id)
+            )
+        )
         .scalars()
         .all()
     )
@@ -90,7 +95,13 @@ async def create_chapter(body: ChapterCreateIn, session: SessionDep) -> Chapter:
     if chapter is None:
         # New chapters are plain "chapter" kind (model default); an author marks a prologue/interlude/
         # epilogue afterward via PATCH /chapters/{id} (ChapterUpdateIn.kind), never clobbered on re-create.
-        chapter = Chapter(book_id=body.book_id, chapter_no=body.chapter_no, pov=body.pov)
+        # position is the reading-order key (chapter_no is display-only) — set it from the shared helper.
+        chapter = Chapter(
+            book_id=body.book_id,
+            chapter_no=body.chapter_no,
+            pov=body.pov,
+            position=chapter_position("chapter", body.chapter_no),
+        )
         session.add(chapter)
     chapter.pov = body.pov
     chapter.outline = body.outline
@@ -134,8 +145,17 @@ async def update_chapter(chapter_id: uuid.UUID, body: ChapterUpdateIn, session: 
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
     # mode="json" so a ChapterKind value serializes to its plain string before hitting the Text column.
-    for key, value in body.model_dump(exclude_unset=True, mode="json").items():
+    fields = body.model_dump(exclude_unset=True, mode="json")
+    for key, value in fields.items():
         setattr(chapter, key, value)
+    # Changing the structural kind OR the section type moves the chapter's reading-order slot (chapter →
+    # prologue makes it lead; tagging a front-matter chapter "copyright" vs "table_of_contents" orders it
+    # among its siblings), so recompute the sort key from the shared helper. `seq` uses the row's own
+    # chapter_no as a stable per-book tiebreak for numberless kinds. chapter_no stays as-is (display-only).
+    if "kind" in fields or "section_type" in fields:
+        chapter.position = chapter_position(
+            chapter.kind, chapter.chapter_no, seq=chapter.chapter_no or 0, section_type=chapter.section_type
+        )
     await session.commit()
     return chapter
 

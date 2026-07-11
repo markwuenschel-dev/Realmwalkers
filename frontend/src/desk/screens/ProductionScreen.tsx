@@ -467,7 +467,10 @@ export default function ProductionScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderedChapters = useMemo(
-    () => [...chapters].sort((a, b) => a.chapter_no - b.chapter_no),
+    () =>
+      [...chapters].sort(
+        (a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0),
+      ),
     [chapters],
   );
 

@@ -86,7 +86,8 @@ export default function InboxScreen() {
     return [...byChapter.entries()].map(([chapterId, scenes]) => {
       const ch = data.chapters.find((c) => c.id === chapterId);
       return {
-        chapter_no: ch?.chapter_no ?? 0,
+        position: ch?.position ?? null,
+        chapter_no: ch?.chapter_no ?? null,
         title: ch?.title ?? null,
         pov: ch?.pov ?? "",
         scenes: scenes.map((s) => ({ scene_no: s.scene_no, prose: s.prose })),
@@ -173,7 +174,7 @@ export default function InboxScreen() {
       byChapter.set(s.chapter_id, row);
     }
     return [...data.chapters]
-      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .sort((a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0))
       .map((ch) => ({ chapter: ch, ...(byChapter.get(ch.id) ?? { total: 0, done: 0 }) }));
   }, [data.chapters, latest]);
 

@@ -85,12 +85,12 @@ const TRIPLE_BLANK = /\n[ \t]*\n[ \t]*\n[ \t]*\n/; // 3+ blank lines (beyond one
 const ZERO_WIDTH = /[\u200B\u200C\u200D\uFEFF]/; // zero-width space/non-joiner/joiner + BOM
 
 function chapterAnchor(ch: SpineChapterNode): ExportIssueLocation {
-  return { chapterNo: ch.chapterNo, label: ch.label };
+  return { chapterNo: ch.chapterNo ?? undefined, label: ch.label };
 }
 
 function sceneAnchor(ch: SpineChapterNode, sc: SpineSceneNode): ExportIssueLocation {
   return {
-    chapterNo: ch.chapterNo,
+    chapterNo: ch.chapterNo ?? undefined,
     sceneNo: sc.sceneNo,
     label: `${ch.label} · Scene ${sc.sceneNo}`,
   };
@@ -100,7 +100,11 @@ function sceneAnchor(ch: SpineChapterNode, sc: SpineSceneNode): ExportIssueLocat
 
 function checkDuplicateChapterNumbers(chapters: SpineChapterNode[], out: ExportIssue[]): void {
   const seen = new Map<number, number>();
-  for (const ch of chapters) seen.set(ch.chapterNo, (seen.get(ch.chapterNo) ?? 0) + 1);
+  // Only numbered chapters can clash on a number; a numberless kind (prologue/…) has none to duplicate.
+  for (const ch of chapters) {
+    if (ch.chapterNo == null) continue;
+    seen.set(ch.chapterNo, (seen.get(ch.chapterNo) ?? 0) + 1);
+  }
   for (const [no, count] of seen) {
     if (count > 1) {
       out.push({
@@ -122,7 +126,7 @@ function checkDuplicateSceneNumbers(ch: SpineChapterNode, out: ExportIssue[]): v
         severity: "error",
         code: "duplicate_scene_number",
         message: `Scene number ${no} appears ${count} times in ${ch.label}.`,
-        location: { chapterNo: ch.chapterNo, sceneNo: no, label: ch.label },
+        location: { chapterNo: ch.chapterNo ?? undefined, sceneNo: no, label: ch.label },
       });
     }
   }
@@ -326,14 +330,15 @@ function checkParts(spine: ManuscriptSpine, out: ExportIssue[]): void {
     }
   }
 
-  // Non-contiguous membership: a part's chapters should form a consecutive run among all chapters when
-  // ordered by chapter_no. (The spine's reading order already groups a part's chapters together, so it
-  // can't reveal interleaving — compare against the global chapter_no ordering instead.)
-  const byChapterNo = [...spineChapters(spine)].sort((a, b) => a.chapterNo - b.chapterNo);
-  const indexByChapterNo = new Map(byChapterNo.map((c, i) => [c.chapterNo, i]));
+  // Non-contiguous membership: a part's chapters should form a consecutive run among all chapters in
+  // reading order. (The spine's reading order already groups a part's chapters together, so it can't
+  // reveal interleaving — compare against the global `position` ordering instead.)
+  const orderKey = (c: SpineChapterNode) => c.position ?? c.chapterNo ?? 0;
+  const byOrder = [...spineChapters(spine)].sort((a, b) => orderKey(a) - orderKey(b));
+  const indexByChapter = new Map(byOrder.map((c, i) => [c, i]));
   for (const p of parts) {
     const positions = p.chapters
-      .map((c) => indexByChapterNo.get(c.chapterNo))
+      .map((c) => indexByChapter.get(c))
       .filter((i): i is number => i != null)
       .sort((a, b) => a - b);
     const contiguous = positions.every((pos, i) => i === 0 || pos === positions[i - 1] + 1);

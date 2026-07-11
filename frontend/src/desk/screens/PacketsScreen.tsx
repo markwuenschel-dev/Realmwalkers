@@ -40,7 +40,10 @@ export default function PacketsScreen() {
   const data = useDeskData();
   const searchParams = useSearchParams();
   const chapters = useMemo(
-    () => [...data.chapters].sort((a, b) => a.chapter_no - b.chapter_no),
+    () =>
+      [...data.chapters].sort(
+        (a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0),
+      ),
     [data.chapters],
   );
 
@@ -67,7 +70,7 @@ export default function PacketsScreen() {
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchResults, setBatchResults] = useState<
-    { chapterId: string; chapterNo: number; ok: boolean; error?: string }[] | null
+    { chapterId: string; chapterNo: number | null; ok: boolean; error?: string }[] | null
   >(null);
 
   // Export the current chapter's approved manuscript content — same Markdown / Reader-DOCX /
@@ -199,15 +202,16 @@ export default function PacketsScreen() {
     setBatchBusy(true);
     setBatchResults(null);
     const targets = batchEligible.filter((c) => batchSelected.has(c.id));
-    const results: { chapterId: string; chapterNo: number; ok: boolean; error?: string }[] = [];
+    const results: { chapterId: string; chapterNo: number | null; ok: boolean; error?: string }[] =
+      [];
     for (const c of targets) {
       try {
         await api.proposePacket(c.id);
-        results.push({ chapterId: c.id, chapterNo: c.chapter_no, ok: true });
+        results.push({ chapterId: c.id, chapterNo: c.chapter_no ?? null, ok: true });
       } catch (e) {
         results.push({
           chapterId: c.id,
-          chapterNo: c.chapter_no,
+          chapterNo: c.chapter_no ?? null,
           ok: false,
           error: e instanceof Error ? e.message : String(e),
         });

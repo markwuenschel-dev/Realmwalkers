@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared import agent_ops
+from dominion.shared.chapter_order import chapter_position
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import ChapterStatus, SceneStatus
@@ -187,7 +188,13 @@ async def _get_or_create_chapter(session: AsyncSession, *, book_id: object, chap
         await session.execute(select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no))
     ).scalar_one_or_none()
     if chapter is None:
-        chapter = Chapter(book_id=book_id, chapter_no=chapter_no, pov=pov, status=ChapterStatus.DONE)
+        chapter = Chapter(
+            book_id=book_id,
+            chapter_no=chapter_no,
+            pov=pov,
+            status=ChapterStatus.DONE,
+            position=chapter_position("chapter", chapter_no),
+        )
         session.add(chapter)
         await session.flush()
     return chapter

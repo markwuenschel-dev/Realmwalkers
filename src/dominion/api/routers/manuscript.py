@@ -12,9 +12,10 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
+from dominion.shared.chapter_order import chapter_position
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import ChapterStatus, SceneStatus
 from dominion.shared.models import Book, Chapter, Scene
@@ -22,6 +23,7 @@ from dominion.shared.schemas import (
     ManuscriptImportIn,
     ManuscriptImportReport,
     ManuscriptParseIn,
+    ManuscriptScaffoldReport,
     ParsedChapterOut,
     ParsedManuscriptOut,
     ParsedSceneOut,
@@ -85,9 +87,11 @@ async def parse_manuscript(book_id: uuid.UUID, body: ManuscriptParseIn, session:
 
     parsed = split_files([(f.filename, f.text) for f in body.files])
 
-    existing = set(
-        (await session.execute(select(Chapter.chapter_no).where(Chapter.book_id == book_id))).scalars().all()
-    )
+    existing = {
+        n
+        for n in (await session.execute(select(Chapter.chapter_no).where(Chapter.book_id == book_id))).scalars().all()
+        if n is not None  # numberless kinds (prologue/…) carry no chapter_no and can't be a collision
+    }
 
     return ParsedManuscriptOut(
         warnings=parsed.warnings,
@@ -128,22 +132,42 @@ async def import_manuscript(
     fold_ids: list[uuid.UUID] = []
     auto_title_ids: set[uuid.UUID] = set()
 
-    for ch in body.chapters:
+    # Reading order is computed from kind + number (shared/chapter_order.py), never a raw number. `seq`
+    # gives numberless sections (a second prologue, an interlude) a stable per-book tiebreak, based off
+    # the current chapter count so a later import doesn't tie with an earlier one.
+    seq_base = (
+        await session.execute(select(func.count()).select_from(Chapter).where(Chapter.book_id == book_id))
+    ).scalar_one()
+
+    for idx, ch in enumerate(body.chapters):
+        kind = ch.kind or "chapter"
+        # A numberless kind (prologue/interlude/epilogue/front-/back-matter) carries no number, so it can
+        # NEVER collide — it's always additive. Only a plain numbered chapter looks up an existing row.
+        number = ch.chapter_no if kind == "chapter" else None
         existing = (
-            await session.execute(
-                select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == ch.chapter_no)
-            )
-        ).scalar_one_or_none()
+            (
+                await session.execute(
+                    select(Chapter).where(
+                        Chapter.book_id == book_id, Chapter.kind == "chapter", Chapter.chapter_no == number
+                    )
+                )
+            ).scalar_one_or_none()
+            if number is not None
+            else None
+        )
         if existing is not None and not ch.overwrite:
-            skipped.append(ch.chapter_no)
+            assert number is not None  # `existing` is only ever set for a numbered chapter
+            skipped.append(number)
             continue
+        position = chapter_position(kind, number, seq=seq_base + idx)
         if existing is None:
             chapter = Chapter(
                 book_id=book_id,
-                chapter_no=ch.chapter_no,
+                chapter_no=number,
                 pov=ch.pov or "",
-                kind=ch.kind or "chapter",
+                kind=kind,
                 status=ChapterStatus.PLANNED,
+                position=position,
             )
             if ch.title:
                 chapter.title = ch.title
@@ -156,7 +180,8 @@ async def import_manuscript(
                 chapter.pov = ch.pov
             if ch.title:
                 chapter.title = ch.title
-            chapter.kind = ch.kind or "chapter"  # display-only kind is the user's explicit pick
+            chapter.kind = kind  # kind drives label + reading-order band; the user's explicit pick
+            chapter.position = position
             updated += 1
 
         if body.auto_title and not (chapter.title or "").strip():
@@ -165,7 +190,8 @@ async def import_manuscript(
         for sc in ch.scenes:
             prose = sc.prose.strip()
             if not prose:
-                warnings.append(f"Chapter {ch.chapter_no} scene {sc.scene_no}: empty prose — skipped.")
+                label = f"Chapter {number}" if number is not None else kind.replace("_", " ")
+                warnings.append(f"{label} scene {sc.scene_no}: empty prose — skipped.")
                 continue
             prior = (
                 await session.execute(
@@ -205,3 +231,60 @@ async def import_manuscript(
         skipped_conflicts=skipped,
         warnings=warnings,
     )
+
+
+# The standard AUTHORED production skeleton, in canonical reading order. The generated pages (half-title,
+# title page, table of contents) are NOT here — the Reader export builds those from metadata + the chapter
+# list, so they're never chapters. Body chapters (1..N) come from the writing/import flow, not the skeleton.
+_SCAFFOLD_SECTIONS: tuple[tuple[str, str | None], ...] = (
+    ("front_matter", "copyright"),
+    ("front_matter", "dedication"),
+    ("front_matter", "preface"),
+    ("prologue", None),
+    ("epilogue", None),
+    ("back_matter", "afterword"),
+    ("back_matter", "acknowledgments"),
+    ("back_matter", "appendix"),
+    ("back_matter", "glossary"),
+    ("back_matter", "author_bio"),
+)
+
+
+@router.post("/{book_id}/manuscript/scaffold", response_model=ManuscriptScaffoldReport)
+async def scaffold_production(book_id: uuid.UUID, session: SessionDep) -> ManuscriptScaffoldReport:
+    """Create the standard production skeleton — front/back-matter + prologue/epilogue slots, as empty
+    chapters ready to fill — in canonical reading order. Idempotent: a section that already exists (same
+    kind + section_type) is skipped, so re-running never duplicates. Each slot's `position` is derived
+    from the shared reading-order helper (kind + section_type), so the skeleton is correctly ordered the
+    moment it's created; an empty slot stays out of exports until it has prose."""
+    book = await session.get(Book, book_id)
+    if book is None:
+        raise HTTPException(status_code=404, detail="book not found")
+
+    existing = (await session.execute(select(Chapter).where(Chapter.book_id == book_id))).scalars().all()
+
+    def _present(kind: str, section_type: str | None) -> bool:
+        return any(c.kind == kind and (c.section_type or None) == section_type for c in existing)
+
+    created: list[str] = []
+    skipped: list[str] = []
+    for kind, section_type in _SCAFFOLD_SECTIONS:
+        label = (section_type or kind).replace("_", " ").title()
+        if _present(kind, section_type):
+            skipped.append(label)
+            continue
+        # position is derived on insert from kind + section_type (Chapter._chapter_default_position).
+        session.add(
+            Chapter(
+                book_id=book_id,
+                chapter_no=None,
+                pov="",
+                kind=kind,
+                section_type=section_type,
+                status=ChapterStatus.PLANNED,
+            )
+        )
+        created.append(label)
+
+    await session.commit()
+    return ManuscriptScaffoldReport(created=created, skipped=skipped)

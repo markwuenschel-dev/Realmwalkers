@@ -8853,6 +8853,50 @@
           }
         }
       }
+    },
+    "/books/{book_id}/manuscript/scaffold": {
+      "post": {
+        "tags": [
+          "manuscript"
+        ],
+        "summary": "Scaffold Production",
+        "description": "Create the standard production skeleton \u2014 front/back-matter + prologue/epilogue slots, as empty\nchapters ready to fill \u2014 in canonical reading order. Idempotent: a section that already exists (same\nkind + section_type) is skipped, so re-running never duplicates. Each slot's `position` is derived\nfrom the shared reading-order helper (kind + section_type), so the skeleton is correctly ordered the\nmoment it's created; an empty slot stays out of exports until it has prose.",
+        "operationId": "scaffold_production_books__book_id__manuscript_scaffold_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManuscriptScaffoldReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10557,7 +10601,14 @@
             "title": "Chapter Id"
           },
           "chapter_no": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Chapter No"
           },
           "pov": {
@@ -10578,7 +10629,6 @@
         "type": "object",
         "required": [
           "chapter_id",
-          "chapter_no",
           "pov"
         ],
         "title": "BatchChapterResultOut",
@@ -11798,8 +11848,26 @@
             "format": "uuid",
             "title": "Book Id"
           },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
           "chapter_no": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Chapter No"
           },
           "title": {
@@ -11876,7 +11944,6 @@
         "required": [
           "id",
           "book_id",
-          "chapter_no",
           "pov",
           "status"
         ],
@@ -11909,7 +11976,14 @@
             "title": "Chapter Id"
           },
           "chapter_no": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Chapter No"
           },
           "packet_status": {
@@ -12029,8 +12103,7 @@
         },
         "type": "object",
         "required": [
-          "chapter_id",
-          "chapter_no"
+          "chapter_id"
         ],
         "title": "ChapterPipelineOut",
         "description": "One chapter's pipeline facts for the Chapters command center \u2014 batched server-side so the tab\ncosts ONE request, not 4\u00d7N. The readiness fields mirror DraftReadinessOut's authoritative gate\nexactly (same derivation); packet fields use the chapter packet's approval_state vocabulary."
@@ -14404,8 +14477,26 @@
       },
       "ManuscriptChapter": {
         "properties": {
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
           "chapter_no": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Chapter No"
           },
           "title": {
@@ -14473,7 +14564,6 @@
         },
         "type": "object",
         "required": [
-          "chapter_no",
           "pov"
         ],
         "title": "ManuscriptChapter"
@@ -14500,7 +14590,14 @@
       "ManuscriptImportChapterIn": {
         "properties": {
           "chapter_no": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Chapter No"
           },
           "title": {
@@ -14539,7 +14636,6 @@
         },
         "type": "object",
         "required": [
-          "chapter_no",
           "scenes"
         ],
         "title": "ManuscriptImportChapterIn"
@@ -14774,6 +14870,31 @@
         ],
         "title": "ManuscriptPart",
         "description": "A Part in export order. Reader labels (\"Part One\"/\"Act One\") are derived from `part_no` + `kind`\nclient-side by the shared label contract, never stored here. `volume_id` nests it under a Volume."
+      },
+      "ManuscriptScaffoldReport": {
+        "properties": {
+          "created": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Created"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "skipped"
+        ],
+        "title": "ManuscriptScaffoldReport",
+        "description": "Result of scaffolding the standard production skeleton (front/back matter + prologue/epilogue\nslots, in canonical order). `created`/`skipped` carry the human section names for a one-line toast."
       },
       "ManuscriptScene": {
         "properties": {
@@ -15187,7 +15308,14 @@
       "ParsedChapterOut": {
         "properties": {
           "chapter_no": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Chapter No"
           },
           "title": {
@@ -15227,7 +15355,6 @@
         },
         "type": "object",
         "required": [
-          "chapter_no",
           "detected",
           "scenes",
           "warnings"
@@ -17972,7 +18099,14 @@
             "title": "Chapter Id"
           },
           "chapter_no": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Chapter No"
           },
           "pov": {
@@ -17992,7 +18126,6 @@
         "required": [
           "run_id",
           "chapter_id",
-          "chapter_no",
           "pov"
         ],
         "title": "RunStartOut",

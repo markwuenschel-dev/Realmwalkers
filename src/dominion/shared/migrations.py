@@ -93,6 +93,9 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # Per-section-type front/back matter: the specific section (glossary/map/dramatis_personae/…) for a
     # front_matter|back_matter chapter. Nullable free text; ordinary chapters leave it NULL.
     "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS section_type TEXT",
+    # Ordering/number decoupling: `position` is the sole reading-order sort key (see shared/chapter_order.py).
+    # (Making `chapter_no` nullable is a column ALTER, not an ADD — it lives in _EXTRA_DDL below.)
+    "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS position INTEGER",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -120,10 +123,26 @@ _BACKFILLS: tuple[str, ...] = (
        WHERE series IS NULL AND created_at < TIMESTAMPTZ '2026-07-07 00:00:00+00'""",
     """UPDATE books SET book_no = 1
        WHERE book_no IS NULL AND created_at < TIMESTAMPTZ '2026-07-07 00:00:00+00'""",
+    # Reading-order backfill: derive `position` for every pre-`position` chapter with the SAME band
+    # scheme as shared/chapter_order.chapter_position (front < prologue < chapters-by-number < epilogue <
+    # back-matter), so legacy rows and app-written rows interleave correctly. Existing prologues (kind set,
+    # chapter_no 0) leap ahead of chapter 1 exactly as before; plain chapters keep their numeric order.
+    # Idempotent via IS NULL. Keep in sync with chapter_order.py if the bands ever change.
+    """UPDATE chapters SET position = CASE kind
+           WHEN 'front_matter' THEN 100000
+           WHEN 'prologue' THEN 1100000
+           WHEN 'epilogue' THEN 3100000
+           WHEN 'back_matter' THEN 4100000
+           ELSE 2000000 + COALESCE(chapter_no, 0)
+       END
+       WHERE position IS NULL""",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
 _EXTRA_DDL: tuple[str, ...] = (
+    # `chapter_no` is DISPLAY-only and nullable now (a numberless prologue/epilogue/front-/back-matter needs
+    # no number to collide on); reading order keys off `position`. Idempotent — a no-op once already nullable.
+    "ALTER TABLE chapters ALTER COLUMN chapter_no DROP NOT NULL",
     "ALTER TABLE jobs DROP CONSTRAINT IF EXISTS draft_jobs_require_scene_packet",
     """CREATE UNIQUE INDEX IF NOT EXISTS uq_active_draft_per_scene_packet
        ON jobs (scene_packet_id)

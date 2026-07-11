@@ -124,16 +124,20 @@ describe("ManuscriptEditor", () => {
     expect(lastPayload().auto_title).toBe(true);
   });
 
-  it("keeps chapter number 0 and the chosen kind (a prologue sorting before chapter 1)", async () => {
+  it("sends no number for a numberless kind (a prologue is numberless, ordered before chapter 1 by position)", async () => {
     vi.mocked(api.importManuscript).mockResolvedValue(REPORT);
     render(<ManuscriptEditor parsed={PARSED} bookId="book-1" onImported={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText("chapter number"), { target: { value: "0" } });
+    // Picking a numberless kind removes the number box entirely — the number no longer belongs to it,
+    // so it can't collide with an existing chapter 1 (the original bug). The server orders it by kind.
+    expect(screen.getByLabelText("chapter number")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("chapter kind"), { target: { value: "prologue" } });
+    expect(screen.queryByLabelText("chapter number")).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: /Import 2 scenes for review/ }));
     await waitFor(() => expect(api.importManuscript).toHaveBeenCalled());
 
-    expect(lastPayload().chapters[0].chapter_no).toBe(0);
+    expect(lastPayload().chapters[0].chapter_no).toBeNull();
     expect(lastPayload().chapters[0].kind).toBe("prologue");
   });
 });

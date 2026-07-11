@@ -61,6 +61,9 @@ export interface ExportPolicy {
   includeSeriesLine: boolean; // "BOOK ONE" + series on the title page
   includeSubtitle: boolean;
   includeAuthorByline: boolean;
+  // --- generated production pages (book format only; a Shunn submission / semantic Markdown omit them) ---
+  includeHalfTitle: boolean; // a leading half-title page (book title only) before the title page
+  includeTableOfContents: boolean; // a Contents page generated from the chapter list, in canonical order
 
   // --- typography + page setup (policy owns styling decisions, not the emitter) ---
   typography: ExportTypography;
@@ -94,6 +97,8 @@ const READER_PROOF: ExportPolicy = {
   includeSeriesLine: true,
   includeSubtitle: true,
   includeAuthorByline: false,
+  includeHalfTitle: true,
+  includeTableOfContents: true,
   typography: { bodyFont: "Georgia", bodySizePt: 11, lineSpacing: "reader", monospace: false },
   pageSetup: { marginInches: 1, runningHeader: "reader_pageno", titlePage: false },
   submissionSafe: false,
@@ -113,6 +118,8 @@ const SUBMISSION_SHUNN: ExportPolicy = {
   includeSeriesLine: false,
   includeSubtitle: false,
   includeAuthorByline: true,
+  includeHalfTitle: false, // a Shunn submission's cover page IS its title page; no half-title/TOC
+  includeTableOfContents: false,
   typography: { bodyFont: "Courier New", bodySizePt: 12, lineSpacing: "double", monospace: true },
   pageSetup: { marginInches: 1, runningHeader: "shunn_surname_title_pageno", titlePage: true },
   submissionSafe: true,
@@ -132,6 +139,8 @@ const EDITORIAL_REVIEW: ExportPolicy = {
   includeSeriesLine: true,
   includeSubtitle: true,
   includeAuthorByline: false,
+  includeHalfTitle: false, // semantic Markdown's YAML + "# title" already is the title page
+  includeTableOfContents: false,
   typography: { bodyFont: "", bodySizePt: 0, lineSpacing: "single", monospace: false },
   pageSetup: { marginInches: 0, runningHeader: "none", titlePage: false },
   submissionSafe: false,

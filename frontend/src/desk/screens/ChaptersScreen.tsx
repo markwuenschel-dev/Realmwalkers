@@ -153,6 +153,30 @@ export default function ChaptersScreen() {
     await Promise.all([loadVolumes(), loadParts(), data.refreshManuscript()]);
   };
 
+  // One-click production skeleton: front/back-matter + prologue/epilogue slots in canonical order. The
+  // endpoint is idempotent, so the button is safe to press on a book that already has some sections.
+  const [scaffolding, setScaffolding] = useState(false);
+  const scaffoldProduction = async () => {
+    if (!data.bookId) return;
+    setScaffolding(true);
+    try {
+      const report = await api.scaffoldProduction(data.bookId);
+      await Promise.all([data.refreshAll(), data.refreshManuscript()]);
+      const made = report.created.length;
+      data.pushToast({
+        tone: made > 0 ? "success" : "warn",
+        message:
+          made > 0
+            ? `Added ${made} production section${made === 1 ? "" : "s"} to fill: ${report.created.join(", ")}`
+            : "Production structure already in place — nothing to add",
+      });
+    } catch (e) {
+      data.pushToast({ tone: "warn", message: e instanceof Error ? e.message : "Scaffold failed" });
+    } finally {
+      setScaffolding(false);
+    }
+  };
+
   // current state of each (chapter, scene) — derived once in the data layer. A latest row can only be
   // `superseded` when the scene was rejected (revisions create a newer version, so a superseded row is
   // never the latest), so dropping them here is what makes a rejected scene vanish from the board.
@@ -200,8 +224,10 @@ export default function ChaptersScreen() {
     id: string;
     kind: ExportKind;
   } | null>(null);
-  const manuscriptChapterFor = (chapterNo: number): ManuscriptChapter | null =>
-    data.manuscript?.chapters.find((mc) => mc.chapter_no === chapterNo) ?? null;
+  const manuscriptChapterFor = (chapterNo: number | null | undefined): ManuscriptChapter | null =>
+    chapterNo == null
+      ? null
+      : (data.manuscript?.chapters.find((mc) => mc.chapter_no === chapterNo) ?? null);
   const exportChapter = async (c: ChapterOut, kind: ExportKind) => {
     const mc = manuscriptChapterFor(c.chapter_no);
     if (!mc) return;
@@ -282,7 +308,7 @@ export default function ChaptersScreen() {
     const lanes: string[] = [];
     for (const c of data.chapters) if (!lanes.includes(c.pov)) lanes.push(c.pov);
     const ordered = [...data.chapters]
-      .sort((a, b) => a.chapter_no - b.chapter_no)
+      .sort((a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0))
       .flatMap((c) =>
         latest
           .filter((s) => s.chapter_id === c.id)
@@ -350,6 +376,20 @@ export default function ChaptersScreen() {
         <div style={css("margin-bottom:24px")}>
           <Panel eyebrow="Upload manuscript">
             <ManuscriptUploader bookId={data.bookId} />
+            <div
+              style={css(
+                "display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)",
+              )}
+            >
+              <Button size="sm" variant="ghost" onClick={scaffoldProduction} disabled={scaffolding}>
+                {scaffolding ? "Setting up…" : "Set up production structure"}
+              </Button>
+              <span style={css("font-family:var(--mono);font-size:10.5px;color:var(--dim)")}>
+                Adds Copyright, Dedication, Preface, Prologue, Epilogue, Afterword, Acknowledgments,
+                Appendix, Glossary & Author Bio slots in book order (title page & Contents are
+                generated on export).
+              </span>
+            </div>
           </Panel>
         </div>
       )}
@@ -408,7 +448,7 @@ export default function ChaptersScreen() {
               </div>
             )}
             {[...data.chapters]
-              .sort((a, b) => a.chapter_no - b.chapter_no)
+              .sort((a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0))
               .map((c) => {
                 const scs = scenesByChapter(c.id);
                 const words = scs.reduce((acc, s) => acc + wordCount(s.prose), 0);

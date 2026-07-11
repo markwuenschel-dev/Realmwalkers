@@ -72,8 +72,8 @@ export default function CommandPalette() {
   // Latest version of each (chapter, scene) — what you'd want to jump to.
   const latestScenes = data.latestScenes;
   const chapterNo = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of data.chapters) m.set(c.id, c.chapter_no);
+    const m = new Map<string, number | null>();
+    for (const c of data.chapters) m.set(c.id, c.chapter_no ?? null);
     return m;
   }, [data.chapters]);
 

@@ -58,7 +58,7 @@ async def pending(session: SessionDep) -> list[Scene]:
                 select(Scene)
                 .join(Chapter, Scene.chapter_id == Chapter.id)
                 .where(Scene.status == SceneStatus.PENDING_REVIEW)
-                .order_by(Chapter.chapter_no, Scene.scene_no, Scene.created_at)
+                .order_by(Chapter.position, Scene.scene_no, Scene.created_at)
             )
         )
         .scalars()
