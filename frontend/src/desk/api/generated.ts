@@ -2915,6 +2915,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/books/{book_id}/manuscript/parse": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Parse Manuscript
+     * @description Split the dropped files into a chapter/scene preview and flag chapter numbers that already
+     *     exist in this book. Pure read — no DB writes.
+     */
+    post: operations["parse_manuscript_books__book_id__manuscript_parse_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5350,6 +5371,16 @@ export interface components {
       scenes: components["schemas"]["ManuscriptScene"][];
     };
     /**
+     * ManuscriptFileIn
+     * @description One dropped file's raw text (read client-side; no server multipart).
+     */
+    ManuscriptFileIn: {
+      /** Filename */
+      filename: string;
+      /** Text */
+      text: string;
+    };
+    /**
      * ManuscriptOut
      * @description The approved manuscript, assembled in reading order (latest approved version per scene).
      *
@@ -5388,6 +5419,14 @@ export interface components {
        * @default []
        */
       chapters: components["schemas"]["ManuscriptChapter"][];
+    };
+    /**
+     * ManuscriptParseIn
+     * @description POST body for /manuscript/parse — the dropped files, split into a preview. No writes.
+     */
+    ManuscriptParseIn: {
+      /** Files */
+      files: components["schemas"]["ManuscriptFileIn"][];
     };
     /**
      * ManuscriptPart
@@ -5598,6 +5637,46 @@ export interface components {
       } | null;
       /** Confidence */
       confidence?: string | null;
+    };
+    /** ParsedChapterOut */
+    ParsedChapterOut: {
+      /** Chapter No */
+      chapter_no: number;
+      /** Title */
+      title?: string | null;
+      /** Detected */
+      detected: boolean;
+      /**
+       * Conflict
+       * @default false
+       */
+      conflict: boolean;
+      /** Scenes */
+      scenes: components["schemas"]["ParsedSceneOut"][];
+      /** Warnings */
+      warnings: string[];
+    };
+    /**
+     * ParsedManuscriptOut
+     * @description Best-effort split of the dropped files, plus the book's existing chapter numbers for collision
+     *     flagging. Read-only preview — the human corrects boundaries before importing (a later slice).
+     */
+    ParsedManuscriptOut: {
+      /** Chapters */
+      chapters: components["schemas"]["ParsedChapterOut"][];
+      /** Warnings */
+      warnings: string[];
+      /** Existing Chapter Nos */
+      existing_chapter_nos: number[];
+    };
+    /** ParsedSceneOut */
+    ParsedSceneOut: {
+      /** Scene No */
+      scene_no: number;
+      /** Prose */
+      prose: string;
+      /** Word Count */
+      word_count: number;
     };
     /**
      * PartCreateIn
@@ -13653,6 +13732,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DocOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  parse_manuscript_books__book_id__manuscript_parse_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ManuscriptParseIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ParsedManuscriptOut"];
         };
       };
       /** @description Validation Error */

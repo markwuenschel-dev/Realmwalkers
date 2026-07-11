@@ -255,6 +255,43 @@ class RedraftIn(BaseModel):
     scene_ids: list[uuid.UUID]
 
 
+class ManuscriptFileIn(BaseModel):
+    """One dropped file's raw text (read client-side; no server multipart)."""
+
+    filename: str
+    text: str
+
+
+class ManuscriptParseIn(BaseModel):
+    """POST body for /manuscript/parse — the dropped files, split into a preview. No writes."""
+
+    files: list[ManuscriptFileIn]
+
+
+class ParsedSceneOut(BaseModel):
+    scene_no: int
+    prose: str
+    word_count: int
+
+
+class ParsedChapterOut(BaseModel):
+    chapter_no: int
+    title: str | None = None
+    detected: bool  # True = an explicit "Chapter N" header was found; False = inferred by position
+    conflict: bool = False  # this chapter_no already exists in the target book (collision to resolve)
+    scenes: list[ParsedSceneOut]
+    warnings: list[str]
+
+
+class ParsedManuscriptOut(BaseModel):
+    """Best-effort split of the dropped files, plus the book's existing chapter numbers for collision
+    flagging. Read-only preview — the human corrects boundaries before importing (a later slice)."""
+
+    chapters: list[ParsedChapterOut]
+    warnings: list[str]
+    existing_chapter_nos: list[int]
+
+
 class ChapterOut(_ORM):
     id: uuid.UUID
     book_id: uuid.UUID

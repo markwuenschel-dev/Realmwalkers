@@ -8745,6 +8745,60 @@
           }
         }
       }
+    },
+    "/books/{book_id}/manuscript/parse": {
+      "post": {
+        "tags": [
+          "manuscript"
+        ],
+        "summary": "Parse Manuscript",
+        "description": "Split the dropped files into a chapter/scene preview and flag chapter numbers that already\nexist in this book. Pure read \u2014 no DB writes.",
+        "operationId": "parse_manuscript_books__book_id__manuscript_parse_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManuscriptParseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParsedManuscriptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -14370,6 +14424,25 @@
         ],
         "title": "ManuscriptChapter"
       },
+      "ManuscriptFileIn": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "text"
+        ],
+        "title": "ManuscriptFileIn",
+        "description": "One dropped file's raw text (read client-side; no server multipart)."
+      },
       "ManuscriptOut": {
         "properties": {
           "book_id": {
@@ -14446,6 +14519,23 @@
         ],
         "title": "ManuscriptOut",
         "description": "The approved manuscript, assembled in reading order (latest approved version per scene).\n\nFlat by design: `volumes[]`/`parts[]` are sibling lists; a chapter references its part via `part_id`\nand a part references its volume via `volume_id`, rather than nesting on the wire. The normalized tree\n(Book \u2192 Volume \u2192 Part \u2192 Chapter) is built on the frontend (ManuscriptSpine), keeping this endpoint\nbackward-compatible (a book with no grouping emits empty lists and null ids). Book export/provenance\nmetadata rides along so the frontend ExportMetadata resolver never hard-codes project identity."
+      },
+      "ManuscriptParseIn": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ManuscriptFileIn"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "ManuscriptParseIn",
+        "description": "POST body for /manuscript/parse \u2014 the dropped files, split into a preview. No writes."
       },
       "ManuscriptPart": {
         "properties": {
@@ -14908,6 +14998,112 @@
         "type": "object",
         "title": "PacketUpdateIn",
         "description": "PUT body to adjudicate/edit a proposed packet. Only provided fields are applied. The human\nedits the body, clears open questions, and may raise the confidence after reviewing flags."
+      },
+      "ParsedChapterOut": {
+        "properties": {
+          "chapter_no": {
+            "type": "integer",
+            "title": "Chapter No"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "detected": {
+            "type": "boolean",
+            "title": "Detected"
+          },
+          "conflict": {
+            "type": "boolean",
+            "title": "Conflict",
+            "default": false
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/ParsedSceneOut"
+            },
+            "type": "array",
+            "title": "Scenes"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_no",
+          "detected",
+          "scenes",
+          "warnings"
+        ],
+        "title": "ParsedChapterOut"
+      },
+      "ParsedManuscriptOut": {
+        "properties": {
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ParsedChapterOut"
+            },
+            "type": "array",
+            "title": "Chapters"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "existing_chapter_nos": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Existing Chapter Nos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapters",
+          "warnings",
+          "existing_chapter_nos"
+        ],
+        "title": "ParsedManuscriptOut",
+        "description": "Best-effort split of the dropped files, plus the book's existing chapter numbers for collision\nflagging. Read-only preview \u2014 the human corrects boundaries before importing (a later slice)."
+      },
+      "ParsedSceneOut": {
+        "properties": {
+          "scene_no": {
+            "type": "integer",
+            "title": "Scene No"
+          },
+          "prose": {
+            "type": "string",
+            "title": "Prose"
+          },
+          "word_count": {
+            "type": "integer",
+            "title": "Word Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scene_no",
+          "prose",
+          "word_count"
+        ],
+        "title": "ParsedSceneOut"
       },
       "PartCreateIn": {
         "properties": {

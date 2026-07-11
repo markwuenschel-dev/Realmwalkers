@@ -23,6 +23,7 @@ from dominion.api.routers import (
     health,
     jobs,
     learning,
+    manuscript,
     markup,
     packets,
     parts,
@@ -151,3 +152,4 @@ app.include_router(markup.router)
 app.include_router(learning.router)
 app.include_router(settings_router.router)
 app.include_router(docs.router)
+app.include_router(manuscript.router)

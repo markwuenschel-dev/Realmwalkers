@@ -13,6 +13,7 @@ import { useSelection } from "../lib/useSelection";
 import { useTabLoadTiming } from "../lib/useTabLoadTiming";
 import BulkBar, { BulkButton } from "../components/BulkBar";
 import GateDisclosure from "../components/GateDisclosure";
+import ManuscriptUploader from "../components/ManuscriptUploader";
 import { Button, Chip, Panel } from "../components/ui";
 import type { ChipTone } from "../components/ui";
 import type { ChaptersView } from "../types";
@@ -243,6 +244,7 @@ export default function ChaptersScreen() {
   const [prose, setProse] = useState("");
   const [approveDirectly, setApproveDirectly] = useState(false); // default: send for review
   const [busy, setBusy] = useState(false);
+  const [showUploader, setShowUploader] = useState(false); // manuscript drag-drop uploader panel
   const saveSection = async (chapterId: string) => {
     const n = Number(sceneNo);
     if (!Number.isFinite(n) || n < 1 || !prose.trim()) return;
@@ -314,6 +316,14 @@ export default function ChaptersScreen() {
         <div style={css("display:flex;gap:6px")}>
           <Button
             size="sm"
+            variant={showUploader ? "primary" : "ghost"}
+            title="Drop manuscript files to preview how they split into chapters and scenes"
+            onClick={() => setShowUploader((s) => !s)}
+          >
+            ⬆ Upload manuscript
+          </Button>
+          <Button
+            size="sm"
             variant="ghost"
             title="Re-fetch the per-chapter pipeline facts (packet, contracts, production, gate)"
             onClick={() => void loadOverview()}
@@ -335,6 +345,14 @@ export default function ChaptersScreen() {
           })}
         </div>
       </div>
+
+      {showUploader && data.bookId && (
+        <div style={css("margin-bottom:24px")}>
+          <Panel eyebrow="Upload manuscript">
+            <ManuscriptUploader bookId={data.bookId} />
+          </Panel>
+        </div>
+      )}
 
       <div
         style={css(

@@ -53,6 +53,8 @@ import type {
   AgentStatsListOut,
   SmokeTestOut,
   HumanSceneIn,
+  ManuscriptParseIn,
+  ParsedManuscriptOut,
   PacketOut,
   PartCreateIn,
   PartOut,
@@ -249,6 +251,12 @@ export const api = {
   chapterScenes: (chapterId: string) => http<SceneOut[]>(`/chapters/${chapterId}/scenes`),
   createHumanScene: (chapterId: string, body: HumanSceneIn) =>
     http<SceneOut>(`/chapters/${chapterId}/scenes`, { method: "POST", body: JSON.stringify(body) }),
+  // Manuscript uploader — parse dropped files into a chapter/scene preview (read-only; no writes).
+  parseManuscript: (bookId: string, files: { filename: string; text: string }[]) =>
+    http<ParsedManuscriptOut>(`/books/${bookId}/manuscript/parse`, {
+      method: "POST",
+      body: JSON.stringify({ files } satisfies ManuscriptParseIn),
+    }),
   redraftScenes: (chapterId: string, sceneIds: string[]) =>
     http<import("./types").DraftScheduleOut>(`/chapters/${chapterId}/scenes/redraft`, {
       method: "POST",
