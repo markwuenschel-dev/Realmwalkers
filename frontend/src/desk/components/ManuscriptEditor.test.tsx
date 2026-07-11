@@ -51,6 +51,7 @@ describe("ManuscriptEditor", () => {
     await waitFor(() =>
       expect(api.importManuscript).toHaveBeenCalledWith("book-1", {
         approve_directly: false,
+        auto_title: false,
         chapters: [
           {
             chapter_no: 1,
@@ -107,5 +108,18 @@ describe("ManuscriptEditor", () => {
     await waitFor(() => expect(api.importManuscript).toHaveBeenCalled());
 
     expect(lastPayload().chapters[0].pov).toBe("Marcus");
+  });
+
+  it("passes the accept-directly and auto-title toggles into the import payload", async () => {
+    vi.mocked(api.importManuscript).mockResolvedValue(REPORT);
+    render(<ManuscriptEditor parsed={PARSED} bookId="book-1" onImported={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText("auto-generate titles"));
+    fireEvent.click(screen.getByLabelText("accept directly (skip review)"));
+    fireEvent.click(screen.getByRole("button", { name: /Import 2 scenes \(accept directly\)/ }));
+    await waitFor(() => expect(api.importManuscript).toHaveBeenCalled());
+
+    expect(lastPayload().approve_directly).toBe(true);
+    expect(lastPayload().auto_title).toBe(true);
   });
 });

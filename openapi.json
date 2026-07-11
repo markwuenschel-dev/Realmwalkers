@@ -14552,6 +14552,11 @@
             "type": "boolean",
             "title": "Approve Directly",
             "default": false
+          },
+          "auto_title": {
+            "type": "boolean",
+            "title": "Auto Title",
+            "default": false
           }
         },
         "type": "object",

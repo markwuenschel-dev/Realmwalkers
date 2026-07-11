@@ -26,6 +26,7 @@ from dominion.shared.schemas import (
     ParsedManuscriptOut,
     ParsedSceneOut,
 )
+from dominion.workers import planner
 from dominion.workers.memory import summaries
 from dominion.workers.memory.manuscript_split import split_files
 
@@ -41,6 +42,35 @@ async def _fold_imported(scene_id: uuid.UUID) -> None:
             await summaries.refresh_on_approval(session, scene_id=scene_id)
     except Exception as exc:  # noqa: BLE001 — the fold is advisory, never part of the import contract
         log.warning("manuscript_import.summary_fold_failed", scene=str(scene_id), error=str(exc))
+
+
+async def _auto_title_chapter(chapter_id: uuid.UUID) -> None:
+    """Best-effort background title for an untitled imported chapter. Imported chapters have no
+    outline, so the title generator is fed the chapter's own prose (an excerpt). Never raises —
+    propose_chapter_title is bounded and returns None on any trouble, and we skip an existing title."""
+    try:
+        async with SessionFactory() as session:
+            chapter = await session.get(Chapter, chapter_id)
+            if chapter is None or (chapter.title or "").strip():
+                return
+            proses = (
+                (
+                    await session.execute(
+                        select(Scene.prose)
+                        .where(Scene.chapter_id == chapter_id, Scene.status != SceneStatus.SUPERSEDED)
+                        .order_by(Scene.scene_no)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            outline = "\n\n".join(p for p in proses if p)[:2000]
+            title = await planner.propose_chapter_title(outline=outline, pov=chapter.pov or "")
+            if title:
+                chapter.title = title
+                await session.commit()
+    except Exception as exc:  # noqa: BLE001 — auto-title is opt-in polish, never part of the contract
+        log.warning("manuscript_import.auto_title_failed", chapter=str(chapter_id), error=str(exc))
 
 
 @router.post("/{book_id}/manuscript/parse", response_model=ParsedManuscriptOut)
@@ -96,6 +126,7 @@ async def import_manuscript(
     skipped: list[int] = []
     warnings: list[str] = []
     fold_ids: list[uuid.UUID] = []
+    auto_title_ids: set[uuid.UUID] = set()
 
     for ch in body.chapters:
         existing = (
@@ -120,6 +151,9 @@ async def import_manuscript(
             if ch.title:
                 chapter.title = ch.title
             updated += 1
+
+        if body.auto_title and not (chapter.title or "").strip():
+            auto_title_ids.add(chapter.id)
 
         for sc in ch.scenes:
             prose = sc.prose.strip()
@@ -154,6 +188,8 @@ async def import_manuscript(
     await session.commit()
     for sid in fold_ids:
         background.add_task(_fold_imported, sid)
+    for cid in auto_title_ids:
+        background.add_task(_auto_title_chapter, cid)
 
     return ManuscriptImportReport(
         chapters_created=created,

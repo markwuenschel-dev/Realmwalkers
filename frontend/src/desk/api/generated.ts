@@ -5435,6 +5435,11 @@ export interface components {
        * @default false
        */
       approve_directly: boolean;
+      /**
+       * Auto Title
+       * @default false
+       */
+      auto_title: boolean;
     };
     /** ManuscriptImportReport */
     ManuscriptImportReport: {

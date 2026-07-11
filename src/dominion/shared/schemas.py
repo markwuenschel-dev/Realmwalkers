@@ -310,6 +310,7 @@ class ManuscriptImportIn(BaseModel):
 
     chapters: list[ManuscriptImportChapterIn]
     approve_directly: bool = False  # default: land scenes in the review inbox (PENDING_REVIEW)
+    auto_title: bool = False  # opt-in: background-generate titles for chapters left untitled
 
 
 class ManuscriptImportReport(BaseModel):

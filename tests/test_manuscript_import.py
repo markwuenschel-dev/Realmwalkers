@@ -105,6 +105,26 @@ async def test_import_accepts_empty_pov(db_factory):
         assert ch.pov == ""
 
 
+async def test_import_auto_title_schedules_batch_for_untitled_only(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        bg = BackgroundTasks()
+        await manuscript.import_manuscript(
+            book.id,
+            ManuscriptImportIn(
+                chapters=[
+                    _chapter(1, [(1, "untitled chapter prose")], pov="M"),  # no title -> gets auto-title
+                    _chapter(2, [(1, "titled chapter prose")], pov="M", title="Named"),  # titled -> skip
+                ],
+                auto_title=True,
+            ),
+            s,
+            bg,
+        )
+        # exactly one auto-title task — only the untitled chapter; no fold tasks on the review path
+        assert len(bg.tasks) == 1
+
+
 async def test_import_approve_directly_lands_approved_and_schedules_fold(db_factory):
     async with db_factory() as s:
         book = await _book(s)
