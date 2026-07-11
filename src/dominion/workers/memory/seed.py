@@ -30,6 +30,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared import agent_ops
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import ChapterStatus, SceneStatus
@@ -229,6 +230,11 @@ async def _upsert_seed_scene(
 
 async def _run(args: argparse.Namespace) -> None:
     async with SessionFactory() as session:
+        # The summary fold routes through the review_model role, whose Settings-persisted policy
+        # (model tier, backend "llm" vs "agent_cli", fallbacks) lives in the DB. The web app and
+        # worker load it on startup; this standalone CLI must too, or the fold silently ignores
+        # the user's Settings and runs the env-default model over the HTTP API.
+        await agent_ops.apply_model_overrides(session)
         report = await seed_manuscript(
             session,
             book_title=args.book,
