@@ -105,6 +105,20 @@ async def test_import_accepts_empty_pov(db_factory):
         assert ch.pov == ""
 
 
+async def test_import_sets_chapter_kind_and_allows_chapter_zero(db_factory):
+    async with db_factory() as s:
+        book = await _book(s)
+        await manuscript.import_manuscript(
+            book.id,
+            ManuscriptImportIn(chapters=[_chapter(0, [(1, "prologue prose")], pov="M", kind="prologue")]),
+            s,
+            BackgroundTasks(),
+        )
+        ch = (await s.execute(select(Chapter).where(Chapter.book_id == book.id))).scalar_one()
+        assert ch.chapter_no == 0  # a prologue sorts before chapter 1
+        assert ch.kind == "prologue"
+
+
 async def test_import_auto_title_schedules_batch_for_untitled_only(db_factory):
     async with db_factory() as s:
         book = await _book(s)

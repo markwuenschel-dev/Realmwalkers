@@ -14519,6 +14519,11 @@
             "title": "Pov",
             "default": ""
           },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "chapter"
+          },
           "overwrite": {
             "type": "boolean",
             "title": "Overwrite",

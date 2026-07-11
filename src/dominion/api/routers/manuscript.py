@@ -138,7 +138,13 @@ async def import_manuscript(
             skipped.append(ch.chapter_no)
             continue
         if existing is None:
-            chapter = Chapter(book_id=book_id, chapter_no=ch.chapter_no, pov=ch.pov or "", status=ChapterStatus.PLANNED)
+            chapter = Chapter(
+                book_id=book_id,
+                chapter_no=ch.chapter_no,
+                pov=ch.pov or "",
+                kind=ch.kind or "chapter",
+                status=ChapterStatus.PLANNED,
+            )
             if ch.title:
                 chapter.title = ch.title
             session.add(chapter)
@@ -150,6 +156,7 @@ async def import_manuscript(
                 chapter.pov = ch.pov
             if ch.title:
                 chapter.title = ch.title
+            chapter.kind = ch.kind or "chapter"  # display-only kind is the user's explicit pick
             updated += 1
 
         if body.auto_title and not (chapter.title or "").strip():

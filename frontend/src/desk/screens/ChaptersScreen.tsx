@@ -26,7 +26,7 @@ import type {
   SceneOut,
   VolumeOut,
 } from "../api/types";
-import { partLabel, SECTION_TYPES, volumeLabel } from "../manuscript/labels";
+import { CHAPTER_KIND_OPTIONS, partLabel, SECTION_TYPES, volumeLabel } from "../manuscript/labels";
 import type { ExportKind } from "../lib/docx";
 
 const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = {
@@ -893,15 +893,6 @@ function Row({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
   );
 }
 
-const KIND_OPTIONS: { value: string; label: string }[] = [
-  { value: "chapter", label: "Chapter" },
-  { value: "prologue", label: "Prologue" },
-  { value: "interlude", label: "Interlude" },
-  { value: "epilogue", label: "Epilogue" },
-  { value: "front_matter", label: "Front matter" },
-  { value: "back_matter", label: "Back matter" },
-];
-
 // Per-chapter structural metadata: reader-facing kind (Prologue/Interlude/…) + an optional epigraph.
 // Kind saves immediately on select; the epigraph saves on blur. Each PATCHes only its changed field,
 // so neither re-runs the planner nor touches prose. Display-only downstream — ordering stays chapter_no.
@@ -941,7 +932,7 @@ function ChapterMetaControls({
             "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11.5px;font-family:var(--ui);cursor:pointer",
           )}
         >
-          {KIND_OPTIONS.map((k) => (
+          {CHAPTER_KIND_OPTIONS.map((k) => (
             <option key={k.value} value={k.value}>
               {k.label}
             </option>

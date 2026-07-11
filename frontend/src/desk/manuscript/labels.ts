@@ -25,6 +25,17 @@ export const KNOWN_CHAPTER_KINDS: readonly ChapterKind[] = [
 /** The kinds that render as a titled section rather than a numbered chapter (front/back matter). */
 export const SECTION_KINDS: readonly ChapterKind[] = ["front_matter", "back_matter"];
 
+/** Canonical {value,label} options for a chapter-kind picker — the single source for every kind
+ *  dropdown (the Chapters-screen per-chapter selector AND the manuscript uploader), so they can't drift. */
+export const CHAPTER_KIND_OPTIONS: { value: ChapterKind; label: string }[] = [
+  { value: "chapter", label: "Chapter" },
+  { value: "prologue", label: "Prologue" },
+  { value: "interlude", label: "Interlude" },
+  { value: "epilogue", label: "Epilogue" },
+  { value: "front_matter", label: "Front matter" },
+  { value: "back_matter", label: "Back matter" },
+];
+
 export function isKnownChapterKind(kind: string | null | undefined): kind is ChapterKind {
   return KNOWN_CHAPTER_KINDS.includes((kind ?? "") as ChapterKind);
 }

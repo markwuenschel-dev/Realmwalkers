@@ -12,6 +12,7 @@ import { css } from "../css";
 import { api } from "../api/client";
 import { useDeskData } from "../api/data";
 import { Button, Chip } from "./ui";
+import { CHAPTER_KIND_OPTIONS, type ChapterKind } from "../manuscript/labels";
 import type { ManuscriptImportIn, ParsedManuscriptOut } from "../api/types";
 
 type Brk = "chapter" | "scene" | "none";
@@ -23,6 +24,7 @@ interface Block {
   chapterNo: string; // editable string; only meaningful when brk === "chapter"
   title: string;
   pov: string;
+  kind: ChapterKind; // reader-facing kind (chapter/prologue/…); only meaningful when brk === "chapter"
   overwrite: boolean;
 }
 
@@ -46,6 +48,7 @@ function buildBlocks(parsed: ParsedManuscriptOut, defaultPov: string): Block[] {
           chapterNo: chapterStart ? String(ch.chapter_no) : "",
           title: chapterStart ? (ch.title ?? "") : "",
           pov: chapterStart ? defaultPov : "",
+          kind: "chapter",
           overwrite: false,
         });
       });
@@ -76,10 +79,14 @@ function toImport(
   blocks.forEach((b, i) => {
     if (b.brk === "chapter" || i === 0) {
       flushScene();
+      // Respect an explicit number — including 0 (a prologue sorts before chapter 1). Only a BLANK
+      // number falls back to sequential; `Number(x) || fallback` would wrongly coerce 0 to fallback.
+      const chapterNo = b.chapterNo.trim() === "" ? chapters.length + 1 : Number(b.chapterNo);
       cur = {
-        chapter_no: Number(b.chapterNo) || chapters.length + 1,
+        chapter_no: chapterNo,
         title: b.title.trim() || null,
         pov: b.pov.trim(),
+        kind: b.kind,
         overwrite: b.overwrite,
         scenes: [],
       };
@@ -228,6 +235,18 @@ export default function ManuscriptEditor({
                     placeholder="POV (optional)"
                     style={css(`${input};width:120px`)}
                   />
+                  <select
+                    aria-label="chapter kind"
+                    value={b.kind}
+                    onChange={(e) => set(i, { kind: e.target.value as ChapterKind })}
+                    style={css(`${input};cursor:pointer`)}
+                  >
+                    {CHAPTER_KIND_OPTIONS.map((k) => (
+                      <option key={k.value} value={k.value}>
+                        {k.label}
+                      </option>
+                    ))}
+                  </select>
                   {conflict && (
                     <label
                       style={css(

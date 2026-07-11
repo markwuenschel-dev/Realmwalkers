@@ -301,6 +301,7 @@ class ManuscriptImportChapterIn(BaseModel):
     chapter_no: int
     title: str | None = None
     pov: str = ""  # optional — blank lands the chapter with an empty POV (set later before drafting)
+    kind: str = "chapter"  # reader-facing kind (chapter/prologue/interlude/…); display-only
     overwrite: bool = False  # must be set to write into a chapter_no that already exists in the book
     scenes: list[ManuscriptImportSceneIn]
 

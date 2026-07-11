@@ -57,6 +57,7 @@ describe("ManuscriptEditor", () => {
             chapter_no: 1,
             title: "One",
             pov: "",
+            kind: "chapter",
             overwrite: false,
             scenes: [
               { scene_no: 1, prose: "Alpha para." },
@@ -121,5 +122,18 @@ describe("ManuscriptEditor", () => {
 
     expect(lastPayload().approve_directly).toBe(true);
     expect(lastPayload().auto_title).toBe(true);
+  });
+
+  it("keeps chapter number 0 and the chosen kind (a prologue sorting before chapter 1)", async () => {
+    vi.mocked(api.importManuscript).mockResolvedValue(REPORT);
+    render(<ManuscriptEditor parsed={PARSED} bookId="book-1" onImported={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("chapter number"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("chapter kind"), { target: { value: "prologue" } });
+    fireEvent.click(screen.getByRole("button", { name: /Import 2 scenes for review/ }));
+    await waitFor(() => expect(api.importManuscript).toHaveBeenCalled());
+
+    expect(lastPayload().chapters[0].chapter_no).toBe(0);
+    expect(lastPayload().chapters[0].kind).toBe("prologue");
   });
 });

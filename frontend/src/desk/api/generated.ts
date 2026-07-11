@@ -5416,6 +5416,11 @@ export interface components {
        */
       pov: string;
       /**
+       * Kind
+       * @default chapter
+       */
+      kind: string;
+      /**
        * Overwrite
        * @default false
        */
