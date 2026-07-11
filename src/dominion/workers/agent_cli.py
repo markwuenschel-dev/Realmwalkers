@@ -5,7 +5,8 @@ instead of the Anthropic/OpenAI HTTP API. We shell out to
 `claude -p <prompt> --output-format json --model <model> --max-turns <n> --append-system-prompt <sys>`
 in an ISOLATED temp cwd — so the CLI never picks up the repo's `CLAUDE.md`, runs project hooks, or
 edits files — inheriting the process env so `CLAUDE_CODE_OAUTH_TOKEN` (subscription auth) or
-`ANTHROPIC_API_KEY` (metered) authenticates the call. The CLI's JSON result maps back into the exact
+`ANTHROPIC_API_KEY` (metered) authenticates the call; when the OAuth token is set, the API key is
+dropped from the subprocess env (the CLI would otherwise prefer it). The CLI's JSON result maps back into the exact
 `(text, Usage)` tuple the rest of the pipeline already consumes, so every cross-cutting concern wrapped
 AROUND `complete` (budget.charge, telemetry, escalation, the tolerant JSON parsers) works unchanged.
 
@@ -23,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import tempfile
 from collections.abc import Sequence
 from typing import Any, Literal
@@ -192,12 +194,18 @@ async def run(
     timeout_s = max(1, int(settings.scene_time_budget_s))
 
     # Isolated cwd: the CLI can't read the repo's CLAUDE.md, run hooks, or touch project files. Env is
-    # inherited (create_subprocess_exec passes it through by default) so the auth token / API key flows.
+    # inherited so the auth token / API key flows — but when CLAUDE_CODE_OAUTH_TOKEN (subscription
+    # auth) is set, ANTHROPIC_API_KEY must be dropped: the CLI prefers the API key when both are
+    # present, silently rerouting agent_cli calls back onto metered credits.
+    env: dict[str, str] | None = None
+    if os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     with tempfile.TemporaryDirectory(prefix="agent_cli_") as cwd:
         try:
             proc = await asyncio.create_subprocess_exec(
                 *argv,
                 cwd=cwd,
+                env=env,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
