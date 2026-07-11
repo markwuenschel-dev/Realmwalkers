@@ -55,3 +55,17 @@ See [`.claude/commands/ship.md`](.claude/commands/ship.md) for token/auth detail
 - Never open random PR branches mid-task without the owner asking to ship.
 - Never commit unrelated deletions (e.g. `.agents/skills`) mixed with task work.
 - Never merge a PR before CI passes (unless the owner explicitly overrides).
+
+## Agent skills
+
+### Issue tracker
+
+Issues and `/wayfinder` maps live as GitHub issues via the `gh` CLI; external PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
