@@ -17,7 +17,7 @@ import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from dominion.shared import agent_ops
+from dominion.shared import agent_ops, job_policy
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobStatus
@@ -59,10 +59,16 @@ def classify_job_failure(exc: BaseException, loc: str = "") -> tuple[str, str | 
 
 
 async def claim_one_job(session: AsyncSession) -> Job | None:
-    """Atomically claim the oldest queued job (FOR UPDATE SKIP LOCKED makes parallel workers safe)."""
+    """Atomically claim the oldest claimable job (FOR UPDATE SKIP LOCKED makes parallel workers safe).
+
+    The `book_id IS NOT NULL` guard is the execution-seam half of the ownership invariant (ADR 0027):
+    an ownerless job is never claimed by this worker or any future one, independent of deploy timing.
+    It sits in the WHERE (not a post-filter) so an ownerless row is excluded from the candidate set and
+    cannot head-of-line-block the ORDER BY. No `run_id` condition — a run-less revision with a valid
+    `book_id` stays executable."""
     stmt = (
         select(Job)
-        .where(Job.status == JobStatus.QUEUED)
+        .where(Job.status.in_(job_policy.CLAIMABLE), Job.book_id.is_not(None))
         .order_by(Job.created_at)
         .limit(1)
         .with_for_update(skip_locked=True)

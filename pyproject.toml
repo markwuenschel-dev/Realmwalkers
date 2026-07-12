@@ -28,6 +28,7 @@ dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "pyright>=1.1"]
 [project.scripts]
 dominion-worker = "dominion.workers.worker:main"
 dominion-seed = "dominion.workers.memory.seed:main"
+dominion-audit = "dominion.tools.audit_job_ownership:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dominion"]

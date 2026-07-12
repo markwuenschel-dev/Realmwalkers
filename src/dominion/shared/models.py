@@ -188,6 +188,26 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class JobIntegrityState(Base):
+    """Singleton (id=1) row tracking the last-emitted job-ownership integrity report (ADR 0027), so boot
+    appends an Activity transition ONLY when the picture changes — Activity is append-only, and emitting
+    it every boot would flood the Desk on each redeploy. Updated atomically with that Activity row.
+
+    Deliberately NOT a ModelOverride: that table is live model-selection config loaded into runtime
+    settings; integrity state is operational, not configuration.
+    """
+
+    __tablename__ = "job_integrity_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    # Stable hash of the current integrity holds (quarantined-live ∪ unresolved null-book rows). The
+    # transition record fires when this changes, including back to the empty-holds fingerprint.
+    fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hold_count: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Beat(Base):
     """Per-scene plan; proposed by the plan-call, approved/edited by the human (gate 1).
 

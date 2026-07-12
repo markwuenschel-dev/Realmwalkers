@@ -91,3 +91,15 @@ _Avoid_: fidelity agent swarm, parallel reviewer framework
 **Fidelity Fixture**:
 A versioned end-to-end example that declares a fidelity contract, exact prose, expected evidence, and expected policy behavior for regression and promotion testing.
 _Avoid_: prompt sample, anecdotal test
+
+**Run**:
+A planning-request provenance envelope — one generation request's scope, gate mode, and token budget. It is provenance and telemetry grouping only, NOT the routing or book-scoping key for the jobs it spawned (a job carries its own `book_id`). Distinct from a Production Run.
+_Avoid_: pipeline, batch, the job's owner, Production Run
+
+**Job Book Ownership**:
+The invariant that every Job belongs to exactly one book via its own authoritative, non-null `book_id`, independent of whether it has a Run. Book-scoped job queries key solely on `book_id` (ADR 0027).
+_Avoid_: run-owned job, run_id routing, dual-key scope
+
+**Integrity Hold**:
+An ownerless or ownership-conflicted Job withheld from execution and from the normal failure controls (retry/clear): the quarantined live jobs plus any unresolved NULL-book terminal/conflict rows. Retained as evidence and surfaced to the operator; blocks the book_id NOT NULL promotion until resolved.
+_Avoid_: failed job, dismissable error, transient failure
