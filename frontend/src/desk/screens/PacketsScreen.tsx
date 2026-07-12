@@ -27,6 +27,7 @@ import type {
   ResolvedQuestion,
 } from "../api/types";
 import type { ExportKind } from "../lib/docx";
+import { chapterLabel, chapterLabelShort } from "../manuscript/labels";
 
 // The Packet review panel (contract-first drafting, Phase 1). Per chapter, it runs the Packet Author
 // + Packet QA agents, then shows the proposed chapter knowledge packet for the human to adjudicate
@@ -297,7 +298,7 @@ export default function PacketsScreen() {
     try {
       const exp = await import("../lib/docx");
       const { exportAndSave } = await import("../manuscript/exportActions");
-      const title = `Chapter ${chapter.chapter_no}${chapter.title ? `: ${chapter.title}` : ""}`;
+      const title = `${chapterLabel(chapter)}${chapter.title ? `: ${chapter.title}` : ""}`;
       const ms = exp.buildManuscriptFrom(title, [manuscriptChapter]);
       const stem = `chapter_${chapter.chapter_no}${chapter.title ? `_${chapter.title}` : ""}`;
       if (kind === "md") {
@@ -358,7 +359,7 @@ export default function PacketsScreen() {
             {chapters.length === 0 && <option value="">No chapters yet</option>}
             {chapters.map((c) => (
               <option key={c.id} value={c.id}>
-                Ch {c.chapter_no}
+                {chapterLabelShort(c)}
                 {c.title ? ` · ${c.title}` : ""} ({c.pov})
               </option>
             ))}
@@ -494,7 +495,7 @@ export default function PacketsScreen() {
                         <span
                           style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}
                         >
-                          Ch {c.chapter_no}
+                          {chapterLabelShort(c)}
                         </span>
                         <span>
                           {c.title || "(untitled)"} · {c.pov}

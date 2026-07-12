@@ -19,6 +19,7 @@ import { Button, Chip, Eyebrow, MetricCard, Panel, ProgressBar } from "../compon
 import type { ChipTone } from "../components/ui";
 import type { SceneOut } from "../api/types";
 import type { ExportKind } from "../lib/docx";
+import { chapterLabelShort } from "../manuscript/labels";
 
 export default function InboxScreen() {
   const { openSceneId, toggleActivity } = useDesk();
@@ -417,7 +418,7 @@ export default function InboxScreen() {
                 key={chapter.id}
                 className="dk-navlink"
                 onClick={() => router.push("/chapters")}
-                title={`Ch ${chapter.chapter_no} — open the chapters board`}
+                title={`${chapterLabelShort(chapter)} — open the chapters board`}
                 style={css(
                   "display:grid;grid-template-columns:minmax(150px,1fr) 2fr auto;align-items:center;gap:14px;width:100%;padding:8px 10px;border:none;border-radius:8px;background:transparent;cursor:pointer;text-align:left",
                 )}
@@ -427,7 +428,7 @@ export default function InboxScreen() {
                     "font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis",
                   )}
                 >
-                  Ch {chapter.chapter_no}
+                  {chapterLabelShort(chapter)}
                   {chapter.title ? ` · ${chapter.title}` : ""}
                 </span>
                 <ProgressBar value={total > 0 ? done / total : 0} color="var(--good)" />
