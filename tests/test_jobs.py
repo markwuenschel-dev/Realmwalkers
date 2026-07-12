@@ -6,8 +6,8 @@ from conftest import seed_scene_packet
 from sqlalchemy import select
 
 from dominion.api.routers import jobs as jobs_router
-from dominion.shared.enums import BeatStatus, JobKind, JobStatus, RunStatus
-from dominion.shared.models import Beat, Book, Chapter, Job, Run
+from dominion.shared.enums import BeatStatus, JobKind, JobStatus, RunStatus, SceneStatus
+from dominion.shared.models import Beat, Book, Chapter, Job, Run, Scene
 from dominion.workers.draft_queue import reconcile_and_requeue_failed_draft_jobs
 
 
@@ -104,6 +104,82 @@ async def test_clear_failed_api_purges_failed_jobs(db_factory):
         assert out.failed == 0
         failed_list = await jobs_router.failed(session=s, book_id=book.id)
         assert failed_list == []
+
+
+async def test_queue_counts_sees_upload_revision_with_null_run_id(db_factory):
+    """The core strand bug: an upload-only book has no Run, so its revision Job carries book_id but a
+    NULL run_id. An INNER JOIN to Run dropped it, so /jobs/draft-next read queued==0 and never kicked
+    the drain (Activity showed 'Queued · 1', the Desk showed 'idle'). Scoping must use the OR predicate."""
+    async with db_factory() as s:
+        book = Book(title="Upload only")  # deliberately NO Run row
+        s.add(book)
+        await s.flush()
+        ch = Chapter(book_id=book.id, chapter_no=0, pov="X")
+        s.add(ch)
+        await s.flush()
+        scene = Scene(chapter_id=ch.id, scene_no=1, prose="prologue draft", version=1, status=SceneStatus.DRAFT)
+        s.add(scene)
+        await s.flush()
+        s.add(
+            Job(
+                run_id=None,  # no Run for an upload-only book
+                book_id=book.id,
+                kind=JobKind.REVISE_FULL,
+                chapter_id=ch.id,
+                target_scene_id=scene.id,
+                chapter_no=0,
+                scene_no=1,
+                status=JobStatus.QUEUED,
+                token_budget=40_000,
+            )
+        )
+        await s.flush()
+        counts = await jobs_router._queue_counts(s, book.id)
+        assert counts.get(str(JobStatus.QUEUED)) == 1
+
+
+async def test_requeue_resets_failed_revision_in_place(db_factory):
+    """A FAILED revise_* job keeps its target scene + Approval feedback, so retry-failed resets it in
+    place (same id) rather than minting a fresh DRAFT — and reaches it via the OR scope even with a
+    NULL run_id (upload-only book)."""
+    async with db_factory() as s:
+        book = Book(title="Upload only")  # no Run
+        s.add(book)
+        await s.flush()
+        ch = Chapter(book_id=book.id, chapter_no=0, pov="X")
+        s.add(ch)
+        await s.flush()
+        scene = Scene(chapter_id=ch.id, scene_no=1, prose="prologue", version=1, status=SceneStatus.REVISION_REQUESTED)
+        s.add(scene)
+        await s.flush()
+        old = Job(
+            run_id=None,
+            book_id=book.id,
+            kind=JobKind.REVISE_FULL,
+            chapter_id=ch.id,
+            target_scene_id=scene.id,
+            chapter_no=0,
+            scene_no=1,
+            status=JobStatus.FAILED,
+            token_budget=40_000,
+            last_error="transient",
+            claimed_by="worker-1",
+        )
+        s.add(old)
+        await s.flush()
+        old_id = old.id
+
+        result = await reconcile_and_requeue_failed_draft_jobs(s, book_id=book.id)
+        assert result.queued == 1
+        await s.refresh(old)
+        # Reset in place: same row, not a fresh job.
+        assert old.id == old_id
+        assert old.status == JobStatus.QUEUED
+        assert old.last_error is None
+        assert old.claimed_by is None
+        assert old.target_scene_id == scene.id
+        queued = (await s.execute(select(Job).where(Job.status == JobStatus.QUEUED))).scalars().all()
+        assert [j.id for j in queued] == [old_id]
 
 
 async def test_clear_failed_purges_revision_jobs_too(db_factory):
