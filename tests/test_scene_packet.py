@@ -290,6 +290,7 @@ async def test_derive_beats_prunes_legacy_unlinked_beats(db_factory, monkeypatch
             [
                 Job(
                     kind=JobKind.DRAFT,
+                    book_id=book.id,
                     chapter_id=ch.id,
                     beat_id=with_failed_job.id,
                     scene_no=6,
@@ -298,6 +299,7 @@ async def test_derive_beats_prunes_legacy_unlinked_beats(db_factory, monkeypatch
                 ),
                 Job(
                     kind=JobKind.DRAFT,
+                    book_id=book.id,
                     chapter_id=ch.id,
                     beat_id=with_active_job.id,
                     scene_no=7,

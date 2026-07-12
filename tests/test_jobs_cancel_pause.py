@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from dominion.api.routers import jobs as jobs_router
 from dominion.shared.enums import JobStatus
-from dominion.shared.models import DraftAttempt, Job, ModelOverride
+from dominion.shared.models import Book, DraftAttempt, Job, ModelOverride
 from dominion.workers import background_work
 
 
@@ -22,6 +22,14 @@ def _job(**kw: object) -> Job:
     defaults = dict(kind="draft", token_budget=1000, status=JobStatus.QUEUED)
     defaults.update(kw)
     return Job(**defaults)  # type: ignore[arg-type]
+
+
+async def _book(s) -> Book:
+    """Every job must belong to a book (ADR 0027); seed one to attach jobs to."""
+    book = Book(title="Queue Control")
+    s.add(book)
+    await s.flush()
+    return book
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +42,8 @@ def _unpause():
 
 async def test_cancel_deletes_queued_and_unlinks_attempts(db_factory):
     async with db_factory() as s:
-        job = _job(chapter_no=1, scene_no=2)
+        book = await _book(s)
+        job = _job(book_id=book.id, chapter_no=1, scene_no=2)
         s.add(job)
         await s.flush()
         s.add(DraftAttempt(job_id=job.id, stage="draft", model="test", prose="draft text"))
@@ -49,7 +58,8 @@ async def test_cancel_deletes_queued_and_unlinks_attempts(db_factory):
 
 async def test_cancel_refuses_running_and_missing(db_factory):
     async with db_factory() as s:
-        running = _job(chapter_no=1, scene_no=3, status=JobStatus.RUNNING)
+        book = await _book(s)
+        running = _job(book_id=book.id, chapter_no=1, scene_no=3, status=JobStatus.RUNNING)
         s.add(running)
         await s.commit()
 
@@ -68,7 +78,8 @@ async def test_pause_persists_and_blocks_worker_claim(db_factory):
     from dominion.workers.worker import run_once
 
     async with db_factory() as s:
-        s.add(_job(chapter_no=1, scene_no=1))
+        book = await _book(s)
+        s.add(_job(book_id=book.id, chapter_no=1, scene_no=1))
         await s.commit()
         await background_work.set_queue_paused(s, True)
         await s.commit()
@@ -89,7 +100,8 @@ async def test_pause_persists_and_blocks_worker_claim(db_factory):
 
 async def test_pause_endpoint_gates_draft_next_and_resume_schedules(db_factory):
     async with db_factory() as s:
-        s.add(_job(chapter_no=1, scene_no=1))
+        book = await _book(s)
+        s.add(_job(book_id=book.id, chapter_no=1, scene_no=1))
         await s.commit()
 
         bg = BackgroundTasks()

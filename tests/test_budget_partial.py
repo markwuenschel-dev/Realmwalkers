@@ -80,7 +80,15 @@ async def test_budget_exceeded_saves_partial_draft_with_flag(db_factory, monkeyp
         s.add(CharacterState(book_id=book.id, character="Marcus", stats_json={"level": 5}))
         await _beat(s, ch, 1)
         s.add(
-            Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1, token_budget=50, status=JobStatus.QUEUED)
+            Job(
+                run_id=run.id,
+                book_id=book.id,
+                kind=JobKind.DRAFT,
+                chapter_no=1,
+                scene_no=1,
+                token_budget=50,
+                status=JobStatus.QUEUED,
+            )
         )  # tiny budget: spine fits, reviewer doesn't
         await s.commit()
 
@@ -117,6 +125,7 @@ async def test_within_budget_yields_pending_review_and_no_budget_flag(db_factory
         s.add(
             Job(
                 run_id=run.id,
+                book_id=book.id,
                 kind=JobKind.DRAFT,
                 chapter_no=1,
                 scene_no=1,
