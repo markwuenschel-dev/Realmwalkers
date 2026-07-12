@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     scene_packet_qa_max_tokens: int = 3000
     scene_packet_author_fallback_model: str = "claude-sonnet-5"
     scene_packet_qa_fallback_model: str = "claude-sonnet-5"
+    # Import Adoption per-scene evidence extraction (ADR 0028). Its OWN role — a distinct high-volume
+    # cost/quality decision (~1 call per imported scene), defaulting to the same economical tier as the
+    # ScenePacket author; coupling it to either packet-author role would make operator tuning of one
+    # workflow unexpectedly affect another. Escalates to a stronger model on unparseable output.
+    import_evidence_model: str = "claude-haiku-4-5"
+    import_evidence_fallback_model: str = "claude-sonnet-5"
+    import_evidence_max_tokens: int = 4000
     # Manual QA re-run (POST /scene-packets/{id}/qa) runs one Author-free QA pass against the current
     # body. It is a single bounded call, so it gets its own soft/hard work budget separate from a full
     # derive — a tiny soft overage shouldn't discard a usable verdict, but a runaway call must still stop.
@@ -260,6 +267,9 @@ class Settings(BaseSettings):
     # its budget fails locally with PromptBudgetExceeded ("prompt_budget_exceeded") BEFORE any provider
     # call — an oversized context must never burn TPM just to get refused mid-generation.
     scene_packet_author_prompt_budget: int = 32_000
+    # Import-evidence input ceiling. An oversized SCENE is chunked deterministically before extraction
+    # (workers/import_evidence._deterministic_chunks), so a single extraction call stays under this.
+    import_evidence_prompt_budget: int = 32_000
     # QA parity with the author: its prefix is the chapter packet (minus derived/audit sections — see
     # scene_packet.qa.build_prefix), and a legitimately rich chapter packet plus the scene body was
     # observed to overflow the old 24k guard even after the prefix slimming.
