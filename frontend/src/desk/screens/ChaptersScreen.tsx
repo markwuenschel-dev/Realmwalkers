@@ -26,7 +26,13 @@ import type {
   SceneOut,
   VolumeOut,
 } from "../api/types";
-import { CHAPTER_KIND_OPTIONS, partLabel, SECTION_TYPES, volumeLabel } from "../manuscript/labels";
+import {
+  CHAPTER_KIND_OPTIONS,
+  chapterLabelShort,
+  partLabel,
+  SECTION_TYPES,
+  volumeLabel,
+} from "../manuscript/labels";
 import type { ExportKind } from "../lib/docx";
 
 const STATUS_COLORS: Record<string, "good" | "warn" | "bad" | "info" | "dim"> = {
@@ -447,15 +453,32 @@ export default function ChaptersScreen() {
                 </Button>
               </div>
             )}
-            {[...data.chapters]
-              .sort((a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0))
-              .map((c) => {
+            {(() => {
+              const sorted = [...data.chapters].sort(
+                (a, b) => (a.position ?? a.chapter_no ?? 0) - (b.position ?? b.chapter_no ?? 0),
+              );
+              const partById = new Map(parts.map((p) => [p.id, p]));
+              return sorted.map((c, i) => {
                 const scs = scenesByChapter(c.id);
                 const words = scs.reduce((acc, s) => acc + wordCount(s.prose), 0);
                 const appr = scs.filter((s) => s.status === "approved").length;
                 const frac = scs.length ? Math.round((appr / scs.length) * 100) : 0;
+                // Part/Act grouping: emit a header when this chapter opens a new Part (mirrors the
+                // Manuscript reader). partLabel renders "Act I" vs "Part I" from the part's own kind.
+                const part = c.part_id ? partById.get(c.part_id) : undefined;
+                const showPartHeader =
+                  !!part && c.part_id !== (i > 0 ? sorted[i - 1].part_id : null);
                 return (
                   <div key={c.id}>
+                    {showPartHeader && part ? (
+                      <div
+                        style={css(
+                          "margin:16px 0 6px;font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)",
+                        )}
+                      >
+                        {partLabel(part)}
+                      </div>
+                    ) : null}
                     <div
                       style={css(
                         "display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px",
@@ -466,7 +489,7 @@ export default function ChaptersScreen() {
                           "font-family:var(--display);font-size:15px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap",
                         )}
                       >
-                        Ch {c.chapter_no}
+                        {chapterLabelShort(c)}
                         {c.title ? (
                           <span style={css("color:var(--ink)")}> · {c.title}</span>
                         ) : null}{" "}
@@ -621,7 +644,8 @@ export default function ChaptersScreen() {
                     </div>
                   </div>
                 );
-              })}
+              });
+            })()}
           </div>
         </Panel>
       </div>
@@ -682,7 +706,7 @@ export default function ChaptersScreen() {
                       )}
                     />
                     <span>
-                      Ch {c.chapter_no} · Scene {s.scene_no}
+                      {chapterLabelShort(c)} · Scene {s.scene_no}
                     </span>
                     <span style={css("margin-left:auto")}>v{s.version}</span>
                   </div>
@@ -741,7 +765,7 @@ export default function ChaptersScreen() {
                     )}
                   >
                     <span style={css("font-family:var(--mono);font-size:12px;color:var(--ink)")}>
-                      C{c.chapter_no}·S{s.scene_no}
+                      {chapterLabelShort(c)}·S{s.scene_no}
                     </span>
                     <span
                       style={css(`width:5px;height:5px;border-radius:50%;background:${color}`)}

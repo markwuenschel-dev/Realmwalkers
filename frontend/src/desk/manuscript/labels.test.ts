@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chapterLabel,
+  chapterLabelShort,
   isKnownChapterKind,
   partKindWord,
   partLabel,
@@ -65,6 +66,22 @@ describe("chapterLabel", () => {
     expect(chapterLabel({ kind: "sidebar", chapter_no: 7 })).toBe("Chapter 7");
     expect(chapterLabel({ kind: null, chapter_no: 8 })).toBe("Chapter 8");
     expect(chapterLabel({ chapter_no: 9 })).toBe("Chapter 9");
+  });
+});
+
+describe("chapterLabelShort", () => {
+  it("uses 'Ch N' for a plain chapter and a short tag for the other kinds", () => {
+    expect(chapterLabelShort({ kind: "chapter", chapter_no: 3 })).toBe("Ch 3");
+    expect(chapterLabelShort({ kind: "prologue", chapter_no: 1 })).toBe("Pr");
+    expect(chapterLabelShort({ kind: "interlude", chapter_no: 5 })).toBe("Int");
+    expect(chapterLabelShort({ kind: "epilogue", chapter_no: 40 })).toBe("Ep");
+    expect(chapterLabelShort({ kind: "front_matter", chapter_no: 1 })).toBe("FM");
+    expect(chapterLabelShort({ kind: "back_matter", chapter_no: 30 })).toBe("BM");
+  });
+  it("falls back to 'Ch N' (or 'Ch') for unknown/absent kind and numberless chapters", () => {
+    expect(chapterLabelShort({ kind: "sidebar", chapter_no: 7 })).toBe("Ch 7");
+    expect(chapterLabelShort({ kind: null, chapter_no: 8 })).toBe("Ch 8");
+    expect(chapterLabelShort({ kind: "chapter", chapter_no: null })).toBe("Ch");
   });
 });
 

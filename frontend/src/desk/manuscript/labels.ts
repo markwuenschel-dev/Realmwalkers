@@ -123,6 +123,30 @@ export function chapterLabel(ch: { kind?: string | null; chapter_no?: number | n
   return KIND_LABEL[kind as Exclude<ChapterKind, "chapter">];
 }
 
+// Compact tags for the dense Desk UI (boards, list rows, headers) — the short analogue of KIND_LABEL.
+const KIND_SHORT: Record<Exclude<ChapterKind, "chapter">, string> = {
+  prologue: "Pr",
+  interlude: "Int",
+  epilogue: "Ep",
+  front_matter: "FM",
+  back_matter: "BM",
+};
+
+/** Compact kind-aware chapter label for dense UI: "Ch 3" for a plain numbered chapter, the kind's short
+ *  tag ("Pr"/"Int"/"Ep"/"FM"/"BM") for the others — so a prologue reads "Pr", never "Ch". The long-form
+ *  analogue is `chapterLabel` ("Chapter 3" / "Prologue"). Same fallback rules: an unknown kind labels off
+ *  its number, a numberless plain chapter reads just "Ch". */
+export function chapterLabelShort(ch: {
+  kind?: string | null;
+  chapter_no?: number | null;
+}): string {
+  const kind = ch.kind ?? "chapter";
+  if (kind === "chapter" || !isKnownChapterKind(kind)) {
+    return ch.chapter_no != null ? `Ch ${ch.chapter_no}` : "Ch";
+  }
+  return KIND_SHORT[kind as Exclude<ChapterKind, "chapter">];
+}
+
 /** Display names for the AUTHORED front/back-matter section types — the ones you write prose for, so
  *  they're the options in the per-chapter section-type picker. The generated pages (half-title, title
  *  page, table of contents) are NOT here: the exporter builds those from metadata + the chapter list, so

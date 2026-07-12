@@ -6,6 +6,7 @@ import { css } from "../css";
 import { useDesk } from "../state";
 import { useDeskData } from "../api/data";
 import { DESK_ROUTES } from "../routes";
+import { chapterLabel, chapterLabelShort } from "../manuscript/labels";
 
 interface Result {
   key: string;
@@ -71,9 +72,9 @@ export default function CommandPalette() {
 
   // Latest version of each (chapter, scene) — what you'd want to jump to.
   const latestScenes = data.latestScenes;
-  const chapterNo = useMemo(() => {
-    const m = new Map<string, number | null>();
-    for (const c of data.chapters) m.set(c.id, c.chapter_no ?? null);
+  const chapterById = useMemo(() => {
+    const m = new Map<string, (typeof data.chapters)[number]>();
+    for (const c of data.chapters) m.set(c.id, c);
     return m;
   }, [data.chapters]);
 
@@ -88,9 +89,11 @@ export default function CommandPalette() {
     let n = 0;
     for (const s of latestScenes) {
       if (n >= CAP) break;
-      const ch = chapterNo.get(s.chapter_id);
-      const label = `Ch ${ch ?? "?"} · Scene ${s.scene_no}`;
-      if (hit(`chapter ${ch} scene ${s.scene_no} ${s.status} ${s.prose ?? ""}`)) {
+      const ch = chapterById.get(s.chapter_id);
+      const label = `${ch ? chapterLabelShort(ch) : "Ch ?"} · Scene ${s.scene_no}`;
+      if (
+        hit(`chapter ${ch?.chapter_no ?? "?"} scene ${s.scene_no} ${s.status} ${s.prose ?? ""}`)
+      ) {
         out.push({
           key: `sc:${s.id}`,
           icon: "❖",
@@ -109,7 +112,7 @@ export default function CommandPalette() {
         out.push({
           key: `ch:${c.id}`,
           icon: "▦",
-          label: `Chapter ${c.chapter_no}${c.title ? ` — ${c.title}` : ""}`,
+          label: `${chapterLabel(c)}${c.title ? ` — ${c.title}` : ""}`,
           sub: `POV · ${c.pov}`,
           cat: "Chapters",
           run: () => navTo("/chapters"),
@@ -159,7 +162,7 @@ export default function CommandPalette() {
     q,
     commands,
     latestScenes,
-    chapterNo,
+    chapterById,
     data.chapters,
     data.canon,
     data.characters,

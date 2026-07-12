@@ -21,6 +21,7 @@ import { Button, Chip, Eyebrow, Panel } from "../components/ui";
 import type { ChipTone } from "../components/ui";
 import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus } from "../api/types";
 import type { ExportKind } from "../lib/docx";
+import { chapterLabel } from "../manuscript/labels";
 
 // Scene review status → Chip tone (the review lifecycle, not the StatusPill axes).
 const SCENE_STATUS_TONE: Record<string, ChipTone> = {
@@ -613,7 +614,7 @@ export default function SceneScreen() {
       await exportAndSave(ms, {
         preset: "reader_proof",
         filenameStem: sceneExportStem,
-        renderSubtitle: `Chapter ${chapter?.chapter_no ?? "?"} · Scene ${cur.scene_no}`,
+        renderSubtitle: `${chapter ? chapterLabel(chapter) : "Chapter ?"} · Scene ${cur.scene_no}`,
         override: true,
       });
     } finally {
@@ -654,8 +655,8 @@ export default function SceneScreen() {
               "font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);margin-bottom:8px",
             )}
           >
-            INBOX / CHAPTER {chapter?.chapter_no ?? "?"} · {chapter?.pov ?? "—"} / SCENE{" "}
-            {cur.scene_no}
+            INBOX / {chapter ? chapterLabel(chapter).toUpperCase() : "CHAPTER ?"} ·{" "}
+            {chapter?.pov ?? "—"} / SCENE {cur.scene_no}
           </div>
           <div style={css("display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap")}>
             <h1

@@ -35,6 +35,7 @@ import {
   surfaceAuditSummary,
 } from "../lib/packetBlockers";
 import type { PacketViolation } from "../lib/packetBlockers";
+import { chapterLabelShort } from "../manuscript/labels";
 
 // Atelier display-XL screen title (shared idiom with DocsScreen).
 const TITLE_XL =
@@ -878,7 +879,7 @@ export default function ProductionScreen() {
           >
             {orderedChapters.map((item) => (
               <option key={item.id} value={item.id}>
-                Ch {item.chapter_no}
+                {chapterLabelShort(item)}
                 {item.title ? ` · ${item.title}` : ""}
               </option>
             ))}
@@ -988,7 +989,7 @@ export default function ProductionScreen() {
               )}
             >
               {chapter
-                ? `Ch ${chapter.chapter_no}${chapter.title ? ` · ${chapter.title}` : ""}`
+                ? `${chapterLabelShort(chapter)}${chapter.title ? ` · ${chapter.title}` : ""}`
                 : "No chapter selected"}
             </div>
             {chapter?.outline && (
