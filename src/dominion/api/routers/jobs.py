@@ -46,12 +46,20 @@ log = structlog.get_logger()
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
+def _scope_to_book(stmt: Select, book_id: uuid.UUID | None) -> Select:
+    """Book scoping that catches both routing generations: new jobs carry book_id directly;
+    legacy jobs (and upload-originated revisions with no Run) are reachable only through their run."""
+    if book_id is None:
+        return stmt
+    return stmt.where(or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id))))
+
+
 async def _queue_counts(session: SessionDep, book_id: uuid.UUID | None = None) -> dict[str, int]:
-    """Counts grouped by status. Scoped to one book (via its runs) when book_id is given, so the
-    Desk's indicator reflects the book you're viewing — not every book's jobs at once."""
-    stmt = select(Job.status, func.count())
-    if book_id is not None:
-        stmt = stmt.join(Run, Job.run_id == Run.id).where(Run.book_id == book_id)
+    """Counts grouped by status. Scoped to one book when book_id is given, so the Desk's indicator
+    reflects the book you're viewing — not every book's jobs at once. Uses the same OR predicate as
+    the Activity drawer (`_scope_to_book`): an INNER JOIN to Run would silently drop upload-originated
+    revision jobs (run_id IS NULL), stranding them as queued-but-never-drained."""
+    stmt = _scope_to_book(select(Job.status, func.count()), book_id)
     rows = (await session.execute(stmt.group_by(Job.status))).all()
     return {str(status): int(count) for status, count in rows}
 
@@ -266,14 +274,6 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
         last_cache_creation_tokens=last["total_cache_creation_tokens"] if last else None,
         last_cache_tokens_saved=last["cache_tokens_saved"] if last else None,
     )
-
-
-def _scope_to_book(stmt: Select, book_id: uuid.UUID | None) -> Select:
-    """Book scoping that catches both routing generations: new jobs carry book_id directly;
-    legacy jobs are reachable only through their run."""
-    if book_id is None:
-        return stmt
-    return stmt.where(or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id))))
 
 
 @router.get("/recent", response_model=RecentJobsOut)

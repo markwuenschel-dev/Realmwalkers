@@ -44,7 +44,7 @@ from dominion.api.routers import (
 from dominion.api.routers.settings import apply_model_overrides
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import JobKind, JobStatus
+from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job, RepairTask
 from dominion.workers import background_work
 
@@ -72,12 +72,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         async with SessionFactory() as session:
             paused = await background_work.load_queue_paused(session)
+            # Any QUEUED kind, not just DRAFT: the worker's claim is kind-agnostic, and an
+            # upload-originated revision (revise_full/revise_pass, no Run) would otherwise sit
+            # stranded across redeploys because nothing else kicks its drain.
             queued = (
-                await session.execute(
-                    select(func.count())
-                    .select_from(Job)
-                    .where(Job.kind == JobKind.DRAFT, Job.status == JobStatus.QUEUED)
-                )
+                await session.execute(select(func.count()).select_from(Job).where(Job.status == JobStatus.QUEUED))
             ).scalar_one()
             queued_repairs = (
                 await session.execute(

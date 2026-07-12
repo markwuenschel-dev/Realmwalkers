@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 import structlog
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, ScenePacketStatus
@@ -421,10 +421,19 @@ async def reconcile_and_requeue_failed_draft_jobs(
     *,
     book_id: uuid.UUID | None = None,
 ) -> RequeueResult:
-    """Create fresh draft jobs for FAILED jobs; never clone null scene_packet_id."""
-    failed_q = select(Job).where(Job.status == JobStatus.FAILED, Job.kind == JobKind.DRAFT)
+    """Re-queue FAILED jobs. DRAFT jobs get a fresh draft (never clone null scene_packet_id); a FAILED
+    revision (revise_full/revise_pass) keeps its target scene + Approval feedback intact, so it's reset
+    in place back to QUEUED rather than rebuilt."""
+    failed_q = select(Job).where(
+        Job.status == JobStatus.FAILED,
+        Job.kind.in_((JobKind.DRAFT, JobKind.REVISE_FULL, JobKind.REVISE_PASS)),
+    )
     if book_id is not None:
-        failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+        # OR predicate, not an INNER JOIN to Run: upload-originated revisions carry book_id but a
+        # NULL run_id, and a Run-only scope would silently skip them (never re-queued).
+        failed_q = failed_q.where(
+            or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+        )
     failed_jobs = list((await session.execute(failed_q)).scalars().all())
     result = RequeueResult(requested=len(failed_jobs))
     log.info("draft_requeue.requested", requested=result.requested, book_id=str(book_id) if book_id else None)
@@ -432,6 +441,31 @@ async def reconcile_and_requeue_failed_draft_jobs(
     seen_scenes: set[tuple[uuid.UUID, int, uuid.UUID | None]] = set()
 
     for old in failed_jobs:
+        if old.kind in (JobKind.REVISE_FULL, JobKind.REVISE_PASS):
+            # Nothing to rebuild — the revision reads its prior prose via target_scene_id and its
+            # feedback from the latest Approval(decision=revise). Reset in place so the drain re-runs it.
+            if old.target_scene_id is None:
+                result.skipped.append(
+                    _blocker(
+                        chapter_id=old.chapter_id or uuid.UUID(int=0),
+                        scene_no=old.scene_no,
+                        beat_id=old.beat_id,
+                        scene_packet_id=old.scene_packet_id,
+                        reason="legacy_job_unreconcilable",
+                        message=f"Revision job {old.id} has no target scene.",
+                        required_action="Cancel this job and request revisions again.",
+                    )
+                )
+                continue
+            old.status = JobStatus.QUEUED
+            old.last_error = None
+            old.claimed_by = None
+            old.claimed_at = None
+            old.finished_at = None
+            result.queued += 1
+            log.info("draft_requeue.revision_reset", job_id=str(old.id), target_scene_id=str(old.target_scene_id))
+            continue
+
         chapter_id = old.chapter_id
         scene_no = old.scene_no
         if chapter_id is None or scene_no is None:
@@ -651,7 +685,11 @@ async def purge_failed_draft_jobs(
     """
     failed_q = select(Job.id).where(Job.status == JobStatus.FAILED)
     if book_id is not None:
-        failed_q = failed_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+        # OR predicate so upload-originated revisions (book_id set, run_id NULL) are dismissable too —
+        # matches retry-failed's scope, so clear-failed and retry-failed cover the identical row set.
+        failed_q = failed_q.where(
+            or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+        )
     if chapter_id is not None:
         failed_q = failed_q.where(Job.chapter_id == chapter_id)
     job_ids = list((await session.execute(failed_q)).scalars().all())

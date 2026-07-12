@@ -228,9 +228,9 @@ export function useDeskSceneActions(
 
   // Manual restart for a scene stuck in "revision_requested" (its auto-queued revision job failed,
   // or one was never queued). Re-queues a fresh DRAFT job for this exact scene via the same
-  // contract-first redraft path the Chapters board's bulk "Redraft" action uses — deliberately NOT
-  // schedule_revision()'s REVISE_* job, because retry-failed/clear-failed only reconcile JobKind.DRAFT
-  // (see draft_queue.py), so a REVISE_* job that fails can never be retried from the Desk today.
+  // contract-first redraft path the Chapters board's bulk "Redraft" action uses. retry-failed can now
+  // requeue a FAILED REVISE_* job in place too (see draft_queue.py), so this is a convenience path
+  // rather than the only escape hatch — it stays because it also covers "never queued" (no job to retry).
   const restartRedraft = useCallback(
     async (chapterId: string, sceneId: string): Promise<void> => {
       try {
