@@ -55,6 +55,7 @@ async def test_clear_draft_scenes_keeps_approved(db_factory):
         s.add(
             Job(
                 run_id=run.id,
+                book_id=book.id,
                 kind=JobKind.DRAFT,
                 chapter_id=ch.id,
                 beat_id=beat.id,

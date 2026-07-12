@@ -38,6 +38,7 @@ async def test_requeue_creates_fresh_job_for_failed_draft(db_factory):
         book, ch, beat, run, sp = await _setup(s)
         old = Job(
             run_id=run.id,
+            book_id=book.id,
             kind=JobKind.DRAFT,
             chapter_id=ch.id,
             beat_id=beat.id,
@@ -64,6 +65,7 @@ async def test_requeue_skips_when_scene_packet_not_approved(db_factory):
         sp.status = "proposed"
         old = Job(
             run_id=run.id,
+            book_id=book.id,
             kind=JobKind.DRAFT,
             chapter_id=ch.id,
             beat_id=beat.id,
@@ -87,6 +89,7 @@ async def test_clear_failed_api_purges_failed_jobs(db_factory):
             s.add(
                 Job(
                     run_id=run.id,
+                    book_id=book.id,
                     kind=JobKind.DRAFT,
                     chapter_id=ch.id,
                     beat_id=beat.id,
@@ -171,6 +174,7 @@ async def test_requeue_resets_failed_revision_in_place(db_factory):
 
         result = await reconcile_and_requeue_failed_draft_jobs(s, book_id=book.id)
         assert result.queued == 1
+        await s.commit()  # the in-place reset is pending in the session; persist before re-reading
         await s.refresh(old)
         # Reset in place: same row, not a fresh job.
         assert old.id == old_id
@@ -191,6 +195,7 @@ async def test_clear_failed_purges_revision_jobs_too(db_factory):
             s.add(
                 Job(
                     run_id=run.id,
+                    book_id=book.id,
                     kind=kind,
                     chapter_id=ch.id,
                     beat_id=beat.id,

@@ -47,6 +47,7 @@ async def _seed_job(factory) -> object:
         await s.flush()
         job = Job(
             run_id=run.id,
+            book_id=book.id,
             kind=JobKind.DRAFT,
             chapter_no=1,
             scene_no=1,

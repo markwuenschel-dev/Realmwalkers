@@ -88,6 +88,7 @@ async def test_apply_cancels_malformed_draft_job(db_factory, monkeypatch):
     async with db_factory() as s:
         ch = await _chapter(s)
         job = Job(
+            book_id=ch.book_id,
             chapter_id=ch.id,
             kind=JobKind.DRAFT,
             status=JobStatus.QUEUED,

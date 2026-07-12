@@ -269,7 +269,9 @@ async def test_retention_prunes_aged_exhaust_but_keeps_completed_runs(db_factory
         s.add_all([cancelled, completed])
         await s.flush()
         s.add(Activity(kind="draft_done", title="old", source="jobs", book_id=book.id, created_at=old))
-        s.add(Job(kind="draft", status="done", token_budget=1000, finished_at=old, chapter_id=chapter.id))
+        s.add(
+            Job(kind="draft", status="done", token_budget=1000, finished_at=old, book_id=book.id, chapter_id=chapter.id)
+        )
         await s.flush()
         # updated_at has onupdate=now(); force both terminal runs to look aged.
         await s.execute(

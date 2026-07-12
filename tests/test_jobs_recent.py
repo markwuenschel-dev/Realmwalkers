@@ -110,17 +110,6 @@ async def test_recent_scopes_to_book_and_clamps_limit(db_factory):
         assert len(floor.recent) == 1
 
 
-async def test_recent_reaches_legacy_jobs_through_their_run(db_factory):
-    async with db_factory() as s:
-        from dominion.shared.models import Run
-
-        book, _ch, _scene = await _seed(s)
-        run = Run(book_id=book.id, scope_json={}, gate_mode="pause_each", token_budget=1000)
-        s.add(run)
-        await s.flush()
-        # Legacy routing: job carries run_id but NOT book_id.
-        s.add(_job(run_id=run.id, chapter_no=1, scene_no=7))
-        await s.commit()
-
-        out = await jobs_router.recent(s, book_id=book.id)
-        assert [q.scene_no for q in out.queued] == [7]
+# (Removed test_recent_reaches_legacy_jobs_through_their_run: run-based reach was retired with the
+# book-ownership invariant — ADR 0027. A job now always carries book_id, and a legacy book-less job
+# can't be inserted; the scope is single-key. See tests/test_book_ownership.py.)

@@ -53,7 +53,15 @@ async def _setup_draft_job(s):
     s.add(beat)
     await s.flush()
     await seed_scene_packet(s, chapter=ch, beat=beat)
-    job = Job(run_id=run.id, kind=JobKind.DRAFT, chapter_no=1, scene_no=1, token_budget=40_000, status=JobStatus.QUEUED)
+    job = Job(
+        run_id=run.id,
+        book_id=book.id,
+        kind=JobKind.DRAFT,
+        chapter_no=1,
+        scene_no=1,
+        token_budget=40_000,
+        status=JobStatus.QUEUED,
+    )
     s.add(job)
     await s.flush()
     return job
