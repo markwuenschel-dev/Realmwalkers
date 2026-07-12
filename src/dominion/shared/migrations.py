@@ -96,6 +96,11 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # Ordering/number decoupling: `position` is the sole reading-order sort key (see shared/chapter_order.py).
     # (Making `chapter_no` nullable is a column ALTER, not an ADD — it lives in _EXTRA_DDL below.)
     "ALTER TABLE chapters ADD COLUMN IF NOT EXISTS position INTEGER",
+    # Import adoption & durable revision requests (ADR 0028): a revision Job links to its durable
+    # RevisionRequest. Feedback is NOT copied onto the Job — the context loader resolves it through this
+    # link. The FK constraint (NOT VALID) is added in _EXTRA_DDL. New tables (import_adoptions,
+    # import_scene_evidence, revision_requests) are provisioned by create_all.
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS revision_request_id UUID",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -205,6 +210,38 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_repair_tasks_scene_id ON repair_tasks (scene_id)",
     "CREATE INDEX IF NOT EXISTS ix_repair_attempts_task_id ON repair_attempts (repair_task_id)",
     "CREATE INDEX IF NOT EXISTS ix_repair_verifications_attempt_id ON repair_verifications (repair_attempt_id)",
+    # Import adoption & durable revision requests (ADR 0028). The new tables come from create_all; these
+    # are the invariants + hot-path indexes create_all can't express.
+    #
+    # At most ONE active RevisionRequest per target scene (the "singular active request" contract): a
+    # repeat revise must supersede, not race a second job to the same scene. Partial over active states.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_active_revision_request_per_scene
+       ON revision_requests (target_scene_id)
+       WHERE status IN ('awaiting_contract', 'queued', 'running')""",
+    # Job → RevisionRequest FK, added NOT VALID so it enforces every future write immediately while
+    # tolerating pre-existing rows (same pattern as ADR 0027's ownership constraints). Guarded by a
+    # catalog check because Postgres has no ADD CONSTRAINT IF NOT EXISTS. revision_requests exists by now
+    # (create_all ran first) and jobs.revision_request_id was added above in _COLUMN_ADDS.
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_jobs_revision_request') THEN
+           ALTER TABLE jobs ADD CONSTRAINT fk_jobs_revision_request
+             FOREIGN KEY (revision_request_id) REFERENCES revision_requests (id) NOT VALID;
+         END IF;
+       END $$""",
+    "CREATE INDEX IF NOT EXISTS ix_jobs_revision_request_id ON jobs (revision_request_id)",
+    # Evidence identity/reuse: an ImportSceneEvidence shard is immutable and reused across adoptions,
+    # keyed by exact source identity + extractor version. The unique index makes "already extracted?"
+    # a lookup and blocks duplicate shards for the same identity.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_import_scene_evidence_identity
+       ON import_scene_evidence (scene_id, scene_version, prose_hash, extractor_schema_version)""",
+    # Adoption claim/scan path (FOR UPDATE SKIP LOCKED over claimable rows) + per-chapter lookup.
+    "CREATE INDEX IF NOT EXISTS ix_import_adoptions_book_status ON import_adoptions (book_id, status)",
+    "CREATE INDEX IF NOT EXISTS ix_import_adoptions_chapter_id ON import_adoptions (chapter_id)",
+    # RevisionRequest read model: a scene's active request, a chapter's active requests, book scope.
+    "CREATE INDEX IF NOT EXISTS ix_revision_requests_target_scene ON revision_requests (target_scene_id)",
+    "CREATE INDEX IF NOT EXISTS ix_revision_requests_chapter_status ON revision_requests (chapter_id, status)",
+    "CREATE INDEX IF NOT EXISTS ix_revision_requests_book_id ON revision_requests (book_id)",
+    "CREATE INDEX IF NOT EXISTS ix_import_scene_evidence_chapter ON import_scene_evidence (chapter_id)",
 )
 
 

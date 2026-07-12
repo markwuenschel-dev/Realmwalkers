@@ -175,6 +175,11 @@ class Job(Base):
     chapter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapters.id"), nullable=True)
     beat_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("beats.id"), nullable=True)
     scene_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scene_packets.id"), nullable=True)
+    # The durable RevisionRequest this revision Job was minted for (ADR 0028). The revision-context
+    # loader reads the immutable feedback THROUGH this link, never "latest revise Approval". Null for
+    # legacy revision jobs (they fall back to the latest revise Approval only for backward compat) and
+    # for all draft jobs. The FK is added NOT VALID in _EXTRA_DDL (existing table).
+    revision_request_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     chapter_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     token_budget: Mapped[int] = mapped_column(Integer)
@@ -319,6 +324,110 @@ class ScenePacket(Base):
     sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ImportAdoption(Base):
+    """Durable, leased, checkpointed work that turns one chapter's imported prose into a reviewed
+    ChapterPacket, on demand (ADR 0028). Its own table + own claim loop (workers/import_adoption.py):
+    it commits per-scene checkpoints between long model calls, so it cannot reuse the Job worker's
+    transaction-held-through-generation model. Owns adoption progress ONLY — it ends at
+    `contract_proposed` and never mirrors ChapterPacket/ScenePacket approval or Job execution.
+
+    `source_fingerprint` is a hash over sorted (scene_no, scene_id, version, prose_sha256) for every
+    snapshotted scene — PROSE-HASH based, because the inbox hand-edit path mutates scene.prose in place
+    (not every mutation is a new row). `evidence_manifest` is the immutable list of the exact
+    ImportSceneEvidence shard ids/hashes this adoption consumed (evidence is shared/reusable across
+    adoptions; the manifest is the per-adoption audit record). One adoption serves every active
+    RevisionRequest in its chapter.
+    """
+
+    __tablename__ = "import_adoptions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    mode: Mapped[str] = mapped_column(Text, default="initial")  # see enums.ImportAdoptionMode
+    status: Mapped[str] = mapped_column(Text, default="queued")  # see enums.ImportAdoptionStatus
+    source_fingerprint: Mapped[str] = mapped_column(Text)  # sorted (scene_no, scene_id, version, prose_sha256)
+    # The immutable manifest of ImportSceneEvidence shards consumed: [{scene_id, scene_version,
+    # prose_hash, extractor_schema_version, evidence_id}]. Filled as extraction checkpoints commit.
+    evidence_manifest: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # The reviewable ChapterPacket produced on contract_proposed (a blocked packet stays here as
+    # diagnostic evidence while status=failed).
+    chapter_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapter_packets.id"), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Lease/claim (durable like jobs): a claim expires and boot recovery re-queues it.
+    claimed_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ImportSceneEvidence(Base):
+    """One resumable LLM extraction from an imported scene snapshot into a span-anchored fact ledger
+    (ADR 0028). An IMMUTABLE source artifact keyed by (scene_id, scene_version, prose_hash,
+    extractor_schema_version) — NOT owned by a single adoption, so re-adoption reuses unchanged shards.
+
+    `ledger` is the structured evidence the ChapterPacket Author reads as M# sources (entities, POV,
+    setting, events, asserted facts, state/inventory/relationship changes, reveals, withholds,
+    entry/exit state, continuity anchors, ambiguities, canon conflicts), each item anchored to a span
+    of the immutable snapshot. Raw prose stays auditable in the Desk but never enters the author prompt.
+    An oversized scene extracts as deterministic chunk shards + a bounded merge; shards are retained.
+    """
+
+    __tablename__ = "import_scene_evidence"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    scene_version: Mapped[int] = mapped_column(Integer)
+    prose_hash: Mapped[str] = mapped_column(Text)  # sha256 of the exact snapshot prose
+    extractor_schema_version: Mapped[str] = mapped_column(Text)  # bump to invalidate reuse on schema change
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    # The span-anchored fact ledger. When present this is a completed shard; a partial/merged extraction
+    # records its chunk shards separately and links them here on merge.
+    ledger: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    # For an oversized scene: the ids of the per-chunk shards this row merged (audit; never truncation).
+    merged_shard_ids: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RevisionRequest(Base):
+    """Durable record of the author's edit intent (ADR 0028). Immutable target (scene_id, version),
+    feedback, target_pass, and origin; a mutable coarse `status` (see enums.RevisionRequestStatus).
+    At most ONE active request per target_scene_id — enforced by a partial unique index over the active
+    states (awaiting_contract, queued, running) in _EXTRA_DDL. The fine display phase is server-derived,
+    never stored.
+
+    Feedback is immutable HERE (beside its source Approval); it is never copied onto the Job. The
+    revision-context loader resolves feedback through Job.revision_request_id → this row.
+    """
+
+    __tablename__ = "revision_requests"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
+    # Immutable target: a specific Scene version row. scene_version is captured for audit/anchoring;
+    # target_scene_id already names the version. prose_hash pins the exact snapshot (in-place edits).
+    target_scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
+    scene_no: Mapped[int] = mapped_column(Integer)
+    target_scene_version: Mapped[int] = mapped_column(Integer)
+    target_prose_hash: Mapped[str] = mapped_column(Text)  # sha256 of the prose at request time (concurrency)
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_pass: Mapped[str | None] = mapped_column(Text, nullable=True)  # scopes HOW it runs, not parallelism
+    origin: Mapped[str] = mapped_column(Text)  # see enums.RevisionRequestOrigin
+    status: Mapped[str] = mapped_column(Text, default="awaiting_contract")  # see enums.RevisionRequestStatus
+    # Provenance/links (soft): the source Approval, the serving adoption (shared per chapter), the
+    # minted revision Job, and the produced result Scene.
+    approval_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    import_adoption_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    job_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    result_scene_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
