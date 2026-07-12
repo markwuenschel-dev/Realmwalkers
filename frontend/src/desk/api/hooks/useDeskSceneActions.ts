@@ -193,7 +193,10 @@ export function useDeskSceneActions(
         if (res.next_job) await draftNext();
         await refreshScenes();
       } catch (e) {
-        fail(e);
+        // A 409 with blockers means the revise can't be queued (e.g. an imported scene with no
+        // approved contract) — surface the actionable reason instead of an opaque red toast.
+        const msg = draftBlockerMessage(e);
+        fail(msg ? new Error(msg) : e);
       }
     },
     [draftNext, fail, refreshScenes],
@@ -220,7 +223,8 @@ export function useDeskSceneActions(
         openSceneById(sceneId);
         await refreshScenes();
       } catch (e) {
-        fail(e);
+        const msg = draftBlockerMessage(e);
+        fail(msg ? new Error(msg) : e);
       }
     },
     [draftNext, fail, openSceneById, refreshScenes],

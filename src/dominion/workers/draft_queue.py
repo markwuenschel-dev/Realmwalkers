@@ -36,6 +36,7 @@ DraftBlockerReason = Literal[
     "missing_scene_no",
     "legacy_job_unreconcilable",
     "sequence_budget_mismatch",  # lane 3: scene word budgets contradict the chapter envelope
+    "revision_contract_required",  # revise requested on a scene with no approved Beat/ScenePacket (e.g. imported)
 ]
 
 

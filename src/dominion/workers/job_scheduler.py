@@ -12,7 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import BeatStatus, GateMode
 from dominion.shared.models import Beat, Chapter, Run, Scene
-from dominion.workers.draft_queue import DraftScheduleResult, schedule_contract_first_draft_jobs
+from dominion.workers.draft_queue import (
+    DraftQueueBlocker,
+    DraftScheduleResult,
+    resolve_approved_scene_packet_for_beat,
+    schedule_contract_first_draft_jobs,
+)
 from dominion.workers.job_routing import revision_job_for_scene
 
 
@@ -46,10 +51,49 @@ async def schedule_next_after_approval(session: AsyncSession, scene: Scene) -> u
 
 async def schedule_revision(
     session: AsyncSession, scene: Scene, *, target_pass: str | None, production_run_id: uuid.UUID | None = None
-) -> uuid.UUID | None:
+) -> uuid.UUID | DraftQueueBlocker | None:
+    """Queue a REVISE_* job for a scene, or refuse with an actionable blocker.
+
+    Contract-first guard: `resolve_job` needs the scene's Beat backed by an approved ScenePacket, so a
+    revision is only queueable when that contract exists. An imported scene has prose but no Beat/packet
+    at any tier, so queuing would mint a job the worker rejects at drain time (the exact defect this
+    guard closes). Return a `revision_contract_required` blocker instead of an impossible job; the caller
+    surfaces it as a 409 (reviews) or a human escalation (production repair). Returns None only when the
+    scene's chapter is gone.
+    """
     chapter = await session.get(Chapter, scene.chapter_id)
     if chapter is None:
         return None
+    beat = (
+        (
+            await session.execute(
+                select(Beat)
+                .where(Beat.chapter_id == scene.chapter_id, Beat.scene_no == scene.scene_no)
+                .order_by(Beat.id)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    resolved = (
+        await resolve_approved_scene_packet_for_beat(session, beat=beat, repair=False) if beat is not None else None
+    )
+    if beat is None or isinstance(resolved, DraftQueueBlocker):
+        return DraftQueueBlocker(
+            chapter_id=scene.chapter_id,
+            scene_no=scene.scene_no,
+            beat_id=beat.id if beat is not None else None,
+            scene_packet_id=None,
+            reason="revision_contract_required",
+            message=(
+                f"Scene {scene.scene_no} has no approved story contract (it was imported, not derived), "
+                "so it can't be revised yet."
+            ),
+            required_action=(
+                "Derive and approve a scene packet for this scene (Packets tab) to create its contract, "
+                "then request the revision again."
+            ),
+        )
     run = await _latest_run(session, chapter.book_id)
     job = await revision_job_for_scene(
         session, scene=scene, chapter=chapter, run=run, target_pass=target_pass, production_run_id=production_run_id

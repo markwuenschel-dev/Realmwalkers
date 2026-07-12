@@ -26,6 +26,8 @@ from dominion.shared.models import (
 )
 from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
 from dominion.workers import activity
+from dominion.workers.draft_queue import DraftQueueBlocker
+from dominion.workers.draft_readiness import blocker_out
 from dominion.workers.job_scheduler import schedule_next_after_approval, schedule_revision
 from dominion.workers.memory import knowledge, ledger, summaries
 from dominion.workers.stat_render import render_stat_blocks
@@ -122,7 +124,13 @@ async def decide(
         scene.status = SceneStatus.SUPERSEDED
     elif body.decision == Decision.REVISE:
         scene.status = SceneStatus.REVISION_REQUESTED
-        next_job = await schedule_revision(session, scene, target_pass=body.target_pass)
+        revision = await schedule_revision(session, scene, target_pass=body.target_pass)
+        if isinstance(revision, DraftQueueBlocker):
+            # No resolvable contract (e.g. an imported scene): don't queue a job the resolver will
+            # reject at drain time. Raise an actionable 409 the Desk renders via draftBlockerMessage;
+            # the raise rolls back the pending Approval + status change, so the scene stays reviewable.
+            raise HTTPException(status_code=409, detail={"blockers": [blocker_out(revision).model_dump(mode="json")]})
+        next_job = revision
 
     # Land this review action in the central Activity feed too, so the drawer is the single pane for
     # "what happened" across pages (best-effort; never blocks the verdict).
@@ -197,6 +205,8 @@ async def resolve_continuity(
         session.add(Approval(scene_id=scene.id, version=scene.version, decision=Decision.REVISE, feedback=feedback))
         scene.status = SceneStatus.REVISION_REQUESTED
         job = await schedule_revision(session, scene, target_pass=None)
+        if isinstance(job, DraftQueueBlocker):
+            raise HTTPException(status_code=409, detail={"blockers": [blocker_out(job).model_dump(mode="json")]})
         await session.delete(critique)  # superseded by the queued revision — clear it
         await session.commit()
         return {"resolved": "revision_enqueued", "job": str(job) if job else None}

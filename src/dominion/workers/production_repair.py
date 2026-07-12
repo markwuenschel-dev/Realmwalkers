@@ -591,7 +591,8 @@ async def _apply_chapter_scoped_repair(session: AsyncSession, run: ProductionRun
         job_id = await schedule_revision(
             session, scene, target_pass=target_pass, production_run_id=task.production_run_id
         )
-        if job_id is not None:
+        # A DraftQueueBlocker (contractless scene) is not a queued job — only count real job ids.
+        if isinstance(job_id, uuid.UUID):
             job_ids.append(str(job_id))
         session.add(
             RepairAttempt(
@@ -747,10 +748,11 @@ async def apply_repair_task(
     }
 
     job_id = await schedule_revision(session, scene, target_pass=target_pass, production_run_id=task.production_run_id)
-    if job_id is None:
-        # Guard: no revision job could be queued (e.g. the scene's chapter is gone), so this task can
-        # never produce a changed scene. Escalate to a human instead of marking it RUNNING — otherwise
-        # verify would keep raising "no revised scene yet" and the drain would re-apply it forever.
+    if not isinstance(job_id, uuid.UUID):
+        # Guard: no revision job could be queued — the scene's chapter is gone (None) or it has no
+        # approved contract to revise against (DraftQueueBlocker). Either way this task can never produce
+        # a changed scene. Escalate to a human instead of marking it RUNNING — otherwise verify would
+        # keep raising "no revised scene yet" and the drain would re-apply it forever.
         task.status = RepairTaskStatus.WAITING_FOR_HUMAN
         run.status = ProductionRunStatus.WAITING_FOR_HUMAN
         await support.record_event(
