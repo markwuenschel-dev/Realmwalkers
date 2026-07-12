@@ -183,6 +183,8 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_edit_pairs_scene_id_version ON edit_pairs (scene_id, version)",
     "CREATE INDEX IF NOT EXISTS ix_draft_attempts_scene_id ON draft_attempts (scene_id)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs (status)",
+    # Book-ownership invariant (ADR 0027): the hot per-book queue queries filter (book_id, status).
+    "CREATE INDEX IF NOT EXISTS ix_jobs_book_status ON jobs (book_id, status)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_run_id ON jobs (run_id)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_chapter_id ON jobs (chapter_id)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_production_run_id ON jobs (production_run_id)",
@@ -214,3 +216,9 @@ async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
         await conn.execute(text(ddl))
     for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))
+    # Book-ownership invariant (ADR 0027): backfill book_id (chapter->run, reject conflicts), quarantine
+    # ownerless live jobs, add NOT VALID book_id constraints (enforce all future writes), and promote to
+    # physical NOT NULL once no NULL-book rows remain. Idempotent and self-healing on every boot.
+    from dominion.shared.job_integrity import reconcile_job_ownership
+
+    await reconcile_job_ownership(conn)

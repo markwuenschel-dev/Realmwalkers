@@ -20,11 +20,13 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import func, or_, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import JobStatus
-from dominion.shared.models import Job, Run, Scene
+from dominion.shared.job_integrity import inspect_job_ownership
+from dominion.shared.job_policy import scope_jobs_to_book
+from dominion.shared.models import Job, Scene
 from dominion.shared.schemas import (
     ActiveScene,
     CancelJobOut,
@@ -32,6 +34,8 @@ from dominion.shared.schemas import (
     ClearFinishedJobsOut,
     DraftNextOut,
     FailedJobOut,
+    IntegrityHoldOut,
+    IntegrityHoldsOut,
     JobsPauseOut,
     JobsStatusOut,
     QueuedJobOut,
@@ -46,20 +50,10 @@ log = structlog.get_logger()
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-def _scope_to_book(stmt: Select, book_id: uuid.UUID | None) -> Select:
-    """Book scoping that catches both routing generations: new jobs carry book_id directly;
-    legacy jobs (and upload-originated revisions with no Run) are reachable only through their run."""
-    if book_id is None:
-        return stmt
-    return stmt.where(or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id))))
-
-
 async def _queue_counts(session: SessionDep, book_id: uuid.UUID | None = None) -> dict[str, int]:
-    """Counts grouped by status. Scoped to one book when book_id is given, so the Desk's indicator
-    reflects the book you're viewing — not every book's jobs at once. Uses the same OR predicate as
-    the Activity drawer (`_scope_to_book`): an INNER JOIN to Run would silently drop upload-originated
-    revision jobs (run_id IS NULL), stranding them as queued-but-never-drained."""
-    stmt = _scope_to_book(select(Job.status, func.count()), book_id)
+    """Counts grouped by status. Scoped to one book when book_id is given via the shared single-key
+    `scope_jobs_to_book` (ADR 0027), so the Desk's indicator reflects the book you're viewing."""
+    stmt = scope_jobs_to_book(select(Job.status, func.count()), book_id)
     rows = (await session.execute(stmt.group_by(Job.status))).all()
     return {str(status): int(count) for status, count in rows}
 
@@ -241,9 +235,9 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     another book never lights up this book's indicator. Unscoped, the global drain lock still counts
     (the terminal-driven path has no book context)."""
     counts = await _queue_counts(session, book_id)
-    active_stmt = select(Job.id, Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING)
-    if book_id is not None:
-        active_stmt = active_stmt.join(Run, Job.run_id == Run.id).where(Run.book_id == book_id)
+    active_stmt = scope_jobs_to_book(
+        select(Job.id, Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING), book_id
+    )
     active = (await session.execute(active_stmt.order_by(Job.claimed_at.desc()).limit(1))).first()
     running = JobStatus.RUNNING in counts
     if book_id is None:
@@ -263,12 +257,18 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
             total_cache_creation_tokens=cache["total_cache_creation_tokens"] if cache else None,
         )
     last = progress.get_last_cache()
+    integrity = (
+        await session.execute(
+            select(func.count()).select_from(Job).where(or_(Job.status == JobStatus.QUARANTINED, Job.book_id.is_(None)))
+        )
+    ).scalar_one()
     return JobsStatusOut(
         running=running,
         queued=counts.get(JobStatus.QUEUED, 0),
         failed=counts.get(JobStatus.FAILED, 0),
         queue_paused=background_work.queue_paused(),
         active_scene=active_scene,
+        integrity_holds=integrity,
         last_cache_hit_ratio=last["cache_hit_ratio"] if last else None,
         last_cache_read_tokens=last["total_cache_read_tokens"] if last else None,
         last_cache_creation_tokens=last["total_cache_creation_tokens"] if last else None,
@@ -283,7 +283,7 @@ async def recent(session: SessionDep, book_id: uuid.UUID | None = None, limit: i
     limit = max(1, min(limit, 50))
     queued_rows = (
         await session.execute(
-            _scope_to_book(
+            scope_jobs_to_book(
                 select(Job.id, Job.kind, Job.chapter_no, Job.scene_no, Job.created_at).where(
                     Job.status == JobStatus.QUEUED
                 ),
@@ -293,7 +293,7 @@ async def recent(session: SessionDep, book_id: uuid.UUID | None = None, limit: i
     ).all()
     recent_rows = (
         await session.execute(
-            _scope_to_book(
+            scope_jobs_to_book(
                 select(
                     Job.id,
                     Job.kind,
@@ -342,8 +342,32 @@ async def failed(session: SessionDep, book_id: uuid.UUID | None = None) -> list[
     """Every FAILED job with the reason it died — so the Desk can show the actual error (a bad API
     key, depleted credits, a 5xx) instead of a generic 'transient issue', and so a failure is
     diagnosable without server-log access. Scoped to a book when given."""
-    stmt = select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(Job.status == JobStatus.FAILED)
-    if book_id is not None:
-        stmt = stmt.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    stmt = scope_jobs_to_book(
+        select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(Job.status == JobStatus.FAILED), book_id
+    )
     rows = (await session.execute(stmt.order_by(Job.chapter_no, Job.scene_no))).all()
     return [FailedJobOut(id=jid, chapter_no=ch, scene_no=sc, last_error=err) for jid, ch, sc, err in rows]
+
+
+@router.get("/integrity-holds", response_model=IntegrityHoldsOut)
+async def integrity_holds(session: SessionDep) -> IntegrityHoldsOut:
+    """Operator surface for the book-ownership invariant (ADR 0027): every job blocking full constraint
+    promotion — quarantined live jobs AND any still-unresolved (terminal/conflict) NULL-book row. These
+    have no book, so this endpoint is deliberately NOT book-scoped."""
+    report = await inspect_job_ownership(await session.connection())
+    return IntegrityHoldsOut(
+        count=report.hold_count,
+        promoted=report.promoted,
+        conflicts=report.conflicts,
+        holds=[
+            IntegrityHoldOut(
+                id=h["id"],
+                status=h["status"],
+                reason=h["reason"],
+                chapter_no=h["chapter_no"],
+                scene_no=h["scene_no"],
+                last_error=h["last_error"],
+            )
+            for h in report.holds
+        ],
+    )

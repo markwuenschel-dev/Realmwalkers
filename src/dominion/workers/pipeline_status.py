@@ -19,7 +19,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import (
@@ -29,6 +29,7 @@ from dominion.shared.enums import (
     ProductionRunStatus,
     RepairTaskStatus,
 )
+from dominion.shared.job_policy import scope_jobs_to_book
 from dominion.shared.models import (
     AgentEvent,
     AgentRun,
@@ -40,7 +41,6 @@ from dominion.shared.models import (
     Job,
     ProductionRun,
     RepairTask,
-    Run,
 )
 from dominion.shared.schemas import (
     PipelineAgentRunOut,
@@ -138,9 +138,9 @@ async def build_pipeline_status(session: AsyncSession, book_id: uuid.UUID) -> Pi
         ).all()
     }
 
-    # Book-scope a Job query both routing generations: new jobs carry book_id; legacy reach via run.
+    # Book-scope a Job query via the single-key shared helper (ADR 0027).
     def _scope(stmt):
-        return stmt.where(or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id))))
+        return scope_jobs_to_book(stmt, book_id)
 
     # --- NOW: running jobs (+ live phase/elapsed/cache), running agent runs -----------------------
     running_rows = (

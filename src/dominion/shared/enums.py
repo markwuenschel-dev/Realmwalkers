@@ -69,6 +69,9 @@ class JobStatus(StrEnum):
     RUNNING = "running"
     DONE = "done"
     FAILED = "failed"
+    # An ownerless/conflicted job withheld from execution and from the normal failure controls
+    # (retry-failed / clear-failed): terminal, never claimable, retained as integrity evidence (ADR 0027).
+    QUARANTINED = "quarantined"
 
 
 class Severity(StrEnum):

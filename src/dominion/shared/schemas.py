@@ -937,6 +937,29 @@ class JobsStatusOut(BaseModel):
     last_cache_read_tokens: int | None = None
     last_cache_creation_tokens: int | None = None
     last_cache_tokens_saved: int | None = None
+    # Book-ownership integrity holds (ADR 0027): quarantined-live ∪ unresolved NULL-book rows. Normally 0;
+    # a non-zero value badges the "Integrity hold" surface. New holds can't appear at runtime (the NOT
+    # VALID CHECK + claim guard prevent them), so this only moves across boots.
+    integrity_holds: int = 0
+
+
+class IntegrityHoldOut(BaseModel):
+    """One job blocking the book-ownership invariant: quarantined (ownerless, withheld from execution)
+    or an unresolved NULL-book terminal/conflict row. Has no retry/clear action."""
+
+    id: str
+    status: str
+    reason: str
+    chapter_no: int | None = None
+    scene_no: int | None = None
+    last_error: str | None = None
+
+
+class IntegrityHoldsOut(BaseModel):
+    count: int = 0
+    promoted: bool = False  # book_id is physically NOT NULL (invariant fully landed)
+    conflicts: int = 0
+    holds: list[IntegrityHoldOut] = []
 
 
 class DraftNextOut(BaseModel):

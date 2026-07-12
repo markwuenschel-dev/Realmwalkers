@@ -22,6 +22,7 @@ from dominion.api.telemetry_delete import (
     delete_run_telemetry,
 )
 from dominion.shared.enums import JobStatus
+from dominion.shared.job_policy import scope_jobs_to_book
 from dominion.shared.models import AgentRun, Chapter, Job, LlmCall, ProductionRun, Scene, ScenePacket
 from dominion.shared.schemas import (
     BookTelemetryOut,
@@ -658,9 +659,9 @@ async def book_telemetry_problems(book_id: uuid.UUID, session: SessionDep) -> Te
     )
     failed_rows = (
         await session.execute(
-            select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(
-                Job.book_id == book_id,
-                Job.status == JobStatus.FAILED,
+            scope_jobs_to_book(
+                select(Job.id, Job.chapter_no, Job.scene_no, Job.last_error).where(Job.status == JobStatus.FAILED),
+                book_id,
             )
         )
     ).all()
