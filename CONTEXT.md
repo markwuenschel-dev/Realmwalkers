@@ -103,3 +103,23 @@ _Avoid_: run-owned job, run_id routing, dual-key scope
 **Integrity Hold**:
 An ownerless or ownership-conflicted Job withheld from execution and from the normal failure controls (retry/clear): the quarantined live jobs plus any unresolved NULL-book terminal/conflict rows. Retained as evidence and surfaced to the operator; blocks the book_id NOT NULL promotion until resolved.
 _Avoid_: failed job, dismissable error, transient failure
+
+**Import Adoption**:
+Durable, leased, checkpointed work that turns one whole chapter's imported prose into a reviewed ChapterPacket, on demand. It owns adoption progress only (its lifecycle ends at `contract_proposed`), never mirroring ChapterPacket approval, ScenePacket approval, Job execution, or revision completion (ADR 0028).
+_Avoid_: adopt job, import bypass, packetless draft
+
+**Import Scene Evidence**:
+An immutable, span-anchored LLM fact ledger extracted from one imported scene snapshot, keyed by `(scene_id, scene_version, prose_hash, extractor_schema_version)` and reusable across adoptions. It is evidence the ChapterPacket Author reads as `M#` sources; raw prose stays auditable but never enters the author prompt.
+_Avoid_: scene summary, raw prose chunk, canon fact
+
+**Revision Request**:
+The durable record of an author's edit intent — immutable target `(scene_id, version)`, feedback, target pass, and origin — with a coarse lifecycle that outlives contract preparation until a revision Job is minted. At most one is active per target scene; its display phase is server-derived from the request, adoption, packets, and Job (ADR 0028).
+_Avoid_: revise approval, redraft toast, queued job
+
+**Chapter Workflow Lock**:
+A per-chapter transaction-level advisory lock (`acquire_chapter_workflow_lock`) that serializes every authority-changing operation on a chapter — source-prose mutation, fingerprint-validate-and-mint, adoption compare-and-set publish, ChapterPacket propose/replace/approve/supersede, and request-resuming ScenePacket approval. It coordinates the cross-table invariant; it does not replace queue-claim row locks (ADR 0028).
+_Avoid_: chapter row lock, global mutex, queue claim lock
+
+**Claim Source Precedence**:
+The enforced total order `LOCKED_CANON > DERIVED_FROM_MANUSCRIPT > DERIVED_FROM_OUTLINE > PLAUSIBLE_INFERENCE > UNRESOLVED` (with `FORBIDDEN` a separate surface prohibition, not a rank) that decides how conflicting packet claims resolve. A conflict the order cannot break becomes an approval-blocking open question; manuscript evidence never enters canon retrieval or overrides locked canon automatically (ADR 0029).
+_Avoid_: claim label, source hint, canon promotion
