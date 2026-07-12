@@ -7,6 +7,7 @@ export const EMPTY_JOBS: JobsStatusOut = {
   failed: 0,
   queue_paused: false,
   active_scene: null,
+  integrity_holds: 0,
   last_cache_hit_ratio: null,
   last_cache_read_tokens: null,
   last_cache_creation_tokens: null,

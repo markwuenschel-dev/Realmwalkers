@@ -11,10 +11,12 @@ from datetime import UTC, datetime
 from typing import Literal
 
 import structlog
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared import job_policy
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, ScenePacketStatus
+from dominion.shared.job_policy import scope_jobs_to_book
 from dominion.shared.models import Beat, Chapter, DraftAttempt, Job, Run, Scene, ScenePacket
 from dominion.workers.context.types import ScenePacketRequiredError
 from dominion.workers.job_routing import draft_job_for_beat, draft_job_for_scene
@@ -424,16 +426,13 @@ async def reconcile_and_requeue_failed_draft_jobs(
     """Re-queue FAILED jobs. DRAFT jobs get a fresh draft (never clone null scene_packet_id); a FAILED
     revision (revise_full/revise_pass) keeps its target scene + Approval feedback intact, so it's reset
     in place back to QUEUED rather than rebuilt."""
-    failed_q = select(Job).where(
-        Job.status == JobStatus.FAILED,
-        Job.kind.in_((JobKind.DRAFT, JobKind.REVISE_FULL, JobKind.REVISE_PASS)),
+    failed_q = scope_jobs_to_book(
+        select(Job).where(
+            Job.status.in_(job_policy.RETRYABLE),
+            Job.kind.in_((JobKind.DRAFT, JobKind.REVISE_FULL, JobKind.REVISE_PASS)),
+        ),
+        book_id,
     )
-    if book_id is not None:
-        # OR predicate, not an INNER JOIN to Run: upload-originated revisions carry book_id but a
-        # NULL run_id, and a Run-only scope would silently skip them (never re-queued).
-        failed_q = failed_q.where(
-            or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
-        )
     failed_jobs = list((await session.execute(failed_q)).scalars().all())
     result = RequeueResult(requested=len(failed_jobs))
     log.info("draft_requeue.requested", requested=result.requested, book_id=str(book_id) if book_id else None)
@@ -683,13 +682,7 @@ async def purge_failed_draft_jobs(
     DRAFT-only purge left those behind: the count never dropped and the user "couldn't clear" them.
     Dismiss deletes whatever the banner shows, so it stays consistent across job kinds.
     """
-    failed_q = select(Job.id).where(Job.status == JobStatus.FAILED)
-    if book_id is not None:
-        # OR predicate so upload-originated revisions (book_id set, run_id NULL) are dismissable too —
-        # matches retry-failed's scope, so clear-failed and retry-failed cover the identical row set.
-        failed_q = failed_q.where(
-            or_(Job.book_id == book_id, Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
-        )
+    failed_q = scope_jobs_to_book(select(Job.id).where(Job.status.in_(job_policy.DISMISSABLE)), book_id)
     if chapter_id is not None:
         failed_q = failed_q.where(Job.chapter_id == chapter_id)
     job_ids = list((await session.execute(failed_q)).scalars().all())
@@ -724,9 +717,7 @@ async def purge_done_draft_jobs(
     finished" list. The Activity drawer's "Clear finished" calls this with no `older_than` (clear all
     finished); the retention sweep passes a cutoff so only aged rows are pruned. DONE jobs are pure
     exhaust — the scenes they produced live in the scenes table and are untouched here."""
-    done_q = select(Job.id).where(Job.status == JobStatus.DONE)
-    if book_id is not None:
-        done_q = done_q.where(Job.run_id.in_(select(Run.id).where(Run.book_id == book_id)))
+    done_q = scope_jobs_to_book(select(Job.id).where(Job.status.in_(job_policy.RETENTION_PURGEABLE)), book_id)
     if chapter_id is not None:
         done_q = done_q.where(Job.chapter_id == chapter_id)
     if older_than is not None:

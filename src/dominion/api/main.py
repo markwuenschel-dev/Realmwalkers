@@ -74,9 +74,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             paused = await background_work.load_queue_paused(session)
             # Any QUEUED kind, not just DRAFT: the worker's claim is kind-agnostic, and an
             # upload-originated revision (revise_full/revise_pass, no Run) would otherwise sit
-            # stranded across redeploys because nothing else kicks its drain.
+            # stranded across redeploys because nothing else kicks its drain. The `book_id IS NOT NULL`
+            # guard mirrors claim_one_job (ADR 0027): an ownerless job is never claimable, so counting it
+            # here would only schedule a no-op drain against a phantom queue.
             queued = (
-                await session.execute(select(func.count()).select_from(Job).where(Job.status == JobStatus.QUEUED))
+                await session.execute(
+                    select(func.count())
+                    .select_from(Job)
+                    .where(Job.status == JobStatus.QUEUED, Job.book_id.is_not(None))
+                )
             ).scalar_one()
             queued_repairs = (
                 await session.execute(
@@ -98,6 +104,52 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 asyncio.get_running_loop().create_task(background_work.drain_queued_jobs())
     except Exception as exc:  # noqa: BLE001 — never block boot on the resume probe
         log.warning("draft.drain_resume_failed", error=str(exc))
+
+    # Book-ownership integrity (ADR 0027): the boot migration already backfilled/quarantined; here we
+    # surface the *result*. Log at error on every boot while holds exist, and append an Activity
+    # transition ONLY when the holds fingerprint changes (Activity is append-only — per-boot emission
+    # would flood the Desk), updating the singleton state atomically in the same commit.
+    try:
+        from dominion.shared.job_integrity import inspect_job_ownership
+        from dominion.shared.models import JobIntegrityState
+        from dominion.workers import activity
+
+        async with SessionFactory() as session:
+            report = await inspect_job_ownership(await session.connection())
+            if report.has_holds:
+                log.error(
+                    "integrity.ownerless_jobs",
+                    holds=report.hold_count,
+                    quarantined=report.quarantined_total,
+                    unresolved_null_book=report.null_book_total,
+                    conflicts=report.conflicts,
+                    promoted=report.promoted,
+                )
+            state = await session.get(JobIntegrityState, 1)
+            if state is None or state.fingerprint != report.fingerprint:
+                verb = "cleared" if report.hold_count == 0 else f"{report.hold_count} job(s) held"
+                await activity.safe_record_activity(
+                    session,
+                    kind="integrity_hold",
+                    title=f"Job ownership integrity: {verb}",
+                    source="integrity",
+                    severity="error" if report.has_holds else "success",
+                    payload={
+                        "hold_count": report.hold_count,
+                        "quarantined": report.quarantined_total,
+                        "conflicts": report.conflicts,
+                        "promoted": report.promoted,
+                        "fingerprint": report.fingerprint,
+                    },
+                )
+                if state is None:
+                    session.add(JobIntegrityState(id=1, fingerprint=report.fingerprint, hold_count=report.hold_count))
+                else:
+                    state.fingerprint = report.fingerprint
+                    state.hold_count = report.hold_count
+                await session.commit()
+    except Exception as exc:  # noqa: BLE001 — never block boot on the integrity probe
+        log.warning("integrity.boot_probe_failed", error=str(exc))
 
     # Start the autonomous self-repair + retention loop (workers/sweeper.py). One in-process background
     # task; it gates its own work behind the autonomy + queue-pause switches and single-flights each

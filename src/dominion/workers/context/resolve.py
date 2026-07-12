@@ -6,20 +6,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import BeatStatus
-from dominion.shared.models import Beat, Chapter, Job, PovProfile, Run
+from dominion.shared.models import Beat, Chapter, Job, PovProfile
 from dominion.workers.context.types import ResolvedJob
 from dominion.workers.pov import effective_pov
 
 
 async def resolve_job(session: AsyncSession, job: Job) -> ResolvedJob:
-    """Route by the job's DIRECT ids (book/chapter/beat/scene_packet). `run_id` is provenance only;
-    the legacy (run_id, chapter_no, scene_no) lookup is a fallback for jobs created before direct-ID
-    routing."""
+    """Route by the job's DIRECT ids (book/chapter/beat/scene_packet). `book_id` is guaranteed by the
+    ownership invariant (ADR 0027): boot reconciliation backfills/quarantines every legacy row and the
+    claim seam refuses any job without it, so a job that reaches here always has a book. (`run_id` is
+    provenance only and no longer resolves the book — the legacy fallback was retired with the invariant.)"""
     book_id = job.book_id
-    if book_id is None:
-        if job.run_id is None:
-            raise ValueError("job is missing book_id and run_id — cannot resolve the book")
-        book_id = (await session.execute(select(Run.book_id).where(Run.id == job.run_id))).scalar_one()
+    if book_id is None:  # unreachable for a claimed job (the claim guard requires book_id); defensive only
+        raise ValueError(f"job {job.id} has no book_id — ownership invariant violated (ADR 0027)")
 
     chapter: Chapter | None = None
     if job.chapter_id is not None:

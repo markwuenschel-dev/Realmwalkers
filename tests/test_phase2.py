@@ -322,6 +322,7 @@ async def test_continuity_flag_fires_through_pipeline(db_factory, monkeypatch):
         s.add(
             Job(
                 run_id=run.id,
+                book_id=book.id,
                 kind=JobKind.DRAFT,
                 chapter_no=1,
                 scene_no=1,
@@ -370,6 +371,7 @@ async def test_pipeline_renders_stat_blocks_into_prose_keeps_markers_in_agent_or
         s.add(
             Job(
                 run_id=run.id,
+                book_id=book.id,
                 kind=JobKind.DRAFT,
                 chapter_no=1,
                 scene_no=1,

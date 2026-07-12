@@ -100,6 +100,7 @@ async def test_delete_scene_packet_detaches_refs_and_purges_jobs(db_factory):
         await s.flush()
         job = Job(
             run_id=run.id,
+            book_id=book.id,
             kind=JobKind.DRAFT,
             chapter_id=ch.id,
             beat_id=beat.id,
