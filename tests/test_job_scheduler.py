@@ -7,6 +7,8 @@ from sqlalchemy import select
 
 from dominion.shared.enums import BeatStatus, GateMode, JobKind, JobStatus, RunStatus, SceneStatus
 from dominion.shared.models import Beat, Book, Chapter, Job, Run, Scene
+from dominion.workers.context.resolve import resolve_job
+from dominion.workers.draft_queue import DraftQueueBlocker
 from dominion.workers.job_scheduler import (
     schedule_next_after_approval,
     schedule_revision,
@@ -86,14 +88,45 @@ async def test_schedule_revision_creates_revise_job(db_factory):
             status=RunStatus.ACTIVE,
         )
         s.add(run)
+        # A revisable scene has an approved contract (Beat + ScenePacket) — the guard requires it.
+        beat = Beat(chapter_id=ch.id, scene_no=1, status=BeatStatus.APPROVED, beat_text="b")
+        s.add(beat)
         sc = Scene(chapter_id=ch.id, scene_no=1, prose="draft", version=1, status=SceneStatus.PENDING_REVIEW)
         s.add(sc)
         await s.flush()
+        await seed_scene_packet(s, chapter=ch, beat=beat)
 
         job_id = await schedule_revision(s, sc, target_pass=None)
         assert job_id is not None
         job = await s.get(Job, job_id)
         assert job is not None and job.kind == JobKind.REVISE_FULL and job.target_scene_id == sc.id
+
+
+async def test_schedule_revision_never_queues_an_unresolvable_uploaded_scene(db_factory):
+    """An imported scene may have no Beat or ScenePacket, but scheduling its revision must not leave
+    a queued job that the contract-first resolver will reject when the worker claims it."""
+    async with db_factory() as s:
+        _book, chapter = await _book_chapter(s)
+        scene = Scene(
+            chapter_id=chapter.id,
+            scene_no=1,
+            prose="Imported prologue prose.",
+            version=1,
+            status=SceneStatus.PENDING_REVIEW,
+        )
+        s.add(scene)
+        await s.flush()
+
+        result = await schedule_revision(s, scene, target_pass=None)
+        # The contract-first guard refuses with an actionable blocker instead of queuing a doomed job.
+        assert isinstance(result, DraftQueueBlocker)
+        assert result.reason == "revision_contract_required"
+
+        # And nothing unresolvable was left in the queue (the original defect).
+        queued = (await s.execute(select(Job).where(Job.status == JobStatus.QUEUED))).scalars().all()
+        assert queued == []
+        for job in queued:
+            await resolve_job(s, job)
 
 
 async def test_schedule_undrafted_beats_skips_drafted_and_proposed(db_factory):

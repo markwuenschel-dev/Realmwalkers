@@ -15,6 +15,7 @@ import uuid
 from sqlalchemy import select
 
 from dominion.shared.enums import (
+    BeatStatus,
     IssueStatus,
     JobKind,
     RepairAuthorityLevel,
@@ -22,6 +23,7 @@ from dominion.shared.enums import (
     RepairVerificationVerdict,
 )
 from dominion.shared.models import (
+    Beat,
     Book,
     Chapter,
     Issue,
@@ -32,6 +34,7 @@ from dominion.shared.models import (
     Scene,
 )
 from dominion.workers import production
+from tests.conftest import seed_scene_packet
 
 QUOTE = "Mara moves through the breach"
 
@@ -57,6 +60,17 @@ async def _seed_scene(s):
     )
     s.add(scene)
     await s.flush()
+    # schedule_revision now refuses to queue a revision for a scene without an approved contract, so
+    # give scene 1 a real one: an APPROVED beat backed by an approved ScenePacket.
+    beat = Beat(
+        chapter_id=chapter.id,
+        scene_no=1,
+        status=BeatStatus.APPROVED,
+        beat_text="Mara crosses the breach as the signal fire gutters.",
+    )
+    s.add(beat)
+    await s.flush()
+    await seed_scene_packet(s, chapter=chapter, beat=beat)
     return book, chapter, run, scene
 
 

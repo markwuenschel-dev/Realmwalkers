@@ -276,6 +276,9 @@ async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
         book = await _book(s)
         ch = await _chapter(s, book)
         await _run(s, book)
+        # schedule_revision now refuses to queue a revision for a scene without an approved contract;
+        # _beat seeds the APPROVED beat + approved ScenePacket that contract requires.
+        await _beat(s, ch, 1)
         sc = await _scene(s, ch, 1)
         crit = Critique(
             scene_id=sc.id,
