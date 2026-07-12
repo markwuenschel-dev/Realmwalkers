@@ -171,6 +171,7 @@ async def test_requeue_resets_failed_revision_in_place(db_factory):
 
         result = await reconcile_and_requeue_failed_draft_jobs(s, book_id=book.id)
         assert result.queued == 1
+        await s.commit()  # the in-place reset is pending in the session; persist before re-reading
         await s.refresh(old)
         # Reset in place: same row, not a fresh job.
         assert old.id == old_id
