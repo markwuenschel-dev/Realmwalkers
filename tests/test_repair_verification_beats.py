@@ -17,12 +17,14 @@ import uuid
 from sqlalchemy import select
 
 from dominion.shared.enums import (
+    BeatStatus,
     IssueStatus,
     RepairAuthorityLevel,
     RepairTaskStatus,
     RepairVerificationVerdict,
 )
 from dominion.shared.models import (
+    Beat,
     Book,
     Chapter,
     ChapterPacket,
@@ -35,6 +37,7 @@ from dominion.shared.models import (
     Scene,
 )
 from dominion.workers import production
+from tests.conftest import seed_scene_packet
 
 BEAT_REACTOR = "Show the reactor core overheating beyond safe operating limits"
 BEAT_BREACH = "Show the engineer sealing the hull breach with molten alloy"
@@ -104,6 +107,12 @@ async def test_single_scene_dropped_required_beat_flags_not_preserved_without_ga
     async with db_factory() as s:
         _book, chapter, run = await _seed_chapter(s, {1: [BEAT_REACTOR]})
         base = await _scene(s, chapter, scene_no=1, version=1, prose=f"{PROSE_REACTOR} {QUOTE}.")
+        # schedule_revision now refuses to queue a revision for a scene without an approved contract, so
+        # give scene 1 a real one: an APPROVED beat backed by an approved ScenePacket.
+        beat = Beat(chapter_id=chapter.id, scene_no=1, status=BeatStatus.APPROVED, beat_text=BEAT_REACTOR)
+        s.add(beat)
+        await s.flush()
+        await seed_scene_packet(s, chapter=chapter, beat=beat)
 
         issue = Issue(
             production_run_id=run.id,
