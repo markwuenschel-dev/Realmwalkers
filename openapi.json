@@ -6561,6 +6561,28 @@
         }
       }
     },
+    "/jobs/integrity-holds": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Integrity Holds",
+        "description": "Operator surface for the book-ownership invariant (ADR 0027): every job blocking full constraint\npromotion \u2014 quarantined live jobs AND any still-unresolved (terminal/conflict) NULL-book row. These\nhave no book, so this endpoint is deliberately NOT book-scoped.",
+        "operationId": "integrity_holds_jobs_integrity_holds_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrityHoldsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/books/{book_id}/characters": {
       "get": {
         "tags": [
@@ -13717,6 +13739,92 @@
         "title": "HumanSceneIn",
         "description": "POST body to write a manuscript section by hand. By default it lands APPROVED (the human is\nthe gate) and flows straight into context; set ``approve_directly=False`` to route it into the\nreview inbox (PENDING_REVIEW) instead, where it clears via the normal /decision verdict."
       },
+      "IntegrityHoldOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
+          },
+          "scene_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene No"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "reason"
+        ],
+        "title": "IntegrityHoldOut",
+        "description": "One job blocking the book-ownership invariant: quarantined (ownerless, withheld from execution)\nor an unresolved NULL-book terminal/conflict row. Has no retry/clear action."
+      },
+      "IntegrityHoldsOut": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "promoted": {
+            "type": "boolean",
+            "title": "Promoted",
+            "default": false
+          },
+          "conflicts": {
+            "type": "integer",
+            "title": "Conflicts",
+            "default": 0
+          },
+          "holds": {
+            "items": {
+              "$ref": "#/components/schemas/IntegrityHoldOut"
+            },
+            "type": "array",
+            "title": "Holds",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "IntegrityHoldsOut"
+      },
       "IssueDecisionIn": {
         "properties": {
           "reason": {
@@ -14090,6 +14198,11 @@
               }
             ],
             "title": "Last Cache Tokens Saved"
+          },
+          "integrity_holds": {
+            "type": "integer",
+            "title": "Integrity Holds",
+            "default": 0
           }
         },
         "type": "object",

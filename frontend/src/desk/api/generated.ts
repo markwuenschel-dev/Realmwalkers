@@ -2201,6 +2201,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/jobs/integrity-holds": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Integrity Holds
+     * @description Operator surface for the book-ownership invariant (ADR 0027): every job blocking full constraint
+     *     promotion — quarantined live jobs AND any still-unresolved (terminal/conflict) NULL-book row. These
+     *     have no book, so this endpoint is deliberately NOT book-scoped.
+     */
+    get: operations["integrity_holds_jobs_integrity_holds_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/books/{book_id}/characters": {
     parameters: {
       query?: never;
@@ -5089,6 +5111,48 @@ export interface components {
        */
       approve_directly: boolean;
     };
+    /**
+     * IntegrityHoldOut
+     * @description One job blocking the book-ownership invariant: quarantined (ownerless, withheld from execution)
+     *     or an unresolved NULL-book terminal/conflict row. Has no retry/clear action.
+     */
+    IntegrityHoldOut: {
+      /** Id */
+      id: string;
+      /** Status */
+      status: string;
+      /** Reason */
+      reason: string;
+      /** Chapter No */
+      chapter_no?: number | null;
+      /** Scene No */
+      scene_no?: number | null;
+      /** Last Error */
+      last_error?: string | null;
+    };
+    /** IntegrityHoldsOut */
+    IntegrityHoldsOut: {
+      /**
+       * Count
+       * @default 0
+       */
+      count: number;
+      /**
+       * Promoted
+       * @default false
+       */
+      promoted: boolean;
+      /**
+       * Conflicts
+       * @default 0
+       */
+      conflicts: number;
+      /**
+       * Holds
+       * @default []
+       */
+      holds: components["schemas"]["IntegrityHoldOut"][];
+    };
     /** IssueDecisionIn */
     IssueDecisionIn: {
       /** Reason */
@@ -5247,6 +5311,11 @@ export interface components {
       last_cache_creation_tokens?: number | null;
       /** Last Cache Tokens Saved */
       last_cache_tokens_saved?: number | null;
+      /**
+       * Integrity Holds
+       * @default 0
+       */
+      integrity_holds: number;
     };
     /**
      * KnowledgeFactOut
@@ -12433,6 +12502,26 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  integrity_holds_jobs_integrity_holds_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IntegrityHoldsOut"];
         };
       };
     };

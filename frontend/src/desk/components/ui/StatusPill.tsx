@@ -27,8 +27,18 @@ const AXIS_TONES: Record<StatusAxis, Record<string, ChipTone>> = {
     drafting: "info",
     queued: "info",
     failed: "bad",
+    // ADR 0027 book-ownership invariant: an ownerless job is quarantined — withheld from execution
+    // and from every failure control (no retry/clear). Warn (not bad) keeps it visually distinct
+    // from a plain failure: this is a held state an operator resolves, not an errored draft.
+    quarantined: "warn",
     missing: "neutral",
   },
+};
+
+// A few states read better as a bespoke phrase than the default "axis: state". An integrity hold
+// (ADR 0027) is one: "prose: quarantined" undersells that the job is deliberately withheld.
+const LABEL_OVERRIDES: Record<string, string> = {
+  quarantined: "Integrity hold",
 };
 
 /** One axis+state as a labeled chip: "contract: approved", "QA: revise required",
@@ -47,12 +57,6 @@ export default function StatusPill({
   const normalized = (state ?? (axis === "qa" ? "not_run" : "missing")).toLowerCase();
   const tone = AXIS_TONES[axis][normalized] ?? "neutral";
   const axisLabel = axis === "qa" ? "QA" : axis;
-  return (
-    <Chip
-      label={`${axisLabel}: ${normalized.replace(/_/g, " ")}`}
-      tone={tone}
-      size={size}
-      title={title}
-    />
-  );
+  const label = LABEL_OVERRIDES[normalized] ?? `${axisLabel}: ${normalized.replace(/_/g, " ")}`;
+  return <Chip label={label} tone={tone} size={size} title={title} />;
 }
