@@ -162,7 +162,9 @@ class FakeImportEvidenceExtractor:
         normalized = validate_ledger(dict(ledger), len(source.prose))
         return ValidatedEvidence(
             ledger=normalized,
-            chunk_ledgers=[validate_ledger(dict(c), len(source.prose)) for c in self._chunk_ledgers.get(source.scene_id, [])],
+            chunk_ledgers=[
+                validate_ledger(dict(c), len(source.prose)) for c in self._chunk_ledgers.get(source.scene_id, [])
+            ],
             token_usage=0,
         )
 
@@ -214,7 +216,11 @@ def _merge_chunk_ledgers(chunk_ledgers: list[tuple[int, dict[str, Any]]], prose_
                     merged[section] = value
             else:
                 for item in value if isinstance(value, list) else []:
-                    if isinstance(item, dict) and isinstance(item.get("span"), (list, tuple)) and len(item["span"]) == 2:
+                    if (
+                        isinstance(item, dict)
+                        and isinstance(item.get("span"), (list, tuple))
+                        and len(item["span"]) == 2
+                    ):
                         item = {**item, "span": [item["span"][0] + offset, item["span"][1] + offset]}
                     merged[section].append(item)
     return validate_ledger(merged, prose_len)
@@ -249,7 +255,9 @@ class LlmImportEvidenceExtractor:
             token_usage=total_usage,
         )
 
-    async def _extract_one(self, source: SceneSource, text: str, budget: ExtractionBudget) -> tuple[dict[str, Any], int]:
+    async def _extract_one(
+        self, source: SceneSource, text: str, budget: ExtractionBudget
+    ) -> tuple[dict[str, Any], int]:
         # Local imports keep the module importable (and the fake usable) without the heavy LLM stack.
         # Telemetry (stage "import_scene_evidence") is established by the CALLER via telemetry.call_context
         # around this extractor, exactly as scene_packet/derive.py wraps its author call — llm.complete's
@@ -284,7 +292,9 @@ class LlmImportEvidenceExtractor:
             policy=policy_for_setting("import_evidence_model"),
         )
         if not isinstance(body, dict):
-            raise EvidenceExtractionError(f"import evidence extraction returned no JSON object for scene {source.scene_no}")
+            raise EvidenceExtractionError(
+                f"import evidence extraction returned no JSON object for scene {source.scene_no}"
+            )
         return body, 0
 
 
@@ -302,4 +312,3 @@ def _build_extract_prompt(source: SceneSource, text: str) -> str:
         header += f" (POV: {source.pov})"
     note = f"\nContext: {source.context_note}" if source.context_note else ""
     return f"{header}{note}\n\nPROSE (char offsets are 0-based into this exact text):\n{text}"
-

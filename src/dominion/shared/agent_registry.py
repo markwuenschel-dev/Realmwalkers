@@ -275,7 +275,9 @@ AGENTS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         setting_key="import_evidence_model",
         label="Import evidence extractor",
-        description="Extracts a span-anchored fact ledger from each imported scene during Import Adoption (once per scene)",
+        description=(
+            "Extracts a span-anchored fact ledger from each imported scene during Import Adoption (once per scene)"
+        ),
         stages=("import_scene_evidence",),
         contract=AgentContract(
             inputs=("imported scene prose",),

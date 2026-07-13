@@ -26,8 +26,9 @@ def chapter_source_fingerprint(rows: Iterable[tuple[int, uuid.UUID, int, str | N
     chapter state produce the same fingerprint. Callers pass the latest non-superseded scene per slot.
     """
     parts = sorted(
-        (int(scene_no), str(scene_id), int(version), prose_sha256(prose))
-        for scene_no, scene_id, version, prose in rows
+        (int(scene_no), str(scene_id), int(version), prose_sha256(prose)) for scene_no, scene_id, version, prose in rows
     )
-    joined = "\n".join(f"{scene_no}:{scene_id}:{version}:{prose_hash}" for scene_no, scene_id, version, prose_hash in parts)
+    joined = "\n".join(
+        f"{scene_no}:{scene_id}:{version}:{prose_hash}" for scene_no, scene_id, version, prose_hash in parts
+    )
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
