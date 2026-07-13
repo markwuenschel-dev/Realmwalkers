@@ -27,11 +27,7 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
 
     memory = await build_draft_memory(session, resolved, job)
     packet = await load_scene_packet_fields(session, resolved.scene_packet_id)
-    revision = (
-        await load_revision_state(session, job.target_scene_id)
-        if job.target_scene_id is not None
-        else RevisionState(None, None)
-    )
+    revision = await load_revision_state(session, job) if job.target_scene_id is not None else RevisionState(None, None)
 
     beat = resolved.beat
     # Effective POV = the beat's per-scene override, else the chapter POV. resolved.profile is already

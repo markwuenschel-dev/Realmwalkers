@@ -154,9 +154,18 @@ class PacketStatus(StrEnum):
 
 class ClaimSource(StrEnum):
     """Source-strength label the Packet Author must attach to every packet claim, so agents can act
-    on packets without pretending all decisions are equally certain."""
+    on packets without pretending all decisions are equally certain.
+
+    This is now an ENFORCED precedence order, not just a label (ADR 0029, see shared/claim_precedence.py):
+        LOCKED_CANON > DERIVED_FROM_MANUSCRIPT > DERIVED_FROM_OUTLINE > PLAUSIBLE_INFERENCE > UNRESOLVED
+    FORBIDDEN is NOT a rank — it is a separate surface-term prohibition (packet/surface_policy.py).
+    DERIVED_FROM_MANUSCRIPT means "traceable in an imported prose snapshot" (an M# handle → immutable
+    (scene_id, version, prose_hash) + span): strong evidence, but never canon and never an automatic
+    override of locked canon. A conflict the order can't break becomes an approval-blocking open question.
+    """
 
     LOCKED_CANON = "locked_canon"
+    DERIVED_FROM_MANUSCRIPT = "derived_from_manuscript"  # traceable in imported prose (ADR 0028/0029)
     DERIVED_FROM_OUTLINE = "derived_from_outline"
     PLAUSIBLE_INFERENCE = "plausible_inference"
     UNRESOLVED = "unresolved"  # needs human
@@ -295,3 +304,67 @@ class RepairVerificationVerdict(StrEnum):
     REJECT = "reject"
     NEEDS_ANOTHER_REPAIR = "needs_another_repair"
     ESCALATE_TO_HUMAN = "escalate_to_human"
+
+
+# --- import adoption & durable revision requests (ADR 0028) ---------------------------------------
+# Imported prose is turned into a reviewed contract by a durable, leased Import Adoption; the author's
+# edit intent lives in a durable Revision Request until its contract is ready and a revision Job mints.
+
+
+class ImportAdoptionMode(StrEnum):
+    """INITIAL: no approved ChapterPacket yet — propose the first chapter-wide packet from evidence.
+    AMENDMENT: an approved ChapterPacket exists but a newly imported scene has no seed (the one case
+    normal re-derive can't fix) — copy-on-write from the current packet + evidence for the new prose."""
+
+    INITIAL = "initial"
+    AMENDMENT = "amendment"
+
+
+class ImportAdoptionStatus(StrEnum):
+    """Adoption owns adoption progress ONLY; it ends at `contract_proposed` and never mirrors
+    downstream ChapterPacket/ScenePacket approval, Job execution, or revision completion (ADR 0028).
+
+    AWAITING_START: created but not worker-claimable (legacy reconciliation; needs explicit start).
+    QUEUED: claimable by the adoption worker. RUNNING: leased/extracting. CONTRACT_PROPOSED: terminal
+    success, reached atomically with a linked ChapterPacket(status=proposed). FAILED: unusable packet
+    or exhausted retries (may link a blocked packet as diagnostic evidence). INVALIDATED: source
+    fingerprint no longer matches (re-adoption reuses unchanged evidence shards). CANCELLED: an
+    awaiting_start/queued adoption with no remaining active requests."""
+
+    AWAITING_START = "awaiting_start"
+    QUEUED = "queued"
+    RUNNING = "running"
+    CONTRACT_PROPOSED = "contract_proposed"
+    FAILED = "failed"
+    INVALIDATED = "invalidated"
+    CANCELLED = "cancelled"
+
+
+class RevisionRequestStatus(StrEnum):
+    """Durable author edit-intent lifecycle. Coarse and persisted; the fine UI banner (Preparing
+    contract / Awaiting chapter approval / Derive target scene contract / Awaiting scene approval /
+    Queued / Ready for review / Held / Failed) is SERVER-DERIVED from the request + adoption + packets
+    + Job, never stored (ADR 0028).
+
+    AWAITING_CONTRACT: needs an approved ScenePacket (adoption/derive in flight). QUEUED: a revision
+    Job is queued. RUNNING: the revision Job is executing. COMPLETED: a review-ready revised Scene
+    landed. HELD: the worker produced a partial/budget-held result (NOT review-ready). FAILED: the
+    revision Job failed (terminal evidence; Retry reactivates this same request). SUPERSEDED: replaced
+    by a newer request for the same scene. CANCELLED: the author cancelled the queued revision."""
+
+    AWAITING_CONTRACT = "awaiting_contract"
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    HELD = "held"
+    FAILED = "failed"
+    SUPERSEDED = "superseded"
+    CANCELLED = "cancelled"
+
+
+class RevisionRequestOrigin(StrEnum):
+    """Where the durable intent came from — kept for audit and for the read model's context."""
+
+    REVIEW = "review"  # POST /scenes/{id}/decision, decision=revise
+    CONTINUITY = "continuity"  # POST /scenes/{id}/continuity/resolve, choice=use_ledger
+    LEGACY_RECONCILIATION = "legacy_reconciliation"  # boot recovery from the latest revise Approval

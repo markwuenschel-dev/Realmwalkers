@@ -1,26 +1,39 @@
-"""Prior draft prose and author revision feedback for revise jobs."""
+"""Prior draft prose and author revision feedback for revise jobs.
+
+Feedback is resolved through the durable RevisionRequest the Job was minted for (ADR 0028), never by
+re-reading "the latest revise Approval". Only a LEGACY revision job with no `revision_request_id`
+(minted before durable requests existed) falls back to the latest revise Approval, for backward compat.
+"""
 
 from __future__ import annotations
-
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import Decision
-from dominion.shared.models import Approval, Scene
+from dominion.shared.models import Approval, Job, RevisionRequest, Scene
 from dominion.workers.context.types import RevisionState
 
 
-async def load_revision_state(session: AsyncSession, target_scene_id: uuid.UUID) -> RevisionState:
-    prior = await session.get(Scene, target_scene_id)
+async def load_revision_state(session: AsyncSession, job: Job) -> RevisionState:
+    prior = await session.get(Scene, job.target_scene_id) if job.target_scene_id is not None else None
     prior_prose = prior.prose if prior else None
-    revise_feedback = (
-        await session.execute(
-            select(Approval.feedback)
-            .where(Approval.scene_id == target_scene_id, Approval.decision == Decision.REVISE)
-            .order_by(Approval.decided_at.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+
+    revise_feedback: str | None = None
+    if job.revision_request_id is not None:
+        # Authoritative: the immutable feedback captured on the durable request. If the author gave no
+        # feedback, that None is authoritative too — do NOT fall back to an Approval.
+        request = await session.get(RevisionRequest, job.revision_request_id)
+        revise_feedback = request.feedback if request else None
+    elif job.target_scene_id is not None:
+        # Legacy backward-compat ONLY: a revision job minted before durable requests carries no link.
+        revise_feedback = (
+            await session.execute(
+                select(Approval.feedback)
+                .where(Approval.scene_id == job.target_scene_id, Approval.decision == Decision.REVISE)
+                .order_by(Approval.decided_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
     return RevisionState(prior_prose=prior_prose, revise_feedback=revise_feedback)
