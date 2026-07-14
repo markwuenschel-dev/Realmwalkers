@@ -13,9 +13,21 @@ import { Button, Eyebrow, Panel, Spinner } from "../components/ui";
 // screen for the author to read and take. Landing it as a scene is a separate, later decision.
 
 const LANES: { id: string; label: string; hint: string }[] = [
-  { id: "combat", label: "Combat", hint: "spatial clarity — who is where, what connects, in what order" },
-  { id: "sensory", label: "Sensory", hint: "replace abstraction with what the POV actually senses" },
-  { id: "dialogue", label: "Dialogue", hint: "voice and subtext — distinct speakers, weighted silence" },
+  {
+    id: "combat",
+    label: "Combat",
+    hint: "spatial clarity — who is where, what connects, in what order",
+  },
+  {
+    id: "sensory",
+    label: "Sensory",
+    hint: "replace abstraction with what the POV actually senses",
+  },
+  {
+    id: "dialogue",
+    label: "Dialogue",
+    hint: "voice and subtext — distinct speakers, weighted silence",
+  },
 ];
 
 const TITLE_XL =
@@ -77,9 +89,9 @@ export default function EnrichScreen() {
             "margin:8px 0 0;font-family:var(--ui);font-size:13px;color:var(--ink3);max-width:70ch",
           )}
         >
-          Paste a scene, pick a lane, and the pass deepens that one dimension — preserving your voice,
-          your events, and the beat&rsquo;s outcome. Nothing is saved and your text is never altered:
-          the result is a copy for you to read and take.
+          Paste a scene, pick a lane, and the pass deepens that one dimension — preserving your
+          voice, your events, and the beat&rsquo;s outcome. Nothing is saved and your text is never
+          altered: the result is a copy for you to read and take.
         </p>
       </header>
 
@@ -205,19 +217,15 @@ export default function EnrichScreen() {
 
           {!busy && result && (
             <>
-              <textarea
-                readOnly
-                value={result.enriched}
-                spellCheck={false}
-                style={css(PROSE)}
-              />
+              <textarea readOnly value={result.enriched} spellCheck={false} style={css(PROSE)} />
               <div
                 style={css(
                   "display:flex;gap:14px;margin-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--ink3)",
                 )}
               >
                 <span>
-                  {result.source_chars.toLocaleString()} → {result.enriched_chars.toLocaleString()} chars
+                  {result.source_chars.toLocaleString()} → {result.enriched_chars.toLocaleString()}{" "}
+                  chars
                 </span>
                 <span>
                   {delta >= 0 ? "+" : ""}
@@ -226,7 +234,9 @@ export default function EnrichScreen() {
                 <span>{result.tokens_used.toLocaleString()} tokens</span>
                 {result.pov_free && <span>pov-free</span>}
                 {result.lane === "dialogue" && (
-                  <span style={css(result.dialogue_rules_loaded ? "" : "color:var(--danger,#b4413c)")}>
+                  <span
+                    style={css(result.dialogue_rules_loaded ? "" : "color:var(--danger,#b4413c)")}
+                  >
                     {result.dialogue_rules_loaded ? "rules loaded" : "NO DIALOGUE RULES"}
                   </span>
                 )}

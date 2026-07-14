@@ -150,7 +150,8 @@ export const api = {
   // --- inject: enrich author-written prose ---------------------------------------------------------
   // Stateless: the enrichment passes take a plain string, so this touches no table and persists
   // nothing — the result is text handed back for the author to read and take.
-  enrich: (body: EnrichIn) => http<EnrichOut>("/enrich", { method: "POST", body: JSON.stringify(body) }),
+  enrich: (body: EnrichIn) =>
+    http<EnrichOut>("/enrich", { method: "POST", body: JSON.stringify(body) }),
 
   // --- review inbox -------------------------------------------------------------------------------
   pending: () => http<SceneOut[]>("/scenes/pending"),
