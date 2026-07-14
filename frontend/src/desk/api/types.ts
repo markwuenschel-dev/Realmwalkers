@@ -538,3 +538,5 @@ export type PipelineWaitingOut = S["PipelineWaitingOut"];
 export type PipelineBlockedOut = S["PipelineBlockedOut"];
 export type PipelineCompletedOut = S["PipelineCompletedOut"];
 export type PipelineStatusOut = S["PipelineStatusOut"];
+export type EnrichIn = S["EnrichIn"];
+export type EnrichOut = S["EnrichOut"];

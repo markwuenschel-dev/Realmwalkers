@@ -39,27 +39,31 @@ class Settings(BaseSettings):
 
     # Anthropic (the key uses its own conventional env var, not the DOMINION_ prefix)
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
-    draft_model: str = "claude-sonnet-5"
-    draft_fallback_model: str = "claude-haiku-4-5"
-    review_model: str = "claude-haiku-4-5-20251001"
-    review_fallback_model: str = "claude-sonnet-5"
+    draft_model: str = "gpt-5.6-luna"
+    draft_fallback_model: str = "gpt-5.6-terra"
+    review_model: str = "gpt-5.6-luna"
+    review_fallback_model: str = "gpt-5.6-terra"
     # Enrichment passes are targeted rewrites layered on the Sonnet-drafted spine, so they run on Haiku
     # by default — roughly a third the cost and ~2-3x faster per pass, with little prose impact since
     # the spine already carries the voice. Override DOMINION_ENRICH_MODEL to put them back on Sonnet if
     # a chapter needs richer enrichment (DESIGN §5-6).
-    enrich_model: str = "claude-haiku-4-5"
-    enrich_fallback_model: str = "claude-sonnet-5"
+    enrich_model: str = "gpt-5.6-luna"
+    # Rate-limit fallback only. Kept on the SAME provider deliberately: the fallback exists to survive
+    # a 429, and hopping to Anthropic would trade a rate limit for a hard failure whenever that account
+    # is unfunded — the enrichment pass soft-fails (PassError), so that lands as a silently un-enriched
+    # scene rather than a visible error. Point this back at a claude model if both accounts are funded.
+    enrich_fallback_model: str = "gpt-5.6-terra"
 
     # Contract-first drafting — Phase 1 (chapter packets). The packet agents run ONCE per chapter, so
     # a strong reasoner is cheap (amortized over ~12+ scenes) — they decide the guardrails every later
     # writer obeys, so default them to Sonnet. (Per-scene stage models — preflight/compression/QA —
     # arrive with their phases.)
-    packet_author_model: str = "claude-sonnet-5"
-    packet_author_fallback_model: str = "claude-opus-4-8"
+    packet_author_model: str = "gpt-5.6-luna"
+    packet_author_fallback_model: str = "gpt-5.6-terra"
     # QA only ATTACKS the author's packet (a checker, not a creator), so it rides Haiku like the
     # other checker/enrichment stages (review_model, enrich_model) — meaningfully faster second call.
-    packet_qa_model: str = "claude-haiku-4-5"
-    packet_qa_fallback_model: str = "claude-sonnet-5"
+    packet_qa_model: str = "gpt-5.6-luna"
+    packet_qa_fallback_model: str = "gpt-5.6-terra"
     # The packet author/QA calls run synchronously inside the propose-packet request; bound them so a
     # hung call surfaces as a clean failure instead of a spinning browser (mirrors plan_time_budget_s).
     packet_time_budget_s: int = 300
@@ -72,8 +76,8 @@ class Settings(BaseSettings):
     # the once-per-chapter ChapterPacket author, these run ONCE PER SCENE (~12+ calls/chapter), so the
     # per-call latency/cost dominates the run. Both are exposed in the models tab (settings ROLES), so
     # bump the author to Sonnet there for a chapter that needs a richer contract.
-    scene_packet_author_model: str = "claude-haiku-4-5"
-    scene_packet_qa_model: str = "claude-haiku-4-5"
+    scene_packet_author_model: str = "gpt-5.6-luna"
+    scene_packet_qa_model: str = "gpt-5.6-luna"
     # The ScenePacket body is a large JSON object; if Haiku runs out of output tokens mid-object the
     # response is truncated and the parse fails closed ("incomplete body"). Give the author generous
     # headroom, and on an invalid/truncated body retry ONCE escalated to a stronger model — which both
@@ -81,14 +85,14 @@ class Settings(BaseSettings):
     # An empty fallback disables the escalation (the single attempt then stands or blocks).
     scene_packet_author_max_tokens: int = 8000
     scene_packet_qa_max_tokens: int = 3000
-    scene_packet_author_fallback_model: str = "claude-sonnet-5"
-    scene_packet_qa_fallback_model: str = "claude-sonnet-5"
+    scene_packet_author_fallback_model: str = "gpt-5.6-terra"
+    scene_packet_qa_fallback_model: str = "gpt-5.6-terra"
     # Import Adoption per-scene evidence extraction (ADR 0028). Its OWN role — a distinct high-volume
     # cost/quality decision (~1 call per imported scene), defaulting to the same economical tier as the
     # ScenePacket author; coupling it to either packet-author role would make operator tuning of one
     # workflow unexpectedly affect another. Escalates to a stronger model on unparseable output.
-    import_evidence_model: str = "claude-haiku-4-5"
-    import_evidence_fallback_model: str = "claude-sonnet-5"
+    import_evidence_model: str = "gpt-5.6-luna"
+    import_evidence_fallback_model: str = "gpt-5.6-terra"
     import_evidence_max_tokens: int = 4000
     # Manual QA re-run (POST /scene-packets/{id}/qa) runs one Author-free QA pass against the current
     # body. It is a single bounded call, so it gets its own soft/hard work budget separate from a full
@@ -130,8 +134,8 @@ class Settings(BaseSettings):
     scene_packet_allow_draft_with_warnings: bool = True
     # Length guard rewrites (compress/expand) are targeted edits on an existing draft, so they ride the
     # cheap/fast Haiku tier like the enrichment passes — never the main draft model.
-    length_compress_model: str = "claude-haiku-4-5"
-    length_expand_model: str = "claude-haiku-4-5"
+    length_compress_model: str = "gpt-5.6-luna"
+    length_expand_model: str = "gpt-5.6-luna"
 
     # Length guard policy (DESIGN: word budgeting). Default to NOT auto-rewriting: an over-max draft
     # lands with a WARN critique for the human, an under-min draft lands with INFO. Only a hard-max
@@ -146,8 +150,8 @@ class Settings(BaseSettings):
     # completion, never a prose failure. Bounded inflight caps the concurrent mode fan-out. The version
     # markers are recorded on every report as provenance: a prompt-version bump is provenance by default
     # and forces re-evaluation only when explicitly marked for recheck.
-    scene_fidelity_model: str = "claude-sonnet-5"
-    scene_fidelity_fallback_model: str = "claude-opus-4-8"
+    scene_fidelity_model: str = "gpt-5.6-luna"
+    scene_fidelity_fallback_model: str = "gpt-5.6-terra"
     scene_fidelity_max_inflight: int = 3
     scene_fidelity_prompt_version: int = 1
     scene_fidelity_facade_version: int = 1

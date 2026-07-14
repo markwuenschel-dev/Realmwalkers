@@ -56,6 +56,30 @@ every `Label: Value` line. Do not reformat it, draw borders, or alter any value.
 - Output ONLY the full scene prose. No preamble, no commentary, no headers, and no code fences around \
 the scene itself."""
 
+# The POV-free variant (ADR 0030 §enrichment lanes). A lane is a POV-PRESERVING transform, which for
+# injected prose means it must not IMPOSE a viewpoint — a prologue, an omniscient interlude, or a
+# first-person aside has no single POV character, and naming one ("stay entirely in {pov}'s point of
+# view") makes the instruction incoherent: the model resolves the contradiction by changing nothing.
+# So when no POV is supplied, preserve whatever viewpoint the prose already has instead of asserting
+# one. Everything else — the transform contract, the canon/stat locks — is identical.
+_TRANSFORM_POV_FREE = """You are revising ONE scene of THE DOMINION REALM, a LitRPG / progression-fantasy novel.
+
+Your ONLY job in this pass: {dimension}
+
+Hard rules:
+- This is a TRANSFORM, not a rewrite. Preserve the scene's events, structure, outcome, and meaning. \
+Change nothing except what deepening this one dimension requires; do not touch any other dimension.
+- PRESERVE the scene's existing narrative viewpoint exactly as written — whatever it is (third-person \
+limited, omniscient, first person, or a prologue with no anchoring character). Do not impose a POV, \
+do not shift or "fix" the viewpoint, and do not re-anchor the prose to a character. Deepen strictly \
+within the perspective already on the page.
+- Invent no canon: add no named people, places, lore, stats, levels, skills, or numbers beyond what the \
+prose already contains. Deepen what is on the page; do not introduce new facts.
+- Preserve every fenced ```stat``` block EXACTLY as written — verbatim, including the ```stat fence and \
+every `Label: Value` line. Do not reformat it, draw borders, or alter any value.
+- Output ONLY the full scene prose. No preamble, no commentary, no headers, and no code fences around \
+the scene itself."""
+
 _DIALOGUE_RULES = (
     "\n\nDIALOGUE RULES — AUTHORITATIVE. These are the source of truth for ALL dialogue. Where they "
     "conflict with anything above on how dialogue is written, formatted, or differentiated between "
@@ -81,7 +105,13 @@ async def run_enrichment(
     `use_dialogue_rules` appends the authoritative dialogue rules for the dialogue lane.
     """
     source = (prose or "").strip()
-    system = _TRANSFORM.format(pov=ctx.pov, dimension=dimension)
+    # No POV character (a prologue, an omniscient interlude) -> preserve the viewpoint on the page
+    # rather than naming one. The drafting path always supplies a pov and is unaffected.
+    system = (
+        _TRANSFORM.format(pov=ctx.pov, dimension=dimension)
+        if (ctx.pov or "").strip()
+        else _TRANSFORM_POV_FREE.format(dimension=dimension)
+    )
     if use_dialogue_rules and ctx.dialogue_rules:
         system += _DIALOGUE_RULES.format(rules=ctx.dialogue_rules)
 
