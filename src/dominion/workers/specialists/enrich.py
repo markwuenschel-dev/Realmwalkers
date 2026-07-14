@@ -14,18 +14,27 @@ so the spine still lands, flagged, instead of hard-failing the job.
 
 from __future__ import annotations
 
+from math import ceil
 from typing import TYPE_CHECKING
 
 from dominion.shared.config import settings
 from dominion.workers.budget import BudgetExceeded
+from dominion.workers.llm import estimate_tokens
 from dominion.workers.llm_escalation import complete_with_rate_limit_fallback
 from dominion.workers.specialists.base import PassError
 
 if TYPE_CHECKING:
     from dominion.workers.context import SceneContext
 
-# A transform returns the whole scene; bound a single call the same as the drafter's spine.
+# FLOOR for a single enrichment call's output, not the cap. A deepening transform returns the WHOLE
+# scene, deepened, so its output is bounded below by the input — the effective cap scales with the
+# source (see `_OUTPUT_HEADROOM`). This floor only governs short scenes whose scaled cap is under it.
 ENRICH_MAX_TOKENS = 4000
+# Output headroom over the source: a deepened scene runs longer than its input, so the token cap is
+# max(floor, source_tokens * this). Sized too tight, the model's output is clipped at the tail — and a
+# tail-clip passes the 0.5 ratio guard (output length ~= input length), so the `usage.truncated` guard
+# in run_enrichment is the fail-closed backstop for when even this headroom is not enough.
+_OUTPUT_HEADROOM = 1.6
 # Below this fraction of the input, the model has dropped scene content rather than deepened it —
 # treat that (and empty output) as a failed pass so the spine lands flagged instead of truncated.
 _MIN_RETAINED_FRACTION = 0.5
@@ -76,21 +85,30 @@ async def run_enrichment(
     if use_dialogue_rules and ctx.dialogue_rules:
         system += _DIALOGUE_RULES.format(rules=ctx.dialogue_rules)
 
+    # A deepening transform returns MORE than its input, so a cap sized to the from-scratch drafter's
+    # 4000 clips a long scene at the tail. Scale the cap to the source so the deepened scene has room.
+    max_tok = max(ENRICH_MAX_TOKENS, ceil(estimate_tokens(source) * _OUTPUT_HEADROOM))
+
     try:
         # Rate-limit-only fallback (no structural escalation, no quality knobs — enrich quality is
         # deliberately not wired): a provider 429 hops once to the configured fallback model.
-        text, _usage = await complete_with_rate_limit_fallback(
+        text, usage = await complete_with_rate_limit_fallback(
             setting_key="enrich_model",
             model=settings.enrich_model,
             system=system,
             user=_user(source, ctx.beat_text),
-            max_tokens=ENRICH_MAX_TOKENS,
+            max_tokens=max_tok,
             budget=ctx.budget,
         )
     except BudgetExceeded:
         raise  # pipeline keeps the spine and aborts the remaining passes (DESIGN §10)
     except Exception as exc:  # any other failure soft-fails the pass (OPEN-10)
         raise PassError(f"{name} enrichment pass failed: {exc}") from exc
+
+    # Truncation is fail-closed: a tail-clipped scene can slip past the ratio guard (output length ~=
+    # input length), so never accept it silently — soft-fail so the un-enriched spine lands flagged.
+    if usage.truncated:
+        raise PassError(f"{name} enrichment pass hit the token ceiling and was truncated")
 
     out = text.strip()
     if not out:
