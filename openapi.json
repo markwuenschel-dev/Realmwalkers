@@ -8919,6 +8919,75 @@
           }
         }
       }
+    },
+    "/enrich/lanes": {
+      "get": {
+        "tags": [
+          "enrich"
+        ],
+        "summary": "Lanes",
+        "operationId": "lanes_enrich_lanes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object",
+                  "title": "Response Lanes Enrich Lanes Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/enrich": {
+      "post": {
+        "tags": [
+          "enrich"
+        ],
+        "summary": "Enrich",
+        "operationId": "enrich_enrich_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrichIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrichOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -13526,6 +13595,95 @@
         ],
         "title": "EditorialAgentRunOut",
         "description": "One deterministic editorial-orchestration step (contract_classifier, repair_scheduler, \u2026) inside\na production run. These agents are deterministic \u2014 no model call, no tokens, cost $0 \u2014 so this\nsurfaces the editorial pipeline's ACTIVITY, not a cost pool. Duration/stage make the run legible."
+      },
+      "EnrichIn": {
+        "properties": {
+          "prose": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prose"
+          },
+          "pov": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pov"
+          },
+          "lane": {
+            "type": "string",
+            "title": "Lane"
+          },
+          "beat_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beat Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prose",
+          "lane"
+        ],
+        "title": "EnrichIn"
+      },
+      "EnrichOut": {
+        "properties": {
+          "enriched": {
+            "type": "string",
+            "title": "Enriched"
+          },
+          "lane": {
+            "type": "string",
+            "title": "Lane"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "pov_free": {
+            "type": "boolean",
+            "title": "Pov Free"
+          },
+          "dialogue_rules_loaded": {
+            "type": "boolean",
+            "title": "Dialogue Rules Loaded"
+          },
+          "source_chars": {
+            "type": "integer",
+            "title": "Source Chars"
+          },
+          "enriched_chars": {
+            "type": "integer",
+            "title": "Enriched Chars"
+          },
+          "tokens_used": {
+            "type": "integer",
+            "title": "Tokens Used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enriched",
+          "lane",
+          "model",
+          "pov_free",
+          "dialogue_rules_loaded",
+          "source_chars",
+          "enriched_chars",
+          "tokens_used"
+        ],
+        "title": "EnrichOut"
       },
       "EscalationRuleOut": {
         "properties": {

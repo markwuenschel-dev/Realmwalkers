@@ -20,6 +20,7 @@ from dominion.api.routers import (
     books,
     chapters,
     docs,
+    enrich,
     health,
     jobs,
     learning,
@@ -204,3 +205,4 @@ app.include_router(learning.router)
 app.include_router(settings_router.router)
 app.include_router(docs.router)
 app.include_router(manuscript.router)
+app.include_router(enrich.router)

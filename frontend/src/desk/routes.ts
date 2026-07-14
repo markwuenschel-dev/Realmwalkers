@@ -26,6 +26,16 @@ export const DESK_ROUTES: readonly DeskRoute[] = [
     nav: true,
   },
   {
+    id: "enrich",
+    label: "Inject",
+    paletteLabel: "Inject · enrich prose you wrote",
+    href: "/enrich",
+    key: "e",
+    shortcut: "G E",
+    icon: "✎",
+    nav: true,
+  },
+  {
     id: "scene",
     label: "Scene",
     paletteLabel: "Open Scene · review queue",

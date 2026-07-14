@@ -97,6 +97,15 @@ class _Client:
 def _patch(monkeypatch, responder) -> _Messages:
     msgs = _Messages(responder)
     monkeypatch.setattr(llm, "_client", lambda: _Client(msgs))
+    # Pin the models these tests run on. `_Client` stands in for the ANTHROPIC client, and llm.py routes
+    # by model-id prefix (`gpt-`/`o1-`/`grok-`/`gemini-` go out over the OpenAI-compatible httpx path,
+    # everything else through `llm._client`). Inheriting the production default silently decides which
+    # transport is exercised: point the default at a non-Anthropic model and this mock is bypassed, the
+    # suite makes REAL billed API calls, and the escalation assertions fail because the live provider
+    # succeeds where the responder was scripted to fail. The escalation logic under test is provider-
+    # agnostic, so pin both rungs here and keep the test hermetic regardless of the default.
+    monkeypatch.setattr(settings, "scene_packet_author_model", "claude-haiku-4-5")
+    monkeypatch.setattr(settings, "scene_packet_author_fallback_model", "claude-sonnet-5")
     monkeypatch.setattr(settings, "scene_packet_author_sectioned", True)
     monkeypatch.setattr(settings, "scene_packet_context_window_budget", 500_000)
     return msgs

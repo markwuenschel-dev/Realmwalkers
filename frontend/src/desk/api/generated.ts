@@ -3006,6 +3006,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/enrich/lanes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lanes */
+    get: operations["lanes_enrich_lanes_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/enrich": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Enrich */
+    post: operations["enrich_enrich_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5018,6 +5052,36 @@ export interface components {
        * @default 0
        */
       cost_usd: number;
+    };
+    /** EnrichIn */
+    EnrichIn: {
+      /** Prose */
+      prose: string;
+      /** Pov */
+      pov?: string | null;
+      /** Lane */
+      lane: string;
+      /** Beat Text */
+      beat_text?: string | null;
+    };
+    /** EnrichOut */
+    EnrichOut: {
+      /** Enriched */
+      enriched: string;
+      /** Lane */
+      lane: string;
+      /** Model */
+      model: string;
+      /** Pov Free */
+      pov_free: boolean;
+      /** Dialogue Rules Loaded */
+      dialogue_rules_loaded: boolean;
+      /** Source Chars */
+      source_chars: number;
+      /** Enriched Chars */
+      enriched_chars: number;
+      /** Tokens Used */
+      tokens_used: number;
     };
     /** EscalationRuleOut */
     EscalationRuleOut: {
@@ -14047,6 +14111,61 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ManuscriptScaffoldReport"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  lanes_enrich_lanes_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string[];
+          };
+        };
+      };
+    };
+  };
+  enrich_enrich_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnrichIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EnrichOut"];
         };
       };
       /** @description Validation Error */

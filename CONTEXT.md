@@ -123,3 +123,7 @@ _Avoid_: chapter row lock, global mutex, queue claim lock
 **Claim Source Precedence**:
 The enforced total order `LOCKED_CANON > DERIVED_FROM_MANUSCRIPT > DERIVED_FROM_OUTLINE > PLAUSIBLE_INFERENCE > UNRESOLVED` (with `FORBIDDEN` a separate surface prohibition, not a rank) that decides how conflicting packet claims resolve. A conflict the order cannot break becomes an approval-blocking open question; manuscript evidence never enters canon retrieval or overrides locked canon automatically (ADR 0029).
 _Avoid_: claim label, source hint, canon promotion
+
+**Editorial Convergence** _(proposed — pending author-blessed name)_:
+The system's definition of "done" for unattended work on a scene: repeat produce → review → repair until the scene has no open Issue above a configured advisory severity, bounded by capped repair attempts. It is a stopping condition built on Issue resolution, deliberately NOT a Fidelity score (scoring is a deferred side project), and distinct from human approval.
+_Avoid_: quality score, fidelity verdict, human sign-off, "no findings"
