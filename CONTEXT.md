@@ -127,3 +127,27 @@ _Avoid_: claim label, source hint, canon promotion
 **Editorial Convergence** _(proposed — pending author-blessed name)_:
 The system's definition of "done" for unattended work on a scene: repeat produce → review → repair until the scene has no open Issue above a configured advisory severity, bounded by capped repair attempts. It is a stopping condition built on Issue resolution, deliberately NOT a Fidelity score (scoring is a deferred side project), and distinct from human approval.
 _Avoid_: quality score, fidelity verdict, human sign-off, "no findings"
+
+**Autonomy Control**:
+The singleton record owning the machine-policy safety boundary: `enabled`, `epoch`, `updated_at`. Read plainly at autonomous mint and at claim; locked and re-checked immediately before finalization, never across generation. It is orthogonal to the queue pause, which stops asynchronous claims of every authorization. Neither implies the other: unpausing the queue is not consent to autonomous spend, and disabling autonomy does not drain the queue (ADR 0030).
+_Avoid_: kill switch, model override row, settings KV, queue pause
+
+**Autonomy Epoch**:
+The monotonic counter on Autonomy Control, incremented only when `enabled` changes. Work authorized by autonomous policy is stamped with the epoch it was minted under and must still match at claim and at finalization; a mismatch places the work on an Operational Hold instead of publishing it. An epoch is strictly stronger than a timestamp: it survives clock skew and cannot be satisfied by a call that merely started earlier.
+_Avoid_: pause timestamp, generation counter, autonomy version, disabled_at
+
+**Execution Authorization**:
+The durable, immutable grant that authorizes one unit of background work to execute — `manual_command`, `autonomous_policy`, or `legacy_unclassified` — recorded as a grant event rather than a mutable field, so releasing held work *adds* a grant instead of overwriting the proof of how it was authorized. `manual_command` asserts a deliberate command through an explicit route, NOT an authenticated human identity (the system has none). Distinct from Authorization Requirement (what the work demands), from `authority_level` (blast radius), and from a Revision Request's `origin` (what created the intent).
+_Avoid_: human command, human approval flag, origin, authority, actor
+
+**Authorization Requirement**:
+What a unit of repair work demands before it may execute: ceiling-gated, or an explicit manual grant. Orthogonal to `authority_level`, which states blast radius only — the two were conflated while `human_required` was a rung on the blast-radius ladder that a raised ceiling could silently negate.
+_Avoid_: authority level, human required, ceiling, blast radius
+
+**Decision Source**:
+What produced an `Approval` row: `human_review`, `repair_system`, or `legacy_unclassified`. `Approval` is defined as the human's verdict and doubles as a training/export label, so quality metrics and any learning corpus read human decisions only. The repair system writes `Approval(REVISE)` rows as an operational instruction carrier; those are system decisions and must never be counted as editorial verdicts.
+_Avoid_: approval reason, actor, execution authorization, approved_by
+
+**Operational Hold**:
+A nonterminal state for work that is retained but not executable, carrying a `hold_reason` (`autonomy_disabled`, `epoch_mismatch`, `legacy_authorization_unproven`). Held output is preserved, never published — no timeline advance, no supersede, no reviewable status. Release requires a fresh Execution Authorization under the current Autonomy Epoch and a re-evaluated predicate; re-enabling autonomy never auto-releases held work. Distinct from `quarantined`, which is integrity-terminal and ownerless.
+_Avoid_: quarantined, autonomy held, paused, failed, blocked
