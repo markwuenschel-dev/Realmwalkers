@@ -24,7 +24,9 @@ const STORAGE_KEY = "desk.inject.v1";
 interface Persisted {
   prose: string;
   pov: string;
-  lane: string;
+  lanes: string[];
+  /** v1 stored a single lane. Read-only migration path — never written. */
+  lane?: string;
   beat: string;
   result: EnrichOut | null;
 }
@@ -38,6 +40,9 @@ const loadPersisted = (): Partial<Persisted> => {
   }
 };
 
+// Canonical run order — the same fixed order the server chains passes in (workers/router.py). Keep
+// these aligned: this list is what the panel PROMISES will happen, so a different order here would
+// describe a chain the machine never runs.
 const LANES: { id: string; label: string; hint: string }[] = [
   {
     id: "combat",
@@ -64,12 +69,22 @@ const FIELD =
 const PROSE =
   "width:100%;min-height:56vh;resize:vertical;background:var(--boxbg);border:1px solid var(--line);border-radius:8px;padding:14px;color:var(--ink);font-family:var(--prose,var(--ui));font-size:14.5px;line-height:1.7";
 
+// A lane toggle. Selected reads as gilt (the Atelier accent); unselected stays quiet — the chips are
+// a filter on a sensible default, not a required choice, so an untouched row shouldn't shout.
+const chipStyle = (on: boolean): string =>
+  "padding:6px 13px;border-radius:999px;font-family:var(--ui);font-size:13px;cursor:pointer;" +
+  (on
+    ? "border:1px solid var(--accentLine);background:var(--accentSoft);color:var(--accent)"
+    : "border:1px solid var(--line);background:var(--bg2);color:var(--dim)");
+
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 export default function EnrichScreen() {
   const [prose, setProse] = useState("");
   const [pov, setPov] = useState("");
-  const [lane, setLane] = useState("combat");
+  // Empty = every lane. The server reads it the same way, so "nothing picked" is a real default
+  // ("deepen all of it") rather than a no-op that would make Enrich do nothing.
+  const [lanes, setLanes] = useState<string[]>([]);
   const [beat, setBeat] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<EnrichOut | null>(null);
@@ -82,7 +97,11 @@ export default function EnrichScreen() {
     const p = loadPersisted();
     if (p.prose) setProse(p.prose);
     if (p.pov) setPov(p.pov);
-    if (p.lane) setLane(p.lane);
+    // A v1 payload holds `lane: "combat"`. Read it as that one lane rather than ignoring it — an
+    // ignored value would silently widen a stored single-lane choice to all three, and the author
+    // would pay 3x the tokens on a click they thought they'd already configured.
+    if (p.lanes) setLanes(p.lanes);
+    else if (p.lane) setLanes([p.lane]);
     if (p.beat) setBeat(p.beat);
     if (p.result) setResult(p.result);
     setRestored(true);
@@ -93,15 +112,22 @@ export default function EnrichScreen() {
   useEffect(() => {
     if (!restored) return;
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ prose, pov, lane, beat, result }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ prose, pov, lanes, beat, result }));
     } catch {
       /* quota exceeded on a very large scene — keep working in memory rather than break the panel */
     }
-  }, [restored, prose, pov, lane, beat, result]);
+  }, [restored, prose, pov, lanes, beat, result]);
 
   // POV is optional: a prologue or omniscient interlude has none, and inventing one ("none") tells
   // the lane to stay in a character that doesn't exist — it resolves that by changing nothing.
   const ready = prose.trim().length > 0 && !busy;
+
+  // What will actually run, in the order it will run. Selection is a SET — clicking dialogue first
+  // doesn't run it first, so show the real chain rather than the click order.
+  const chain = LANES.filter((l) => lanes.length === 0 || lanes.includes(l.id));
+
+  const toggleLane = (id: string) =>
+    setLanes((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const run = async () => {
     setBusy(true);
@@ -112,7 +138,7 @@ export default function EnrichScreen() {
         await api.enrich({
           prose,
           pov: pov.trim(),
-          lane,
+          lanes,
           beat_text: beat.trim() || null,
         }),
       );
@@ -146,13 +172,14 @@ export default function EnrichScreen() {
         <h1 style={css(TITLE_XL)}>Enrich prose you wrote</h1>
         <p
           style={css(
-            "margin:8px 0 0;font-family:var(--ui);font-size:13px;color:var(--ink3);max-width:70ch",
+            "margin:8px 0 0;font-family:var(--ui);font-size:13px;color:var(--dim);max-width:70ch",
           )}
         >
-          Paste a scene, pick a lane, and the pass deepens that one dimension — preserving your
-          voice, your events, and the beat&rsquo;s outcome. Your text is never altered: the result
-          is a copy for you to read and take. Nothing is stored on the server, but this panel keeps
-          what you left here, so you can navigate away and come back.
+          Paste a scene and each lane you pick deepens one dimension of it — preserving your voice,
+          your events, and the beat&rsquo;s outcome. Pick none and every lane runs, in order, each
+          reading the last one&rsquo;s work. Your text is never altered: the result is a copy for you
+          to read and take. Nothing is stored on the server, but this panel keeps what you left here,
+          so you can navigate away and come back.
         </p>
       </header>
 
@@ -168,29 +195,39 @@ export default function EnrichScreen() {
                 style={css(`${FIELD};margin-top:5px`)}
               />
             </label>
-            <label style={css("flex:1;min-width:140px")}>
-              <Eyebrow>Lane</Eyebrow>
-              <select
-                value={lane}
-                onChange={(e) => setLane(e.target.value)}
-                style={css(`${FIELD};margin-top:5px`)}
-              >
-                {LANES.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.label}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
 
-          <p style={css("margin:0 0 12px;font-family:var(--ui);font-size:12px;color:var(--ink3)")}>
-            {LANES.find((l) => l.id === lane)?.hint}
+          <Eyebrow>Lanes — pick none to run all {LANES.length}</Eyebrow>
+          <div style={css("display:flex;gap:7px;flex-wrap:wrap;margin:6px 0 8px")}>
+            {LANES.map((l) => {
+              const on = lanes.includes(l.id);
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => toggleLane(l.id)}
+                  aria-pressed={on}
+                  title={l.hint}
+                  style={css(chipStyle(on))}
+                >
+                  {l.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Always spell out the run. "None = all" is a default worth having, but only if the
+              author never has to remember it — and the chain makes the cost legible too. */}
+          <p style={css("margin:0 0 12px;font-family:var(--ui);font-size:12px;color:var(--dim)")}>
+            {chain.map((l) => l.label).join(" → ")}
+            {chain.length === 1
+              ? ` — ${chain[0].hint}`
+              : " · one pass per lane, each deepening the last one's output"}
             {!pov.trim() && (
               <>
                 {" · "}
-                <span style={css("color:var(--ink3);font-style:italic")}>
-                  no POV — the pass will preserve the viewpoint already on the page
+                <span style={css("font-style:italic")}>
+                  no POV — the passes will preserve the viewpoint already on the page
                 </span>
               </>
             )}
@@ -219,7 +256,7 @@ export default function EnrichScreen() {
               "display:flex;align-items:center;gap:12px;margin-top:12px;justify-content:space-between",
             )}
           >
-            <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--ink3)")}>
+            <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
               {prose.length.toLocaleString()} chars
             </span>
             <div style={css("display:flex;gap:8px;align-items:center")}>
@@ -240,7 +277,7 @@ export default function EnrichScreen() {
         </Panel>
 
         <Panel
-          eyebrow={result ? `${result.lane} · ${result.model}` : "Result"}
+          eyebrow={result ? `${result.lanes_run.join(" → ")} · ${result.model}` : "Result"}
           title="Enriched"
           actions={
             result ? (
@@ -253,20 +290,20 @@ export default function EnrichScreen() {
           {busy && (
             <div
               style={css(
-                "display:flex;align-items:center;gap:10px;min-height:56vh;justify-content:center;color:var(--ink3);font-family:var(--ui);font-size:13px",
+                "display:flex;align-items:center;gap:10px;min-height:56vh;justify-content:center;color:var(--dim);font-family:var(--ui);font-size:13px",
               )}
             >
-              <Spinner /> running the {lane} pass…
+              <Spinner /> running {chain.map((l) => l.label.toLowerCase()).join(" → ")}…
             </div>
           )}
 
           {!busy && error && (
             <div
               style={css(
-                "border:1px solid var(--danger,#b4413c);border-radius:8px;padding:14px;background:var(--boxbg)",
+                "border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));border-radius:8px;padding:14px;background:color-mix(in srgb,var(--bad) 8%,var(--boxbg))",
               )}
             >
-              <Eyebrow>Pass failed</Eyebrow>
+              <Eyebrow>Every lane failed</Eyebrow>
               <p
                 style={css(
                   "margin:6px 0 0;font-family:var(--mono);font-size:12px;color:var(--ink);white-space:pre-wrap;word-break:break-word",
@@ -280,7 +317,7 @@ export default function EnrichScreen() {
           {!busy && !error && !result && (
             <div
               style={css(
-                "display:flex;align-items:center;justify-content:center;min-height:56vh;color:var(--ink3);font-family:var(--ui);font-size:13px",
+                "display:flex;align-items:center;justify-content:center;min-height:56vh;color:var(--dim);font-family:var(--ui);font-size:13px",
               )}
             >
               Your enriched scene will appear here.
@@ -289,10 +326,38 @@ export default function EnrichScreen() {
 
           {!busy && result && (
             <>
+              {/* A partial chain is still a real result — but it must never read as a complete one.
+                  A lane the author asked for and did not get is the loudest thing on this panel. */}
+              {result.lanes_failed.length > 0 && (
+                <div
+                  style={css(
+                    "margin-bottom:11px;border:1px solid color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 9%,var(--boxbg));border-radius:8px;padding:10px 12px",
+                  )}
+                >
+                  <div
+                    style={css(
+                      "font-family:var(--ui);font-size:12.5px;font-weight:600;color:var(--bad)",
+                    )}
+                  >
+                    Partial result — {result.lanes_failed.map((f) => f.lane).join(", ")} did not run
+                  </div>
+                  {result.lanes_failed.map((f) => (
+                    <p
+                      key={f.lane}
+                      style={css(
+                        "margin:5px 0 0;font-family:var(--mono);font-size:11px;color:var(--bad);white-space:pre-wrap;word-break:break-word",
+                      )}
+                    >
+                      {f.reason}
+                    </p>
+                  ))}
+                </div>
+              )}
+
               <textarea readOnly value={result.enriched} spellCheck={false} style={css(PROSE)} />
               <div
                 style={css(
-                  "display:flex;gap:14px;margin-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--ink3)",
+                  "display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--dim)",
                 )}
               >
                 <span>
@@ -305,10 +370,8 @@ export default function EnrichScreen() {
                 </span>
                 <span>{result.tokens_used.toLocaleString()} tokens</span>
                 {result.pov_free && <span>pov-free</span>}
-                {result.lane === "dialogue" && (
-                  <span
-                    style={css(result.dialogue_rules_loaded ? "" : "color:var(--danger,#b4413c)")}
-                  >
+                {result.lanes_run.includes("dialogue") && (
+                  <span style={css(result.dialogue_rules_loaded ? "" : "color:var(--bad)")}>
                     {result.dialogue_rules_loaded ? "rules loaded" : "NO DIALOGUE RULES"}
                   </span>
                 )}

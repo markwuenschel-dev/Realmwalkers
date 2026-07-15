@@ -5059,8 +5059,8 @@ export interface components {
       prose: string;
       /** Pov */
       pov?: string | null;
-      /** Lane */
-      lane: string;
+      /** Lanes */
+      lanes?: string[] | null;
       /** Beat Text */
       beat_text?: string | null;
     };
@@ -5068,8 +5068,10 @@ export interface components {
     EnrichOut: {
       /** Enriched */
       enriched: string;
-      /** Lane */
-      lane: string;
+      /** Lanes Run */
+      lanes_run: string[];
+      /** Lanes Failed */
+      lanes_failed: components["schemas"]["LaneFailure"][];
       /** Model */
       model: string;
       /** Pov Free */
@@ -5417,6 +5419,13 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /** LaneFailure */
+    LaneFailure: {
+      /** Lane */
+      lane: string;
+      /** Reason */
+      reason: string;
     };
     /**
      * LlmCallLinksOut

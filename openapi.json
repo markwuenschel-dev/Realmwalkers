@@ -13614,9 +13614,19 @@
             ],
             "title": "Pov"
           },
-          "lane": {
-            "type": "string",
-            "title": "Lane"
+          "lanes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lanes"
           },
           "beat_text": {
             "anyOf": [
@@ -13632,8 +13642,7 @@
         },
         "type": "object",
         "required": [
-          "prose",
-          "lane"
+          "prose"
         ],
         "title": "EnrichIn"
       },
@@ -13643,9 +13652,19 @@
             "type": "string",
             "title": "Enriched"
           },
-          "lane": {
-            "type": "string",
-            "title": "Lane"
+          "lanes_run": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lanes Run"
+          },
+          "lanes_failed": {
+            "items": {
+              "$ref": "#/components/schemas/LaneFailure"
+            },
+            "type": "array",
+            "title": "Lanes Failed"
           },
           "model": {
             "type": "string",
@@ -13675,7 +13694,8 @@
         "type": "object",
         "required": [
           "enriched",
-          "lane",
+          "lanes_run",
+          "lanes_failed",
           "model",
           "pov_free",
           "dialogue_rules_loaded",
@@ -14462,6 +14482,24 @@
         ],
         "title": "KnowledgeFactOut",
         "description": "A discrete story fact + who knows it when (scene-packet knowledge ledger)."
+      },
+      "LaneFailure": {
+        "properties": {
+          "lane": {
+            "type": "string",
+            "title": "Lane"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lane",
+          "reason"
+        ],
+        "title": "LaneFailure"
       },
       "LlmCallLinksOut": {
         "properties": {

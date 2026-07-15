@@ -16,7 +16,8 @@ vi.mock("../api/client", () => ({
 
 const RESULT = {
   enriched: "He drove the blade through the gap in the guard.",
-  lane: "combat",
+  lanes_run: ["combat"],
+  lanes_failed: [],
   model: "gpt-5.6-luna",
   pov_free: true,
   dialogue_rules_loaded: true,
@@ -26,6 +27,8 @@ const RESULT = {
 };
 
 const proseBox = () => screen.getByPlaceholderText("Paste your scene here…");
+const chip = (name: string) => screen.getByRole("button", { name });
+const lanesSent = () => enrich.mock.calls[0][0].lanes;
 
 describe("EnrichScreen persistence", () => {
   beforeEach(() => {
@@ -93,11 +96,111 @@ describe("EnrichScreen persistence", () => {
   });
 
   it("surfaces a stripped dialogue ruleset instead of passing off the output as good", async () => {
-    enrich.mockResolvedValue({ ...RESULT, lane: "dialogue", dialogue_rules_loaded: false });
+    enrich.mockResolvedValue({
+      ...RESULT,
+      lanes_run: ["dialogue"],
+      dialogue_rules_loaded: false,
+    });
     render(<EnrichScreen />);
     fireEvent.change(proseBox(), { target: { value: "'Hi,' he said." } });
     fireEvent.click(screen.getByRole("button", { name: "Enrich" }));
 
     await waitFor(() => expect(screen.getByText("NO DIALOGUE RULES")).toBeTruthy());
+  });
+});
+
+// Lane selection is a SET with a meaningful empty state: picking nothing runs everything. The panel
+// must never make the author remember that, and must never quietly widen or narrow what they picked.
+describe("EnrichScreen lane selection", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    enrich.mockReset();
+    enrich.mockResolvedValue(RESULT);
+  });
+
+  it("sends no lanes when none are picked — the server reads that as all of them", async () => {
+    render(<EnrichScreen />);
+    fireEvent.change(proseBox(), { target: { value: "He swung." } });
+    fireEvent.click(screen.getByRole("button", { name: "Enrich" }));
+
+    await waitFor(() => expect(enrich).toHaveBeenCalled());
+    expect(lanesSent()).toEqual([]);
+  });
+
+  it("says what an empty selection will actually run, so it need not be remembered", () => {
+    render(<EnrichScreen />);
+    expect(screen.getByText(/Combat → Sensory → Dialogue/)).toBeTruthy();
+  });
+
+  it("sends exactly the lanes picked", async () => {
+    render(<EnrichScreen />);
+    fireEvent.change(proseBox(), { target: { value: "He swung." } });
+    fireEvent.click(chip("Combat"));
+    fireEvent.click(chip("Dialogue"));
+    fireEvent.click(screen.getByRole("button", { name: "Enrich" }));
+
+    await waitFor(() => expect(enrich).toHaveBeenCalled());
+    expect(lanesSent()).toEqual(["combat", "dialogue"]);
+  });
+
+  it("toggles a lane back off", async () => {
+    render(<EnrichScreen />);
+    fireEvent.change(proseBox(), { target: { value: "He swung." } });
+    fireEvent.click(chip("Sensory"));
+    fireEvent.click(chip("Sensory"));
+    fireEvent.click(screen.getByRole("button", { name: "Enrich" }));
+
+    await waitFor(() => expect(enrich).toHaveBeenCalled());
+    expect(lanesSent()).toEqual([]); // back to the default, not a stuck selection
+  });
+
+  it("shows the run in canonical order, not the order the chips were clicked", () => {
+    render(<EnrichScreen />);
+    fireEvent.click(chip("Dialogue"));
+    fireEvent.click(chip("Combat"));
+    expect(screen.getByText(/Combat → Dialogue/)).toBeTruthy();
+  });
+
+  it("keeps a lane selection across a nav away and back", async () => {
+    const first = render(<EnrichScreen />);
+    fireEvent.click(chip("Sensory"));
+    await waitFor(() => expect(sessionStorage.getItem("desk.inject.v1")).toBeTruthy());
+
+    first.unmount();
+
+    render(<EnrichScreen />);
+    await waitFor(() => expect(chip("Sensory").getAttribute("aria-pressed")).toBe("true"));
+  });
+
+  it("reads a stored v1 single lane as that one lane, not as all of them", async () => {
+    // v1 shipped `lane: "combat"`. Widening it to all three would silently cost 3x the tokens on a
+    // click the author thought they had already configured.
+    sessionStorage.setItem(
+      "desk.inject.v1",
+      JSON.stringify({ prose: "He swung.", pov: "", lane: "combat", beat: "", result: null }),
+    );
+    render(<EnrichScreen />);
+
+    await waitFor(() => expect(chip("Combat").getAttribute("aria-pressed")).toBe("true"));
+    expect(chip("Sensory").getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "Enrich" }));
+    await waitFor(() => expect(enrich).toHaveBeenCalled());
+    expect(lanesSent()).toEqual(["combat"]);
+  });
+
+  it("marks a partial result as partial instead of passing it off as complete", async () => {
+    enrich.mockResolvedValue({
+      ...RESULT,
+      lanes_run: ["combat", "dialogue"],
+      lanes_failed: [{ lane: "sensory", reason: "sensory enrichment pass returned empty output" }],
+    });
+    render(<EnrichScreen />);
+    fireEvent.change(proseBox(), { target: { value: "He swung." } });
+    fireEvent.click(screen.getByRole("button", { name: "Enrich" }));
+
+    // The prose that DID come back is still handed over — a failed lane doesn't discard real work.
+    await waitFor(() => expect(screen.getByDisplayValue(RESULT.enriched)).toBeTruthy());
+    expect(screen.getByText(/Partial result — sensory did not run/)).toBeTruthy();
+    expect(screen.getByText(/returned empty output/)).toBeTruthy();
   });
 });
