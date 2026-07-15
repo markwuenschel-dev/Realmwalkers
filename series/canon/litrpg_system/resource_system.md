@@ -3,14 +3,16 @@ id: resource_system
 name: Resources & Capacity — Dominion Realm
 kind: system
 status: canon
-last_updated: 2026-06-27
+last_updated: 2026-07-14
 ---
 
 # Resources & Capacity — Dominion Realm
 
 > **Owner field:** Resources & Capacity.
-> **Owns:** HP, Mana, Stamina, Reserve, resource caps, resource formulas, regeneration, depletion states, crash states, Reserve buffering, Book-1 XP curve/pacing until split.
-> **Does not own:** detailed injury anatomy (`embodiment_injury.md`), combat damage/penetration (`combat_defense.md`), class taxonomy and class attribute profiles (`classes.md`), tier ladder prose (`mechanics.md`), interface display style (`interface_abstraction.md` / style rules).
+> **Owns:** HP, Mana, Stamina, Reserve, resource caps, resource formulas, regeneration, depletion states, crash states, Reserve buffering, resource-facing attribute growth, and final combat-resource debits.
+> **Does not own:** detailed injury anatomy (`embodiment_injury.md`), combat damage/penetration (`combat_defense.md`), class taxonomy and class attribute profiles (`classes.md`), tier ladder prose (`mechanics.md`), XP thresholds/rarity burden/scene XP (`xp_progression_formulas.md`), or Interface display style (`interface_abstraction.md` / style rules).
+> **Inputs from:** `classes.md`, `mechanics.md`, `combat_defense.md`, `embodiment_injury.md`, conditions/environment owners.
+> **Outputs to:** `combat_defense.md`, `xp_progression_formulas.md`, `interface_abstraction.md`, and any subsystem gated by affordability or depletion.
 
 ---
 
@@ -138,6 +140,9 @@ Baseline human with all visible and hidden attributes at 5, before class multipl
 | Reserve | 40 |
 
 Luck feeds no base pool. It tilts unresolved margins and never makes impossible outcomes happen. Canonical model → `luck_fortune.md`.
+
+
+`LUCK` is an Interface-facing projection of passive Fortune coupling, not the underlying probability-flow state. It may support an explicitly named class feature or local Luck adapter, but it is not a `ResourceWeight`, does not receive a pool multiplier, and cannot be converted into a universal combat or loot percentage.
 
 ---
 
@@ -443,6 +448,143 @@ Functional Penalty: pain when sprinting, climbing, or casting under pressure
 
 ---
 
+## Combat Resource Intake
+
+This section receives combat-facing resource outputs from `combat_defense.md`.
+
+Resources & Capacity owns final HP, Mana, Stamina, Reserve, regeneration, depletion states, crash states, and Reserve buffering.
+
+Combat & Defense may output pressure values, but this file resolves final resource state.
+
+Plain rule:
+
+```text
+combat_defense.md produces resource pressure.
+resource_system.md decides final resource state.
+```
+
+---
+
+### Combat Resource Handoff
+
+Combat & Defense may send:
+
+```text
+CombatResourceHandoff:
+  hpDamageCandidateByTarget
+  staminaPressureByActor
+  manaPressureByActor
+  reservePressureByActor
+  concentrationPressureByActor
+  defensiveLayerResourcePressure
+  crashRisk
+  affordabilityFlagUsed
+  depletionStateAtExchange
+  forcedAction
+  forcedContinuationReason
+  staminaDeficitCandidate
+  manaDeficitCandidate
+  routedFrom: combat_defense.md
+  routedTo: resource_system.md
+```
+
+This file resolves:
+
+$$
+\begin{aligned}
+R_{i,t+1}
+&=
+\Phi_{\mathrm{resource}}
+\bigl(
+R_{i,t},
+H_i^{\mathrm{candidate}},
+K_{\mathrm{sta},i},
+K_{\mathrm{mana},i},
+K_{\mathrm{reserve},i},
+\mathrm{forcedAction}_i,
+\mathrm{context}_i
+\bigr)
+\end{aligned}
+$$
+
+Where:
+
+| Symbol                 | Meaning                                                       |
+| ---------------------- | ------------------------------------------------------------- |
+| $R_{i,t}$              | current resource state for actor $i$                                        |
+| $H_i^{\mathrm{candidate}}$ | actor-keyed HP-damage candidate from Combat; this file resolves final HP state                                  |
+| $K_{\mathrm{sta},i}$   | actor-keyed Stamina pressure                                              |
+| $K_{\mathrm{mana},i}$  | actor-keyed Mana pressure                                                 |
+| $K_{\mathrm{reserve},i}$ | actor-keyed Reserve-pressure signal                                       |
+| `forcedAction`         | whether the character keeps acting below safe resource levels |
+| `context`              | injury, environment, stress, power use, conditions            |
+
+---
+
+### Reserve Pressure Boundary
+
+Combat & Defense may output:
+
+```text
+Reserve-pressure risk: none / low / moderate / high / catastrophic
+```
+
+This file owns the canonical Reserve conversion:
+
+```text
+If Mana < 20%, forced casting consumes Reserve.
+If Stamina < 20%, forced exertion consumes Reserve.
+
+1 Reserve = 5 Mana deficit
+1 Reserve = 5 Stamina deficit
+```
+
+Plain rule:
+
+```text
+Reserve pressure is a warning from combat.
+Reserve conversion is resolved here.
+```
+
+---
+
+### Resource Output Back to Combat
+
+After resolving resource state, this file may output:
+
+```text
+ResourceCombatOutput:
+  currentHPState
+  currentManaState
+  currentStaminaState
+  currentReserveState
+  depletionState
+  crashState
+  forcedActionAllowed
+  regenerationSuppressed
+  combatCapacityChanged
+  routedFrom: resource_system.md
+  routedTo: combat_defense.md
+```
+
+Combat & Defense may consume those values for future exchanges, especially:
+
+```text
+available defense modes
+recovery debt
+barrier maintenance
+forced exertion
+collapse risk
+tempo loss
+```
+
+Plain rule:
+
+```text
+Resources change what future combat branches are reachable.
+```
+
+
 ## 13. Eyes of Meszkhal Resource Costs
 
 The Eyes of Meszkhal currently have one active mode.
@@ -555,123 +697,41 @@ Maturity stages can change point distribution and point quantity.
 
 ---
 
-## 16. XP Curve and Level Pacing
+## 16. Progression and XP Boundary
 
-### Book-by-book pacing target
+`xp_progression_formulas.md` is the authoritative owner of:
 
-| Story point | Average level range | Notes |
-|---|---:|---|
-| Arrival | 1 | New arrivals are functionally level 1. |
-| Early Book 1 | 2–4 | Survival, first kills, first lessons, early class pressure. |
-| Mid Book 1 | 5–7 | Competence emerges, but characters remain fragile. |
-| Book 1 Finale | 8–12 | Main cast can matter in a crisis without becoming regional powers. |
-| Book 2 Average | ~20 | Legendary paths begin creating XP drag for Marcus/Serra. |
-| Book 3 Average | ~30 | Growth continues, but level gaps and class rarity matter more. |
+* class-level XP thresholds,
+* class-rarity prevalence and self-information,
+* embodied rarity burden,
+* per-scene adaptive evidence,
+* combat XP adaptation,
+* recovery integration,
+* progression pacing math,
+* the class-rarity energy-cost link.
 
-Rule of thumb:
-
-```text
-Average cast growth ≈ 10 levels/book
-```
-
-### Class acquisition
-
-Character Level exists before formal class acquisition.
-
-Before class acquisition:
+This file supplies resource-facing inputs to progression—final HP loss, Mana/Stamina/Reserve depletion, crash state, forced overuse, and recovery state—but does not calculate XP.
 
 ```text
-XP Multiplier: 1.00
-Class attribute multipliers: none
-Class features: none
+Resource state is evidence consumed by progression.
+Resource state is not itself an XP award.
 ```
 
-After class acquisition, future level thresholds use the active class rarity multiplier. Past levels are not recalculated.
+Current progression-facing class-rarity sequence, for cross-reference only:
 
 ```text
-Class acquisition changes future growth, not past level history.
+Common → Uncommon → Rare → Epic → Fabled → Legendary → Mythic → Unique
 ```
 
-### Book 1 class acquisition order
-
-| Character | Book 1 Class | Rarity | Approximate timing | Reason |
-|---|---|---|---|---|
-| Seb | Warrior | Common | Very early | Broker pressure / martyr scene / direct violent commitment. |
-| Serra | Warrior | Common | Very early | Hand-to-hand survival and direct combat during false-rescue arc. |
-| Brent | Warden | Uncommon | Early-mid | Broad protective/structural arc; wide but not deep at first. |
-| Mathias | Scout | Common | Early-mid | Exploration, ruins, routes, observation, contact-building. |
-| Mara | Psion | Rare | Late court arc or Walking Grove | Timing unresolved. |
-| Marcus | Mage | Common | Later | Needs Vultures/spell instruction before repeated casting can earn Mage. |
-
-Book 1 specializations are not active for the main cast except Seb.
-
-> **Exception — Seb's Reaver:** broker-granted early at a level where he should not have it.
-
-### Base XP curve
-
-XP required to advance from level `L` to `L+1`:
+Do not restore the retired flat model:
 
 ```text
-BaseXP(L) = 75L + 25L log2(L+1) + 4L(L-1)
+BaseXP(L) × fixed class-rarity multiplier
 ```
 
-| Current level | Base XP to next level |
-|---:|---:|
-| 1 | 100 |
-| 2 | 237 |
-| 3 | 399 |
-| 4 | 580 |
-| 5 | 778 |
-| 6 | 991 |
-| 7 | 1,218 |
-| 8 | 1,458 |
-| 9 | 1,710 |
-| 10 | 1,975 |
-| 15 | 3,465 |
-| 20 | 5,216 |
-| 25 | 7,213 |
-| 30 | 9,446 |
-| 40 | 14,598 |
-| 50 | 20,641 |
+Do not use `Exceptional` as the current class-XP rarity name. It remains valid on unrelated Mechanics ladders.
 
-### XP multipliers by class rarity
-
-```text
-XPToNext = BaseXP(L) × ClassRarityMultiplier
-```
-
-| Class rarity | XP multiplier | Design intent |
-|---|---:|---|
-| Unclassed / Common | 1.00 | Baseline growth. |
-| Uncommon | 1.08 | Noticeably slower, still practical. |
-| Rare | 1.16 | Meaningful drag without stalling rare classes. |
-| Exceptional | 1.25 | Slower growth; major class weight. |
-| Legendary | 1.38 | Heavy enough to matter, not a grind wall. |
-| Mythic | 1.50 | Strong burden, still playable over a series. |
-| Unique | 1.65 | Story-significant burden. |
-
-Marcus and Serra do not pay Legendary XP costs until those Legendary paths are active.
-
-### XP awards
-
-XP rewards meaningful pressure, not only kills.
-
-| Event type | Suggested award |
-|---|---:|
-| Routine practice / low-risk repetition | Tiny; often no character XP. |
-| Useful training under real difficulty | 5–15% of next level. |
-| Meaningful survival challenge | 15–30% of next level. |
-| Major combat contribution | 25–50% of next level. |
-| Arc climax / decisive breakthrough | 50–100% of next level. |
-| Book finale contribution | 1 level possible; 2 only if low-level or extraordinary. |
-
-Anti-grind rule:
-
-```text
-Low-risk repeated actions produce sharply diminishing XP.
-```
-
-XP follows contribution and consequence: scouting, healing, stabilizing, protecting, discovering, negotiating, surviving, and identifying a weakness can all award XP if they materially change the outcome.
+Narrative level targets and class-acquisition timing belong in `xp_progression_formulas.md`, `classes.md`, character dossiers, and book planning as appropriate. They are not resource formulas.
 
 ---
 
@@ -719,18 +779,16 @@ Detailed profiles live in `classes.md`. This snapshot exists only for resource-f
 | Psion | Rare | WIS, CHA, INT | DEX, END, OCC | Mana / Reserve pressure |
 | Adventurer | Common | END, WIS, LUCK | STR, AGI, DEX, CON, INT | Flexible survival |
 
+
+`LUCK` in this snapshot is an Interface-facing class/profile label. Because no resource formula includes a LUCK weight, marking it Prime does not increase a primary resource pool unless an explicit feature defines a separate resource effect.
+
 ---
 
-## 19. Book 1 Combat Standing
+## 19. Combat-Standing Boundary
 
-| Character | Book 1 combat role |
-|---|---|
-| Seb | Strongest direct fighter early; Warrior first due to Broker/martyr pressure. |
-| Serra | Second strongest raw fighter; Warrior early through false-rescue hand-to-hand combat. |
-| Marcus | Middle/situational; dangerous through perception, leverage, and narrow circumstances; not generally strongest. |
-| Mara | Situational/malleable; Psion timing unresolved. |
-| Brent | Situational/malleable; Warden makes him durable/supportive rather than pure healer. |
-| Mathias | Weakest direct combatant; Scout/Emissary direction remains non-brawler/contact-specialist. |
+Book-specific combat hierarchy, character signatures, scene constraints, and opponent classification are owned by `combat_defense.md`, character dossiers, and book planning.
+
+This file contributes only the resource state that helps make those standings true: pool sizes, depletion, Reserve buffering, crash risk, and resource-facing class profiles. It must not become a second character-combat canon file.
 
 ---
 
@@ -752,73 +810,122 @@ Detailed profiles live in `classes.md`. This snapshot exists only for resource-f
 - Most sapient species get 4–5 points per level, often partially forced.
 - Powerful/rare species can get 6 points per level.
 - Class rarity bonus points are removed.
+- XP thresholds and rarity burden are owned by `xp_progression_formulas.md`; no flat rarity multiplier table lives here.
 - Classes use Prime/Core attribute multipliers instead of bonus point cadence.
-- Book 1 main cast does not have active specializations except Seb.
-- Book 1 finale target is roughly Level 8–12.
-- Book 2 average is roughly Level 20; Book 3 roughly Level 30.
-- Seb and Serra are the top direct fighters in Book 1.
-- Marcus is situational/middle in Book 1, not the strongest general fighter.
-- Mathias is not a brawler and remains weakest direct combatant.
-- Finale Xyloryn threat is a Myrmidon, not a drone.
 
 ---
 
 ## Luck/Fortune Adapter
 
-This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+This subsystem uses the canonical model from `luck_fortune.md` and defines resource-local uncertainty only.
 
 ### Local Possibility State
 
-**General resource uncertainty:**
+General resource uncertainty:
 
 $$
-z_{\mathrm{resource}} = (\mathrm{currentHP},\ \mathrm{currentMana},\ \mathrm{currentStamina},\ \mathrm{currentReserve},\ \mathrm{deficitLoad},\ \mathrm{regenStability},\ \mathrm{crashRisk},\ \mathrm{recoveryMargin})
+\begin{aligned}
+z_{\mathrm{resource}}
+&=
+\bigl(
+\mathrm{currentHP},
+\mathrm{currentMana},
+\mathrm{currentStamina},
+\mathrm{currentReserve},
+\mathrm{deficitLoad},
+\mathrm{regenStability},
+\mathrm{crashRisk},
+\mathrm{recoveryMargin}
+\bigr)
+\end{aligned}
 $$
 
-**Reserve backlash (primary Luck interaction):**
+Reserve-backlash uncertainty:
 
 $$
-z_{\mathrm{reserve}} = (\mathrm{strainLoad},\ \mathrm{organStress},\ \mathrm{manaDeficit},\ \mathrm{staminaDeficit},\ \mathrm{interfaceCoherence},\ \mathrm{soulShear},\ \mathrm{recoveryMargin})
+\begin{aligned}
+z_{\mathrm{reserve}}
+&=
+\bigl(
+\mathrm{strainLoad},
+\mathrm{organStress},
+\mathrm{manaDeficit},
+\mathrm{staminaDeficit},
+\mathrm{interfaceCoherence},
+\mathrm{soulShear},
+\mathrm{recoveryMargin}
+\bigr)
+\end{aligned}
 $$
 
 ### Baseline Drift
 
-Without Luck, resource trajectories follow depletion, regen, overchannel strain, and crash physics defined elsewhere in this file.
+Without Luck, trajectories follow the depletion, regeneration, Reserve-buffering, forced-overuse, and crash rules owned by this file.
 
 ### Uncertainty / Diffusion
 
-Uncertainty enters through marginal crash timing, recovery complications, overchannel side effects, and failure-severity branches when strain approaches multiple basins.
+Uncertainty remains in marginal crash timing, failure-basin selection, overchannel side effects, recovery complications, and severity tails when more than one result remains causally reachable.
 
 ### Favorability Function
 
-$$
-U_{\mathrm{resource}}(z),\quad U_{\mathrm{reserve}}(z)
-$$
+Favorability is actor-specific and does not include larger maximum pools:
 
-Favorable outcomes mean less catastrophic plausible failure modes, cleaner collapse, or fewer recovery tail events — not higher maximum pools.
+$$
+\begin{aligned}
+U_{\mathrm{resource}}^{(a)}(z,t)
+&=
+\mathrm{ResourceFavorabilityForActor}
+\bigl(
+ a,z,t
+\bigr)
+\end{aligned}
+$$
 
 ### Luck Interaction
 
-Fortune may bias a Reserve crash toward less catastrophic reachable failure modes, reduce the chance an uncertain injury complication worsens, shift a marginal mana crash toward clean collapse instead of backlash, or help recovery avoid a bad tail event. Misfortune does the reverse. Volatility widens crash and recovery spread.
-
-$$
-u_{L,\mathrm{resource}} = \lambda_L R_{\mathrm{resource}}(z,t)\,\nabla U_{\mathrm{resource}}(z,t)
-$$
+Fortune and Misfortune bias drift among reachable crash/recovery states. Volatility widens diffusion and tail risk. This file supplies its local adapter contract to `luck_fortune.md`; it does not copy the canonical flow equations.
 
 ### Reachability Constraints
 
-Luck can bias crash basin selection and recovery complication branches where uncertainty remains.
-
-Luck cannot create extra Reserve, erase resource debt, prevent deterministic collapse when no margin remains, turn reckless overuse into free power, or increase HP/Mana/Stamina/Reserve maximums.
+Luck cannot create extra HP, Mana, Stamina, or Reserve; erase resource debt; bypass the canonical Reserve conversion; prevent deterministic collapse after no margin remains; turn forced overuse into free power; or increase maximum pools.
 
 ### Result Classifier
 
 $$
-\mathrm{Result}_{\mathrm{reserve}} = \mathrm{Classify}_{\mathrm{reserve}}(z_{\mathrm{final}})
+\begin{aligned}
+\mathrm{Result}_{\mathrm{reserve}}
+&=
+\mathrm{Classify}_{\mathrm{reserve}}
+\bigl(
+ z_{\mathrm{reserve,final}}
+\bigr)
+\end{aligned}
 $$
 
-Examples: mild crash, blackout, organ strain, interface failure, temporary Reserve damage, permanent Reserve damage, soul strain.
+Examples: mild crash, clean collapse, blackout, organ strain, Interface failure, temporary Reserve injury, permanent Reserve injury, or soul strain.
 
-### Notes
+### Forbidden Simplifications
 
-Luck does not enter resource max formulas. LCK is not a ResourceWeight. Reserve backlash is the most important resource-side Luck interaction.
+Do not use Luck as free resources, a maximum-pool multiplier, a substitute for resource accounting, or a way to resolve injury anatomy, combat contact, perception, motion, or strategy inside Resources.
+
+### Owner Handoff
+
+```text
+ResourceLuckAdapterInput:
+  actor
+  localPossibilityState
+  baselineReachableCrashOrRecoverySet
+  unresolvedResourceCoordinates
+  favorabilityPerspective
+  reachabilityGate
+  classifier
+  routedFrom: resource_system.md
+  routedThrough: luck_fortune.md
+```
+
+Plain rule:
+
+```text
+Luck may bias which reachable failure basin captures the actor.
+It cannot make an unaffordable action affordable.
+```

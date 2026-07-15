@@ -3,6 +3,7 @@ id: luck_fortune
 name: Luck / Fortune
 kind: system
 status: canon
+last_updated: 2026-07-14
 ---
 
 # Luck / Fortune
@@ -12,6 +13,37 @@ status: canon
 Canonical cross-system mechanics file.
 
 This file defines Luck/Fortune as a high-order uncertainty system for Dominion Realm. Luck is not a normal resource, not a standard visible attribute, and not a simple roll modifier. Other system files should reference this file and add only local adapter notes.
+
+
+### Owner Boundary
+
+This file owns:
+
+* coherent possibility structure,
+* reduced probability-flow mechanics,
+* Fortune and Misfortune drift,
+* Volatility diffusion,
+* reachability constraints,
+* active Luck control and entropy distortion cost,
+* the required subsystem-adapter contract.
+
+This file does **not** own:
+
+* the deterministic physics or rules of any local subsystem,
+* HP, Mana, Stamina, or Reserve accounting,
+* movement feasibility,
+* perception or inference,
+* injury anatomy,
+* strategy or intelligent choice,
+* combat contact, penetration, armor, shields, or barriers,
+* Interface formatting.
+
+Plain rule:
+
+```text
+The subsystem defines what is causally possible and what remains uncertain.
+Luck/Fortune redistributes probability only inside that reachable uncertainty.
+```
 
 ---
 
@@ -26,13 +58,17 @@ Luck does not create impossible outcomes. It biases plausible outcomes whose cau
 Core statement:
 
 $$
+\begin{aligned}
 \boxed{\text{Luck is probability-flow bias over reachable possibility space, constrained by entropy cost.}}
+\end{aligned}
 $$
 
 More complete statement:
 
 $$
+\begin{aligned}
 \boxed{\text{Luck/Fortune shapes coherent possibility amplitudes and their reduced stochastic probability flows.}}
+\end{aligned}
 $$
 
 Fortune adds favorable drift. Misfortune adds adverse drift. Volatility increases diffusion toward extreme outcomes.
@@ -81,6 +117,18 @@ Use **Volatility** for increased uncertainty, variance, and extreme outcomes.
 
 Do not define Luck as a hidden stat with a simple channel formula. It is not like Constitution, Wisdom, Conviction, or Mystery. It is a cross-system probability-flow mechanic.
 
+
+### Interface LUCK Boundary
+
+`LUCK` or `LCK` may appear as an Interface-facing projection of passive Fortune coupling. That display value is not the underlying Fortune state and is not a universal scalar bonus.
+
+Binding rules:
+
+* `LUCK` does not feed HP, Mana, Stamina, or Reserve maximum formulas.
+* A class may reference `LUCK` as a progression-facing or feature-facing attribute, but the resulting effect must still enter a named local subsystem adapter.
+* Do not convert `LUCK +1` into a universal percentage bonus, critical-hit bonus, dodge bonus, or loot bonus unless an explicitly simplified Interface feature defines that projection.
+* The Interface remains a translation layer, not the metaphysical mechanism.
+
 ---
 
 ## Main Modes
@@ -92,7 +140,11 @@ Fortune biases uncertain outcomes toward favorable reachable states.
 Mathematically, Fortune appears as favorable drift through possibility space:
 
 $$
+\begin{aligned}
 u_{\mathrm{Fortune}}
+&\in
+T_z\mathcal{M}_X
+\end{aligned}
 $$
 
 It moves probability density toward states with higher favorability.
@@ -102,9 +154,11 @@ It moves probability density toward states with higher favorability.
 Misfortune biases uncertain outcomes toward harmful reachable states.
 
 $$
+\begin{aligned}
 u_{\mathrm{Misfortune}}
-\approx
+&\approx
 -u_{\mathrm{Fortune}}
+\end{aligned}
 $$
 
 Misfortune does not make impossible disasters happen. It makes the worst plausible branch more likely.
@@ -116,7 +170,11 @@ Volatility does not simply mean good luck or bad luck. It increases spread, inst
 In the probability-flow layer, Volatility modifies diffusion:
 
 $$
-D \rightarrow D+\Sigma_L
+\begin{aligned}
+D_X
+&\longrightarrow
+D_X+\Sigma_{L,X}
+\end{aligned}
 $$
 
 High Volatility can produce miraculous saves and absurd catastrophes from the same underlying instability.
@@ -161,33 +219,43 @@ Active Luck is controlled probability steering and should incur cost, strain, de
 Every local subsystem $X$ has its own possibility space:
 
 $$
+\begin{aligned}
 \mathcal{M}_X
+&=
+\text{local possibility space for subsystem }X
+\end{aligned}
 $$
 
 A point in that space is:
 
 $$
-z\in\mathcal{M}_X
+\begin{aligned}
+z
+&\in
+\mathcal{M}_X
+\end{aligned}
 $$
 
 The meaning of $z$ depends on the subsystem.
 
-Combat:
+Combat exchange-local state:
 
 $$
 \begin{aligned}
 z_{\mathrm{combat}}
 &=
-(
-\mathrm{aimError},
-\mathrm{timingError},
-\mathrm{guardAngle},
-\mathrm{woundPath},
-\mathrm{organProximity},
-\mathrm{footingStability}
-)
+\bigl(
+\mathrm{aimPathResidual},
+\mathrm{timingResidual},
+\mathrm{contactAngleResidual},
+\mathrm{deflectionResidual},
+\mathrm{penetrationMargin},
+\mathrm{battlefieldInterference}
+\bigr)
 \end{aligned}
 $$
+
+Combat does not absorb foreign uncertainty merely because the event occurs during a fight. Route footing and landing to `motion_positioning.md`; recognition and Insight to `perception_information.md`; crash and Reserve backlash to `resource_system.md`; wound path and organ proximity to `embodiment_injury.md`; and plan branches or coordination failure to `strategy_decision_systems.md`.
 
 Crafting:
 
@@ -269,7 +337,11 @@ The canonical Luck model stays the same. Only the local state variables change.
 Possible futures may be represented as complex possibility amplitudes:
 
 $$
-\psi_X(z,t)=A_X(z,t)e^{i\phi_X(z,t)}
+\begin{aligned}
+\psi_X(z,t)
+&=
+A_X(z,t)e^{i\phi_X(z,t)}
+\end{aligned}
 $$
 
 Where:
@@ -282,7 +354,11 @@ Where:
 Observable probability density arises from:
 
 $$
-p_X(z,t)=|\psi_X(z,t)|^2
+\begin{aligned}
+p_X(z,t)
+&=
+\left|\psi_X(z,t)\right|^2
+\end{aligned}
 $$
 
 This means favorable and harmful possibilities can reinforce, cancel, phase-align, or phase-disrupt before reducing into ordinary probabilities.
@@ -290,7 +366,11 @@ This means favorable and harmful possibilities can reinforce, cancel, phase-alig
 A deeper mixed-state form may use a density operator:
 
 $$
+\begin{aligned}
 \rho_X
+&=
+\text{mixed coherent possibility state for subsystem }X
+\end{aligned}
 $$
 
 with evolution:
@@ -316,7 +396,11 @@ Where:
 The observed probability density is recovered from:
 
 $$
-p_X(z,t)=\rho_X(z,z,t)
+\begin{aligned}
+p_X(z,t)
+&=
+\rho_X(z,z,t)
+\end{aligned}
 $$
 
 Use the complex/amplitude layer for high-order metaphysical explanation, Fate/Luck powers, Mystery interactions, probability interference, prophecy distortion, and coherent possibility manipulation.
@@ -335,9 +419,18 @@ $$
 \begin{aligned}
 \frac{\partial p_X}{\partial t}
 &=
--\operatorname{div}*{\mathcal{M}*X}\left((b_X+u*{L,X})p_X\right)
+-\operatorname{div}_{\mathcal{M}_X}
+\left(
+\bigl(b_X+u_{L,X}\bigr)p_X
+\right)
 +
-\frac{1}{2}\Delta*{\mathcal{M}_X}(D_Xp_X)
+\frac{1}{2}
+\nabla_{\mathcal{M}_X}
+\nabla_{\mathcal{M}_X}
+:
+\left(
+D_X p_X
+\right)
 +
 \mathcal{J}_X[p_X]
 \end{aligned}
@@ -348,16 +441,18 @@ Where:
 * $p_X(z,t)$ = probability density over subsystem possibility space
 * $b_X(z,t)$ = baseline causal drift
 * $u_{L,X}(z,t)$ = Luck/Fortune/Misfortune drift
-* $D_X(z,t)$ = uncertainty, noise, variance, diffusion
-* $\Sigma_L$ may be added to $D_X$ for Volatility
+* $D_X(z,t)$ = diffusion tensor, with $D_X=\sigma_X\sigma_X^{\mathsf T}$
+* $\Sigma_{L,X}$ may be added to $D_X$ for Volatility
 * $\mathcal{J}_X[p_X]$ = jumps, thresholds, collapses, discrete transitions, table-like events, or failure-basin capture
 * $\operatorname{div}_{\mathcal{M}_X}$ = divergence on the relevant possibility manifold
-* $\Delta_{\mathcal{M}_X}$ = diffusion/Laplacian operator on the relevant possibility manifold
+* $\nabla_{\mathcal{M}_X}\nabla_{\mathcal{M}_X}:$ = tensor diffusion operator on the relevant possibility manifold; for scalar isotropic diffusion it reduces to a Laplacian form
 
 Plain meaning:
 
 $$
+\begin{aligned}
 \boxed{\text{Fortune changes drift. Misfortune changes drift in the harmful direction. Volatility changes diffusion.}}
+\end{aligned}
 $$
 
 Local events resolve through jumps, thresholds, and classifiers.
@@ -403,7 +498,11 @@ $$
 where:
 
 $$
-\epsilon\sim \mathcal{N}(0,1)
+\begin{aligned}
+\epsilon
+&\sim
+\mathcal{N}(0,1)
+\end{aligned}
 $$
 
 This allows continuous outcomes instead of simple discrete roll tables.
@@ -411,7 +510,14 @@ This allows continuous outcomes instead of simple discrete roll tables.
 Final subsystem results are produced by classifiers:
 
 $$
-Result_X = Classify_X(z_{\mathrm{final}})
+\begin{aligned}
+\mathrm{Result}_X
+&=
+\mathrm{Classify}_X
+\bigl(
+ z_{\mathrm{final}}
+\bigr)
+\end{aligned}
 $$
 
 Examples:
@@ -473,15 +579,19 @@ $$
 Volatility:
 
 $$
+\begin{aligned}
 D_X
-\rightarrow
+&\rightarrow
 D_X+\Sigma_{L,X}
+\end{aligned}
 $$
 
 Plain meaning:
 
 $$
+\begin{aligned}
 \boxed{\text{Fortune drifts uphill in favorability. Misfortune drifts downhill. Volatility widens the spread.}}
+\end{aligned}
 $$
 
 ---
@@ -493,20 +603,31 @@ Forced Luck manipulation must have a cost.
 Baseline probability distribution:
 
 $$
+\begin{aligned}
 p_0(z,t)
+&=
+\text{baseline reachable probability density}
+\end{aligned}
 $$
 
 Luck-altered distribution:
 
 $$
+\begin{aligned}
 p_L(z,t)
+&=
+\text{Luck-altered reachable probability density}
+\end{aligned}
 $$
 
 Information-distance / entropy distortion:
 
 $$
 \begin{aligned}
-D_{KL}(p_L|p_0)
+D_{\mathrm{KL}}
+\bigl(
+ p_L\,\|\,p_0
+\bigr)
 &=
 \int_{\mathcal{M}_X}
 p_L(z,t)
@@ -524,9 +645,9 @@ $$
 \begin{aligned}
 C_L
 &=
-\kappa D_{KL}(p_L|p_0)
+\kappa D_{\mathrm{KL}}\bigl(p_L\,\|\,p_0\bigr)
 +
-\gamma\int_{t_0}^{t_1}|u_{L,X}(t)|^2dt
+\gamma\int_{t_0}^{t_1}\left\|u_{L,X}(t)\right\|^2dt
 \end{aligned}
 $$
 
@@ -573,19 +694,29 @@ $$
 Plain rule:
 
 $$
+\begin{aligned}
 \boxed{\text{Luck can move probability through causally reachable branches. It cannot place probability into impossible futures.}}
+\end{aligned}
 $$
 
 If:
 
 $$
-p_0(z,t)=0
+\begin{aligned}
+p_0(z,t)
+&=
+0
+\end{aligned}
 $$
 
 because no causal path exists, then:
 
 $$
-p_L(z,t)=0
+\begin{aligned}
+p_L(z,t)
+&=
+0
+\end{aligned}
 $$
 
 Examples:
@@ -622,7 +753,9 @@ Luck should matter least when outcomes are deterministic, fully constrained, cau
 Core rule:
 
 $$
+\begin{aligned}
 \boxed{\text{Luck has leverage where uncertainty has structure.}}
+\end{aligned}
 $$
 
 ---
@@ -635,16 +768,24 @@ Control form:
 
 $$
 \begin{aligned}
-u_{\mathrm{active},X}^*
+u_{\mathrm{active},X}^{*}
 &=
 \arg\min_{u}
 \int_{t_0}^{t_1}
 \left[
--\mathbb{E}*{p_L}[U_X(z)]
+-\mathbb{E}_{p_L}
+\bigl[
+ U_X(z)
+\bigr]
 +
-\kappa |u(z,t)|^2
+\kappa
+\left\|u(z,t)\right\|^2
 +
-\eta D*{KL}(p_L|p_0)
+\eta
+D_{\mathrm{KL}}
+\bigl(
+ p_L\,\|\,p_0
+\bigr)
 \right]dt
 \end{aligned}
 $$
@@ -676,7 +817,7 @@ $$
 p_i'
 &=
 \frac{
-p_i e^{\beta L U_i}
+p_i e^{\beta \ell_L U_i}
 }{
 \sum_k p_k e^{\beta L U_k}
 }
@@ -687,11 +828,14 @@ Where:
 
 * $p_i$ = baseline probability of outcome $i$
 * $p_i'$ = Luck-modified probability
-* $L$ = Luck/Fortune strength
+* $\ell_L$ = local Luck/Fortune strength for this approximation
 * $U_i$ = favorability of outcome $i$
 * $\beta$ = sensitivity coefficient
 
 This is not the core model. It is a compressed single-event approximation of the deeper probability-flow system.
+
+
+For this shortcut, $U_i$ must be dimensionless or normalized, and $\beta$ absorbs the chosen sensitivity scale. Do not compare raw favorability values from different subsystems.
 
 Use it only when a simple finite outcome resolution is sufficient.
 
@@ -784,7 +928,14 @@ $$
 Then:
 
 $$
-Result_X=Classify_X(z_{\mathrm{final}})
+\begin{aligned}
+\mathrm{Result}_X
+&=
+\mathrm{Classify}_X
+\bigl(
+ z_{\mathrm{final}}
+\bigr)
+\end{aligned}
 $$
 
 Use Monte Carlo trajectories, stochastic differential equation approximations, particle simulation, Markov/state-transition models, or basin/attractor simulations as needed.
@@ -794,6 +945,42 @@ Roll tables may remain as final labels or fallback approximations, but they shou
 ---
 
 ## Subsystem Adapter Pattern
+
+
+### Canonical Adapter Handoff
+
+A local subsystem should expose the following typed contract rather than copying this file's full equations:
+
+```text
+LuckSubsystemInput[X]:
+  subsystemId
+  localPossibilityState z_X
+  baselineDrift b_X
+  baselineDiffusion D_X or sigma_X
+  reachabilityGate R_X
+  favorabilityFunction U_X and measuredSide
+  unresolvedCoordinates
+  jumpOrThresholdLawReference
+  passiveActiveFieldCurseSources
+  activeControlRequested
+  routedFrom: owner subsystem
+  routedThrough: luck_fortune.md
+```
+
+```text
+LuckSubsystemOutput[X]:
+  resolvedReachableState
+  driftApplied
+  volatilityDiffusionApplied
+  activeControlTrace
+  entropyCostEvaluation
+  supportPreserved
+  resultClassifierInput
+  routedTo: owner subsystem
+  costConsequencesRoutedTo: resource_system.md or other causal owner
+```
+
+The local owner applies the returned state to its own deterministic equations and classifier. Luck/Fortune does not finalize the subsystem result on the owner's behalf.
 
 Every subsystem that uses Luck should define only local adapter details.
 

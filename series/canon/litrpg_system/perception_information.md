@@ -3,6 +3,7 @@ id: perception_information
 name: Perception & Information
 kind: system
 status: scaffold
+last_updated: 2026-07-14
 ---
 
 # Perception & Information — Dominion Realm
@@ -11,7 +12,7 @@ status: scaffold
 > **Status:** Scaffold / placeholder.
 > **Owns:** senses, Insight, stealth, illusion, salience, inference.
 > **Does not own:** system-wide routing (`core_rules.md`), unrelated subsystem formulas, or mature rules owned elsewhere.
-> **Inputs from:** `core_rules.md`, `resource_system.md`, `power_expression.md`.
+> **Inputs from:** `core_rules.md`, `resource_system.md`, `power_expression.md`, `combat_defense.md`.
 > **Outputs to:** `strategy_decision_systems.md`, `combat_defense.md`, `interface_abstraction.md`.
 
 ---
@@ -26,7 +27,336 @@ status: scaffold
 
 ## Working Rules
 
-Placeholder. Add only rules that belong to **Perception & Information**.
+## Combat Perception Interface
+
+### Section Contract
+
+This section provides perception-facing inputs to `combat_defense.md` and receives perception consequences from combat exchanges.
+
+This section owns:
+
+* senses,
+* attention,
+* Insight,
+* stealth,
+* illusion,
+* salience,
+* inference,
+* threat recognition,
+* misreads,
+* partial or corrupted information.
+
+This section does **not** own:
+
+* attack resolution,
+* contact quality,
+* penetration,
+* HP damage,
+* armor / shield / barrier behavior,
+* final tactical decision-making.
+
+Plain rule:
+
+```text
+Perception & Information decides what the actor can notice, parse, infer, or misread.
+Combat & Defense decides what that information allows in the exchange.
+```
+
+---
+
+### Combat Information State
+
+Use:
+
+$$
+\begin{aligned}
+\mathcal I_t
+&=
+(
+S,
+N,
+A_{\mathrm{attn}},
+\Sigma,
+E_{\mathrm{vis}},
+P_{\mathrm{threat}},
+P_{\mathrm{false}},
+O,
+t_p
+)
+\end{aligned}
+$$
+
+Where:
+
+| Symbol                | Meaning                              |
+| --------------------- | ------------------------------------ |
+| $S$                   | signal strength                      |
+| $N$                   | noise / interference                 |
+| $A_{\mathrm{attn}}$   | attention direction                  |
+| $\Sigma$              | salience                             |
+| $E_{\mathrm{vis}}$    | visible evidence                     |
+| $P_{\mathrm{threat}}$ | inferred threat probability          |
+| $P_{\mathrm{false}}$  | false-positive / false-negative risk |
+| $O$                   | occlusion                            |
+| $t_p$                 | perception time                      |
+
+Simplified author-facing form:
+
+```text
+CombatInfoState:
+  signalStrength
+  noise
+  attention
+  salience
+  visibleEvidence
+  threatModel
+  falseReadRisk
+  occlusion
+  perceptionTime
+```
+
+---
+
+### Threat Recognition
+
+Threat recognition estimates whether the observer identifies an incoming action in time to respond.
+
+$$
+\begin{aligned}
+P_{\mathrm{recognize}}
+&=
+\Phi_{\mathrm{recognition}}
+(
+S,
+N,
+A_{\mathrm{attn}},
+\Sigma,
+E_{\mathrm{vis}},
+O,
+\mathrm{training},
+\mathrm{Insight},
+\mathrm{priorBelief}
+)
+\end{aligned}
+$$
+
+Perception time:
+
+$$
+\begin{aligned}
+t_p
+&=
+f_{\mathrm{perception}}
+(
+S,
+N,
+A_{\mathrm{attn}},
+\Sigma,
+O,
+\mathrm{familiarity},
+\mathrm{stress}
+)
+\end{aligned}
+$$
+
+Combat & Defense consumes $t_p$ inside reaction margin.
+
+
+The probability expression is an author/simulator model. The combat-facing result is a classified observation state, not a guaranteed truth:
+
+$$
+\begin{aligned}
+\mathcal R_{\mathrm{threat}}
+&=
+\mathrm{ClassifyRecognition}
+\bigl(
+P_{\mathrm{recognize}},
+t_p,
+\mathrm{threatConfidence},
+\mathrm{perceivedEvidence}
+\bigr)
+\end{aligned}
+$$
+
+Possible outputs include `unrecognized`, `suspected`, `recognized`, `recognized_late`, and `recognized_with_wrong_model`.
+
+Plain rule:
+
+```text
+A character cannot actively defend against a threat they have not perceived, predicted, or already covered.
+```
+
+---
+
+### Feints and Misreads
+
+A feint changes perceived threat, not physical truth.
+
+$$
+\begin{aligned}
+P_{\mathrm{misread}}
+&=
+\Phi_{\mathrm{misread}}
+(
+\mathrm{feintQuality},
+S,
+N,
+A_{\mathrm{attn}},
+\Sigma,
+\mathrm{defenderTraining},
+\mathrm{priorBelief},
+\mathrm{pressure}
+)
+\end{aligned}
+$$
+
+Possible outputs:
+
+```text
+clean read
+partial read
+late read
+wrong line
+wrong timing
+wrong intent
+false opening
+ignored real threat
+overreaction
+```
+
+Plain rule:
+
+```text
+Feints work by shaping the defender's model of the exchange.
+They do not rewrite the attack after the fact.
+```
+
+---
+
+### Insight Combat Boundary
+
+Insight may provide partial combat information when the evidence path exists and the skill can parse it.
+
+Combat-facing Insight may reveal:
+
+```text
+threat direction
+damage type hint
+class or level fragment
+status condition
+weak point clue
+barrier instability
+injury signal
+resource strain
+intent ambiguity
+```
+
+Insight must not automatically reveal:
+
+```text
+true names
+perfect future outcomes
+hidden facts with no evidence path
+unreachable tactical solutions
+the full underlying reality behind the interface
+```
+
+Insight cost remains owned by `resource_system.md`.
+
+Plain rule:
+
+```text
+Insight improves the read. It does not replace perception, inference, timing, or evidence.
+```
+
+---
+
+### Perception Handoff to Combat
+
+This file may send:
+
+```text
+PerceptionCombatOutput:
+  perceptionTime
+  threatRecognized
+  recognitionClass
+  threatConfidence
+  perceivedAttackPath
+  perceivedIntent
+  perceivedDamageType
+  perceivedTiming
+  salienceState
+  misreadRisk
+  insightRead
+  availableEvidence
+  uncertainty
+  routedFrom: perception_information.md
+  routedTo: combat_defense.md
+```
+
+Combat & Defense consumes these values for:
+
+```text
+reaction margin
+available defense modes
+contact quality
+feint success
+Luck hook margins
+tactical opening recognition
+```
+
+---
+
+### Combat Handoff to Perception
+
+Combat & Defense may send perception consequences back.
+
+```text
+CombatPerceptionHandoff:
+  suddenImpact
+  painShock
+  visualObstruction
+  noiseBurst
+  salienceShift
+  interfaceWarningCandidate
+  threatModelUpdateCandidate
+  misreadConsequence
+  newVisibleEvidence
+  newAudibleEvidence
+  concealmentBroken
+  disguiseOrFormExposed
+  attackPatternRevealed
+  barrierOrArmorFailureVisible
+  attentionForcedByPhysicalEvent
+  routedFrom: combat_defense.md
+  routedTo: perception_information.md
+```
+
+This file resolves:
+
+$$
+\begin{aligned}
+\mathcal I_{t+1}
+&=
+\Phi_{\mathrm{perception}}
+(
+\mathcal I_t,
+\mathrm{shock},
+\mathrm{noise},
+\mathrm{occlusion},
+\mathrm{pain},
+\mathrm{salienceShift},
+\mathrm{newEvidence}
+)
+\end{aligned}
+$$
+
+Plain rule:
+
+```text
+Combat changes what can be noticed next.
+```
+
 
 ---
 
@@ -52,59 +382,114 @@ Use these until the subsystem is expanded:
 
 ## Luck/Fortune Adapter
 
-This subsystem uses the canonical Luck/Fortune model from `luck_fortune.md`.
+This subsystem uses the canonical model from `luck_fortune.md` and defines only perception-local uncertainty.
 
 ### Local Possibility State
 
 $$
-z_{\mathrm{perception}} = (\mathrm{signalStrength},\ \mathrm{noise},\ \mathrm{attentionDirection},\ \mathrm{salience},\ \mathrm{evidenceVisibility},\ \mathrm{falsePositiveRisk},\ \mathrm{falseNegativeRisk},\ \mathrm{timing},\ \mathrm{occlusion})
+\begin{aligned}
+z_{\mathrm{perception}}
+&=
+\bigl(
+\mathrm{signalStrength},
+\mathrm{noise},
+\mathrm{attentionDirection},
+\mathrm{salience},
+\mathrm{evidenceVisibility},
+\mathrm{falsePositiveRisk},
+\mathrm{falseNegativeRisk},
+\mathrm{timingResidual},
+\mathrm{occlusion}
+\bigr)
+\end{aligned}
 $$
-
-The local possibility state tracks whether evidence emerges, is missed, or is misread when the read is marginal.
 
 ### Baseline Drift
 
-Without Luck, perception follows senses, training, Insight level, attention, and environmental signal quality.
+Without Luck, perception follows senses, training, Insight, attention, prior belief, evidence quality, concealment, and environmental signal conditions.
 
 ### Uncertainty / Diffusion
 
-Uncertainty enters through noise, occlusion, timing, salience competition, and marginal Insight resolution.
+Uncertainty enters through noise, occlusion, timing, salience competition, evidence damage, ambiguous cues, and marginal Insight resolution.
 
 ### Favorability Function
 
+Favorability is observer-specific:
+
 $$
-U_{\mathrm{perception}}(z)
+\begin{aligned}
+U_{\mathrm{perception}}^{(o)}(z,t)
+&=
+\mathrm{PerceptualFavorabilityForObserver}
+\bigl(
+ o,z,t
+\bigr)
+\end{aligned}
 $$
 
-Favorable outcomes mean the right clue becomes visible, salient, or cleanly parsed — for the observer whose perspective is measured.
+A favorable state means that relevant evidence becomes visible, salient, preserved, or cleanly parsed for observer $o$. It does not mean the observer's preferred belief becomes true.
 
 ### Luck Interaction
 
-Fortune biases which evidence $E$ appears or survives damage, whether a scout looks in a useful direction, and whether Insight receives a cleaner read when the result is marginal. Misfortune biases toward false leads and corrupted reads. Volatility increases spread between clean clue and misleading signal.
+Fortune and Misfortune bias drift among reachable evidence/read states. Volatility widens the spread between clean clue, missed clue, false lead, and corrupted read. This file supplies its local adapter contract to `luck_fortune.md` rather than copying the canonical probability-flow equations.
 
-Bayesian note: Luck can affect which evidence $E$ appears, not the truth of hypothesis $H$ itself.
+Bayesian boundary:
 
 $$
-P(H \mid E) \text{ still requires valid inference; Luck does not grant } E \text{ without an evidence path.}
+\begin{aligned}
+P(H\mid E)
+&\propto
+P(E\mid H)P(H)
+\end{aligned}
 $$
+
+Luck may affect whether reachable evidence $E$ appears, survives, or becomes salient. It does not change the truth of hypothesis $H$ or make invalid inference valid.
 
 ### Reachability Constraints
 
-Luck can affect clue visibility, sound timing, hidden detail survival, and marginal Insight clarity.
-
-Luck cannot grant knowledge with no evidence path, replace Insight/senses/training/inference, reveal impossible information, or bypass active concealment unless uncertainty remains in the concealment system.
+Luck cannot grant knowledge with no evidence path, replace Insight, senses, training, or inference, reveal impossible information, or bypass deterministic concealment. It may matter only where the concealment/evidence system still leaves multiple reachable observation states.
 
 ### Result Classifier
 
 $$
-\mathrm{Result}_{\mathrm{perception}} = \mathrm{Classify}_{\mathrm{perception}}(z_{\mathrm{final}})
+\begin{aligned}
+\mathrm{Result}_{\mathrm{perception}}
+&=
+\mathrm{Classify}_{\mathrm{perception}}
+\bigl(
+ z_{\mathrm{perception,final}}
+\bigr)
+\end{aligned}
 $$
 
-Examples: unnoticed, vaguely noticed, suspected, confirmed, false lead, clean clue, corrupted read, partial Insight, misleading signal.
+Examples: unnoticed, vaguely noticed, suspected, confirmed, false lead, clean clue, corrupted read, partial Insight, or misleading signal.
 
-### Notes
+### Forbidden Simplifications
 
-Luck biases evidence emergence; it does not replace perception skill or Insight.
+Do not use Luck as omniscience, a flat perception bonus, evidence creation without a causal path, mind control, or a reason to resolve combat, motion, injury, resource, or strategic uncertainty in this file.
+
+### Owner Handoff
+
+```text
+PerceptionLuckAdapterInput:
+  observer
+  localPossibilityState
+  baselineReachableEvidenceSet
+  unresolvedPerceptionCoordinates
+  favorabilityPerspective
+  evidencePath
+  reachabilityGate
+  classifier
+  routedFrom: perception_information.md
+  routedThrough: luck_fortune.md
+```
+
+Plain rule:
+
+```text
+Luck biases evidence emergence and read quality.
+Perception still owns noticing, parsing, inference, and misread.
+```
 
 ---
 
@@ -120,5 +505,5 @@ Agents must not:
 
 - Move resource formulas here unless this file becomes the explicit owner.
 - Reintroduce class rarity bonus attribute-point cadence.
-- Use Affinity to mean Domain.
+- Conflate Skill Affinity with Domain; Skill Affinity is progression aptitude, while Domain is power expression/source category.
 - Treat interface readouts as the underlying reality.

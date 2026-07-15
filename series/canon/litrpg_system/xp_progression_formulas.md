@@ -4,15 +4,15 @@ name: XP & Progression Formulas
 kind: system
 status: canon · working draft
 home: series/canon/litrpg_system/xp_progression_formulas.md
-last_updated: 2026-06-30
+last_updated: 2026-07-14
 ---
 
 # XP & Progression Formulas — Dominion Realm
 
 > **Purpose:** Owns class-level XP thresholds, class-rarity XP burden, per-scene XP gain, and combat XP adaptation formulas.
 > **Agent readability:** This file is written so drafting, critique, systems, and spreadsheet agents can use the formulas without rediscovering ownership rules.
-> **Do not duplicate:** `classes.md` owns class taxonomy and profiles. This file owns XP math. `resource_system.md` / `mechanics.md` own attributes, pools, recovery, depletion, and tier ladders.
-> **Formatting rule:** Use `$$ ... $$` for display equations. Avoid dense inline math because some renderers fail on inline notation.
+> **Do not duplicate:** `classes.md` owns class taxonomy and profiles. This file owns XP math. `resource_system.md` owns attributes, pools, recovery, and depletion; `mechanics.md` owns independent tier ladders.
+> **Formatting rule:** Use aligned `$$ ... $$` display equations and place the alignment marker before the main relational operator. Avoid dense inline math because some renderers fail on inline notation.
 
 ---
 
@@ -31,6 +31,16 @@ Rationale:
 - Class rarity affects XP and energy cost, not recurring bonus attribute-point cadence.
 - Classes are earned through behavior, not selected.
 - Class fit is never allowed to collapse a person into one-dimensional identity.
+
+
+Current cross-file precedence:
+
+```text
+xp_progression_formulas.md owns XP thresholds, rarity burden, adaptive evidence, combat XP, and progression pacing math.
+resource_system.md supplies final resource and recovery states but does not calculate XP.
+mechanics.md supplies independent tier ladders but does not define class-rarity XP.
+combat_defense.md emits raw CombatAdaptationTrace facts but does not award XP.
+```
 
 ---
 
@@ -89,6 +99,28 @@ Therefore:
 4. **Class coupling** is a soft nonzero kernel, not a hard yes/no projection.
 5. **Medical/physical strain matters.** Progression belongs to an embodied organism, not an abstract point moving through class space.
 
+
+### Narrative Pacing Targets
+
+These targets are pacing constraints, not alternate XP formulas:
+
+| Story point | Average level range | Notes |
+|---|---:|---|
+| Arrival | 1 | New arrivals are functionally level 1. |
+| Early Book 1 | 2–4 | Survival, first lessons, and early class pressure. |
+| Mid Book 1 | 5–7 | Competence emerges; characters remain fragile. |
+| Book 1 finale | 8–12 | The cast can matter in a crisis without becoming regional powers. |
+| Book 2 average | about 20 | Higher-rarity paths increasingly express progression drag. |
+| Book 3 average | about 30 | Growth continues, with rarity and method fit increasingly visible. |
+
+Rule of thumb:
+
+```text
+Average cast growth is approximately ten levels per book, subject to class rarity, scene evidence, recovery, and story structure.
+```
+
+Class acquisition timing itself belongs to `classes.md`, character dossiers, and book planning. This file begins applying a class's rarity burden only when that class is active; past levels are not recalculated.
+
 ---
 
 ## 3. Total progression state
@@ -96,8 +128,10 @@ Therefore:
 Let the character's total state be:
 
 $$
-x(t) \in \mathcal{M}
-=
+\begin{aligned}
+x(t) &\in \mathcal{M}
+\\
+&=
 \mathcal{B}
 \times
 \mathcal{N}
@@ -109,6 +143,7 @@ x(t) \in \mathcal{M}
 \mathcal{A}
 \times
 \mathcal{W}
+\end{aligned}
 $$
 
 Where:
@@ -125,13 +160,17 @@ Where:
 A level is a stable shell of this whole organismic state.
 
 $$
+\begin{aligned}
 \Sigma_L \subset \mathcal{M}
+\end{aligned}
 $$
 
 Leveling is the crossing:
 
 $$
-\Sigma_L \longrightarrow \Sigma_{L+1}
+\begin{aligned}
+\Sigma_L &\longrightarrow \Sigma_{L+1}
+\end{aligned}
 $$
 
 ---
@@ -143,23 +182,31 @@ $$
 The baseline adaptive volume is:
 
 $$
-\mathcal{V}_0(L)=L^{D_0}
+\begin{aligned}
+\mathcal{V}_0(L)&=L^{D_0}
+\end{aligned}
 $$
 
 The value of `D0` is not chosen freely. It is solved from the Common-class pacing anchors:
 
 $$
-XP_{Common}(1)=100
+\begin{aligned}
+XP_{Common}(1)&=100
+\end{aligned}
 $$
 
 $$
-XP_{Common}(20)=5216
+\begin{aligned}
+XP_{Common}(20)&=5216
+\end{aligned}
 $$
 
 This gives:
 
 $$
-D_0 \approx 2.5177067041
+\begin{aligned}
+D_0 &\approx 2.5177067041
+\end{aligned}
 $$
 
 Interpretation:
@@ -173,12 +220,14 @@ Interpretation:
 Class-rarity information is derived from prevalence.
 
 $$
+\begin{aligned}
 \mathscr{I}_{\mathcal{C}}
-=
+&=
 \ln
 \left(
 \frac{p_{Common}}{p_{\mathcal{C}}}
 \right)
+\end{aligned}
 $$
 
 Current prevalence assumptions:
@@ -196,9 +245,11 @@ Current prevalence assumptions:
 Unique is one per cosmic cycle:
 
 $$
+\begin{aligned}
 \mathscr{I}_{Unique}
-=
+&=
 \ln N_{cycle}
+\end{aligned}
 $$
 
 Where:
@@ -220,26 +271,35 @@ Rarity burden should not fully express at level 1. A rare class starts as a seed
 Baseline accumulated adaptation:
 
 $$
+\begin{aligned}
 \mathcal{A}_0(L)
-=
+&=
 \ln
 \left(
 \frac{\mathcal{V}_0(L)}{\mathcal{V}_0(1)}
 \right)
+\end{aligned}
 $$
 
 Embodied rarity fraction:
 
 $$
+\begin{aligned}
 \eta_{\mathcal{C}}(L)
-=
-1
--
+&=
+\begin{cases}
+0,
+& \mathscr I_{\mathcal C}=0,
+\\
+1-
 \exp
 \left(
 -
-\frac{\mathcal{A}_0(L)}{1+\mathscr{I}_{\mathcal{C}}}
-\right)
+\dfrac{\mathcal A_0(L)}{1+\mathscr I_{\mathcal C}}
+\right),
+& \mathscr I_{\mathcal C}>0.
+\end{cases}
+\end{aligned}
 $$
 
 The `1 +` in the denominator is a regularizer. It prevents singular behavior near Common and makes low-information classes unfold quickly.
@@ -251,8 +311,9 @@ The `1 +` in the denominator is a regularizer. It prevents singular behavior nea
 Class-adjusted adaptive volume:
 
 $$
+\begin{aligned}
 \mathcal{V}_{\mathcal{C}}(L)
-=
+&=
 \mathcal{V}_0(L)
 \exp
 \left(
@@ -260,22 +321,27 @@ $$
 \mathscr{I}_{\mathcal{C}}
 \eta_{\mathcal{C}}(L)
 \right)
+\end{aligned}
 $$
 
 `beta` is solved from the design anchor:
 
 $$
+\begin{aligned}
 XP_{Legendary}(20)
-=
+&=
 1.38
 \cdot
 XP_{Common}(20)
+\end{aligned}
 $$
 
 This gives:
 
 $$
-\beta \approx 0.0756920571
+\begin{aligned}
+\beta &\approx 0.0756920571
+\end{aligned}
 $$
 
 Agent rule:
@@ -290,8 +356,9 @@ Agent rule:
 XP required to advance from level `L` to `L + 1`:
 
 $$
+\begin{aligned}
 XP_{\mathcal{C}}(L)
-=
+&=
 100
 \cdot
 \frac
@@ -305,12 +372,15 @@ XP_{\mathcal{C}}(L)
 -
 \mathcal{V}_{\mathcal{C}}(1)
 }
+\end{aligned}
 $$
 
 This normalization forces:
 
 $$
-XP_{\mathcal{C}}(1)=100
+\begin{aligned}
+XP_{\mathcal{C}}(1)&=100
+\end{aligned}
 $$
 
 for every numeric rarity tier.
@@ -375,22 +445,26 @@ Scene XP is the interface projection of **integrated adaptive evidence** produce
 Use a dimensionless adaptive evidence variable:
 
 $$
+\begin{aligned}
 \mathcal{E}_{\mathcal{C}}(e,L)
-\geq
+&\geq
 0
+\end{aligned}
 $$
 
 Then scene XP is the threshold fraction implied by that evidence:
 
 $$
+\begin{aligned}
 \Delta XP_{\mathcal{C}}(e,L)
-=
+&=
 XP_{\mathcal{C}}(L)
 \left(
 1-
 \exp
 \left[-\mathcal{E}_{\mathcal{C}}(e,L)\right]
 \right)
+\end{aligned}
 $$
 
 This gives a natural saturation curve:
@@ -415,8 +489,9 @@ A huge scene can give a large fraction of a level, but the exponential form prev
 For a scene `e` over time interval `[t0, t1]`:
 
 $$
+\begin{aligned}
 \mathcal{E}_{\mathcal{C}}(e,L)
-=
+&=
 \int_{t_0}^{t_1}
 \Psi_{\mathcal{C}}
 \left(
@@ -427,6 +502,7 @@ dt
 +
 \sum_{k \in J_e}
 \mathcal{J}_{\mathcal{C},k}
+\end{aligned}
 $$
 
 Where:
@@ -442,8 +518,9 @@ Where:
 The evidence rate:
 
 $$
+\begin{aligned}
 \Psi_{\mathcal{C}}
-=
+&=
 \gamma_0
 \cdot
 \Lambda(X_t,
@@ -464,6 +541,7 @@ H(Z_t)
 \right)
 K_{\mathcal{C}}(X_t,\xi_t)
 \right]
+\end{aligned}
 $$
 
 Where:
@@ -494,8 +572,9 @@ Scene adaptation can be modeled as an SDE when uncertainty, injury, and breakthr
 Let the organismic progression state evolve as:
 
 $$
+\begin{aligned}
 dX_t
-=
+&=
 b(X_t,
 u_t)dt
 +
@@ -505,6 +584,7 @@ u_t)dW_t
 \int_Z
 j(X_{t^-},z)
 N(dt,dz)
+\end{aligned}
 $$
 
 Where:
@@ -521,8 +601,9 @@ Where:
 Track cumulative adaptive evidence:
 
 $$
+\begin{aligned}
 dY^{\mathcal{C}}_t
-=
+&=
 \Psi_{\mathcal{C}}(X_t,
 u_t,L)dt
 +
@@ -532,16 +613,18 @@ u_t)dB_t
 \int_Z
 \chi_{\mathcal{C}}(X_{t^-},z)
 N(dt,dz)
+\end{aligned}
 $$
 
 Expected scene XP:
 
 $$
+\begin{aligned}
 \mathbb{E}
 \left[
 \Delta XP_{\mathcal{C}}
 \right]
-=
+&=
 XP_{\mathcal{C}}(L)
 \left(
 1-
@@ -550,16 +633,44 @@ XP_{\mathcal{C}}(L)
 \exp(-Y^{\mathcal{C}}_{t_1})
 \right]
 \right)
+\end{aligned}
 $$
+
+Cumulative adaptive evidence is nonnegative. Any numerical SDE integrator must enforce:
+
+$$
+\begin{aligned}
+Y_t^{\mathcal C}
+&\geq
+0
+\end{aligned}
+$$
+
+A simple discrete implementation may project after each step:
+
+$$
+\begin{aligned}
+Y_{n+1}^{\mathcal C}
+&=
+\max
+\left(
+0,
+\widetilde Y_{n+1}^{\mathcal C}
+\right)
+\end{aligned}
+$$
+
+where $\widetilde Y_{n+1}^{\mathcal C}$ is the unconstrained stochastic update. The small-variance approximation below is valid only when probability mass below zero is negligible or the nonnegative projection has been incorporated.
 
 If variance is small:
 
 $$
+\begin{aligned}
 \mathbb{E}
 \left[
 \Delta XP_{\mathcal{C}}
 \right]
-\approx
+&\approx
 XP_{\mathcal{C}}(L)
 \left(
 1-
@@ -570,6 +681,7 @@ XP_{\mathcal{C}}(L)
 \operatorname{Var}(Y^{\mathcal{C}}_{t_1})
 \right]
 \right)
+\end{aligned}
 $$
 
 Agent rule:
@@ -581,8 +693,9 @@ Use the deterministic integral for ordinary drafting and tables. Use the SDE for
 If agents model a distribution over possible scene states, use:
 
 $$
+\begin{aligned}
 \partial_t p(x,t)
-=
+&=
 -
 \nabla \cdot
 \left(
@@ -598,23 +711,27 @@ u_t)p(x,t)
 \right)
 +
 \mathcal{J}^*p(x,t)
+\end{aligned}
 $$
 
 Where:
 
 $$
+\begin{aligned}
 D(x,
-u_t)=\sigma(x,
+u_t)&=\sigma(x,
 u_t)\sigma(x,
 u_t)^T
+\end{aligned}
 $$
 
 Expected adaptive evidence rate:
 
 $$
+\begin{aligned}
 \frac{d}{dt}
 \mathbb{E}Y^{\mathcal{C}}_t
-=
+&=
 \int_{\mathcal{M}}
 \Psi_{\mathcal{C}}(x,
 u_t,L)
@@ -625,6 +742,7 @@ p(x,t)dx
 \chi_{\mathcal{C}}(x,z)
 \lambda(x,z)
 p(x,t)dzdx
+\end{aligned}
 $$
 
 This is the analytic bridge from scene simulation to expected XP.
@@ -636,21 +754,26 @@ This is the analytic bridge from scene simulation to expected XP.
 Use:
 
 $$
+\begin{aligned}
 \Lambda(t)
-=
+&=
 \sqrt
 {
 \dot{x}(t)^T
 G_{org}(x(t))
 \dot{x}(t)
 }
+\end{aligned}
 $$
+
+The organismic metric $G_{org}(x)$ must be symmetric positive semidefinite so $\Lambda(t)$ remains real and nonnegative.
 
 with:
 
 $$
+\begin{aligned}
 G_{org}
-=
+&=
 G_{bio}
 \oplus
 G_{neuro}
@@ -660,6 +783,7 @@ G_{res}
 G_{id}
 \oplus
 G_{aether}
+\end{aligned}
 $$
 
 Meaning:
@@ -675,8 +799,10 @@ Meaning:
 For discrete scenes, approximate the integral over significant beats:
 
 $$
+\begin{aligned}
 \int_e \Lambda(t)dt
-\approx
+\\
+&\approx
 \sum_b
 \sqrt
 {
@@ -691,6 +817,7 @@ z_{id,b}^2
 z_{aether,b}^2
 }
 \Delta t_b
+\end{aligned}
 $$
 
 `z` values are ratios against current capacity, not arbitrary scores.
@@ -702,8 +829,9 @@ $$
 Biological strain:
 
 $$
+\begin{aligned}
 z_{bio}
-=
+&=
 \frac
 {
 \text{mechanical load}
@@ -715,13 +843,15 @@ z_{bio}
 {
 \text{current biological capacity}
 }
+\end{aligned}
 $$
 
 Neural strain:
 
 $$
+\begin{aligned}
 z_{neuro}
-=
+&=
 \frac
 {
 \text{attention load}
@@ -737,25 +867,42 @@ z_{neuro}
 {
 \text{current neural capacity}
 }
+\end{aligned}
+$$
+
+Resource-depletion notation uses the nonnegative loss part:
+
+$$
+\begin{aligned}
+\Delta R_-
+&=
+\max
+\bigl(
+0,-\Delta R
+\bigr)
+\end{aligned}
 $$
 
 Resource strain:
 
 $$
+\begin{aligned}
 z_{res}
-=
+&=
 \frac{\Delta Mana_-}{Mana_{max}}
 +
 \frac{\Delta Stamina_-}{Stamina_{max}}
 +
 \frac{\Delta Reserve_-}{Reserve_{max}}
+\end{aligned}
 $$
 
 Identity strain:
 
 $$
+\begin{aligned}
 z_{id}
-=
+&=
 \frac
 {
 \text{vow pressure}
@@ -769,13 +916,15 @@ z_{id}
 {
 \text{identity stability}
 }
+\end{aligned}
 $$
 
 Aetheric strain:
 
 $$
+\begin{aligned}
 z_{aether}
-=
+&=
 \frac
 {
 \text{interface load}
@@ -789,6 +938,7 @@ z_{aether}
 {
 \text{aetheric tolerance}
 }
+\end{aligned}
 $$
 
 Agent rule:
@@ -804,8 +954,17 @@ Adaptation is strongest inside a recoverable stress window. Too little stress te
 For each channel `j`:
 
 $$
+\begin{aligned}
+\widetilde z_j
+&=
+\max
+\bigl(
+ z_j,\varepsilon_H
+\bigr),
+\qquad
 H_j(z_j)
-=
+\\
+&=
 h_j
 +
 (1-h_j)
@@ -815,7 +974,7 @@ h_j
 \frac
 {
 \left(
-\ln z_j
+\ln \widetilde z_j
 -
 \ln z_j^*
 \right)^2
@@ -824,21 +983,25 @@ h_j
 2\sigma_j^2
 }
 \right)
+\end{aligned}
 $$
 
 Aggregate window:
 
 $$
+\begin{aligned}
 H(t)
-=
+&=
 \prod_j
 H_j(z_j(t))^{w_j}
+\end{aligned}
 $$
 
 Rules:
 
 - `h_j` is the nonzero adaptation floor.
-- `z_j*` is the optimal recoverable strain for that channel.
+- $z_j^*>0$ is the optimal recoverable strain for that channel.
+- $\varepsilon_H>0$ prevents the logarithm from becoming undefined at zero strain.
 - `sigma_j` is tolerance width.
 - `w_j` is that channel's contribution weight.
 - No channel should silently erase all XP unless the event is biologically unrecoverable or metaphysically blocked.
@@ -852,8 +1015,9 @@ The body does not fully adapt during the event. It adapts during recovery and in
 Use:
 
 $$
+\begin{aligned}
 \Theta_e
-=
+&=
 1
 -
 \exp
@@ -862,6 +1026,7 @@ $$
 \int_{t_1}^{t_2}
 r_{rec}(\tau)d\tau
 \right)
+\end{aligned}
 $$
 
 Where `r_rec` includes:
@@ -892,18 +1057,22 @@ Events matter more when they change the character's state, world-model, risk pro
 Use information gain:
 
 $$
+\begin{aligned}
 \Xi_e
-=
+&=
 1
 +
 \omega_{info}
-D_{KL}
+D_{\mathrm{KL}}
 \left(
 P_{after}
-\;||\;
+\,\|\,
 P_{before}
 \right)
+\end{aligned}
 $$
+
+For numerical work, smooth zero-probability bins or restrict both distributions to a shared support before evaluating $D_{\mathrm{KL}}$; otherwise a newly assigned positive probability over a zero baseline can make the divergence infinite.
 
 Meaning:
 
@@ -920,15 +1089,23 @@ Meaning:
 Normalize the direction of lived action:
 
 $$
+\begin{aligned}
 \xi(t)
-=
-\frac{\dot{x}(t)}{\|\dot{x}(t)\|}
+&=
+\frac{\dot{x}(t)}{\|\dot{x}(t)\|},
+\qquad
+\|\dot{x}(t)\|>\varepsilon_x
+\end{aligned}
 $$
+
+If $\|\dot x(t)\|\leq\varepsilon_x$, no meaningful lived-action direction exists. Use only the general organism contribution floor for that interval rather than projecting a zero vector into projective method space.
 
 Each class has a method distribution:
 
 $$
+\begin{aligned}
 \nu_{\mathcal{C}}
+\end{aligned}
 $$
 
 This is not a single vector. It is a distribution over ways the class can express.
@@ -948,8 +1125,9 @@ Worldbreaker: pressure, severance, impossible opposition, scale-breaking commitm
 Class coupling:
 
 $$
+\begin{aligned}
 K_{\mathcal{C}}(x,\xi)
-=
+&=
 \varepsilon_{\mathcal{C}}
 +
 \left(
@@ -968,14 +1146,17 @@ d_{\mathbb{P}}(\xi,\eta)^2
 }
 \right)
 d\nu_{\mathcal{C}}(\eta)
+\end{aligned}
 $$
 
 This guarantees:
 
 $$
+\begin{aligned}
 K_{\mathcal{C}}(x,\xi)
-\geq
+&\geq
 \varepsilon_{\mathcal{C}}
+\end{aligned}
 $$
 
 Agent rule:
@@ -989,8 +1170,9 @@ Never set ordinary action-fit to zero. A person remains a complete organism. Eve
 Class XP includes general adaptation plus method-specific interpretation.
 
 $$
+\begin{aligned}
 \rho_{\mathcal{C}}(L)
-=
+&=
 \rho_\infty
 +
 (\rho_0-\rho_\infty)
@@ -1001,6 +1183,7 @@ $$
 \mathscr{I}_{\mathcal{C}}
 \eta_{\mathcal{C}}(L)
 \right)
+\end{aligned}
 $$
 
 Interpretation:
@@ -1023,6 +1206,41 @@ These are calibration defaults, not metaphysical absolutes. If better resource-s
 
 ## 15. Combat XP adapter
 
+
+### Combat Adaptation Trace Intake
+
+`combat_defense.md` supplies raw exchange facts through `CombatAdaptationTrace`. This file must combine those facts with owner-resolved resource, injury, perception/neural, novelty, identity, class-method, and recovery states before calculating adaptive evidence.
+
+```text
+CombatAdaptationTrace:
+  exchangeId
+  beatDuration
+  actorRoles
+  threatExposureFacts
+  simultaneousThreatCount
+  surpriseOrAttentionSplitFacts
+  resolvedContactClass
+  resolvedContactQuality
+  hpDamageOutputCandidate
+  injuryRiskSignal
+  forcedExertionFacts
+  resourcePressureByActorAndChannel
+  interfaceOrAethericInstabilityFacts
+  tacticalPatternFacts
+  protectionOrIdentityChoiceFacts
+  classMethodActionTags
+  outcomeContributionTrace
+  recoveryDebtCreated
+  ownerStatesRequiredBeforeXP:
+    resource_system
+    embodiment_injury
+    perception_information
+  routedFrom: combat_defense.md
+  routedTo: xp_progression_formulas.md
+```
+
+The trace is evidence input, not XP. Do not infer final HP loss, injury severity, crash state, or recovery integration from Combat's candidate values when the owner file has not returned them yet.
+
 Combat XP is not kill XP.
 
 Combat XP is recoverable combat adaptation:
@@ -1041,8 +1259,9 @@ threat exposure
 For combat scene `e`:
 
 $$
+\begin{aligned}
 \mathcal{E}_{\mathcal{C}}^{combat}(e,L)
-=
+&=
 \sum_b
 \gamma_0
 A_b
@@ -1058,13 +1277,15 @@ K_{\mathcal{C},b}
 +
 \sum_{k \in J_e}
 \mathcal{J}_{\mathcal{C},k}
+\end{aligned}
 $$
 
 Where each beat load is:
 
 $$
+\begin{aligned}
 A_b
-=
+&=
 \sqrt
 {
 z_{bio,b}^2
@@ -1078,13 +1299,15 @@ z_{id,b}^2
 z_{aether,b}^2
 }
 \Delta t_b
+\end{aligned}
 $$
 
 Then:
 
 $$
+\begin{aligned}
 \Delta XP_{\mathcal{C}}^{combat}(e,L)
-=
+&=
 XP_{\mathcal{C}}(L)
 \left(
 1-
@@ -1092,6 +1315,7 @@ XP_{\mathcal{C}}(L)
 \left[-\mathcal{E}_{\mathcal{C}}^{combat}(e,L)
 \right]
 \right)
+\end{aligned}
 $$
 
 Combat beat proxies:
@@ -1107,8 +1331,9 @@ Combat beat proxies:
 Threat should not be pure level difference. Use effective danger:
 
 $$
+\begin{aligned}
 \mathcal{T}_e
-=
+&=
 \frac
 {
 \text{enemy effective pressure}
@@ -1116,13 +1341,15 @@ $$
 {
 \text{character current tolerance}
 }
+\end{aligned}
 $$
 
 Novelty / repetition modifier:
 
 $$
+\begin{aligned}
 N_e
-=
+&=
 \exp
 \left(
 -
@@ -1130,13 +1357,15 @@ N_e
 \right)
 +
 N_\infty
+\end{aligned}
 $$
 
 Consequence can include threat and novelty:
 
 $$
+\begin{aligned}
 \Xi_e
-=
+&=
 1
 +
 \omega_T \ln(1+\mathcal{T}_e)
@@ -1144,9 +1373,13 @@ $$
 \omega_N N_e
 +
 \omega_S S_e
+\end{aligned}
 $$
 
 Where `S_e` is story/identity stakes.
+
+
+$N_e$ is a novelty weight, not a probability, and may exceed $1$ if $N_\infty>0$. Its scale is absorbed by $\omega_N$.
 
 Agent rule:
 
@@ -1194,8 +1427,9 @@ Class rarity also increases energy burden for signature abilities.
 Use the same information-rarity architecture:
 
 $$
+\begin{aligned}
 Cost_{ability}
-=
+&=
 Cost_0
 \cdot
 \exp
@@ -1210,6 +1444,7 @@ Scale^\gamma
 Resistance
 \cdot
 Instability
+\end{aligned}
 $$
 
 Rules:
@@ -1225,24 +1460,28 @@ Rules:
 Agents must not:
 
 1. Reintroduce recurring bonus attribute points from class rarity.
-2. Treat rarity as raw combat superiority.
-3. Make off-method experience produce zero class progress.
-4. Treat XP as kill count.
-5. Award full XP for unrecovered trauma/damage without integration.
-6. Collapse class, domain, interface, skill affinity, and spell mastery into one variable.
-7. Duplicate these formulas into `classes.md`.
-8. Use `Exceptional` as the current XP-table rarity unless explicitly preserving old text.
+2. Reintroduce the retired `BaseXP(L) × fixed rarity multiplier` model.
+3. Treat rarity as raw combat superiority.
+4. Make off-method experience produce zero class progress.
+5. Treat XP as kill count.
+6. Award full XP for unrecovered trauma or damage without integration.
+7. Collapse class, Domain, Interface, Skill Affinity, and Spell Skill Mastery into one variable.
+8. Duplicate these formulas into `classes.md`, `mechanics.md`, or `resource_system.md`.
+9. Use `Exceptional` as the current class-XP rarity unless explicitly preserving historical text.
+10. Calculate XP directly inside `combat_defense.md` from an exchange result.
 
 Agents should:
 
-1. Use this file for XP thresholds and scene XP.
-2. Use `classes.md` for class taxonomy and class profiles.
-3. Use `resource_system.md` / `mechanics.md` for pools, attributes, depletion, recovery, and regeneration.
-4. Use prevalence assumptions to derive rarity information.
-5. Use display equations with `$$ ... $$`.
-6. Round design tables to nearest tenth; let the interface round visible values to whole numbers.
-7. Treat `Epic` as the renamed old `Exceptional` tier for current progression tables.
-8. Treat `Fabled` as the inserted bridge tier before Legendary.
+1. Use this file for XP thresholds, rarity burden, adaptive evidence, scene XP, and combat XP.
+2. Use `classes.md` for class taxonomy, activation, and class profiles.
+3. Use `resource_system.md` for pools, depletion, Reserve conversion, crash states, and final recovery values.
+4. Use `mechanics.md` for independent tier ladders.
+5. Use prevalence assumptions to derive rarity information.
+6. Use display equations with `$$ ... $$` and align the main relational operator.
+7. Round design tables to nearest tenth; let the Interface round visible values to whole numbers.
+8. Treat `Epic` as the renamed old `Exceptional` class-XP tier.
+9. Treat `Fabled` as the inserted bridge tier before Legendary.
+10. Keep cumulative adaptive evidence nonnegative in stochastic implementations.
 
 ---
 

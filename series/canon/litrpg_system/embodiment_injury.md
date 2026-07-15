@@ -26,7 +26,306 @@ status: scaffold
 
 ## Working Rules
 
-Placeholder. Add only rules that belong to **Embodiment & Injury**.
+## Tactical Graph / Team Defense Interface
+
+### Section Contract
+
+This section provides strategy-facing inputs to `combat_defense.md` and receives tactical openings from combat exchanges.
+
+This section owns:
+
+* tactics,
+* risk assessment,
+* counterplay,
+* team defense,
+* planning,
+* target priority,
+* formation logic,
+* tactical graph evaluation,
+* opponent adaptation.
+
+This section does **not** own:
+
+* contact quality,
+* penetration math,
+* armor / shield / barrier mechanics,
+* HP damage calculation,
+* detailed injury progression,
+* resource formulas.
+
+Plain rule:
+
+```text
+Combat & Defense resolves the local exchange.
+Strategy & Decision Systems decides what the exchange means tactically.
+```
+
+---
+
+### Tactical Graph
+
+Represent a local fight as a tactical graph.
+
+$$
+\begin{aligned}
+G_{\mathrm{tac}}
+&=
+(
+N,
+E,
+W,
+Z
+)
+\end{aligned}
+$$
+
+Where:
+
+| Symbol | Meaning                                                              |
+| ------ | -------------------------------------------------------------------- |
+| $N$    | actors, hazards, objectives, protected targets                       |
+| $E$    | edges: threat lines, protection lines, movement lines, line of sight |
+| $W$    | weights: danger, cost, payoff, timing, reliability                   |
+| $Z$    | zones: terrain, cover, choke, aura, field, control region            |
+
+Combat exchanges update the graph:
+
+$$
+\begin{aligned}
+G_{\mathrm{tac},t+1}
+&=
+\Phi_{\mathrm{tacticalGraph}}
+(
+G_{\mathrm{tac},t},
+O,
+\Delta x,
+\Delta \tau,
+K,
+J,
+I
+)
+\end{aligned}
+$$
+
+Plain rule:
+
+```text
+An exchange matters tactically if it changes lines, timing, risk, protection, or available choices.
+```
+
+---
+
+### Tactical Opening Intake
+
+Combat & Defense may send:
+
+```text
+TacticalOpeningHandoff:
+  openingCreated
+  openingClosed
+  exposedTarget
+  brokenGuard
+  forcedMovement
+  lostTempo
+  gainedTempo
+  lineOpened
+  lineClosed
+  formationImpact
+  objectiveImpact
+  routedFrom
+```
+
+This file classifies the opening:
+
+```text
+none
+minor
+useful
+serious
+decisive
+catastrophic
+```
+
+Mathematical form:
+
+$$
+\begin{aligned}
+O_{\mathrm{value}}
+&=
+\Phi_{\mathrm{opening}}
+(
+O,
+\Delta x,
+\Delta \tau,
+\mathrm{targetValue},
+\mathrm{threatAccess},
+\mathrm{allyCoverage},
+\mathrm{enemyRecovery},
+\mathrm{objectiveState}
+)
+\end{aligned}
+$$
+
+---
+
+### Team Defense
+
+Team defense is not just multiple individual defenses. It is graph coverage.
+
+Use:
+
+$$
+\begin{aligned}
+D_{\mathrm{team}}
+&=
+\Phi_{\mathrm{teamDefense}}
+(
+\mathrm{coverageLines},
+\mathrm{interposition},
+\mathrm{threatSuppression},
+\mathrm{allyReach},
+\mathrm{communication},
+\mathrm{timing},
+\mathrm{trust}
+)
+\end{aligned}
+$$
+
+Team defense may provide Combat & Defense with:
+
+```text
+ally interposition
+covering fire
+threat suppression
+forced miss pressure
+shield wall support
+evacuation route
+body block
+counterattack threat
+protected target coverage
+```
+
+Plain rule:
+
+```text
+A team defense works when the enemy's best branch becomes worse before contact resolves.
+```
+
+---
+
+### Counterplay and Payoff
+
+Strategic choice under uncertainty uses expected payoff, not guaranteed success.
+
+$$
+\begin{aligned}
+U(a_i)
+&=
+\mathbb{E}
+[
+\mathrm{Payoff}
+(
+a_i,
+s,
+G_{\mathrm{tac}},
+I
+)
+]
+-
+
+## \mathrm{Cost}(a_i)
+
+\mathrm{Risk}(a_i)
+\end{aligned}
+$$
+
+Where:
+
+| Symbol             | Meaning           |
+| ------------------ | ----------------- |
+| $a_i$              | available action  |
+| $s$                | current state     |
+| $G_{\mathrm{tac}}$ | tactical graph    |
+| $I$                | information state |
+
+Plain rule:
+
+```text
+Good tactics improve branch quality. They do not guarantee branch selection.
+```
+
+---
+
+### Strategy Handoff to Combat
+
+This file may send:
+
+```text
+StrategyCombatOutput:
+  targetPriority
+  protectionPriority
+  teamDefenseLines
+  suppressionPressure
+  plannedInterposition
+  baitPlan
+  retreatRoute
+  formationState
+  objectivePressure
+```
+
+Combat & Defense consumes this for:
+
+```text
+reachable branches
+defense modes
+counterpressure
+forced misses
+ally interposition
+tactical opening creation
+```
+
+---
+
+### Combat Handoff to Strategy
+
+Combat & Defense may send:
+
+```text
+CombatStrategyHandoff:
+  tacticalOpening
+  positionChange
+  tempoChange
+  protectedTargetExposed
+  formationBreak
+  resourcePressureSignal
+  injuryRiskSignal
+  enemyCommitment
+  enemyRecoveryDebt
+```
+
+Strategy resolves:
+
+$$
+\begin{aligned}
+\mathrm{Decision}*{t+1}
+&=
+\Phi*{\mathrm{decision}}
+(
+G_{\mathrm{tac},t+1},
+I_{t+1},
+\mathrm{objectives},
+\mathrm{riskTolerance},
+\mathrm{availableActions}
+)
+\end{aligned}
+$$
+
+Plain rule:
+
+```text
+Combat creates the opening. Strategy decides whether anyone can use it.
+```
+
 
 ---
 

@@ -3,15 +3,17 @@ id: mechanics
 name: Mechanics & Tiers
 kind: system
 status: canon
+last_updated: 2026-07-14
 ---
 # Mechanics & Tiers — Dominion Realm
 
 > **Status:** Canon · working draft
-> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, Soul Level. Class rarity → `core_rules.md` / `classes.md`. Domains → `classes.md` now and `power_expression.md` when expanded. Calendar → `realm_calendar.md`. **Resource formulas, regen/depletion, the Soul→Reserve multiplier, XP curve, threat readout, and stat templates → `resource_system.md`.**
+> **Owns:** the tier ladders — Spell Strength, Item Quality, Item Rarity, Gemstone Quality, Spell Skill Mastery, and Soul Level.
+> **Does not own:** class taxonomy (`classes.md`), class-level XP thresholds or rarity burden (`xp_progression_formulas.md`), Domains (`classes.md` now; `power_expression.md` when expanded), calendar (`realm_calendar.md`), resources or depletion (`resource_system.md`), combat exchange math (`combat_defense.md`), or Interface formatting.
 
 ## Read-this-first notes
 
-- **These ladders are independent.** "Divine," "Mythic," "Legendary," "Exceptional," "Rare," "Common" recur across several ladders — a Divine *soul* ≠ a Divine *item* ≠ a Divine *spell-skill tier*. Don't conflate them.
+- **These ladders are independent.** Repeated labels such as Divine, Mythic, Legendary, Exceptional, Rare, Epic, or Common do not create cross-ladder equivalence. A Divine *soul* is not a Divine *item* or Divine *spell-skill tier*.
 - **Soul Level is load-bearing for the story.** It governs resistance to being altered, erased, bound, possessed, or overwritten — the engine under **true-names / namebinding** (Serra's arc; **any soul can be bound in principle — Soul Level sets the difficulty and cost, not a yes/no.** Low and average souls are cheap and routine — what the faction preys on; high souls are prohibitively costly; the top tiers (Brilliant → Absolute) approach but never reach true immunity), **death & resurrection** (Marcus), **the broker holding Seb's brother's soul**, and **vow enforcement** (Xazzidiuk/Zazriel). Cross-ref from `core_rules.md` (Naming) and `relationship_map.md`.
 - **Spell Skill Mastery composes with Skill Affinity, not against it.** Skill Affinity = the *chance* a skill levels (Marcus's Unbound Affinity inverts this); Spell Skill Mastery = what the skill's *level* is worth (the tier bonus). Domains are separate and live in `classes.md` / `power_expression.md`. See `core_rules.md` → Skills and Affinities.
 - **The Eyes of Meszkhal is a _Unique_ item** (Item Rarity, below). Its copycat / +100%-skill-XP is the *item's* power, billed in mana; the Neurochromatic interface is separate and bills in the body.
@@ -41,8 +43,35 @@ Continuous stochastic simulation is preferred over roll tables when computation 
 
 See `luck_fortune.md` → **Subsystem Adapter Pattern** for required adapter fields.
 
----
 
+## Typed Projection Boundary
+
+Every ladder in this file is ordinal and typed. A tier label is not automatically a numeric combat, resource, crafting, or progression multiplier.
+
+Use an owner-supplied projection:
+
+$$
+\begin{aligned}
+\boldsymbol\mu_{X}
+&=
+\Pi_{\mathrm{mechanics}\rightarrow X}
+\bigl(
+\mathcal T_{\mathrm{mechanics}},
+\mathrm{expression},
+\mathrm{channel},
+\mathrm{context}
+\bigr)
+\end{aligned}
+$$
+
+Binding rules:
+
+* Spell Strength may project into power, precision, duration, range, stability, control, dispel resistance, or permanence. It is not a universal damage scalar.
+* Spell Skill Mastery applies only to the matching discipline/school and must not be counted again if its bonus is already inside an owner-supplied spell expression.
+* Item Quality may affect execution, reliability, balance, efficiency, and durability when the item/material owner supplies the mapping.
+* Item Rarity supplies no automatic performance bonus.
+* Soul Level applies only where identity, binding, possession, erasure, overwrite, vows, death continuity, or resurrection continuity are causally involved.
+* Class rarity is not a combat multiplier. Its XP and energy burdens are owned by `xp_progression_formulas.md`.
 
 ---
 
@@ -355,10 +384,23 @@ At the highest levels, a soul becomes an anchor upon reality. Such beings are ex
 
 ---
 
-# Class Rarity
+# Class Rarity Boundary
 
-Class rarity uses the same seven-tier ladder — **Common · Uncommon · Rare · Exceptional · Legendary · Mythic · Unique** — but its authoritative home is `core_rules.md` (Class Tiers); the class taxonomy is in `classes.md`. Rarer classes cost more XP **and** more energy per level — the rule that leaves Marcus's Legendary **Realmwalker** unaffordable at low level.
+This file does not own the class-rarity ladder or its mathematics.
 
+Current progression-facing sequence:
+
+```text
+Common → Uncommon → Rare → Epic → Fabled → Legendary → Mythic → Unique
+```
+
+Ownership:
+
+* `classes.md` owns class taxonomy, profiles, and what each rarity means as a class category.
+* `xp_progression_formulas.md` owns prevalence assumptions, self-information, XP thresholds, class-rarity XP burden, and the energy-cost link.
+* `combat_defense.md` must not use class rarity as an automatic attack, defense, penetration, or durability multiplier.
+
+`Exceptional` remains valid on unrelated ladders in this file, including Item Quality and Item Rarity. It is retired only as the current **class-XP rarity** name, where `Epic` replaces it and `Fabled` is the inserted bridge before Legendary.
 
 ---
 
@@ -368,7 +410,8 @@ Class rarity uses the same seven-tier ladder — **Common · Uncommon · Rare ·
 
 Use:
 
-- `resource_system.md` for derived pools, regeneration, depletion, Reserve, XP curve, species growth, and resource-facing stat snapshots.
+- `resource_system.md` for derived pools, regeneration, depletion, Reserve, species growth, and resource-facing stat snapshots.
+- `xp_progression_formulas.md` for XP thresholds, rarity burden, scene XP, combat adaptation, and progression pacing math.
 - `classes.md` for class attribute profiles and Prime/Core multipliers.
 - `core_rules.md` for system-level routing and terminology.
 
