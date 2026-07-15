@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { css } from "../css";
 import { api } from "../api/client";
 import type { EnrichOut } from "../api/types";
@@ -9,8 +9,34 @@ import { Button, Eyebrow, Panel, Spinner } from "../components/ui";
 // Inject — paste prose you already wrote and run one enrichment lane over it. This is deliberately
 // the whole feature: the enrichment passes take a plain string, so none of the contract-first
 // apparatus (packets, beats, approval) applies — that machinery exists to tell the DRAFTER what to
-// write from scratch, and injected prose is already written. Nothing persists; the result is text on
-// screen for the author to read and take. Landing it as a scene is a separate, later decision.
+// write from scratch, and injected prose is already written. Landing a result as a scene is a
+// separate, later decision.
+//
+// The panel keeps NOTHING server-side, which makes the browser the only copy — so this screen is
+// responsible for not losing it. Next unmounts the component on any nav (Inbox, a chord, a stray
+// click), and plain useState dies with it, silently discarding a result the machine just spent ~12s
+// and real tokens producing. Mirror every field to sessionStorage so navigating away and back is
+// lossless. sessionStorage (not local): it survives navigation and reload but not the tab, which
+// matches "this is a scratch surface, not a store".
+
+const STORAGE_KEY = "desk.inject.v1";
+
+interface Persisted {
+  prose: string;
+  pov: string;
+  lane: string;
+  beat: string;
+  result: EnrichOut | null;
+}
+
+const loadPersisted = (): Partial<Persisted> => {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<Persisted>;
+  } catch {
+    return {}; // corrupt/unparseable — start clean rather than crash the screen
+  }
+};
 
 const LANES: { id: string; label: string; hint: string }[] = [
   {
@@ -48,6 +74,30 @@ export default function EnrichScreen() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<EnrichOut | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
+
+  // Rehydrate after mount, not via useState initializers: this is a server-rendered route, so reading
+  // sessionStorage during render would mismatch the server's HTML.
+  useEffect(() => {
+    const p = loadPersisted();
+    if (p.prose) setProse(p.prose);
+    if (p.pov) setPov(p.pov);
+    if (p.lane) setLane(p.lane);
+    if (p.beat) setBeat(p.beat);
+    if (p.result) setResult(p.result);
+    setRestored(true);
+  }, []);
+
+  // Mirror on every change. Guarded on `restored` so the empty first render can't clobber a stored
+  // result before the effect above has read it back.
+  useEffect(() => {
+    if (!restored) return;
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ prose, pov, lane, beat, result }));
+    } catch {
+      /* quota exceeded on a very large scene — keep working in memory rather than break the panel */
+    }
+  }, [restored, prose, pov, lane, beat, result]);
 
   // POV is optional: a prologue or omniscient interlude has none, and inventing one ("none") tells
   // the lane to stay in a character that doesn't exist — it resolves that by changing nothing.
@@ -77,6 +127,16 @@ export default function EnrichScreen() {
     if (result) void navigator.clipboard.writeText(result.enriched);
   };
 
+  // No removeItem here: the mirror effect fires on these state changes and would rewrite the key
+  // immediately, so deleting it is dead code. Clearing the state IS clearing the store.
+  const clear = () => {
+    setProse("");
+    setPov("");
+    setBeat("");
+    setResult(null);
+    setError(null);
+  };
+
   const delta = result ? result.enriched_chars - result.source_chars : 0;
 
   return (
@@ -90,8 +150,9 @@ export default function EnrichScreen() {
           )}
         >
           Paste a scene, pick a lane, and the pass deepens that one dimension — preserving your
-          voice, your events, and the beat&rsquo;s outcome. Nothing is saved and your text is never
-          altered: the result is a copy for you to read and take.
+          voice, your events, and the beat&rsquo;s outcome. Your text is never altered: the result
+          is a copy for you to read and take. Nothing is stored on the server, but this panel keeps
+          what you left here, so you can navigate away and come back.
         </p>
       </header>
 
@@ -161,9 +222,20 @@ export default function EnrichScreen() {
             <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--ink3)")}>
               {prose.length.toLocaleString()} chars
             </span>
-            <Button variant="primary" onClick={run} disabled={!ready}>
-              {busy ? "Enriching…" : "Enrich"}
-            </Button>
+            <div style={css("display:flex;gap:8px;align-items:center")}>
+              {(prose || result) && (
+                <Button
+                  onClick={clear}
+                  disabled={busy}
+                  title="Clear the panel and forget what's stored"
+                >
+                  Clear
+                </Button>
+              )}
+              <Button variant="primary" onClick={run} disabled={!ready}>
+                {busy ? "Enriching…" : "Enrich"}
+              </Button>
+            </div>
           </div>
         </Panel>
 
