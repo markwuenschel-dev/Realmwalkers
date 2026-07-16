@@ -48,6 +48,9 @@ importers:
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
       openapi-typescript:
         specifier: ^7.13.0
         version: 7.13.0(typescript@6.0.3)

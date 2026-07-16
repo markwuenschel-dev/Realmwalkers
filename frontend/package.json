@@ -34,6 +34,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^26.0.0",
+    "jszip": "^3.10.1",
     "openapi-typescript": "^7.13.0",
     "oxfmt": "latest",
     "oxlint": "^0.16.0",
