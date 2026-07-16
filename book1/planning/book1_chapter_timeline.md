@@ -12,7 +12,7 @@ status: working
 
 ---
 
-## ACT 1 — EARTH (June 2035)
+## ACT 1 — EARTH (June 2040)
 
 **Ch 1 — "Aim Not Found"** · *Marcus* · Earth Day 0
 - Ordinary world: Marcus Vye, **ML engineer at Astria**, late on a model anomaly — a control cohort converging on outcomes it was never touched to produce. He distrusts a confident model that can't explain itself. *(The steering/selection hook — something outside the model is producing the results; it rhymes with the implant being a receiver.)*
@@ -54,7 +54,6 @@ status: working
 **Ch 6 — The Light** · Days 1–3
 - Void interlude; the approaching light. Day 3: wakes in new terrain; **Illyri** negotiates attachment — spent permanent power to resurrect him; the bilateral deal is struck (anchor for foothold; this is why his return is exceptional).
 - Status review — Human (Hybrid), Chaotic Neutral; the native **Neurochromatic Eyes interface** begins emerging (separate from the item). He rejects "Phoenix" (the game-handle) and **keeps his own name — Marcus —** refusing to perform a new self; Illyri's true-name warning lands (his true name, S-09, stays hidden).
-- *(End of the currently drafted manuscript ≈ here.)*
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · *Serra* · ~Days 1–3 · **(inserted; lettered to avoid renumbering Chs 7–30 — see Open Questions)**
 - Serra wakes in the Realm; **Marcus absent / presumed unreachable.** Her first true POV chapter — graduating her from interlude to deuteragonist (§9).

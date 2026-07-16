@@ -14,8 +14,9 @@ Dead Hand/404 scrim. Teams are not in a bubble — they go home after the weeken
   dramatized content deferred to Serra's Ch 6A altana-flashback POV.
 - **New — Event context callout** (`marcus_serra_relationship.md` §4): locks the venue/logistics behind
   the already-existing Discord-exchange premise (twenty-fifth, four points).
-- **Proposed, not applied:** a one-paragraph Chapter 1 seed for `SCENE-001` (or alternately `SCENE-002`)
-  — see agent brief for exact text; owner to pick placement and confirm voice.
+- **Considered, declined:** a one-paragraph Chapter 1 seed for `SCENE-001` (or alternately `SCENE-002`)
+  was proposed and **not inserted** — Chapter 1 stays as drafted; the Finalist Weekend context lives
+  only in planning (`master_timeline.md`, `scene_queue.md`) and Serra's Ch 6A altana flashback.
 
 ## 2026-07-05 — Marcus⇄Serra Duel Ladder + age locks + story-ownership pass
 

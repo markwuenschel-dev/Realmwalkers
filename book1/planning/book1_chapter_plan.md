@@ -8,7 +8,7 @@ status: working
 
 > **Purpose:** the *build layer* over the chapter spine. For each chapter: what it must accomplish, the scenes and payoffs inside it, the state of the world by the end, and the **open decisions that block drafting it.** This is the "what do I actually do" document.
 > **Defers to:** `book1_chapter_timeline.md` (chapter order/POV) · `scene_queue.md` (scene briefs) · `setup_payoff_tracker.md` (plant/payoff IDs) · `unresolved_character_threads.md` (open-thread IDs) · `master_timeline.md` (facts/days). Precedence: `canon_index.md`.
-> **Frontier:** drafted manuscript currently ends **≈ Ch 6**. Everything from **Ch 6A** (new Serra-POV arrival) and **Ch 7** on is unwritten — that's the drafting frontier.
+> **Frontier:** drafted manuscript currently ends **≈ Ch 1** (`SCENE-001`–`SCENE-003`, the whole of the Day-0 scrim/hijack/consent sequence). Everything from **Ch 2** on — including **Ch 6A** (new Serra-POV arrival) — is unwritten; that's the drafting frontier.
 > **POV (series split):** Marcus ~60–70% (spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV**; the other four keep **⟢ INTERLUDE**. *The earlier "Serra trapped in interludes" structural tension is resolved — she is the deuteragonist with her own throughline (`marcus_serra_relationship.md` §9).*
 
 **Per-entry legend**
@@ -21,59 +21,60 @@ status: working
 
 ---
 
-## ACT 1 — EARTH (Earth Days 0–1) · *Marcus* · **drafted**
+## ACT 1 — EARTH (Earth Days 0–1) · *Marcus* · **Ch 1 drafted; Ch 2–3 not yet drafted**
 
 **Ch 1 — "Aim Not Found"** · Marcus · Day 0 · *drafted*
 - **Function:** establish the ordinary world, the six-in-embryo, and convert "game" into "trap" in real time.
 - **Thematic spine (opening↔ending mirror):** establish Marcus's credo — *accuracy is enough; being right = understanding* — and plant **the crack** (the control-cohort anomaly is a prediction accurate for reasons he can't explain, which he *files away*). The **ML beat carries the theme** (frame-building → the Eyes → the severance); the **scrim aims the same habit at Serra** (he reads her decision architecture, and "being right" feels like knowing her — interrupted before it resolves). Keep him *right, rewarded, and uneasy* — **not** "reality should obey" (that's the Eyes). See `mc.md` → The Frame–Reality Spine.
 - **Beats:** the model anomaly (a control cohort converging on untouched outcomes — the *receiver* rhyme); the scrim 404 (#25) vs Dead Hand (#3), Seb/Brent/Mathias/Kip clocked, Mara hidden; **Serra logs in late → the Marcus/Serra duel** (skill parity *revealed*, recognition *earned* and one-directional Serra→Marcus, INV-1) → **interrupted by the hijack**; Roth's consent-capture as cold procedure; Astria's hijacked/escalated Storm Warden cyclone phase (not a separate manufactured boss) + selectively locked logout; **Seb's brother Micah died shortly before the scrim, not during it**; consent under duress.
-- **Scenes:** `SCENE-001_earth-opening` (scrim + duel, ends on the intrusion) → the hijack/consent scene (S2).
+- **Scenes:** `SCENE-001_earth-opening` (home → login) → `SCENE-002_lobby-duel-astria-interruption` (duel + hijack begins) → `SCENE-003_astria-hijack-consent` (hijack continues, consent under duress) — all three drafted; together they are the whole of Ch 1.
 - **Pays:** SP-001 (implant=receiver, seed) · SP-002 (game vs real) · SP-010 (guild scattered) · CH-008 (Seb's brother → grief not rescue).
 - **End state:** all six coerced into consent; no interfaces yet; Earth Thing planted (duel).
 - **Gate:** ✅ drafted.
 
-**Ch 2 — The Facility** · Marcus · Day 1 · *drafted*
+**Ch 2 — The Facility** · Marcus · Day 1 · *not yet drafted*
 - **Function:** assemble the six in the flesh; first physical Marcus/Serra beat; lay out terms so consent is on the record.
 - **Prose seed (planning-only, insert when drafted):** open on the Discord thread being ten days old —
-  *"from the morning after the finalist reception"* — grounds the Finalist Weekend context ambiently, no
-  new exposition needed if Step 4's Chapter 1 seed lands. See `scene_queue.md` Finalist Reception brief.
+  *"from the morning after the finalist reception"* — grounds the Finalist Weekend context ambiently
+  (the Chapter 1 seed was proposed and declined, so this is where the reference first lands on-page).
+  See `scene_queue.md` Finalist Reception brief.
 - **Beats:** pickup (Eldrin, Selia); facility; Withers/Vail; patio reunion; **Serra arrives, introduces herself from Dead Hand, the wink** (reader-recognition, no visible romance); Mara arrives late; LeBlanc/Roth/Withers lay out terms/risks; formal consent; medical exams; **Earth night — shared common area** (last full-six window; texture only — see `scene_queue.md` Act 1 brief).
 - **Pays:** SP-003 (UI as interpretive layer, seed) · SP-002.
 - **End state:** six committed; Earth Thing now in-person but unaddressed.
-- **Gate:** ✅ drafted.
+- **Gate:** ✅ draftable — no blockers; not yet written.
 
-**Ch 3 — Reins** · Marcus → LeBlanc · Day 1 night · *drafted*
+**Ch 3 — Reins** · Marcus → LeBlanc · Day 1 night · *not yet drafted*
 - **Function:** plant the off-world hand behind Astria; deliver the six into the Realm; scatter them.
 - **Beats:** **Earth night — shared common area** (last full-six window; see `scene_queue.md`); **pre-surgery — one narrow personal beat** (acknowledges shared history, resolves nothing about the kiss, ends on Serra's **"See you after, Marcus"**); implant surgery; **⟢ LeBlanc/Roth private (LeBlanc POV): "We will take the reins in the Dominion Realm"** (Soulkeepers' Exchange shaping Astria from outside); limbo void; the voice explains the Realm + the Eriadne directive; mists separate them.
 - **Pays:** SP-001 (Astria = infrastructure, not source) · SP-007 (resurrection weight, seed) · SP-009 (Eriadne destination).
 - **End state:** six separated; Eriadne directive known to reader.
-- **Gate:** ✅ drafted.
+- **Gate:** ✅ draftable — no blockers; not yet written.
 
 ---
 
-## ACT 2 — MINDSCAPE & RESURRECTION (Realm Days 1–3) · *Marcus* · **drafted (manuscript ends ≈ here)**
+## ACT 2 — MINDSCAPE & RESURRECTION (Realm Days 1–3) · *Marcus* · **not yet drafted**
 
-**Ch 4 — Awaken** · Day 1 · *drafted*
+**Ch 4 — Awaken** · Day 1 · *not yet drafted*
 - **Function:** first contact with the Realm's rules; give Marcus a *read-skill* before the descent.
 - **Beats:** AWAKEN; **Unbound Affinity** noted (inverts the affinity dice — `mechanics.md`); **learns Insight here, before the descent**; paladin vs blood-mage **Mallev** (read with Insight); Mallev's self-sacrifice (crimson sphere).
 - **Pays:** SYS-001 (Unbound Affinity) · SYS-002 (Insight = partial info, overvalued).
 - **End state:** Marcus armed with perception, not power.
-- **Gate:** ✅ drafted.
+- **Gate:** ✅ draftable — no blockers; not yet written.
 
-**Ch 5 — The Bargain** · Day 1 (internal) · *drafted*
+**Ch 5 — The Bargain** · Day 1 (internal) · *not yet drafted*
 - **Function:** the price of the Eyes; establish "Nothing is free"; close the demonic ledger so no faction owns him.
 - **Beats:** Xazzidiuk erupts; archangels contain; dual-possession attempt; mindscape torture; the **boulder bargain (S-03, five terms):** Eyes of Meszkhal granted · possession relinquished · Marcus releases him · **owes no service/favor/worship/soul-claim/obligation** · then killed (survival was never in it); **Zazriel present, gives nothing** (no Angelic Fortitude); **Death.**
 - **Pays:** SP-005 (Meszkhal *item* = confident demon-biased overlay) · SP-006 (Zazriel nothing) · SP-007 (dies).
 - **End state:** Marcus dead; carries the item; owes nothing.
-- **Gate:** ✅ drafted.
+- **Gate:** ✅ draftable — no blockers; not yet written.
 
-**Ch 6 — The Light** · Days 1–3 · *drafted*
+**Ch 6 — The Light** · Days 1–3 · *not yet drafted*
 - **Function:** resurrection with a cost; Illyri bound; self-naming as identity, not pose.
 - **Beats:** void interlude → light; Day 3 wakes; **Illyri negotiates attachment** (celestial fragment — defeated in battle, could not be annihilated; needs an *anchor*; **spent permanent power** to resurrect him; mutual — life for a foothold; this is why his resurrection is *exceptional*, not cheap); status review (Human Hybrid, Chaotic Neutral); **Neurochromatic Eyes interface begins emerging** (separate from the item); rejects "Phoenix" (the game-handle), **keeps his own name — Marcus.**
 - **Scenes:** `SCENE-002` Naming (the refusal).
 - **Pays:** SP-008 (Illyri = questions not answers) · SP-002 (accepts the Realm is real) · SP-007.
 - **End state:** Marcus, alive, Eyes Stage 1 emerging, Illyri attached.
-- **Gate:** ✅ drafted. *(Open, non-blocking: A-02 Illyri↔Meszkhal link; A-04 who defeated her — series antagonist, identity deferred.)*
+- **Gate:** ✅ draftable — no blockers; not yet written. *(Open, non-blocking: A-02 Illyri↔Meszkhal link; A-04 who defeated her — series antagonist, identity deferred.)*
 
 **⟢ SERRA POV — Ch 6A — Realm Arrival** · Serra · ~Days 1–3 · ⚠ *(new; lettered to avoid renumbering 7–30)*
 - **Function:** graduate Serra from interlude to deuteragonist; deliver the Earth origin from *her* side; open her Book-1 throughline.
@@ -314,7 +315,7 @@ status: working
 
 ## Critical Path — the actual order of work
 
-1. **Draft the contiguous draftable run now: Ch 6A + Ch 7 → Ch 13.** All ✅, no blockers — Serra's arrival (Ch 6A, her POV) plus the whole False-Rescue build. The biggest unblocked stretch in the book.
+1. **Draft the contiguous draftable run now: Ch 2 → Ch 13 (including Ch 6A).** All ✅, no blockers — the facility, the surgery and Realm entry, the mindscape/resurrection, Serra's arrival (Ch 6A, her POV), and the whole False-Rescue build. The biggest unblocked stretch in the book; currently only Ch 1 (`SCENE-001`–`SCENE-003`) is drafted.
 2. **Before Ch 14–15:** decide **A3-08** (Vulture conditions) and **A3-05 + the child's name/fate** (the only things gating the act's hinge).
 3. **Transit (Ch 16–17):** lock **SB-01** (which warning Seb rationalizes) before drafting his ignition.
 4. **Act 4 (Ch 18–23):** mostly draftable; lock **BR-02** (Brent's discovery) and **MA-02** (Grove threat) when you reach Ch 20/21.

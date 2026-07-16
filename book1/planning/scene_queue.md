@@ -19,8 +19,8 @@ first contact, pre-identity (neither knows the other's guild). This is where the
 kiss with the mutual, simultaneous pullback each misreads as the other's rejection (INV-1 Axis E;
 `marcus_serra_relationship.md` §3–4). The **Discord exchange** (`marcus_serra_relationship.md` §4) occurs
 the next morning — she reopens the door without naming it.
-*Not yet drafted on-page. Full dramatized content, if any, belongs to Serra's altana-flashback POV
-(Ch 6A) — Chapter 1 needs at most a one-line aside (Step 4, proposed).*
+*Not yet drafted on-page. Full dramatized content belongs to Serra's altana-flashback POV (Ch 6A) —
+a Chapter 1 aside was proposed and declined; Chapter 1 carries no reference to this weekend.*
 
 ### Earth night — common area `[all six]`
 One contained night after transport/consent, before surgery. Setup: separate rooms + **shared common area**. Function: last six-together Earth memory; cross-group texture (404 four know each other; Serra/Mara know each other; brief cross-group reads). Texture only: fear, jokes, consent forms, corporate calm, failed sleep, nervousness — **not** exposition arc. *(Illyri absent — attaches Ch 6.)* See `marcus_serra_relationship.md` §4.

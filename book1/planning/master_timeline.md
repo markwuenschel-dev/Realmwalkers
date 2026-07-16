@@ -7,7 +7,7 @@
 ---
 
 ## Time Notation
-- **Earth Date:** real-world calendar (2035).
+- **Earth Date:** real-world calendar (2040).
 - **Realm Day:** counted from Marcus's first conscious moment in the Realm (Day 1).
 - Calendar dates use **Realm Day numbers** until CAL-02 (arrival month) is set; the Realm calendar (14 months / 400 days / 9-day week) is canon in `realm_calendar.md`.
 
@@ -27,7 +27,7 @@
 
 ---
 
-## Act 1 — Earth (June 2035)
+## Act 1 — Earth (June 2040)
 
 ### June 15–17 (Earth Day ~-12 to -10) — Aetherfall Championship Finalist Weekend
 | Event | POV |
