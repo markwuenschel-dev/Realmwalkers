@@ -177,9 +177,9 @@ export default function EnrichScreen() {
         >
           Paste a scene and each lane you pick deepens one dimension of it — preserving your voice,
           your events, and the beat&rsquo;s outcome. Pick none and every lane runs, in order, each
-          reading the last one&rsquo;s work. Your text is never altered: the result is a copy for you
-          to read and take. Nothing is stored on the server, but this panel keeps what you left here,
-          so you can navigate away and come back.
+          reading the last one&rsquo;s work. Your text is never altered: the result is a copy for
+          you to read and take. Nothing is stored on the server, but this panel keeps what you left
+          here, so you can navigate away and come back.
         </p>
       </header>
 
