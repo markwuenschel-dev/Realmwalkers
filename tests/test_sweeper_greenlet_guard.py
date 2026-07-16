@@ -7,9 +7,10 @@ sync lazy-load on the async session -> MissingGreenlet (the N1/C1 class). The fi
 before the savepoint. This scans every function that opens a savepoint — not just `_sweep_one_run` — so a
 new savepoint helper can't silently reintroduce the class. Pure static analysis; no DB, always runs.
 
-Scope/known bound: keyed to the literal loop-row names below and to `sweeper.py` (the only module that
-uses `begin_nested`). A renamed loop var or a savepoint added in another module would slip past — widen
-`_ORM_ROW_NAMES` / `_GUARDED_MODULES` when that happens.
+Scope/known bound: keyed to the literal loop-row names below and to `sweeper.py`. A renamed loop var
+would still slip past — widen `_ORM_ROW_NAMES` when that happens. The cross-module bound is now
+enforced rather than trusted: `test_begin_nested_is_confined_to_the_guarded_module` fails the moment
+any other module introduces a `begin_nested` savepoint this scan does not cover.
 """
 
 from __future__ import annotations
@@ -70,3 +71,20 @@ def test_guard_flags_a_post_savepoint_orm_read():
     funcs = list(_savepoint_functions(bad))
     assert len(funcs) == 1
     assert (7, "task.authority_level") in _orm_reads_in_except(funcs[0])
+
+
+def test_begin_nested_is_confined_to_the_guarded_module():
+    """Cross-module coverage: the scan above only reads sweeper.py. If `begin_nested` appears in any
+    other dominion module, that savepoint is unguarded — fail loudly so the guard is widened to cover
+    it (extend `_savepoint_functions`' scan), not so this allowlist is quietly grown."""
+    pkg_root = Path(sweeper_mod.__file__).resolve().parents[1]  # src/dominion
+    guarded = {"sweeper.py"}
+    offenders = sorted(
+        str(py.relative_to(pkg_root))
+        for py in pkg_root.rglob("*.py")
+        if py.name not in guarded and "begin_nested" in py.read_text(encoding="utf-8")
+    )
+    assert not offenders, (
+        f"begin_nested() found outside the guarded module(s) {sorted(guarded)}: {offenders}. "
+        "The greenlet guard only scans sweeper.py — extend _savepoint_functions to cover these modules."
+    )

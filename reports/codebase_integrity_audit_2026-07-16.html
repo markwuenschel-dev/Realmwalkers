@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codebase Integrity Audit — Realmwalkers — 2026-07-16</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F5F7; --panel:#FFFFFF; --ink:#141821; --ink2:#4B5563; --faint:#8A93A3;
+    --line:#E6E8EE; --line2:#EEF0F4; --code:#F2F3F7;
+    --accent:#2540E8; --accent-ink:#26327A; --accent-bg:#EAEDFD;
+    --crit-ink:#C0342B; --crit-bg:#FBEAE8;
+    --high-ink:#B45309; --high-bg:#FAEFE0;
+    --med-ink:#15803D; --med-bg:#E6F3EB;
+    --low-ink:#516079; --low-bg:#EDF0F5;
+    --violet:#6D3BD1;
+    --disp:"Space Grotesk",system-ui,sans-serif;
+    --body:"Public Sans",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);background-image:radial-gradient(120% 55% at 50% -8%, rgba(37,64,232,.05), transparent 60%);
+    color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.58;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.86em;background:var(--code);padding:1px 5px;border-radius:4px;color:var(--accent-ink)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}}
+  ::selection{background:var(--accent-bg)}
+  details>summary{list-style:none;cursor:pointer} details>summary::-webkit-details-marker{display:none}
+  table{border-collapse:collapse}
+  .btn{font-family:var(--mono);font-size:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink2);
+    border-radius:999px;padding:3px 11px;cursor:pointer}
+  .btn[data-on="1"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+  th[data-key]{cursor:pointer;user-select:none}
+</style>
+</head>
+<body>
+<div style="max-width:1060px;margin:0 auto;padding:56px 28px 120px;animation:rise .5s ease both">
+
+<!-- ================= MASTHEAD ================= -->
+<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+  <div style="flex:1 1 320px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">
+      Codebase Integrity Audit · Read-only</div>
+    <h1 style="font-family:var(--disp);font-weight:700;font-size:40px;line-height:1.05;letter-spacing:-.03em;margin:0 0 8px">
+      Realmwalkers</h1>
+    <div style="color:var(--ink2);font-size:16px;max-width:60ch">
+      One single-agent scan + four read-only investigators. The reliability backlog is materially cleared;
+      a fresh doc-vs-reality gap opened on the autonomy/authorization safety surface.</div>
+  </div>
+  <div style="display:flex;gap:22px;align-items:flex-start;padding-top:6px">
+    <div style="text-align:right">
+      <div style="font-family:var(--disp);font-weight:700;font-size:34px;line-height:1;color:var(--ink)">17</div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-top:4px">candidates</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:var(--disp);font-weight:700;font-size:34px;line-height:1;color:var(--med-ink)">6</div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-top:4px">resolved</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:var(--disp);font-weight:700;font-size:34px;line-height:1;color:var(--high-ink)">B−</div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-top:4px">repo grade</div>
+    </div>
+  </div>
+</div>
+
+<div style="font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:20px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:16px">
+  <span style="white-space:nowrap">2026-07-16</span>
+  <span style="white-space:nowrap">branch <span style="color:var(--ink2)">main</span></span>
+  <span style="white-space:nowrap">commit <span style="color:var(--ink2)">d2e9986</span></span>
+  <span style="white-space:nowrap">mode <span style="color:var(--ink2)">manual · single-agent + 4 investigators</span></span>
+  <span style="white-space:nowrap">prior <span style="color:var(--ink2)">2026-07-08 pass 4</span></span>
+</div>
+<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:7px">
+  <span style="font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:999px;background:var(--med-bg);color:var(--med-ink)">backend pytest 766✓ / 1 xfail</span>
+  <span style="font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:999px;background:var(--med-bg);color:var(--med-ink)">pyright src ✓</span>
+  <span style="font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:999px;background:var(--med-bg);color:var(--med-ink)">ruff ✓ · fmt ✓</span>
+  <span style="font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:999px;background:var(--med-bg);color:var(--med-ink)">openapi in-sync</span>
+  <span style="font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:999px;background:var(--high-bg);color:var(--high-ink)">frontend gates red locally (jszip)</span>
+  <span style="font-family:var(--mono);font-size:10.5px;padding:2px 9px;border-radius:999px;background:var(--code);color:var(--ink2)">no code/tests/config modified</span>
+</div>
+
+<!-- ================= TRIAGE STRIP ================= -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:26px">
+  <!-- by action -->
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:0 1px 2px rgba(20,24,33,.03)">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">By recommended action</div>
+    <div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin-bottom:10px">
+      <span style="width:18%;background:var(--med-ink)"></span>
+      <span style="width:41%;background:var(--violet)"></span>
+      <span style="width:35%;background:var(--high-ink)"></span>
+      <span style="width:6%;background:var(--accent)"></span>
+    </div>
+    <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);display:grid;gap:3px">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--med-ink);margin-right:6px"></span>direct-fix 3</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--violet);margin-right:6px"></span>design 7</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--high-ink);margin-right:6px"></span>fitness-check 6</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--accent);margin-right:6px"></span>triage 1</span>
+      <span style="color:var(--faint)">4 also blocked — see right →</span>
+    </div>
+  </div>
+  <!-- by priority band -->
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:0 1px 2px rgba(20,24,33,.03)">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">By priority band</div>
+    <div style="display:flex;gap:18px;align-items:baseline">
+      <div><span style="font-family:var(--disp);font-weight:700;font-size:26px;color:var(--ink)">5</span>
+        <div style="font-family:var(--mono);font-size:9.5px;color:var(--faint)">HIGH ≥12</div></div>
+      <div><span style="font-family:var(--disp);font-weight:700;font-size:26px;color:var(--ink2)">11</span>
+        <div style="font-family:var(--mono);font-size:9.5px;color:var(--faint)">MID 6–11</div></div>
+      <div><span style="font-family:var(--disp);font-weight:700;font-size:26px;color:var(--faint)">1</span>
+        <div style="font-family:var(--mono);font-size:9.5px;color:var(--faint)">LOW ≤5</div></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--faint);margin-top:8px">+ 3 low-severity fresh nits (N3–N5)</div>
+  </div>
+  <!-- needs decision -->
+  <div style="background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--crit-ink);border-radius:14px;padding:15px 16px;box-shadow:0 1px 2px rgba(20,24,33,.03)">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-bottom:6px">Needs decision</div>
+    <div style="font-family:var(--disp);font-weight:700;font-size:34px;line-height:1;color:var(--crit-ink)">4</div>
+    <div style="font-size:11.5px;color:var(--ink2);margin-top:6px">A1b · C10 · C2 · A1c — human-decision forks; queued behind their answer.</div>
+  </div>
+  <!-- since last run -->
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:0 1px 2px rgba(20,24,33,.03)">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-bottom:8px">Since last run</div>
+    <div style="font-family:var(--mono);font-size:13px;display:grid;gap:4px">
+      <span style="color:var(--high-ink)">+5 new (A1a–c · N1 · N2)</span>
+      <span style="color:var(--med-ink)">−6 resolved</span>
+      <span style="color:var(--ink2)">Δ6 re-scored</span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CONTENTS ================= -->
+<div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-top:22px">
+  <div style="columns:2;column-gap:32px;font-family:var(--mono);font-size:12.5px;line-height:1.9">
+    <a href="#s1"><span style="color:var(--faint)">01</span> Executive summary</a><br>
+    <a href="#s2"><span style="color:var(--faint)">02</span> Overall repo grade</a><br>
+    <a href="#s3"><span style="color:var(--faint)">03</span> Category scorecards</a><br>
+    <a href="#s4"><span style="color:var(--faint)">04</span> Top candidates</a><br>
+    <a href="#s5"><span style="color:var(--faint)">05</span> Candidate ledger</a><br>
+    <a href="#s6"><span style="color:var(--faint)">06</span> Findings by source</a><br>
+    <a href="#s7"><span style="color:var(--faint)">07</span> Cross-cutting groups</a><br>
+    <a href="#s8"><span style="color:var(--faint)">08</span> Human-decision blockers</a><br>
+    <a href="#s9"><span style="color:var(--faint)">09</span> Quick wins</a><br>
+    <a href="#s10"><span style="color:var(--faint)">10</span> High-leverage deep work</a><br>
+    <a href="#s11"><span style="color:var(--faint)">11</span> Unsafe-to-auto-execute</a><br>
+    <a href="#s12"><span style="color:var(--faint)">12</span> Verification readiness</a><br>
+    <a href="#s13"><span style="color:var(--faint)">13</span> Recommended queue</a><br>
+    <a href="#resolved"><span style="color:var(--faint)">──</span> Resolved since last run</a><br>
+  </div>
+</div>
+
+<!-- ================= §1 EXEC ================= -->
+<h2 id="s1" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">01</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Executive summary</span></h2>
+
+<p>Since pass 4 (2026-07-08) the owner worked the backlog hard: <b>six candidates verified resolved</b> — the
+greenlet-class invariant is now pinned (<code>NC1a</code>), the sweeper registry leak evicts on the terminal
+path (<code>C13</code>), retention is a set-based delete (<code>C11</code>), the staleness N+1 is batched
+(<code>C12</code>), <code>addopts=-rs</code> landed (<code>C9</code>), and the vacuous-e2e flag is gone
+(<code>C16</code>). The deterministic surface is healthy: backend <code>pytest</code> ran
+<b>766 passed / 1 xfailed</b> against a real local Postgres, <code>pyright</code> (src), <code>ruff</code>,
+<code>ruff format</code>, and the frontend <code>vitest</code> unit suite (343 tests) all pass, and
+<code>openapi.json</code> is byte-identical to <code>app.openapi()</code>.</p>
+
+<div style="background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--crit-ink);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0">
+  <b>Headline — A1: CONTEXT.md documents an unbuilt autonomy/authorization subsystem as live invariants.</b>
+  AGENTS.md designates <code>CONTEXT.md</code> the single source of truth that humans <i>and AI agents</i> read as
+  the domain contract. Its glossary states six autonomy/authorization invariants in present-tense declarative
+  language — Autonomy Control (a singleton with <code>enabled/epoch/updated_at</code>), the Autonomy Epoch
+  (stamped and re-checked at claim <i>and</i> finalization), the Operational Hold, Execution Authorization as an
+  <i>append-only grant event</i>, the Approval Blocker record, and an Authorization Requirement kept orthogonal to
+  <code>authority_level</code>. <b>Six of the seven do not exist in code.</b> Verified directly:
+  <code>grep -i epoch src/dominion</code> returns one unrelated timestamp comment; the identifiers
+  <code>AutonomyControl / OperationalHold / epoch_mismatch / autonomous_policy / manual_command /
+  ExecutionAuthorization / ApprovalBlocker</code> have <b>zero matches</b> in <code>src/dominion</code>. The real
+  mechanism is a single KV boolean <code>autonomy_enabled</code> read live per sweeper tick
+  (<code>sweeper.py:43,117,363</code>); authorization is <i>mutable fields</i> on <code>RepairTask</code>
+  (<code>models.py:970,973</code>) — the exact "mutable field" the doc says it is not. The governing ADRs 0030/0031
+  self-label planning-only; CONTEXT.md jumped to the <i>decided-but-unimplemented</i> design (commit
+  <code>25a3fe1</code>/#236 resolved the design blockers B-1..B-4, not the code).</div>
+
+<p>The danger is specific: an agent (or human) reading CONTEXT.md would believe autonomous spend is epoch-gated
+and hold-protected, and would make changes on that assumption. Worse, one live contradiction sits under it — the
+sweeper's own comments disagree on whether a human-required repair may ever be auto-approved
+(<code>sweeper.py:59-60</code> "must never be auto-approved" vs <code>:167-171</code> "raising the ceiling to
+human_required opts into full autonomy"), and <code>RepairAuthorityLevel.HUMAN_REQUIRED</code> remains a
+ceiling-negatable rung (<code>enums.py:289</code>) despite ADR-0031 D16 deciding to retire it as one. The fix
+splits cleanly: <b>A1a</b> — relabel the six unbuilt terms in CONTEXT.md as <i>planned</i> — is a near-free,
+high-leverage docs edit (pri&nbsp;17) that stops the overstatement immediately; <b>A1b</b> (reconcile the
+ceiling contradiction) and <b>A1c</b> (actually build the subsystem) queue behind an authorization-policy decision.</p>
+
+<p>Two fresh build/contract nits round out the new work. <b>N1</b>: <code>jszip</code> is an undeclared direct
+dependency — imported only by <code>docxXml.test.ts</code>, absent from <code>package.json</code>, resolvable in
+CI solely because <code>frontend/.npmrc</code> sets <code>public-hoist-pattern[]=*</code> (hoisting
+<code>docx</code>'s transitive copy); the current local <code>node_modules</code> lacks the hoist, so
+<code>tsc</code> and <code>vitest</code> are red on a laptop while CI stays green. <b>N2</b>: the new Inject
+feature ships a <code>GET /enrich/lanes</code> endpoint that <i>no one calls</i> — the panel hand-mirrors the lane
+list (<code>EnrichScreen.tsx:46-62</code>) with a "keep aligned" comment, so a 4th lane added at
+<code>router.py:22</code> silently won't appear in the UI. The Inject surface is otherwise well-built (genuinely
+stateless, correct none-means-all, reuses the pipeline specialists, well-tested). The carried contract/security
+gates — <code>C3</code> nested-JSONB, <code>C4</code> enums, <code>C14</code> migration parity, <code>C7</code>
+machine-keys, <code>C10</code> auth, <code>C8</code> coverage, <code>C2</code> approval duplication — are
+unchanged except <code>C14</code>, which now sports a parity test that guards only the <i>harmless</i> direction.</p>
+
+<!-- ================= §2 GRADE ================= -->
+<h2 id="s2" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">02</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Overall repo grade</span></h2>
+<div style="display:grid;grid-template-columns:170px 1fr;gap:16px;align-items:stretch">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px">
+    <div style="font-family:var(--disp);font-weight:700;font-size:52px;line-height:1;color:var(--high-ink)">B−</div>
+    <div style="font-size:12px;color:var(--faint);text-align:center;margin-top:8px">runtime health up;<br>a safety-doc gap opened</div>
+  </div>
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px">
+    <ul style="margin:2px 0;padding-left:18px;line-height:1.5">
+      <li><b>Reliability 4/5</b> (held) — the whole hygiene backlog cleared: greenlet invariant pinned, sweeper eviction, set-based retention, staleness batched. No open live runtime bug found.</li>
+      <li><b>Doc / behavior fidelity 2/5</b> (new, ↓) — CONTEXT.md overstates six unbuilt autonomy invariants on the safety surface (A1); one live ceiling contradiction sits under it.</li>
+      <li><b>Contract integrity 3/5</b> (held) — C3/C4/C14/C7 flat; C14's new parity test covers only the safe direction, which can read as closed when the dangerous one isn't.</li>
+      <li><b>Verification 4/5</b> (↑) — full-tree src <code>pyright</code> now in CI; DB suite green. Gaps additive: <code>tests/</code> untyped (C6), no coverage (C8).</li>
+      <li><b>Design / cohesion 3/5</b> (held) — <code>production.py</code> local imports hoisted, but the 357-line god-function (C5) + two-tier approval duplication (C2) persist.</li>
+      <li><b>Security 2/5</b> (held) — API still fully unauthenticated (C10).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================= §3 SCORECARDS ================= -->
+<h2 id="s3" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">03</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Category scorecards</span></h2>
+<div style="overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)">
+<table style="width:100%;min-width:640px;font-size:13px">
+  <thead><tr style="border-bottom:1px solid var(--line)">
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Category</th>
+    <th style="text-align:right;padding:10px 12px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Health</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Headline this pass</th></tr></thead>
+  <tbody style="color:var(--ink2)">
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Reliability / autonomy</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">4/5</td><td style="padding:9px 12px;vertical-align:top">6 items resolved; no open live bug. But the autonomy <i>safety-doc</i> gap (A1) is a fidelity, not reliability, concern.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Doc / behavior fidelity</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">2/5</td><td style="padding:9px 12px;vertical-align:top"><b>A1</b> — 6/7 documented autonomy invariants unbuilt; ceiling contradiction live.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Data / schema / contract</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">3/5</td><td style="padding:9px 12px;vertical-align:top">C14 parity test guards only the stale direction; C3/C4/C7 hand-mirrors flat.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Wiring / integration</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">4/5</td><td style="padding:9px 12px;vertical-align:top">Proxy→router coverage complete; all frontend calls resolve. New: dead <code>/enrich/lanes</code> + hand-mirror (N2).</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Build / CI</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">3/5</td><td style="padding:9px 12px;vertical-align:top">Undeclared <code>jszip</code> (N1) resolves via hoist-everything; local gates red. No coverage tooling (C8).</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Verification readiness</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">4/5</td><td style="padding:9px 12px;vertical-align:top">Full-tree src pyright landed; DB suite green. <code>tests/</code> untyped (C6).</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Security</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">2/5</td><td style="padding:9px 12px;vertical-align:top">Entire API unauthenticated (C10) — blocked on an exposure decision.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Maintainability / design</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">3/5</td><td style="padding:9px 12px;vertical-align:top">production.py imports hoisted (C5 half-resolved); god-function + approval dup (C2) remain.</td></tr>
+  </tbody>
+</table></div>
+<p style="font-size:13px;color:var(--faint);margin-top:10px"><b>Verified clean (not re-reported):</b> OpenAPI drift (content-identical to the app), router→proxy wiring
+(24 routers all registered &amp; reachable), <code>scene_fidelity/</code> tree (fully wired, not scaffolding),
+fake-green hunt (0 skips in a 766-test DB run). <code>draft_ahead</code>/Phase-4 confirmed dead schema
+(<code>GateMode.DRAFT_AHEAD</code> has zero readers) — intentional per the README stub note.</p>
+
+<!-- ================= §4 TOP ================= -->
+<h2 id="s4" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">04</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Top candidates</span></h2>
+<div id="topwrap" style="overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)"></div>
+
+<!-- ================= §5 LEDGER ================= -->
+<h2 id="s5" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">05</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Candidate ledger</span></h2>
+<p style="font-size:13px;color:var(--faint);margin:0 0 12px">
+  <code>priority = (sev+conf+lev+loc+test) − (blast+regr+hd)</code>, each score 1–5, range −10…+22.
+  Click a column to sort; chips filter. The score matrix is the interactive index — the cards below stay complete.</p>
+<div id="chips" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px"></div>
+<div id="matrixwrap" style="overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)"></div>
+<div id="cards" style="margin-top:18px"></div>
+
+<!-- ================= §6 FINDINGS BY SOURCE ================= -->
+<h2 id="s6" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">06</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Findings by source</span></h2>
+<div style="overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)">
+<table style="width:100%;min-width:640px;font-size:13px">
+  <thead><tr style="border-bottom:1px solid var(--line)">
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Investigation</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Raw → candidate</th></tr></thead>
+  <tbody style="color:var(--ink2)">
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">ADR-0031 autonomy doc-vs-code</td><td style="padding:9px 12px">6/7 invariants unbuilt + ceiling contradiction → <b>A1</b> (A1a/A1b/A1c). Job-book ownership (ADR-0027) verified <i>enforced</i> — not drift.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Inject/Enrich feature</td><td style="padding:9px 12px">Dead <code>/enrich/lanes</code> + hand-mirror → <b>N2</b>; scalar-field/disk-read nits → <b>N3/N4</b>. Statelessness, none-means-all, reuse, #225 fix: all verified sound.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Deterministic gates (this agent)</td><td style="padding:9px 12px">Undeclared <code>jszip</code> → <b>N1</b>; oxlint no-new-array → <b>N5</b>. Backend/type/format/openapi all green.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Carried-candidate re-validation</td><td style="padding:9px 12px">6 resolved; C14/C5/C4/C6 changed; C10/C3/C7/C8 open. Fresh evidence on each.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;vertical-align:top">Wiring / stale-path sweep</td><td style="padding:9px 12px">Architecture clean; C2 duplication persists → carried; <code>draft_ahead</code> dead schema (intentional); <code>tmp/packet_internal.json</code> inert scratch.</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ================= §7 GROUPS ================= -->
+<h2 id="s7" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">07</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Cross-cutting groups</span></h2>
+<ul style="line-height:1.5">
+  <li><b>Closed-vocabulary-as-open-string</b> → C4 + C7 + N2: a backend-owned set (enum values, machine keys, enrichment lanes) transported as untyped strings and hand-mirrored on the far side with no parity gate. Kept as separate candidates (different fixes: enum consolidation vs field typing vs endpoint-consumption/parity test), but they share one root and one enforceable-check shape.</li>
+  <li><b>Hand-maintained schema mirrors</b> → C3 + C14: JSONB blobs and hand-appended <code>ADD COLUMN</code> lines that CI structurally can't diff. C14 is the dangerous one (green CI / red prod).</li>
+  <li><b>Design decided, code not written</b> → A1 (+ its D16 ceiling tail) + C2: ADR-0031 recorded decisions (D14–D17) that CONTEXT.md now states as fact while the implementing code is absent or contradictory.</li>
+</ul>
+
+<!-- ================= §8 BLOCKERS ================= -->
+<h2 id="s8" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">08</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Human-decision blockers</span></h2>
+<div style="overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)">
+<table style="width:100%;min-width:640px;font-size:13px">
+  <thead><tr style="border-bottom:1px solid var(--line)">
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">ID</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Category</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Fork</th></tr></thead>
+  <tbody style="color:var(--ink2)">
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;font-family:var(--mono);color:var(--accent-ink)">A1b</td><td style="padding:9px 12px">Policy / architecture</td><td style="padding:9px 12px">May a human-required repair EVER be auto-approved by raising the ceiling? Implement ADR-0031 D16 (separate axis) or keep the conflated ladder and fix the docs? The two sweeper comments must stop disagreeing.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;font-family:var(--mono);color:var(--accent-ink)">C10</td><td style="padding:9px 12px">Security / policy</td><td style="padding:9px 12px">Is the API intended to be publicly reachable on its host, or must it sit behind an auth gate? If gated: one shared-secret/bearer dependency at router-include level + a 401 test.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;font-family:var(--mono);color:var(--accent-ink)">C2</td><td style="padding:9px 12px">Architecture / taxonomy</td><td style="padding:9px 12px">One approval policy over two tiers (shared skeleton + hooks), or two intentional policies? RATE_LIMITED / STALE / open-questions are the real axis of difference; record it in an ADR.</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px;font-family:var(--mono);color:var(--accent-ink)">A1c</td><td style="padding:9px 12px">Architecture (large)</td><td style="padding:9px 12px">Build the autonomy subsystem (epoch, append-only grants, operational holds, Approval Blocker record) per ADR-0030/0031 — or accept the KV-boolean model as sufficient and stop documenting the rest?</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ================= §9 QUICK WINS ================= -->
+<h2 id="s9" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">09</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Quick wins</span></h2>
+<ul style="line-height:1.5">
+  <li><b>A1a</b> (17) — relabel the six unbuilt autonomy terms in CONTEXT.md as <i>planned (ADR-0030/0031, not yet implemented)</i>. Near-free; ends the safety-surface overstatement the whole finding rests on.</li>
+  <li><b>N1</b> (16) — add <code>jszip</code> to <code>frontend/devDependencies</code>; green the local gates and drop the reliance on hoist-everything.</li>
+  <li><b>N2</b> (13) — consume <code>GET /enrich/lanes</code> in the panel, or add a parity test asserting the hardcoded <code>LANES</code> ⊇ <code>passes_for(DRAFT_PASSES)</code>.</li>
+  <li><b>C8</b> (13) — <code>pytest-cov</code> non-failing floor + <code>vitest --coverage</code>; ratchet later.</li>
+  <li><b>C6</b> (12) — add a <code>tests/</code>-scoped pyright pass (helpers &amp; monkeypatch shapes ship untyped today).</li>
+</ul>
+
+<!-- ================= §10 DEEP ================= -->
+<h2 id="s10" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">10</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">High-leverage deep work</span></h2>
+<ul style="line-height:1.5">
+  <li><b>C14</b> (11) — the model→migration forward-parity gate. A schema-baseline (or migrate-an-old-snapshot-forward) test that fails when a new model column is missing from <code>_COLUMN_ADDS</code>. The one gate whose absence yields green-CI / red-prod; today's test guards only the reverse.</li>
+  <li><b>C3 / C4</b> — typed JSONB sub-schemas; generate TS unions from <code>enums.py</code> + advisory DB CHECKs. Largest ungated contract surfaces.</li>
+  <li><b>A1c</b> — if autonomy is to be trusted beyond a KV toggle, build the epoch/grant/hold machinery ADR-0030/0031 describe. Design-first; large blast radius.</li>
+  <li><b>C5</b> — extract <code>create_production_run</code> (workers/production.py:183, ~357 lines) into named sequence steps; restore a uniformly-thin facade.</li>
+</ul>
+
+<!-- ================= §11 UNSAFE ================= -->
+<h2 id="s11" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">11</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Unsafe-to-auto-execute</span></h2>
+<ul style="line-height:1.5">
+  <li><b>A1b / C10 / C2</b> — policy/authorization/taxonomy forks (hd 4–5). No code before the decision.</li>
+  <li><b>A1c</b> — a subsystem build; design + ADR-implementation first, never a blind edit.</li>
+  <li><b>C14 / C3</b> — regr 3–4: landing a parity/fixture check may reveal an already-drifted surface; land the check, then reconcile findings deliberately.</li>
+  <li><b>C4</b> — DB-native enums / generated unions need a value-migration decision; behind the C2 ADR.</li>
+</ul>
+
+<!-- ================= §12 VERIFICATION ================= -->
+<h2 id="s12" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">12</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Verification readiness</span></h2>
+<div style="overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)">
+<table style="width:100%;min-width:640px;font-size:13px">
+  <thead><tr style="border-bottom:1px solid var(--line)">
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Candidate</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Provable today?</th>
+    <th style="text-align:right;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Test</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Harness</th></tr></thead>
+  <tbody style="color:var(--ink2)">
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">A1a relabel docs</td><td style="padding:9px 12px">Partial</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">3</td><td style="padding:9px 12px">prose review; optional lint that terms citing an unimplemented ADR carry a "planned" marker</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">A1b ceiling reconcile</td><td style="padding:9px 12px">Y (post-decision)</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">4</td><td style="padding:9px 12px">test: at default ceiling, human_required never auto-approved (pins current safe behavior)</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">N1 jszip</td><td style="padding:9px 12px">Y</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">4</td><td style="padding:9px 12px">strict-install <code>tsc</code>+<code>vitest</code>; or a "no undeclared imports" check</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">N2 enrich lanes</td><td style="padding:9px 12px">Y</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">4</td><td style="padding:9px 12px">parity test LANES ⊇ passes_for; or assert the panel fetches the endpoint</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">C14 migration forward</td><td style="padding:9px 12px">N (needs baseline)</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">3</td><td style="padding:9px 12px">apply an older snapshot then create_all-diff, or a committed schema baseline</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">C6 tests/ typed · C8 coverage</td><td style="padding:9px 12px">N</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">4-5</td><td style="padding:9px 12px">tests/-scoped pyright; pytest-cov + vitest --coverage</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">C10 auth</td><td style="padding:9px 12px">Y (post-decision)</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">4</td><td style="padding:9px 12px">401 test on a mutating route</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:9px 12px">C3 / C4 / C7 contracts</td><td style="padding:9px 12px">Partial</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono)">3-4</td><td style="padding:9px 12px">fixture-diff / generated-union / enum-parity (C4 verdict half already pinned)</td></tr>
+  </tbody>
+</table></div>
+<p style="font-size:13px;color:var(--faint);margin-top:10px"><b>Fake-green hunt: clean.</b> The 766-test backend suite ran with <code>-rs</code> against a real Postgres and reported <b>0 skips</b>; the one <code>xfail</code> is intentional. Frontend unit suite non-vacuous (343 tests); the only red is the undeclared-<code>jszip</code> suite (N1), not a logic failure.</p>
+
+<!-- ================= §13 QUEUE ================= -->
+<h2 id="s13" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">13</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Recommended queue</span></h2>
+<p style="font-size:13px;color:var(--faint);margin:0 0 12px">Priority order; blocked candidates listed as decisions-needed, not dropped. This is a report — nothing is
+auto-selected. A later loop resumes at the candidate gate.</p>
+<div style="overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)">
+<table style="width:100%;min-width:680px;font-size:13px">
+  <thead><tr style="border-bottom:1px solid var(--line)">
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">#</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">ID</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Title</th>
+    <th style="text-align:right;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Pri</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Action</th></tr></thead>
+  <tbody style="color:var(--ink2)">
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">1</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink)">A1a</td><td style="padding:8px 12px">Relabel unbuilt autonomy invariants in CONTEXT.md as planned</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">17</td><td style="padding:8px 12px">direct-fix</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">2</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink)">N1</td><td style="padding:8px 12px">Declare <code>jszip</code> devDependency</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">16</td><td style="padding:8px 12px">direct-fix</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">3</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink)">N2·C8·C6</td><td style="padding:8px 12px">Enrich-lane parity · coverage floor · tests/ pyright</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">13/13/12</td><td style="padding:8px 12px">fitness / direct</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">4</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink)">C14</td><td style="padding:8px 12px">Model→migration forward-parity gate</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">11</td><td style="padding:8px 12px">fitness-check</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">5</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink)">C7·C15</td><td style="padding:8px 12px">Machine-key enums · severity dual-spelling</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">10/10</td><td style="padding:8px 12px">design→direct / triage</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">6</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink)">C3·C5·C4</td><td style="padding:8px 12px">Nested-JSONB gate · god-function split · enum unions</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">9/8/6</td><td style="padding:8px 12px">fitness / design</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">7</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink)">NC1b·NC1c</td><td style="padding:8px 12px">Generalize greenlet guard · serialize-safe seam</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">8/6</td><td style="padding:8px 12px">fitness / design</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">—</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--crit-ink)">A1b ⚑</td><td style="padding:8px 12px">Reconcile human_required ceiling contradiction</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">9</td><td style="padding:8px 12px">decision needed</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">—</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--crit-ink)">C10 ⚑</td><td style="padding:8px 12px">API authentication</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">9</td><td style="padding:8px 12px">decision needed</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">—</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--crit-ink)">C2 ⚑</td><td style="padding:8px 12px">Two-tier approval policy ADR</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">9</td><td style="padding:8px 12px">decision needed</td></tr>
+    <tr style="border-top:1px solid var(--line2)"><td style="padding:8px 12px">—</td><td style="padding:8px 12px;font-family:var(--mono);color:var(--crit-ink)">A1c ⚑</td><td style="padding:8px 12px">Build the autonomy subsystem</td><td style="padding:8px 12px;text-align:right;font-family:var(--mono)">1</td><td style="padding:8px 12px">design · decision needed</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ================= RESOLVED ================= -->
+<h2 id="resolved" style="border-top:1px solid var(--line);padding-top:20px;margin:44px 0 14px;display:flex;gap:14px;align-items:baseline">
+  <span style="font-family:var(--mono);font-size:14px;color:var(--faint)">──</span>
+  <span style="font-family:var(--disp);font-weight:600;font-size:23px;letter-spacing:-.02em">Resolved since last run</span></h2>
+<div style="background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--med-ink);border-radius:0 12px 12px 0;padding:14px 18px">
+  <div style="display:grid;gap:6px;font-size:13.5px;color:var(--ink2)">
+    <div><span style="font-family:var(--mono);color:var(--med-ink)">NC1a</span> — <code>expire_on_commit=False</code> now commented at <code>db.py:14</code> + pinned by <code>test_session_config.py</code>.</div>
+    <div><span style="font-family:var(--mono);color:var(--med-ink)">C13</span> — sweeper evicts <code>_attempts</code>/<code>_warned_human</code> on the terminal early-return (<code>sweeper.py:196-200</code>).</div>
+    <div><span style="font-family:var(--mono);color:var(--med-ink)">C11</span> — retention is now <code>delete(Activity).where(created_at &lt; cutoff)</code> (<code>retention.py:35</code>).</div>
+    <div><span style="font-family:var(--mono);color:var(--med-ink)">C12</span> — staleness fetches approved scenes once, slices prior keys in memory (<code>staleness.py:71-80</code>).</div>
+    <div><span style="font-family:var(--mono);color:var(--med-ink)">C9</span> — <code>addopts="-rs"</code> in <code>pyproject.toml:59</code>.</div>
+    <div><span style="font-family:var(--mono);color:var(--med-ink)">C16</span> — <code>e2e</code> script no longer carries <code>--pass-with-no-tests</code>.</div>
+  </div>
+  <div style="font-size:12.5px;color:var(--faint);margin-top:10px">Also partially addressed: <b>C4a</b> (verdict enum parity test landed), <b>C6</b> (full-tree src pyright in CI), <b>C5</b> (production.py local imports hoisted).</div>
+</div>
+
+<!-- ================= FOOT ================= -->
+<div style="margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:1.7">
+  Read-only integrity audit · single-agent scan + 4 read-only investigators · scored per REPORT-SCORING.md ·
+  Realmwalkers @ <code>main</code> / <code>d2e9986</code> · 2026-07-16 ·
+  17 candidates (5 new, 12 carried) · 6 resolved since last run · +3 low nits (N3–N5) · deterministic gates green except undeclared-jszip (local) ·
+  No production code, tests, configs, or fixtures were modified.<br>
+  Prior: <code>reports/codebase_integrity_audit_2026-07-08_pass4.html</code>.
+</div>
+</div>
+
+<script>
+// ---- one candidate array drives the strip, matrix, top table, chips, heat, diff -----------------
+const C = [
+  {id:'A1a', title:'Relabel unbuilt autonomy invariants in CONTEXT.md as planned', cat:'Data/Contract', action:'direct-fix', delta:'new',     priDelta:0,  sev:4,conf:5,lev:4,loc:5,test:3,blast:1,regr:1,hd:2},
+  {id:'A1b', title:'Reconcile human_required ceiling contradiction',              cat:'Architecture',  action:'fitness-check', delta:'new',  priDelta:0,  sev:3,conf:5,lev:3,loc:4,test:4,blast:3,regr:3,hd:4},
+  {id:'A1c', title:'Build the autonomy/authorization subsystem (epoch/grants/holds)', cat:'Architecture', action:'design',  delta:'new',     priDelta:0,  sev:2,conf:5,lev:4,loc:1,test:3,blast:5,regr:4,hd:5},
+  {id:'N1',  title:'Declare jszip devDependency (undeclared direct import)',        cat:'Build/CI',     action:'direct-fix', delta:'new',     priDelta:0,  sev:2,conf:5,lev:3,loc:5,test:4,blast:1,regr:1,hd:1},
+  {id:'N2',  title:'Dead /enrich/lanes + hand-mirrored frontend lane list',         cat:'Wiring',       action:'fitness-check', delta:'new',  priDelta:0,  sev:2,conf:5,lev:3,loc:4,test:4,blast:2,regr:2,hd:1},
+  {id:'C14', title:'Model→migration forward-parity unguarded (partial test masks it)', cat:'Data/Schema', action:'fitness-check', delta:'carried', priDelta:2, sev:4,conf:4,lev:5,loc:3,test:3,blast:3,regr:3,hd:2},
+  {id:'C8',  title:'No coverage tooling (backend + frontend)',                      cat:'Testing/CI',   action:'design',     delta:'carried', priDelta:0,  sev:2,conf:5,lev:4,loc:3,test:4,blast:1,regr:1,hd:3},
+  {id:'C6',  title:'tests/ excluded from type-checking (full-tree src pyright now landed)', cat:'Build/CI', action:'direct-fix', delta:'carried', priDelta:-1, sev:2,conf:5,lev:2,loc:4,test:5,blast:2,regr:2,hd:2},
+  {id:'C7',  title:'action_kind / blocker kind stringly-typed machine keys',        cat:'Wiring',       action:'design',     delta:'carried', priDelta:0,  sev:2,conf:5,lev:3,loc:4,test:3,blast:2,regr:2,hd:3},
+  {id:'C15', title:'Severity dual-spelling (hard↔block) tolerated via | string',    cat:'Maintainability', action:'triage',  delta:'carried', priDelta:0,  sev:1,conf:5,lev:2,loc:4,test:3,blast:2,regr:2,hd:1},
+  {id:'C10', title:'Entire API is unauthenticated',                                 cat:'Security',     action:'fitness-check', delta:'carried', priDelta:0, sev:5,conf:5,lev:4,loc:4,test:4,blast:5,regr:3,hd:5},
+  {id:'C3',  title:'Nested-JSONB hand-mirror — largest ungated contract surface',   cat:'Data/Contract', action:'fitness-check', delta:'carried', priDelta:0, sev:4,conf:5,lev:4,loc:3,test:4,blast:5,regr:4,hd:2},
+  {id:'C2',  title:'Two-tier packet approval policy duplicated (needs ADR)',        cat:'Architecture', action:'design',     delta:'carried', priDelta:0,  sev:3,conf:5,lev:3,loc:4,test:4,blast:3,regr:3,hd:4},
+  {id:'C5',  title:'production.py 357-line god-function (local imports hoisted)',    cat:'Maintainability', action:'design', delta:'carried', priDelta:-4, sev:2,conf:5,lev:2,loc:4,test:3,blast:2,regr:3,hd:3},
+  {id:'NC1b',title:'Generalize greenlet AST guard beyond _sweep_one_run',           cat:'Testing/CI',   action:'fitness-check', delta:'carried', priDelta:-5, sev:2,conf:4,lev:3,loc:3,test:4,blast:3,regr:3,hd:2},
+  {id:'C4',  title:'Enum triple-mirror — TS union generation + DB CHECK (verdict half pinned)', cat:'Data/Contract', action:'design', delta:'carried', priDelta:-2, sev:3,conf:5,lev:3,loc:2,test:3,blast:5,regr:3,hd:2},
+  {id:'NC1c',title:'Serialize-safe commit seam (routers still hand-load)',          cat:'Architecture', action:'design',     delta:'carried', priDelta:-5, sev:2,conf:4,lev:3,loc:3,test:3,blast:3,regr:3,hd:3},
+];
+const pri = c => (c.sev+c.conf+c.lev+c.loc+c.test)-(c.blast+c.regr+c.hd);
+const blocked = c => c.hd>=4 || c.action==='blocked';
+C.forEach(c=>{c.pri=pri(c);});
+
+const SEV = {crit:['#C0342B','#FBEAE8'],high:['#B45309','#FAEFE0'],med:['#15803D','#E6F3EB'],low:['#516079','#EDF0F5']};
+const ACT = {'direct-fix':'med','design':'violet','fitness-check':'high','triage':'accent','blocked':'crit'};
+const ACTCOL = {med:'#15803D',violet:'#6D3BD1',high:'#B45309',accent:'#2540E8',crit:'#C0342B'};
+function heat(p){const a=Math.max(0.10,Math.min(0.92,(p+3)/25));return {bg:`rgba(37,64,232,${a.toFixed(2)})`,fg:a>0.55?'#fff':'#26327A'};}
+function heatChip(p){const h=heat(p);return `<span style="font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;background:${h.bg};color:${h.fg};border-radius:6px;padding:1px 8px">${p}</span>`;}
+function blkTag(){return `<span style="font-family:var(--mono);font-size:9.5px;font-weight:600;color:#C0342B;background:#FBEAE8;border-radius:4px;padding:1px 5px;margin-left:6px">BLOCKED</span>`;}
+function newTag(){return `<span style="font-family:var(--mono);font-size:9.5px;font-weight:600;color:#B45309;background:#FAEFE0;border-radius:4px;padding:1px 5px;margin-left:6px">NEW</span>`;}
+function deltaTag(c){if(c.delta==='new')return newTag();if(c.priDelta>0)return `<span style="font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:10px;color:#B45309;margin-left:6px">▲+${c.priDelta}</span>`;if(c.priDelta<0)return `<span style="font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:10px;color:#516079;margin-left:6px">▼${c.priDelta}</span>`;return '';}
+function actionChip(a){const col=ACTCOL[ACT[a]];return `<span style="font-family:var(--mono);font-size:10.5px;color:${col};border:1px solid ${col}44;background:${col}12;border-radius:5px;padding:1px 7px">${a}</span>`;}
+
+// ---- top candidates (§4) ----
+(function(){
+  const top=[...C].sort((a,b)=>b.pri-a.pri).slice(0,8);
+  let h=`<table style="width:100%;min-width:640px;font-size:13px"><thead><tr style="border-bottom:1px solid var(--line)">
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">#</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">ID</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Title</th>
+    <th style="text-align:right;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Pri</th>
+    <th style="text-align:left;padding:10px 12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)">Action</th></tr></thead><tbody style="color:var(--ink2)">`;
+  top.forEach((c,i)=>{h+=`<tr style="border-top:1px solid var(--line2)">
+    <td style="padding:8px 12px;font-family:var(--mono)">${i+1}</td>
+    <td style="padding:8px 12px;font-family:var(--mono);color:var(--accent-ink);font-weight:600">${c.id}${blocked(c)?blkTag():''}${c.delta==='new'?newTag():''}</td>
+    <td style="padding:8px 12px">${c.title}</td>
+    <td style="padding:8px 12px;text-align:right">${heatChip(c.pri)}</td>
+    <td style="padding:8px 12px">${actionChip(c.action)}</td></tr>`;});
+  h+='</tbody></table>';
+  document.getElementById('topwrap').innerHTML=h;
+})();
+
+// ---- interactive matrix (§5) ----
+const state={sortKey:'pri',sortDir:-1,filter:'all'};
+const COLS=[['id','ID'],['title','Title'],['cat','Category'],['action','Action'],['sev','S'],['conf','Cf'],['lev','Lv'],['loc','Lo'],['test','Te'],['blast','Bl'],['regr','Rg'],['hd','Hd'],['pri','Pri']];
+function visible(){let v=[...C];const f=state.filter;
+  if(f==='blocked')v=v.filter(blocked);else if(f==='new')v=v.filter(c=>c.delta==='new');
+  else if(f!=='all')v=v.filter(c=>c.action===f);
+  v.sort((a,b)=>{const k=state.sortKey;let r;if(k==='id'||k==='title'||k==='cat'||k==='action')r=(''+a[k]).localeCompare(''+b[k]);else r=a[k]-b[k];return r*state.sortDir;});
+  return v;}
+function renderMatrix(){
+  const v=visible();
+  let h=`<table style="width:100%;min-width:760px;font-size:12.5px"><thead><tr style="border-bottom:1px solid var(--line)">`;
+  COLS.forEach(([k,lab])=>{const on=state.sortKey===k;const arr=on?(state.sortDir<0?' ▼':' ▲'):'';
+    const align=(k==='id'||k==='title'||k==='cat'||k==='action')?'left':'right';
+    h+=`<th data-key="${k}" style="text-align:${align};padding:9px 10px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:${on?'var(--accent)':'var(--faint)'}">${lab}${arr}</th>`;});
+  h+='</tr></thead><tbody style="color:var(--ink2)">';
+  v.forEach(c=>{h+=`<tr style="border-top:1px solid var(--line2)">
+    <td style="padding:7px 10px;font-family:var(--mono);color:var(--accent-ink);font-weight:600;white-space:nowrap">${c.id}${blocked(c)?blkTag():''}${deltaTag(c)}</td>
+    <td style="padding:7px 10px;min-width:240px">${c.title}</td>
+    <td style="padding:7px 10px;white-space:nowrap;color:var(--faint);font-family:var(--mono);font-size:11px">${c.cat}</td>
+    <td style="padding:7px 10px">${actionChip(c.action)}</td>`;
+    ['sev','conf','lev','loc','test','blast','regr','hd'].forEach(k=>{h+=`<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${c[k]}</td>`;});
+    h+=`<td style="padding:7px 10px;text-align:right">${heatChip(c.pri)}</td></tr>`;});
+  h+='</tbody></table>';
+  document.getElementById('matrixwrap').innerHTML=h;
+  document.querySelectorAll('#matrixwrap th[data-key]').forEach(th=>th.onclick=onSort);
+}
+function onSort(e){const k=e.currentTarget.dataset.key;if(state.sortKey===k)state.sortDir*=-1;else{state.sortKey=k;state.sortDir=(k==='id'||k==='title'||k==='cat'||k==='action')?1:-1;}renderMatrix();}
+function onFilter(e){state.filter=e.currentTarget.dataset.filter;document.querySelectorAll('#chips .btn').forEach(b=>b.dataset.on=(b.dataset.filter===state.filter)?'1':'0');renderMatrix();}
+(function(){
+  const acts=[...new Set(C.map(c=>c.action))];
+  const defs=[['all','All'],...acts.map(a=>[a,a]),['new','New'],['blocked','Blocked']];
+  let h='';defs.forEach(([f,lab])=>{const n=f==='all'?C.length:(f==='blocked'?C.filter(blocked).length:(f==='new'?C.filter(c=>c.delta==='new').length:C.filter(c=>c.action===f).length));
+    h+=`<button class="btn" data-filter="${f}" data-on="${f==='all'?'1':'0'}">${lab} <span style="opacity:.6">${n}</span></button>`;});
+  document.getElementById('chips').innerHTML=h;
+  document.querySelectorAll('#chips .btn').forEach(b=>b.onclick=onFilter);
+})();
+renderMatrix();
+
+// ---- candidate detail cards (§5) — hand-authored evidence bodies -------------------------------
+const BODIES={
+A1a:{loc:'CONTEXT.md:131-157 (Autonomy Control/Epoch, Execution Authorization, Authorization Requirement, Operational Hold, Approval Blocker); docs/adr/0030:5, 0031:5',
+  friction:'CONTEXT.md — the AGENTS.md-designated single source of truth agents read as the contract — states six autonomy/authorization invariants in present tense. Verified unbuilt: grep -i epoch src/dominion → only progress.py:19; AutonomyControl/OperationalHold/epoch_mismatch/autonomous_policy/manual_command/ExecutionAuthorization/ApprovalBlocker → 0 matches in src/dominion. Real mechanism: KV boolean autonomy_enabled (sweeper.py:43,117,363); authorization = mutable RepairTask fields (models.py:970,973).',
+  seam:'Doc-contract surface vs. code reality. Runtime prose is read as an enforced contract; here it describes machinery that does not exist.',
+  rule:'Docs are a contract surface — a domain glossary agents obey must not assert unenforced invariants. Mark planned as planned.',
+  ev:'<b>FACT</b> 6/7 invariants absent (personally grep-verified); ADRs self-label planning-only (0030:5, 0031:5); #236 resolved design blockers, not code. <b>FACT</b> Job-book ownership (ADR-0027, invariant #7) IS enforced (job_integrity.py:94-126) — excluded. <b>INF</b> an agent trusts the doc and edits on false assumptions.',
+  branch:'direct-fix — mark the six terms planned (or a labeled "planned (ADR-0030/0031)" section). Optional lint: a CONTEXT.md term citing an unimplemented ADR must carry a marker.',
+  check:'A doc lint asserting terms that reference ADR-0030/0031 carry a "planned" marker until the code exists.'},
+A1b:{loc:'sweeper.py:59-60 vs :167-171; enums.py:283-289 (RepairAuthorityLevel.HUMAN_REQUIRED); settings.py accepts human_required as a ceiling',
+  friction:'Two comments disagree: :59-60 "human_required is always above any ceiling (must never be auto-approved)" vs :167-171 "raising the ceiling to human_required opts into full autonomy so the sweeper also drives the highest-authority repairs". _within_ceiling returns rank(level) ≤ rank(ceiling); with ceiling=human_required, a human_required task satisfies 5≤5 → auto-approved.',
+  seam:'Authorization model: is human_required a blast-radius rung (ceiling-negatable) or an absolute manual gate? ADR-0031 D16 decided to retire it as a rung; code did not.',
+  rule:'A safety gate must have one unambiguous meaning; make illegal states unrepresentable.',
+  ev:'<b>FACT</b> the two comments contradict; HUMAN_REQUIRED is enum rank 5 (enums.py:289). <b>FACT</b> default ceiling is chapter_structural, under which human_required stays gated (safe today). <b>UNK</b> the intended model post-D16.',
+  branch:'blocked-needs-human-decision, then: implement D16 (separate axis) OR keep the ladder + fix docs; pin the safe default with a test.',
+  check:'Test: at default ceiling, a human_required repair is never auto-approved (encodes whichever rule is chosen).'},
+A1c:{loc:'models.py (no AutonomyControl/grant/hold tables); enums.py JobStatus (no hold state); sweeper.py (KV-only)',
+  friction:'The epoch/append-only-grant/operational-hold/Approval-Blocker machinery CONTEXT.md describes does not exist. Building it is the real fix if autonomy is to be trusted beyond a boolean — but it spans models, migrations, sweeper, settings, worker, routers.',
+  seam:'The whole autonomy/authorization subsystem, ADR-0030/0031.',
+  rule:'Either build the safety machinery you document, or document only what you built.',
+  ev:'<b>FACT</b> subsystem absent (grep-verified). <b>INF</b> a large, multi-surface build. <b>UNK</b> whether the KV model is deemed sufficient.',
+  branch:'design — ADR-implementation; out of scope for one loop. Listed so it is not dropped.',
+  check:'Per-invariant tests once built (epoch match at claim+finalization; grant append-only; hold never auto-released).'},
+N1:{loc:'frontend/src/desk/manuscript/docxXml.test.ts:7 (import JSZip from "jszip"); frontend/package.json (absent); frontend/.npmrc (public-hoist-pattern[]=*); frontend/pnpm-lock.yaml:1206 (jszip@3.10.1, transitive via docx)',
+  friction:'jszip is imported directly by one test but declared nowhere. It resolves in CI only because .npmrc hoists ALL transitive deps to the top of node_modules (docx depends on jszip). The current local node_modules lacks the hoist, so tsc (TS2307) and vitest ("Failed to resolve import jszip") are red on a laptop while CI is green.',
+  seam:'Dependency declaration honesty; hoist-everything (public-hoist-pattern[]=*) papers over undeclared imports repo-wide — jszip is the one currently exercised.',
+  rule:'A direct import is a declared dependency; do not rely on transitive hoisting to resolve it.',
+  ev:'<b>FACT</b> not in package.json (history grep empty); in lockfile as transitive; installed only under .pnpm/, no top-level symlink; docx declares jszip. <b>FACT</b> local tsc+vitest red on exactly this import; CI green via hoist. <b>INF</b> a docx major that drops jszip, or a stricter install, breaks both gates with no other signal.',
+  branch:'direct-fix — add jszip to frontend/devDependencies (jszip ships its own types); consider narrowing public-hoist-pattern.',
+  check:'Strict-install tsc+vitest, or a "no undeclared imports" check across frontend/src.'},
+N2:{loc:'api/routers/enrich.py:67-71 (GET /enrich/lanes, no consumer); frontend EnrichScreen.tsx:46-62 (hardcoded LANES) + :43-45 ("keep aligned" comment); backend single-sources from passes_for (router.py:40-43)',
+  friction:'The Inject feature exposes GET /enrich/lanes precisely to single-source the lane list, but nothing calls it (repo-wide grep: only the route def + generated.ts). The panel instead hardcodes {combat,sensory,dialogue} with labels/hints. Adding a 4th lane at router.py:22 silently would not appear in the UI. Currently aligned.',
+  seam:'A closed backend vocabulary hand-mirrored in the frontend with no parity gate — same class as C4/C7.',
+  rule:'Single-source a vocabulary or gate the mirror; a built-then-unused endpoint is dead weight.',
+  ev:'<b>FACT</b> /enrich/lanes has no consumer; LANES is a parallel hand-copy. <b>INF</b> drift on the next lane addition. Rest of Inject verified sound (stateless, none-means-all correct, reuses specialists, #225 fixed, tested).',
+  branch:'fitness-check — consume the endpoint in the panel, OR a test asserting hardcoded LANES ⊇ passes_for(DRAFT_PASSES).',
+  check:'Parity test lane-list == passes_for, or an assertion the panel fetches /enrich/lanes.'},
+C14:{loc:'shared/migrations.py:21-104 (_COLUMN_ADDS, 45 hand-appended ADD COLUMN lines; docstring :18 "append a line here"); tests/test_migration_column_parity.py (guards STALE direction only, :8-11 disclaims forward)',
+  friction:'A model column added without its _COLUMN_ADDS line works on CI\'s fresh create_all DB and passes all tests, then throws UndefinedColumn against the persistent production Postgres. The new parity test only catches the reverse (an entry for a dropped column); its own docstring says the dangerous forward direction is "Not covered".',
+  seam:'Hand-maintained schema evolution with no forward-parity gate; CI\'s throwaway DB structurally can\'t see the drift that bites prod.',
+  rule:'The check must fail on the failure that actually ships, not only the harmless inverse.',
+  ev:'<b>FACT</b> 45 ALTER lines; test guards stale direction only (verified by reading the test). <b>INF</b> model-only add = green CI, red prod. <b>UNK</b> whether a current column already lacks its line (needs a DB baseline).',
+  branch:'fitness-check — apply an older snapshot then create_all-diff, or commit a schema baseline; assert every model column is either original or present in _COLUMN_ADDS.',
+  check:'Forward-direction parity test (the one whose absence causes green-CI / red-prod).'},
+C8:{loc:'pyproject.toml:26 (no pytest-cov); ci.yml:147 (pytest -q -rs, no --cov); frontend/package.json:10 (vitest run, no --coverage)',
+  friction:'No signal on which lines the DB suite exercises; a "provable fixed" claim can\'t be backed by a coverage delta.',
+  seam:'Verification tooling.',rule:'Provability needs coverage instrumentation.',
+  ev:'<b>FACT</b> grep clean across toml/yml/json.',
+  branch:'design→direct — pytest-cov non-failing floor + vitest --coverage; ratchet later.',
+  check:'Coverage floor in CI (non-failing to start).'},
+C6:{loc:'pyproject.toml:43 (include=["src"]); ci.yml:102-105 (full-tree src pyright — added since pass 4)',
+  friction:'The changed-files-only gap is now closed for src/, but tests/ is outside the pyright root, so widely-imported test helpers (conftest.seed_scene_packet) and monkeypatch shapes ship untyped.',
+  seam:'Type-check coverage boundary.',rule:'Test code that shapes fixtures should be typed too.',
+  ev:'<b>FACT</b> include=["src"]; full-tree src pyright now in CI. <b>FACT</b> tests/ excluded.',
+  branch:'direct-fix — a tests/-scoped pyright pass (or a tests include entry).',
+  check:'pyright over tests/ in CI.'},
+C7:{loc:'schemas.py:1895,1915,1932 (action_kind: str|None); schemas.py:1061 (StructuralBlockerOut.kind: str); scene_scope.py:30-31; consumer PipelineScreen.tsx:697,725 (=== "approve_apply"/"draft_missing")',
+  friction:'Closed backend-owned routing vocabularies transported as open str; a rename silently drops a UI branch with no compile error. Not in an enum, not in codegen, no parity test.',
+  seam:'Stringly-typed cross-language machine keys.',rule:'Closed vocabularies belong in an enum with a parity gate.',
+  ev:'<b>FACT</b> action_kind str|None ×3; kind str; consumer literal comparisons. <b>INF</b> silent dead branch on rename.',
+  branch:'design→direct — promote both to StrEnum in enums.py (ride C4\'s parity gate); narrow the TS fields to the generated union.',
+  check:'Enum-parity + generated-union so a stale branch is a compile error.'},
+C15:{loc:'enums.py:77-87 (Severity: BLOCK="block"; :82 "some rows still say hard … readers tolerate both"); types.ts | string escape hatch',
+  friction:'The pre-unification spelling hard coexists with block, tolerated via a TS | string escape hatch. Low-severity residue.',
+  seam:'Enum value migration.',rule:'One spelling per value.',
+  ev:'<b>FACT</b> dual-spelling documented in the enum itself (:82). Handled in UI (ChaptersScreen folds legacy hard→block).',
+  branch:'triage — migrate rows to block, drop the tolerance + the | string.',
+  check:'Assert no live row carries the legacy spelling.'},
+C10:{loc:'api/deps.py:27 (only db_session Depends); api/main.py:178-183 (CORS only, no auth middleware)',
+  friction:'Any unauthenticated caller reaching the host can POST /runs, mutate scenes, flip settings, trigger token-spending drafts. No Security/HTTPBearer/OAuth2/APIKeyHeader anywhere in src/dominion.',
+  seam:'API trust boundary.',rule:'Mutating endpoints need an authenticated caller (or a proven edge gate).',
+  ev:'<b>FACT</b> only Depends is db_session; sole middleware is CORS (grep-verified). <b>UNK</b> whether a host edge proxy restricts access.',
+  branch:'blocked-needs-human-decision — is public exposure intended? If not, one shared-secret/bearer dependency at router-include level + a 401 test.',
+  check:'401 test on a mutating route.'},
+C3:{loc:'shared/schemas.py (46 dict[str,Any] fields: body/qa_warnings/open_questions/sources); frontend types.ts (194 hand interfaces) coexisting with generated.ts',
+  friction:'The rich structure the API ships lives in JSONB blobs; codegen:check diffs only openapi.json/generated.ts, and JSONB → OpenAPI object (no properties), so a renamed body key ships to prod with zero CI signal.',
+  seam:'Opaque JSONB body + hand-mirror as the real contract.',rule:'The contract the UI reads should be the generated one.',
+  ev:'<b>FACT</b> 46 dict fields; 194 hand interfaces; gate diffs 2 files; JSONB schema-free. <b>INF</b> renamed key ships undetected. <b>UNK</b> how many keys are live vs dormant.',
+  branch:'fitness-check (fixture-diff: every key the TS interfaces name is produced by a real backend body build) now; design the typed-sub-schema move (ADR) later.',
+  check:'Fixture-diff test binding TS-named keys to backend body builders.'},
+C2:{loc:'workers/packet/approval_policy.py vs workers/scene_packet/approval_policy.py — same-named diverged fns (can_approve, approval_blockers, resolve_blocked_reason, enrich_*_out); both live (scene_packet/__init__.py imports both, lines 33 & 37)',
+  friction:'Real divergence: scene tier has RATE_LIMITED / STALE-reapprovability; chapter tier has open-question gating. The tiers already disagree on what "blocked reason" resolution means. Wiring sweep re-confirmed both reachable.',
+  seam:'Two-tier approval policy.',rule:'One policy with hooks, or two intentional policies — decide and record it.',
+  ev:'<b>FACT</b> two files, same names, diverged bodies, both imported. <b>INF</b> differences load-bearing. <b>UNK</b> whether an Approvable protocol + hooks collapses the skeleton.',
+  branch:'blocked-needs-human-decision (hd 4) — ADR recording RATE_LIMITED/STALE/open_questions as the real axis.',
+  check:'Once decided: a shared-skeleton test or a divergence-is-intentional doc.'},
+C5:{loc:'workers/production.py:183 (create_production_run, ~357 lines to :541); imports hoisted to module scope (:44), zero function-local imports (verified)',
+  friction:'The ~33 function-local imports flagged in pass 4 are GONE (hoisted). What remains is the 357-line god-function, now moved out of the router into the worker — a cleaner refactor target but still one function inlining ~6 stages at one altitude.',
+  seam:'Facade cohesion.',rule:'Pull orchestration into named steps.',
+  ev:'<b>FACT</b> local imports gone (grep); function ~357 lines. <b>INF</b> stages become named sequence steps.',
+  branch:'design — whether create_production_run\'s stages become named steps in production_sequence.',
+  check:'Import-order smoke test (imports half) + a step-decomposition once designed.'},
+NC1b:{loc:'tests/test_sweeper_greenlet_guard.py (guard still savepoint/_sweep_one_run-centric); invariant now pinned by NC1a',
+  friction:'The AST guard fences begin_nested savepoints in the sweeper; the sibling functions that received the same fix have runtime tests but not the static guard. With NC1a pinning expire_on_commit=False, the class is far better fenced — this is extra hardening.',
+  seam:'Static coverage of the async-serialize greenlet class.',rule:'A guard should cover the whole class it names.',
+  ev:'<b>FACT</b> guard still single-surface; NC1a invariant pinned (resolved). <b>INF</b> lower urgency now.',
+  branch:'fitness-check — generalize the guard to every begin_nested/commit site + per-site negative fixtures.',
+  check:'Parametrized multi-target AST guard.'},
+C4:{loc:'enums.py:193-199 (ScenePacketVerdict) byte-identical to :140-147 (PacketVerdict) — now pinned by tests/test_enum_parity.py; no DB CHECK on enum columns; 36 StrEnums hand-mirrored in TS',
+  friction:'The verdict-dup quick win (C4a) is done — a parity test now pins ScenePacketVerdict↔PacketVerdict. What remains (C4b): TS unions are hand-authored (several open with | string) and there are no DB CHECKs, so a Python-added value can reach an unhandled TS literal with no compile error.',
+  seam:'Enum vocabulary across Python/DB/TS.',rule:'Generate the far side; gate the values.',
+  ev:'<b>FACT</b> verdict enums identical + now pinned; no DB CHECK (only job_integrity book_id check). <b>INF</b> added value → unhandled TS literal.',
+  branch:'design — generate TS unions from enums.py; advisory DB CHECKs via _EXTRA_DDL. Behind the C2/migration decisions.',
+  check:'Generated-union parity (⊇ Python enum) + advisory CHECKs.'},
+NC1c:{loc:'workers/packet/approval_policy.py:139 & scene_packet/approval_policy.py:224 (enrich_*_out boundaries); no commit_and_serialize/serialize_safe seam exists (grep)',
+  friction:'No serialize-safe seam was introduced; the enrich_*_out boundary still assumes attributes are loaded, a precondition routers satisfy by hand-writing refresh. With NC1a pinning the latent invariant, this is a design cleanup, not an acute fix.',
+  seam:'Where the "row is serialization-ready after commit" invariant lives.',rule:'Pull the precondition into the boundary, not its callers.',
+  ev:'<b>FACT</b> no seam exists (grep). <b>UNK</b> whether a commit_and_serialize helper was considered.',
+  branch:'design — one serialize-safe seam so no endpoint hand-writes refresh; ADR on where the invariant lives.',
+  check:'Fitness test: no router commits-then-enriches outside the seam.'},
+};
+(function(){
+  const order=[...C].sort((a,b)=>b.pri-a.pri);
+  let h='';
+  order.forEach(c=>{const b=BODIES[c.id];if(!b)return;
+    const fam=ACT[c.action];const border=blocked(c)?'#C0342B':ACTCOL[fam];
+    h+=`<details style="background:var(--panel);border:1px solid var(--line);border-left:3px solid ${border};border-radius:0 12px 12px 0;margin:10px 0;padding:0 16px">
+      <summary style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0">
+        <span style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <span style="font-family:var(--mono);font-weight:600;color:var(--accent-ink)">${c.id}</span>
+          <span style="font-family:var(--disp);font-weight:600;font-size:15px;color:var(--ink)">${c.title}</span>
+          ${blocked(c)?blkTag():''}${deltaTag(c)}</span>
+        <span style="font-family:var(--mono);font-size:11.5px;color:var(--faint);white-space:nowrap">pri ${c.pri} · ${c.action}</span>
+      </summary>
+      <dl style="display:grid;grid-template-columns:132px 1fr;gap:6px 14px;margin:0 0 14px;font-size:13px;color:var(--ink2)">
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Category</dt><dd style="margin:0">${c.cat}</dd>
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Location</dt><dd style="margin:0"><code>${b.loc}</code></dd>
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Friction</dt><dd style="margin:0">${b.friction}</dd>
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Seam / rule</dt><dd style="margin:0">${b.seam}<br><span style="color:var(--faint)">${b.rule}</span></dd>
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Evidence</dt><dd style="margin:0">${b.ev}</dd>
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Scores</dt><dd style="margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px">sev ${c.sev} · conf ${c.conf} · lev ${c.lev} · loc ${c.loc} · test ${c.test} · blast ${c.blast} · regr ${c.regr} · hd ${c.hd} · = ${heatChip(c.pri)}</dd>
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Branch / mode</dt><dd style="margin:0">${b.branch}</dd>
+        <dt style="font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--faint)">Enforceable check</dt><dd style="margin:0">${b.check}</dd>
+      </dl></details>`;});
+  document.getElementById('cards').innerHTML=h;
+})();
+</script>
+</body>
+</html>
