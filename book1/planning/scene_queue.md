@@ -11,6 +11,17 @@
 
 ## Act 1 — Earth (brief)
 
+### Finalist Reception — the altana `[M]` + `[S]`
+**Ten days before the scrim** (Earth Day ~-10). Setting: the formal reception closing the Aetherfall
+Championship Finalist Weekend — a governing-body/sponsor event after media day, **not** a party thrown
+for fun (though by the second hour most players are treating it like one). Marcus and Serra meet here —
+first contact, pre-identity (neither knows the other's guild). This is where the **altana** happens: the
+kiss with the mutual, simultaneous pullback each misreads as the other's rejection (INV-1 Axis E;
+`marcus_serra_relationship.md` §3–4). The **Discord exchange** (`marcus_serra_relationship.md` §4) occurs
+the next morning — she reopens the door without naming it.
+*Not yet drafted on-page. Full dramatized content, if any, belongs to Serra's altana-flashback POV
+(Ch 6A) — Chapter 1 needs at most a one-line aside (Step 4, proposed).*
+
 ### Earth night — common area `[all six]`
 One contained night after transport/consent, before surgery. Setup: separate rooms + **shared common area**. Function: last six-together Earth memory; cross-group texture (404 four know each other; Serra/Mara know each other; brief cross-group reads). Texture only: fear, jokes, consent forms, corporate calm, failed sleep, nervousness — **not** exposition arc. *(Illyri absent — attaches Ch 6.)* See `marcus_serra_relationship.md` §4.
 

@@ -29,7 +29,16 @@
 
 ## Act 1 — Earth (June 2035)
 
-### June 27 (Earth Day 0)
+### June 15–17 (Earth Day ~-12 to -10) — Aetherfall Championship Finalist Weekend
+| Event | POV |
+|---|---|
+| Qualifier circuit closes; the Aetherfall Championship finalist field locks at **twenty-five teams**; 404 takes the final slot — qualified twenty-fifth, by four points | Background |
+| Finalist teams attend an in-person **media/draw weekend**: roster verification, bracket presentation, sponsor obligations, interviews, promotional shoots | All finalist teams |
+| Weekend closes with the formal **Finalist Reception** — a governing-body/sponsor event, not a fan party (though by the second hour most players are treating it like one) | 404, Dead Hand present |
+| **Marcus meets Serra at the reception** — the altana (`marcus_serra_relationship.md` §3–4) | Marcus / Serra |
+| Teams return home after the weekend; championship preparation continues remotely — **teams are not in a long-term bubble** | All finalist teams |
+
+### June 27 (Earth Day 0) — ten days after the Finalist Reception
 | Event | POV |
 |---|---|
 | Marcus working late at Astria (ML engineer) on a model anomaly — a control cohort producing outcomes it shouldn't; he distrusts a confident model that can't explain itself | Marcus |

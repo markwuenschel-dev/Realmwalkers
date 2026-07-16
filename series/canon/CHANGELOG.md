@@ -2,6 +2,21 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-07-16 — Aetherfall Championship Finalist Weekend / Finalist Reception canon
+
+Gives the altana a real event: the Finalist Weekend (media/draw obligations, twenty-five-team field,
+404 qualifies twenty-fifth by four points) closing in the Finalist Reception, ten days before the
+Dead Hand/404 scrim. Teams are not in a bubble — they go home after the weekend; the scrim is remote.
+
+- **New — Finalist Weekend block** (`master_timeline.md`, Act 1): dated ~June 15–17, cross-referenced
+  from the Day-0 header.
+- **New — Finalist Reception scene brief** (`scene_queue.md`, Act 1): not yet drafted on-page; full
+  dramatized content deferred to Serra's Ch 6A altana-flashback POV.
+- **New — Event context callout** (`marcus_serra_relationship.md` §4): locks the venue/logistics behind
+  the already-existing Discord-exchange premise (twenty-fifth, four points).
+- **Proposed, not applied:** a one-paragraph Chapter 1 seed for `SCENE-001` (or alternately `SCENE-002`)
+  — see agent brief for exact text; owner to pick placement and confirm voice.
+
 ## 2026-07-05 — Marcus⇄Serra Duel Ladder + age locks + story-ownership pass
 
 Canonized two author handoffs (Duel Ladder shape; Story Ownership) and the character age locks.

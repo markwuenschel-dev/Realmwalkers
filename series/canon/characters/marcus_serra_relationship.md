@@ -54,6 +54,8 @@ Their most dangerous shared pattern is **shared motion vs. shared meaning**. The
 
 > **Team fact (locked):** Serra and Mara are **both on Dead Hand** — Dead Hand's double-assassin core. Serra is the late-arriving star rogue who duels Marcus on-page; Mara is the *overlooked* half, salience-suppressed, never surfaced on-page (the dark/blind roster slot). 404 is Marcus's team (Seb lead, Brent, Mathias, Kip).
 
+> **Event context (locked):** Marcus and Serra meet during the **Aetherfall Championship Finalist Weekend**, at the **Finalist Reception** after media/draw obligations — a governing-body/sponsor event, not a fan party. The finalist field is **twenty-five teams**; 404 qualifies **twenty-fifth, by four points** (already the Discord exchange's premise below — this locks its context). Teams are **not** in a long-term bubble: they return home after the weekend, and the Dead Hand/404 scrim **ten days later** is remote.
+
 **Recognition happens in layers.** Do not collapse them.
 
 - **Competitive recognition (scrim):** Marcus identifies the anonymous opponent as Dead Hand's elite assassin through **kit-independent decision architecture** — how she selects targets, attacks *through* interference rather than around it, converts a failed entry into a second attack, refuses to reset when disruption can become leverage, and reclassifies an unexpected obstacle as the new high-value problem. Not a combo, animation, weapon, or voice. *Prose stays compact:* "The abilities were different. The decision wasn't." → *Dead Hand's assassin.*

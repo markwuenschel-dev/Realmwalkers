@@ -34,6 +34,9 @@ status: working
 
 **Ch 2 — The Facility** · Marcus · Day 1 · *drafted*
 - **Function:** assemble the six in the flesh; first physical Marcus/Serra beat; lay out terms so consent is on the record.
+- **Prose seed (planning-only, insert when drafted):** open on the Discord thread being ten days old —
+  *"from the morning after the finalist reception"* — grounds the Finalist Weekend context ambiently, no
+  new exposition needed if Step 4's Chapter 1 seed lands. See `scene_queue.md` Finalist Reception brief.
 - **Beats:** pickup (Eldrin, Selia); facility; Withers/Vail; patio reunion; **Serra arrives, introduces herself from Dead Hand, the wink** (reader-recognition, no visible romance); Mara arrives late; LeBlanc/Roth/Withers lay out terms/risks; formal consent; medical exams; **Earth night — shared common area** (last full-six window; texture only — see `scene_queue.md` Act 1 brief).
 - **Pays:** SP-003 (UI as interpretive layer, seed) · SP-002.
 - **End state:** six committed; Earth Thing now in-person but unaddressed.
