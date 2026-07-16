@@ -2,9 +2,11 @@
 
 ## Status
 
-Accepted (planning only) — 2026-07-15. Author decisions **D6–D13**. Supersedes the #226–#228 ticket set, which is rejected. **No runtime implementation is authorized by this record.**
+Accepted (planning only) — 2026-07-15. Author decisions **D6–D18**. Supersedes the #226–#228 ticket set, which is rejected. **No runtime implementation is authorized by this record.**
 
 This is an **architecture correction record**: it exists because three successive planning passes encoded claims that primary source contradicts. Every statement below is either (a) verified at SHA `0f5f83c` with a citation personally opened, or (b) labelled an author decision, or (c) labelled unresolved. Nothing else is permitted to instruct implementation.
+
+**Amended 2026-07-16** — author decisions **D14–D18** close the four blocking open questions (D14 resolves B-1, D15 resolves B-2's deployment-identity half, D16 resolves B-3, D17 resolves B-4) and refine D10's decomposition granularity (D18). The two new *factual* confirmations D15 rests on are verified at SHA `e3067ed` (`.env` carries no database URL; `docs/DEPLOY.md` names the EC2 target). The verified-behavior snapshot below stays pinned at `0f5f83c`; the new decisions are layered after it, not merged into it, and the original B-1…B-4 wording is retained struck-through under **Unresolved (blocking) → resolved** so the record still reads as the correction it was.
 
 ## Context — what was wrong
 
@@ -53,7 +55,7 @@ A new foundational ticket, **Shared approval and revision authorization boundary
 
 ### D10 — ADR-0028 decomposition
 
-ADR-0028 is **not** one implementation ticket. It splits into: (1) revision-request lifecycle and writer boundary; (2) import evidence and adoption persistence; (3) locking, precedence, and transaction ownership; (4) migration, backfill, cutover, rollback; (5) dead-code and obsolete-ADR cleanup after cutover. **Every ADR-0028 component gets an explicit implement / replace / delete ruling. "No decision" is a blocking state.** An inert abstraction is not preserved because an ADR names it.
+ADR-0028 is **not** one implementation ticket. It splits into: (1) revision-request lifecycle and writer boundary; (2) import evidence and adoption persistence; (3) locking, precedence, and transaction ownership; (4) migration, backfill, cutover, rollback; (5) dead-code and obsolete-ADR cleanup after cutover. **Every ADR-0028 component gets an explicit implement / replace / delete ruling. "No decision" is a blocking state.** An inert abstraction is not preserved because an ADR names it. **Refined by D18** — the split is realized as vertical, dependency-ordered slices, each leaving a live writer/reader/verification path, not model-only layers.
 
 ### D11 — Current feedback path
 
@@ -69,15 +71,46 @@ ADR-0028 is **not** one implementation ticket. It splits into: (1) revision-requ
 
 `shared/claim_precedence.py` — zero demonstrated importers — **is not automatically part of the target architecture.** Ticket 6 owns a bounded decision record comparing: integrate via explicit production call sites; replace with the shared authorization boundary; delete as dead architecture. **Default recommendation is deletion or replacement** unless a concrete caller and a unique responsibility are demonstrated.
 
+### D14 — Scene-tier blocker representation (resolves B-1)
+
+Scene-level blockers are represented as **durable, scene-scoped Approval Blocker records** carrying an explicit lifecycle and resolution state — a normalized record, **not** a flag inside `ScenePacket.body` and **not** a live derivation from `ChapterPacket.open_questions`. The shared domain approval operation (D9) approves a scene or derives its beats **only when that scene has no active Approval Blocker.**
+
+This closes B-1: D6 required a *representation* before the blocker could be enforced, and left three candidate shapes open; D14 chooses one and rejects the other two on stated grounds. A reserved key in `body` couples blocker lifecycle to prose edits and gives the blocker no independent resolution state. Live-reading `ChapterPacket.open_questions` reintroduces the tier mismatch of verified fact 3 — chapter-tier questions are not scene-scoped, and scene-tier `can_approve` never reads them today (verified fact 2). The normalized record is the only shape that gives a blocker its own lifecycle without borrowing the wrong tier's semantics. Building it remains Ticket 1's work; the *design* question B-1 named is now closed.
+
+### D15 — Deployment identity and preflight target (resolves B-2's deployment-identity half)
+
+The authoritative production data lives in the **PostgreSQL database on the EC2 instance** named in `docs/DEPLOY.md` (database `realmwalkers`). Verified at SHA `e3067ed`: `.env` no longer carries any database URL — the stale URLs D12 flagged have been removed, and they were never deployment evidence — and `docs/DEPLOY.md:16,29-33` names EC2 `i-018796c951839031d` with the `realmwalkers` Postgres as the single target (the `README` deploy badge is AWS, so the "different hosting targets" conflict D12 recorded is resolved by removing the stale side, not by choosing between two live ones). The Ticket 7 preflight **must** be read-only and target that authorized EC2 database; its results — not `migrations.py`, not the former `.env` — determine migration, backfill, and cutover handling.
+
+**Scope of closure (honest boundary).** D15 resolves the *deployment-identity* conflict D12 left open and authorizes the preflight target. It does **not** resolve production **cardinality**: no authorized query has been run, so index presence, table population, and row counts remain unknown. B-2's cardinality half stays open — now unblocked, no longer a blocked design question.
+
+### D16 — Authorization is separate from blast radius (resolves B-3)
+
+`authority_level` classifies a repair's **blast radius** only. **Authorization** becomes a separate, explicit requirement — the *Authorization Requirement* already carried in `CONTEXT.md` (ceiling-gated, or an explicit manual grant). Ceiling-gated work may be automated within the configured ceiling; manual-grant work requires an explicit human grant **regardless of ceiling**. The `human_required` semantics migrate to **manual-grant behavior**, and `human_required` is retired as a blast-radius rung that a raised ceiling could silently negate — the conflation B-3 named.
+
+This closes B-3. The `sweeper.py:59-60` comment vs `:167-171` code discrepancy B-3 pointed at is no longer an open *decision*: D16 fixes the intended branch (manual-grant work is human-gated by requirement, not by ladder position), so reconciling the two heads is now bounded implementation cleanup, not an unresolved policy choice.
+
+### D17 — Manual replacement now; autonomous replacement later (resolves B-4)
+
+A driver **must not** silently use `JobKind.DRAFT` to replace existing prose — the live path verified fact 8 exposes and ADR 0030's RETRACTED note documents. Initial drafts remain valid **only** for scenes with no prior prose; normal work over existing prose uses **revision**. An explicit **manual replacement mode** is introduced now for intentional full rewrites. **Fully autonomous replacement drafts remain the intended later capability** but require a separate policy decision and their own proof obligations before activation.
+
+This closes B-4: the answer to "may an autonomous driver schedule `JobKind.DRAFT` at all?" is **not in this milestone**. Replacement is manual and explicit first; autonomous replacement is deferred behind a distinct decision.
+
+### D18 — ADR-0028 decomposition granularity (refines D10)
+
+D10's five-way split is realized as **several vertical, dependency-ordered slices, each leaving a live writer/reader/verification path** — not a single adoption mega-ticket and not inert model-only layers. Dependency order: (1) shared approval and blocker boundary (D9, D14); (2) revision-request lifecycle and explicit draft/revise scheduling (D8, D17); (3) import evidence / adoption behavior with required transaction ownership; (4) production migration/backfill/cutover, gated on the D15 preflight; (5) obsolete-layer cleanup (D10's dead-code ruling, D13). Each slice must demonstrate its own writer, reader, and verification before the next depends on it — the operational form of D13's rule that an inert abstraction is not preserved because an ADR names it.
+
 ## Consequences
 
-- ADR 0030's "Layer 1 (objective floor) works day one" is false and already corrected in that ADR; D13 now questions whether Layer 1 belongs in the target at all.
-- ADR 0030's escalate-on-ambiguity sequencing depends on a scene-tier blocker that has no representation (D6). The autonomous path cannot be correct before Ticket 1.
+- ADR 0030's "Layer 1 (objective floor) works day one" is false and already corrected in that ADR; D13 now questions whether Layer 1 belongs in the target at all, and D18 makes that concrete — Layer 1 earns a slice with a live writer/reader/verification path or it is deleted/replaced.
+- ADR 0030's escalate-on-ambiguity sequencing depends on a scene-tier blocker whose **representation is now decided (D14: Approval Blocker records)** but **not yet built**. The autonomous path still cannot run before Ticket 1 delivers that substrate.
 - #226/#227/#228 are **superseded** and non-actionable.
+- **2026-07-16:** B-1, B-3, and B-4 are fully resolved (D14, D16, D17); B-2's deployment-identity half is resolved (D15) and only production **cardinality** remains, now unblocked against the authorized EC2 target; D10's decomposition is refined into vertical, dependency-ordered slices (D18).
 
-## Unresolved (blocking)
+## Unresolved (blocking) → resolved
 
-- **B-1 (D6).** How scene-tier blockers are represented. No substrate exists. Owned by Ticket 1.
-- **B-2 (D12).** All production cardinality. No authorized DB inspected.
-- **B-3.** The ceiling ladder's intended branch (`sweeper.py:59-60` comment vs `:167-171` code) is undecided. D7 makes the *repair-cycle* cap explicit but does not rule on `RepairAuthorityLevel`'s `human_required` rung, which `workers/sweeper.py:168-170` documents as a deliberate opt-in.
-- **B-4 (D8).** Whether an autonomous driver may schedule `JobKind.DRAFT` at all, given a draft job supersedes existing prose (`workers/pipeline.py:318`).
+All four blocking items are closed by the 2026-07-16 amendment (D14–D17). One leaves a non-blocking remainder, noted below. The original wording is kept struck-through so the record still shows what was open.
+
+- ~~**B-1 (D6).** How scene-tier blockers are represented. No substrate exists. Owned by Ticket 1.~~ **RESOLVED by D14** — durable, scene-scoped Approval Blocker records. The *design* is closed; building the record stays Ticket 1's work.
+- ~~**B-2 (D12).** All production cardinality. No authorized DB inspected.~~ **Deployment identity RESOLVED by D15** (authorized target is the EC2 `realmwalkers` Postgres). **Cardinality still open** — unknown until the read-only Ticket 7 preflight runs against that target. No longer a blocked *design* question; a pending measurement.
+- ~~**B-3.** The ceiling ladder's intended branch (`sweeper.py:59-60` comment vs `:167-171` code) is undecided. D7 makes the *repair-cycle* cap explicit but does not rule on `RepairAuthorityLevel`'s `human_required` rung, which `workers/sweeper.py:168-170` documents as a deliberate opt-in.~~ **RESOLVED by D16** — `human_required` is retired as a blast-radius rung and re-expressed as an Authorization Requirement (manual-grant), orthogonal to `authority_level`. The `sweeper.py` two-head discrepancy is now implementation cleanup, not an open decision.
+- ~~**B-4 (D8).** Whether an autonomous driver may schedule `JobKind.DRAFT` at all, given a draft job supersedes existing prose (`workers/pipeline.py:318`).~~ **RESOLVED by D17** — not in this milestone. Replacement over existing prose is manual and explicit; autonomous replacement is deferred behind a separate policy decision and proof obligations.

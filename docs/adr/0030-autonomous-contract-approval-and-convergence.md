@@ -68,4 +68,8 @@ This is not stylistic. Verified at SHA `3246a8c`: `derive_beats` (`workers/scene
 
 **Consequence for planning:** Layer 1 ("works day one") does not work day one — its engine is unwired. Any slice that assumes an adoption record, a revision request, a chapter lock, or precedence adjudication exists at runtime is assuming scaffolding is a system.
 
+> **Update 2026-07-16 (ADR 0031 D13 / D18).** Whether Layer 1 is wired *at all* is now a governed decision, not an assumption. The decomposition is vertical slices only — an unwired precedence engine earns a slice with a live writer/reader/verification path, or it is deleted/replaced. It is not preserved because ADR 0029 names it.
+
 **Unresolved — live database state.** No claim in this ADR about deployed data is verified. No authorized live database was inspected. Index presence, table population, and cardinality are **unknown**; source migrations cannot prove an old deployment applied them. Any migration or backfill must run a fail-closed preflight rather than infer state from `migrations.py`.
+
+> **Update 2026-07-16 (ADR 0031 D15).** The deployment *target* is now resolved: the authoritative database is the EC2 `realmwalkers` Postgres named in `docs/DEPLOY.md`, and the stale `.env` URLs have been removed (verified at SHA `e3067ed`). Cardinality is still unknown — the fail-closed preflight now has an authorized target to run against.

@@ -151,3 +151,7 @@ _Avoid_: approval reason, actor, execution authorization, approved_by
 **Operational Hold**:
 A nonterminal state for work that is retained but not executable, carrying a `hold_reason` (`autonomy_disabled`, `epoch_mismatch`, `legacy_authorization_unproven`). Held output is preserved, never published — no timeline advance, no supersede, no reviewable status. Release requires a fresh Execution Authorization under the current Autonomy Epoch and a re-evaluated predicate; re-enabling autonomy never auto-releases held work. Distinct from `quarantined`, which is integrity-terminal and ownerless.
 _Avoid_: quarantined, autonomy held, paused, failed, blocked
+
+**Approval Blocker**:
+A durable, scene-scoped record that an unresolved scene-level open question is holding automated approval of a ScenePacket, carrying an explicit lifecycle and resolution state. The shared domain approval operation approves a scene or derives its beats only when that scene has no active Approval Blocker. Blocker state is never embedded in ScenePacket `body` and never live-read from `ChapterPacket.open_questions` (chapter-tier questions are not scene-scoped) (ADR 0031 D14).
+_Avoid_: open_questions column, packet-body flag, derived chapter question, chapter open question
