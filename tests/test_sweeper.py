@@ -108,8 +108,10 @@ async def test_sweeper_auto_approves_within_ceiling(db_factory):
         await s.commit()
 
         task = await s.get(RepairTask, task.id)
-        assert task.status == RepairTaskStatus.RUNNING  # auto-approved + applied (fanned out)
-        assert task.human_approved_at is not None
+        assert task.status == RepairTaskStatus.RUNNING  # autonomously authorized + applied (fanned out)
+        # Autonomous authorization is NOT a human approval: the sweeper must not write a human_approved_at
+        # audit stamp for its own decision (ADR-0031 D16; the "autonomous sweeper" false-stamp defect).
+        assert task.human_approved_at is None
         acts = await activity_router.list_activity(s, book_id=book.id)
         assert any(a.kind == "sweeper_repair" and a.source == "sweeper" for a in acts)
 
@@ -132,9 +134,10 @@ async def test_sweeper_gates_human_required_at_default_ceiling(db_factory):
         assert not any(a.kind == "sweeper_repair" for a in acts)
 
 
-async def test_sweeper_approves_human_required_when_ceiling_raised(db_factory):
-    # Raising the ceiling to human_required opts into full autonomy — the sweeper then drives even the
-    # highest-authority repairs (the honest-ceiling fix; previously human_required was hard-blocked).
+async def test_sweeper_refuses_human_required_even_at_human_required_ceiling(db_factory):
+    # ADR-0031 D16: human_required is a manual-grant Authorization Requirement — it needs an explicit
+    # human grant REGARDLESS of ceiling. Raising the ceiling to human_required must NOT let the sweeper
+    # auto-approve it; the old "opts into full autonomy" behaviour (and the test that blessed it) is retired.
     sweeper._attempts.clear()
     sweeper._warned_human.clear()
     async with db_factory() as s:
@@ -145,10 +148,10 @@ async def test_sweeper_approves_human_required_when_ceiling_raised(db_factory):
         await s.commit()
 
         task = await s.get(RepairTask, task.id)
-        assert task.status == RepairTaskStatus.RUNNING
-        assert task.human_approved_at is not None
+        assert task.status == RepairTaskStatus.WAITING_FOR_HUMAN  # never autonomously approved
+        assert task.human_approved_at is None  # no human grant → no stamp
         acts = await activity_router.list_activity(s, book_id=book.id)
-        assert any(a.kind == "sweeper_repair" for a in acts)
+        assert not any(a.kind == "sweeper_repair" for a in acts)
 
 
 async def test_sweeper_respects_ceiling_below_task_authority(db_factory):
@@ -165,6 +168,49 @@ async def test_sweeper_respects_ceiling_below_task_authority(db_factory):
         task = await s.get(RepairTask, task.id)
         assert task.status == RepairTaskStatus.WAITING_FOR_HUMAN
         assert task.human_approved_at is None
+
+
+def test_within_ceiling_excludes_human_required_regardless_of_ceiling():
+    # ADR-0031 D16: human_required is never auto-approvable, even when it is itself the ceiling.
+    assert not sweeper._within_ceiling(
+        RepairAuthorityLevel.HUMAN_REQUIRED.value, RepairAuthorityLevel.HUMAN_REQUIRED.value
+    )
+    assert not sweeper._within_ceiling(
+        RepairAuthorityLevel.HUMAN_REQUIRED.value, RepairAuthorityLevel.CHAPTER_STRUCTURAL.value
+    )
+
+
+def test_within_ceiling_fails_closed_on_unknown_ceiling():
+    # A garbage/unknown persisted ceiling must auto-approve NOTHING. The old _rank() returned 999 for an
+    # unknown ceiling, so rank(level) <= 999 permitted every known task — fail-open, worse than human_required.
+    assert not sweeper._within_ceiling(RepairAuthorityLevel.SCENE_LOCAL.value, "garbage")
+    assert not sweeper._within_ceiling(RepairAuthorityLevel.CHAPTER_STRUCTURAL.value, "human_required")
+
+
+def test_within_ceiling_allows_real_levels_within_ceiling():
+    assert sweeper._within_ceiling(
+        RepairAuthorityLevel.SCENE_LOCAL.value, RepairAuthorityLevel.CHAPTER_STRUCTURAL.value
+    )
+    assert sweeper._within_ceiling(
+        RepairAuthorityLevel.CHAPTER_STRUCTURAL.value, RepairAuthorityLevel.CHAPTER_STRUCTURAL.value
+    )
+    assert not sweeper._within_ceiling(
+        RepairAuthorityLevel.CHAPTER_STRUCTURAL.value, RepairAuthorityLevel.SCENE_LOCAL.value
+    )
+
+
+async def test_load_config_normalizes_illegal_persisted_ceiling(db_factory):
+    # A persisted human_required or garbage ceiling normalizes to the highest real auto-approval level.
+    async with db_factory() as s:
+        await sweeper.set_setting(s, sweeper.CEILING_KEY, RepairAuthorityLevel.HUMAN_REQUIRED.value)
+        await s.commit()
+        cfg = await sweeper.load_config(s)
+        assert cfg.ceiling == RepairAuthorityLevel.CHAPTER_STRUCTURAL.value
+    async with db_factory() as s:
+        await sweeper.set_setting(s, sweeper.CEILING_KEY, "garbage")
+        await s.commit()
+        cfg = await sweeper.load_config(s)
+        assert cfg.ceiling == RepairAuthorityLevel.CHAPTER_STRUCTURAL.value
 
 
 async def test_delete_production_run_cascades(db_factory):

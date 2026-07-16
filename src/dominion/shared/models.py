@@ -956,6 +956,10 @@ class RepairTask(Base):
     scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     repair_kind: Mapped[str] = mapped_column(Text)
+    # Blast radius of the repair. authority_level == "human_required" is the temporary A1b compatibility
+    # discriminator (ADR-0031 D16) for manual-grant work: never autonomously approved regardless of the
+    # sweeper ceiling — only a human "Approve & apply" can grant it. A1c makes authorization a first-class
+    # axis orthogonal to this blast-radius field.
     authority_level: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, default="queued")
     issue_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
@@ -968,8 +972,10 @@ class RepairTask(Base):
     forbidden_operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
     word_delta_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
     requires_human_approval: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Stamped by the explicit Approve & apply action; a re-queued task (verify said NEEDS_ANOTHER_REPAIR)
-    # keeps its stamp — one human approval covers the task's whole repair loop, not a single attempt.
+    # A HUMAN approval audit stamp — written ONLY on a real human grant (the explicit Approve & apply),
+    # never for the sweeper's autonomous authorization (ADR-0031 D16; the old "autonomous sweeper" false
+    # stamp). A re-queued task (verify said NEEDS_ANOTHER_REPAIR) keeps its stamp — one human approval
+    # covers the task's whole repair loop, not a single attempt.
     human_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

@@ -646,10 +646,18 @@ async def apply_repair_task(
     session: AsyncSession,
     task_id: uuid.UUID,
     *,
+    autonomous: bool,
     human_approved: bool = False,
     approval_reason: str | None = None,
 ) -> RepairTask:
-    task = await session.get(RepairTask, task_id)
+    # `autonomous` has NO default: every caller must declare its nature (a defaulted False would let
+    # future automation impersonate the manual path by omission). Lock/claim the row AND refresh it before
+    # any status read: a sweeper apply and a human "Approve & apply" race cross-session, and the sweeper
+    # PRE-LOADS the task into its session. `with_for_update` alone acquires the FOR UPDATE lock but does NOT
+    # repopulate an already-identity-mapped instance — the status guard below would read the STALE pre-load
+    # and both callers would fan out a revision. `populate_existing=True` forces the locked SELECT to
+    # refresh the attributes, so the loser of the race reads the winner's RUNNING status and 409s.
+    task = await session.get(RepairTask, task_id, with_for_update=True, populate_existing=True)
     if task is None:
         raise ValueError("repair task not found")
     run = await session.get(ProductionRun, task.production_run_id)
@@ -659,7 +667,28 @@ async def apply_repair_task(
     # double application) and keeps Apply off verified/rejected/cancelled rows.
     if task.status not in (RepairTaskStatus.QUEUED, RepairTaskStatus.WAITING_FOR_HUMAN):
         raise ValueError(f"repair task is {task.status}; only queued or waiting_for_human tasks can be applied")
-    if task.requires_human_approval and not human_approved and task.human_approved_at is None:
+    # ADR-0031 D16 (A1b): manual-grant work — authority_level == HUMAN_REQUIRED, the temporary A1b
+    # compatibility discriminator — needs an explicit HUMAN grant regardless of ceiling. An autonomous
+    # caller can NEVER authorize it; refuse here, before any stamp or job scheduling. (A1c replaces this
+    # discriminator with a durable Authorization Requirement axis orthogonal to authority_level.)
+    if autonomous and task.authority_level == RepairAuthorityLevel.HUMAN_REQUIRED.value:
+        task.status = RepairTaskStatus.WAITING_FOR_HUMAN
+        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
+        await support.record_event(
+            session,
+            run_id=run.id,
+            event_type="human_action_required",
+            stage="repair_execution",
+            message="Manual-grant repair (human_required) needs an explicit human grant — use Approve & apply.",
+            payload={"repair_task_id": str(task.id), "authority_level": str(task.authority_level)},
+        )
+        await support.update_run_summary(session, run)
+        return task
+    # An approval-gated task proceeds on a human grant (now or already stamped) OR an autonomous
+    # authorization (the sweeper, already ceiling-gated; human_required was refused above). A plain manual
+    # apply with neither waits for a human.
+    authorized = human_approved or task.human_approved_at is not None or autonomous
+    if task.requires_human_approval and not authorized:
         task.status = RepairTaskStatus.WAITING_FOR_HUMAN
         run.status = ProductionRunStatus.WAITING_FOR_HUMAN
         await support.record_event(
@@ -672,6 +701,8 @@ async def apply_repair_task(
         )
         await support.update_run_summary(session, run)
         return task
+    # human_approved_at is a HUMAN audit stamp — write it ONLY on a real human grant, never for the
+    # sweeper's autonomous authorization (the "autonomous sweeper" false-stamp defect, ADR-0031 D16).
     if human_approved and task.human_approved_at is None:
         task.human_approved_at = datetime.now(UTC)
         await support.record_event(

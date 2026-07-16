@@ -191,7 +191,7 @@ async def drain_queued_repair_tasks() -> None:
                     break
                 task_id = task.id
                 try:
-                    await production.apply_repair_task(session, task_id)
+                    await production.apply_repair_task(session, task_id, autonomous=True)
                     await session.commit()
                     log.info("repair.drain_applied", task=str(task_id))
                 except Exception as exc:  # noqa: BLE001 — park + advance; one bad task must not strand the rest

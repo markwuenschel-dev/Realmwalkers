@@ -355,7 +355,9 @@ async def apply_all_repair_tasks(
 @router.post("/repair-tasks/{task_id}/apply", response_model=RepairTaskOut)
 async def apply_repair_task(task_id: uuid.UUID, session: SessionDep, background: BackgroundTasks) -> RepairTaskOut:
     try:
-        task = await production.apply_repair_task(session, task_id)
+        # Plain apply is a manual, non-autonomous action; a requires_human_approval task parks
+        # waiting_for_human here (only /approve-apply grants it).
+        task = await production.apply_repair_task(session, task_id, autonomous=False)
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()
@@ -382,7 +384,7 @@ async def approve_and_apply_repair_task(
     drain skips it. Chapter-scoped tasks fan out into one revision job per member scene."""
     try:
         task = await production.apply_repair_task(
-            session, task_id, human_approved=True, approval_reason=body.reason if body else None
+            session, task_id, autonomous=False, human_approved=True, approval_reason=body.reason if body else None
         )
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
