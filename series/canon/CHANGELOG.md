@@ -2,6 +2,73 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-07-17 (later) — Ch. 2/3 working-draft reconciliation: cast, knowledge layering, Eriadne redesign
+
+Author decisions resolving the questions raised by the Ch. 2 ("The Facility") and Ch. 3 ("The Passage")
+working drafts, which are now treated as canon alongside `SCENE-001`–`SCENE-003` (unchanged).
+
+- **Withers → Mercer.** Same character, renamed during drafting. `master_timeline.md` and
+  `book1_chapter_plan.md`/`book1_chapter_timeline.md` updated. New dossier: `characters/minor/mercer.md`
+  (Dr. Adrian Mercer, MD/PhD — Astria's neurosurgery director; believes the six's telemetry convergence is
+  an unprecedented *natural* phenomenon; no cosmic knowledge).
+- **Roth developed.** Full name and title surfaced on-page in Ch. 2 ("Daniel Roth. General counsel for
+  Astria."), self-named at the facility after staying unnamed through the `SCENE-002`/`003` hijack. Physical
+  description locked. His Chapter 2 candor is **genuine, not theatrical** — he doesn't know about the
+  Nightbound/Broker/six-key framing at all. Resolves two of his own dossier's open questions.
+- **LeBlanc gets a narrow, memorable Ch. 2 role instead of appearing only for a private reveal.** Author
+  ruling: introducing him solely to deliver a reveal would make him feel imported for the plot. He now
+  appears in person at the Ch. 2 conference room as the **executive sponsor** — proof the program reaches
+  above Roth's and Mercer's departments — with one or two interventions, no anomaly explanation, no
+  dominating the meeting. New dossier: `characters/minor/leblanc.md` (both his scenes — the Ch. 2
+  appearance and the post-surgery private reveal — are still owed to the manuscript).
+- **Four-tier knowledge structure locked**, see `soulkeepers_exchange.md` → Knowledge Layering:
+  Mercer (unprecedented natural phenomenon) → Roth (Astria exploited a real emergency for a dangerous
+  human program) → LeBlanc (knows there's a concealed external beneficiary, not the Nightbound/six-key/seal
+  layer) → the Broker (full operator knowledge, still short of the Nightbound's).
+- **The planned "LeBlanc & Roth private conversation" is corrected to LeBlanc alone.** Roth is removed from
+  that scene — he stays genuinely in the dark per his knowledge cap. `master_timeline.md`,
+  `book1_chapter_plan.md`, and `book1_chapter_timeline.md` updated. `setup_payoff_tracker.md` SP-001 is now
+  tracked as a two-part delivery: the six already hear "an interpreter, not the source" from the
+  intermediary in the drafted Ch. 3 limbo-void scene; LeBlanc's still-undrafted private scene is the fuller,
+  reader-side confirmation. Still "seeded," not "paid."
+- **Dead Hand's rank locked at #3** (404 stays #25) — from Marcus/Serra's "Twenty-five." / "Three." exchange
+  in Ch. 2. Added to `canon_index.md`'s naming canon.
+- **Eriadne redesigned** (`eriadne.md`): the earlier "not a walled city" lock is reconciled, not reversed —
+  the **inhabited core (old city + port/harbor) is walled**; everything since has grown beyond those walls
+  organically; "the city does not end cleanly at its walls." Added a river-meets-sea harbor alongside the
+  original overland trade-crossroads origin. Added **the floating pylons and the gateway rings** — ancient,
+  infrastructural (not sleek) suspended structures and ring segments capable of aligning into a complete
+  gateway, cross-referenced as candidate physical evidence for both **W-01** (builders vs. corpse) and
+  **W-05** (who forces the portal open). Added **the Ruined Heart** — a larger, farther-out, more intact
+  ruin complex distinct from the in-city ruin-fringe — identified as the likely referent of the Ch. 3
+  "intermediary" vision's separate distant ruin settlement (working match, not yet a hard lock).
+- **Chapter status updated:** Ch. 1 remains fully drafted; Ch. 2–3 are now **working drafts** (not "not yet
+  drafted") pending LeBlanc's two scenes. `book1_chapter_plan.md`'s Frontier note, Act 1 header, and
+  Critical Path item 1 updated accordingly.
+
+## 2026-07-17 — Mara's Aetherfall class: Rogue → Glacial Arcanist (propagation complete)
+
+`mara.md` had already reclassified Mara's Aetherfall lane from **Rogue** to **Glacial Arcanist / Control
+Mage** (Frost Mage as the closest tactical analogue) and flagged the correction as not yet propagated.
+Confirmed only two files still carried the stale label and fixed both:
+
+- **`cast_index.md`** — Mara's row: `Aetherfall Rogue (setup)` → `Aetherfall Glacial Arcanist / Control
+  Mage (setup; Frost Mage analogue)`; "Tandem with Serra" → "Assassin-function tandem with Serra."
+- **`character_power_architecture.md`** — three spots: the Aetherfall-class examples list, the Mara
+  tension example, and the cast power table, all `Rogue` → `Glacial Arcanist` / `setup control-mage`.
+
+**Checked and already correct (no change needed):** `marcus_serra_relationship.md`, `serra_hawthorne.md`,
+`mathias.md`, `mara_voice.md`, `relationship_map.md`, `character_state_log.md`, `unresolved_character_threads.md`,
+`dominion_realm_story_bible.md`, `scene_queue.md`, `book1_chapter_plan.md`, `book1_chapter_timeline.md`,
+`master_timeline.md`, and the drafted manuscript (`SCENE-001`–`SCENE-003`). Every "Rogue" in those files
+is Serra's own Aetherfall class (Dead Hand's star rogue) and was already attributed correctly — none of
+them ever mislabeled Mara. `book1/manuscript/_DRAFT_ORIGINAL_prerewrite.md` still calls Mara a rogue;
+left as-is, same as its other retired-canon leftovers (Chad, 2035, etc.) — it's the archived pre-rewrite
+draft, not live canon.
+
+Mara's **assassin-function tandem with Serra** and **Realm class (Psion)** are unaffected — only the
+Aetherfall-side class label changed.
+
 ## 2026-07-16 — Aetherfall Championship Finalist Weekend / Finalist Reception canon
 
 Gives the altana a real event: the Finalist Weekend (media/draw obligations, twenty-five-team field,

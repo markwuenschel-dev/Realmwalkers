@@ -27,17 +27,17 @@ status: working
 - *(Chronology note: the celebration/altana/kiss this misreads predate the scrim; per option C their full content is withheld until Serra's Realm-arrival flashback — Ch 6A. Marcus may decline to dig her guild via Discord because, after kissing her, it feels invasive — see `marcus_serra_relationship.md` §4.)*
 
 **Ch 2 — The Facility** · *Marcus* · Earth Day 1
-- Pickup (Eldrin, Selia); flight to the California R&D facility; meets Withers, Vail; patio reunion with Seb/Brent/Mathias.
+- Pickup (Eldrin, Selia); flight to the California R&D facility; meets **Mercer** (renamed from earlier "Withers" — same character), Vail; patio reunion with Seb/Brent/Mathias.
 - **Serra Hawthorne arrives** — introduces herself from Dead Hand; the wink (first in-person Marcus/Serra beat; reader-recognition, no visible romance) — *this surface now reads as the cover over the staggered reveal below.* **Mara arrives late.**
 - **Personal recognition — staggered (the Earth-sequence emotional climax):** identity lands *after* the scrim, here, asymmetrically — and does **not** retroactively make the in-duel recognition mutual. **(1) Marcus first:** the altana woman + the studied pro + the anonymous opponent collapse into one person — Serra *was* Dead Hand's assassin (a second dimension on someone already compelling; strong, but he stays functional). **(2) Serra second — the larger detonation:** Marcus was the anonymous Aspect; it injures a professional read she trusts (*"not incompetent — I mistook the distance between competent and dangerous"*) and means she **selected him twice without knowing.** Stage it asymmetrically and **stay with her half.** (INV-1 Axis D; `marcus_serra_relationship.md` §4 + who-knows ledger.)
-- Conference room: **LeBlanc, Roth, Withers** lay out terms and risks; unanimous formal consent; medical exams.
+- Conference room: **Roth** (consent/legal — candor genuine, not theatrical), **Mercer** (medicine/telemetry — presents the six's neural-convergence evidence), **LeBlanc** (executive-sponsor presence, narrow role, one or two memorable interventions, does not explain the anomaly) lay out terms and risks; unanimous formal consent; medical exams.
 
-**Ch 3 — Reins** · *Marcus → LeBlanc* · Earth Day 1, night
+**Ch 3 — Reins** *(working draft titled "The Passage")* · *Marcus → LeBlanc* · Earth Day 1, night
 - **Earth night — shared common area:** one contained night after consent, before surgery — separate rooms, shared common area; last full-six Earth memory (404 four / Serra-Mara cross-group texture; fear, jokes, consent forms, corporate calm — not a bonding arc). *(See `scene_queue.md` Act 1 brief; `marcus_serra_relationship.md` §4.)*
 - **Pre-surgery — one narrow personal beat:** acknowledges the growing shared history, **resolves nothing about the kiss, declares no relationship**, and ends on Serra's **"See you after, Marcus."** *(Weight the reader can't yet fully cash — the altana that charges it lands in Serra's Ch 6A flashback; see `marcus_serra_relationship.md` §4.)*
 - Implant surgery (all six).
-- **⟢ LeBlanc & Roth's private conversation (LeBlanc POV):** the hidden broker's voice — *"We will take the reins in the Dominion Realm."* The first on-page sign that an agent of the **Soulkeepers' Exchange** has shaped Astria from outside.
-- The six wake in the limbo void; the voice explains the Realm and the **Eriadne directive**; the mists separate them.
+- **⟢ LeBlanc private (LeBlanc POV) — corrected 2026-07-17, Roth removed:** the intermediary/Broker confirms directly to LeBlanc alone that **"Astria's portion is complete."** Roth is **not** present — he stays genuinely in the dark (`roth.md` knowledge cap). This is the first on-page sign, for the reader, that an agent above Astria has been shaping events from outside; LeBlanc himself knows only that there's a concealed external beneficiary, not the Nightbound/six-key/seal layer beneath that (`leblanc.md`, `soulkeepers_exchange.md` → Knowledge Layering).
+- The six wake in the limbo void; **the voice — i.e. "the intermediary" as the six actually experience it —** explains the Realm and the **Eriadne directive**; the mists separate them.
 
 ---
 

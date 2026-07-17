@@ -40,7 +40,7 @@ The Aetherfall class is the ghost in the machine — present in how they move an
 Examples:
 - Marcus: Aspect (four-form hybrid — Sentinel, Predator, Arbiter, Oracle)
 - Serra: Assassin, disruptor specialization — tandem with Mara
-- Mara: Rogue, setup/precision specialization — tandem with Serra
+- Mara: Glacial Arcanist (Control Mage; Frost Mage analogue), setup/precision specialization — tandem with Serra
 - Brent: Healer/Support — practical, not sentimental
 - Seb: Warlord (command/leadership)
 
@@ -115,7 +115,7 @@ All four point in the same direction. Her power is coherent with her identity. T
 
 **Tension example (Mara):**
 - Earth: creative professional, observer, reserves herself
-- Aetherfall: setup rogue, stays invisible, makes others' moments possible
+- Aetherfall: setup control-mage (Glacial Arcanist), stays invisible, makes others' moments possible
 - Realm class: Psion (rare) — requires pointing will outward
 - Interface: Specular Salience Transduction — authorship of perception
 The Realm class and the interface are in creative tension. The Psion requires her to point will outward and be present; the interface is rooted in her history of making herself invisible. Her arc is partly about reconciling those two things.
@@ -135,7 +135,7 @@ The eyes are his interface; the Realmwalker class is his planar-crossing path. T
 |---|---|---|---|---|
 | Marcus | ML engineer at Astria / gamer | Aspect (four-form hybrid) | Mage → **Planar Mage** → **Realmwalker** (Legendary) → Aether unique *(B2+ traj.)* | Neurochromatic Eyes (interface) + Eyes of Meszkhal (Unique item) |
 | Serra | Self-made social anchor | Assassin (disruptor) | **Warrior** → **Tempest** → **Worldbreaker** → unique *(B2+ traj.; B1 = Warrior)* | Severance Pulse |
-| Mara Valeria | Creative professional | Rogue (setup/precision) | **Psion** (rare) | Specular Salience Transduction |
+| Mara Valeria | Creative professional | Glacial Arcanist (setup/precision) | **Psion** (rare) | Specular Salience Transduction |
 | Seb Rainier | Guild leader | Warlord | **Warrior → Reaver** | Pyric Blood |
 | Brent Donovan | Civil engineer | Healer/Support | **Warden** → **Reckoner** (Book-2 dir.) | Piezoelectric Bones |
 | Mathias Sterling | TBD (IT/infrastructure lean) | Strider (Scout) | **Scout** | Enteric Lattice |

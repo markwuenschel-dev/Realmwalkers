@@ -25,7 +25,7 @@ known_entities: [illyristranthe, illyri, ily, ayla]
 | Marcus Vye | Marcus Vye | Marcus (uses own name) | Protagonist / Astria ML engineer (Earth) / Realm Walker / Neurochromatic Eyes | Active | `major/mc.md` |
 | Serra Hawthorne | Serra Hawthorne | Serra | Deuteragonist / Warrior → Worldbreaker (Book-2 dir.) / Severance Pulse Interface | Active — separates from main party early, returns at intervals | `major/serra_hawthorne.md` |
 | Sebastion "Seb" Rainier | Sebastion Rainier | TBD | 404 guild leader (Earth) / Warrior + Reaver / Pyric Blood / Mirror-rival to Marcus | Active | `major/seb.md` |
-| Mara Valeria | Mara Valeria | TBD | Aetherfall Rogue (setup) / Psion / Specular Salience Transduction / Tandem with Serra | Active | `major/mara.md` |
+| Mara Valeria | Mara Valeria | TBD | Aetherfall Glacial Arcanist / Control Mage (setup; Frost Mage analogue) / Psion / Specular Salience Transduction / Assassin-function tandem with Serra | Active | `major/mara.md` |
 | Mathias Sterling | Mathias Sterling | TBD | Aetherfall Strider/scout / Scout / Enteric Lattice | Active — survives Book 1 (injured at finale) | `major/mathias.md` |
 | Brent Donovan | Brent Donovan | TBD | Aetherfall Healer/Support / Warden → Reckoner (Book-2 dir.) / Piezoelectric Bones (open) | Active — survives Book 1 | `major/brent.md` |
 | Illyristranthe | N/A | Illyristranthe / Illyri / Ily | Ancient celestial consciousness — diminished fragment / Attached to Marcus's implant | Active — internal | `major/illyristranthe.md` |
@@ -79,9 +79,11 @@ known_entities: [illyristranthe, illyri, ily, ayla]
 
 | Name | Location | Function | Status | File |
 |---|---|---|---|---|
-| Roth | Earth — Astria | Suited Astria figure; the hijacker who commandeers the scrim (kept unnamed on-page) | Active — provisional; does NOT appear in SCENE-001, first on-page in SCENE-002 | `minor/roth.md` |
+| Roth | Earth — Astria | **Daniel Roth**, general counsel; suited Astria figure / hijacker (unnamed during hijack, self-named at the Ch. 2 facility conference) | Active — confirmed on-page (SCENE-002/003 voice-only; Ch. 2 in person) | `minor/roth.md` |
 | Kip | Earth — 404: Aim Not Found (Aetherfall) | Frontline warrior; impatient forward-pressure foil to Mathias | Active — recurring_minor; first appearance SCENE-001 | `minor/kip.md` |
 | Dead Hand leader (unnamed) | Earth — Dead Hand (Aetherfall) | Incidental — patches in early to say their rogue is missing, before she logs in late (SCENE-001) | Incidental / scene-local | — |
+| Mercer | Earth — Astria | **Adrian Mercer, MD/PhD** — neurosurgeon; directs Astria's neural-interface program; leads the six's surgeries. Renamed from earlier planning-doc "Withers" — same character. | Active — confirmed on-page (Ch. 2–3) | `minor/mercer.md` |
+| LeBlanc | Earth — Astria | **Richard LeBlanc**, Astria's CEO; executive-sponsor presence, narrow role; knows the program has a concealed external beneficiary (does not know Nightbound/six-key/Broker specifics) | Active — named only (`SCENE-001`, distant TV shot); in-person Ch. 2 scene + post-surgery private scene not yet drafted | `minor/leblanc.md` |
 
 ---
 

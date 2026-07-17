@@ -10,7 +10,7 @@
 
 | ID | Setup | Status | Payoff Target |
 |---|---|---|---|
-| SP-001 | Astria claims the implant is a neuroquantum processor | seeded | Reveal it's a receiver/translator for Realm magic (steered by the cross-world broker). Implant is never the *source*. |
+| SP-001 | Astria claims the implant is a neuroquantum processor | seeded | Reveal it's a receiver/translator for Realm magic (steered by the cross-world broker). Implant is never the *source*. **Updated 2026-07-17 — now a two-part delivery:** (1) the six hear "an interpreter... for a world your minds were not formed to read directly" directly from the intermediary in the Ch. 3 limbo-void scene (already drafted) — this is the characters' partial version; (2) LeBlanc's still-undrafted private post-surgery scene ("Astria's portion is complete") is the reader-side confirmation of a concealed external beneficiary — the fuller reveal. Still "seeded," not "paid," until (2) is written. |
 | SP-002 | Players think they're entering a game | seeded | Marcus gradually accepts the Realm is real. |
 | SP-003 | The UI renders stats/skills/vows/names | active | UI is an interpretive layer; it can be wrong, incomplete, or fail. |
 | SP-004 | True names are dangerous | active | Pays off concretely via **namebinding** (WF-011) and the child's seizure. |

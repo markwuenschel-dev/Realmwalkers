@@ -82,6 +82,19 @@ Commerce in souls is real — but at scale it becomes **half-truth as product**:
 | **Astria** | Earth infrastructure — implants |
 | **Six** | keys — brought without meaningful consent |
 
+### Knowledge Layering (Astria-side, locked 2026-07-17)
+
+The operation chain above is a *causal* chain (who did what); it is not the same as a *knowledge* chain (who knows what). On the Astria/Earth side, three named figures sit at three genuinely different depths, and no one of them can be used to leak what the others don't know:
+
+| Who | Believes / Knows | File |
+|---|---|---|
+| **Mercer** | They discovered an unprecedented, entirely natural neurological phenomenon (the six's telemetry convergence). No cosmic knowledge at all. | `../characters/minor/mercer.md` |
+| **Roth** | Astria exploited a genuine medical emergency to accelerate a dangerous but human research program. His candor about the coercion is real, not performative, precisely because this is the whole truth as far as he knows it. | `../characters/minor/roth.md` |
+| **LeBlanc** | The program has a **concealed external beneficiary** — Astria has been preparing the implants for an outside purpose, and a successful activation will produce some kind of transfer/handoff. Does not know about the Nightbound, the six-key framing, the underground seal, or the Broker's true agenda. | `../characters/minor/leblanc.md` |
+| **The Broker** | Knows more than LeBlanc — full operator-level knowledge of the acquisition chain — but still not everything the Nightbound know, or think they know. | This file |
+
+**Why it's shaped this way (author rationale, locked):** making Roth secretly complicit would be *weaker* than this — it would make his Chapter 2 honesty selectively theatrical instead of genuine. Each tier knows exactly enough to be truthful within its own scene without the scene becoming an exposition leak. LeBlanc's private post-surgery scene with the Broker ("Astria's portion is complete") is the one moment where a character above Roth's and Mercer's knowledge ceiling gets confirmation on-page — and even LeBlanc doesn't get the Nightbound/six-key/seal layer.
+
 - **Seb** — soul-recall leash; "we can recover him" true-ish; "we can resurrect him cleanly" is the lie.
 - Post-Book-1: Seb sacrifice trajectory may sever Broker/Soulkeepers hold (series fork — see cosmology hub).
 

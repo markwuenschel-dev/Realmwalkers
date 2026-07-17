@@ -491,7 +491,7 @@ The bond begins after the duel, during the postmortem. Serra does not merely pra
 
 Dead Hand becomes the first almost-home. Mara starts as the quiet one who makes impossible entries happen. Repeated success earns respect, then responsibility, then real inclusion. The guild is online and not identical to a full offline friend circle, but it gives her the first taste of a tight-knit group where usefulness might become belonging. Being transported tears her away from the first structure that almost gave her what she wanted.
 
-Reconcile note: older files may still call her a Rogue / double-assassin core. The cleaner current direction is **control mage with assassin-function setup**, while Serra remains the rogue/disruptor entry specialist. This should be propagated to any relationship or chapter planning file that still assumes Mara's Earth class is Rogue.
+Reconcile note — **propagated (2026-07-17):** `cast_index.md` and `character_power_architecture.md` (Aetherfall-class examples, tension example, and cast power table) were the only files still calling Mara's Earth class **Rogue**; all three now read **Glacial Arcanist / Control Mage**. `marcus_serra_relationship.md`, `serra_hawthorne.md`, and `mathias.md` were checked and did **not** need changes — their "Rogue" references are Serra's own Aetherfall class (Dead Hand's star rogue), correctly attributed. `mara_voice.md` already carried the Glacial Arcanist correction. The cleaner current direction stands: **control mage with assassin-function setup**, while Serra remains the rogue/disruptor entry specialist.
 
 ---
 
@@ -499,7 +499,7 @@ Reconcile note: older files may still call her a Rogue / double-assassin core. T
 
 Mara's Realm class is **Psion** (rare; `classes.md`) — earned through behavior. The Psion's method is *mind, will, perception, and force of intent* — exactly what the Specular Salience interface externalizes; her likely specialization sits in the Empath / perception-authorship lane (spec name TBD).
 
-Her Aetherfall **Rogue** lineage and **Trickster** instinct remain her *tactical* layer — misdirection, working from the edge — but her Realm **class** is Psion, not Rogue/Trickster. As a rare class it levels slower and costs more (see `core_rules.md` → Class Tiers), which fits a power that should feel hard-won. It also sharpens her central tension: the interface grew from wanting to *disappear*, but a Psion has to point will *outward.* Her arc is learning to do that. ⚠ Spec detail TBD. *(The earlier "Spellblade" and "Trickster-as-class" assignments are retired.)*
+Her Aetherfall **Glacial Arcanist / Control Mage** background and its instinct for positional denial remain her *tactical* layer — shaping the field, working from the edge, never the direct hit — but her Realm **class** is Psion, a distinct upgrade rather than a renamed continuation. As a rare class it levels slower and costs more (see `core_rules.md` → Class Tiers), which fits a power that should feel hard-won. It also sharpens her central tension: the interface grew from wanting to *disappear*, but a Psion has to point will *outward.* Her arc is learning to do that. ⚠ Spec detail TBD. *(The earlier "Rogue," "Spellblade," and "Trickster-as-class" assignments are retired.)*
 
 ## Interface — Specular Salience Transduction
 
@@ -778,7 +778,6 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 ## Open Questions
 
 - What is Mara's exact Earth job title: UX designer, visual designer, presentation/communications designer, writer-designer, art director, or hybrid?
-- How should the control-mage/Frost Mage lane be reconciled across `marcus_serra_relationship.md`, `serra_hawthorne.md`, and any chapter plan that still calls her a Rogue or half of a double-assassin core?
 - How do the Psion class and Specular Salience interface integrate in combat? ⚠ Needs development
 - What is the first situation that activates the transduction — what makes her discover it?
 - Does she connect with any of the cast before Book 1 ends?
@@ -795,7 +794,7 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 - Early-stage transduction was already active in Aetherfall as what she thought was rogue skill
 - Never connects with Serra in the Realm before Serra's solo arc
 - Power develops through use — no framework for it early, no name for it until later
-- Realm class: **Psion** (rare) — Rogue/Trickster demoted to Aetherfall + instinct layer; spec TBD (Spellblade & Trickster-as-class retired)
+- Realm class: **Psion** (rare) — Rogue/Trickster fully retired, not even an Aetherfall label; Aetherfall class is **Glacial Arcanist / Control Mage**, retained only as a tactical-instinct echo (positional denial, working from the edge); spec TBD (Spellblade & Trickster-as-class also retired)
 - Opening Earth scrim continuity: Mara is the overlooked control half of Dead Hand's Serra–Mara tandem. Preserve her function and same-team history without turning this character file into opening-chapter choreography.
 - Does **not** meet Serra in the Realm before Eriadne
 - **Cosmic-tier role:** when the Xyloryn arrive, every swarm-form is a *readable fossil* — studying a corpse tells her what the swarm has already survived (`cosmology.md`)
@@ -806,4 +805,4 @@ Book 1 leaves Mara somewhere in the middle of understanding what she is. She has
 
 ---
 
-*Last updated: Earth-game lane revised to **Glacial Arcanist / Control Mage / Frost positional setup** with assassin-function tandem; refined with broader brilliance guardrail, corrected Astria-coercion motive, court-noble threat, group-belonging tests, Serra roommate/friendship reciprocity, school design wound, and brilliance/belonging spine. Realm class remains **Psion** (rare); Specular Salience remains the interface.*
+*Last updated: Earth-game lane revised to **Glacial Arcanist / Control Mage / Frost positional setup** with assassin-function tandem; refined with broader brilliance guardrail, corrected Astria-coercion motive, court-noble threat, group-belonging tests, Serra roommate/friendship reciprocity, school design wound, and brilliance/belonging spine. Realm class remains **Psion** (rare); Specular Salience remains the interface. (2026-07-17: Rogue→Glacial Arcanist correction propagated to `cast_index.md` and `character_power_architecture.md`; see `CHANGELOG.md`.)*

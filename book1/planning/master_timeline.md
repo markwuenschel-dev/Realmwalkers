@@ -52,17 +52,17 @@
 | Event | POV |
 |---|---|
 | 5 AM pickup (Eldrin, Selia); flight to the California R&D facility | Marcus |
-| Meets Withers, Vail; Seb/Brent/Mathias arrive (patio reunion) | Marcus |
+| Meets **Mercer** (renamed from earlier "Withers" — same character), Vail; Seb/Brent/Mathias arrive (patio reunion) | Marcus |
 | **Serra (Serra Hawthorne) arrives** — first in-person meeting (they'd dueled in-game during the scrim); confirms she's the Dead Hand rogue who also took the deal; the wink | Full group |
 | Mara arrives late | Full group |
-| Conference room — LeBlanc, Roth, Withers lay out terms/risks; unanimous consent; medical exams | Full group |
+| Conference room — **Roth** (consent/legal — his candor here is genuine, not theatrical), **Mercer** (medicine/telemetry — presents the six's neural-convergence evidence), **LeBlanc** (executive-sponsor presence, narrow role, 1–2 interventions, does not explain the anomaly) lay out terms/risks; unanimous consent; medical exams | Full group |
 
 ### June 28 — Night
 | Event | POV |
 |---|---|
 | **Earth night — shared common area** (last full-six window before surgery; texture only — not a bonding arc) | All six |
 | Implant surgery | All six |
-| **LeBlanc & Roth's private conversation** — the hidden broker's voice: *"We will take the reins in the Dominion Realm."* (on-page) | LeBlanc |
+| **LeBlanc private (LeBlanc POV) — "Astria's portion is complete":** the intermediary/Broker confirms the handoff directly to LeBlanc alone. **Roth is not present — he stays genuinely in the dark** per his knowledge cap (`roth.md`); this is a correction from the earlier "LeBlanc & Roth's private conversation" framing. Exact on-page wording (whether it reuses "we will take the reins") — open. | LeBlanc |
 | The six wake in the limbo void; the voice explains the Realm and the Eriadne directive; the mists separate them | All six |
 
 ---

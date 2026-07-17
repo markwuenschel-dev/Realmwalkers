@@ -8,7 +8,7 @@ status: working
 
 > **Purpose:** the *build layer* over the chapter spine. For each chapter: what it must accomplish, the scenes and payoffs inside it, the state of the world by the end, and the **open decisions that block drafting it.** This is the "what do I actually do" document.
 > **Defers to:** `book1_chapter_timeline.md` (chapter order/POV) · `scene_queue.md` (scene briefs) · `setup_payoff_tracker.md` (plant/payoff IDs) · `unresolved_character_threads.md` (open-thread IDs) · `master_timeline.md` (facts/days). Precedence: `canon_index.md`.
-> **Frontier:** drafted manuscript currently ends **≈ Ch 1** (`SCENE-001`–`SCENE-003`, the whole of the Day-0 scrim/hijack/consent sequence). Everything from **Ch 2** on — including **Ch 6A** (new Serra-POV arrival) — is unwritten; that's the drafting frontier.
+> **Frontier — updated 2026-07-17:** drafted manuscript now extends through **Ch 3** (`SCENE-001`–`SCENE-003` for Ch 1, plus working drafts of Ch 2 "The Facility" and Ch 3 "The Passage" — note: working title differs from the "Reins" title below; see the Ch 3 entry). Ch 2–3 are **working drafts, not fully locked** — they're missing LeBlanc's two planned scenes (Ch 2 conference-room appearance; the post-surgery private reveal) — but are otherwise treated as canon. Everything from **Ch 4** on — including **Ch 6A** (new Serra-POV arrival) — is unwritten; that's the current drafting frontier.
 > **POV (series split):** Marcus ~60–70% (spine) · **Serra ~20–30% (real deuteragonist POV, not interludes)** · Seb/Mara/Mathias/Brent ~10–20% (light interludes). Serra's chapters are marked **⟢ SERRA POV**; the other four keep **⟢ INTERLUDE**. *The earlier "Serra trapped in interludes" structural tension is resolved — she is the deuteragonist with her own throughline (`marcus_serra_relationship.md` §9).*
 
 **Per-entry legend**
@@ -21,7 +21,7 @@ status: working
 
 ---
 
-## ACT 1 — EARTH (Earth Days 0–1) · *Marcus* · **Ch 1 drafted; Ch 2–3 not yet drafted**
+## ACT 1 — EARTH (Earth Days 0–1) · *Marcus* · **Ch 1 drafted; Ch 2–3 working draft (pending LeBlanc scenes)**
 
 **Ch 1 — "Aim Not Found"** · Marcus · Day 0 · *drafted*
 - **Function:** establish the ordinary world, the six-in-embryo, and convert "game" into "trap" in real time.
@@ -32,21 +32,21 @@ status: working
 - **End state:** all six coerced into consent; no interfaces yet; Earth Thing planted (duel).
 - **Gate:** ✅ drafted.
 
-**Ch 2 — The Facility** · Marcus · Day 1 · *not yet drafted*
+**Ch 2 — The Facility** · Marcus · Day 1 · *working draft — pending LeBlanc's conference-room appearance*
 - **Function:** assemble the six in the flesh; first physical Marcus/Serra beat; lay out terms so consent is on the record.
 - **Prose seed (planning-only, insert when drafted):** open on the Discord thread being ten days old —
   *"from the morning after the finalist reception"* — grounds the Finalist Weekend context ambiently
   (the Chapter 1 seed was proposed and declined, so this is where the reference first lands on-page).
   See `scene_queue.md` Finalist Reception brief.
-- **Beats:** pickup (Eldrin, Selia); facility; Withers/Vail; patio reunion; **Serra arrives, introduces herself from Dead Hand, the wink** (reader-recognition, no visible romance); Mara arrives late; LeBlanc/Roth/Withers lay out terms/risks; formal consent; medical exams; **Earth night — shared common area** (last full-six window; texture only — see `scene_queue.md` Act 1 brief).
+- **Beats:** pickup (Eldrin, Selia); facility; **Mercer** (renamed from earlier "Withers" — same character)/Vail; patio reunion; **Serra arrives, introduces herself from Dead Hand, the wink** (reader-recognition, no visible romance); Mara arrives late; conference room — **Roth** (consent/legal, genuinely candid), **Mercer** (medicine/telemetry, presents the neural-convergence evidence), **LeBlanc** (executive-sponsor presence — narrow role, 1–2 memorable interventions, does not explain the anomaly or dominate the meeting — proof the program reaches above either department) lay out terms/risks; formal consent; medical exams; **Earth night — shared common area** (last full-six window; texture only — see `scene_queue.md` Act 1 brief).
 - **Pays:** SP-003 (UI as interpretive layer, seed) · SP-002.
 - **End state:** six committed; Earth Thing now in-person but unaddressed.
 - **Gate:** ✅ draftable — no blockers; not yet written.
 
-**Ch 3 — Reins** · Marcus → LeBlanc · Day 1 night · *not yet drafted*
+**Ch 3 — Reins** *(working draft is titled "The Passage" — title not yet reconciled; content matches this plan's beats)* · Marcus → LeBlanc · Day 1 night · *working draft — pending LeBlanc's post-surgery private scene*
 - **Function:** plant the off-world hand behind Astria; deliver the six into the Realm; scatter them.
-- **Beats:** **Earth night — shared common area** (last full-six window; see `scene_queue.md`); **pre-surgery — one narrow personal beat** (acknowledges shared history, resolves nothing about the kiss, ends on Serra's **"See you after, Marcus"**); implant surgery; **⟢ LeBlanc/Roth private (LeBlanc POV): "We will take the reins in the Dominion Realm"** (Soulkeepers' Exchange shaping Astria from outside); limbo void; the voice explains the Realm + the Eriadne directive; mists separate them.
-- **Pays:** SP-001 (Astria = infrastructure, not source) · SP-007 (resurrection weight, seed) · SP-009 (Eriadne destination).
+- **Beats:** **Earth night — shared common area** (last full-six window; see `scene_queue.md`); **pre-surgery — one narrow personal beat** (acknowledges shared history, resolves nothing about the kiss, ends on Serra's **"See you after, Marcus"**); implant surgery; **⟢ LeBlanc private (LeBlanc POV): the intermediary/Broker confirms "Astria's portion is complete."** **Corrected 2026-07-17: this is LeBlanc alone, not "LeBlanc/Roth" as originally planned — Roth stays genuinely in the dark per his knowledge cap (see `roth.md`, `leblanc.md`, `soulkeepers_exchange.md` → Knowledge Layering).** Rejected alternative: introducing LeBlanc *only* for this private reveal, with no prior appearance, would make him feel imported solely to deliver a reveal — hence his Chapter 2 conference-room presence above; limbo void; the voice (= "the intermediary" the six actually hear) explains the Realm + the Eriadne directive; mists separate them.
+- **Pays:** SP-001 (Astria = infrastructure, not source — see `setup_payoff_tracker.md`, now split across two beats: the six hear "an interpreter, not the source" directly from the intermediary; LeBlanc's private scene is the reader-side confirmation of a concealed external beneficiary) · SP-007 (resurrection weight, seed) · SP-009 (Eriadne destination).
 - **End state:** six separated; Eriadne directive known to reader.
 - **Gate:** ✅ draftable — no blockers; not yet written.
 
@@ -315,7 +315,7 @@ status: working
 
 ## Critical Path — the actual order of work
 
-1. **Draft the contiguous draftable run now: Ch 2 → Ch 13 (including Ch 6A).** All ✅, no blockers — the facility, the surgery and Realm entry, the mindscape/resurrection, Serra's arrival (Ch 6A, her POV), and the whole False-Rescue build. The biggest unblocked stretch in the book; currently only Ch 1 (`SCENE-001`–`SCENE-003`) is drafted.
+1. **Finish Ch 2–3 (add LeBlanc's two scenes), then draft the contiguous draftable run: Ch 4 → Ch 13 (including Ch 6A).** All ✅, no blockers — the surgery/Realm-entry tail of Ch 3, the mindscape/resurrection, Serra's arrival (Ch 6A, her POV), and the whole False-Rescue build. Currently Ch 1 (`SCENE-001`–`SCENE-003`) is drafted and Ch 2–3 are working drafts pending LeBlanc's conference-room appearance and post-surgery private scene (`leblanc.md`).
 2. **Before Ch 14–15:** decide **A3-08** (Vulture conditions) and **A3-05 + the child's name/fate** (the only things gating the act's hinge).
 3. **Transit (Ch 16–17):** lock **SB-01** (which warning Seb rationalizes) before drafting his ignition.
 4. **Act 4 (Ch 18–23):** mostly draftable; lock **BR-02** (Brent's discovery) and **MA-02** (Grove threat) when you reach Ch 20/21.
