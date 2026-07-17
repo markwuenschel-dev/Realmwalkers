@@ -12,7 +12,20 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, BigInteger, Boolean, DateTime, Float, ForeignKey, Identity, Integer, Text, func
+from sqlalchemy import (
+    ARRAY,
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -328,6 +341,41 @@ class ScenePacket(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ApprovalBlocker(Base):
+    """Durable, scene-scoped hold on a ScenePacket's automated approval (A1c slice 1, ADR-0031 D9/D14).
+
+    A normalized record with its own lifecycle — NOT a flag in `ScenePacket.body`, NOT a live derivation
+    from `ChapterPacket.open_questions`. An ACTIVE blocker means the scene packet may not be approved and
+    may not retain approved-derived beats. Owned by `scene_packet_id` (a prose Scene may not exist before
+    packet approval). Deduped by `(source, source_key)`; at most one ACTIVE row per
+    `(scene_packet_id, source, source_key)` (partial-unique index). Purged only when its parent scene
+    packet is deleted (ON DELETE CASCADE) — the explicit retention boundary; NOT superseded by re-derive.
+    """
+
+    __tablename__ = "approval_blockers"
+    __table_args__ = (
+        Index(
+            "uq_active_approval_blocker",
+            "scene_packet_id",
+            "source",
+            "source_key",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    scene_packet_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scene_packets.id", ondelete="CASCADE"))
+    chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id", ondelete="CASCADE"))
+    source: Mapped[str] = mapped_column(Text)  # e.g. "manual_command"
+    source_key: Mapped[str] = mapped_column(Text)  # supplied by the raising command
+    status: Mapped[str] = mapped_column(Text, default="active")  # see enums.ApprovalBlockerStatus
+    question: Mapped[str] = mapped_column(Text)  # the unresolved scene-level open question
+    raised_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolution_source: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ImportAdoption(Base):

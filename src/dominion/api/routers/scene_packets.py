@@ -26,8 +26,11 @@ from dominion.api.packet_delete import hard_delete_scene_packet, hard_delete_sce
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobKind, JobStatus, ScenePacketStatus
-from dominion.shared.models import ChapterPacket, Job, Scene, ScenePacket
+from dominion.shared.models import ApprovalBlocker, ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.schemas import (
+    ApprovalBlockerOut,
+    ApprovalBlockerRaiseIn,
+    ApprovalBlockerResolveIn,
     DeleteScenePacketOut,
     DeleteScenePacketsOut,
     DraftReadinessOut,
@@ -53,6 +56,7 @@ from dominion.workers.scene_fidelity import (
     fidelity_contract_fingerprint,
     validate_active_requirements,
 )
+from dominion.workers.scene_packet import blockers as _blockers
 
 log = structlog.get_logger()
 router = APIRouter(tags=["scene-packets"])
@@ -302,11 +306,20 @@ async def update_scene_packet(
             row.status = ScenePacketStatus.PROPOSED
     if explicit_status is not None:
         try:
-            row.status = ScenePacketStatus(explicit_status)
+            target_status = ScenePacketStatus(explicit_status)
         except ValueError as exc:
             raise HTTPException(
                 status_code=422, detail="status must be proposed|approved|blocked|stale|rate_limited"
             ) from exc
+        if target_status == ScenePacketStatus.APPROVED:
+            # Even a human PUT override must go through the centralized blocker gate — never raw-approve
+            # past an active ApprovalBlocker (A1c). approve_scene_packet locks the row + checks it.
+            try:
+                await scene_packet_pipeline.approve_scene_packet(session, packet=row)
+            except _blockers.ApprovalBlockerError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+        else:
+            row.status = target_status
     # A body edit or explicit status change can flip this packet out of (or into) the approved set, so
     # reconcile beats — the projection follows the packet's status. Beats-only: no scene packet is
     # re-derived here.
@@ -366,11 +379,66 @@ async def approve_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) 
     row = await _get(session, scene_packet_id)
     if refusal := scene_packet_pipeline.can_approve(row):
         raise HTTPException(status_code=409, detail=refusal.detail)
-    derived = await scene_packet_pipeline.approve_scene_packet(session, packet=row)
+    try:
+        derived = await scene_packet_pipeline.approve_scene_packet(session, packet=row)
+    except _blockers.ApprovalBlockerError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     await session.commit()
     await session.refresh(row)
     log.info("scene_packet.approved", packet=str(row.id), derived_beats=derived)
     return scene_packet_pipeline.enrich_scene_packet_out(row)
+
+
+@router.post("/scene-packets/{scene_packet_id}/blockers", response_model=ApprovalBlockerOut)
+async def raise_scene_packet_blocker(
+    scene_packet_id: uuid.UUID, body: ApprovalBlockerRaiseIn, session: SessionDep
+) -> ApprovalBlockerOut:
+    """Raise a manual_command scene-tier ApprovalBlocker (idempotent per active source_key). If the packet
+    is already approved it is demoted and its beats reconciled — no approved packet may carry an active
+    blocker (A1c, ADR-0031 D9/D14)."""
+    try:
+        blocker = await _blockers.raise_blocker(
+            session, scene_packet_id=scene_packet_id, source_key=body.source_key, question=body.question
+        )
+    except _blockers.ApprovalBlockerError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    await session.commit()
+    await session.refresh(blocker)
+    return ApprovalBlockerOut.model_validate(blocker)
+
+
+@router.get("/scene-packets/{scene_packet_id}/blockers", response_model=list[ApprovalBlockerOut])
+async def list_scene_packet_blockers(scene_packet_id: uuid.UUID, session: SessionDep) -> list[ApprovalBlockerOut]:
+    """All ApprovalBlockers for a scene packet (active + resolved history), oldest first."""
+    rows = (
+        (
+            await session.execute(
+                select(ApprovalBlocker)
+                .where(ApprovalBlocker.scene_packet_id == scene_packet_id)
+                .order_by(ApprovalBlocker.raised_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [ApprovalBlockerOut.model_validate(r) for r in rows]
+
+
+@router.post("/scene-packet-blockers/{blocker_id}/resolve", response_model=ApprovalBlockerOut)
+async def resolve_scene_packet_blocker(
+    blocker_id: uuid.UUID, body: ApprovalBlockerResolveIn, session: SessionDep
+) -> ApprovalBlockerOut:
+    """Explicitly resolve an active blocker (requires a nonempty rationale + source). Approval is NOT a
+    resolution — this is the only way to clear one."""
+    try:
+        blocker = await _blockers.resolve_blocker(
+            session, blocker_id=blocker_id, rationale=body.rationale, resolution_source=body.resolution_source
+        )
+    except _blockers.ApprovalBlockerError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    await session.commit()
+    await session.refresh(blocker)
+    return ApprovalBlockerOut.model_validate(blocker)
 
 
 @router.post("/chapters/{chapter_id}/scene-packets/approve", response_model=list[ScenePacketOut])

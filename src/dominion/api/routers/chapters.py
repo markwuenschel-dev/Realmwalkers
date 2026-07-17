@@ -40,6 +40,7 @@ from dominion.workers.job_scheduler import (
 )
 from dominion.workers.memory import summaries
 from dominion.workers.scene_packet import approval_policy as sp_approval
+from dominion.workers.scene_packet import blockers as _blockers
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["chapters"])
@@ -390,9 +391,13 @@ async def redraft_scene(
     if target is None:
         for p in packets:
             if p.status == ScenePacketStatus.STALE and sp_approval.can_approve(p) is None:
-                p.status = ScenePacketStatus.APPROVED
-                p.stale_reason = None
-                target = p
+                # Blocker gate (A1c): never raw-approve past an active ApprovalBlocker — lock + skip if blocked.
+                locked = await _blockers.lock_packet_if_unblocked(session, p.id)
+                if locked is None:
+                    continue
+                locked.status = ScenePacketStatus.APPROVED
+                locked.stale_reason = None
+                target = locked
                 break
     if target is None:
         # Everything at this slot is blocked/rate-limited/proposed — surface the clearest refusal.

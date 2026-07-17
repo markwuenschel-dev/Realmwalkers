@@ -32,6 +32,7 @@ from dominion.workers.budget import TokenBudget
 from dominion.workers.gates import GateRefusal
 from dominion.workers.packet import approval_policy as _packet_approval
 from dominion.workers.scene_packet import beats as _beats
+from dominion.workers.scene_packet import blockers as _blockers
 from dominion.workers.scene_packet import derive as _derive
 from dominion.workers.scene_packet import qa as _qa
 from dominion.workers.scene_packet.approval_policy import (
@@ -106,10 +107,13 @@ async def derive_scene_packets(session: AsyncSession, *, chapter_packet: Chapter
 
 async def approve_scene_packet(session: AsyncSession, *, packet: ScenePacket) -> int:
     """Approve one ScenePacket, THEN reconcile the chapter's beats. Returns the reconciled beat count;
-    the caller has already checked `can_approve` and commits. Beats are a projection of scene packets,
-    so approval re-derives them in the same breath."""
-    packet.status = ScenePacketStatus.APPROVED
-    return await _beats.derive_beats(session, chapter_id=packet.chapter_id)
+    the caller commits. The blocker gate lives HERE, not in the caller (ADR-0031 D6/D9): lock the packet
+    row and refuse (`ApprovalBlockerError`) if it has an active ApprovalBlocker, so no path — approve
+    endpoint, PUT override, chapter reapproval — can set APPROVED past a blocker, and a concurrent
+    `raise_blocker` serializes on the same row lock (A1c F7). Beats are a projection of approved packets."""
+    locked = await _blockers.lock_and_guard(session, packet.id)
+    locked.status = ScenePacketStatus.APPROVED
+    return await _beats.derive_beats(session, chapter_id=locked.chapter_id)
 
 
 async def approve_scene_packets(
@@ -131,7 +135,11 @@ async def approve_scene_packets(
             continue
         if not is_approvable_for_batch(row):
             continue
-        row.status = ScenePacketStatus.APPROVED
+        # Blocker gate (D6/D9): lock the row; SKIP a packet with an active blocker rather than approving it.
+        locked = await _blockers.lock_packet_if_unblocked(session, row.id)
+        if locked is None:
+            continue
+        locked.status = ScenePacketStatus.APPROVED
         approved += 1
     derived = await _beats.derive_beats(session, chapter_id=chapter_id)
     return approved, derived
