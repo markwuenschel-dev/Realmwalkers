@@ -128,10 +128,8 @@ class Settings(BaseSettings):
     # must never hard-block a packet). block_on_provenance=False keeps an invalid claim_sources.source_id
     # (an outline label, a UUID, an out-of-range handle) a WARNING — the derive normalizes it to null and
     # the packet stays draftable. Flip True only to make provenance a hard gate (a safety valve, not the
-    # default). allow_draft_with_warnings documents that a warning-only packet stays PROPOSED/approvable;
-    # both defaults preserve writer-first behavior and neither is an excuse to skip normalization.
+    # default). The default preserves writer-first behavior and is not an excuse to skip normalization.
     scene_packet_block_on_provenance: bool = False
-    scene_packet_allow_draft_with_warnings: bool = True
     # Length guard rewrites (compress/expand) are targeted edits on an existing draft, so they ride the
     # cheap/fast Haiku tier like the enrichment passes — never the main draft model.
     length_compress_model: str = "gpt-5.6-luna"
