@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realmwalkers — Codebase Integrity Audit (2026-07-17)</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#F4F5F7;color:#141821;font-family:"Public Sans",system-ui,sans-serif;font-size:15px;line-height:1.58}
+  a{color:#2540E8;text-decoration:none} a:hover{text-decoration:underline}
+  code{font-family:"IBM Plex Mono",monospace;background:#F2F3F7;padding:1px 5px;border-radius:5px;font-size:.88em}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  details>summary{list-style:none;cursor:pointer} details>summary::-webkit-details-marker{display:none}
+  ::-webkit-scrollbar{height:10px;width:10px} ::-webkit-scrollbar-thumb{background:#D5D9E2;border-radius:6px}
+  .chip{display:inline-block;border-radius:6px;padding:2px 9px;font-size:11.5px;font-weight:600;font-family:"IBM Plex Mono",monospace}
+  th{cursor:pointer;user-select:none}
+</style>
+</head>
+<body>
+<div id="root" style="--paper:#F4F5F7;--panel:#FFFFFF;--ink:#141821;--ink2:#4B5563;--faint:#8A93A3;--line:#E6E8EE;--line2:#EEF0F4;--accent:#2540E8;--accent-ink:#26327A;--accent-bg:#EAEDFD;--crit-i:#C0342B;--crit-b:#FBEAE8;--high-i:#B45309;--high-b:#FAEFE0;--med-i:#15803D;--med-b:#E6F3EB;--low-i:#516079;--low-b:#EDF0F5;--violet:#6D3BD1;max-width:1060px;margin:0 auto;padding:56px 28px 120px;background-image:radial-gradient(120% 55% at 50% -8%, rgba(37,64,232,.05), transparent 60%);animation:rise .5s ease both">
+
+  <!-- MASTHEAD -->
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:1 1 320px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#8A93A3">Repo Audit Swarm · Read-only</div>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:40px;letter-spacing:-.03em;margin:6px 0 6px">Codebase Integrity Audit</h1>
+      <div style="color:#4B5563;font-size:15.5px">Realmwalkers — four expert lanes, merged &amp; scored. Analysis only; nothing executed or edited.</div>
+    </div>
+    <div style="display:flex;gap:22px">
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.02em">26</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A93A3;text-transform:uppercase;letter-spacing:.06em">candidates</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.02em">4</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A93A3;text-transform:uppercase;letter-spacing:.06em">lanes</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.02em;color:#B45309">B-</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A93A3;text-transform:uppercase;letter-spacing:.06em">repo grade</div></div>
+    </div>
+  </div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A93A3;margin-top:16px;display:flex;gap:14px;flex-wrap:wrap">
+    <span style="white-space:nowrap">2026-07-17</span><span style="white-space:nowrap">branch main</span><span style="white-space:nowrap">commit 3c073b3</span><span style="white-space:nowrap">mode: --parallel-report</span><span style="white-space:nowrap">804 tests · ruff+pyright clean</span>
+  </div>
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <span class="chip" style="color:#C0342B;background:#FBEAE8">3 confirmed bugs</span>
+    <span class="chip" style="color:#B45309;background:#FAEFE0">6 hand-maintained mirrors, unguarded</span>
+    <span class="chip" style="color:#516079;background:#EDF0F5">verification readiness = weakest axis</span>
+    <span class="chip" style="color:#C0342B;background:#FBEAE8">1 needs-decision</span>
+  </div>
+
+  <!-- TRIAGE STRIP -->
+  <div id="triage" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:26px"></div>
+
+  <!-- CONTENTS -->
+  <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:14px;padding:16px 20px;margin-top:26px">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8A93A3;margin-bottom:8px">Contents</div>
+    <div style="columns:2;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:2">
+      <div><span style="color:#8A93A3">01</span> <a href="#summary">Executive summary</a></div>
+      <div><span style="color:#8A93A3">02</span> <a href="#grade">Overall repo grade</a></div>
+      <div><span style="color:#8A93A3">03</span> <a href="#scorecards">Lane scorecards</a></div>
+      <div><span style="color:#8A93A3">04</span> <a href="#top">Top merged candidates</a></div>
+      <div><span style="color:#8A93A3">05</span> <a href="#ledger">Candidate ledger (matrix + cards)</a></div>
+      <div><span style="color:#8A93A3">06</span> <a href="#lanes">Lane findings &amp; health</a></div>
+      <div><span style="color:#8A93A3">07</span> <a href="#dupes">Cross-lane duplicate groups</a></div>
+      <div><span style="color:#8A93A3">08</span> <a href="#blockers">Human-decision blockers</a></div>
+      <div><span style="color:#8A93A3">09</span> <a href="#quick">Quick wins</a></div>
+      <div><span style="color:#8A93A3">10</span> <a href="#deep">High-leverage deep work</a></div>
+      <div><span style="color:#8A93A3">11</span> <a href="#unsafe">Unsafe to auto-execute</a></div>
+      <div><span style="color:#8A93A3">12</span> <a href="#verif">Verification readiness</a></div>
+      <div><span style="color:#8A93A3">13</span> <a href="#queue">Recommended queue</a></div>
+    </div>
+  </div>
+
+  <!-- helper: section header -->
+  <!-- 01 SUMMARY -->
+  <section id="summary" style="border-top:1px solid #E6E8EE;margin-top:40px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">01</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Executive summary</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p>Realmwalkers is a <strong>well-built, unusually self-aware codebase</strong> with a clean static surface (ruff + pyright zero-error on <code>src/dominion</code> at HEAD) and 804 green tests. The integrity gaps are not sloppiness — they are <strong>latent risks beneath a clean surface that current automation cannot catch</strong>. Two themes dominate:</p>
+      <p style="margin-top:10px"><strong>1. Hand-maintained mirrors without a guard.</strong> The same fact is encoded in two places and kept in sync by hand — an enum restated as a DTO comment, a Python ordering formula re-typed as SQL, a lane vocabulary restated in an LLM prompt, a "matches CI" claim copied into five docs/scripts. Six candidates share this root cause, and the repo has <em>already been bitten twice</em> by it (the sensory lane going silently dead, combat repairs mis-routing) — each fixed locally, never generalized to the next hop.</p>
+      <p style="margin-top:10px"><strong>2. Verification blind spots on the highest-risk surfaces.</strong> There is <strong>no test at any layer that drives a real HTTP request into the FastAPI app</strong> (routers are tested as plain functions), <strong>no coverage measurement anywhere</strong>, and the autonomy/settings control plane plus the self-modifying rule-learning path have <strong>zero tests</strong>. Separately, the hand-rolled migration path has a self-documented forward-drift gap (independently flagged by two lanes) that "boots green on CI but throws <code>UndefinedColumn</code> in production."</p>
+      <p style="margin-top:10px">Three <strong>confirmed, contained bugs</strong> were found in logic no linter checks: a character-state ledger delta double-applied on scene re-approval, an off-by-index in chapter-sequence chaining, and a <code>dict(None)</code> crash on legacy settings rows. All three are high-locality with one-line fixes and clear regression tests. One candidate — the unwired ADR-0028 substrate — is a genuine <strong>wire-vs-delete decision</strong> and is marked needs-human-decision.</p>
+    </div>
+  </section>
+
+  <!-- 02 GRADE -->
+  <section id="grade" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">02</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Overall repo grade</h2></div>
+    <div style="margin-top:14px;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:64px;line-height:1;color:#B45309;letter-spacing:-.03em">B-</div>
+      <div style="flex:1 1 460px;color:#4B5563">Justified from the scorecards below, not asserted. <strong>Craftsmanship and static hygiene are B/B+</strong> (clean linters, disciplined test fixtures, exemplary self-documentation, real parity tests where they exist). <strong>Verification readiness drags to C</strong> (no HTTP harness, no coverage floor, control-plane untested) and <strong>blast-radius guarding is C+</strong> (many mirrors, guarded only sometimes). The confirmed bugs are contained (high locality, one-line fixes), so they lower severity but not the structural grade. Net: a solid codebase one disciplined loop away from B+, held back by systemic verification gaps and un-generalized mirror guards.</div>
+    </div>
+  </section>
+
+  <!-- 03 SCORECARDS -->
+  <section id="scorecards" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">03</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Lane scorecards</h2></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:16px">
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #B45309;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Deepening seams</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#B45309">C+</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Good facade/parity patterns exist (<code>scene_packet</code> facade, telemetry prefilter parity test) but were applied unevenly — the chapter-packet and production tiers never got the same treatment, so routers reach into internals and re-assemble pipelines. 6 findings.</div>
+      </div>
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #15803D;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Graded integrity</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#15803D">B-</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Clean static surface; 3 real but contained bugs plus doc/config drift, all in logic no linter checks. Bugs cluster around "two derived values from what should be one source, not kept in lockstep." 7 findings.</div>
+      </div>
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #B45309;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Blast radius</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#B45309">C+</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Many hand-maintained mirrors; the strongest guard (OpenAPI→codegen diff) is opt-out by default (<code>str</code>/<code>dict[str,Any]</code> bypass it). The repo knows the right pattern — it just hasn't been ported to the next mirror before it breaks. 7 findings.</div>
+      </div>
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #C0342B;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Verification readiness</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#C0342B">C</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">The weakest axis. No HTTP-level harness at any tier; no coverage tool in the toolchain; the autonomy control plane and rule-learning path are zero-coverage; migration forward-drift is structurally unfalsifiable. Worker-level pyramid is otherwise solid. 8 findings.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 TOP -->
+  <section id="top" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">04</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Top merged candidates</h2></div>
+    <div id="topTable" style="overflow-x:auto;margin-top:14px"></div>
+  </section>
+
+  <!-- 05 LEDGER -->
+  <section id="ledger" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">05</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Candidate ledger</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:8px">The score matrix is the interactive index — filter and click a column to sort. The cards below stay complete regardless of filter, so no detail is ever hidden. Every candidate is independently selectable.</div>
+    <div id="filters" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px"></div>
+    <div id="matrix" style="overflow-x:auto;margin-top:12px"></div>
+    <div id="cards" style="margin-top:20px"></div>
+  </section>
+
+  <!-- 06 LANES -->
+  <section id="lanes" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">06</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Lane findings &amp; health</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p><strong>Lane 1 — Deepening seams.</strong> Module depth is uneven in a learnable way: the repo demonstrably knows how to build a deep module with a stated contract (<code>scene_packet/__init__.py</code>'s facade + <code>__all__</code>) and how to guard a prefetch twin (<code>telemetry_diagnostics</code> + its parity test), but did not apply that discipline to sibling subsystems built around the same time. Fed: PKT-PIPE, PROD-FACADE, TWIN-PARITY, TELEM-AGG, REPAIR-GOD, LLM-SIG.</p>
+      <p style="margin-top:10px"><strong>Lane 2 — Graded integrity.</strong> Static surface is genuinely clean; the real findings live beneath it in logic no linter checks, clustering around "two derived values computed from what should be the same source but not kept in lockstep." Fed: LEDGER, SEQ-IDX, GLOBALS, ORDER-BACKFILL, CTX-ADR, DEAD-FLAG, BEAT-NOUN.</p>
+      <p style="margin-top:10px"><strong>Lane 3 — Blast radius.</strong> Three of seven findings sit next to a comment describing a <em>past incident</em> of the identical shape; two got real parity tests. The fixes have all been local, never generalized — so equivalent landmines keep surfacing one hop away. Fed: VERIFY-GATE, MIG-DRIFT, ENUM-STR, SEV-ALIAS, PLANNER-TAG, PKT-BODY, ARTIFACT-TYPE.</p>
+      <p style="margin-top:10px"><strong>Lane 4 — Verification readiness.</strong> The worker-level pyramid is in good shape (60 db-backed + 59 unit files, schema-setup-once, a DB-required hard-fail gate, fake-clock sweeper test, a strict xfail). The gaps are "this seam was never wired into the pattern," and they compound: no HTTP harness → lands on the untested control plane → invisible because no coverage tool. Fed: HTTP-HARNESS, CTRL-PLANE, MIG-DRIFT, ADR28-SUB, COV-FLOOR, IMP-EVID, E2E-GATE, CH1-GOLD.</p>
+    </div>
+  </section>
+
+  <!-- 07 DUPES -->
+  <section id="dupes" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">07</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Cross-lane duplicate groups</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p><strong>migration-forward-drift</strong> — Lane 3 (finding 2) and Lane 4 (finding 3) independently found the same gap: <code>_COLUMN_ADDS</code> is guarded only in the stale direction, so a forgotten column boots green on CI and throws in production. Merged into <strong>MIG-DRIFT</strong>; the cross-lane agreement raises its confidence to 5.</p>
+      <p style="margin-top:10px"><strong>adr0028-substrate</strong> — Lane 2 (finding 5, CONTEXT.md overstates it) and Lane 4 (finding 4, <code>chapter_lock</code> zero callers) describe the same unwired substrate. Split by <em>fix</em>, not merged: the safe doc-marking is <strong>CTX-ADR</strong> (direct-fix); the wire-vs-delete disposition is <strong>ADR28-SUB</strong> (blocked).</p>
+      <p style="margin-top:10px"><strong>codegen-opacity</strong> — <strong>ENUM-STR</strong> (bare-<code>str</code> enum fields) and <strong>PKT-BODY</strong> (<code>dict[str,Any]</code> body) share the root "loosely-typed field bypasses OpenAPI codegen," but kept separate because their fixes differ (enum-typing vs. a body model).</p>
+    </div>
+  </section>
+
+  <!-- 08 BLOCKERS -->
+  <section id="blockers" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">08</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Human-decision blockers</h2></div>
+    <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #C0342B;border-radius:12px;padding:14px 16px;margin-top:14px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#26327A"><strong>ADR28-SUB</strong> · category: deletion / completion</div>
+      <div style="color:#4B5563;font-size:13.5px;margin-top:6px">The ADR-0028 substrate — <code>ImportAdoption</code>, <code>ImportSceneEvidence</code>, <code>RevisionRequest</code> models and <code>chapter_lock.acquire_chapter_workflow_lock</code> — has <strong>zero constructors/callers repo-wide</strong> (confirmed by grep). Whether this is scaffolding for a not-yet-built slice (leave &amp; wire later) or abandoned code (delete) is a judgment only the owner can make; it maps to connected-impact-sweep's <em>deletion</em> category. The safe half (marking CONTEXT.md <code>_(planned)_</code>, candidate <strong>CTX-ADR</strong>) is <em>not</em> blocked and can proceed independently.</div>
+    </div>
+    <div style="color:#8A93A3;font-size:12.5px;margin-top:10px">Borderline (scored human-decision 3, not blocked): VERIFY-GATE (reconciliation direction touches <code>AGENTS.md</code>), DEAD-FLAG (wire-vs-delete), PKT-BODY (design-heavy). Flagged in their cards; runnable with a one-line intent decision.</div>
+  </section>
+
+  <!-- 09/10/11 computed lists -->
+  <section id="quick" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">09</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Quick wins</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">High priority, high locality, low blast radius — small, provable, contained.</div>
+    <div id="quickList" style="margin-top:12px"></div>
+  </section>
+  <section id="deep" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">10</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">High-leverage deep work</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">High leverage with a larger blast radius — worth a design pass before executing.</div>
+    <div id="deepList" style="margin-top:12px"></div>
+  </section>
+  <section id="unsafe" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">11</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Unsafe to auto-execute</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">High human-decision or regression risk — do not run in an unattended auto loop.</div>
+    <div id="unsafeList" style="margin-top:12px"></div>
+  </section>
+
+  <!-- 12 VERIF -->
+  <section id="verif" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">12</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Verification readiness</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p>The testability picture is the report's most consequential axis. <strong>Harnesses that must exist before common fixes can be proven:</strong></p>
+      <ul style="margin-top:8px">
+        <li><strong>An ASGI client fixture</strong> (<code>httpx.AsyncClient(transport=ASGITransport(app=app))</code>, zero new deps — <code>httpx&gt;=0.27</code> is already a dependency). Without it, no router fix can be verified end-to-end. Blocks proving CTRL-PLANE and any future router bug. → <strong>HTTP-HARNESS</strong>.</li>
+        <li><strong>A coverage tool + floor</strong> (<code>pytest-cov</code>). Its absence is why CTRL-PLANE, IMP-EVID, and DEAD-FLAG were invisible to CI and only found by manual audit. → <strong>COV-FLOOR</strong>.</li>
+        <li><strong>A migration baseline-snapshot diff</strong> — the only way to falsify forward-drift; the current fixture (fresh <code>create_all</code> every run) structurally cannot see it. → <strong>MIG-DRIFT</strong>.</li>
+      </ul>
+      <p style="margin-top:10px">Fixture health is otherwise good, with one gap: the <code>ch1_bad_run</code> goldens have no regeneration story (CH1-GOLD), where the sibling <code>scene_fidelity</code> corpus already has a manifest-validation pattern worth copying.</p>
+    </div>
+  </section>
+
+  <!-- 13 QUEUE -->
+  <section id="queue" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">13</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Recommended queue</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Priority order. Blocked candidates are listed as decisions-needed, not dropped. This is a <code>--parallel-report</code> run — nothing is executed; a later loop resumes at the candidate gate.</div>
+    <div id="queueList" style="margin-top:12px;overflow-x:auto"></div>
+  </section>
+
+  <div style="border-top:1px solid #E6E8EE;margin-top:40px;padding-top:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A93A3">
+    Realmwalkers codebase integrity audit · Repo Audit Swarm (deepening-seams · graded-integrity · blast-radius · verification-readiness) · read-only · 2026-07-17 · main@3c073b3
+  </div>
+</div>
+
+<script>
+const C = [
+ {id:"GLOBALS",t:"AgentOpsState.globals_json crashes TypeError on legacy settings rows",cat:"Bug",src:["graded_integrity"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,
+  loc:"src/dominion/shared/agent_ops.py:331 (unguarded dict(None)); models.py:818 (non-Optional); migrations.py:74 (ADD COLUMN, no DEFAULT/backfill). Reached via PUT /settings/agents/globals.",
+  sym:"Any agent_ops_state row created before globals_json was added (git: table ae6e9a4, column 85f4bf9) has globals_json = NULL. The first globals-budget settings save hits dict(None) -> TypeError -> 500. Two sibling call sites (:315, :613) guard this correctly; :331 does not.",
+  seam:"lightweight-migration contract vs. a non-Optional model type that promises the column is always populated.",
+  rule:"migrations.py column-add not matching models.py NOT-NULL assumption; its own header says every new nullable column must be listed in _BACKFILLS.",
+  ev:"FACT — all four line citations read directly; git log -S confirms column added to an existing table.",
+  chk:"Insert a row with globals_json omitted, call apply_globals, assert no exception. One-line fix: dict(row.globals_json or {}) if row else {}.",
+  s:{s:3,c:5,l:5,lo:5,te:5,br:2,rr:1,hd:1},pri:19},
+
+ {id:"SEQ-IDX",t:"derive_chapter_sequence indexes the wrong list, corrupting entry/exit chaining",cat:"Bug",src:["graded_integrity"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,
+  loc:"src/dominion/workers/production_sequence.py:289-290 (scene_numbers from unsorted seeds) and :320-321 (loop enumerates sorted `ordered` but indexes `scene_numbers`).",
+  sym:"For scene_seeds authored out of ascending order, e.g. array [3,1,2], the chaining links a scene to the wrong predecessor. The self-healing pass chain_scene_entry_states (:398-401) only rejects missing/>=/absent links, so a plausible-but-wrong link (scene 3 -> scene 1's exit_state) passes and is never corrected — the exact 'Ch1 wrong global entry' failure the module exists to prevent.",
+  seam:"the ChapterSequence deriver feeding the per-scene entry/exit contract.",
+  rule:"off-by-one / two differently-ordered collections cross-indexed by one loop variable.",
+  ev:"FACT for the arithmetic (hand-executed the 3-seed example through both functions). INF that seeds arrive out of order in prod — confirmed the only input path (:728 via drafter_view) does no sort.",
+  chk:"Unit test: feed a non-ascending scene_seeds array, assert each scene's depends_on_scene_no is its true immediate predecessor. One-line fix: derive scene_numbers from `ordered`, not `seeds`.",
+  s:{s:3,c:4,l:5,lo:5,te:4,br:3,rr:1,hd:1},pri:16},
+
+ {id:"LEDGER",t:"Scene re-approval re-applies the same character-state delta a second time",cat:"Bug",src:["graded_integrity"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"src/dominion/api/routers/reviews.py:98 (first_approval keyed off Scene status) + :111-114; root cause ledger.py:18-31,48-63 (relative '+N', no idempotency key, Beat lookup by (chapter_id, scene_no)).",
+  sym:"A revision mints a new Scene row (new UUID, fresh PENDING_REVIEW). first_approval is computed from that new Scene's status, so approving v2 sees first_approval=true again and re-runs commit_declared_deltas against the SAME Beat: trust +2 becomes +4. The ledger is the Oracle 'hard numbers' source read by draft_memory, so the corruption reaches future generation, not an inert column.",
+  seam:"the first_approval one-shot guard keyed off the wrong entity (Scene row instead of Beat/slot).",
+  rule:"the code's own comment (:95-97) states the invariant it breaks: 're-approval must NOT re-run one-shot side effects... would double-count'.",
+  ev:"FACT — Beat lookup identity matches job_scheduler; grep confirms exactly one commit_declared_deltas call site and no site ever clears the deltas after commit; revision mints a new Scene (pipeline.py:137-142). Sibling record_scene_reveals is upsert-safe by contrast.",
+  chk:"Regression test: approve v1 (delta once) -> revise -> approve v2 -> assert CharacterState reflects the delta exactly once.",
+  s:{s:4,c:5,l:4,lo:4,te:5,br:3,rr:2,hd:2},pri:15},
+
+ {id:"CTX-ADR",t:"CONTEXT.md states 4 ADR-0028 mechanisms as live invariants though they are unwired",cat:"Wiring/Integration",src:["graded_integrity","verification_readiness"],dedup:"adr0028-substrate",action:"direct-fix",mode:"sequential",blocked:false,
+  loc:"CONTEXT.md:107-121 (Import Adoption, Import Scene Evidence, Revision Request, Chapter Workflow Lock — normative present tense, no _(planned)_ marker).",
+  sym:"The glossary read as ground truth by contributors and AI agents states four mechanisms as live, but their models have zero constructors and chapter_lock has zero callers (see ADR28-SUB). The sibling ADR-0030/0031 terms got a _(planned)_ marker in commit 628db6c; these four were left unmarked.",
+  seam:"CONTEXT.md, the ubiquitous-language glossary.",
+  rule:"argument-from-design carried into the glossary as present-tense fact without the caveat its siblings received.",
+  ev:"FACT — fresh whole-repo greps at HEAD confirm zero writers/callers; git show 628db6c confirms these four were absent from the _(planned)_ commit.",
+  chk:"None automatic (CONTEXT.md isn't parsed). Direct fix: extend the same _(planned)_ + status-banner treatment already applied to the ADR-0030/0031 terms.",
+  s:{s:2,c:5,l:5,lo:5,te:2,br:1,rr:1,hd:2},pri:15},
+
+ {id:"HTTP-HARNESS",t:"No HTTP-level test harness exists — routers are tested only as plain functions",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"Systemic. e.g. tests/test_gate1.py:3 ('call the router functions directly'); no TestClient/ASGITransport/inbound AsyncClient anywhere (the only httpx.AsyncClient is the outbound LLM client, llm.py:242).",
+  sym:"No test exercises FastAPI DI (deps.py:14-27), request validation, exception handling, or response_model serialization. A regression that only manifests at the HTTP boundary is invisible — exactly what test_production_route_contracts.py documents happened (a bodyless-POST 422 shipped latent). httpx>=0.27 is already a dependency, so the fixture costs zero new deps.",
+  seam:"the FastAPI request/response cycle, currently untested as a unit.",
+  rule:"a router bug fix cannot be proven end-to-end, only its Python-level logic.",
+  ev:"FACT — exhaustive grep across all 119 test files and conftest.py (read in full); no ASGI client fixture exists.",
+  chk:"Add an app_client fixture (httpx.AsyncClient + ASGITransport(app)) to conftest.py and migrate the mutating high-risk routers to drive real requests.",
+  s:{s:4,c:5,l:5,lo:4,te:5,br:4,rr:4,hd:2},pri:13},
+
+ {id:"COV-FLOOR",t:"No code-coverage measurement or enforcement anywhere in CI or config",cat:"Build/CI",src:["verification_readiness"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"pyproject.toml:26 (dev extra has no pytest-cov, no [tool.coverage]); ci.yml:144-147 (pytest -q -rs, no --cov); no .coveragerc/codecov.yml in repo.",
+  sym:"Nothing in CI flags a brand-new module shipping with zero tests. CTRL-PLANE, IMP-EVID, and DEAD-FLAG were only found by manual file-by-file audit — CI stays green with them uncovered indefinitely.",
+  seam:"the CI tests job.",
+  rule:"no coverage floor.",
+  ev:"FACT — full reads of pyproject.toml and the tests job; greps for coverage/--cov/cov-fail-under across configs all empty.",
+  chk:"Add pytest-cov to the dev extra, run --cov=dominion --cov-report=term-missing in CI, set a floor once a baseline is measured. Lane 4 called this the single highest-leverage item.",
+  s:{s:3,c:5,l:5,lo:5,te:5,br:3,rr:5,hd:2},pri:13},
+
+ {id:"PLANNER-TAG",t:"Lane-tag vocabulary restated in the beat planner's LLM prompt, untested",cat:"Wiring/Integration",src:["blast_radius"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"Canonical: scene_packet/beats.py:25 (_LANE_TAGS). Unguarded mirror: planner.py:57-58 (hardcoded prompt text listing combat/sensory/dialogue), live via api/routers/manuscript.py; zero test references planner.py.",
+  sym:"Adding a 4th lane tag needs coordinated edits in >=4 places. Two are test-enforced — router.py + test_router.py ('the sensory lane was silently dead'), production_repair.py + test_repair_lane_routing.py ('combat was silently missing') — each guard added only AFTER a real incident. planner.py's prompt restatement has no guard: forget it and the new lane is silently never proposed by the LLM.",
+  seam:"a deterministic Python tag vocabulary vs. its restatement inside NL prompt text.",
+  rule:"hand-maintained mirror without a parity guard — this exact failure class has already cost the team twice.",
+  ev:"FACT — read both guarded mirrors + their tests; read planner.py:1-70 and confirmed its live import; grep for 'planner' in tests returns zero.",
+  chk:"test_planner.py asserting _LANE_TAGS is a subset of the tags in the rendered plan prompt — same shape as test_every_producible_lane_tag_is_routable.",
+  s:{s:3,c:5,l:4,lo:4,te:5,br:3,rr:3,hd:3},pri:12},
+
+ {id:"PROD-FACADE",t:"production.py router bypasses the Production facade it should call through",cat:"Wiring/Integration",src:["deepening_seams"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"api/routers/production.py:41 imports production_repair/production_support directly; used at :301,316,578,590,604,616. The facade production.py re-exports neither the 4 repair-preview fns nor update_run_summary.",
+  sym:"production_repair.py:3-5 declares itself 'implementation detail behind dominion.workers.production... the public facade keeps the surface stable', yet the router reaches past the facade for repair-preview + run-summary while correctly calling through it for triage/detail reads — two competing access patterns to one subsystem in one file.",
+  seam:"a partial facade: it covers triage/apply/verify but not repair-preview or run-summary, so the router has no compliant path for those.",
+  rule:"stable public interface / single seam — a facade that's sometimes bypassed is a suggestion, not a boundary.",
+  ev:"FACT — read the import + all 6 call sites; grepped the facade for the 5 names (4 absent). Fix requires widening the facade to re-export those surfaces.",
+  chk:"An import-linter contract: api.routers.* may import dominion.workers.production but not production_repair/production_sequence/production_support.",
+  s:{s:3,c:5,l:4,lo:2,te:3,br:2,rr:3,hd:2},pri:12},
+
+ {id:"TWIN-PARITY",t:"A 'single-lookup vs prefetched twin' pattern is hand-duplicated 3x with no parity test",cat:"Maintainability",src:["deepening_seams"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"draft_queue.py:139-195 vs :198-249 (resolve_approved_scene_packet_for_beat[_prefetched], docstring: 'Read-only twin, same decision tree'); telemetry.py:80-81 vs :104-117 (_group / _group_rows 'SQL twin'); telemetry.py:137-182 vs :185-229 (_resolve_links / _links_for_calls 'Batched').",
+  sym:"The same decision logic is retyped by hand for each performance variant instead of one pure core with two thin adapters. No test references the batch/SQL variant of any pair — each twin is exercised only through whichever caller uses it, never cross-checked. Change one twin, forget its sibling, and they silently diverge.",
+  seam:"missing a pure decision-core with two data-access adapters.",
+  rule:"duplicated logic that should be one deep module, with no parity guard.",
+  ev:"FACT — read all three pairs incl. their self-describing 'twin' docstrings; grep confirms no test names the variants. The repo already has the exact guard for this: test_telemetry_api.py:185-239 (test_problems_prefilter_matches_full_scan_reference).",
+  chk:"Copy that existing parity test's shape onto the two telemetry twins and the draft_queue resolver (seed identical fixtures, call both variants, assert equal).",
+  s:{s:4,c:5,l:4,lo:3,te:5,br:3,rr:4,hd:2},pri:12},
+
+ {id:"DEAD-FLAG",t:"Dead config flag: scene_packet_allow_draft_with_warnings has no readers",cat:"Wiring/Integration",src:["graded_integrity"],dedup:"",action:"triage",mode:"sequential",blocked:false,
+  loc:"src/dominion/shared/config.py:134 (documented at :127-132 as a matched pair with scene_packet_block_on_provenance).",
+  sym:"grep across src/tests/frontend/scripts/docs returns only the definition + its comment — zero read sites. Its sibling in the same comment IS read (derive.py:182 -> validation.py). A real, settable Pydantic field (accepted from env at boot) whose value affects no code path.",
+  seam:"the scene-packet provenance-validation config surface.",
+  rule:"config key defined but unused — a config-surface lie.",
+  ev:"FACT — write site + confirming whole-repo absence grep.",
+  chk:"A fitness check that greps every Settings field for at least one settings.<field> read outside config.py — catches this and generalizes to future dead flags. (Fix requires deciding: wire it to gate something, or delete.)",
+  s:{s:1,c:5,l:3,lo:5,te:3,br:1,rr:1,hd:3},pri:12},
+
+ {id:"IMP-EVID",t:"workers/import_evidence.py — zero test coverage despite shipping its own test double",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"src/dominion/workers/import_evidence.py — validate_ledger:90, _deterministic_chunks:172, _merge_chunk_ledgers:195, extract_scene:229-239; FakeImportEvidenceExtractor:130-153 (already implements the Protocol, unused).",
+  sym:"This module extracts 'what a scene's prose already establishes' during import adoption, feeding what the drafter is told is already-known. grep for its public names across tests returns nothing; test_manuscript_import/test_production_import exercise the CRUD but never this module. The three pure functions need no DB/LLM to test, and a purpose-built fake extractor sits idle.",
+  seam:"the evidence-extraction stage of import adoption.",
+  rule:"import adoption untested at this layer.",
+  ev:"FACT — grep across tests for every public name returns zero; confirmed against the source's def list.",
+  chk:"Unit-test the three pure functions directly; wire FakeImportEvidenceExtractor into an integration test of the adoption caller.",
+  s:{s:4,c:5,l:4,lo:4,te:5,br:4,rr:4,hd:2},pri:12},
+
+ {id:"CTRL-PLANE",t:"Autonomy/settings control plane and rule-learning path have zero test coverage",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"api/routers/settings.py (PUT /autonomy :157, PUT /agents/{setting}/policy :109, preset CRUD :73-91); learning.py + workers/learning/distill.py (POST distill :28, rule-proposal decision :109); also beats.py, markup.py, threads.py.",
+  sym:"settings.py is the HTTP surface that sets the autonomy ceiling and per-agent policy — the exact safety boundary the recent A1b/A1c work hardens — with no test. distill.py autonomously turns human edits into RuleProposals feeding future drafts; a bug corrupts what the system 'learns' silently. Names-lie trap: test_learning.py is a different feature (EditPair capture) and never imports learning/distill; grep for distill|RuleProposal in tests is empty.",
+  seam:"the settings/autonomy control plane and the autonomous rule-learning pipeline.",
+  rule:"the highest-risk modules (they gate autonomy and self-modify the rule base) have no matching test.",
+  ev:"FACT — per-router grep returns empty for beats/markup/settings/threads/learning; distill/RuleProposal have zero test references.",
+  chk:"Apply the direct-call + db_factory pattern (test_gate1.py) to settings.py's autonomy/policy mutations and distill.py's rule-proposal generation. (Best proven end-to-end once HTTP-HARNESS lands.)",
+  s:{s:5,c:5,l:4,lo:4,te:5,br:5,rr:5,hd:2},pri:11},
+
+ {id:"E2E-GATE",t:"CI's e2e job is narrowly gated and, even when it runs, never reaches the backend",cat:"Build/CI",src:["verification_readiness"],dedup:"",action:"triage",mode:"sequential",blocked:false,
+  loc:"ci.yml:181-193 (Playwright gated on full tier); the whole e2e suite is one file, frontend/tests/e2e/desk-shell.smoke.spec.ts (:13-15 'boots ... with no backend').",
+  sym:"A typical branch PR never runs e2e; even when it does, the spec is backend-hermetic and asserts only static chrome. Combined with HTTP-HARNESS, there is no CI tier at any cost that proves an HTTP request into this backend behaves correctly.",
+  seam:"the full-tier CI gate and the e2e suite's own scope.",
+  rule:"frontend e2e is gated AND, ungated, wouldn't cover the HTTP gap.",
+  ev:"FACT — full read of ci.yml changes/frontend jobs and the one e2e spec.",
+  chk:"Secondary to HTTP-HARNESS; once backend HTTP coverage exists, decide whether some belongs in a backend-live e2e tier.",
+  s:{s:3,c:5,l:3,lo:5,te:5,br:3,rr:4,hd:3},pri:11},
+
+ {id:"SEV-ALIAS",t:"Legacy 'hard'->'block' severity alias hand-duplicated 15x; the source-of-truth module omits it",cat:"Data/Schema/Contract",src:["blast_radius"],dedup:"",action:"fitness-check",mode:"connected-impact-sweep",blocked:false,
+  loc:"Canonical (incomplete): severity.py:21-31 (none of DRAFT_BLOCKING/_LLM_SEVERITY_CAP_ALIASES/_KNOWN_ISSUE_SEVERITIES include 'hard'). Raw ('hard','block') tuples: agent_ops.py:641, risk_scorer.py:86, production.py:441, production_repair.py:1009/1020/1061-66 & 1284-1339, production_sequence.py:994/1005; frontend packetBlockers.ts:49.",
+  sym:"'is this severity a block' is re-typed as a literal tuple at 15 sites, none importing a shared constant. Worse: severity.py's normalize_llm_issue (docstring: 'the only place the mapping lives') does NOT tolerate 'hard' — so a raw 'hard' issue run through it demotes to 'warn', the OPPOSITE of what the 15 ad-hoc readers do. A latent mis-classification.",
+  seam:"pre-unification 'hard' spelling vs current 'block', tolerated ad hoc wherever a persisted severity is read.",
+  rule:"hand-maintained mirror with no shared constant and no test; the designated source of truth is itself inconsistent.",
+  ev:"FACT — grepped every 'hard' in src/dominion, read severity.py + each call site; confirmed no shared constant/test. Excluded scene_fidelity ClauseEnforcement.HARD (unrelated concept).",
+  chk:"Export HARD_BLOCK_ALIASES = frozenset({'hard','block'}) from severity.py, import everywhere, add a grep-ban on the raw tuple outside that module.",
+  s:{s:3,c:5,l:3,lo:3,te:5,br:4,rr:3,hd:2},pri:10},
+
+ {id:"PKT-PIPE",t:"Chapter-packet canonicalize pipeline duplicated across router/worker with reordered steps",cat:"Architecture Fitness",src:["deepening_seams"],dedup:"",action:"design",mode:"connected-impact-sweep",blocked:false,
+  loc:"packet/__init__.py:377-458 (propose: evaluate -> build_surface_contract(internal) -> to_master -> attach -> validate) vs api/routers/packets.py:119-133 (update: evaluate -> to_master -> build_surface_contract(canonical) -> attach -> validate). Router comment (:116-118) calls it 'the same pipeline'.",
+  sym:"The 4-call pipeline is hand-typed twice with build_surface_contract fed a different-shaped input in each. Safe today only because to_master_packet is idempotent/tolerant — nothing pins that for this reuse. packet/__init__.py never became a facade (no __all__/contract) like its scene-packet sibling, so packets.py imports 4 internal submodules and re-assembles the pipeline itself.",
+  seam:"no run_deterministic_pipeline(body) function; the chapter-packet package is not a single seam.",
+  rule:"deep module / single-seam facade — one pipeline, not two independently-maintained call sequences.",
+  ev:"FACT — read both call sites, confirmed the reordering + the idempotence dependency; confirmed packet/__init__.py has no __all__ by reading all 577 lines.",
+  chk:"Parity test: propose a packet, then PUT the identical body through update_packet, assert _surface_contract + violations are byte-identical (extends test_packet_derive.py:116-133).",
+  s:{s:4,c:4,l:4,lo:3,te:4,br:3,rr:4,hd:2},pri:10},
+
+ {id:"BEAT-NOUN",t:"A beat's leading word escapes proper-noun filtering, leaking names into scope-bleed matching",cat:"Bug",src:["graded_integrity"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"src/dominion/workers/scene_scope.py:160-167 (_beat_tokens: is_proper = index>0 and ...) and :170-189 (beat_keywords: the index==0 branch is a no-op `pass`).",
+  sym:"A name-first beat like 'Marcus arrives at the tavern' adds 'Marcus' as a distinctive keyword (the directive-verb style 'Show Marcus...' IS filtered). Since a name recurs in nearly every scene, its inclusion inflates false-positive scene_scope_bleed / duplicate_irreversible_beat advisory issues — contradicting the module's own stated invariant that proper nouns carry no scope signal.",
+  seam:"beat_keywords' keyword-derivation filter chain.",
+  rule:"a stated design invariant not enforced at the one position where the heuristic has no signal.",
+  ev:"FACT for the mechanism (hand-traced a concrete name-first beat). INF whether the `pass` is a bug vs. a knowingly-accepted limitation — the comment is ambiguous, so flagged at lower confidence.",
+  chk:"Unit test: beat_keywords('Marcus arrives at the tavern') should exclude 'marcus'; today it doesn't.",
+  s:{s:2,c:3,l:3,lo:4,te:4,br:2,rr:2,hd:2},pri:10},
+
+ {id:"ORDER-BACKFILL",t:"Reading-order SQL backfill disagrees with the canonical ordering function for front/back-matter",cat:"Data/Schema/Contract",src:["graded_integrity"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"Canonical: chapter_order.py:74-93 (chapter_position, section_type-aware). Divergent copy: migrations.py:136-143 (one-time UPDATE ... CASE kind ..., kind-only, ignores section_type).",
+  sym:"For front_matter/back_matter, the Python function orders siblings by section_type rank (copyright < dedication < toc), but the SQL backfill collapses every row of a kind to one flat constant. scaffold_production creates exactly this scenario (multiple front_matter sections). New inserts use the correct ORM default; only NULL-position legacy rows hit the wrong SQL — and the one-shot WHERE position IS NULL never revisits a mis-assigned row.",
+  seam:"the module's own docstring (:14-16) names the sync obligation between the two; they are not in sync for the section_type dimension.",
+  rule:"duplicate implementations of one invariant (reading order) that provably disagree for a real input class.",
+  ev:"FACT for the formula mismatch (hand-computed both sides for front_matter/dedication). UNK whether real deployed rows are already mis-ordered (no DB access).",
+  chk:"Parametrized test asserting the SQL CASE (or a Python re-impl) equals chapter_position() for every (kind, section_type) in _SCAFFOLD_SECTIONS.",
+  s:{s:2,c:4,l:3,lo:4,te:3,br:2,rr:2,hd:2},pri:10},
+
+ {id:"ENUM-STR",t:"Output DTOs type status/kind/verdict as bare str, so codegen carries none of ~30 backend enums",cat:"Data/Schema/Contract",src:["blast_radius"],dedup:"codegen-opacity",action:"fitness-check",mode:"connected-impact-sweep",blocked:false,
+  loc:"Canonical enums.py (35 StrEnums); only 5 imported into schemas.py:11. Already-drifted pair: schemas.py:511 (ScenePacketOut.status # ...missing rate_limited) vs :570 (ScenePacketSummaryOut.status # ...has it) vs enums.py:180-190. Frontend hand-copy: types.ts:271-282.",
+  sym:"Because the field is str not the enum, pnpm codegen:check has nothing to diff for ~30 vocabularies, so the frontend hand-restates member lists and two Python comments for the SAME enum already disagree on member count. Proven a per-field choice, not a tooling limit: the 5 enum-typed fields DO flow through codegen.",
+  seam:"Pydantic field typing -> OpenAPI emission -> openapi-typescript -> hand-written TS unions.",
+  rule:"hand-maintained mirror with its one enforcement mechanism (codegen diff) opted out by the field's own type.",
+  ev:"FACT — read enums.py; grepped status/kind/verdict:str in schemas.py; read the TS hand-typed section; confirmed opaque {type:string} in openapi.json.",
+  chk:"Quick guard: a test that parses each `field: str  # a | b | c` comment and asserts it equals the enum's value set (catches the ScenePacketStatus drift now). Longer term: type output fields as the real StrEnum (renders as plain strings on the wire).",
+  s:{s:4,c:5,l:3,lo:4,te:4,br:5,rr:3,hd:3},pri:9},
+
+ {id:"ARTIFACT-TYPE",t:"artifact_type has no enum, and one shared constant got re-typed instead of imported",cat:"Data/Schema/Contract",src:["blast_radius"],dedup:"",action:"fitness-check",mode:"connected-impact-sweep",blocked:false,
+  loc:"scene_fidelity/evaluator.py:37 (REPORT_ARTIFACT_TYPE='scene_fidelity_report') vs production_repair.py:70 (_FIDELITY_REPORT_TYPE, same value) — while :62 one line up correctly imports REPAIR_PREVIEW_ARTIFACT_TYPE. Bare literals: production_sequence.py:1020 'final_chapter', :931/967 'chapter_draft_qa' vs reads pipeline_status.py:371, production.py:828/843.",
+  sym:"artifact_type is a hot-filtered, indexed column (ix_artifacts_type) with no StrEnum; a typo on either side is a silent zero-rows result, not an error — and the one spot a shared constant existed got shadowed by a duplicate rather than imported.",
+  seam:"Artifact.artifact_type write sites vs its read/filter sites — a free-text column with no vocabulary module.",
+  rule:"hand-maintained mirror (sometimes two separately-named constants of one value) with no guard.",
+  ev:"FACT — grepped every write/read site; read production_repair.py:54-70 to confirm import-vs-redefine; no test asserts write/read equality.",
+  chk:"Promote artifact_type to a StrEnum (or one constants module every writer/reader imports), plus a grep-ban on bare artifact_type= literals.",
+  s:{s:2,c:4,l:2,lo:4,te:4,br:3,rr:2,hd:2},pri:9},
+
+ {id:"TELEM-AGG",t:"api/routers/telemetry.py has grown into a second, unofficial aggregation module",cat:"Architecture Fitness",src:["deepening_seams"],dedup:"",action:"triage",mode:"sequential",blocked:false,
+  loc:"telemetry.py:84-101 (_agg_cols builds func.sum/count().filter SQL), :104-117, :137-229 (multi-query FK resolution), :267-320 — ~150 lines of SQL-aggregate + join logic in the router.",
+  sym:"This is materially the same kind of work already separated into workers/telemetry_agg.py (imported by the same file for adjacent concerns). Whoever added the SQL-side rollups reached for the nearest empty space (the router) instead of the module built for exactly this.",
+  seam:"the router/worker boundary drawn inconsistently within one file.",
+  rule:"seam in the wrong layer — routers should translate HTTP<->worker, not construct SQL aggregations.",
+  ev:"FACT — read telemetry.py:1-320 + the def lists of telemetry_agg/diagnostics/cost, confirming the proper host module exists and is already imported.",
+  chk:"No clean automated check (a 'where should code live' judgment); a convention 'no func./select( outside workers/' is grep-checkable.",
+  s:{s:3,c:5,l:3,lo:2,te:3,br:2,rr:3,hd:3},pri:9},
+
+ {id:"MIG-DRIFT",t:"Migration forward-drift is structurally unfalsifiable — a forgotten column boots green, throws in prod",cat:"Data/Schema/Contract",src:["blast_radius","verification_readiness"],dedup:"migration-forward-drift",action:"fitness-check",mode:"design",blocked:false,
+  loc:"migrations.py:21-104 (_COLUMN_ADDS) vs models.py; guarded stale-direction-only by test_migration_column_parity.py (its own docstring names the gap); conftest.py:121-124 (fresh create_all every run) + init_db.py:19-24 (create_all never ALTERs).",
+  sym:"Add a nullable column to an existing table's model, forget the ALTER line: every test passes (test DB is always freshly create_all'd) and CI is green, but persistent production Postgres never gets the column and the first query throws UndefinedColumnError in production only. Independently flagged by lanes 3 and 4. Also: _BACKFILLS (108-144) and _EXTRA_DDL (147-245), ~140 lines of DDL, have no test at all.",
+  seam:"ORM model vs hand-maintained DDL list, checked against a fixture that structurally cannot observe forward drift.",
+  rule:"hand-maintained mirror with a parity guard covering only the stale direction — self-admitted in the test's docstring.",
+  ev:"FACT — read migrations.py + test + conftest ordering + init_db; confirmed no older schema snapshot exists to diff against. Note GLOBALS is a concrete live instance of the missing-backfill half.",
+  chk:"Persist a per-release Base.metadata snapshot; diff current models against (last snapshot + _COLUMN_ADDS since), failing on a column with no DDL. Plus one data-bearing test per _BACKFILLS entry (seed pre-migration row, run backfill, assert), starting with the ordering-critical position backfill (:136-143).",
+  s:{s:5,c:5,l:4,lo:2,te:3,br:5,rr:4,hd:3},pri:7},
+
+ {id:"CH1-GOLD",t:"ch1_bad_run golden fixtures are frozen JSON with no regeneration story",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"",action:"fitness-check",mode:"sequential",blocked:false,
+  loc:"tests/fixtures/ch1_bad_run/*.json loaded by tests/ch1_bad_run_fixtures.py:1-19; consumed by test_ch1_canon_guard / test_ch1_pipeline_regression / test_sequence_chaining.",
+  sym:"Four hand-frozen snapshots of a historical bad run with no regen script (grep of scripts/ is empty). If the ChapterPacket/ScenePacket body shape evolves, refreshing them is hand-editing with no check they still represent a plausible run. The sibling scene_fidelity corpus already has manifest self-validation (test_scene_fidelity_fixtures.py:117-152) not applied here.",
+  seam:"golden-fixture maintenance for the ch1 regression corpus.",
+  rule:"goldens with no regeneration story.",
+  ev:"FACT for absence of a regen script (dir listing + grep). INF that drift will eventually bite (no regen path exists).",
+  chk:"Add a regen script from a replayed run, or adopt the scene_fidelity manifest-validation pattern so schema drift fails loudly.",
+  s:{s:2,c:4,l:2,lo:4,te:3,br:2,rr:3,hd:3},pri:7},
+
+ {id:"VERIFY-GATE",t:"The 'matches CI' local verify gate (2 scripts + 3 docs) silently checks less than CI",cat:"Build/CI",src:["blast_radius"],dedup:"",action:"fitness-check",mode:"connected-impact-sweep",blocked:false,
+  loc:"Truth: ci.yml:102-105 (pyright full src). Stale sibling comment 3 lines up: ci.yml:82 ('changed files'). Drifted mirrors: verify.sh:17-18, verify.ps1:29-39, ci_pyright_changed.sh, justfile:19-21, AGENTS.md:5-16, docs/BUILD.md:110-114, README.md:137-140.",
+  sym:"CI runs pyright on the whole src/ tree; every 'matches CI' local surface runs pyright only on files changed vs origin/main. A type regression whose fallout lands in an untouched file passes every local/agent check and is caught only post-push — the exact failure ci.yml's own comment says full-tree was adopted to prevent. The lesson reached CI but not the 8 surfaces claiming to mirror it, including AGENTS.md, the file agents follow.",
+  seam:"local/agent self-verification instructions vs actual CI scope.",
+  rule:"hand-maintained mirror ('this equals CI') restated in 8 places, already drifted — provable by ci.yml's own contradicting comment.",
+  ev:"FACT — read ci.yml + all 8 mirror surfaces; confirmed no pre-commit config/hooks reconcile it elsewhere.",
+  chk:"Make verify.sh/ps1 run full-tree pyright (matching the claim), or add a check failing when the scripts' pyright invocation diverges from ci.yml. (Direction is a mild process choice — touches AGENTS.md.)",
+  s:{s:4,c:5,l:4,lo:2,te:4,br:5,rr:4,hd:3},pri:6},
+
+ {id:"REPAIR-GOD",t:"production_repair.apply_repair_task is a 220-line function fusing seven concerns",cat:"Architecture Fitness",src:["deepening_seams"],dedup:"",action:"design",mode:"sequential",blocked:false,
+  loc:"src/dominion/workers/production_repair.py:645-864. Plus 'repair_execution' as a bare string x10 (:568,629,636,681,698,712,793,814,849,858) despite run_stages.py:23-29 being the pinned-vocabulary module.",
+  sym:"One function does row-locking/staleness, HUMAN_REQUIRED refusal, approval-stamp bookkeeping, chapter-repair delegation, span-conflict detection, revision-job scheduling + row creation, and status transitions — each with an early-return branch duplicating the same task/run/record_event/update_run_summary shape. A change to any one concern requires re-verifying the whole function.",
+  seam:"temporal decomposition — organized by 'what happens next', no seam between 'is this authorized' and 'how to apply'.",
+  rule:"deep module (single cohesive responsibility) — closer to a god-function.",
+  ev:"FACT — read the function in full and enumerated the concerns from its own code/comments; counted the 10 bare 'repair_execution' literals.",
+  chk:"Needs characterization tests before any safe refactor (race-condition/locking comments). Cheap sub-fix: add STAGE_REPAIR_EXECUTION to run_stages.py + a grep-ban on the bare literal.",
+  s:{s:3,c:5,l:3,lo:3,te:2,br:4,rr:3,hd:3},pri:6},
+
+ {id:"ADR28-SUB",t:"ADR-0028 substrate (adoption/evidence/revision/chapter-lock) has zero writers or callers",cat:"Wiring/Integration",src:["verification_readiness","graded_integrity"],dedup:"adr0028-substrate",action:"triage",mode:"blocked-needs-human-decision",blocked:true,
+  loc:"shared/chapter_lock.py:60-87 (acquire_chapter_workflow_lock, zero callers); models.py:381/420/447 (ImportAdoption/ImportSceneEvidence/RevisionRequest, zero constructors).",
+  sym:"A repo-wide grep finds these referenced only in their own definitions. chapter_lock's docstring names a 'Mandatory protocol' for source-prose mutation, packet propose/approve, adoption publish, and scene-approval resume — but no mutation path takes the lock, so no concurrency test could exercise it (it would test dead code). Consistent with staged ADR-0028 decomposition (git: single commit a448f5e).",
+  seam:"per-chapter workflow serialization + the ADR-0028 durable substrate vs the mutation paths they're meant to guard.",
+  rule:"reachability — scaffolding for a not-yet-wired slice, or forgotten dead code? A wire-vs-delete judgment (deletion category) only the owner can make.",
+  ev:"FACT (zero call sites/constructors, whole-repo grep) + INF (may be intentional sequencing per ADR-0031 decomposition). The code alone can't distinguish 'not yet' from 'forgotten'.",
+  chk:"If wiring is pending, a skipped test asserting the lock IS called (flipped on when wiring lands). No concurrency test should be written until >=1 real call site exists.",
+  s:{s:2,c:5,l:3,lo:3,te:3,br:5,rr:2,hd:5},pri:4},
+
+ {id:"LLM-SIG",t:"llm.complete() is a genuinely deep module whose 15-parameter interface may be straining",cat:"Maintainability",src:["deepening_seams"],dedup:"",action:"triage",mode:"sequential",blocked:false,
+  loc:"src/dominion/workers/llm.py:483-500 (15-keyword signature) through ~944.",
+  sym:"The single LLM call-site legitimately hides hard things (4 provider branches, retries, caching, 2 budget gates, token preflight) — the good kind of depth. But the caller-facing surface is 15 keywords where callers must know provider-specific distinctions (temperature vs effort, context_window_budget vs input_budget vs max_tokens). Flagged for awareness at low confidence — the 19 call sites were not audited to measure how much complexity actually leaks.",
+  seam:"possibly none needed — a sub-object bundle (BudgetPolicy/CachePolicy) could reduce the surface, unverified.",
+  rule:"shallow-interface symptom (signature complexity approaching implementation complexity) — tentative.",
+  ev:"FACT for the signature/body (read :483-760+). INF for real caller burden (not verified against 19 call sites).",
+  chk:"None obvious. Needs the call-site analysis first — triage, not a fix.",
+  s:{s:2,c:3,l:2,lo:2,te:2,br:4,rr:2,hd:4},pri:1}
+];
+
+const SCORE_COLS = [["s","Sev"],["c","Conf"],["l","Lev"],["lo","Loc"],["te","Test"],["br","Blast"],["rr","Regr"],["hd","HD"]];
+const ACTION_COLOR = {"direct-fix":["#15803D","#E6F3EB"],"fitness-check":["#B45309","#FAEFE0"],"design":["#6D3BD1","#efe8fb"],"triage":["#2540E8","#EAEDFD"],"prototype":["#516079","#EDF0F5"],"reject":["#8A93A3","#EDF0F5"]};
+function heat(pri){const a=Math.max(0.10,Math.min(0.92,(pri+3)/25));return{bg:"rgba(37,64,232,"+a.toFixed(2)+")",fg:a>0.55?"#ffffff":"#26327A"};}
+function priBand(p){return p>=12?"High":p>=6?"Mid":"Low";}
+function mono(s){return '<span style="font-family:\'IBM Plex Mono\',monospace">'+s+'</span>';}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+let state={sortKey:"pri",sortDir:-1,filter:"all"};
+
+// TRIAGE STRIP
+(function(){
+  const byAction={};C.forEach(c=>byAction[c.action]=(byAction[c.action]||0)+1);
+  const seg=Object.entries(byAction).map(([a,n])=>'<div style="height:9px;flex:'+n+';background:'+(ACTION_COLOR[a]?ACTION_COLOR[a][0]:"#8A93A3")+'"></div>').join("");
+  const legend=Object.entries(byAction).map(([a,n])=>'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#4B5563"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+(ACTION_COLOR[a]?ACTION_COLOR[a][0]:"#8A93A3")+';margin-right:4px"></span>'+a+' '+n+'</span>').join(" &nbsp; ");
+  const high=C.filter(c=>c.pri>=12).length,mid=C.filter(c=>c.pri>=6&&c.pri<12).length,low=C.filter(c=>c.pri<6).length;
+  const blocked=C.filter(c=>c.blocked).length;
+  document.getElementById("triage").innerHTML=
+   '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px;padding:14px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">By recommended action</div><div style="display:flex;gap:2px;border-radius:4px;overflow:hidden;margin-bottom:8px">'+seg+'</div><div style="line-height:1.9">'+legend+'</div></div>'+
+   '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px;padding:14px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">By priority band</div><div style="display:flex;gap:18px"><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:26px;color:#141821">'+high+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">High &ge;12</div></div><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:26px;color:#4B5563">'+mid+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">Mid 6-11</div></div><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:26px;color:#8A93A3">'+low+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">Low &le;5</div></div></div></div>'+
+   '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #C0342B;border-radius:12px;padding:14px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">Needs decision</div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:40px;color:#C0342B;line-height:1">'+blocked+'</div><div style="font-size:12.5px;color:#4B5563">ADR28-SUB — wire vs delete</div></div>';
+})();
+
+// TOP TABLE (top 6 by pri)
+(function(){
+  const top=[...C].sort((a,b)=>b.pri-a.pri).slice(0,6);
+  let h='<table style="width:100%;border-collapse:collapse;min-width:640px;background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px"><thead><tr style="border-bottom:1px solid #E6E8EE">'+
+    ['ID','Candidate','Category','Action','Pri'].map((c,i)=>'<th style="text-align:'+(i>=4?'center':'left')+';padding:10px 12px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;cursor:default">'+c+'</th>').join("")+'</tr></thead><tbody>';
+  top.forEach(c=>{const ht=heat(c.pri);const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];
+    h+='<tr style="border-top:1px solid #EEF0F4"><td style="padding:9px 12px"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12.5px">'+c.id+'</a>'+(c.blocked?' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:600;color:#C0342B;background:#FBEAE8;padding:1px 5px;border-radius:4px">BLOCKED</span>':'')+'</td><td style="padding:9px 12px;font-size:13px;color:#141821">'+esc(c.t)+'</td><td style="padding:9px 12px;font-size:12px;color:#4B5563">'+c.cat+'</td><td style="padding:9px 12px"><span class="chip" style="color:'+ac[0]+';background:'+ac[1]+'">'+c.action+'</span></td><td style="padding:9px 12px;text-align:center"><span style="font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-weight:600;padding:2px 8px;border-radius:20px;background:'+ht.bg+';color:'+ht.fg+'">'+c.pri+'</span></td></tr>';});
+  h+='</tbody></table>';
+  document.getElementById("topTable").innerHTML=h;
+})();
+
+// FILTER CHIPS
+function renderFilters(){
+  const actions=[...new Set(C.map(c=>c.action))];
+  const defs=[["all","All",C.length]].concat(actions.map(a=>[a,a,C.filter(c=>c.action===a).length])).concat([["blocked","Blocked",C.filter(c=>c.blocked).length]]);
+  document.getElementById("filters").innerHTML=defs.map(([k,lbl,n])=>{
+    const on=state.filter===k;
+    return '<button data-filter="'+k+'" onclick="onFilter(this)" style="cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:20px;border:1px solid '+(on?'#2540E8':'#E6E8EE')+';background:'+(on?'#2540E8':'#FFFFFF')+';color:'+(on?'#FFFFFF':'#4B5563')+'">'+lbl+' '+n+'</button>';
+  }).join("");
+}
+function onFilter(el){state.filter=el.dataset.filter;renderFilters();renderMatrix();}
+
+// MATRIX
+function visible(){
+  let v=C.filter(c=>state.filter==="all"?true:state.filter==="blocked"?c.blocked:c.action===state.filter);
+  const k=state.sortKey;
+  v.sort((a,b)=>{let av,bv;if(k==="id"||k==="t"||k==="cat"||k==="action"){av=a[k];bv=b[k];return state.sortDir*av.localeCompare(bv);}if(k==="pri"){av=a.pri;bv=b.pri;}else{av=a.s[k];bv=b.s[k];}return state.sortDir*(av-bv);});
+  return v;
+}
+function renderMatrix(){
+  const cols=[["id","ID"],["t","Candidate"],["action","Action"]].concat(SCORE_COLS).concat([["pri","Pri"]]);
+  let h='<table style="width:100%;border-collapse:collapse;min-width:900px;background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px"><thead><tr style="border-bottom:1px solid #E6E8EE">';
+  cols.forEach(([k,lbl])=>{const active=state.sortKey===k;const arrow=active?(state.sortDir<0?' &#9660;':' &#9650;'):'';
+    h+='<th data-key="'+k+'" onclick="onSort(this)" style="text-align:'+(k==="t"?'left':'center')+';padding:9px 8px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:'+(active?'#2540E8':'#8A93A3')+'">'+lbl+arrow+'</th>';});
+  h+='</tr></thead><tbody>';
+  visible().forEach(c=>{const ht=heat(c.pri);const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];
+    h+='<tr style="border-top:1px solid #EEF0F4"><td style="padding:8px;text-align:center"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12px">'+c.id+'</a>'+(c.blocked?' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:600;color:#C0342B;background:#FBEAE8;padding:0 4px;border-radius:3px">B</span>':'')+'</td>'+
+      '<td style="padding:8px;font-size:12.5px;color:#141821;max-width:340px">'+esc(c.t)+'</td>'+
+      '<td style="padding:8px;text-align:center"><span class="chip" style="font-size:10px;color:'+ac[0]+';background:'+ac[1]+'">'+c.action+'</span></td>';
+    SCORE_COLS.forEach(([k])=>{const v=c.s[k];const col=k==="hd"||k==="br"||k==="rr"?(v>=4?"#C0342B":v>=3?"#B45309":"#8A93A3"):(v>=4?"#15803D":v>=3?"#4B5563":"#8A93A3");h+='<td style="padding:8px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-size:12px;color:'+col+'">'+v+'</td>';});
+    h+='<td style="padding:8px;text-align:center"><span style="font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;padding:2px 8px;border-radius:20px;background:'+ht.bg+';color:'+ht.fg+'">'+c.pri+'</span></td></tr>';});
+  h+='</tbody></table>';
+  document.getElementById("matrix").innerHTML=h;
+}
+function onSort(el){const k=el.dataset.key;if(state.sortKey===k){state.sortDir*=-1;}else{state.sortKey=k;state.sortDir=(k==="id"||k==="t"||k==="cat"||k==="action")?1:-1;}renderMatrix();}
+
+// CARDS
+(function(){
+  const order=[...C].sort((a,b)=>b.pri-a.pri);
+  const term=(t,v)=>'<dt style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#8A93A3;padding-top:8px">'+t+'</dt><dd style="margin:0;padding-top:8px;font-size:13.5px;color:#4B5563">'+v+'</dd>';
+  let h="";
+  order.forEach(c=>{const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];const border=c.blocked?"#C0342B":c.action==="design"?"#6D3BD1":c.action==="direct-fix"?"#15803D":ac[0];
+    const scoreLine=SCORE_COLS.map(([k,l])=>l.toLowerCase()+" "+c.s[k]).join(" · ")+" · <strong>pri "+c.pri+"</strong>";
+    h+='<details id="card-'+c.id+'" style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid '+border+';border-radius:12px;margin-bottom:10px;padding:0 16px">'+
+      '<summary style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0"><span><span style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:13px;font-weight:600">'+c.id+'</span> '+(c.blocked?'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:600;color:#C0342B;background:#FBEAE8;padding:1px 5px;border-radius:4px;margin:0 6px">BLOCKED</span>':'')+'<span style="font-family:\'Space Grotesk\',sans-serif;font-weight:600;font-size:15px;color:#141821"> '+esc(c.t)+'</span></span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#8A93A3;white-space:nowrap">pri '+c.pri+' · '+c.action+'</span></summary>'+
+      '<dl style="display:grid;grid-template-columns:150px 1fr;gap:0 14px;margin:0;border-top:1px solid #EEF0F4;padding-bottom:14px">'+
+      term("Category",esc(c.cat))+
+      term("Location",mono(esc(c.loc)))+
+      term("Friction",esc(c.sym))+
+      term("Seam / rule",esc(c.seam)+"<br><span style=\"color:#8A93A3\">"+esc(c.rule)+"</span>")+
+      term("Evidence",esc(c.ev))+
+      term("Enforceable check",esc(c.chk))+
+      term("Scores",'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:#4B5563">'+scoreLine+'</span>')+
+      term("Branch / mode",c.action+" · "+c.mode)+
+      term("Lane sources",mono(c.src.join(", "))+(c.dedup?' &nbsp; <span style="color:#8A93A3">dedup: '+c.dedup+'</span>':''))+
+      '</dl></details>';});
+  document.getElementById("cards").innerHTML=h;
+})();
+
+// COMPUTED LISTS
+function listCard(items,empty){
+  if(!items.length)return '<div style="color:#8A93A3;font-size:13px">'+empty+'</div>';
+  return '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px;padding:6px 16px">'+items.map(c=>'<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid #EEF0F4"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12.5px;min-width:120px">'+c.id+'</a><span style="font-size:13.5px;color:#141821;flex:1">'+esc(c.t)+'</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#8A93A3;white-space:nowrap">pri '+c.pri+'</span></div>').join("")+'</div>';
+}
+document.getElementById("quickList").innerHTML=listCard([...C].filter(c=>!c.blocked&&c.pri>=11&&c.s.lo>=4&&c.s.br<=3).sort((a,b)=>b.pri-a.pri),"none");
+document.getElementById("deepList").innerHTML=listCard([...C].filter(c=>c.s.l>=3&&c.s.br>=4).sort((a,b)=>b.pri-a.pri),"none");
+document.getElementById("unsafeList").innerHTML=listCard([...C].filter(c=>c.blocked||c.s.hd>=4||c.s.rr>=5).sort((a,b)=>b.pri-a.pri),"none");
+
+// QUEUE
+(function(){
+  const q=[...C].sort((a,b)=>(a.blocked-b.blocked)||(b.pri-a.pri));
+  let h='<table style="width:100%;border-collapse:collapse;min-width:640px;background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px"><thead><tr style="border-bottom:1px solid #E6E8EE">'+['#','ID','Candidate','Action','Pri','Status'].map((c,i)=>'<th style="text-align:'+(i>=4?'center':'left')+';padding:9px 12px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3">'+c+'</th>').join("")+'</tr></thead><tbody>';
+  q.forEach((c,i)=>{const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];const ht=heat(c.pri);
+    h+='<tr style="border-top:1px solid #EEF0F4"><td style="padding:8px 12px;font-family:\'IBM Plex Mono\',monospace;color:#8A93A3;font-size:12px">'+(i+1)+'</td><td style="padding:8px 12px"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12px">'+c.id+'</a></td><td style="padding:8px 12px;font-size:12.5px;color:#141821">'+esc(c.t)+'</td><td style="padding:8px 12px"><span class="chip" style="font-size:10px;color:'+ac[0]+';background:'+ac[1]+'">'+c.action+'</span></td><td style="padding:8px 12px;text-align:center"><span style="font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;padding:2px 8px;border-radius:20px;background:'+ht.bg+';color:'+ht.fg+'">'+c.pri+'</span></td><td style="padding:8px 12px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:'+(c.blocked?'#C0342B':'#8A93A3')+'">'+(c.blocked?'decision-needed':'open')+'</td></tr>';});
+  h+='</tbody></table>';
+  document.getElementById("queueList").innerHTML=h;
+})();
+
+renderFilters();renderMatrix();
+</script>
+</body>
+</html>
