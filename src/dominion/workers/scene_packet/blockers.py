@@ -139,6 +139,11 @@ async def resolve_blocker(
     blocker = await session.get(ApprovalBlocker, blocker_id)
     if blocker is None:
         raise ApprovalBlockerError("approval blocker not found")
+    # F7: lock the owning ScenePacket row before mutating a blocker, so resolve serializes with a
+    # concurrent raise/approve on the same packet (all three take the same row lock); re-read the blocker
+    # under that lock so a concurrent resolve can't double-close it.
+    await _lock_packet(session, blocker.scene_packet_id)
+    await session.refresh(blocker)
     if blocker.status != ApprovalBlockerStatus.ACTIVE.value:
         raise ApprovalBlockerError(f"blocker is {blocker.status}; only an active blocker can be resolved")
     blocker.status = ApprovalBlockerStatus.RESOLVED.value
