@@ -574,12 +574,14 @@ async def apply_repair_task(
     session: AsyncSession,
     task_id: uuid.UUID,
     *,
+    autonomous: bool,
     human_approved: bool = False,
     approval_reason: str | None = None,
 ) -> RepairTask:
-
+    # `autonomous` is required (no default) end-to-end — see the core seam. Sweeper/drain pass
+    # autonomous=True; the human apply routes pass autonomous=False.
     return await production_repair.apply_repair_task(
-        session, task_id, human_approved=human_approved, approval_reason=approval_reason
+        session, task_id, autonomous=autonomous, human_approved=human_approved, approval_reason=approval_reason
     )
 
 

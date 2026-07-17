@@ -3,15 +3,15 @@
 The repair pipeline is otherwise reactive: structural triage produces `requires_human_approval` tasks
 that the drain deliberately skips, and nothing auto-verifies after a revision drafts, so a run parks
 until a human clicks. This loop closes that gap. Each tick it finds runs that have gone quiet,
-re-triages them, auto-approves approval-gated repairs UP TO a configured authority ceiling (default
-gates `human_required`; raise the ceiling to it for full autonomy), auto-verifies applied repairs
-whose revisions have landed, and kicks the shared
+re-triages them, auto-approves approval-gated repairs UP TO a configured authority ceiling
+(`human_required` is never auto-approved — it is a manual-grant requirement needing an explicit human
+grant, ADR-0031 D16), auto-verifies applied repairs whose revisions have landed, and kicks the shared
 drain. Every action it takes is written to the central Activity feed (source="sweeper") so the human
 can see — and roll back — what autonomy did.
 
 Guardrails, all honored every tick:
   * `autonomy_enabled` kill switch (persisted; default on) AND the existing `queue_paused` switch.
-  * an authority ceiling — tasks above it are left for the human (default gates `human_required`).
+  * an authority ceiling — tasks above it, and every `human_required` (manual-grant) task, wait for a human.
   * a per-run attempt cap (in-process) so a run that keeps failing parks instead of looping forever.
   * one fresh DB session per run, so a poison run can't strand the sweep.
 
@@ -33,7 +33,12 @@ import structlog
 from sqlalchemy import select
 
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import ProductionRunStatus, RepairAuthorityLevel, RepairTaskStatus
+from dominion.shared.enums import (
+    AUTO_APPROVAL_CEILINGS,
+    ProductionRunStatus,
+    RepairAuthorityLevel,
+    RepairTaskStatus,
+)
 from dominion.shared.models import ModelOverride, ProductionRun, RepairTask
 from dominion.workers import activity, background_work, production
 
@@ -56,8 +61,10 @@ _DEFAULTS = {
     RETENTION_DAYS_KEY: "30",
 }
 
-# Authority is an ordered ladder; the ceiling gates what the sweeper may auto-approve. human_required
-# is always above any ceiling (it must never be auto-approved).
+# Authority is an ordered ladder; the ceiling is the highest rung the sweeper may auto-approve.
+# human_required is NOT on this ladder — it is a manual-grant Authorization Requirement (ADR-0031 D16)
+# needing an explicit human grant regardless of ceiling, so it is never auto-approved and is not a valid
+# ceiling (see AUTO_APPROVAL_CEILINGS). Unknown/invalid ceilings fail closed (auto-approve nothing).
 _AUTHORITY_RANK = {level: i for i, level in enumerate(RepairAuthorityLevel)}
 
 _ELIGIBLE_RUN_STATUSES = (
@@ -112,12 +119,18 @@ def _int(value: str, fallback: int) -> int:
         return fallback
 
 
+def _normalize_ceiling(value: str) -> str:
+    """A persisted ceiling outside the auto-approval allowlist (a legacy human_required, or garbage)
+    normalizes to the highest real auto-approval level — it never silently grants more than that."""
+    return value if value in AUTO_APPROVAL_CEILINGS else RepairAuthorityLevel.CHAPTER_STRUCTURAL.value
+
+
 async def load_config(session) -> SweeperConfig:
     return SweeperConfig(
         autonomy_enabled=(await _get(session, AUTONOMY_ENABLED_KEY)) == "1",
         interval_s=max(15, _int(await _get(session, INTERVAL_KEY), 120)),
         stale_window_s=max(0, _int(await _get(session, STALE_WINDOW_KEY), 120)),
-        ceiling=await _get(session, CEILING_KEY),
+        ceiling=_normalize_ceiling(await _get(session, CEILING_KEY)),
         max_attempts=max(0, _int(await _get(session, MAX_ATTEMPTS_KEY), 3)),
         retention_days=max(0, _int(await _get(session, RETENTION_DAYS_KEY), 30)),
     )
@@ -150,6 +163,11 @@ async def save_config(
     if stale_window_s is not None:
         await set_setting(session, STALE_WINDOW_KEY, str(stale_window_s))
     if authority_ceiling is not None:
+        if authority_ceiling not in AUTO_APPROVAL_CEILINGS:
+            raise ValueError(
+                f"invalid auto-approval ceiling {authority_ceiling!r} — human_required is a manual-grant "
+                "requirement, not a ceiling (ADR-0031 D16)"
+            )
         await set_setting(session, CEILING_KEY, authority_ceiling)
     if max_attempts is not None:
         await set_setting(session, MAX_ATTEMPTS_KEY, str(max_attempts))
@@ -165,9 +183,14 @@ def _rank(level: str) -> int:
 
 
 def _within_ceiling(level: str, ceiling: str) -> bool:
-    """True if `level` may be auto-approved under `ceiling` — an honest inclusive threshold. At the
-    default ceiling (chapter_structural) human_required stays gated; raising the ceiling to
-    human_required opts into full autonomy so the sweeper also drives the highest-authority repairs."""
+    """True iff `level` may be autonomously auto-approved under `ceiling`. Fails closed: human_required is
+    a manual-grant Authorization Requirement (ADR-0031 D16), never auto-approvable regardless of ceiling;
+    and an unknown/invalid ceiling or level auto-approves NOTHING (the old _rank()==999 made an unknown
+    ceiling permit every task — fail-open, worse than human_required)."""
+    if level == RepairAuthorityLevel.HUMAN_REQUIRED.value:
+        return False
+    if ceiling not in AUTO_APPROVAL_CEILINGS or level not in AUTO_APPROVAL_CEILINGS:
+        return False
     return _rank(level) <= _rank(ceiling)
 
 
@@ -242,9 +265,7 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
         try:
             # SAVEPOINT so a mid-apply failure rolls back only this task, not the whole run's tick.
             async with session.begin_nested():
-                await production.apply_repair_task(
-                    session, task_id, human_approved=True, approval_reason="autonomous sweeper"
-                )
+                await production.apply_repair_task(session, task_id, autonomous=True, human_approved=False)
             _attempts[rid] = _attempts.get(rid, 0) + 1
             actions.append({"run_id": rid, "kind": "repair_applied"})
             await activity.record_activity(
@@ -284,8 +305,10 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
             await session.execute(
                 select(RepairTask).where(
                     RepairTask.production_run_id == run_id,
-                    RepairTask.status.in_((RepairTaskStatus.RUNNING, RepairTaskStatus.WAITING_FOR_HUMAN)),
-                    RepairTask.human_approved_at.is_not(None),
+                    # "Applied, revision queued, awaiting verify" is exactly RUNNING (apply sets RUNNING
+                    # only after scheduling the revision). Was keyed off human_approved_at, which
+                    # autonomous apply no longer stamps (ADR-0031 D16) — key off the real applied signal.
+                    RepairTask.status == RepairTaskStatus.RUNNING,
                 )
             )
         )

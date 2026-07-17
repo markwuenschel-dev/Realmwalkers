@@ -144,7 +144,7 @@ async def test_overlapping_waiting_for_human_repair_blocks_new_repair(db_factory
         await _make_task(s, run, scene, status=RepairTaskStatus.WAITING_FOR_HUMAN)
         newcomer = await _make_task(s, run, scene, status=RepairTaskStatus.QUEUED)
 
-        out = await production.apply_repair_task(s, newcomer.id)
+        out = await production.apply_repair_task(s, newcomer.id, autonomous=False)
 
         assert out.status == RepairTaskStatus.WAITING_FOR_HUMAN
         run = await s.get(ProductionRun, run.id)
@@ -159,7 +159,7 @@ async def test_overlapping_running_repair_blocks_new_repair(db_factory):
         await _make_task(s, run, scene, status=RepairTaskStatus.RUNNING)
         newcomer = await _make_task(s, run, scene, status=RepairTaskStatus.QUEUED)
 
-        out = await production.apply_repair_task(s, newcomer.id)
+        out = await production.apply_repair_task(s, newcomer.id, autonomous=False)
 
         assert out.status == RepairTaskStatus.WAITING_FOR_HUMAN
         assert await _revision_job_count(s, run) == 0
@@ -181,7 +181,7 @@ async def test_overlapping_terminal_repair_does_not_block(db_factory):
             await _make_task(s, run, scene, status=terminal)
             newcomer = await _make_task(s, run, scene, status=RepairTaskStatus.QUEUED)
 
-            out = await production.apply_repair_task(s, newcomer.id)
+            out = await production.apply_repair_task(s, newcomer.id, autonomous=False)
 
             assert out.status == RepairTaskStatus.RUNNING, f"terminal {terminal} should not block"
             assert await _revision_job_count(s, run) == 1
@@ -194,7 +194,7 @@ async def test_non_overlapping_span_does_not_block(db_factory):
         await _make_task(s, run, scene, status=RepairTaskStatus.WAITING_FOR_HUMAN, quote=OTHER_QUOTE)
         newcomer = await _make_task(s, run, scene, status=RepairTaskStatus.QUEUED, quote=QUOTE)
 
-        out = await production.apply_repair_task(s, newcomer.id)
+        out = await production.apply_repair_task(s, newcomer.id, autonomous=False)
 
         assert out.status == RepairTaskStatus.RUNNING
         assert await _revision_job_count(s, run) == 1

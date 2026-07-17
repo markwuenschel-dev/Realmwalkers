@@ -121,7 +121,7 @@ async def test_span_only_apply_queues_revision_job_not_inline_noop(db_factory):
         _book, _chapter, run, scene = await _seed_scene(s)
         task, issue = await _span_task(s, run, scene)
 
-        out = await production.apply_repair_task(s, task.id)
+        out = await production.apply_repair_task(s, task.id, autonomous=False)
 
         # In flight against a queued revision job — not marked done off an inline no-op patch.
         assert out.status == RepairTaskStatus.RUNNING
@@ -163,7 +163,7 @@ async def test_span_only_verify_accepts_after_revised_scene_lands(db_factory):
     async with db_factory() as s:
         _book, chapter, run, scene = await _seed_scene(s)
         task, issue = await _span_task(s, run, scene)
-        await production.apply_repair_task(s, task.id)
+        await production.apply_repair_task(s, task.id, autonomous=False)
 
         # The queued revision job "lands": a newer scene version whose prose reworks the flagged span
         # (the quote is gone), with no new critiques on it.

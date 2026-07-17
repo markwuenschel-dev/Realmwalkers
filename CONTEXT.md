@@ -134,8 +134,9 @@ _Avoid_: quality score, fidelity verdict, human sign-off, "no findings"
 > implemented**. In live code the machine-policy boundary is a single KV flag `autonomy_enabled` read per
 > sweeper tick (`workers/sweeper.py`); there is no autonomy singleton, no epoch, and no Operational Hold
 > state. Authorization is carried as **mutable** `RepairTask` fields (`requires_human_approval`,
-> `human_approved_at`), and `RepairAuthorityLevel` still includes `HUMAN_REQUIRED` as a ceiling rung
-> (`shared/enums.py`) — the `authority_level` separation described below is not yet in force. Treat these six
+> `human_approved_at`). A1b (ADR-0031 D16) has retired `HUMAN_REQUIRED` as an auto-approval ceiling rung
+> — it is never autonomously approved and the sweeper no longer writes a false human stamp — but the full
+> first-class *Authorization Requirement* axis (orthogonal to `authority_level`) is still A1c. Treat these six
 > as planned vocabulary, not enforced invariants, until the ADRs are built. (`Job Book Ownership` above —
 > ADR-0027 — **is** wired and is not affected by this note.)
 

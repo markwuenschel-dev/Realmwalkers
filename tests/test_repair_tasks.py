@@ -131,7 +131,7 @@ async def test_plain_apply_parks_approval_task_and_explains_why(db_factory):
         _book, _chapter, run, scenes = await _seed(s)
         task, _issues = await _chapter_task(s, run, scenes)
 
-        out = await production.apply_repair_task(s, task.id)
+        out = await production.apply_repair_task(s, task.id, autonomous=False)
 
         assert out.status == RepairTaskStatus.WAITING_FOR_HUMAN
         assert out.human_approved_at is None
@@ -147,7 +147,7 @@ async def test_approve_apply_fans_out_one_revision_per_member_scene(db_factory):
         _book, _chapter, run, scenes = await _seed(s, scene_count=2)
         task, issues = await _chapter_task(s, run, scenes)
 
-        out = await production.apply_repair_task(s, task.id, human_approved=True)
+        out = await production.apply_repair_task(s, task.id, autonomous=False, human_approved=True)
 
         assert out.status == RepairTaskStatus.RUNNING
         assert out.human_approved_at is not None
@@ -179,10 +179,10 @@ async def test_approved_once_covers_requeued_attempts(db_factory):
     async with db_factory() as s:
         _book, _chapter, run, scenes = await _seed(s)
         task, _issues = await _chapter_task(s, run, scenes)
-        await production.apply_repair_task(s, task.id, human_approved=True)
+        await production.apply_repair_task(s, task.id, autonomous=False, human_approved=True)
         task.status = RepairTaskStatus.QUEUED  # as verify's needs_another_repair transition would
 
-        out = await production.apply_repair_task(s, task.id)
+        out = await production.apply_repair_task(s, task.id, autonomous=False)
 
         assert out.status == RepairTaskStatus.RUNNING
 
@@ -193,7 +193,7 @@ async def test_approve_apply_without_target_scenes_is_a_clean_refusal(db_factory
         task, _issues = await _chapter_task(s, run, scenes)
 
         with pytest.raises(ValueError, match="no concrete target scenes"):
-            await production.apply_repair_task(s, task.id, human_approved=True)
+            await production.apply_repair_task(s, task.id, autonomous=False, human_approved=True)
 
 
 async def test_status_guard_rejects_terminal_states(db_factory):
@@ -204,14 +204,14 @@ async def test_status_guard_rejects_terminal_states(db_factory):
         await s.flush()
 
         with pytest.raises(ValueError, match="only queued or waiting_for_human"):
-            await production.apply_repair_task(s, task.id, human_approved=True)
+            await production.apply_repair_task(s, task.id, autonomous=False, human_approved=True)
 
 
 async def test_fanout_verify_names_still_drafting_scenes(db_factory):
     async with db_factory() as s:
         _book, _chapter, run, scenes = await _seed(s)
         task, _issues = await _chapter_task(s, run, scenes)
-        await production.apply_repair_task(s, task.id, human_approved=True)
+        await production.apply_repair_task(s, task.id, autonomous=False, human_approved=True)
 
         with pytest.raises(ValueError, match="still be"):
             await production.verify_repair_task(s, task.id)
@@ -242,7 +242,7 @@ async def test_fanout_verify_accepts_when_every_scene_revised_clean(db_factory):
     async with db_factory() as s:
         _book, chapter, run, scenes = await _seed(s)
         task, issues = await _chapter_task(s, run, scenes)
-        await production.apply_repair_task(s, task.id, human_approved=True)
+        await production.apply_repair_task(s, task.id, autonomous=False, human_approved=True)
         for scene in scenes:  # the revision jobs "land": a newer version per scene, no new critiques
             s.add(
                 Scene(

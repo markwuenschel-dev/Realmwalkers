@@ -286,7 +286,17 @@ class RepairAuthorityLevel(StrEnum):
     SCENE_STRUCTURAL = "scene_structural"
     CROSS_SCENE = "cross_scene"
     CHAPTER_STRUCTURAL = "chapter_structural"
+    # A1b compatibility discriminator (ADR-0031 D16): HUMAN_REQUIRED is a manual-grant Authorization
+    # Requirement — an explicit human grant regardless of ceiling — NOT an auto-approval rung. A1c will
+    # separate the authorization axis from authority_level (blast radius) durably.
     HUMAN_REQUIRED = "human_required"
+
+
+# Authority levels the sweeper may use as an auto-approval ceiling. HUMAN_REQUIRED is excluded (it is
+# never auto-approvable); any other value fails closed / normalizes to CHAPTER_STRUCTURAL (ADR-0031 D16).
+AUTO_APPROVAL_CEILINGS: frozenset[str] = frozenset(
+    level.value for level in RepairAuthorityLevel if level is not RepairAuthorityLevel.HUMAN_REQUIRED
+)
 
 
 class RepairTaskStatus(StrEnum):

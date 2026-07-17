@@ -152,7 +152,7 @@ async def test_single_scene_dropped_required_beat_flags_not_preserved_without_ga
         s.add(task)
         await s.flush()
 
-        await production.apply_repair_task(s, task.id)
+        await production.apply_repair_task(s, task.id, autonomous=False)
         # The revision "lands": a new scene version that fixes the flagged quote BUT drops the reactor
         # beat entirely (calm, unrelated prose).
         await _scene(

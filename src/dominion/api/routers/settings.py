@@ -9,7 +9,7 @@ from dominion.api.agent_smoke import run_smoke_test
 from dominion.api.deps import SessionDep
 from dominion.shared import agent_ops
 from dominion.shared.agent_registry import PROVIDER_TIERS, ROLE_KEYS, TIERS
-from dominion.shared.enums import RepairAuthorityLevel
+from dominion.shared.enums import AUTO_APPROVAL_CEILINGS
 from dominion.shared.schemas import (
     AgentGlobalsUpdateIn,
     AgentOpsOut,
@@ -157,8 +157,12 @@ async def get_autonomy(session: SessionDep) -> AutonomyOut:
 @router.put("/autonomy", response_model=AutonomyOut)
 async def set_autonomy(body: AutonomyUpdateIn, session: SessionDep) -> AutonomyOut:
     """Update the sweeper switches. Persisted as KV rows and read live on the next tick."""
-    if body.authority_ceiling is not None and body.authority_ceiling not in {e.value for e in RepairAuthorityLevel}:
-        raise HTTPException(status_code=422, detail=f"unknown authority ceiling '{body.authority_ceiling}'")
+    if body.authority_ceiling is not None and body.authority_ceiling not in AUTO_APPROVAL_CEILINGS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"'{body.authority_ceiling}' is not a valid auto-approval ceiling; human_required is a "
+            "manual-grant requirement, not a ceiling (ADR-0031 D16)",
+        )
     await sweeper.save_config(
         session,
         autonomy_enabled=body.autonomy_enabled,
