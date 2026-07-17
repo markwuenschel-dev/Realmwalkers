@@ -104,19 +104,27 @@ _Avoid_: run-owned job, run_id routing, dual-key scope
 An ownerless or ownership-conflicted Job withheld from execution and from the normal failure controls (retry/clear): the quarantined live jobs plus any unresolved NULL-book terminal/conflict rows. Retained as evidence and surfaced to the operator; blocks the book_id NOT NULL promotion until resolved.
 _Avoid_: failed job, dismissable error, transient failure
 
-**Import Adoption**:
+> **Implementation status — import adoption & revision workflow (ADR-0028, verified 2026-07-17).** The four
+> terms that follow — Import Adoption, Import Scene Evidence, Revision Request, and Chapter Workflow Lock —
+> describe the **target design** of ADR-0028 and are **not yet implemented**. `ImportAdoption`,
+> `ImportSceneEvidence`, and `RevisionRequest` (`shared/models.py:381`, `:420`, `:447`) have zero
+> constructors anywhere in the codebase, and `chapter_lock.acquire_chapter_workflow_lock`
+> (`shared/chapter_lock.py:60`) has zero callers outside its own definition. Treat these four as planned
+> vocabulary, not enforced invariants, until the ADR is built.
+
+**Import Adoption** _(planned)_:
 Durable, leased, checkpointed work that turns one whole chapter's imported prose into a reviewed ChapterPacket, on demand. It owns adoption progress only (its lifecycle ends at `contract_proposed`), never mirroring ChapterPacket approval, ScenePacket approval, Job execution, or revision completion (ADR 0028).
 _Avoid_: adopt job, import bypass, packetless draft
 
-**Import Scene Evidence**:
+**Import Scene Evidence** _(planned)_:
 An immutable, span-anchored LLM fact ledger extracted from one imported scene snapshot, keyed by `(scene_id, scene_version, prose_hash, extractor_schema_version)` and reusable across adoptions. It is evidence the ChapterPacket Author reads as `M#` sources; raw prose stays auditable but never enters the author prompt.
 _Avoid_: scene summary, raw prose chunk, canon fact
 
-**Revision Request**:
+**Revision Request** _(planned)_:
 The durable record of an author's edit intent — immutable target `(scene_id, version)`, feedback, target pass, and origin — with a coarse lifecycle that outlives contract preparation until a revision Job is minted. At most one is active per target scene; its display phase is server-derived from the request, adoption, packets, and Job (ADR 0028).
 _Avoid_: revise approval, redraft toast, queued job
 
-**Chapter Workflow Lock**:
+**Chapter Workflow Lock** _(planned)_:
 A per-chapter transaction-level advisory lock (`acquire_chapter_workflow_lock`) that serializes every authority-changing operation on a chapter — source-prose mutation, fingerprint-validate-and-mint, adoption compare-and-set publish, ChapterPacket propose/replace/approve/supersede, and request-resuming ScenePacket approval. It coordinates the cross-table invariant; it does not replace queue-claim row locks (ADR 0028).
 _Avoid_: chapter row lock, global mutex, queue claim lock
 

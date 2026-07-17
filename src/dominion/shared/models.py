@@ -815,7 +815,11 @@ class AgentOpsState(Base):
     __tablename__ = "agent_ops_state"
     id: Mapped[str] = mapped_column(Text, primary_key=True, default="default")
     active_preset: Mapped[str | None] = mapped_column(Text, nullable=True)
-    globals_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    # Nullable to match production: this column was added to an existing table via a bare
+    # `ALTER TABLE ... ADD COLUMN globals_json JSONB` (migrations.py) with no DEFAULT/backfill, so
+    # legacy rows carry NULL. Typing it non-Optional was a schema lie (and made create_all diverge
+    # from prod as NOT NULL). Readers guard with `... or {}`; `default=dict` fills new ORM inserts.
+    globals_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=dict, nullable=True)
 
 
 class AgentCustomPreset(Base):

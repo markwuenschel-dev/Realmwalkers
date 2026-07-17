@@ -328,7 +328,7 @@ def _apply_globals_to_settings(gj: dict[str, Any]) -> None:
 
 async def apply_globals(session: AsyncSession, body: AgentGlobalsUpdateIn) -> AgentOpsOut:
     row = await session.get(AgentOpsState, _OPS_STATE_ID)
-    merged = dict(row.globals_json if row else {})
+    merged = dict(row.globals_json or {}) if row else {}
     if body.scene_token_budget is not None:
         if body.scene_token_budget < 5_000 or body.scene_token_budget > 500_000:
             raise ValueError("scene_token_budget must be between 5000 and 500000")

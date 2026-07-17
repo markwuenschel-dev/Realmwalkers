@@ -286,8 +286,11 @@ def derive_chapter_sequence(packet_body: dict[str, Any]) -> dict[str, Any]:
     scenes: list[dict[str, Any]] = []
     beat_ownership: dict[str, int] = {}
     duplicates: list[str] = []
-    scene_numbers = [int(s.get("scene_no") or 0) for s in seeds if isinstance(s.get("scene_no"), int)]
+    # scene_numbers MUST be derived from `ordered` (not the possibly-out-of-order `seeds`): the loop
+    # below enumerates `ordered` and indexes into scene_numbers by that same position, so the two
+    # lists have to agree on order or a scene gets chained to the wrong predecessor/successor.
     ordered = sorted(seeds, key=lambda s: (int(s.get("scene_no") or 0), str(s.get("seed_id"))))
+    scene_numbers = [int(s.get("scene_no") or 0) for s in ordered if isinstance(s.get("scene_no"), int)]
     for index, seed in enumerate(ordered):
         scene_no = int(seed.get("scene_no") or 0)
         seed_id = str(seed.get("seed_id"))
