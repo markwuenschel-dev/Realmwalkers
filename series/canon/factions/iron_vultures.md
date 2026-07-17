@@ -3,7 +3,8 @@ id: iron-vultures
 name: Iron Vultures
 aliases: [iron vultures, iron-vultures]
 kind: faction
-status: active
+status: canon
+scale: local_faction
 ---
 # The Iron Vultures — Faction File
 

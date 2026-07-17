@@ -4,7 +4,7 @@ title: Astria Hijack — Consent Under Duress
 chapter: 1
 scene: 3
 pov: Marcus
-location: "Aetherfall: Genesis — Stormfall Basilica (cyclone phase) → Marcus's apartment"
+location: "Aetherfall: Genesis — Stormfall Basilica (cyclone phase)"
 timeline_ref: Earth Day 0 — June 27, 2040
 depends_on: [SCENE-002]
 characters_present: [Marcus, Seb, Brent, Mathias, Kip, Serra, Mara]

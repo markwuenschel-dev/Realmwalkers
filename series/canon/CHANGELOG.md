@@ -2,6 +2,15 @@
 
 > Single home for change history. Individual files no longer carry "Last updated: …overhaul" footers; record material canon changes here instead.
 
+## 2026-07-17 (later still) — Consistency-pass cleanup: remaining findings closed out
+
+- **`cast_index.md`:** added the missing **Vessa** row (finding #1) — she had her own dossier and 13+ cross-references but no index entry.
+- **`canon_index.md`:** refreshed the Per-File Status table (finding #2), stale since Batch 3 (07-07). Now reflects the 07-16 (Earth year, Finalist Weekend) and 07-17 (Mara fix, Ch.2/3 reconciliation, Eriadne redesign) changes; added a `cast_index.md` row (previously untracked); cleared the stale 🔧 flags on `book1_chapter_timeline.md` and `unresolved_character_threads.md`.
+- **`SCENE-003_astria-hijack-consent.md`:** trimmed the frontmatter `location` field (finding #4) — it promised "→ Marcus's apartment," which the drafted scene never reaches (that's Ch. 2's opening per `canon_index.md`'s own Ch.1 summary). Frontmatter only; no prose touched.
+- **`factions/iron_vultures.md`:** `status: active` → `status: canon`, added `scale: local_faction` — brings it in line with the other nine faction files' schema (polish item).
+
+Not closed out: LeBlanc's two scenes (Ch. 2 conference room, post-surgery private reveal) remain undrafted prose — a creative-writing task, not a canon-doc fix, pending confirmation.
+
 ## 2026-07-17 (later) — Ch. 2/3 working-draft reconciliation: cast, knowledge layering, Eriadne redesign
 
 Author decisions resolving the questions raised by the Ch. 2 ("The Facility") and Ch. 3 ("The Passage")

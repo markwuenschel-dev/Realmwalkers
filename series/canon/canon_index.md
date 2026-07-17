@@ -126,34 +126,35 @@ Seb, Brent, Mathias on-page in order; Serra a single overheard word; Mara shown,
 
 ---
 
-## Per-File Status (post-overhaul)
+## Per-File Status (post-overhaul, refreshed 2026-07-17)
 
 | File | Status | Action needed |
 |---|---|---|
 | `relationship_invariants.md` | ✅ current (new) | Owner file for relational facts; INV-1…INV-6. Wins over `relationship_map.md` on standing/recognition/dynamic. |
 | `relational_clarity_rules.md` | ✅ current (new, style) | Style-tier Critic enforcement (RR1–RR8); lives in `series/style/`, sibling to `prose_clarity_rules.md`. |
 | `relationship_map.md` | ✅ current | Ordinary relational description; **defers to `relationship_invariants.md`**. |
-| `marcus_serra_relationship.md` | ✅ current (new) | Relationship bible for the series-spine pairing (conflict engine / progression / motifs / guardrails). Governs with INV-1, INV-3, `forbidden_drift.md` #10; defers to `book1_chapter_timeline.md` on placement and `master_timeline.md` on days. |
-| `character_power_architecture.md` | ✅ current | — |
+| `marcus_serra_relationship.md` | ✅ updated 2026-07-16 | Aetherfall Championship Finalist Weekend / Finalist Reception canon added (§4). Governs with INV-1, INV-3, `forbidden_drift.md` #10; defers to `book1_chapter_timeline.md` on placement and `master_timeline.md` on days. |
+| `character_power_architecture.md` | ✅ updated 2026-07-17 | Mara's Aetherfall-class examples corrected Rogue → Glacial Arcanist (Control Mage), matching `mara.md`. |
 | `resource_system.md` | ✅ current (new) | Owner for the resource/number system (formulas, regen, depletion, XP curve, threat, stat templates, growth). Uses tier names from `mechanics.md`/`classes.md`; does not redefine ladders. |
 | `luck_fortune.md` | ✅ current (new) | Canonical Luck/Fortune SSOT; subsystem files add local adapters only. |
-| `canon_index.md` | ✅ this file | — |
-| `book1_chapter_timeline.md` | 🔧 updated this batch | Act 5 finale choreography pending |
-| `unresolved_character_threads.md` | 🔧 regenerated this batch | — |
+| `canon_index.md` | ✅ this file — refreshed 2026-07-17 | Naming canon: added Dead Hand's rank (#3, alongside 404's #25). This status table brought current after lagging since Batch 3 (07-07). |
+| `cast_index.md` | ⚠️ current but **incomplete** | Not previously tracked in this table — added now. Updated 2026-07-17 with Roth's surfaced name/title, new Mercer/LeBlanc/Vessa rows. **Still owed:** LeBlanc, Dara, Cael, Vaeli are Act-3-only or marginal; confirm inclusion bar against the file's own rule ("named background character appears more than once or carries plot relevance") next full pass. |
+| `book1_chapter_timeline.md` | ✅ updated 2026-07-17 | Withers→Mercer; Ch.2 conference-room cast corrected (Roth/Mercer/LeBlanc, layered roles); Ch.3 LeBlanc-private-scene corrected (Roth removed). Act 5 finale choreography still pending. |
+| `unresolved_character_threads.md` | ✅ verified current | No further changes since Batch 3; stale "🔧 regenerated this batch" flag cleared. |
 | `dominion_realm_story_bible.md` | ✅ updated (Batch 2) | Reframed as overview; SWAT-Serra, Eyes naming, 4-layer, Angelic Fortitude all fixed |
-| `master_timeline.md` | ✅ updated (Batch 2) | Angelic Fortitude, Ashblade, Mathias-lives, finale Myrmidon fixed; redundant sections merged
+| `master_timeline.md` | ✅ updated 2026-07-17 | Earth year 2035→2040 fixed (07-16); Finalist Weekend added (07-16); Withers→Mercer, Ch.2 conference cast, Ch.3 LeBlanc-private-scene corrected (07-17). |
 | `core_rules.md` | ✅ updated | Eyes split; namebinding; **Class System + 6-tier ladder added** (this pass) |
 | `classes.md` | ✅ current (new) | Full taxonomy; Fighter/Adventurer added; Planeswalker→Realmwalker; **+Exceptional tier** |
 | `mechanics.md` | ✅ current (new) | Spell/item/gem/skill/soul ladders + affinity tiers; Soul Level wired to names/vows |
 | `cosmology.md` | ✅ current | Hub — defers detail to `factions/` owner files |
-| `scene_queue.md` | ✅ updated (Batch 3) | Consolidated; retired dead entries; Ashblade→Warrior; satellites added |
-| `setup_payoff_tracker.md` | ✅ updated (Batch 3) | Eyes split; CH-017 Warrior; WF-011/012 namebinding+parent; Mathias lives |
-| `book_roadmap.md` | ✅ updated (Batch 3) | Angelic Fortitude removed; Serra-wrong resolved; finale = Myrmidon |
+| `scene_queue.md` | ✅ updated 2026-07-16 | Finalist Reception scene brief added, matching `master_timeline.md`/`marcus_serra_relationship.md`. |
+| `setup_payoff_tracker.md` | ✅ updated 2026-07-17 | SP-001 reframed as a two-part delivery (intermediary's partial reveal to the six + LeBlanc's still-undrafted private scene); still "seeded," not "paid." |
+| `book_roadmap.md` | ✅ updated 2026-07-17 | Withers→Mercer; Act 1 beat summary corrected to match the Ch.2/3 working drafts and the LeBlanc-alone private scene. |
 | `character_state_log.md` | ✅ updated (Batch 3) | Angelic Fortitude removed; Serra=Warrior; interfaces; finale checkpoint |
-| `eriadne.md` | ✅ verified current | No changes — already on the redesigned (ruins-on-outskirts) version. Stays in project. |
+| `eriadne.md` | ✅ updated 2026-07-17 | **Redesigned, not just verified:** walled old-city-plus-harbor core with organic sprawl beyond it (reconciles, doesn't reverse, the earlier "not a walled city" lock); added the floating pylons/gateway rings (→ W-01/W-05); added the Ruined Heart as a farther-out ruin complex. |
 | `realm_calendar.md` | ✅ updated | **CAL-01 resolved** (the Forgotten Nine) + A.C. notation; CAL-02/03 still open. |
 
-**Batch plan:** Batch 1 ✅ · Batch 2 ✅ · **Batch 3 ✅ — consistency overhaul complete.** Every canon file is now internally consistent and wired through this index. `eriadne.md` and `realm_calendar.md` were verified current and stay in the project unchanged; all updated files are in `/outputs` to merge back.
+**Batch plan:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ (07-07) · **2026-07-17 refresh ✅** — this table now reflects the 07-16 (Earth year, Finalist Weekend) and 07-17 (Mara class fix, Ch.2/3 cast + Eriadne reconciliation) canon changes. `realm_calendar.md` remains verified current and unchanged.
 
 ---
 

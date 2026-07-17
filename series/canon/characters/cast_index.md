@@ -84,6 +84,7 @@ known_entities: [illyristranthe, illyri, ily, ayla]
 | Dead Hand leader (unnamed) | Earth — Dead Hand (Aetherfall) | Incidental — patches in early to say their rogue is missing, before she logs in late (SCENE-001) | Incidental / scene-local | — |
 | Mercer | Earth — Astria | **Adrian Mercer, MD/PhD** — neurosurgeon; directs Astria's neural-interface program; leads the six's surgeries. Renamed from earlier planning-doc "Withers" — same character. | Active — confirmed on-page (Ch. 2–3) | `minor/mercer.md` |
 | LeBlanc | Earth — Astria | **Richard LeBlanc**, Astria's CEO; executive-sponsor presence, narrow role; knows the program has a concealed external beneficiary (does not know Nightbound/six-key/Broker specifics) | Active — named only (`SCENE-001`, distant TV shot); in-person Ch. 2 scene + post-surgery private scene not yet drafted | `minor/leblanc.md` |
+| Vessa ("Ves") | Realm — dungeon town beside the delve (Serra's Book-1 solo arc) | 13-yo tunnel-runner; the young-Serra mirror; route-knowledge agent; the recognition that gives Serra her reason to stay | Active — minor; likely recurring → Book 2 | `minor/vessa.md` |
 
 ---
 
