@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "pyright>=1.1"]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "pytest-cov>=5.0", "ruff>=0.7", "pyright>=1.1"]
 
 [project.scripts]
 dominion-worker = "dominion.workers.worker:main"
@@ -57,3 +57,13 @@ pythonpath = ["src", "tests"]
 # -rs surfaces skip reasons on every invocation (CI already passes it; this makes a bare local
 # `pytest` show the same, so a silently-skipped DB suite can't read as green). See conftest DB gate.
 addopts = "-rs"
+
+[tool.coverage.run]
+# src layout: measure by installed package name, not a hardcoded "src/dominion" path. This is
+# coverage.py's documented recommendation for src layouts — it resolves to wherever `dominion` is
+# actually imported from (editable install, or pytest's `pythonpath` sys.path insertion below),
+# instead of guessing a directory that may not match at measurement time.
+source_pkgs = ["dominion"]
+
+[tool.coverage.report]
+show_missing = true
