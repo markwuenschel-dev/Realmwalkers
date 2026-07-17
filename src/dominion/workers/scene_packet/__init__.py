@@ -22,6 +22,7 @@ session and returns; the caller commits and maps gate refusals to responses.
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,9 +39,9 @@ from dominion.workers.scene_packet import qa as _qa
 from dominion.workers.scene_packet.approval_policy import (
     apply_qa_rerun,
     can_approve,
-    enrich_scene_packet_out,
     is_approvable_for_batch,
 )
+from dominion.workers.scene_packet.blockers import scene_out_with_blockers, scene_outs_with_blockers
 from dominion.workers.scene_packet.fidelity import (
     accept_suggestions,
     mint_identity,
@@ -65,8 +66,10 @@ __all__ = [
     "reconcile_beats",
     # advisory QA (no mutation of scene-packet state on its own)
     "qa_scene_packet",
-    # read/enrichment + validation passthroughs
-    "enrich_scene_packet_out",
+    # read/enrichment + validation passthroughs — the blocker-aware bulk readers are the router-facing
+    # projection; bare `enrich_scene_packet_out` is intentionally NOT re-exported (A1c: no bypass seam).
+    "scene_out_with_blockers",
+    "scene_outs_with_blockers",
     "can_approve",
     "apply_qa_rerun",
     "is_approvable_for_batch",
@@ -105,15 +108,49 @@ async def derive_scene_packets(session: AsyncSession, *, chapter_packet: Chapter
     return counts
 
 
+@dataclass(frozen=True)
+class ApprovalOutcome:
+    """Result of the one locked approval op. When `approved` is False the reason is explicit and mutually
+    exclusive: `refusal` (base status — BLOCKED/RATE_LIMITED — non-approvable on the locked row) or
+    `blocked_by_open_question` (an active ApprovalBlocker). `packet` is always the locked, refreshed row."""
+
+    approved: bool
+    packet: ScenePacket
+    refusal: GateRefusal | None = None
+    blocked_by_open_question: bool = False
+
+
+async def _apply_approval_locked(session: AsyncSession, scene_packet_id: uuid.UUID) -> ApprovalOutcome:
+    """The single locked approval op every path funnels through (ADR-0031 D6/D9). Lock + refresh the row,
+    then RE-EVALUATE both gates on that fresh row — base status eligibility (`can_approve`) AND active
+    blocker — so a status or blocker change that landed between a caller's stale read and this lock can
+    never slip an APPROVED past it (A1c F7). Sets APPROVED and clears `stale_reason` (re-approving a STALE
+    packet is legitimate) only when both gates pass. This op does NOT reconcile beats and does NOT raise:
+    the public facade ops around it own raise-vs-skip and reconcile beats — once for single approve, once
+    per batch — so the derive→beats coupling still lives in exactly one place."""
+    packet = await _blockers.lock_packet(session, scene_packet_id)
+    if refusal := can_approve(packet):
+        return ApprovalOutcome(False, packet, refusal=refusal)
+    if await _blockers.has_active_blocker(session, packet.id):
+        return ApprovalOutcome(False, packet, blocked_by_open_question=True)
+    packet.status = ScenePacketStatus.APPROVED
+    packet.stale_reason = None
+    return ApprovalOutcome(True, packet)
+
+
 async def approve_scene_packet(session: AsyncSession, *, packet: ScenePacket) -> int:
-    """Approve one ScenePacket, THEN reconcile the chapter's beats. Returns the reconciled beat count;
-    the caller commits. The blocker gate lives HERE, not in the caller (ADR-0031 D6/D9): lock the packet
-    row and refuse (`ApprovalBlockerError`) if it has an active ApprovalBlocker, so no path — approve
-    endpoint, PUT override, chapter reapproval — can set APPROVED past a blocker, and a concurrent
-    `raise_blocker` serializes on the same row lock (A1c F7). Beats are a projection of approved packets."""
-    locked = await _blockers.lock_and_guard(session, packet.id)
-    locked.status = ScenePacketStatus.APPROVED
-    return await _beats.derive_beats(session, chapter_id=locked.chapter_id)
+    """Approve ONE ScenePacket through the locked op, THEN reconcile the chapter's beats (returns the beat
+    count; the caller commits). Raises `ApprovalBlockerError` when an active ApprovalBlocker holds it, OR
+    when its base status is non-approvable on the locked row (a demotion that raced the caller's
+    pre-check) — the router maps both to 409. Beats are a projection of approved packets, so approval
+    re-derives them in the same breath; the facade owns that coupling (ADR-0031 D6)."""
+    outcome = await _apply_approval_locked(session, packet.id)
+    if not outcome.approved:
+        if outcome.blocked_by_open_question:
+            raise _blockers.ApprovalBlockerError("scene packet has an unresolved approval blocker — resolve it first")
+        assert outcome.refusal is not None  # not approved and not blocker ⇒ a base-status refusal
+        raise _blockers.ApprovalBlockerError(outcome.refusal.detail)
+    return await _beats.derive_beats(session, chapter_id=outcome.packet.chapter_id)
 
 
 async def approve_scene_packets(
@@ -124,23 +161,18 @@ async def approve_scene_packets(
     packet_ids: list[uuid.UUID] | None = None,
 ) -> tuple[int, int]:
     """Batch-approve the approvable packets in `rows` (optionally restricted to `packet_ids`), THEN
-    reconcile the chapter's beats. Approves only packets that are not blocked and carry no blocking QA
-    issues (`is_approvable_for_batch`). Returns (approved_count, beat_count); the caller commits.
-
-    Beats are a projection of scene packets, so the batch re-derives them once after the set changes."""
+    reconcile the chapter's beats ONCE. Every candidate goes through the SAME locked op as single approve,
+    so base status AND active blocker are re-checked on the locked, refreshed row — a packet a concurrent
+    transaction demoted or blocked is SKIPPED, never approved off a stale pre-lock read (A1c F7, D6).
+    Returns (approved_count, beat_count); the caller commits."""
     selected = set(packet_ids) if packet_ids else None
     approved = 0
     for row in rows:
         if selected is not None and row.id not in selected:
             continue
-        if not is_approvable_for_batch(row):
-            continue
-        # Blocker gate (D6/D9): lock the row; SKIP a packet with an active blocker rather than approving it.
-        locked = await _blockers.lock_packet_if_unblocked(session, row.id)
-        if locked is None:
-            continue
-        locked.status = ScenePacketStatus.APPROVED
-        approved += 1
+        outcome = await _apply_approval_locked(session, row.id)
+        if outcome.approved:
+            approved += 1
     derived = await _beats.derive_beats(session, chapter_id=chapter_id)
     return approved, derived
 

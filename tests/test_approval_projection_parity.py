@@ -250,8 +250,14 @@ def test_module_level_projection_api_still_imports():
         "enrich_scene_packet_out",
     ):
         assert callable(getattr(sp, name))
-    # The scene facade re-exports only these two.
+    # The scene facade re-exports the blocker-aware read path + the endpoint gate. Bare
+    # enrich_scene_packet_out is intentionally NOT re-exported (A1c: the router-facing projection must load
+    # blocker facts, so there is no bypass seam) — it stays reachable only on the approval_policy module.
     from dominion.workers.scene_packet import can_approve as facade_can_approve
-    from dominion.workers.scene_packet import enrich_scene_packet_out as facade_enrich
+    from dominion.workers.scene_packet import scene_out_with_blockers as facade_scene_out
+    from dominion.workers.scene_packet import scene_outs_with_blockers as facade_scene_outs
 
-    assert callable(facade_can_approve) and callable(facade_enrich)
+    assert callable(facade_can_approve) and callable(facade_scene_out) and callable(facade_scene_outs)
+    import dominion.workers.scene_packet as _facade
+
+    assert not hasattr(_facade, "enrich_scene_packet_out")  # no bare-enrich bypass through the facade

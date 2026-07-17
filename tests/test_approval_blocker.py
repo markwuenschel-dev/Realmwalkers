@@ -8,7 +8,7 @@ survival, cascade purge, and the fail-closed projection overlay.
 
 from __future__ import annotations
 
-import uuid
+import asyncio
 
 import pytest
 from sqlalchemy import func, select
@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from dominion.shared.enums import ApprovalBlockerStatus, ScenePacketStatus
 from dominion.shared.models import ApprovalBlocker, Beat, Book, Chapter, ChapterPacket, ScenePacket
 from dominion.workers import scene_packet as sp_pipeline
-from dominion.workers.scene_packet import blockers
+from dominion.workers.scene_packet import approval_policy, blockers
 from dominion.workers.scene_packet.blockers import ApprovalBlockerError
 
 
@@ -89,10 +89,10 @@ async def test_approve_operation_refuses_when_active_blocker(db_factory):
         assert (await s.get(ScenePacket, packet.id)).status == ScenePacketStatus.PROPOSED
 
 
-async def test_cross_table_race_never_approved_with_active_blocker(db_factory):
-    # F7: approver and writer both FOR UPDATE the ScenePacket row. A pre-loaded approver must re-read the
-    # blocker committed under the lock (the A1b populate_existing lesson) and refuse — never leave the
-    # packet APPROVED with an active blocker.
+async def test_preloaded_approver_rereads_blocker_under_lock(db_factory):
+    # NOT the F7 contention test (that is the concurrent pair below) — this pins the A1b populate_existing
+    # lesson: an approver that PRE-LOADED the packet (a stale identity-map copy) before a blocker was
+    # raised must, on locking, re-read the committed blocker and refuse — never approve off the stale copy.
     async with db_factory() as setup:
         packet = await _seed(setup)
         pid = packet.id
@@ -189,23 +189,148 @@ async def test_batch_approve_skips_blocked_packet(db_factory):
         assert (await s.get(ScenePacket, p2.id)).status == ScenePacketStatus.APPROVED
 
 
-def test_projection_overlay_fails_closed():
-    from dominion.shared.schemas import ScenePacketOut
+async def test_projection_feeds_extra_gate_fail_closed_and_precedence(db_factory):
+    # The projection feeds blocker facts into C2's extra_gate (it never overwrites C2's output), so
+    # precedence stays held → blocker → approved → approvable, tri-state and fail closed.
+    async with db_factory() as s:
+        proposed = await _seed(s)
+        # None = facts NOT loaded → fail closed (not approvable), never a silent "no blockers".
+        unknown = approval_policy.project_scene_packet_out(proposed, None)
+        assert unknown.can_approve is False
+        assert unknown.approval_state == "blocker_unknown"
+        # [] = loaded and none → base projection stands: a PROPOSED packet is approvable.
+        clear = approval_policy.project_scene_packet_out(proposed, [])
+        assert clear.can_approve is True
+        assert clear.approval_state == "approvable"
+        # A non-empty list surfaces EVERY open question (a list, not one joined string).
+        b1 = ApprovalBlocker(
+            scene_packet_id=proposed.id,
+            chapter_id=proposed.chapter_id,
+            source="manual_command",
+            source_key="q1",
+            question="Whose blade?",
+            status="active",
+        )
+        b2 = ApprovalBlocker(
+            scene_packet_id=proposed.id,
+            chapter_id=proposed.chapter_id,
+            source="manual_command",
+            source_key="q2",
+            question="Where is the ledger?",
+            status="active",
+        )
+        blocked = approval_policy.project_scene_packet_out(proposed, [b1, b2])
+        assert blocked.can_approve is False
+        assert blocked.approval_state == "blocked_by_open_question"
+        assert blocked.approval_blockers == ["Whose blade?", "Where is the ledger?"]
 
-    base = ScenePacketOut.model_construct(
-        id=uuid.uuid4(), can_approve=True, approval_state="approvable", approval_blockers=[]
-    )
-    assert blockers.scene_packet_out_with_blocker(base, None).can_approve is False  # unknown → fail closed
-    assert blockers.scene_packet_out_with_blocker(base, []).can_approve is True  # loaded, none → base
-    b = ApprovalBlocker(
-        scene_packet_id=uuid.uuid4(),
-        chapter_id=uuid.uuid4(),
-        source="manual_command",
-        source_key="q1",
-        question="Whose blade?",
-        status="active",
-    )
-    out = blockers.scene_packet_out_with_blocker(base, [b])
-    assert out.can_approve is False
-    assert out.approval_state == "blocked_by_open_question"
-    assert out.approval_blockers == ["Whose blade?"]
+        # PRECEDENCE: a genuinely BLOCKED packet that ALSO has an active blocker keeps state "blocked"
+        # (held wins) — it is never relabeled as an open-question hold.
+        held_pkt = await _seed(s, status=ScenePacketStatus.BLOCKED)
+        held_pkt.qa_warnings = {"blocked_reason": "author returned an incomplete body", "blocker_source": "author"}
+        held = approval_policy.project_scene_packet_out(held_pkt, [b1])
+        assert held.approval_state == "blocked"  # NOT "blocked_by_open_question"
+        assert held.can_approve is False
+
+
+async def test_f7_concurrent_raise_and_approve(db_factory):
+    # F7 GENUINE contention (repair's gather spirit, not a sequential pre-load): raise_blocker and approve
+    # race on the SAME packet, each in its own session + commit. The row's FOR UPDATE lock serializes them
+    # and the invariant holds in BOTH interleavings — approve-first is demoted back by the raise;
+    # raise-first makes approve refuse — so the packet is NEVER left APPROVED with an active blocker.
+    async with db_factory() as setup:
+        packet = await _seed(setup)
+        pid = packet.id
+        await setup.commit()
+
+    async def _raise() -> str:
+        async with db_factory() as s:
+            await blockers.raise_blocker(s, scene_packet_id=pid, source_key="q1", question="Q?")
+            await s.commit()
+            return "raised"
+
+    async def _approve() -> str:
+        async with db_factory() as s:
+            row = await s.get(ScenePacket, pid)
+            try:
+                await sp_pipeline.approve_scene_packet(s, packet=row)
+                await s.commit()
+                return "approved"
+            except ApprovalBlockerError:
+                return "approve-rejected"
+
+    results = await asyncio.gather(_raise(), _approve())
+
+    async with db_factory() as s:
+        got = await s.get(ScenePacket, pid)
+        active = await _count_active(s, pid)
+        assert not (got.status == ScenePacketStatus.APPROVED and active > 0)  # the F7 invariant
+        assert got.status == ScenePacketStatus.PROPOSED  # approve-first→demoted OR raise-first→never approved
+        assert active == 1
+    assert "raised" in results
+
+
+async def test_f7_concurrent_resolve_and_approve(db_factory):
+    # F7 GENUINE contention on the other seam: resolve (the ONLY way to clear a blocker) races an approve.
+    # The row lock serializes them; the final state is consistent with who won — resolve-first → APPROVED;
+    # approve-first refuses, then resolve clears it → PROPOSED — and never APPROVED with an active blocker.
+    async with db_factory() as setup:
+        packet = await _seed(setup)
+        pid = packet.id
+        b = await blockers.raise_blocker(setup, scene_packet_id=pid, source_key="q1", question="Q?")
+        await setup.flush()  # apply the uuid PK default before capturing the id (raise doesn't flush here)
+        bid = b.id
+        await setup.commit()
+
+    async def _resolve() -> str:
+        async with db_factory() as s:
+            await blockers.resolve_blocker(s, blocker_id=bid, rationale="answered", resolution_source="author")
+            await s.commit()
+            return "resolved"
+
+    async def _approve() -> str:
+        async with db_factory() as s:
+            row = await s.get(ScenePacket, pid)
+            try:
+                await sp_pipeline.approve_scene_packet(s, packet=row)
+                await s.commit()
+                return "approved"
+            except ApprovalBlockerError:
+                return "approve-rejected"
+
+    results = await asyncio.gather(_resolve(), _approve())
+
+    async with db_factory() as s:
+        got = await s.get(ScenePacket, pid)
+        active = await _count_active(s, pid)
+        assert active == 0  # resolve always clears the one blocker
+        assert not (got.status == ScenePacketStatus.APPROVED and active > 0)
+        if "approved" in results:
+            assert got.status == ScenePacketStatus.APPROVED  # resolve won the lock first → approve saw none
+        else:
+            assert got.status == ScenePacketStatus.PROPOSED  # approve refused; resolve then cleared it
+    assert "resolved" in results
+
+
+async def test_route_parity_summary_and_detail_agree_on_blocker(db_factory):
+    # Route parity: the Desk's two read paths (GET .../scene-packets/summary and GET /scene-packets/{id})
+    # must agree on approval facts. Calling the real endpoint functions directly (they take an AsyncSession)
+    # exercises the actual route code — including the summary's own field mapping — without an HTTP harness.
+    from dominion.api.routers.scene_packets import get_scene_packet, list_scene_packet_summaries
+
+    async with db_factory() as s:
+        packet = await _seed(s)
+        await blockers.raise_blocker(s, scene_packet_id=packet.id, source_key="q1", question="Whose blade?")
+        await s.commit()
+
+        summaries = await list_scene_packet_summaries(packet.chapter_id, s)
+        detail = await get_scene_packet(packet.id, s)
+        row = next(r for r in summaries if r.id == packet.id)
+
+        # The shipped bug was the list/summary path advertising an active-blocker packet as approvable while
+        # detail (also bypassed) did the same; both must now refuse and surface the same open question.
+        assert row.can_approve is False
+        assert detail.can_approve is False
+        assert row.approval_state == "blocked_by_open_question"
+        assert detail.approval_state == "blocked_by_open_question"
+        assert row.approval_blockers == detail.approval_blockers == ["Whose blade?"]

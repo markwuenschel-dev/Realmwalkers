@@ -40,6 +40,7 @@ from dominion.workers.job_scheduler import (
 )
 from dominion.workers.memory import summaries
 from dominion.workers.scene_packet import approval_policy as sp_approval
+from dominion.workers.scene_packet import approve_scene_packet as _approve_scene_packet
 from dominion.workers.scene_packet import blockers as _blockers
 
 log = structlog.get_logger()
@@ -390,15 +391,19 @@ async def redraft_scene(
     target = next((p for p in packets if p.status == ScenePacketStatus.APPROVED and not p.stale_reason), None)
     if target is None:
         for p in packets:
-            if p.status == ScenePacketStatus.STALE and sp_approval.can_approve(p) is None:
-                # Blocker gate (A1c): never raw-approve past an active ApprovalBlocker — lock + skip if blocked.
-                locked = await _blockers.lock_packet_if_unblocked(session, p.id)
-                if locked is None:
-                    continue
-                locked.status = ScenePacketStatus.APPROVED
-                locked.stale_reason = None
-                target = locked
-                break
+            if p.status != ScenePacketStatus.STALE or sp_approval.can_approve(p) is not None:
+                continue
+            # Re-approve the STALE contract through the ONE locked approval op — never raw-assign. It locks
+            # + revalidates status and blockers on the fresh row, sets APPROVED, clears stale_reason, AND
+            # reconciles beats, so the re-approved slot actually has its beat: an earlier reconcile prunes a
+            # STALE packet's beat, and the old raw-assign-without-reconcile stranded this scene on the
+            # "no approved beat" 409. An active blocker (or a raced demotion) raises → try the next candidate.
+            try:
+                await _approve_scene_packet(session, packet=p)
+            except _blockers.ApprovalBlockerError:
+                continue
+            target = p
+            break
     if target is None:
         # Everything at this slot is blocked/rate-limited/proposed — surface the clearest refusal.
         refusal = next((r for p in packets if (r := sp_approval.can_approve(p)) is not None), None)

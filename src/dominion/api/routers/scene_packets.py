@@ -171,7 +171,7 @@ async def _derive_sync(chapter_id: uuid.UUID, session: AsyncSession) -> ScenePac
         stale=counts["stale"],
         rate_limited=counts.get("rate_limited", 0),
         skipped=counts.get("skipped", 0),
-        packets=[scene_packet_pipeline.enrich_scene_packet_out(r) for r in rows],
+        packets=await scene_packet_pipeline.scene_outs_with_blockers(session, list(rows)),
         context_budget_report=counts.get("context_budget_report"),
     )
 
@@ -187,7 +187,7 @@ async def list_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> list
         .scalars()
         .all()
     )
-    return [scene_packet_pipeline.enrich_scene_packet_out(r) for r in rows]
+    return await scene_packet_pipeline.scene_outs_with_blockers(session, list(rows))
 
 
 @router.post("/chapters/{chapter_id}/beats/derive", response_model=DraftReadinessOut)
@@ -250,9 +250,13 @@ async def list_scene_packet_summaries(chapter_id: uuid.UUID, session: SessionDep
             return "failed"
         return "missing"
 
+    # Blocker-aware projection for the whole list in ONE bulk load (A1c F6): the summary's approval fields
+    # come from the same fail-closed path as the detail endpoint, so a packet with an active
+    # ApprovalBlocker is never advertised approvable in the list either (route parity).
+    enriched_by_id = {e.id: e for e in await scene_packet_pipeline.scene_outs_with_blockers(session, list(rows))}
     out: list[ScenePacketSummaryOut] = []
     for row in rows:
-        enriched = scene_packet_pipeline.enrich_scene_packet_out(row)
+        enriched = enriched_by_id[row.id]
         warnings = row.qa_warnings if isinstance(row.qa_warnings, dict) else {}
         raw_violations = warnings.get("violations")
         violations = raw_violations if isinstance(raw_violations, list) else []
@@ -289,7 +293,7 @@ async def list_scene_packet_summaries(chapter_id: uuid.UUID, session: SessionDep
 @router.get("/scene-packets/{scene_packet_id}", response_model=ScenePacketOut)
 async def get_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacketOut:
     row = await _get(session, scene_packet_id)
-    return scene_packet_pipeline.enrich_scene_packet_out(row)
+    return await scene_packet_pipeline.scene_out_with_blockers(session, row)
 
 
 @router.put("/scene-packets/{scene_packet_id}", response_model=ScenePacketOut)
@@ -326,7 +330,7 @@ async def update_scene_packet(
     await scene_packet_pipeline.reconcile_beats(session, chapter_id=row.chapter_id)
     await session.commit()
     await session.refresh(row)
-    return scene_packet_pipeline.enrich_scene_packet_out(row)
+    return await scene_packet_pipeline.scene_out_with_blockers(session, row)
 
 
 @router.post("/scene-packets/{scene_packet_id}/qa", response_model=ScenePacketQaOut)
@@ -386,7 +390,7 @@ async def approve_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) 
     await session.commit()
     await session.refresh(row)
     log.info("scene_packet.approved", packet=str(row.id), derived_beats=derived)
-    return scene_packet_pipeline.enrich_scene_packet_out(row)
+    return await scene_packet_pipeline.scene_out_with_blockers(session, row)
 
 
 @router.post("/scene-packets/{scene_packet_id}/blockers", response_model=ApprovalBlockerOut)
@@ -471,7 +475,7 @@ async def approve_scene_packets(
     for r in rows:
         await session.refresh(r)
     log.info("scene_packet.batch_approved", chapter=str(chapter_id), approved=approved, derived_beats=derived)
-    return [scene_packet_pipeline.enrich_scene_packet_out(r) for r in rows]
+    return await scene_packet_pipeline.scene_outs_with_blockers(session, list(rows))
 
 
 @router.delete("/scene-packets/{scene_packet_id}", response_model=DeleteScenePacketOut)
@@ -533,7 +537,7 @@ async def mark_scene_packets_stale(
     # (MissingGreenlet). Mirrors update_scene_packet's post-commit refresh.
     for row in rows:
         await session.refresh(row)
-    return [scene_packet_pipeline.enrich_scene_packet_out(r) for r in rows]
+    return await scene_packet_pipeline.scene_outs_with_blockers(session, list(rows))
 
 
 # --- SceneFidelity requirement author actions (ADR 0005/0006/0016/0024) ---------------------------

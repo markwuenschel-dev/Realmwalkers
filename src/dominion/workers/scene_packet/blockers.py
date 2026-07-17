@@ -30,9 +30,10 @@ class ApprovalBlockerError(ValueError):
     """A blocker operation refused (the router maps it to 409/422)."""
 
 
-async def _lock_packet(session: AsyncSession, scene_packet_id: uuid.UUID) -> ScenePacket:
-    # with_for_update + populate_existing: acquire the row lock AND refresh a possibly-stale identity-map
-    # copy (the A1b lesson). Every writer/approver locks the SAME row, so they serialize.
+async def lock_packet(session: AsyncSession, scene_packet_id: uuid.UUID) -> ScenePacket:
+    """The shared approval-lock seam. `with_for_update` + `populate_existing`: acquire the row lock AND
+    refresh a possibly-stale identity-map copy (the A1b lesson). Every writer/approver/resolver locks the
+    SAME row, so raise ↔ approve ↔ resolve serialize on it (A1c F7)."""
     packet = await session.get(ScenePacket, scene_packet_id, with_for_update=True, populate_existing=True)
     if packet is None:
         raise ApprovalBlockerError("scene packet not found")
@@ -69,24 +70,6 @@ async def has_active_blocker(session: AsyncSession, scene_packet_id: uuid.UUID) 
     return row is not None
 
 
-async def lock_packet_if_unblocked(session: AsyncSession, scene_packet_id: uuid.UUID) -> ScenePacket | None:
-    """Lock the ScenePacket row; return it only if it has no active blocker (else None). Batch-friendly."""
-    packet = await _lock_packet(session, scene_packet_id)
-    if await has_active_blocker(session, scene_packet_id):
-        return None
-    return packet
-
-
-async def lock_and_guard(session: AsyncSession, scene_packet_id: uuid.UUID) -> ScenePacket:
-    """The single approval-gate seam (D6/D9): lock the ScenePacket row and REFUSE if it has an active
-    blocker. The approval operation calls this before writing APPROVED, so no raw path approves past a
-    blocker and a concurrent `raise_blocker` serializes on the same lock. Returns the locked packet."""
-    packet = await lock_packet_if_unblocked(session, scene_packet_id)
-    if packet is None:
-        raise ApprovalBlockerError("scene packet has an unresolved approval blocker — resolve it first")
-    return packet
-
-
 async def raise_blocker(
     session: AsyncSession,
     *,
@@ -105,7 +88,7 @@ async def raise_blocker(
         raise ApprovalBlockerError("source_key is required")
     if not question or not question.strip():
         raise ApprovalBlockerError("question is required")
-    packet = await _lock_packet(session, scene_packet_id)
+    packet = await lock_packet(session, scene_packet_id)
     existing = await _active(session, packet.id, source, source_key)
     if existing is not None:
         return existing  # idempotent retry — one active row per (scene_packet_id, source, source_key)
@@ -142,7 +125,7 @@ async def resolve_blocker(
     # F7: lock the owning ScenePacket row before mutating a blocker, so resolve serializes with a
     # concurrent raise/approve on the same packet (all three take the same row lock); re-read the blocker
     # under that lock so a concurrent resolve can't double-close it.
-    await _lock_packet(session, blocker.scene_packet_id)
+    await lock_packet(session, blocker.scene_packet_id)
     await session.refresh(blocker)
     if blocker.status != ApprovalBlockerStatus.ACTIVE.value:
         raise ApprovalBlockerError(f"blocker is {blocker.status}; only an active blocker can be resolved")
@@ -180,36 +163,21 @@ async def active_blockers_for(
     return out
 
 
-def scene_packet_out_with_blocker(
-    base: ScenePacketOut, active_blockers: list[ApprovalBlocker] | None
-) -> ScenePacketOut:
-    """Overlay active-blocker facts onto a base scene-packet projection. FAIL CLOSED (A1c F6/F7): `None`
-    means the facts were NOT loaded (unknown) → not approvable, never silently 'no blockers'. `[]` means
-    loaded and none → the base projection stands. A non-empty list surfaces the blocked_by_open_question
-    gate state. This is display only; the authoritative gate is the locked approval operation."""
-    if active_blockers is None:
-        return base.model_copy(
-            update={
-                "can_approve": False,
-                "approval_state": "blocker_unknown",
-                "approval_blockers": ["approval-blocker facts were not loaded"],
-            }
-        )
-    if not active_blockers:
-        return base
-    return base.model_copy(
-        update={
-            "can_approve": False,
-            "approval_state": "blocked_by_open_question",
-            "approval_blockers": [b.question for b in active_blockers],
-        }
-    )
+async def scene_out_with_blockers(session: AsyncSession, row: ScenePacket) -> ScenePacketOut:
+    """Blocker-aware projection for a SINGLE packet-bearing response (detail, approve, PUT). Loading is
+    trivial here (one id), but the point is that this path ALWAYS loads the facts, so approval fields are
+    never 'missing' (F6). Precedence lives in the scene projection's `extra_gate`, not here."""
+    from dominion.workers.scene_packet.approval_policy import project_scene_packet_out
+
+    facts = await active_blockers_for(session, [row.id])
+    return project_scene_packet_out(row, facts.get(row.id, []))
 
 
-async def enrich_scene_packets_with_blockers(session: AsyncSession, rows: list[ScenePacket]) -> list[ScenePacketOut]:
-    """Router-facing reader: bulk-load active blockers ONCE, then overlay them onto each row's projection,
-    so the facts are never 'missing' on this path (F6). Single semantic policy, async read boundary."""
-    from dominion.workers.scene_packet.approval_policy import enrich_scene_packet_out
+async def scene_outs_with_blockers(session: AsyncSession, rows: list[ScenePacket]) -> list[ScenePacketOut]:
+    """Blocker-aware projection for every LIST / batch response (list, summary, batch approve, mark-stale,
+    derive). Bulk-load active blockers ONCE, then project each row through the scene policy's `extra_gate`
+    — one query, facts never missing (A1c F6). The single router-facing scene-packet read path."""
+    from dominion.workers.scene_packet.approval_policy import project_scene_packet_out
 
     facts = await active_blockers_for(session, [r.id for r in rows])
-    return [scene_packet_out_with_blocker(enrich_scene_packet_out(r), facts.get(r.id, [])) for r in rows]
+    return [project_scene_packet_out(r, facts.get(r.id, [])) for r in rows]
