@@ -7,7 +7,8 @@ from typing import Any
 from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
 from dominion.shared.models import ChapterPacket
 from dominion.shared.schemas import PacketOut
-from dominion.workers.gates import GateRefusal, refusal_reasons
+from dominion.workers.approval_projection import ApprovalPolicy, project
+from dominion.workers.gates import GateRefusal
 
 _CONF_ORDER = {PacketConfidence.GREEN: 0, PacketConfidence.YELLOW: 1, PacketConfidence.RED: 2}
 _VERDICT_FLOOR = {
@@ -86,35 +87,45 @@ def resolve_blocker_diagnostics(packet: ChapterPacket) -> dict[str, Any] | None:
     return diagnostics if isinstance(diagnostics, dict) else None
 
 
+# The chapter tier's approval-projection policy. The kernel (workers/approval_projection) owns the
+# precedence (held → open-questions → already-approved → approvable) and the three independent reason
+# contracts; this policy supplies only the tier's classification, strings, and DTO extras.
+_POLICY = ApprovalPolicy(
+    held_state=lambda p: "blocked" if p.status == PacketStatus.BLOCKED else None,
+    resolve_reason=resolve_blocked_reason,
+    held_action_text=lambda p, _state: resolve_blocked_reason(p) or "packet is blocked",
+    extra_gate=lambda p: (
+        ("open_questions", "resolve the packet's open questions first") if open_question_items(p) else None
+    ),
+    is_approved=lambda p: p.status == PacketStatus.APPROVED,
+    approved_copy="Packet already approved — edit the body or re-propose to make changes, then approve again.",
+    dto_extras=lambda p, _reason: {
+        "blocker_source": resolve_blocker_source(p),
+        "blocker_kind": resolve_blocker_kind(p),
+        "recovery_actions": resolve_recovery_actions(p),
+        "blocker_diagnostics": resolve_blocker_diagnostics(p),
+    },
+)
+
+
 def can_approve(packet: ChapterPacket) -> GateRefusal | None:
-    """Refuse approval only on true blockers: a BLOCKED packet (deterministic block-severity failure or
-    a failed agent call) or unresolved open questions (an explicit human decision point). Confidence and
-    QA verdicts are LLM signals — advisory, shown to the human, never a gate. A packet carrying only
-    repair/warn issues is approvable (approve-with-repairs; the repairs still gate final export)."""
-    if packet.status == PacketStatus.BLOCKED:
-        return GateRefusal(resolve_blocked_reason(packet) or "packet is blocked")
-    if open_question_items(packet):
-        return GateRefusal("resolve the packet's open questions first")
-    return None
+    """The real approve gate. Refuses only true blockers — a BLOCKED packet or unresolved open questions
+    (an explicit human decision point); confidence/QA verdicts are advisory, never a gate. Stays
+    idempotent for already-approved rows. Delegates to the shared projection kernel."""
+    refusal = project(packet, _POLICY).gate_refusal
+    return GateRefusal(refusal) if refusal is not None else None
 
 
 def approval_blockers(packet: ChapterPacket) -> list[str]:
-    return refusal_reasons(can_approve(packet))
+    return project(packet, _POLICY).standalone_blockers
 
 
 def approval_state(packet: ChapterPacket) -> tuple[str, list[str]]:
     """(state, reasons) for the DTO — every non-approvable state carries a human-readable reason, so the
-    UI never shows a greyed Approve with nothing to say. Distinct from can_approve(), which the approve
-    endpoints use as the real gate (and which stays idempotent for already-approved rows)."""
-    if packet.status == PacketStatus.BLOCKED:
-        return "blocked", [resolve_blocked_reason(packet) or "packet is blocked"]
-    if open_question_items(packet):
-        return "open_questions", ["resolve the packet's open questions first"]
-    if packet.status == PacketStatus.APPROVED:
-        return "already_approved", [
-            "Packet already approved — edit the body or re-propose to make changes, then approve again."
-        ]
-    return "approvable", []
+    UI never shows a greyed Approve with nothing to say. Distinct from can_approve() (the real gate,
+    idempotent on approved rows). Delegates to the shared projection kernel."""
+    pr = project(packet, _POLICY)
+    return pr.state, pr.display_reasons
 
 
 def can_derive_scene_packets(chapter_packet: ChapterPacket | None) -> GateRefusal | None:
@@ -137,17 +148,14 @@ def status_from_qa(packet_body: dict[str, Any], qa: dict[str, Any]) -> tuple[Pac
 
 
 def enrich_packet_out(row: ChapterPacket) -> PacketOut:
-    state, blockers = approval_state(row)
+    pr = project(row, _POLICY)
     out = PacketOut.model_validate(row)
     return out.model_copy(
         update={
-            "can_approve": state == "approvable",
-            "approval_state": state,
-            "approval_blockers": blockers,
-            "blocked_reason": resolve_blocked_reason(row),
-            "blocker_source": resolve_blocker_source(row),
-            "blocker_kind": resolve_blocker_kind(row),
-            "recovery_actions": resolve_recovery_actions(row),
-            "blocker_diagnostics": resolve_blocker_diagnostics(row),
+            "can_approve": pr.state == "approvable",
+            "approval_state": pr.state,
+            "approval_blockers": pr.display_reasons,
+            "blocked_reason": pr.blocked_reason,
+            **pr.extras,
         }
     )
