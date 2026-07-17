@@ -527,6 +527,36 @@ class ScenePacketOut(_ORM):
     blocker_source: str | None = None  # author | qa | derive | unknown
 
 
+class ApprovalBlockerRaiseIn(BaseModel):
+    """Body for POST /scene-packets/{id}/blockers — raise a manual_command scene-tier open question."""
+
+    source_key: str
+    question: str
+
+
+class ApprovalBlockerResolveIn(BaseModel):
+    """Body for POST /scene-packet-blockers/{id}/resolve — explicit resolution with a required rationale."""
+
+    rationale: str
+    resolution_source: str
+
+
+class ApprovalBlockerOut(_ORM):
+    """A scene-tier ApprovalBlocker (A1c slice 1, ADR-0031 D14)."""
+
+    id: uuid.UUID
+    scene_packet_id: uuid.UUID
+    chapter_id: uuid.UUID
+    source: str
+    source_key: str
+    status: str  # active | resolved
+    question: str
+    raised_at: datetime | None = None
+    resolved_at: datetime | None = None
+    resolution_rationale: str | None = None
+    resolution_source: str | None = None
+
+
 class ScenePacketSummaryOut(BaseModel):
     """Slim list row for the Desk scene-packet list: statuses and counters only — never the contract
     body, QA report, or sources (those load per-packet via GET /scene-packets/{id} when a card opens).

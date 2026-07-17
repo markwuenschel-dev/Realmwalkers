@@ -199,6 +199,15 @@ class ScenePacketVerdict(StrEnum):
     BLOCK_DRAFTING = "block_drafting"
 
 
+class ApprovalBlockerStatus(StrEnum):
+    """Lifecycle of a scene-tier ApprovalBlocker (A1c slice 1, ADR-0031 D14). ACTIVE holds automated
+    approval of its ScenePacket; RESOLVED requires an explicit rationale + source. No supersede in slice
+    1 — a manual_command blocker survives re-derive and is purged only by parent deletion."""
+
+    ACTIVE = "active"
+    RESOLVED = "resolved"
+
+
 class LengthStatus(StrEnum):
     """Where a drafted scene's word count landed against its ScenePacket word_budget (DESIGN: length)."""
 

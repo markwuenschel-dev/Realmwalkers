@@ -43,7 +43,7 @@ class ApprovalPolicy:
     held_state: Callable[[Any], str | None]  # "blocked" / "rate_limited" / … or None when not held
     resolve_reason: Callable[[Any], str | None]
     held_action_text: Callable[[Any, str], str]  # (packet, held_state) → gate action text
-    extra_gate: Callable[[Any], tuple[str, str] | None]  # (state, reason) e.g. open-questions, or None
+    extra_gate: Callable[[Any], tuple[str, list[str]] | None]  # (state, display_reasons) e.g. open-questions, or None
     is_approved: Callable[[Any], bool]
     approved_copy: str
     dto_extras: Callable[[Any, str | None], dict[str, Any]]  # (packet, resolved_reason) → DTO extras
@@ -66,12 +66,15 @@ def project(packet: Any, policy: ApprovalPolicy) -> GatePresentation:
         )
     extra = policy.extra_gate(packet)
     if extra is not None:
-        state, reason = extra
+        state, reasons = extra
+        # One action string for the gate, but the FULL reason list for the standalone + display
+        # contracts: a scene open-question hold can carry several questions; the chapter tier passes one,
+        # so its single-item list projects byte-identically to the previous single-reason behaviour.
         return GatePresentation(
             state=state,
-            gate_refusal=reason,
-            standalone_blockers=[reason],
-            display_reasons=[reason],
+            gate_refusal=reasons[0] if reasons else None,
+            standalone_blockers=list(reasons),
+            display_reasons=list(reasons),
             blocked_reason=None,
             extras=policy.dto_extras(packet, None),
         )

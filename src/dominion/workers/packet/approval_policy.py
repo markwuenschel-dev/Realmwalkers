@@ -95,7 +95,7 @@ _POLICY = ApprovalPolicy(
     resolve_reason=resolve_blocked_reason,
     held_action_text=lambda p, _state: resolve_blocked_reason(p) or "packet is blocked",
     extra_gate=lambda p: (
-        ("open_questions", "resolve the packet's open questions first") if open_question_items(p) else None
+        ("open_questions", ["resolve the packet's open questions first"]) if open_question_items(p) else None
     ),
     is_approved=lambda p: p.status == PacketStatus.APPROVED,
     approved_copy="Packet already approved — edit the body or re-propose to make changes, then approve again.",

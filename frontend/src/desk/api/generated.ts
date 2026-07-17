@@ -947,6 +947,53 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/scene-packets/{scene_packet_id}/blockers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Scene Packet Blockers
+     * @description All ApprovalBlockers for a scene packet (active + resolved history), oldest first.
+     */
+    get: operations["list_scene_packet_blockers_scene_packets__scene_packet_id__blockers_get"];
+    put?: never;
+    /**
+     * Raise Scene Packet Blocker
+     * @description Raise a manual_command scene-tier ApprovalBlocker (idempotent per active source_key). If the packet
+     *     is already approved it is demoted and its beats reconciled — no approved packet may carry an active
+     *     blocker (A1c, ADR-0031 D9/D14).
+     */
+    post: operations["raise_scene_packet_blocker_scene_packets__scene_packet_id__blockers_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scene-packet-blockers/{blocker_id}/resolve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Resolve Scene Packet Blocker
+     * @description Explicitly resolve an active blocker (requires a nonempty rationale + source). Approval is NOT a
+     *     resolution — this is the only way to clear one.
+     */
+    post: operations["resolve_scene_packet_blocker_scene_packet_blockers__blocker_id__resolve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/scene-packets/approve": {
     parameters: {
       query?: never;
@@ -3547,6 +3594,63 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /**
+     * ApprovalBlockerOut
+     * @description A scene-tier ApprovalBlocker (A1c slice 1, ADR-0031 D14).
+     */
+    ApprovalBlockerOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Scene Packet Id
+       * Format: uuid
+       */
+      scene_packet_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Source */
+      source: string;
+      /** Source Key */
+      source_key: string;
+      /** Status */
+      status: string;
+      /** Question */
+      question: string;
+      /** Raised At */
+      raised_at?: string | null;
+      /** Resolved At */
+      resolved_at?: string | null;
+      /** Resolution Rationale */
+      resolution_rationale?: string | null;
+      /** Resolution Source */
+      resolution_source?: string | null;
+    };
+    /**
+     * ApprovalBlockerRaiseIn
+     * @description Body for POST /scene-packets/{id}/blockers — raise a manual_command scene-tier open question.
+     */
+    ApprovalBlockerRaiseIn: {
+      /** Source Key */
+      source_key: string;
+      /** Question */
+      question: string;
+    };
+    /**
+     * ApprovalBlockerResolveIn
+     * @description Body for POST /scene-packet-blockers/{id}/resolve — explicit resolution with a required rationale.
+     */
+    ApprovalBlockerResolveIn: {
+      /** Rationale */
+      rationale: string;
+      /** Resolution Source */
+      resolution_source: string;
     };
     /**
      * ApproveBeatsIn
@@ -10282,6 +10386,107 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ScenePacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_scene_packet_blockers_scene_packets__scene_packet_id__blockers_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApprovalBlockerOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  raise_scene_packet_blocker_scene_packets__scene_packet_id__blockers_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_packet_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ApprovalBlockerRaiseIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApprovalBlockerOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  resolve_scene_packet_blocker_scene_packet_blockers__blocker_id__resolve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        blocker_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ApprovalBlockerResolveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApprovalBlockerOut"];
         };
       };
       /** @description Validation Error */

@@ -9,10 +9,11 @@ verdict at all (fail closed on infrastructure, never on judgment).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Literal
 
 from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict
-from dominion.shared.models import ScenePacket
+from dominion.shared.models import ApprovalBlocker, ScenePacket
 from dominion.shared.schemas import ScenePacketOut
 from dominion.workers.approval_projection import ApprovalPolicy, project
 from dominion.workers.context.types import ScenePacketRequiredError
@@ -233,11 +234,11 @@ def assert_draft_ready(packet: ScenePacket) -> None:
         )
 
 
-def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
+def _project_out(row: ScenePacket, policy: ApprovalPolicy) -> ScenePacketOut:
     # Mirrors the real gate (can_approve() refuses only BLOCKED/RATE_LIMITED): STALE is re-approvable —
     # assert_draft_ready's own remedy says "re-derive or re-approve" — so the UI must offer the button,
     # not just the error message. Every field comes from one projection.
-    pr = project(row, _POLICY)
+    pr = project(row, policy)
     out = ScenePacketOut.model_validate(row)
     return out.model_copy(
         update={
@@ -248,3 +249,41 @@ def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
             **pr.extras,
         }
     )
+
+
+def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
+    """Base scene-packet projection — approval status + QA only, blocker-AGNOSTIC. This is NOT the
+    router-facing read path: every endpoint that serializes approval fields goes through the
+    blocker-aware `blockers.scene_out(s)_with_blockers` bulk path (A1c F6), so an active ApprovalBlocker
+    is never advertised as approvable. Kept as the kernel the blocker-aware projector composes over and
+    for the projection unit tests; deliberately not re-exported from the pipeline facade."""
+    return _project_out(row, _POLICY)
+
+
+_BLOCKER_UNKNOWN_REASON = "approval-blocker facts were not loaded"
+
+
+def _blocker_extra_gate(active_blockers: list[ApprovalBlocker] | None):
+    """Build C2's `extra_gate` over PRELOADED blocker facts, so blocker state enters the projection only
+    AFTER the held precedence — a genuinely BLOCKED/RATE_LIMITED packet is never relabeled as an
+    open-question hold. Tri-state, fail closed (A1c F6/F7): None = facts were not loaded → an explicit
+    not-approvable `blocker_unknown` gate, never a silent 'no blockers'; `[]` = loaded and none → no gate
+    (fall through to approved/approvable); a non-empty list → the `blocked_by_open_question` gate carrying
+    every open question."""
+
+    def gate(_packet: ScenePacket) -> tuple[str, list[str]] | None:
+        if active_blockers is None:
+            return ("blocker_unknown", [_BLOCKER_UNKNOWN_REASON])
+        if not active_blockers:
+            return None
+        return ("blocked_by_open_question", [b.question for b in active_blockers])
+
+    return gate
+
+
+def project_scene_packet_out(row: ScenePacket, active_blockers: list[ApprovalBlocker] | None) -> ScenePacketOut:
+    """The blocker-aware scene projection — the router-facing truth. Feeds preloaded blocker facts into
+    C2's `extra_gate` (never overwriting C2's output), so precedence stays held → blocker →
+    already-approved → approvable. `active_blockers=None` fails closed (not approvable); `[]` = no active
+    blocker; a non-empty list surfaces the open questions and holds approval."""
+    return _project_out(row, replace(_POLICY, extra_gate=_blocker_extra_gate(active_blockers)))

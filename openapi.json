@@ -2815,6 +2815,160 @@
         }
       }
     },
+    "/scene-packets/{scene_packet_id}/blockers": {
+      "post": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Raise Scene Packet Blocker",
+        "description": "Raise a manual_command scene-tier ApprovalBlocker (idempotent per active source_key). If the packet\nis already approved it is demoted and its beats reconciled \u2014 no approved packet may carry an active\nblocker (A1c, ADR-0031 D9/D14).",
+        "operationId": "raise_scene_packet_blocker_scene_packets__scene_packet_id__blockers_post",
+        "parameters": [
+          {
+            "name": "scene_packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Packet Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalBlockerRaiseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalBlockerOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "List Scene Packet Blockers",
+        "description": "All ApprovalBlockers for a scene packet (active + resolved history), oldest first.",
+        "operationId": "list_scene_packet_blockers_scene_packets__scene_packet_id__blockers_get",
+        "parameters": [
+          {
+            "name": "scene_packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Packet Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApprovalBlockerOut"
+                  },
+                  "title": "Response List Scene Packet Blockers Scene Packets  Scene Packet Id  Blockers Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scene-packet-blockers/{blocker_id}/resolve": {
+      "post": {
+        "tags": [
+          "scene-packets"
+        ],
+        "summary": "Resolve Scene Packet Blocker",
+        "description": "Explicitly resolve an active blocker (requires a nonempty rationale + source). Approval is NOT a\nresolution \u2014 this is the only way to clear one.",
+        "operationId": "resolve_scene_packet_blocker_scene_packet_blockers__blocker_id__resolve_post",
+        "parameters": [
+          {
+            "name": "blocker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Blocker Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalBlockerResolveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalBlockerOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapters/{chapter_id}/scene-packets/approve": {
       "post": {
         "tags": [
@@ -10399,6 +10553,137 @@
           "created_at"
         ],
         "title": "AnnotationOut"
+      },
+      "ApprovalBlockerOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "scene_packet_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Scene Packet Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "source_key": {
+            "type": "string",
+            "title": "Source Key"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "raised_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raised At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolution_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Rationale"
+          },
+          "resolution_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "scene_packet_id",
+          "chapter_id",
+          "source",
+          "source_key",
+          "status",
+          "question"
+        ],
+        "title": "ApprovalBlockerOut",
+        "description": "A scene-tier ApprovalBlocker (A1c slice 1, ADR-0031 D14)."
+      },
+      "ApprovalBlockerRaiseIn": {
+        "properties": {
+          "source_key": {
+            "type": "string",
+            "title": "Source Key"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_key",
+          "question"
+        ],
+        "title": "ApprovalBlockerRaiseIn",
+        "description": "Body for POST /scene-packets/{id}/blockers \u2014 raise a manual_command scene-tier open question."
+      },
+      "ApprovalBlockerResolveIn": {
+        "properties": {
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "resolution_source": {
+            "type": "string",
+            "title": "Resolution Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rationale",
+          "resolution_source"
+        ],
+        "title": "ApprovalBlockerResolveIn",
+        "description": "Body for POST /scene-packet-blockers/{id}/resolve \u2014 explicit resolution with a required rationale."
       },
       "ApproveBeatsIn": {
         "properties": {

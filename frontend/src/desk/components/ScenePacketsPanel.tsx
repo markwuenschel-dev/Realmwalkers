@@ -1064,11 +1064,15 @@ function ScenePacketCard({
           )}
         >
           <div style={css("font-family:var(--mono);font-size:11px;color:var(--bad)")}>
-            {summary.blocker_source === "validation"
-              ? "Deterministic validation blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
-              : summary.blocker_source == null || summary.blocker_source === "qa"
-                ? "QA blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
-                : "Approval blocked — fix the contract below (Edit) and Re-run QA, or Re-derive:"}
+            {summary.approval_state === "blocked_by_open_question"
+              ? "Approval is held by an unresolved open question — resolve it before this scene can be approved:"
+              : summary.approval_state === "blocker_unknown"
+                ? "Approval state is unavailable — blocker facts could not be loaded; reload before approving:"
+                : summary.blocker_source === "validation"
+                  ? "Deterministic validation blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
+                  : summary.blocker_source == null || summary.blocker_source === "qa"
+                    ? "QA blocks approval — fix the contract below (Edit) and Re-run QA, or Re-derive:"
+                    : "Approval blocked — fix the contract below (Edit) and Re-run QA, or Re-derive:"}
           </div>
           {reasons.map((r, i) => (
             <div key={i} style={css("font-size:12px;color:var(--ink);line-height:1.4")}>
