@@ -14,6 +14,7 @@ from typing import Any, Literal
 from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict
 from dominion.shared.models import ScenePacket
 from dominion.shared.schemas import ScenePacketOut
+from dominion.workers.approval_projection import ApprovalPolicy, project
 from dominion.workers.context.types import ScenePacketRequiredError
 from dominion.workers.gates import GateRefusal
 from dominion.workers.scene_packet.parse import valid_scene_packet_body
@@ -96,38 +97,49 @@ def infer_blocker_source(packet: ScenePacket, reason: str | None) -> BlockerSour
     return "unknown"
 
 
+_SCENE_BLOCKED_ACTION = "scene packet is blocked — re-derive or edit first"
+_SCENE_RATE_LIMIT_ACTION = (
+    "scene packet derive was rate limited by the provider (transient) — retry derive, or re-run QA "
+    "if the contract body survived"
+)
+
+# The scene tier's approval-projection policy. The kernel (workers/approval_projection) owns the
+# precedence and the three independent reason contracts; this policy supplies the tier's held
+# classification, action strings, approved copy, and DTO blocker_source. STALE is NOT held here — it is
+# approvable (its remedy IS re-approve); draft-readiness is a separate axis (assert_draft_ready).
+_POLICY = ApprovalPolicy(
+    held_state=lambda p: (
+        "rate_limited"
+        if p.status == ScenePacketStatus.RATE_LIMITED
+        else "blocked"
+        if p.status == ScenePacketStatus.BLOCKED
+        else None
+    ),
+    resolve_reason=resolve_blocked_reason,
+    held_action_text=lambda p, state: _SCENE_RATE_LIMIT_ACTION if state == "rate_limited" else _SCENE_BLOCKED_ACTION,
+    extra_gate=lambda p: None,
+    is_approved=lambda p: p.status == ScenePacketStatus.APPROVED,
+    approved_copy="Scene packet already approved — edit or re-derive to propose changes, then approve again.",
+    dto_extras=lambda p, reason: {"blocker_source": infer_blocker_source(p, reason) if reason else None},
+)
+
+
 def can_approve(packet: ScenePacket) -> GateRefusal | None:
-    """Refuse approval only on a BLOCKED or RATE_LIMITED packet (deterministic block-severity failure
-    or a failed/refused agent call). QA verdicts and repair/warn issues are advisory — a repair-laden
-    packet is approvable (approve-with-repairs; the repairs still gate final export)."""
-    if packet.status == ScenePacketStatus.BLOCKED:
-        return GateRefusal("scene packet is blocked — re-derive or edit first")
-    if packet.status == ScenePacketStatus.RATE_LIMITED:
-        return GateRefusal(
-            "scene packet derive was rate limited by the provider (transient) — retry derive, or re-run QA "
-            "if the contract body survived"
-        )
-    return None
+    """The real approve gate. Refuses only a BLOCKED or RATE_LIMITED packet; QA verdicts and repair/warn
+    issues are advisory, never a gate. STALE stays approvable. Delegates to the shared projection kernel."""
+    refusal = project(packet, _POLICY).gate_refusal
+    return GateRefusal(refusal) if refusal is not None else None
 
 
 def approval_blockers(packet: ScenePacket) -> list[str]:
-    if packet.status in _HELD_STATUSES:
-        return [resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"]
-    return []
+    return project(packet, _POLICY).standalone_blockers
 
 
 def approval_state(packet: ScenePacket) -> tuple[str, list[str]]:
-    """(state, reasons) for the DTO — every non-approvable state carries a human-readable reason, so the
-    UI never shows a greyed Approve with nothing to say. STALE stays approvable (re-approve IS the
-    remedy). Distinct from can_approve(), the endpoints' real gate."""
-    if packet.status in _HELD_STATUSES:
-        state = "rate_limited" if packet.status == ScenePacketStatus.RATE_LIMITED else "blocked"
-        return state, [resolve_blocked_reason(packet) or "scene packet is blocked — re-derive or edit first"]
-    if packet.status == ScenePacketStatus.APPROVED:
-        return "already_approved", [
-            "Scene packet already approved — edit or re-derive to propose changes, then approve again."
-        ]
-    return "approvable", []
+    """(state, reasons) for the DTO — every non-approvable state carries a reason. STALE stays approvable
+    (re-approve IS the remedy). Distinct from can_approve(), the real gate. Delegates to the kernel."""
+    pr = project(packet, _POLICY)
+    return pr.state, pr.display_reasons
 
 
 def is_approvable_for_batch(packet: ScenePacket) -> bool:
@@ -222,19 +234,17 @@ def assert_draft_ready(packet: ScenePacket) -> None:
 
 
 def enrich_scene_packet_out(row: ScenePacket) -> ScenePacketOut:
-    state, blockers = approval_state(row)
-    reason = resolve_blocked_reason(row) if row.status in _HELD_STATUSES else None
-    source = infer_blocker_source(row, reason) if reason else None
+    # Mirrors the real gate (can_approve() refuses only BLOCKED/RATE_LIMITED): STALE is re-approvable —
+    # assert_draft_ready's own remedy says "re-derive or re-approve" — so the UI must offer the button,
+    # not just the error message. Every field comes from one projection.
+    pr = project(row, _POLICY)
     out = ScenePacketOut.model_validate(row)
     return out.model_copy(
         update={
-            # Mirrors the real gate (can_approve() refuses only BLOCKED/RATE_LIMITED): STALE is
-            # re-approvable — assert_draft_ready's own remedy says "re-derive or re-approve" — so the
-            # UI must offer the button, not just the error message.
-            "can_approve": state == "approvable",
-            "approval_state": state,
-            "approval_blockers": blockers,
-            "blocked_reason": reason,
-            "blocker_source": source,
+            "can_approve": pr.state == "approvable",
+            "approval_state": pr.state,
+            "approval_blockers": pr.display_reasons,
+            "blocked_reason": pr.blocked_reason,
+            **pr.extras,
         }
     )
