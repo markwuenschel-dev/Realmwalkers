@@ -96,7 +96,7 @@ Serra's read: she initiated, returned the conversation to the altana, and gave h
 | Mid-duel reveal | Serra = altana woman + Dead Hand assassin | Marcus = altana man + anonymous Aspect |
 | Facility aftermath | full connection, emotionally delayed | full connection; larger professional revision |
 
-*(Mara likely knows Serra's competitive identity throughout — tandem partner — and simply has no reason to tell Marcus.)*
+*(Mara knows Serra's competitive identity throughout — tandem partner — and simply has no reason to tell Marcus.)*
 
 **Earth night (common area).** After formal consent, before surgery: one contained night — separate rooms, **shared common area**. The six get a brief shared Earth memory before separation (404 four know each other; Serra/Mara know each other; brief cross-group reads). Texture only: fear, jokes, consent forms, too-clean corporate calm, failed sleep, nervousness — **not** a bonding arc. This is the last full-six window before the Realm scatters them. *(See `scene_queue.md` Act 1 brief.)*
 
