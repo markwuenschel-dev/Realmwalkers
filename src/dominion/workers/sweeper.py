@@ -38,6 +38,7 @@ from dominion.shared.enums import (
     ProductionRunStatus,
     RepairAuthorityLevel,
     RepairTaskStatus,
+    is_manual_grant,
 )
 from dominion.shared.models import ModelOverride, ProductionRun, RepairTask
 from dominion.workers import activity, background_work, production
@@ -187,7 +188,7 @@ def _within_ceiling(level: str, ceiling: str) -> bool:
     a manual-grant Authorization Requirement (ADR-0031 D16), never auto-approvable regardless of ceiling;
     and an unknown/invalid ceiling or level auto-approves NOTHING (the old _rank()==999 made an unknown
     ceiling permit every task — fail-open, worse than human_required)."""
-    if level == RepairAuthorityLevel.HUMAN_REQUIRED.value:
+    if is_manual_grant(level):
         return False
     if ceiling not in AUTO_APPROVAL_CEILINGS or level not in AUTO_APPROVAL_CEILINGS:
         return False

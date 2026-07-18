@@ -26,6 +26,7 @@ from dominion.shared.enums import (
     RepairTaskStatus,
     RepairVerificationVerdict,
     SceneStatus,
+    is_manual_grant,
 )
 from dominion.shared.models import (
     Approval,
@@ -255,9 +256,7 @@ async def _queue_repair_task_from_issues(
         scene_no=None if chapter_scoped else first.scene_no,
         repair_kind=repair_kind,
         authority_level=authority_level,
-        status=RepairTaskStatus.WAITING_FOR_HUMAN
-        if authority_level == RepairAuthorityLevel.HUMAN_REQUIRED
-        else RepairTaskStatus.QUEUED,
+        status=RepairTaskStatus.WAITING_FOR_HUMAN if is_manual_grant(authority_level) else RepairTaskStatus.QUEUED,
         issue_ids=[str(issue.id) for issue in issues],
         target_spans={
             "items": [
@@ -291,7 +290,7 @@ async def _queue_repair_task_from_issues(
         in {RepairAuthorityLevel.SPAN_ONLY, RepairAuthorityLevel.SCENE_LOCAL, RepairAuthorityLevel.SCENE_STRUCTURAL}
         else ["propose_human_repair"],
         forbidden_operations=["change_canon", "change_chapter_outcome"]
-        if authority_level != RepairAuthorityLevel.HUMAN_REQUIRED
+        if not is_manual_grant(authority_level)
         else ["auto_apply"],
         requires_human_approval=authority_level
         in {
@@ -671,7 +670,7 @@ async def apply_repair_task(
     # compatibility discriminator — needs an explicit HUMAN grant regardless of ceiling. An autonomous
     # caller can NEVER authorize it; refuse here, before any stamp or job scheduling. (A1c replaces this
     # discriminator with a durable Authorization Requirement axis orthogonal to authority_level.)
-    if autonomous and task.authority_level == RepairAuthorityLevel.HUMAN_REQUIRED.value:
+    if autonomous and is_manual_grant(task.authority_level):
         task.status = RepairTaskStatus.WAITING_FOR_HUMAN
         run.status = ProductionRunStatus.WAITING_FOR_HUMAN
         await support.record_event(
