@@ -6,7 +6,12 @@ from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from dominion.shared import enum_columns
 from dominion.shared.config import settings
+
+# ENUM-STR A': install the enum-column write-boundary validator (a `before_flush` listener) once, so an
+# off-vocabulary value on a registered column raises instead of silently persisting. Idempotent.
+enum_columns.install()
 
 # pool_size/max_overflow raised above the SQLAlchemy defaults (5/10) so the Desk's refresh fan-out
 # (several concurrent chapter/scene/jobs queries) isn't throttled into serial waves of 15.
