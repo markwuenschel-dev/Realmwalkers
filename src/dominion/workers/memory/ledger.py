@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.models import Beat, Chapter, CharacterState, Scene
@@ -51,7 +51,8 @@ async def commit_declared_deltas(session: AsyncSession, *, scene_id: uuid.UUID) 
         row = (
             await session.execute(
                 select(CharacterState).where(
-                    CharacterState.book_id == chapter.book_id, CharacterState.character == character
+                    CharacterState.book_id == chapter.book_id,
+                    func.lower(CharacterState.character) == character.lower(),
                 )
             )
         ).scalar_one_or_none()

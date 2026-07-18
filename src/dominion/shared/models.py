@@ -628,6 +628,9 @@ class CharacterState(Base):
     __tablename__ = "character_state"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    # CHAR-UNIQ: unique per (book_id, lower(character)) — a case-insensitive functional unique index lives
+    # in migrations.py (_EXTRA_DDL). The stored value keeps display case; every reader/writer case-folds
+    # its lookup. create_all can't express a functional index, so that DDL is the source of truth.
     character: Mapped[str] = mapped_column(Text)
     as_of_scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     provisional: Mapped[bool] = mapped_column(Boolean, default=False)  # from unapproved draft_ahead scene

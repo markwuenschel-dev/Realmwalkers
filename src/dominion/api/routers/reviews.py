@@ -12,7 +12,7 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
 from dominion.shared.enums import Decision, SceneStatus
@@ -182,7 +182,8 @@ async def resolve_continuity(
         row = (
             await session.execute(
                 select(CharacterState).where(
-                    CharacterState.book_id == chapter.book_id, CharacterState.character == character
+                    CharacterState.book_id == chapter.book_id,
+                    func.lower(CharacterState.character) == character.lower(),
                 )
             )
         ).scalar_one_or_none()
