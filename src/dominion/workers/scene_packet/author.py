@@ -281,7 +281,7 @@ async def author_scene_packet(
         raw, usage = await llm.complete(
             model=model,
             system=_SYSTEM,
-            user_prefix=prefix,
+            user_prefix_blocks=((llm.CachedPrefixBlock(name="user_prefix", text=prefix),) if prefix else ()),
             user=user,
             max_tokens=max_tokens,
             budget=budget,

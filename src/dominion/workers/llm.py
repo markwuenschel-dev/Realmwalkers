@@ -560,7 +560,6 @@ async def complete(
     user: str,
     max_tokens: int,
     budget: TokenBudget,
-    user_prefix: str | None = None,
     user_prefix_blocks: Sequence[CachedPrefixBlock] | None = None,
     expect_cache: bool = True,
     context_window_budget: int | None = None,
@@ -579,12 +578,9 @@ async def complete(
     PromptBudgetExceeded locally, before any provider traffic — a policy gate on prompt size,
     tighter than (and independent of) the model-context-window preflight.
 
-    user_prefix: when given, sent as a cached content block before `user`. Use for stable context
-    (canon, summaries, prior-scene tail) that doesn't change across calls within a job, so subsequent
-    calls read it from cache rather than re-sending it as uncached input.
-
-    user_prefix_blocks: ordered cached blocks for explicit cache breakpoints. The old `user_prefix`
-    parameter maps to one block named "user_prefix" so existing callers keep their behavior.
+    user_prefix_blocks: ordered cached blocks for explicit cache breakpoints, sent before `user`. Use
+    for stable context (canon, summaries, prior-scene tail) that doesn't change across calls within a
+    job, so subsequent calls read it from cache rather than re-sending it as uncached input.
 
     setting_key: the agent role making this call. When its policy sets backend="agent_cli", generation
     routes through the Claude Code CLI subprocess (workers/agent_cli.py) instead of the HTTP API; every
@@ -617,8 +613,6 @@ async def complete(
         )
 
     blocks: tuple[CachedPrefixBlock, ...] = tuple(user_prefix_blocks or ())
-    if user_prefix:
-        blocks = (CachedPrefixBlock(name="user_prefix", text=user_prefix), *blocks)
 
     # Local per-section estimate: kept ONLY for attribution/reporting (and the disabled/fallback gate),
     # never the authoritative context-window gate when real counting succeeds.

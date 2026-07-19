@@ -298,7 +298,9 @@ class Drafter:
                 model=model,
                 system=system,
                 user=user,
-                user_prefix=user_prefix,
+                user_prefix_blocks=(
+                    (llm.CachedPrefixBlock(name="user_prefix", text=user_prefix),) if user_prefix else ()
+                ),
                 max_tokens=max_tokens,
                 budget=ctx.budget,
                 temperature=quality_temperature("draft_model"),

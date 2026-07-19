@@ -76,7 +76,7 @@ async def test_complete_normalizes_a_responses_result(monkeypatch):
         user="dynamic",
         max_tokens=200,
         budget=TokenBudget(max_tokens=1_000),
-        user_prefix="stable",
+        user_prefix_blocks=(llm.CachedPrefixBlock(name="user_prefix", text="stable"),),
     )
 
     assert text == '{"ok":true}'
