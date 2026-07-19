@@ -193,8 +193,11 @@ async def db_factory():
     ok, msg = _db_state
     if not ok:
         # Locally, no Postgres -> skip (DB tests are opt-in). In CI we set DOMINION_REQUIRE_DB so an
-        # unreachable DB fails loudly instead of producing a falsely-green run.
-        if os.environ.get("DOMINION_REQUIRE_DB"):
+        # unreachable DB fails loudly instead of producing a falsely-green run. Only affirmative
+        # values arm the gate — a bare truthy check treats "0"/"false" as ON, so "1"/"true"/"yes"/
+        # "on" (case-insensitive) require the DB while ""/"0"/"false"/"no"/"off" fall through to skip.
+        require_db = os.environ.get("DOMINION_REQUIRE_DB", "").strip().lower() in {"1", "true", "yes", "on"}
+        if require_db:
             pytest.fail(msg, pytrace=False)
         pytest.skip(msg)
 

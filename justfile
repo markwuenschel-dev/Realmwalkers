@@ -7,8 +7,13 @@ install:
 db-init:
     uv run python scripts/init_db.py
 
+# Full suite — Postgres required; fails loud if the DB is down (matches verify.sh + CI).
 test:
-    uv run pytest -q
+    DOMINION_REQUIRE_DB=1 uv run pytest -q -rs
+
+# Fast unit-only loop — DB-gated tests skip when Postgres is down (opt-in, no infra).
+test-nodb:
+    uv run pytest -q -rs
 
 lint:
     uv run ruff check src tests
@@ -16,7 +21,7 @@ lint:
 typecheck:
     uv run pyright
 
-# PR-scoped pyright — same as CI static job (see scripts/ci_pyright_changed.sh).
+# PR-scoped pyright — fast changed-files subset; full parity via `just verify`/`just typecheck`.
 typecheck-changed:
     bash scripts/ci_pyright_changed.sh
 
