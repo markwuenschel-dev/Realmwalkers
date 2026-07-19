@@ -262,11 +262,14 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
         if _attempts.get(rid, 0) >= cfg.max_attempts:
             needs_human = True
             continue
+        # SWEEPER-CAP: count every apply ATTEMPT (success OR failure), not just successes, so a task that
+        # keeps failing trips the per-run cap and the run parks instead of re-applying it forever. The
+        # counter is an in-process dict, so the savepoint rollback below never un-counts a failed attempt.
+        _attempts[rid] = _attempts.get(rid, 0) + 1
         try:
             # SAVEPOINT so a mid-apply failure rolls back only this task, not the whole run's tick.
             async with session.begin_nested():
                 await production.apply_repair_task(session, task_id, autonomous=True, human_approved=False)
-            _attempts[rid] = _attempts.get(rid, 0) + 1
             actions.append({"run_id": rid, "kind": "repair_applied"})
             await activity.record_activity(
                 session,

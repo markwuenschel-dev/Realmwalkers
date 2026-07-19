@@ -12,6 +12,9 @@ from what production runs.
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -65,6 +68,10 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS run_id UUID",
     # Per-scene POV override: optional, null/blank inherits the chapter POV (Beat.pov).
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
+    # LEDGER: one-shot guard so a beat's relative '+N' deltas commit to the CharacterState ledger exactly
+    # once across scene revisions. DEFAULT FALSE for new rows; existing already-approved beats are marked
+    # committed by _BACKFILLS below (they already applied their deltas).
+    "ALTER TABLE beats ADD COLUMN IF NOT EXISTS deltas_committed BOOLEAN DEFAULT FALSE",
     # Per-call telemetry diagnostics (context budget breakdown, section name, fallback flags, …).
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS metadata JSONB",
     # Production attribution: soft link (no FK) tying a draft/repair call's spend to its ProductionRun,
@@ -118,6 +125,16 @@ _BACKFILLS: tuple[str, ...] = (
     # inside artifact bodies keep the old spelling forever, so readers tolerate both.
     "UPDATE issues SET severity = 'block' WHERE severity = 'hard'",
     "UPDATE critiques SET severity = 'block' WHERE severity = 'hard'",
+    # LEDGER: a beat whose slot already has an APPROVED scene had its declared deltas committed (the buggy
+    # code committed on first approval), so mark it committed — otherwise the first post-migration
+    # re-approval would apply the delta once more. New/unapproved beats stay FALSE. Idempotent.
+    """UPDATE beats SET deltas_committed = TRUE
+       WHERE deltas_committed IS NOT TRUE
+         AND EXISTS (
+           SELECT 1 FROM scenes
+           WHERE scenes.chapter_id = beats.chapter_id AND scenes.scene_no = beats.scene_no
+             AND scenes.status = 'approved'
+         )""",
     # Export-metadata backfill: stamp the Dominion identity onto books that predate the metadata columns,
     # WITHOUT stamping it onto books created afterward. The IS NULL gate alone can't do that here — new
     # books also carry NULL (no server default) and would be wrongly backfilled on the next boot. So the
@@ -145,6 +162,14 @@ _BACKFILLS: tuple[str, ...] = (
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
 _EXTRA_DDL: tuple[str, ...] = (
+    # CHAR-UNIQ: one CharacterState row per (book, character), CASE-INSENSITIVE — the single-row-per-key
+    # invariant ledger.py's docstring asserts and every reader relies on. A functional unique index keeps
+    # the stored display case while enforcing uniqueness on lower(character); readers/writers case-fold
+    # their lookups. Any pre-existing duplicates are collapsed by `_dedup_character_state` (called before
+    # this block) so the index can be built. This is a STRONGER invariant than CanonEntity has (that only
+    # does case-insensitive lookups) — deliberately, since CharacterState must be single-valued.
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_character_state_book_lower_char "
+    "ON character_state (book_id, lower(character))",
     # `chapter_no` is DISPLAY-only and nullable now (a numberless prologue/epilogue/front-/back-matter needs
     # no number to collide on); reading order keys off `position`. Idempotent — a no-op once already nullable.
     "ALTER TABLE chapters ALTER COLUMN chapter_no DROP NOT NULL",
@@ -245,12 +270,95 @@ _EXTRA_DDL: tuple[str, ...] = (
 )
 
 
+def _as_stats(value: object) -> dict[str, Any]:
+    """A CharacterState.stats_json value as a plain dict (asyncpg may hand back a dict or a JSON str)."""
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        try:
+            loaded = json.loads(value)
+        except (ValueError, TypeError):
+            return {}
+        return dict(loaded) if isinstance(loaded, dict) else {}
+    return {}
+
+
+def merge_character_state_group(rows: list[dict[str, Any]]) -> tuple[Any, dict[str, Any]]:
+    """CHAR-UNIQ dedup rule (pure, so it is unit-testable). Given the rows of one
+    (book_id, lower(character)) group — each a mapping with ``id``, ``stats_json``, ``as_of_scene_id`` —
+    pick the survivor and compute its merged stats.
+
+    Survivor: prefer a non-null ``as_of_scene_id`` (a real ledger row over a manual/NULL one), then the
+    most stats keys, then the lowest ``id`` (deterministic). Merge: the survivor keeps its own scalar
+    values but inherits any keys its siblings had and unions list values — so complementary stats
+    survive. Scalar conflicts are resolved in the survivor's favour (it is the best-evidenced row);
+    reconciling divergent numeric histories is deliberately out of scope for a boot migration.
+    """
+    ordered = sorted(
+        rows,
+        key=lambda r: (
+            -(0 if r["as_of_scene_id"] is None else 1),
+            -len(_as_stats(r["stats_json"])),
+            str(r["id"]),
+        ),
+    )
+    survivor = ordered[0]
+    merged = _as_stats(survivor["stats_json"])
+    for r in ordered[1:]:
+        for key, value in _as_stats(r["stats_json"]).items():
+            if key not in merged:
+                merged[key] = value
+            elif isinstance(merged[key], list) and isinstance(value, list):
+                merged[key] = [*merged[key], *[x for x in value if x not in merged[key]]]
+            # else: scalar conflict — the survivor keeps its value.
+    return survivor["id"], merged
+
+
+async def _dedup_character_state(conn: AsyncConnection) -> None:
+    """CHAR-UNIQ: collapse any pre-existing (book_id, lower(character)) duplicate CharacterState rows into
+    one, so the case-insensitive unique index can be built (a functional unique index cannot be created
+    while duplicates exist). Idempotent and a no-op on a clean DB; runs on every boot before the index."""
+    groups = (
+        await conn.execute(
+            text(
+                "SELECT book_id, lower(character) AS lc FROM character_state "
+                "GROUP BY book_id, lower(character) HAVING count(*) > 1"
+            )
+        )
+    ).all()
+    for book_id, lc in groups:
+        rows = [
+            dict(r)
+            for r in (
+                await conn.execute(
+                    text(
+                        "SELECT id, stats_json, as_of_scene_id FROM character_state "
+                        "WHERE book_id = :b AND lower(character) = :lc"
+                    ),
+                    {"b": book_id, "lc": lc},
+                )
+            ).mappings()
+        ]
+        survivor_id, merged = merge_character_state_group(rows)
+        await conn.execute(
+            text("UPDATE character_state SET stats_json = CAST(:s AS jsonb) WHERE id = :id"),
+            {"s": json.dumps(merged), "id": survivor_id},
+        )
+        await conn.execute(
+            text("DELETE FROM character_state WHERE book_id = :b AND lower(character) = :lc AND id <> :id"),
+            {"b": book_id, "lc": lc, "id": survivor_id},
+        )
+
+
 async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     """Run the idempotent column adds. Call inside an open (begin) connection."""
     for ddl in _COLUMN_ADDS:
         await conn.execute(text(ddl))
     for ddl in _BACKFILLS:
         await conn.execute(text(ddl))
+    # CHAR-UNIQ: collapse (book_id, lower(character)) duplicates BEFORE _EXTRA_DDL builds the functional
+    # unique index on them (it would fail if duplicates still existed). No-op on a clean DB.
+    await _dedup_character_state(conn)
     for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))
     # Book-ownership invariant (ADR 0027): backfill book_id (chapter->run, reject conflicts), quarantine

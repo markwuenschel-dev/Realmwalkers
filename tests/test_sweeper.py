@@ -97,6 +97,27 @@ async def _approval_task(s, run, scenes, *, authority):
     return task
 
 
+async def test_sweeper_caps_repeatedly_failing_apply(db_factory, monkeypatch):
+    """SWEEPER-CAP: a repair whose apply always fails is retried at most max_attempts times per run — the
+    per-run cap must count failures too, so the run parks instead of re-applying it every tick forever."""
+    sweeper._attempts.clear()
+    calls = 0
+
+    async def _explode(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise ValueError("sweeper can't resolve this")
+
+    monkeypatch.setattr("dominion.workers.production.apply_repair_task", _explode)
+    async with db_factory() as s:
+        _book, _chapter, run, scenes = await _seed_run(s)
+        await _approval_task(s, run, scenes, authority=RepairAuthorityLevel.CHAPTER_STRUCTURAL)
+        cfg = _cfg(max_attempts=3)
+        for _ in range(6):  # six ticks — far more than the cap
+            await sweeper._sweep_one_run(s, run.id, cfg)
+    assert calls == 3  # capped at max_attempts; without the fix the poison task re-applies every tick
+
+
 async def test_sweeper_auto_approves_within_ceiling(db_factory):
     sweeper._attempts.clear()
     sweeper._warned_human.clear()

@@ -131,7 +131,9 @@ async def upsert_character(
 
     row = (
         await session.execute(
-            select(CharacterState).where(CharacterState.book_id == book_id, CharacterState.character == name)
+            select(CharacterState).where(
+                CharacterState.book_id == book_id, func.lower(CharacterState.character) == name.lower()
+            )
         )
     ).scalar_one_or_none()
     if row is None:
@@ -171,7 +173,9 @@ async def delete_character(book_id: uuid.UUID, character: str, session: SessionD
     """Drop a character's tracked stat row (the kind='character' canon description is left in place)."""
     row = (
         await session.execute(
-            select(CharacterState).where(CharacterState.book_id == book_id, CharacterState.character == character)
+            select(CharacterState).where(
+                CharacterState.book_id == book_id, func.lower(CharacterState.character) == character.lower()
+            )
         )
     ).scalar_one_or_none()
     if row is None:

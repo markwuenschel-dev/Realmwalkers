@@ -146,14 +146,51 @@ def _client() -> AsyncAnthropic:
 # placeholders like "m"), so anything NOT explicitly one of these prefixes must keep behaving exactly as
 # it did before this feature existed.
 _OPENAI_COMPATIBLE_PREFIXES: tuple[str, ...] = ("gpt-", "o1-", "o3-", "o4-", "grok-", "gemini-")
+_GATEWAY_ALIASES = frozenset(
+    {
+        "llm-general",
+        "openai-general",
+        "anthropic-general",
+        "gemini-general",
+        "grok-general",
+    }
+)
+
+
+def _gateway_enabled() -> bool:
+    """Route chat through local LiteLLM when a real virtual key is configured."""
+    key = (getattr(settings, "litellm_virtual_key", None) or "").strip()
+    return key.startswith("sk-")
+
+
+def _map_model_for_gateway(model: str) -> str:
+    """Map product model ids → gateway stable aliases (or LITELLM_MODEL override)."""
+    override = (getattr(settings, "litellm_model", None) or "").strip()
+    if override:
+        return override
+    m = (model or "").strip()
+    if m in _GATEWAY_ALIASES:
+        return m
+    low = m.lower()
+    if low.startswith("claude") or "anthropic" in low:
+        return "anthropic-general"
+    if low.startswith("grok"):
+        return "grok-general"
+    if low.startswith("gemini"):
+        return "gemini-general"
+    return "openai-general"
 
 
 def _is_anthropic_model(model: str) -> bool:
+    if _gateway_enabled():
+        return False  # gateway OpenAI-compatible path for all providers
     return not any(model.startswith(prefix) for prefix in _OPENAI_COMPATIBLE_PREFIXES)
 
 
 def _is_openai_responses_model(model: str) -> bool:
     """Actual OpenAI models use the SDK Responses path; Gemini/xAI retain their compatible chat API."""
+    if _gateway_enabled():
+        return False  # LiteLLM chat/completions surface
     return model.startswith(("gpt-", "o1-", "o3-", "o4-"))
 
 
@@ -171,10 +208,17 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
     """(base_url, api_key) for a non-Anthropic model. xAI and Gemini both expose OpenAI-compatible
     chat-completions endpoints, reached by swapping base_url + key — routed by the model-id prefix
     (`grok-*`, `gemini-*`), not a separate SDK path. No new dependency: a plain httpx POST, matching the
-    embedding provider's existing convention (workers.memory.embedding)."""
+    embedding provider's existing convention (workers.memory.embedding).
+
+    When LITELLM_VIRTUAL_KEY is set, all of the above collapse to the local LiteLLM gateway.
+    """
     # .strip() the key: a value pasted into the deploy env with a trailing newline/space would otherwise be
     # sent as `Bearer <key>\n` (or a lone space slips past a truthiness check as `Bearer `), which the
     # provider rejects with a confusing 400 "missing bearer authentication" instead of a clear error.
+    if _gateway_enabled():
+        key = (settings.litellm_virtual_key or "").strip()
+        base = (settings.litellm_base_url or "http://localhost:4000/v1").strip().rstrip("/")
+        return base, key
     if model.startswith("grok-"):
         key = (settings.xai_api_key or "").strip()
         if not key:
@@ -518,6 +562,8 @@ async def complete(
     cross-cutting concern below (budget, telemetry, escalation) is unchanged. Default None -> backend
     "llm", so every existing caller keeps the current HTTP behavior with zero blast radius.
     """
+    if _gateway_enabled():
+        model = _map_model_for_gateway(model)
     is_anthropic = _is_anthropic_model(model)
     backend = agent_backend(setting_key) if setting_key else "llm"
 
