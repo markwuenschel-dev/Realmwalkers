@@ -15,7 +15,6 @@ from dominion.shared.migrations import merge_character_state_group
 from dominion.shared.models import Book, CharacterState
 from dominion.workers.oracle import Oracle
 
-
 # --- pure dedup-merge rule (no DB) ----------------------------------------------------------------
 
 
