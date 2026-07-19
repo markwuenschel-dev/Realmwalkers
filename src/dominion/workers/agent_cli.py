@@ -111,11 +111,14 @@ def _classify_failure(
     exit_code: int | None,
     envelope: dict[str, Any] | None,
     combined_text: str,
-) -> Literal["rate_limit", "hard"]:
-    """Decide whether a CLI failure is a transient rate limit or a hard error.
+) -> Literal["rate_limit", "non_retryable"]:
+    """Decide whether a CLI failure is a transient rate limit or a non-retryable error.
+
+    "non_retryable" (renamed from the ambiguous "hard" — SEV-ALIAS: `hard` is the legacy severity spelling
+    of `block`, a different domain) is the CLI failure class, unrelated to Issue/Critique severity.
 
     Precedence, structured-signals-first:
-      1. A definitive hard-error subtype in the envelope -> "hard" (rules OUT rate-limiting even if the
+      1. A definitive hard-error subtype in the envelope -> "non_retryable" (rules OUT rate-limiting even if the
          free text happens to contain "429"/"limit").
       2. A structured rate-limit signal in the envelope -> "rate_limit".
       3. Fallback: the hardened `_RATE_LIMIT_MARKERS` substring scan over the combined stdout/stderr/detail.
@@ -125,10 +128,10 @@ def _classify_failure(
     if envelope is not None:
         subtype = str(envelope.get("subtype") or "").strip().lower()
         if subtype in _HARD_ERROR_SUBTYPES:
-            return "hard"
+            return "non_retryable"
         if _envelope_rate_limited(envelope):
             return "rate_limit"
-    return "rate_limit" if _looks_rate_limited(combined_text) else "hard"
+    return "rate_limit" if _looks_rate_limited(combined_text) else "non_retryable"
 
 
 def _try_parse_envelope(stdout: str) -> dict[str, Any] | None:

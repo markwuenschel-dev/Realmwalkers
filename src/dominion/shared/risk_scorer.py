@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import Any
 
 from dominion.shared.enums import PacketVerdict, ScenePacketVerdict, Severity
+from dominion.shared.severity import is_blocking
 
 CANON_CONFLICT_KINDS: frozenset[str] = frozenset(
     {
@@ -83,7 +84,7 @@ def score_reviewer_flags(flags: list[Any]) -> RiskLevel:
     hard = warn = 0
     for flag in flags:
         sev = getattr(flag, "severity", None) or (flag.get("severity") if isinstance(flag, dict) else None)
-        if sev == Severity.BLOCK or str(sev).lower() in ("block", "hard"):
+        if is_blocking(sev):
             hard += 1
         elif sev == Severity.WARN or str(sev).lower() == "warn":
             warn += 1

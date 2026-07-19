@@ -30,9 +30,33 @@ EXPORT_BLOCKING: frozenset[str] = frozenset({"block", "repair"})
 _LLM_SEVERITY_CAP_ALIASES: frozenset[str] = frozenset({"block", "blocker", "critical", "block_drafting"})
 _KNOWN_ISSUE_SEVERITIES: frozenset[str] = frozenset({"info", "warn", "repair"})
 
+# Legacy severity spelling: pre-unification Issue/Critique rows and JSON snapshots stored "hard" for what
+# is now "block" (the DB is migrated by migrations.py; JSON snapshots keep it forever). Read-side alias
+# tolerance lives HERE, in one place — no reader hand-rolls `severity in ("hard", "block")` (SEV-ALIAS).
+_BLOCK_ALIASES: frozenset[str] = frozenset({"hard"})
+#: Raw persisted severity values that mean "blocks drafting" — for SQL `.in_(...)` filters over stored rows.
+BLOCKING_SEVERITY_VALUES: frozenset[str] = DRAFT_BLOCKING | _BLOCK_ALIASES
+
+
+def normalize_severity(severity: str | None) -> str:
+    """Fold the legacy `hard` spelling into `block`; pass every other value through (stripped/lowercased).
+    The single place read-side alias tolerance lives — every gate derivation and `is_blocking` call goes
+    through here, so a snapshot severity of "hard" can never be silently mis-classified as non-blocking.
+    A None/absent severity normalizes to "" (non-blocking)."""
+    s = str(severity or "").strip().lower()
+    return "block" if s in _BLOCK_ALIASES else s
+
+
+def is_blocking(severity: str | None) -> bool:
+    """True iff `severity` blocks drafting/human review — the one predicate readers call instead of
+    hand-rolling `severity in ("hard", "block")`. Folds the legacy `hard` alias via `normalize_severity`."""
+    return normalize_severity(severity) in DRAFT_BLOCKING
+
 
 def issue_gates(severity: str) -> dict[str, bool]:
-    """The three gate facts derived from a severity. Pure; the only place the mapping lives."""
+    """The three gate facts derived from a severity. Pure; the only place the mapping lives. Folds the
+    legacy `hard` spelling first (SEV-ALIAS), so a snapshot severity of "hard" gates like "block"."""
+    severity = normalize_severity(severity)
     blocks = severity in DRAFT_BLOCKING
     return {
         "blocks_drafting": blocks,
@@ -45,7 +69,7 @@ def normalize_llm_issue(issue: dict[str, Any]) -> dict[str, Any]:
     """Normalize one LLM QA issue to the machine-readable shape: guaranteed ``severity`` (capped at
     ``repair`` — an LLM-claimed "block" is demoted, never trusted as a gate) plus the derived
     ``blocks_*`` facts. Unknown/missing severity degrades to ``warn``. Other keys pass through."""
-    raw = str(issue.get("severity", "")).strip().lower()
+    raw = normalize_severity(str(issue.get("severity", "")))
     severity = "repair" if raw in _LLM_SEVERITY_CAP_ALIASES else (raw if raw in _KNOWN_ISSUE_SEVERITIES else "warn")
     return {
         "kind": str(issue.get("kind") or "") or None,

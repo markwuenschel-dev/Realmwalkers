@@ -215,19 +215,19 @@ async def test_runner_bare_429_in_text_no_longer_false_positives(monkeypatch: py
 
 def test_classify_failure_precedence_and_fallback():
     # Structured hard subtype wins over rate-limit text.
-    assert agent_cli._classify_failure(0, {"subtype": "error_max_turns"}, "usage limit reached") == "hard"
+    assert agent_cli._classify_failure(0, {"subtype": "error_max_turns"}, "usage limit reached") == "non_retryable"
     # Structured rate-limit error type wins with no text markers.
     assert agent_cli._classify_failure(1, {"error": {"type": "rate_limit_error"}}, "boom") == "rate_limit"
     # No envelope -> pure free-text fallback, both directions.
     assert agent_cli._classify_failure(1, None, "Claude usage limit reached") == "rate_limit"
-    assert agent_cli._classify_failure(1, None, "segfault in worker") == "hard"
+    assert agent_cli._classify_failure(1, None, "segfault in worker") == "non_retryable"
     # Free-text fallback when the envelope has no usable structured signal.
     assert (
         agent_cli._classify_failure(0, {"is_error": True, "result": "429 too many requests"}, "429 too many requests")
         == "rate_limit"
     )
     # Bare "429" alone no longer trips the fallback.
-    assert agent_cli._classify_failure(1, None, "trace id 4290, exit 429000") == "hard"
+    assert agent_cli._classify_failure(1, None, "trace id 4290, exit 429000") == "non_retryable"
 
 
 async def test_runner_missing_binary_raises_non_transient(monkeypatch: pytest.MonkeyPatch):

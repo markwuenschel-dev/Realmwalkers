@@ -37,7 +37,7 @@ from dominion.shared.models import (
     Scene,
     ScenePacket,
 )
-from dominion.shared.severity import issue_gates
+from dominion.shared.severity import is_blocking, issue_gates
 from dominion.shared.text_match import as_str_list, names_present
 from dominion.workers.canon_guards import scan_packet_prose
 from dominion.workers.draft_queue import schedule_contract_first_draft_jobs
@@ -994,7 +994,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         artifact_type="reader_simulation",
         body={
             "missing_scene_nos": missing_scene_nos,
-            "likely_confusions": [issue.claim for issue in issues if issue.severity in ("hard", "block")][:5],
+            "likely_confusions": [issue.claim for issue in issues if is_blocking(issue.severity)][:5],
             "open_issues": [issue.claim for issue in open_issues[:10]],
         },
         dependencies=[(chapter_artifact.id, "source", chapter_artifact.content_hash)],
@@ -1005,7 +1005,7 @@ async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
         artifact_type="agent_evaluation",
         body={
             "ready_for_human": ready_for_human,
-            "blocking_issues": [issue.claim for issue in open_issues if issue.severity in ("hard", "block")],
+            "blocking_issues": [issue.claim for issue in open_issues if is_blocking(issue.severity)],
             "issue_count": len(issues),
             "repair_task_count": len(tasks),
             "missing_scene_nos": missing_scene_nos,
