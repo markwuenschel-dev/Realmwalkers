@@ -121,8 +121,8 @@ _TERMINAL_REPAIR_STATUSES: tuple[RepairTaskStatus, ...] = (
 class RepairTarget:
     """Normalized representation of a span/quote target for repair.
 
-    Unifies the "items" shape produced by triage and any legacy flat shapes.
-    Used by conflict detection, patching, and verification.
+    Extracted from the ``{"items": [...]}`` shape produced by triage (the sole writer of
+    ``target_spans``). Used by conflict detection, patching, and verification.
     """
 
     quote: str | None = None
@@ -145,18 +145,6 @@ def _normalized_repair_targets(task: RepairTask, issues: list[Issue] | None = No
                     se = item.get("span_end")
                     if q or ss is not None or se is not None:
                         targets.append(RepairTarget(quote=q, span_start=ss, span_end=se))
-        else:
-            # legacy flat support: e.g. {"quote": , 0: [s,e] , ... }
-            q = ts.get("quote") if isinstance(ts.get("quote"), str) else None
-            for v in ts.values():
-                if isinstance(v, (list, tuple)) and len(v) == 2:
-                    try:
-                        ss, se = int(v[0]), int(v[1])
-                        targets.append(RepairTarget(quote=q, span_start=ss, span_end=se))
-                    except (ValueError, TypeError):
-                        pass
-            if q and not any(t.quote for t in targets):
-                targets.append(RepairTarget(quote=q))
 
     if not targets and issues:
         for issue in issues:
