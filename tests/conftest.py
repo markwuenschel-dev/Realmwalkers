@@ -211,3 +211,47 @@ async def db_factory():
         yield factory
     finally:
         await engine.dispose()
+
+
+@pytest.fixture
+async def app_client(db_factory):
+    """Inbound ASGI test harness (HTTP-HARNESS).
+
+    A real httpx client that drives the FastAPI app through its ASGI interface, so a test exercises
+    everything that calling a router coroutine directly never touches: URL routing, `Depends`
+    injection, request-body validation (422s), the CORS middleware, exception handling, and
+    response-model serialization. The app's DB dependency (`deps.db_session`, behind every router's
+    `SessionDep`) is rebound to the per-test `db_factory`, so requests and the test share one
+    truncated test database. The app's lifespan is booted against test config too, so startup wiring
+    (settings overrides, drain resume, the boot integrity probe, the sweeper) runs under test.
+
+    httpx's ASGITransport does NOT run the ASGI lifespan, and `asgi-lifespan` is not a dependency, so
+    the lifespan is driven explicitly through Starlette's own `lifespan_context` — the exact async
+    context manager `FastAPI(lifespan=...)` installs. Entering this fixture boots the app; leaving it
+    runs shutdown (which cancels the sweeper task the lifespan started).
+    """
+    import httpx
+
+    from dominion.api.deps import db_session
+    from dominion.api.main import app
+
+    async def _override_db_session():
+        # Mirror deps.db_session exactly (roll back on error; NO implicit commit — mutating handlers
+        # commit explicitly) but bind to the per-test factory instead of the app's global one.
+        async with db_factory() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[db_session] = _override_db_session
+    try:
+        # lifespan_context(app) is the async CM FastAPI built from main.lifespan; entering it runs the
+        # real startup path against the test DB (SessionFactory is already bound to the test URL).
+        async with app.router.lifespan_context(app):
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+                yield client
+    finally:
+        app.dependency_overrides.pop(db_session, None)
