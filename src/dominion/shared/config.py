@@ -174,6 +174,21 @@ class Settings(BaseSettings):
     # existing Anthropic path; gpt-* / o*-* route to OpenAI, grok-* routes to xAI, gemini-* routes to
     # Google's OpenAI-compatible Gemini endpoint). No new SDK dependency: all three are plain httpx
     # POSTs, matching the embedding provider's existing convention.
+    #
+    # Optional local LiteLLM gateway (OpenAI-compatible). When LITELLM_VIRTUAL_KEY is a real
+    # sk-… virtual key, workers.llm routes chat through the gateway (stable aliases) instead of
+    # direct provider keys. Embeddings still use OPENAI_API_KEY / hash fallback unless you add
+    # a gateway embedding route later.
+    litellm_virtual_key: str | None = Field(default=None, validation_alias="LITELLM_VIRTUAL_KEY")
+    litellm_base_url: str = Field(
+        default="http://localhost:4000/v1",
+        validation_alias="LITELLM_BASE_URL",
+    )
+    litellm_model: str | None = Field(
+        default=None,
+        validation_alias="LITELLM_MODEL",
+        description="Optional force-all gateway alias (e.g. llm-general).",
+    )
     google_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"),
