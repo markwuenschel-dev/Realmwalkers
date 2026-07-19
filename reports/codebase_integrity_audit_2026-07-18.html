@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realmwalkers — Codebase Integrity Audit (2026-07-18)</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#F4F5F7;color:#141821;font-family:"Public Sans",system-ui,sans-serif;font-size:15px;line-height:1.58}
+  a{color:#2540E8;text-decoration:none} a:hover{text-decoration:underline}
+  code{font-family:"IBM Plex Mono",monospace;background:#F2F3F7;padding:1px 5px;border-radius:5px;font-size:.88em}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  details>summary{list-style:none;cursor:pointer} details>summary::-webkit-details-marker{display:none}
+  ::-webkit-scrollbar{height:10px;width:10px} ::-webkit-scrollbar-thumb{background:#D5D9E2;border-radius:6px}
+  .chip{display:inline-block;border-radius:6px;padding:2px 9px;font-size:11.5px;font-weight:600;font-family:"IBM Plex Mono",monospace}
+  th{cursor:pointer;user-select:none}
+</style>
+</head>
+<body>
+<div id="root" style="--paper:#F4F5F7;--panel:#FFFFFF;--ink:#141821;--ink2:#4B5563;--faint:#8A93A3;--line:#E6E8EE;--line2:#EEF0F4;--accent:#2540E8;--accent-ink:#26327A;--accent-bg:#EAEDFD;--crit-i:#C0342B;--crit-b:#FBEAE8;--high-i:#B45309;--high-b:#FAEFE0;--med-i:#15803D;--med-b:#E6F3EB;--low-i:#516079;--low-b:#EDF0F5;--violet:#6D3BD1;max-width:1060px;margin:0 auto;padding:56px 28px 120px;background-image:radial-gradient(120% 55% at 50% -8%, rgba(37,64,232,.05), transparent 60%);animation:rise .5s ease both">
+
+  <!-- MASTHEAD -->
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:1 1 320px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#8A93A3">Repo Audit Swarm · Read-only · Parallel report</div>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:40px;letter-spacing:-.03em;margin:6px 0 6px">Codebase Integrity Audit</h1>
+      <div style="color:#4B5563;font-size:15.5px">Realmwalkers — four expert lanes, merged &amp; scored, diffed against 2026-07-17. Analysis only; nothing executed or edited.</div>
+    </div>
+    <div style="display:flex;gap:22px">
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.02em">24</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A93A3;text-transform:uppercase;letter-spacing:.06em">candidates</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.02em">4</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A93A3;text-transform:uppercase;letter-spacing:.06em">lanes</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.02em;color:#B45309">B-</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A93A3;text-transform:uppercase;letter-spacing:.06em">repo grade</div></div>
+    </div>
+  </div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A93A3;margin-top:16px;display:flex;gap:14px;flex-wrap:wrap">
+    <span style="white-space:nowrap">2026-07-18</span><span style="white-space:nowrap">branch main</span><span style="white-space:nowrap">commit 3864d28</span><span style="white-space:nowrap">mode: --parallel-report</span><span style="white-space:nowrap">ruff &check; · format &check; · pyright/pytest not run this pass</span>
+  </div>
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <span class="chip" style="color:#C0342B;background:#FBEAE8">1 high-sev data bug: CHAR-UNIQ</span>
+    <span class="chip" style="color:#C0342B;background:#FBEAE8">approval-ledger hotspot: 4 interlocking bugs</span>
+    <span class="chip" style="color:#15803D;background:#E6F3EB">6 resolved since 2026-07-17</span>
+    <span class="chip" style="color:#B45309;background:#FAEFE0">12 new · 12 re-scored</span>
+    <span class="chip" style="color:#C0342B;background:#FBEAE8">3 need a decision</span>
+  </div>
+
+  <!-- TRIAGE STRIP -->
+  <div id="triage" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:26px"></div>
+
+  <!-- CONTENTS -->
+  <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:14px;padding:16px 20px;margin-top:26px">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8A93A3;margin-bottom:8px">Contents</div>
+    <div style="columns:2;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:2">
+      <div><span style="color:#8A93A3">01</span> <a href="#summary">Executive summary</a></div>
+      <div><span style="color:#8A93A3">02</span> <a href="#grade">Overall repo grade</a></div>
+      <div><span style="color:#8A93A3">03</span> <a href="#scorecards">Lane scorecards</a></div>
+      <div><span style="color:#8A93A3">04</span> <a href="#top">Top merged candidates</a></div>
+      <div><span style="color:#8A93A3">05</span> <a href="#ledger">Candidate ledger (matrix + cards)</a></div>
+      <div><span style="color:#8A93A3">06</span> <a href="#lanes">Lane findings &amp; health</a></div>
+      <div><span style="color:#8A93A3">07</span> <a href="#dupes">Cross-lane duplicate groups</a></div>
+      <div><span style="color:#8A93A3">08</span> <a href="#blockers">Human-decision blockers</a></div>
+      <div><span style="color:#8A93A3">09</span> <a href="#quick">Quick wins</a></div>
+      <div><span style="color:#8A93A3">10</span> <a href="#deep">High-leverage deep work</a></div>
+      <div><span style="color:#8A93A3">11</span> <a href="#unsafe">Unsafe to auto-execute</a></div>
+      <div><span style="color:#8A93A3">12</span> <a href="#verif">Verification readiness</a></div>
+      <div><span style="color:#8A93A3">13</span> <a href="#queue">Recommended queue</a></div>
+    </div>
+  </div>
+
+  <!-- 01 SUMMARY -->
+  <section id="summary" style="border-top:1px solid #E6E8EE;margin-top:40px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">01</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Executive summary</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p>Realmwalkers remains a <strong>well-built, unusually self-aware codebase</strong> — clean static surface (ruff + format zero-issue at HEAD), disciplined fixtures, and real parity tests where they exist. Since 2026-07-17 the team <strong>resolved 6 of the prior 26 candidates</strong> (the three confirmed bugs plus the doc/CI/dead-flag quick wins), all verified against commits. This run adds <strong>12 fresh candidates</strong> and re-scores the 12 that carried. Three themes dominate.</p>
+      <p style="margin-top:10px"><strong>1. An approval-ledger hotspot with four interlocking bugs.</strong> One subsystem — <code>reviews.decide</code> → <code>memory/ledger.py</code> → <code>character_state</code> — now carries four distinct defects that compound. The headline is new and high-severity: <strong>CHAR-UNIQ</strong> — <code>character_state</code> has <em>no</em> <code>UNIQUE(book_id, character)</code> constraint (verified: the model has no <code>__table_args__</code> at all), yet its docstring asserts one row per key and 5+ readers use <code>scalar_one_or_none</code>; a single case-variant name or concurrent first-approval inserts a duplicate that <strong>permanently 500s every Oracle/ledger/world read</strong> with <code>MultipleResultsFound</code>. On top of it sit <strong>LEDGER</strong> (relative <code>+N</code> deltas double-apply on every revise→re-approve), <strong>DECIDE-LOCK</strong> (the approval path lacks the <code>with_for_update</code> the repair path was explicitly hardened with), and <strong>KNOW-MONO</strong> (the reader-knowledge marker is last-writer-wins, not monotonic). These reach future generation through the Oracle, not an inert column.</p>
+      <p style="margin-top:10px"><strong>2. Hand-maintained mirrors and stringly-typed contracts, guarded only by comments — unchanged since last run.</strong> ~40 enum vocabularies persist as bare <code>Text</code> across 84 columns with no SA <code>Enum</code>/CHECK (<strong>ENUM-STR</strong>); <code>artifact_type</code> is free text with the literal <code>scene_fidelity_report</code> triplicated across three modules (<strong>ARTIFACT-TYPE</strong>); a 22-slug <code>SECTION_ORDER</code> and the <code>ChapterKind</code> list are hand-mirrored across the Python/TypeScript boundary (<strong>SECTION-MIRROR</strong>); the chapter-band ordering law is re-typed in SQL (<strong>ORDER-BACKFILL</strong>). All were verified <em>aligned today</em> — the risk is entirely silent drift-under-change, and every one converts to a cheap parity test.</p>
+      <p style="margin-top:10px"><strong>3. Verification blind spots persist and grew.</strong> There is still <strong>no HTTP-level harness</strong> (all 27 routers tested as plain functions — <strong>HTTP-HARNESS</strong>), and this run adds two more: <strong>TEST-DB-SKIP</strong> — the everyday <code>just test</code> command omits <code>DOMINION_REQUIRE_DB</code>, so a Postgres-down run silently skips 61 of 119 test files and reports green (verified in conftest.py:139) — and <strong>VERIFY-GATE</strong>, where local verify still claims CI-parity while type-checking a narrower scope. Three candidates are genuine human-decision forks — <strong>PROD-FACADE</strong> (complete vs dissolve the facade), <strong>ENUM-STR</strong> (SA Enum vs CHECK vs app-test migration), and <strong>AUTHZ-AXIS</strong> (the A1c authorization-vs-blast-radius split) — and are marked needs-decision.</p>
+      <p style="margin-top:10px;font-size:13.5px;color:#8A93A3"><strong>Coverage honesty.</strong> This is a 4-lane sampling swarm, not an exhaustive re-scan. Eight prior-open candidates were <em>not</em> re-surfaced this run (<code>TWIN-PARITY, IMP-EVID, CTRL-PLANE, PKT-PIPE, BEAT-NOUN, TELEM-AGG, MIG-DRIFT, ADR28-SUB</code>). They are <strong>not</strong> treated as resolved — only the 6 with commit evidence are. See the carried-forward panel below the ledger.</p>
+    </div>
+  </section>
+
+  <!-- 02 GRADE -->
+  <section id="grade" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">02</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Overall repo grade</h2></div>
+    <div style="margin-top:14px;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:64px;line-height:1;color:#B45309;letter-spacing:-.03em">B-</div>
+      <div style="flex:1 1 460px;color:#4B5563">Held at <strong>B-</strong>, same as last run, to keep the grade comparable — and the reasons roughly net out. <strong>Craftsmanship and static hygiene stay B/B+</strong> (clean linters, disciplined fixtures, exemplary self-documentation), and the team <strong>closed 6 candidates</strong> including all three prior confirmed bugs — real forward momentum. Offsetting that: a <strong>new high-severity data-integrity bug</strong> (CHAR-UNIQ, a schema invariant the code relies on but never enforces) and a <strong>cluster of four interlocking approval-ledger bugs</strong> pull correctness down, and <strong>verification readiness is still the weakest axis</strong> (no HTTP harness; a new default-command DB-skip hole). Net: a solid codebase whose gaps are latent and fixable, one disciplined loop from B+ — but the approval-ledger hotspot should be drained before it compounds.</div>
+    </div>
+  </section>
+
+  <!-- 03 SCORECARDS -->
+  <section id="scorecards" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">03</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Lane scorecards</h2></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:16px">
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #B45309;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Deepening seams</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#B45309">C</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">The production subsystem's seams are the weakest structural area. <code>production.py</code> is billed as THE public facade but is a shallow re-export the router routinely bypasses; <code>production_repair.py</code> (1996 LOC) is a genuine god module; the two verify paths duplicate ~120 lines; <code>authority_level</code> overloads two axes. 7 findings.</div>
+      </div>
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #15803D;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Graded integrity</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#15803D">B-</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Concurrency &amp; performance are generally well-engineered (SKIP LOCKED, savepoint isolation, bounded LLM calls). The integrity gap concentrates in one subsystem — the CharacterState stat ledger and its knowledge sibling — where a missing unique constraint plus two double-apply paths cluster. 7 findings.</div>
+      </div>
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #B45309;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Blast radius</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#B45309">C+</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Heavy reliance on stringly-typed, comment-documented contracts — verified aligned today, so nothing is broken now; the risk is drift-under-change with silent failure modes. The OpenAPI→codegen diff seam is actually CI-enforced and sound. High-leverage moves are all cheap parity tests. 7 findings.</div>
+      </div>
+      <div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #B45309;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px">Verification readiness</div><div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#B45309">C+</div></div>
+        <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Disciplined where it exists (real Postgres in CI, a hard DB-required gate, a versioned fidelity corpus), but one structural hole — no HTTP harness at any tier — plus new drift risks: the default <code>just test</code> skips DB tests silently, local verify's pyright scope diverges from CI, ch1 goldens aren't schema-validated. 6 findings.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 TOP -->
+  <section id="top" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">04</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Top merged candidates</h2></div>
+    <div id="topTable" style="overflow-x:auto;margin-top:14px"></div>
+  </section>
+
+  <!-- 05 LEDGER -->
+  <section id="ledger" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">05</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Candidate ledger</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:8px">The score matrix is the interactive index — filter and click a column to sort. Cards below stay complete regardless of filter. Every candidate is independently selectable. <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A93A3">Markers: <span style="color:#B45309">NEW</span> = arrived this run · <span style="color:#B45309">&#9650;</span>/<span style="color:#516079">&#9660;</span> = priority vs 2026-07-17.</span></div>
+    <div id="diffPanel" style="margin-top:14px"></div>
+    <div id="filters" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px"></div>
+    <div id="matrix" style="overflow-x:auto;margin-top:12px"></div>
+    <div id="cards" style="margin-top:20px"></div>
+  </section>
+
+  <!-- 06 LANES -->
+  <section id="lanes" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">06</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Lane findings &amp; health</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p><strong>Lane 1 — Deepening seams (C).</strong> The production trio is the structural weak point. <code>workers/production.py</code> presents itself as the public facade yet the router imports <code>production_repair</code>/<code>production_support</code> directly for fidelity previews and <code>update_run_summary</code>, and re-exports private helpers with zero consumers — it fails its own stated contract. <code>production_repair.py</code> bundles three concerns (repair lifecycle, fidelity triage, author previews); its two verify paths duplicate ~120 lines that can drift; <code>authority_level</code> is a Text column overloading blast-radius with authorization-requirement. Fed: PROD-FACADE, REPAIR-GOD, VERIFY-DUP, DEAD-BRANCH, AUTHZ-AXIS, ENUM-STR, LLM-SIG.</p>
+      <p style="margin-top:10px"><strong>Lane 2 — Graded integrity (B-).</strong> Concurrency and performance are genuinely solid; the findings cluster in one subsystem — the CharacterState ledger and its knowledge sibling. The strongest is a schema-contract violation (CHAR-UNIQ) that permanently 500s core reads once any duplicate row exists; two double-apply bugs sit on top (LEDGER's resettable-status guard, DECIDE-LOCK's missing row lock). Plus the sweeper's failure cap only counts successes and the knowledge marker is last-writer-wins. Fed: CHAR-UNIQ, LEDGER, DECIDE-LOCK, SWEEPER-CAP, KNOW-MONO, SEV-ALIAS.</p>
+      <p style="margin-top:10px"><strong>Lane 3 — Blast radius (C+).</strong> The dominant pattern: a vocabulary or ordering law authored once, then re-encoded as bare Text columns, per-module string constants, cross-language mirror lists, or copy-pasted predicates — with a <code>KEEP IN SYNC</code> comment standing in for a check. Verified aligned today (SECTION_ORDER identical, migration bands reproduce <code>chapter_position</code>), so the risk is future drift, not present breakage. Fed: ENUM-STR, ARTIFACT-TYPE, SEV-ALIAS, SECTION-MIRROR, ORDER-BACKFILL, CANON-STATUS, FE-TYPES-DRIFT.</p>
+      <p style="margin-top:10px"><strong>Lane 4 — Verification readiness (C+).</strong> Disciplined where it exists, but one structural hole dominates: no HTTP-level harness at any tier, so FastAPI routing, DI, request validation, CORS, and the lifespan boot have zero red-capable check; the sole e2e boots the frontend with no backend. New this run: the default <code>just test</code> silently skips 61/119 files when Postgres is down, and local verify's pyright scope no longer matches CI. Fed: HTTP-HARNESS, TEST-DB-SKIP, VERIFY-GATE, E2E-GATE, CH1-GOLD, TELEM-ORACLE.</p>
+    </div>
+  </section>
+
+  <!-- 07 DUPES -->
+  <section id="dupes" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">07</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Cross-lane duplicate groups</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p><strong>approval-ledger-hotspot</strong> — <strong>CHAR-UNIQ</strong>, <strong>LEDGER</strong>, <strong>DECIDE-LOCK</strong>, and <strong>KNOW-MONO</strong> all live at the <code>reviews.decide</code> → <code>memory/ledger.py</code>/<code>knowledge.py</code> → <code>character_state</code> seam. Kept as <em>four</em> candidates because the fixes are genuinely different (a unique constraint + upsert; a durable applied-marker; a <code>with_for_update</code> read; a monotonic-min assignment). They share a root theme — one-shot side effects gated by resettable/last-writer state rather than durable markers — and are best drained together.</p>
+      <p style="margin-top:10px"><strong>stringly-typed-enums</strong> — <strong>ENUM-STR</strong> (blast-radius: 84 <code>Text</code> columns, no SA Enum/CHECK) and the deepening-seams <code>authority_level</code> <code>.value</code>-inconsistency merged into ENUM-STR as one systemic candidate; the authority_level comparisons are the worked example. Distinct from <strong>AUTHZ-AXIS</strong>, which is the <em>semantic</em> overload of that same column (blast-radius vs authorization-requirement), not its typing.</p>
+      <p style="margin-top:10px"><strong>severity-vocabulary</strong> — graded-integrity's "is-blocking hand-rolled ~18×" and blast-radius's "two parallel severity vocabularies + legacy <code>hard</code> alias + token collision" describe one gap; merged into <strong>SEV-ALIAS</strong>. The cross-lane agreement raises its confidence to 5.</p>
+      <p style="margin-top:10px"><strong>http-integration-gap</strong> — <strong>HTTP-HARNESS</strong> (no ASGI harness) and <strong>E2E-GATE</strong> (backendless, full-tier-only e2e) are the same untested frontend↔backend boundary from two ends; kept separate because one adds a fixture and the other re-scopes a CI tier. HTTP-HARNESS is the unblocking prerequisite.</p>
+    </div>
+  </section>
+
+  <!-- 08 BLOCKERS -->
+  <section id="blockers" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">08</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Human-decision blockers</h2></div>
+    <div id="blockerList" style="margin-top:14px"></div>
+    <div style="color:#8A93A3;font-size:12.5px;margin-top:10px">Borderline (scored human-decision 3, not blocked — runnable with a one-line intent decision): <strong>CHAR-UNIQ</strong> (the schema end-state is unambiguous — one row per key is already the documented invariant — but de-duping existing production rows + choosing the casing canonicalization is a migration-safety judgment), <strong>REPAIR-GOD</strong> (the three-way seam is identified; owner should bless the split and it needs characterization tests first), <strong>SEV-ALIAS</strong> / <strong>ORDER-BACKFILL</strong> (touch a comment-enforced contract across surfaces). Plus <strong>ADR28-SUB</strong> from 2026-07-17 remains an unresolved wire-vs-delete decision (see carried-forward panel) — it was not re-examined this run but has not been answered.</div>
+  </section>
+
+  <!-- 09/10/11 computed lists -->
+  <section id="quick" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">09</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Quick wins</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">High priority, high locality, low blast radius — small, provable, contained.</div>
+    <div id="quickList" style="margin-top:12px"></div>
+  </section>
+  <section id="deep" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">10</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">High-leverage deep work</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">High leverage with a larger blast radius — worth a design pass before executing.</div>
+    <div id="deepList" style="margin-top:12px"></div>
+  </section>
+  <section id="unsafe" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">11</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Unsafe to auto-execute</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">High human-decision or regression risk — do not run in an unattended auto loop.</div>
+    <div id="unsafeList" style="margin-top:12px"></div>
+  </section>
+
+  <!-- 12 VERIF -->
+  <section id="verif" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">12</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Verification readiness</h2></div>
+    <div style="margin-top:14px;color:#4B5563;max-width:820px">
+      <p>The testability picture is again the report's most consequential axis. <strong>Harnesses that must exist before common fixes can be proven:</strong></p>
+      <ul style="margin-top:8px">
+        <li><strong>An ASGI client fixture</strong> (<code>httpx.AsyncClient(transport=ASGITransport(app=app))</code>, zero new deps — <code>httpx&gt;=0.27</code> is already a dependency). Without it, no router fix — nor the ~120-line lifespan boot in <code>main.py</code> — can be verified end-to-end. → <strong>HTTP-HARNESS</strong>.</li>
+        <li><strong>A loud default test command.</strong> <code>just test</code> silently skips 61/119 files with Postgres down; making it export <code>DOMINION_REQUIRE_DB=1</code> (or fail on a zero-DB-test run) closes the falsely-green everyday loop. → <strong>TEST-DB-SKIP</strong> (highest-priority, highest-locality item this run).</li>
+        <li><strong>A ch1-golden schema-validation pass</strong> — the goldens are consumed as raw dicts and never <code>model_validate</code>'d, so a schema change leaves the regression suite green against a shape production no longer emits. → <strong>CH1-GOLD</strong>.</li>
+      </ul>
+      <p style="margin-top:10px">Two verification claims are weaker than they read: local <code>just verify</code> type-checks changed files while CI type-checks the full tree (<strong>VERIFY-GATE</strong>), and the telemetry parity test oracles against helpers from the very module it verifies, so a shared aggregation bug passes (<strong>TELEM-ORACLE</strong>). Fixture discipline is otherwise good — a versioned SceneFidelity corpus with a structural validator, and ch1 tests hardened to ERROR (not skip) when a lane module is missing.</p>
+    </div>
+  </section>
+
+  <!-- 13 QUEUE -->
+  <section id="queue" style="border-top:1px solid #E6E8EE;margin-top:36px;padding-top:18px">
+    <div style="display:flex;gap:12px;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;color:#8A93A3">13</span><h2 style="font-family:'Space Grotesk',sans-serif;font-size:23px;margin:0;letter-spacing:-.02em">Recommended queue</h2></div>
+    <div style="color:#4B5563;font-size:13.5px;margin-top:6px">Priority order. Blocked candidates are listed as decisions-needed, not dropped. This is a <code>--parallel-report</code> run — nothing is executed; a later loop resumes at the candidate gate.</div>
+    <div id="queueList" style="margin-top:12px;overflow-x:auto"></div>
+  </section>
+
+  <div style="border-top:1px solid #E6E8EE;margin-top:40px;padding-top:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A93A3">
+    Realmwalkers codebase integrity audit · Repo Audit Swarm (deepening-seams · graded-integrity · blast-radius · verification-readiness) · read-only · 2026-07-18 · main@3864d28 · diffed vs 2026-07-17
+  </div>
+</div>
+
+<script>
+const C = [
+ {id:"CHAR-UNIQ",t:"character_state has no UNIQUE(book_id, character); a duplicate row permanently 500s every Oracle/ledger/world read",cat:"Data/Schema/Contract",src:["graded_integrity"],dedup:"approval-ledger-hotspot",action:"fitness-check",mode:"connected-impact-sweep",blocked:false,delta:"new",pdelta:0,
+  loc:"models.py:625-634 (CharacterState — no __table_args__, no UniqueConstraint/Index; character is bare Text). Readers: oracle.py:30, ledger.py, world.py all via scalar_one_or_none. Writers: ledger.py:58 (case-sensitive) + world.py:137 (case-sensitive, while sibling CanonEntity lookup at world.py:151 uses func.lower).",
+  sym:"The ledger docstring asserts 'one CharacterState row per (book, character)' and 5+ readers depend on it via scalar_one_or_none, but nothing enforces it. Two independent check-then-insert paths plus a 'Vessa' vs 'vessa' case mismatch each see row=None and insert. Once two rows exist for one key, oracle.current(), commit_declared_deltas, the continuity-resolve endpoint, and world character GET/PUT all raise MultipleResultsFound -> HTTP 500 permanently until the DB is cleaned by hand.",
+  seam:"character_state (book_id, character) uniqueness — between the ledger/Oracle write paths and every reader that assumes exactly one row.",
+  rule:"a uniqueness invariant readers depend on must be enforced at the schema (DB constraint), not re-implemented as check-then-insert in each writer.",
+  ev:"FACT — captain re-read models.py:625-634 this run: CharacterState has no __table_args__ at all. Lane grep confirmed 0 migrations touch character_state and both writers do read-then-insert with mismatched casing.",
+  chk:"Add UNIQUE(book_id, character) via the migration ladder (after de-duping existing rows), convert both writers to upsert (ON CONFLICT DO UPDATE), normalize the character key casing. A test inserting two same-key rows must fail at the DB; a read after a case-variant insert must not raise MultipleResultsFound.",
+  s:{s:4,c:5,l:5,lo:4,te:4,br:3,rr:3,hd:3},pri:13},
+
+ {id:"LEDGER",t:"Relative ledger deltas ('+N') double-apply on every revise -> re-approve cycle",cat:"Bug",src:["graded_integrity"],dedup:"approval-ledger-hotspot",action:"fitness-check",mode:"sequential",blocked:false,delta:"carried",pdelta:-1,
+  loc:"reviews.py:98 (first_approval = scene.status != APPROVED), :113 (commit gated on it), :126 (REVISE sets REVISION_REQUESTED). Root: ledger.py:22 (relative branch int(current or 0)+int(s), no applied-marker).",
+  sym:"first_approval is derived from a mutable status. A REVISE moves the scene to REVISION_REQUESTED, so re-approving the redraft satisfies first_approval a second time and re-runs commit_declared_deltas against the same Beat: hp 10->15 -> revise -> approve -> hp 15->20. The '+N' branch is non-idempotent by construction; nothing records that a scene's deltas were already applied. The ledger feeds the Oracle read by draft_memory, so corruption reaches future generation.",
+  seam:"the pending->approved 'first cross' detection in reviews.decide vs the ledger's per-scene apply-once contract.",
+  rule:"a non-idempotent state mutation must be guarded by a durable applied-marker, not by a status value later transitions can reset (the code's own :95-97 comment states the invariant it breaks).",
+  ev:"FACT — carried from 2026-07-17 and re-confirmed by lane: exactly one commit_declared_deltas call site, no site clears deltas after commit, revision mints a new Scene. Sibling record_scene_reveals is upsert-safe by contrast.",
+  chk:"Record applied deltas per scene (stamped applied_scene_version / applied row) and make commit_declared_deltas a no-op when already committed; test approve -> revise -> re-approve a '+N' delta, assert the stat advanced exactly once.",
+  s:{s:4,c:5,l:4,lo:4,te:5,br:2,rr:3,hd:3},pri:14},
+
+ {id:"DEAD-BRANCH",t:"_normalized_repair_targets carries a 'legacy flat' branch no writer produces",cat:"Maintainability",src:["deepening_seams"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"production_repair.py:145-156 (legacy flat branch parsing ts.values() as [s,e] pairs + a bare quote key). Sole writer emits {\"items\":[...]} at :262.",
+  sym:"The function documents itself as the single source of truth unifying three target_spans shapes, but the legacy flat branch parses a {\"quote\":..., 0:[s,e]} dict that no code path or fixture ever writes. Every writer emits the items shape, so the branch is dead and untested — pure reading cost on a security-adjacent seam (span conflict detection).",
+  seam:"the target_spans representation between task creation and conflict/verify consumption.",
+  rule:"an abstraction that claims to unify N shapes but is only ever fed one is not depth — it is untested branching that raises the cost of reading the seam.",
+  ev:"FACT — captain re-read :145-156 this run (branch present as described). Lane confirmed the sole writer (:262) always emits items, and all four test writers (test_span_repair:105, test_repair_conflict_status:115, test_repair_verification_beats:144,188) use only the items shape.",
+  chk:"Delete the legacy flat branch (keep items + issues fallback); existing repair tests still pass since none exercise it. Optionally add a test asserting a non-items target_spans dict yields no targets, pinning the contract.",
+  s:{s:2,c:5,l:3,lo:5,te:4,br:1,rr:2,hd:2},pri:14},
+
+ {id:"VERIFY-DUP",t:"verify_repair_task and _verify_chapter_scoped_repair duplicate ~120 lines of verdict/verification logic",cat:"Maintainability",src:["deepening_seams"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"production_repair.py — chapter tail :1098-1121 vs single-scene tail :1371-1394 (identical verdict->status + record_event(repair_verified) + assemble_run + update_run_summary); new-critique dedup+create_issue loop :976-1012 vs :1252-1287.",
+  sym:"The single-scene and chapter-scoped verify paths independently reimplement new-critique dedup + create_issue, verdict computation, RepairVerification construction, and an identical status-transition tail. The two verdict->status mappings and RepairVerification builders now drift independently — a change to the mapping can silently apply to only one path.",
+  seam:"the 'finalize a repair verification' operation: given resolved/remaining/new issues, produce the verdict, persist RepairVerification, transition task+run status, record the event.",
+  rule:"duplicated domain logic split across two functions in the same module is a missing internal seam; the verdict-to-status mapping should exist once.",
+  ev:"FACT — lane read both tails and both dedup loops and enumerated the near-identical blocks (differ only in scene_no source and contract_reference).",
+  chk:"Extract _finalize_repair_verification(session, run, task, resolved, remaining, created_new_issues, verdict, payload) and route both verify paths through it; a unit test drives ACCEPT/ESCALATE/NEEDS_ANOTHER_REPAIR through the one helper so the mapping cannot diverge.",
+  s:{s:3,c:5,l:4,lo:4,te:4,br:2,rr:3,hd:2},pri:13},
+
+ {id:"ORDER-BACKFILL",t:"Chapter reading-order band scheme is duplicated between the SQL backfill and chapter_position(), comment-guarded",cat:"Data/Schema/Contract",src:["blast_radius"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"carried",pdelta:3,
+  loc:"migrations.py:136 (hard-coded CASE: front_matter 100000, prologue 1100000, else 2000000+chapter_no, epilogue 3100000, back_matter 4100000) vs chapter_order.py:92 (band*1_000_000 + within, _BAND_STRIDE=1_000_000).",
+  sym:"The one-time SQL backfill re-implements the Python ordering formula in raw SQL; the two are independent copies aligned by a 'Keep in sync' comment. A band change touching one silently reorders legacy vs app-written rows. Verified this run to reproduce identical values.",
+  seam:"migrations.py legacy-row backfill (SQL) vs chapter_order.chapter_position() (Python) — same ordering, two encodings.",
+  rule:"a numeric ordering law used for both backfill and live rows must have one implementation; a re-derivation in another language is a latent inconsistency.",
+  ev:"FACT — lane verified the SQL CASE reproduces chapter_position for each ChapterKind this run.",
+  chk:"A pure unit test that, for each ChapterKind (and a range of chapter_no), asserts the SQL CASE value equals chapter_position(kind, chapter_no) — parametrized so any future band edit touching one side fails.",
+  s:{s:2,c:5,l:3,lo:4,te:5,br:2,rr:2,hd:2},pri:13},
+
+ {id:"ARTIFACT-TYPE",t:"artifact_type is free text; 'scene_fidelity_report' is triplicated across 3 modules with no shared source",cat:"Data/Schema/Contract",src:["blast_radius"],dedup:"",action:"direct-fix",mode:"connected-impact-sweep",blocked:false,delta:"carried",pdelta:3,
+  loc:"No ArtifactType enum exists. Producers: scene_fidelity/evaluator.py:37 (REPORT_ARTIFACT_TYPE). Independent copies: scenes.py:29 (_FIDELITY_REPORT_TYPE, filter at :244), production_repair.py:70 (filter :1619, write :1713). Bare-literal filter: pipeline_status.py:371 (== 'final_chapter', writer at production_sequence.py:1023).",
+  sym:"The Artifact.artifact_type discriminator has ~14 distinct string literals written across workers with consumers filtering by bare literals. The single value scene_fidelity_report is independently redeclared as a constant in three modules; a rename or typo in any one silently yields a zero-row query with no error.",
+  seam:"Artifact.artifact_type write literals vs read filters, coupling a producer to a distant consumer by string equality.",
+  rule:"a discriminator coupling a producer to a distant consumer must have one authoritative definition both import.",
+  ev:"FACT — lane read all three copies + the final_chapter writer/reader pairing; no ArtifactType class exists (grep empty).",
+  chk:"Introduce an ArtifactType StrEnum (or one constants module) all producers/consumers import; a test asserts the set of write literals and the set of filter literals are both subsets of the enum, so a new value or drifted filter fails CI.",
+  s:{s:3,c:5,l:4,lo:3,te:5,br:4,rr:2,hd:2},pri:12},
+
+ {id:"DECIDE-LOCK",t:"reviews.decide reads the scene with no row lock, so concurrent approvals double-run side effects",cat:"Bug",src:["graded_integrity"],dedup:"approval-ledger-hotspot",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"reviews.py:84 (plain select(Scene), no with_for_update; first_approval off this unlocked read at :98). Contrast production_repair.py:660 (session.get(RepairTask, with_for_update=True, populate_existing=True) with a comment describing the exact cross-session race).",
+  sym:"decide() computes first_approval without with_for_update, unlike apply_repair_task which was explicitly hardened for the identical race. Two concurrent APPROVE requests both read status != APPROVED, both pass first_approval, and both commit_declared_deltas / schedule_next_after_approval — double-applying relative deltas, double-enqueuing the next draft, and (for a new character) both inserting a CharacterState row (compounding CHAR-UNIQ).",
+  seam:"cross-session concurrency control on the scene row during the approval decision.",
+  rule:"a check-then-act gating one-shot side effects across concurrent requests must serialize on the row (SELECT ... FOR UPDATE), matching the pattern already used for the same race elsewhere.",
+  ev:"INF — the race is reasoned from the unlocked read + the hardened sibling, not reproduced. The unlocked select and the contrasting locked repair read were both read directly this run.",
+  chk:"Load the scene with select(Scene).where(...).with_for_update() in decide() so concurrent approvals serialize; combined with the CHAR-UNIQ constraint the duplicate-insert vector closes. Cover with a test issuing two concurrent APPROVE calls asserting a single set of side effects.",
+  s:{s:3,c:4,l:4,lo:5,te:3,br:2,rr:2,hd:3},pri:12},
+
+ {id:"CANON-STATUS",t:"Canon lifecycle vocabulary has no enum and its active-retrieval predicate is copy-pasted in two modules",cat:"Data/Schema/Contract",src:["blast_radius"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"models.py:613 (status: Mapped[str]=Text default 'active' # active|stale|retired|superseded — vocabulary only in a comment; no CanonStatus enum). Duplicated predicate: retrieval.py:34 and canon_rag.py:37 (byte-identical or_(status.is_(None), status=='active')).",
+  sym:"The canon row lifecycle exists only as a comment, and the retrievability rule is inlined at each call site. A writer using an unlisted status silently drops out of retrieval, and a change to what counts as retrievable must be made in two places that can disagree.",
+  seam:"CanonEntity.status write sites vs the two independent _active_filter predicates.",
+  rule:"the rule for what a lifecycle state means for retrieval belongs in one predicate the readers share.",
+  ev:"FACT — lane read both predicates (byte-identical) and confirmed no CanonStatus class in enums.py.",
+  chk:"Add a CanonStatus StrEnum and a single shared canon_retrievable_filter() imported by both modules; a test asserts only one definition of the predicate exists and that write sites use enum members.",
+  s:{s:2,c:5,l:3,lo:4,te:4,br:2,rr:2,hd:2},pri:12},
+
+ {id:"SWEEPER-CAP",t:"Sweeper max_attempts cap only counts successful applies, so a persistently-failing repair re-applies every tick forever",cat:"Bug",src:["graded_integrity"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"sweeper.py:269 (_attempts += 1 only in the success path), :282 (ValueError branch: needs_human, no increment, task left QUEUED after savepoint rollback :267), :298 (generic Exception: only needs_human + log). Contrast background_work.py:202 (drain parks failed task WAITING_FOR_HUMAN). Docstring claim: sweeper.py:15.",
+  sym:"The attempt counter is a success counter. On a failed apply the sweeper sets needs_human and logs but never increments the counter or parks the task, so it re-selects the same approval-gated task next tick, re-triages the run, and re-applies with no ceiling — contradicting the module's documented 'per-run attempt cap so a run that keeps failing parks instead of looping forever.'",
+  seam:"sweeper per-run failure accounting vs the task-status lifecycle that decides re-selection.",
+  rule:"a stated 'parks after N failures' guardrail must actually count failures and remove the failed unit from the retry set.",
+  ev:"FACT — lane read all three sweeper branches, the drain's contrasting parking, and the docstring claim.",
+  chk:"Increment _attempts (or a per-task failure count) on the failed-apply branches and/or park the task WAITING_FOR_HUMAN like the drain does; test that apply_repair_task always raising retries at most max_attempts times.",
+  s:{s:3,c:4,l:3,lo:4,te:4,br:2,rr:2,hd:3},pri:11},
+
+ {id:"KNOW-MONO",t:"record_scene_reveals makes the reader-knowledge ledger non-monotonic (last-writer-wins)",cat:"Bug",src:["graded_integrity"],dedup:"approval-ledger-hotspot",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"knowledge.py:73 (existing-row branch: row.known_by_reader_after_scene_id = scene.id, unconditional overwrite), :55 (match on (book_id, fact) text only), docstring :5 (claims deterministic 'known before scene N').",
+  sym:"When a fact text recurs in a later scene's reader_must_learn (a recap), approving that later scene overwrites known_by_reader_after_scene_id to the later scene; re-approving an earlier scene moves it back. A query for 'was F known before scene 5?' returns False after scene 7 recaps F, even though F was revealed at scene 3 — the answer depends on approval order, not reveal order.",
+  seam:"KnowledgeFact 'first known after' assignment vs its documented monotonic semantics.",
+  rule:"a 'first known after scene X' marker must be assigned monotonically (earliest reveal wins), not last-writer-wins.",
+  ev:"FACT — lane read the unconditional overwrite, the text-only match, and the docstring contract it breaks.",
+  chk:"On an existing fact, only advance known_by_reader_after_scene_id when the new scene is earlier (take the earliest reveal); test reveal F@3, recap F@7, assert 'known before scene 5' stays True.",
+  s:{s:2,c:4,l:2,lo:5,te:4,br:1,rr:2,hd:3},pri:11},
+
+ {id:"TELEM-ORACLE",t:"Telemetry SQL-aggregation parity test oracles against Python helpers from the same module",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"test_telemetry_api.py:29 (imports _totals, group_calls from workers.telemetry_agg — the module the endpoints delegate to), :117 (assert out.totals == TelemetryTotals(**_totals(rows)); group assertions :119-138 compare SQL to the same helpers).",
+  sym:"The differential test asserts SQL rollups equal the Python helpers, but both paths root in one module. A shared misunderstanding of aggregation semantics (how cache/latency/null-run rows are counted) would be reproduced identically in both and pass. It proves SQL==Python, not SQL==correct.",
+  seam:"the SQL rollup path in the telemetry router vs its Python reference — both rooted in one module, so a common-mode error is invisible.",
+  rule:"a parity/golden test must oracle against an independent expected value for the numbers that matter.",
+  ev:"FACT — lane read the import and the assertions; the reference is the same module the SQL mirrors.",
+  chk:"Add a handful of hand-computed expected totals (token sums, cache hits, latency for the seeded rows) as literal constants and assert both the SQL rollups and _totals against them, so a shared aggregation bug is caught.",
+  s:{s:2,c:3,l:2,lo:5,te:3,br:1,rr:1,hd:2},pri:11},
+
+ {id:"HTTP-HARNESS",t:"No HTTP-level test harness: 27 routers exercised only as plain functions, whole ASGI boundary unproven",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"http-integration-gap",action:"fitness-check",mode:"sequential",blocked:false,delta:"carried",pdelta:-2,
+  loc:"Systemic. e.g. test_telemetry_api.py:20 + test_scene_fidelity_api.py:113 (endpoints awaited as plain coroutines). No TestClient/ASGITransport/inbound AsyncClient anywhere. Uncovered: main.py:178 (CORS) + the ~120-line lifespan (:55-173); deps.py:27 (SessionDep DI); 61 *In schemas with zero validators (schemas.py).",
+  sym:"No test drives the app through the ASGI boundary, so FastAPI routing, Depends(db_session) injection, request-body validation (422s), CORS, exception handling, response serialization, and the whole lifespan boot are unverifiable. A regression that only manifests at the HTTP boundary is invisible. httpx>=0.27 is already a dependency, so the fixture costs zero new deps.",
+  seam:"the ASGI app boundary (dominion.api.main:app) — request in, JSON+status out — vs the router coroutine called in isolation.",
+  rule:"a risk surface with no red-capable check is unverifiable; the HTTP contract the frontend depends on must be exercised as HTTP.",
+  ev:"FACT — lane grep across all test files + conftest found no inbound ASGI client; the only httpx.AsyncClient is the outbound LLM client.",
+  chk:"Add an httpx.AsyncClient+ASGITransport fixture that boots the real app (with the test DB) and a smoke test per router group asserting status codes + one 422 negative per POST body; gate that at least one HTTP-level test exists so it can't rot back.",
+  s:{s:4,c:5,l:5,lo:2,te:4,br:4,rr:2,hd:3},pri:11},
+
+ {id:"VERIFY-GATE",t:"Local 'just verify' runs pyright on changed files only while CI runs full-tree — comments claim a parity that no longer holds",cat:"Build/CI",src:["verification_readiness"],dedup:"",action:"direct-fix",mode:"connected-impact-sweep",blocked:false,delta:"carried",pdelta:5,
+  loc:"Truth: ci.yml:102-105 (full-tree pyright, added because changed-files-only 'let a type regression in an untouched module ship unseen'). Drifted mirrors: ci_pyright_changed.sh:2, verify.ps1:29-40, verify.sh, justfile:19, plus AGENTS.md / README / docs/BUILD.md parity claims.",
+  sym:"CI runs pyright on the whole src/ tree; every 'matches CI' local surface runs it only on files changed vs origin/main. A type regression whose fallout lands in an untouched file passes every local/agent check and is caught only post-push — the exact failure CI's own comment says full-tree was adopted to prevent. The lesson reached CI but not the surfaces claiming to mirror it, including AGENTS.md (the file agents follow).",
+  seam:"the developer/agent pre-push gate (just verify) vs the CI static job — advertised equivalent, checking different scopes.",
+  rule:"a local verification gate that claims CI-parity must actually match CI scope; a weaker local gate with a parity claim manufactures false confidence.",
+  ev:"FACT — lane read ci.yml + the verify scripts + the parity-claim docs; re-scored more locally than 2026-07-17 (the essential fix is the two scripts; the doc surfaces are follow-up), hence pri 6->11.",
+  chk:"Make verify.sh/verify.ps1 invoke full-tree pyright (matching CI) and demote changed-files pyright to an optional fast pre-check, OR add a meta-test asserting the verify-script pyright command matches ci.yml's static job.",
+  s:{s:3,c:5,l:4,lo:3,te:5,br:4,rr:3,hd:2},pri:11},
+
+ {id:"TEST-DB-SKIP",t:"'just test' — the documented test entrypoint — silently skips all 61 DB-gated files when Postgres is down",cat:"Build/CI",src:["verification_readiness"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"justfile:10 (test = uv run pytest -q, no DOMINION_REQUIRE_DB) vs conftest.py:139 (db_factory: pytest.fail only if DOMINION_REQUIRE_DB else pytest.skip). Only verify.sh:22 / CI set the env; 61 of 119 test files request db_factory.",
+  sym:"A developer running 'just test' on a laptop without Postgres gets a green run that silently exercised ~half the suite. The DB-required guard was wired into verify.sh/ps1/CI but not into the fast everyday command, so the default loop has no floor against a missing database.",
+  seam:"the developer's quick 'just test' loop vs the enforced 'just verify'/CI run — same pytest, opposite skip semantics.",
+  rule:"a test command that reports success while skipping half its cases is worse than no command; the default entrypoint must fail loudly when its dependencies are absent.",
+  ev:"FACT — captain re-read conftest.py:139 this run (skip unless DOMINION_REQUIRE_DB) and justfile:10 (bare pytest -q). Lane counted 61/119 db_factory files.",
+  chk:"Make the 'just test' target export DOMINION_REQUIRE_DB=1 (or print a loud banner + non-zero-count assertion when DB tests skip) so a Postgres-down run fails instead of reporting green.",
+  s:{s:3,c:5,l:4,lo:5,te:5,br:2,rr:1,hd:2},pri:17},
+
+ {id:"PROD-FACADE",t:"production.py facade is leaky, incomplete, and partly dead — routers bypass it, it re-exports unused privates",cat:"Architecture Fitness",src:["deepening_seams"],dedup:"",action:"design",mode:"blocked-needs-human-decision",blocked:true,delta:"carried",pdelta:-2,
+  loc:"production_repair.py:3 (docstring: 'implementation detail behind dominion.workers.production... the public facade keeps the surface stable'). Router bypass: production.py router:41 imports the trio; :578-616 call production_repair.create/accept/reject_repair_preview + override_fidelity_issue directly; :301,316 call production_support.update_run_summary. Dead re-exports: workers/production.py:127 (evaluate_chapter_sequence, run_chapter_draft_qa, derive_contract_classification, _int_or_none, _roster_name_tokens, _contract_item — 0 live callers of the facade versions).",
+  sym:"production.py is billed as THE public facade but adds no behavior, so callers needing operations it doesn't cover (fidelity previews, update_run_summary) import the submodule directly, while private helpers got re-exported anyway to give tests patch paths. Two competing access patterns to one subsystem; the facade would largely survive the deletion test as dead.",
+  seam:"the public boundary of the production subsystem — which module callers may import.",
+  rule:"a facade must be deep and complete; a shallow pass-through callers routinely bypass is a suggestion, not a boundary.",
+  ev:"FACT — lane read the import + all bypass call sites and grepped the facade for the re-exported names (several with 0 callers).",
+  chk:"tests/test_production_facade_surface.py asserting (a) api/routers/*.py import only `production` from the {production, production_repair, production_support, production_sequence} set, and (b) every production_repair/support callable a router uses is re-exported by production. Forces the fork: complete the facade or dissolve it and let routers import submodules openly.",
+  s:{s:3,c:5,l:4,lo:3,te:4,br:3,rr:2,hd:4},pri:10},
+
+ {id:"CH1-GOLD",t:"ch1_bad_run golden fixtures are consumed as raw dicts, never round-tripped through the current Pydantic schemas",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"",action:"direct-fix",mode:"sequential",blocked:false,delta:"carried",pdelta:3,
+  loc:"ch1_bad_run_fixtures.py:55 (@cache _load returns json.loads; accessors hand back raw dicts), :92 (indexes raw dict keys). Live schemas: schemas.py:2212 (ProductionRunDetailOut), :500 (ScenePacketOut); no model_validate in the ch1 tests.",
+  sym:"The preserved ch1_bad_run fixtures are loaded with json.loads and walked as plain dicts with no schema validation. If those schemas add a required field, rename, or re-nest, production emits the new shape while the regression fixtures keep the old one, and the ch1 suite stays green against a shape production no longer produces.",
+  seam:"the preserved run artifacts (JSON on disk) vs the live Pydantic schemas that model the same artifacts in production.",
+  rule:"a golden that stands in for a production shape must be pinned to that shape by validation, or it silently drifts.",
+  ev:"FACT — lane read the dict loaders + accessors and confirmed no model_validate/ProductionRunDetailOut usage in the ch1 tests.",
+  chk:"A test that model_validate()s each ch1_bad_run fixture through its current schema (ProductionRunDetailOut, ScenePacketOut, ChapterPacketOut) so a schema change the fixtures don't follow fails loudly.",
+  s:{s:2,c:4,l:3,lo:4,te:4,br:2,rr:2,hd:3},pri:10},
+
+ {id:"E2E-GATE",t:"The only e2e boots the frontend with no backend and runs full-tier only; nothing tests the FE<->BE HTTP contract",cat:"Testing/Fixture/Golden",src:["verification_readiness"],dedup:"http-integration-gap",action:"design",mode:"sequential",blocked:false,delta:"carried",pdelta:-1,
+  loc:"frontend/tests/e2e/desk-shell.smoke.spec.ts:14 ('boots pnpm build && pnpm start with no backend'), :29 (asserts only title/banner/nav chrome). ci.yml:183 (all three Playwright steps gated on needs.changes.outputs.full == 'true').",
+  sym:"A normal branch PR runs zero Playwright; even when it runs, the spec is backend-hermetic and asserts only static chrome. Combined with HTTP-HARNESS, nothing at any tier asserts that a real request from the app reaches a real endpoint and gets a valid response.",
+  seam:"the frontend-to-backend integration boundary — asserted by neither the backend tests (plain functions) nor the e2e (backendless), and skipped on branch PRs.",
+  rule:"the integration seam that most often breaks (client calling server) needs at least one end-to-end assertion that runs on the PRs that change it.",
+  ev:"FACT — lane read the e2e spec and the full-tier gate in ci.yml.",
+  chk:"Add one backend-integrated e2e (or an HTTP-harness contract test) that boots app + test DB and asserts a real desk read path returns data; run it on the PR tier that touches api_contract, not only the full tier. Secondary to HTTP-HARNESS.",
+  s:{s:3,c:5,l:4,lo:3,te:3,br:3,rr:2,hd:3},pri:10},
+
+ {id:"SECTION-MIRROR",t:"Backend and frontend each hold a 22-slug SECTION_ORDER (and the ChapterKind list) as hand-maintained mirrors",cat:"Data/Schema/Contract",src:["blast_radius"],dedup:"",action:"design",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"chapter_order.py:45 (_SECTION_ORDER, 22 slugs, 'KEEP IN SYNC with manuscript/labels.ts') vs frontend/src/desk/manuscript/labels.ts:190 (SECTION_ORDER, 22 slugs, 'KEEP IN SYNC with backend'); labels.ts:8 (ChapterKind re-declared, 'mirrors the backend enum').",
+  sym:"The canonical publishing order of front/back-matter sections is duplicated verbatim in Python (drives DB reading-order) and TypeScript (drives Reader export placement); ChapterKind is likewise re-listed. Currently identical (verified this run), but nothing enforces it, so a drift makes the DB sort order and the exported page order disagree.",
+  seam:"Python reading-order/export ordering vs TS Reader-export ordering — a contract shared across a language boundary as two literal lists.",
+  rule:"a contract shared across a language boundary must be generated from, or tested against, one source — comment-enforced parallel lists drift silently.",
+  ev:"FACT — lane read both lists and verified identical order this run (both end ...author_bio, about, preview).",
+  chk:"Emit the backend _SECTION_ORDER (and ChapterKind members) into a small generated JSON/TS asset consumed by labels.ts, OR add a frontend test importing a checked-in copy of the backend list and asserting array equality — so a one-sided edit fails CI.",
+  s:{s:2,c:5,l:3,lo:3,te:3,br:3,rr:2,hd:2},pri:9},
+
+ {id:"SEV-ALIAS",t:"Two parallel severity vocabularies + a legacy 'hard' alias + a same-token overload, with no single severity source",cat:"Data/Schema/Contract",src:["graded_integrity","blast_radius"],dedup:"severity-vocabulary",action:"direct-fix",mode:"connected-impact-sweep",blocked:false,delta:"carried",pdelta:-2,
+  loc:"severity.py:21 (Literal['warn','repair','block'] — 3 levels, no info) vs enums.py Severity (4 levels). Scattered alias readers: production_repair.py:1009 (+9 more sites), agent_ops.py:641 (in_(('hard','block'))), risk_scorer.py:86 ((\"block\",\"hard\")). Non-tolerant readers: validation.py:374 (== 'block'). Token collision: agent_cli.py:114 (Literal['rate_limit','hard'] — 'hard' means non-retryable error). models.py:658 documents 'legacy rows: hard == block'.",
+  sym:"Whether a severity blocks is re-derived inline ~18 times: persisted-row readers tolerate the legacy 'hard' spelling, others use == 'block' and do NOT. There is no is_blocking() predicate, so a new reader that forgets the alias silently mis-classifies a legacy blocker as non-blocking; separately, agent_cli reuses 'hard' for an unrelated meaning.",
+  seam:"severity classification — the mapping from a stored/emitted severity string to blocks_drafting/blocks_export.",
+  rule:"one concept, one vocabulary: a severity value's meaning and its alias set must live in one place every reader imports, and a token must not name two concepts.",
+  ev:"FACT — two lanes independently enumerated the scattered alias sites, the two type definitions, and the agent_cli token collision (confidence 5 by cross-lane agreement).",
+  chk:"Make severity.py the single definition (derive/alias from enums.Severity), expose one normalize_severity()/is_blocking() that folds hard->block, route all sites through it, add a test that no reader carries its own alias tuple; rename the agent_cli 'hard' error variant.",
+  s:{s:2,c:5,l:3,lo:2,te:4,br:3,rr:2,hd:3},pri:8},
+
+ {id:"REPAIR-GOD",t:"production_repair.py (1996 LOC) is a god module bundling three unrelated concerns behind no seam",cat:"Architecture Fitness",src:["deepening_seams"],dedup:"",action:"design",mode:"sequential",blocked:false,delta:"carried",pdelta:2,
+  loc:"production_repair.py — repair-task lifecycle :336-1579; SceneFidelity production triage :1582-1826; author-repair previews :1829-1996 (human-gated, never autonomous, only reached via router bypass).",
+  sym:"One 1996-LOC module owns the repair-task lifecycle machine, SceneFidelity production triage, and author-repair previews — three concerns that change for independent reasons (different ADR sets: 0009/0017/0018/0020) and share only a couple of low-level helpers. A change to any one requires re-reading a file that also owns the other two.",
+  seam:"the line between the autonomous repair-task lifecycle and the author-controlled SceneFidelity repair lane.",
+  rule:"a module should have one reason to change; when three independent responsibilities share a file only through low-level helpers, the seam belongs between them.",
+  ev:"FACT — lane enumerated the three concern-clusters by line range from the module's own structure.",
+  chk:"Extract a production_fidelity module owning triage_scene_fidelity_for_production + the preview/override surface; pin with a test that production_repair no longer defines create_repair_preview/triage_scene_fidelity_for_production and that the fidelity module's public surface is what routers import. Needs characterization tests first (locking/race comments).",
+  s:{s:3,c:5,l:4,lo:2,te:3,br:3,rr:3,hd:3},pri:8},
+
+ {id:"FE-TYPES-DRIFT",t:"Frontend types.ts hand-DTO overrides have drifted from the generated OpenAPI types, with stale rationale comments",cat:"Maintainability",src:["blast_radius"],dedup:"",action:"triage",mode:"sequential",blocked:false,delta:"new",pdelta:0,
+  loc:"frontend/src/desk/api/types.ts:64 (BeatOut patched & { pov?: string|null } claiming 'the wire schema doesn't yet model it') vs schemas.py:207 (BeatOut.pov IS emitted); types.ts:226 (self-noted 'could collapse to a plain re-export... deferred realignment').",
+  sym:"types.ts wraps generated schemas with hand overrides whose own comments admit the generated type has since caught up, so the codegen source of truth is silently overridden by stale hand types that re-loosen or re-pin fields the generated type already models correctly.",
+  seam:"generated OpenAPI types (generated.ts) vs hand extensions (types.ts) vs backend Pydantic schemas (schemas.py).",
+  rule:"a generated contract should be the authority; a hand override that outlives its reason quietly defeats codegen and misleads the next reader.",
+  ev:"FACT — lane read the BeatOut override + its now-false comment against schemas.py:207, plus the self-documented deferred-realignment note.",
+  chk:"Audit each Omit/& override in types.ts against current generated.ts; collapse the ones the schema now covers (BeatOut.pov, telemetry rollups) to plain re-exports and delete the stale comments; where a stricter guarantee is genuinely wanted, encode it as a runtime validator, not a divergent type.",
+  s:{s:2,c:4,l:2,lo:3,te:2,br:2,rr:2,hd:2},pri:7},
+
+ {id:"ENUM-STR",t:"Every StrEnum vocabulary is persisted as bare Text with no DB CHECK or SA Enum — the enum layer is documentation, not a constraint",cat:"Data/Schema/Contract",src:["blast_radius","deepening_seams"],dedup:"stringly-typed-enums",action:"design",mode:"blocked-needs-human-decision",blocked:true,delta:"carried",pdelta:-3,
+  loc:"~40 vocabularies in enums.py stored in 84 Mapped[str]=mapped_column(Text) columns (e.g. models.py:329 status # see enums.ScenePacketStatus; :658 severity). No SA Enum, no CheckConstraint (grep 0). migrations.py:146 ('CHECK deferred — app layer enforces'). Worked example: authority_level (models.py:1015 Text) compared with .value at production_repair.py:674 but without .value at :259.",
+  sym:"An invalid enum value (typo, drifted writer, bad migration) persists silently and is read back as canonical, because the enum layer is only a comment link. The authority_level comparisons show the downstream hazard: correctness depends on every reader silently knowing StrEnum equality (an `is` comparison or a native-enum migration would break the .value sites).",
+  seam:"the ORM column type / DB schema boundary (models.py) vs the enum vocabularies (enums.py).",
+  rule:"a vocabulary that gates behavior must be enforced where it is written, not documented in a sibling file — a value's validity is a constraint, not a convention.",
+  ev:"FACT — lane counted 84 Text enum columns and grep-confirmed 0 SA Enum / CheckConstraint; deepening-seams lane confirmed the authority_level .value inconsistency (merged here as the worked example).",
+  chk:"FORK: (a) map enum columns with SQLAlchemy Enum(native_enum=False) / add DB CHECK via the migration ladder, or (b) a cheaper membership test that picks columns from an enum<->column registry and asserts every persisted literal is a member of its StrEnum. Path (a) is a real migration; path (b) is a quick-win alternative — the choice is the human decision.",
+  s:{s:3,c:5,l:4,lo:2,te:4,br:5,rr:3,hd:4},pri:6},
+
+ {id:"AUTHZ-AXIS",t:"authority_level overloads blast-radius and authorization-requirement into one Text column (the A1c debt)",cat:"Data/Schema/Contract",src:["deepening_seams"],dedup:"",action:"design",mode:"blocked-needs-human-decision",blocked:true,delta:"new",pdelta:0,
+  loc:"models.py:1011 (comment: 'authority_level == human_required is the temporary A1b compatibility' discriminator), :1015 (Mapped[str]=Text). apply_repair_task refuses autonomous apply on == HUMAN_REQUIRED at production_repair.py:674 (authorization meaning); _infer_authority returns HUMAN_REQUIRED for missing_scene at :201 (blast-radius meaning).",
+  sym:"HUMAN_REQUIRED is used both as a blast-radius rank AND as the authorization-requirement discriminator that forbids autonomous apply — two orthogonal axes collapsed into one column, flagged in-code as a temporary A1b hack. Every gate must special-case one enum member, and no autonomous ceiling can express 'allowed reach, still human-gated'.",
+  seam:"how far a repair can reach (blast radius) vs who must authorize it (authorization requirement).",
+  rule:"two independent decisions should live on two axes; folding authorization into the blast-radius enum conflates reach with consent.",
+  ev:"FACT — lane read the column comment and both HUMAN_REQUIRED uses (one authorization, one blast-radius). Matches ADR-0031 D16's note that A1c splits them; that work is the pending decision.",
+  chk:"Land the A1c split: add an explicit authorization_requirement axis and migrate the HUMAN_REQUIRED-as-gate reads to it; a test asserts autonomous apply is refused via authorization_requirement, not authority_level. Requires migration + policy judgment (the A1c human fork already on the roadmap).",
+  s:{s:3,c:4,l:3,lo:2,te:3,br:4,rr:3,hd:5},pri:3},
+
+ {id:"LLM-SIG",t:"llm.complete() presents a 16-keyword interface — a wide surface over a genuinely deep implementation",cat:"Architecture Fitness",src:["deepening_seams"],dedup:"",action:"design",mode:"sequential",blocked:false,delta:"carried",pdelta:2,
+  loc:"llm.py:483-500 (16-kwarg signature: model, system, user, max_tokens, budget, user_prefix, user_prefix_blocks, expect_cache, context_window_budget, context_sections, temperature, effort, input_budget, setting_key, text_format), :513 (docstring must explain user_prefix maps to one user_prefix_blocks entry).",
+  sym:"The single LLM primitive legitimately hides hard things (4 provider branches, retries, caching, budget gates, token preflight) — the good kind of depth — but the caller-facing surface is 16 keywords with two overlapping ways to pass a prefix and three overlapping budget knobs (input_budget vs context_window_budget vs max_tokens), so callers must learn internals to call correctly.",
+  seam:"the call interface to the single LLM completion primitive every worker depends on.",
+  rule:"interface size is part of depth; overlapping parameters for one concept are a shallow-interface symptom.",
+  ev:"FACT for the signature/docstring (read :483-513). INF for real caller burden — the ~19 call sites were not audited to measure how much complexity leaks; flagged for awareness at moderate confidence.",
+  chk:"Introduce a CompletionRequest/BudgetConfig grouping (prefix blocks, the three budget ceilings, context accounting) and keep complete() to model/system/user/request; a test asserts the public param count stays bounded. Triage first — needs the call-site analysis.",
+  s:{s:2,c:4,l:2,lo:3,te:2,br:4,rr:3,hd:3},pri:3}
+];
+
+// Prior-run diff data (2026-07-17). RESOLVED = verified via commit; CARRIED_STALE = prior-open, NOT re-surfaced this run (still open, NOT resolved).
+const RESOLVED = [
+ {id:"GLOBALS",t:"AgentOpsState.globals_json crashes on legacy rows",pri:19,by:"2bfffe4"},
+ {id:"SEQ-IDX",t:"derive_chapter_sequence indexed the wrong list",pri:16,by:"56f56e6"},
+ {id:"CTX-ADR",t:"CONTEXT.md stated 4 ADR-0028 terms as live",pri:15,by:"303bda7"},
+ {id:"COV-FLOOR",t:"No coverage measurement in CI",pri:13,by:"1681f0a"},
+ {id:"PLANNER-TAG",t:"Lane-tag prompt mirror untested",pri:12,by:"538637c"},
+ {id:"DEAD-FLAG",t:"Dead config flag with no readers",pri:12,by:"84c5b78"}
+];
+const CARRIED_STALE = [
+ {id:"TWIN-PARITY",t:"'single-lookup vs prefetched twin' duplicated 3x, no parity test",pri:12},
+ {id:"IMP-EVID",t:"workers/import_evidence.py has zero test coverage",pri:12},
+ {id:"CTRL-PLANE",t:"Autonomy/settings control plane + rule-learning untested",pri:11},
+ {id:"PKT-PIPE",t:"Chapter-packet assembly re-runs in the router",pri:10},
+ {id:"BEAT-NOUN",t:"A beat's leading-noun heuristic is brittle",pri:10},
+ {id:"TELEM-AGG",t:"api/routers/telemetry.py has grown large",pri:9},
+ {id:"MIG-DRIFT",t:"Migration forward-drift is structurally unfalsifiable",pri:7},
+ {id:"ADR28-SUB",t:"ADR-0028 substrate has zero writers/callers (wire-vs-delete)",pri:4}
+];
+
+const SCORE_COLS = [["s","Sev"],["c","Conf"],["l","Lev"],["lo","Loc"],["te","Test"],["br","Blast"],["rr","Regr"],["hd","HD"]];
+const ACTION_COLOR = {"direct-fix":["#15803D","#E6F3EB"],"fitness-check":["#B45309","#FAEFE0"],"design":["#6D3BD1","#efe8fb"],"triage":["#2540E8","#EAEDFD"],"prototype":["#516079","#EDF0F5"],"reject":["#8A93A3","#EDF0F5"]};
+function heat(pri){const a=Math.max(0.10,Math.min(0.92,(pri+3)/25));return{bg:"rgba(37,64,232,"+a.toFixed(2)+")",fg:a>0.55?"#ffffff":"#26327A"};}
+function priBand(p){return p>=12?"High":p>=6?"Mid":"Low";}
+function mono(s){return '<span style="font-family:\'IBM Plex Mono\',monospace">'+s+'</span>';}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function newPill(){return '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:600;color:#B45309;background:#FAEFE0;padding:1px 5px;border-radius:4px;margin:0 4px">NEW</span>';}
+function deltaTag(c){if(c.delta==="new")return "";if(!c.pdelta)return "";const up=c.pdelta>0;return '<span style="font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-size:10.5px;font-weight:600;margin-left:5px;color:'+(up?"#B45309":"#516079")+'">'+(up?"&#9650;+"+c.pdelta:"&#9660;"+c.pdelta)+'</span>';}
+
+let state={sortKey:"pri",sortDir:-1,filter:"all"};
+
+// TRIAGE STRIP (with 'Since last run' card)
+(function(){
+  const byAction={};C.forEach(c=>byAction[c.action]=(byAction[c.action]||0)+1);
+  const seg=Object.entries(byAction).map(([a,n])=>'<div style="height:9px;flex:'+n+';background:'+(ACTION_COLOR[a]?ACTION_COLOR[a][0]:"#8A93A3")+'"></div>').join("");
+  const legend=Object.entries(byAction).map(([a,n])=>'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#4B5563"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+(ACTION_COLOR[a]?ACTION_COLOR[a][0]:"#8A93A3")+';margin-right:4px"></span>'+a+' '+n+'</span>').join(" &nbsp; ");
+  const high=C.filter(c=>c.pri>=12).length,mid=C.filter(c=>c.pri>=6&&c.pri<12).length,low=C.filter(c=>c.pri<6).length;
+  const blocked=C.filter(c=>c.blocked).length;
+  const nnew=C.filter(c=>c.delta==="new").length, rescored=C.filter(c=>c.delta==="carried"&&c.pdelta!==0).length;
+  document.getElementById("triage").innerHTML=
+   '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px;padding:14px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">By recommended action</div><div style="display:flex;gap:2px;border-radius:4px;overflow:hidden;margin-bottom:8px">'+seg+'</div><div style="line-height:1.9">'+legend+'</div></div>'+
+   '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px;padding:14px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">By priority band</div><div style="display:flex;gap:18px"><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:26px;color:#141821">'+high+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">High &ge;12</div></div><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:26px;color:#4B5563">'+mid+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">Mid 6-11</div></div><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:26px;color:#8A93A3">'+low+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">Low &le;5</div></div></div></div>'+
+   '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #15803D;border-radius:12px;padding:14px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">Since last run</div><div style="display:flex;gap:16px"><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:24px;color:#B45309">+'+nnew+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">new</div></div><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:24px;color:#15803D">&minus;'+RESOLVED.length+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">resolved</div></div><div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:24px;color:#4B5563">&Delta;'+rescored+'</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#8A93A3">re-scored</div></div></div></div>'+
+   '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #C0342B;border-radius:12px;padding:14px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">Needs decision</div><div style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:40px;color:#C0342B;line-height:1">'+blocked+'</div><div style="font-size:12.5px;color:#4B5563">PROD-FACADE · ENUM-STR · AUTHZ-AXIS</div></div>';
+})();
+
+// DIFF PANEL: resolved (verified) + carried-forward-not-re-examined
+(function(){
+  let h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">';
+  h+='<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #15803D;border-radius:12px;padding:12px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:8px">Resolved since 2026-07-17 (commit-verified)</div>'+
+    RESOLVED.map(r=>'<div style="display:flex;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid #EEF0F4"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:#8A93A3;text-decoration:line-through;min-width:104px">'+r.id+'</span><span style="font-size:12.5px;color:#4B5563;flex:1">'+esc(r.t)+'</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#15803D">'+r.by+'</span></div>').join("")+'</div>';
+  h+='<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #B45309;border-radius:12px;padding:12px 16px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;margin-bottom:4px">Carried from 2026-07-17 — NOT re-examined this run</div><div style="font-size:11.5px;color:#8A93A3;margin-bottom:6px">Prior-open, not re-surfaced by this 4-lane sampling. Still open unless separately verified — <strong>not</strong> resolved.</div>'+
+    CARRIED_STALE.map(r=>'<div style="display:flex;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid #EEF0F4"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:#26327A;min-width:104px">'+r.id+'</span><span style="font-size:12.5px;color:#4B5563;flex:1">'+esc(r.t)+'</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#8A93A3">was pri '+r.pri+'</span></div>').join("")+'</div>';
+  h+='</div>';
+  document.getElementById("diffPanel").innerHTML=h;
+})();
+
+// TOP TABLE (top 6 by pri)
+(function(){
+  const top=[...C].sort((a,b)=>b.pri-a.pri).slice(0,6);
+  let h='<table style="width:100%;border-collapse:collapse;min-width:640px;background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px"><thead><tr style="border-bottom:1px solid #E6E8EE">'+
+    ['ID','Candidate','Category','Action','Pri'].map((c,i)=>'<th style="text-align:'+(i>=4?'center':'left')+';padding:10px 12px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3;cursor:default">'+c+'</th>').join("")+'</tr></thead><tbody>';
+  top.forEach(c=>{const ht=heat(c.pri);const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];
+    h+='<tr style="border-top:1px solid #EEF0F4"><td style="padding:9px 12px"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12.5px">'+c.id+'</a>'+(c.delta==="new"?newPill():"")+(c.blocked?' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:600;color:#C0342B;background:#FBEAE8;padding:1px 5px;border-radius:4px">BLOCKED</span>':'')+'</td><td style="padding:9px 12px;font-size:13px;color:#141821">'+esc(c.t)+deltaTag(c)+'</td><td style="padding:9px 12px;font-size:12px;color:#4B5563">'+c.cat+'</td><td style="padding:9px 12px"><span class="chip" style="color:'+ac[0]+';background:'+ac[1]+'">'+c.action+'</span></td><td style="padding:9px 12px;text-align:center"><span style="font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-weight:600;padding:2px 8px;border-radius:20px;background:'+ht.bg+';color:'+ht.fg+'">'+c.pri+'</span></td></tr>';});
+  h+='</tbody></table>';
+  document.getElementById("topTable").innerHTML=h;
+})();
+
+// FILTER CHIPS (+ New)
+function renderFilters(){
+  const actions=[...new Set(C.map(c=>c.action))];
+  const defs=[["all","All",C.length]].concat(actions.map(a=>[a,a,C.filter(c=>c.action===a).length])).concat([["new","New",C.filter(c=>c.delta==="new").length],["blocked","Blocked",C.filter(c=>c.blocked).length]]);
+  document.getElementById("filters").innerHTML=defs.map(([k,lbl,n])=>{
+    const on=state.filter===k;
+    return '<button data-filter="'+k+'" onclick="onFilter(this)" style="cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:20px;border:1px solid '+(on?'#2540E8':'#E6E8EE')+';background:'+(on?'#2540E8':'#FFFFFF')+';color:'+(on?'#FFFFFF':'#4B5563')+'">'+lbl+' '+n+'</button>';
+  }).join("");
+}
+function onFilter(el){state.filter=el.dataset.filter;renderFilters();renderMatrix();}
+
+// MATRIX
+function visible(){
+  let v=C.filter(c=>state.filter==="all"?true:state.filter==="blocked"?c.blocked:state.filter==="new"?c.delta==="new":c.action===state.filter);
+  const k=state.sortKey;
+  v.sort((a,b)=>{let av,bv;if(k==="id"||k==="t"||k==="cat"||k==="action"){av=a[k];bv=b[k];return state.sortDir*av.localeCompare(bv);}if(k==="pri"){av=a.pri;bv=b.pri;}else{av=a.s[k];bv=b.s[k];}return state.sortDir*(av-bv);});
+  return v;
+}
+function renderMatrix(){
+  const cols=[["id","ID"],["t","Candidate"],["action","Action"]].concat(SCORE_COLS).concat([["pri","Pri"]]);
+  let h='<table style="width:100%;border-collapse:collapse;min-width:900px;background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px"><thead><tr style="border-bottom:1px solid #E6E8EE">';
+  cols.forEach(([k,lbl])=>{const active=state.sortKey===k;const arrow=active?(state.sortDir<0?' &#9660;':' &#9650;'):'';
+    h+='<th data-key="'+k+'" onclick="onSort(this)" style="text-align:'+(k==="t"?'left':'center')+';padding:9px 8px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:'+(active?'#2540E8':'#8A93A3')+'">'+lbl+arrow+'</th>';});
+  h+='</tr></thead><tbody>';
+  visible().forEach(c=>{const ht=heat(c.pri);const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];
+    h+='<tr style="border-top:1px solid #EEF0F4"><td style="padding:8px;text-align:center;white-space:nowrap"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12px">'+c.id+'</a>'+(c.delta==="new"?' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:600;color:#B45309;background:#FAEFE0;padding:0 4px;border-radius:3px">N</span>':'')+(c.blocked?' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:600;color:#C0342B;background:#FBEAE8;padding:0 4px;border-radius:3px">B</span>':'')+'</td>'+
+      '<td style="padding:8px;font-size:12.5px;color:#141821;max-width:330px">'+esc(c.t)+deltaTag(c)+'</td>'+
+      '<td style="padding:8px;text-align:center"><span class="chip" style="font-size:10px;color:'+ac[0]+';background:'+ac[1]+'">'+c.action+'</span></td>';
+    SCORE_COLS.forEach(([k])=>{const v=c.s[k];const col=k==="hd"||k==="br"||k==="rr"?(v>=4?"#C0342B":v>=3?"#B45309":"#8A93A3"):(v>=4?"#15803D":v>=3?"#4B5563":"#8A93A3");h+='<td style="padding:8px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-size:12px;color:'+col+'">'+v+'</td>';});
+    h+='<td style="padding:8px;text-align:center"><span style="font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;padding:2px 8px;border-radius:20px;background:'+ht.bg+';color:'+ht.fg+'">'+c.pri+'</span></td></tr>';});
+  h+='</tbody></table>';
+  document.getElementById("matrix").innerHTML=h;
+}
+function onSort(el){const k=el.dataset.key;if(state.sortKey===k){state.sortDir*=-1;}else{state.sortKey=k;state.sortDir=(k==="id"||k==="t"||k==="cat"||k==="action")?1:-1;}renderMatrix();}
+
+// CARDS
+(function(){
+  const order=[...C].sort((a,b)=>b.pri-a.pri);
+  const term=(t,v)=>'<dt style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#8A93A3;padding-top:8px">'+t+'</dt><dd style="margin:0;padding-top:8px;font-size:13.5px;color:#4B5563">'+v+'</dd>';
+  let h="";
+  order.forEach(c=>{const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];const border=c.blocked?"#C0342B":c.action==="design"?"#6D3BD1":c.action==="direct-fix"?"#15803D":ac[0];
+    const scoreLine=SCORE_COLS.map(([k,l])=>l.toLowerCase()+" "+c.s[k]).join(" · ")+" · <strong>pri "+c.pri+"</strong>";
+    h+='<details id="card-'+c.id+'" style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid '+border+';border-radius:12px;margin-bottom:10px;padding:0 16px">'+
+      '<summary style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0"><span><span style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:13px;font-weight:600">'+c.id+'</span>'+(c.delta==="new"?newPill():"")+(c.blocked?'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;font-weight:600;color:#C0342B;background:#FBEAE8;padding:1px 5px;border-radius:4px;margin:0 6px">BLOCKED</span>':'')+'<span style="font-family:\'Space Grotesk\',sans-serif;font-weight:600;font-size:15px;color:#141821"> '+esc(c.t)+'</span>'+deltaTag(c)+'</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#8A93A3;white-space:nowrap">pri '+c.pri+' · '+c.action+'</span></summary>'+
+      '<dl style="display:grid;grid-template-columns:150px 1fr;gap:0 14px;margin:0;border-top:1px solid #EEF0F4;padding-bottom:14px">'+
+      term("Category",esc(c.cat))+
+      term("Location",mono(esc(c.loc)))+
+      term("Friction",esc(c.sym))+
+      term("Seam / rule",esc(c.seam)+"<br><span style=\"color:#8A93A3\">"+esc(c.rule)+"</span>")+
+      term("Evidence",esc(c.ev))+
+      term("Enforceable check",esc(c.chk))+
+      term("Scores",'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:#4B5563">'+scoreLine+'</span>')+
+      term("Branch / mode",c.action+" · "+c.mode)+
+      term("Lane sources",mono(c.src.join(", "))+(c.dedup?' &nbsp; <span style="color:#8A93A3">dedup: '+c.dedup+'</span>':''))+
+      '</dl></details>';});
+  document.getElementById("cards").innerHTML=h;
+})();
+
+// COMPUTED LISTS
+function listCard(items,empty){
+  if(!items.length)return '<div style="color:#8A93A3;font-size:13px">'+empty+'</div>';
+  return '<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px;padding:6px 16px">'+items.map(c=>'<div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid #EEF0F4"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12.5px;min-width:120px">'+c.id+'</a><span style="font-size:13.5px;color:#141821;flex:1">'+esc(c.t)+(c.delta==="new"?newPill():"")+'</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#8A93A3;white-space:nowrap">pri '+c.pri+'</span></div>').join("")+'</div>';
+}
+document.getElementById("quickList").innerHTML=listCard([...C].filter(c=>!c.blocked&&c.pri>=11&&c.s.lo>=4&&c.s.br<=3).sort((a,b)=>b.pri-a.pri),"none");
+document.getElementById("deepList").innerHTML=listCard([...C].filter(c=>c.s.l>=3&&c.s.br>=4).sort((a,b)=>b.pri-a.pri),"none");
+document.getElementById("unsafeList").innerHTML=listCard([...C].filter(c=>c.blocked||c.s.hd>=4||c.s.rr>=5).sort((a,b)=>b.pri-a.pri),"none");
+
+// BLOCKERS
+(function(){
+  const B=C.filter(c=>c.blocked).sort((a,b)=>b.pri-a.pri);
+  const cat={"PROD-FACADE":"architecture / deletion","ENUM-STR":"migration","AUTHZ-AXIS":"authorization / migration (A1c)"};
+  document.getElementById("blockerList").innerHTML=B.map(c=>'<div style="background:#FFFFFF;border:1px solid #E6E8EE;border-left:3px solid #C0342B;border-radius:12px;padding:14px 16px;margin-bottom:10px"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#26327A"><strong>'+c.id+'</strong>'+(c.delta==="new"?newPill():"")+' · category: '+(cat[c.id]||"human-decision")+' · <a href="#card-'+c.id+'">card</a></div><div style="color:#4B5563;font-size:13.5px;margin-top:6px">'+esc(c.chk)+'</div></div>').join("");
+})();
+
+// QUEUE
+(function(){
+  const q=[...C].sort((a,b)=>(a.blocked-b.blocked)||(b.pri-a.pri));
+  let h='<table style="width:100%;border-collapse:collapse;min-width:660px;background:#FFFFFF;border:1px solid #E6E8EE;border-radius:12px"><thead><tr style="border-bottom:1px solid #E6E8EE">'+['#','ID','Candidate','Action','Pri','Status'].map((c,i)=>'<th style="text-align:'+(i>=4?'center':'left')+';padding:9px 12px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8A93A3">'+c+'</th>').join("")+'</tr></thead><tbody>';
+  q.forEach((c,i)=>{const ac=ACTION_COLOR[c.action]||["#8A93A3","#EDF0F5"];const ht=heat(c.pri);
+    h+='<tr style="border-top:1px solid #EEF0F4"><td style="padding:8px 12px;font-family:\'IBM Plex Mono\',monospace;color:#8A93A3;font-size:12px">'+(i+1)+'</td><td style="padding:8px 12px;white-space:nowrap"><a href="#card-'+c.id+'" style="font-family:\'IBM Plex Mono\',monospace;color:#26327A;font-size:12px">'+c.id+'</a>'+(c.delta==="new"?' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;font-weight:600;color:#B45309;background:#FAEFE0;padding:0 4px;border-radius:3px">N</span>':'')+'</td><td style="padding:8px 12px;font-size:12.5px;color:#141821">'+esc(c.t)+'</td><td style="padding:8px 12px"><span class="chip" style="font-size:10px;color:'+ac[0]+';background:'+ac[1]+'">'+c.action+'</span></td><td style="padding:8px 12px;text-align:center"><span style="font-family:\'IBM Plex Mono\',monospace;font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;padding:2px 8px;border-radius:20px;background:'+ht.bg+';color:'+ht.fg+'">'+c.pri+'</span></td><td style="padding:8px 12px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:'+(c.blocked?'#C0342B':'#8A93A3')+'">'+(c.blocked?'decision-needed':'open')+'</td></tr>';});
+  h+='</tbody></table>';
+  document.getElementById("queueList").innerHTML=h;
+})();
+
+renderFilters();renderMatrix();
+</script>
+</body>
+</html>
