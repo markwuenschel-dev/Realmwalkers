@@ -38,6 +38,12 @@ from dominion.shared.schemas import (
     RepairVerificationOut,
     SceneOut,
 )
+
+# `production` is the run-orchestration facade. `production_repair` and `production_support` are called
+# directly on purpose (not a facade bypass): production_repair owns the author-gated SceneFidelity
+# repair-preview surface (ADR-0017) — a distinct human-controlled lane the facade deliberately does not
+# re-export — and production_support.update_run_summary is a standalone summary refresh. Both are acyclic
+# lane APIs; the facade never imports them back (tests/test_production_import.py pins the acyclic graph).
 from dominion.workers import background_work, production, production_delete, production_repair, production_support
 
 router = APIRouter(tags=["production"])
@@ -297,8 +303,7 @@ async def triage_production_run(
 async def assemble_production_run(run_id: uuid.UUID, session: SessionDep) -> ProductionRunActionOut:
     detail = await production.production_run_detail(session, run_id)
     run = detail["run"]
-    await production.assemble_run(session, run)
-    await production_support.update_run_summary(session, run)
+    await production.assemble_and_summarize(session, run)
     await session.commit()
     return await _action_out(session, run.id)
 

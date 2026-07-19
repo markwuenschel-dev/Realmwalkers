@@ -59,28 +59,6 @@ async def latest_draft_timeline(session: AsyncSession, production_run_id: uuid.U
     return await production_sequence.latest_draft_timeline(session, production_run_id)
 
 
-def _contract_item(
-    *,
-    text: str,
-    classification: str,
-    blocks_drafting: bool,
-    reader_visibility: str,
-    drafting_rule: str,
-    source_reference: str,
-    confidence: float = 1.0,
-) -> dict[str, Any]:
-
-    return production_sequence._contract_item(
-        text=text,
-        classification=classification,
-        blocks_drafting=blocks_drafting,
-        reader_visibility=reader_visibility,
-        drafting_rule=drafting_rule,
-        source_reference=source_reference,
-        confidence=confidence,
-    )
-
-
 def derive_contract_classification(
     packet_body: dict[str, Any], open_questions: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -98,21 +76,6 @@ def chain_scene_entry_states(body: dict[str, Any]) -> dict[str, Any]:
     return production_sequence.chain_scene_entry_states(body)
 
 
-def _int_or_none(value: Any) -> int | None:
-
-    return production_sequence._int_or_none(value)
-
-
-# Articles/particles that would make a whole-word visibility match meaningless ("The Broker" must
-# match on "Broker", never on "The").
-_ROSTER_NAME_STOPWORDS: frozenset[str] = frozenset({"the", "a", "an", "of"})
-
-
-def _roster_name_tokens(entry: str) -> list[str]:
-
-    return production_sequence._roster_name_tokens(entry)
-
-
 def run_chapter_draft_qa(
     sequence_body: dict[str, Any] | None,
     scene_rows: list[dict[str, Any]],
@@ -125,7 +88,6 @@ def run_chapter_draft_qa(
 
 
 def evaluate_chapter_sequence(body: dict[str, Any]) -> dict[str, Any]:
-
     return production_sequence.evaluate_chapter_sequence(body)
 
 
@@ -147,6 +109,15 @@ async def _scene_packet_map(session: AsyncSession, chapter_id: uuid.UUID) -> dic
 async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
 
     return await production_sequence.assemble_run(session, run)
+
+
+async def assemble_and_summarize(session: AsyncSession, run: ProductionRun) -> None:
+    """Assemble the run's final chapter candidate, then refresh its production summary — one facade
+    workflow so callers stop having to know the two-step (assemble -> update_run_summary) ordering
+    (PROD-FACADE). `update_run_summary` stays a standalone op for the many places that refresh the
+    summary without assembling."""
+    await production_sequence.assemble_run(session, run)
+    await support.update_run_summary(session, run)
 
 
 async def queue_draft_jobs_for_missing_sequence_scenes(session: AsyncSession, run: ProductionRun) -> list[uuid.UUID]:

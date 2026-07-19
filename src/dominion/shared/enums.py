@@ -308,6 +308,22 @@ AUTO_APPROVAL_CEILINGS: frozenset[str] = frozenset(
 )
 
 
+def is_manual_grant(authority_level: str | RepairAuthorityLevel) -> bool:
+    """True iff `authority_level` denotes a manual-grant Authorization Requirement — one that needs an
+    explicit human grant and is NEVER autonomously approved, regardless of the sweeper ceiling
+    (ADR-0031 D16, A1b). The single decision point for that question: call sites must not re-derive
+    `== HUMAN_REQUIRED` (they had drifted on the `.value` suffix). Accepts the enum member or the raw
+    persisted string (StrEnum-safe). Distinct from `not in AUTO_APPROVAL_CEILINGS`, which also rejects
+    garbage ceilings — this predicate answers only "is it human_required?".
+
+    A1b→A1c: `human_required` is currently overloaded onto RepairAuthorityLevel, which otherwise ranks
+    blast radius. The durable fix — a first-class `authorization_requirement` axis orthogonal to blast
+    radius — is deferred, UNSCHEDULED follow-up (NOT one of ADR-0031 D18's ADR-0028 slices; it needs its
+    own ticket). Until it lands, this helper is the seam that keeps the conflation in one place.
+    """
+    return authority_level == RepairAuthorityLevel.HUMAN_REQUIRED
+
+
 class RepairTaskStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
