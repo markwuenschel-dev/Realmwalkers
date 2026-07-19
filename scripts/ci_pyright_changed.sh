@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Pyright on Python files changed vs merge base — same scope as CI static job.
+# Pyright on Python files changed vs merge base — a FAST changed-files SUBSET for pre-checks,
+# NOT CI parity. CI type-checks the full src/ tree; get full parity via `just verify` / `just typecheck`.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

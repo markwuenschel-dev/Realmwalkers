@@ -3,7 +3,6 @@ $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
 $env:UV_PYTHON = if ($env:UV_PYTHON) { $env:UV_PYTHON } else { "3.14" }
-$base = if ($env:VERIFY_BASE) { $env:VERIFY_BASE } else { "origin/main" }
 
 function Invoke-PythonTool {
     param([string[]]$ToolArgs)
@@ -26,18 +25,8 @@ Invoke-PythonTool @("ruff", "check", "src", "tests")
 Write-Host "==> ruff format --check"
 Invoke-PythonTool @("ruff", "format", "--check", "src", "tests")
 
-Write-Host "==> pyright (changed src vs $base)"
-$pyFiles = @(
-    git diff --name-only --diff-filter=ACMR "${base}...HEAD" -- src/ |
-    Where-Object { $_ -match '\.py$' -and (Test-Path $_) }
-)
-if ($pyFiles.Count -eq 0) {
-    Write-Host "pyright: no changed Python files — skipping"
-} else {
-    Write-Host "pyright: checking $($pyFiles.Count) changed file(s):"
-    $pyFiles | ForEach-Object { Write-Host "  $_" }
-    Invoke-PythonTool (@("pyright") + $pyFiles)
-}
+Write-Host "==> pyright (full src, matching CI)"
+Invoke-PythonTool @("pyright")
 
 Write-Host "==> pytest"
 if (-not $env:DOMINION_TEST_DATABASE_URL) {

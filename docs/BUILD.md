@@ -111,7 +111,7 @@ just verify                          # all backend gates, matching CI (see scrip
 uv run pytest -q                     # tests
 uv run ruff check src tests          # lint
 uv run ruff format --check src tests # formatting
-bash scripts/ci_pyright_changed.sh   # types — pyright over changed files, same as the CI static job
+bash scripts/ci_pyright_changed.sh   # types — fast pyright over changed files (a subset; use `just verify`/`just typecheck` for full-tree CI parity)
 ```
 
 DB-backed tests get a real database from the `db_factory` fixture (`tests/conftest.py`), which forces
