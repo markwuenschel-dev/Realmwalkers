@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.models import Book, CanonEntity
+from dominion.shared.models import Book, CanonEntity, canon_retrievable_filter
 from dominion.workers.memory.embedding import embed_async, embed_many_async, embedding_version
 from dominion.workers.memory.owner_router import _RULES
 
@@ -28,13 +28,6 @@ log = structlog.get_logger()
 
 _PASSAGE_KIND = "passage"
 _TARGET_CHARS = 1000
-
-
-def _active_only():
-    """Status-aware retrieval gate (Workstream H): only `active` canon reaches agent/prose context;
-    stale/retired/superseded rows are excluded. NULL is treated as active so legacy rows written
-    before the `status` column existed still surface."""
-    return or_(CanonEntity.status.is_(None), CanonEntity.status == "active")
 
 
 # Top-level folder under series/canon → the CanonEntity.kind ingested chunks get tagged with, so the
@@ -186,7 +179,7 @@ async def retrieve(session: AsyncSession, *, book_id: uuid.UUID, query: str, k: 
             CanonEntity.book_id == book_id,
             CanonEntity.body.isnot(None),
             CanonEntity.embedding.isnot(None),
-            _active_only(),
+            canon_retrievable_filter(),
         )
         .order_by(CanonEntity.embedding.cosine_distance(qvec))
         .limit(k)
@@ -209,7 +202,7 @@ async def retrieve_with_meta(
             CanonEntity.book_id == book_id,
             CanonEntity.body.isnot(None),
             CanonEntity.embedding.isnot(None),
-            _active_only(),
+            canon_retrievable_filter(),
         )
         .order_by(CanonEntity.embedding.cosine_distance(qvec))
         .limit(k)

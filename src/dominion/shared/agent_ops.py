@@ -60,6 +60,7 @@ from dominion.shared.schemas import (
     ModelSettingOut,
     PipelineEstimateOut,
 )
+from dominion.shared.severity import BLOCKING_SEVERITY_VALUES
 
 _OPS_STATE_ID = "default"
 _CUSTOM_PRESET_PREFIX = "user:"
@@ -638,7 +639,7 @@ async def _qa_pass_rates(session: AsyncSession, cutoff: datetime) -> dict[str, s
             await session.execute(
                 select(Critique.scene_id).where(
                     Critique.scene_id.in_(scene_ids),
-                    Critique.severity.in_(("hard", "block")),
+                    Critique.severity.in_(BLOCKING_SEVERITY_VALUES),
                     Critique.reviewer.notin_(("length",)),
                 )
             )

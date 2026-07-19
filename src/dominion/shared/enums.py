@@ -225,6 +225,38 @@ class KnowledgeStatus(StrEnum):
     REVEALED = "revealed"
 
 
+class CanonStatus(StrEnum):
+    """Lifecycle of a CanonEntity row (Workstream H — stale canon/ledger cleanup). Only ACTIVE canon
+    reaches agent/prose context; the retrievability rule lives in models.canon_retrievable_filter."""
+
+    ACTIVE = "active"
+    STALE = "stale"
+    RETIRED = "retired"
+    SUPERSEDED = "superseded"
+
+
+class ArtifactType(StrEnum):
+    """The Artifact.artifact_type discriminator vocabulary — one authoritative registry so a producer
+    literal and a distant consumer filter can't silently drift (ARTIFACT-TYPE). tests/test_artifact_type.py
+    asserts every `artifact_type=` write and `artifact_type==` filter literal in the tree is a member."""
+
+    CHAPTER_PACKET = "chapter_packet"
+    CONTRACT_CLASSIFICATION = "contract_classification"
+    CHAPTER_SEQUENCE = "chapter_sequence"
+    SCENE_PACKET = "scene_packet"
+    SCENE_DRAFT = "scene_draft"
+    SCENE_REVIEW_REPORT = "scene_review_report"
+    DRAFT_RUN_TIMELINE = "draft_run_timeline"
+    ISSUE_SET = "issue_set"
+    REPAIR_TASK = "repair_task"
+    AGENT_EVALUATION = "agent_evaluation"
+    FINAL_CHAPTER = "final_chapter"
+    CHAPTER_DRAFT = "chapter_draft"
+    CHAPTER_DRAFT_QA = "chapter_draft_qa"
+    READER_SIMULATION = "reader_simulation"
+    SCENE_FIDELITY_REPORT = "scene_fidelity_report"
+
+
 class DraftStage(StrEnum):
     """A preserved stage of one scene's prose pipeline (DraftAttempt provenance)."""
 

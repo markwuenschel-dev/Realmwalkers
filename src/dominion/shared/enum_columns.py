@@ -56,8 +56,10 @@ KNOWN_UNREGISTERED: dict[tuple[type[Base], str], str] = {
         "REVIEWER-KIND) — DO NOT register against ReviewerKind as-is; it would reject live critiques."
     ),
     (Critique, "severity"): (
-        "legacy rows/JSON snapshots may store 'hard' (pre-unification spelling of BLOCK); register once "
-        "the severity vocabulary is unified behind one predicate (candidate SEV-ALIAS)."
+        "legacy rows/JSON snapshots may store 'hard' (pre-unification spelling of BLOCK). SEV-ALIAS landed "
+        "the shared severity.is_blocking/normalize_severity predicate that folds 'hard'; register "
+        "(Critique, 'severity') against enums.Severity NEXT — the DB is already migrated (migrations.py) and "
+        "writers no longer emit 'hard', so read-side JSON tolerance stays in the predicate only."
     ),
 }
 

@@ -21,17 +21,11 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
-from dominion.shared.models import CanonEntity
+from dominion.shared.models import CanonEntity, canon_retrievable_filter
 from dominion.workers.memory.embedding import embed_async
 
 _TOKEN = re.compile(r"[a-z0-9']+")
 _STOP = {"the", "a", "an", "and", "or", "of", "to", "in", "is", "it", "this", "that", "on", "for"}
-
-
-def _active_only():
-    """Status-aware retrieval gate (Workstream H): stale/retired/superseded canon never enters agent
-    context. NULL is treated as active so rows written before the `status` column existed still surface."""
-    return or_(CanonEntity.status.is_(None), CanonEntity.status == "active")
 
 
 def _tokens(text: str | None) -> set[str]:
@@ -98,7 +92,7 @@ async def retrieve_hybrid(
         rows = (
             (
                 await session.execute(
-                    select(CanonEntity).where(CanonEntity.book_id == book_id, _active_only(), or_(*conds))
+                    select(CanonEntity).where(CanonEntity.book_id == book_id, canon_retrievable_filter(), or_(*conds))
                 )
             )
             .scalars()
@@ -118,7 +112,7 @@ async def retrieve_hybrid(
                     .where(
                         CanonEntity.book_id == book_id,
                         CanonEntity.body.isnot(None),
-                        _active_only(),
+                        canon_retrievable_filter(),
                         or_(*like_conds),
                     )
                     .limit(settings.rag_keyword_k * 3)
@@ -143,7 +137,7 @@ async def retrieve_hybrid(
                         CanonEntity.book_id == book_id,
                         CanonEntity.body.isnot(None),
                         CanonEntity.embedding.isnot(None),
-                        _active_only(),
+                        canon_retrievable_filter(),
                     )
                     .order_by(CanonEntity.embedding.cosine_distance(qvec))
                     .limit(settings.rag_semantic_k)

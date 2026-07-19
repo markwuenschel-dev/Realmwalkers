@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
+from dominion.shared.enums import ArtifactType
 from dominion.shared.models import Artifact, DraftAttempt, Scene, ScenePacket
 from dominion.workers.budget import TokenBudget
 from dominion.workers.scene_fidelity import adapters
@@ -34,7 +35,7 @@ from dominion.workers.scene_fidelity.models import (
     is_fidelity_active,
 )
 
-REPORT_ARTIFACT_TYPE = "scene_fidelity_report"
+REPORT_ARTIFACT_TYPE = ArtifactType.SCENE_FIDELITY_REPORT.value
 
 # Prerequisite results that leave a dependent unevaluable → the dependent is blocked_by_dependency. A LOST
 # or SATISFIED prerequisite does NOT block (ADR 0012: a failed prerequisite is diagnostic context, not an

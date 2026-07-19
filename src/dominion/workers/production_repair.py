@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import (
     AgentRunStatus,
+    ArtifactType,
     Decision,
     IssueDecisionKind,
     IssueStatus,
@@ -42,6 +43,7 @@ from dominion.shared.models import (
     Scene,
     ScenePacket,
 )
+from dominion.shared.severity import is_blocking
 from dominion.workers import production_support as support
 from dominion.workers import repair_triage
 from dominion.workers.beat_preservation import (
@@ -68,7 +70,7 @@ from dominion.workers import run_stages  # isort: skip
 
 # The SceneFidelity report Artifact type, kept as a literal here to avoid importing the evaluator (which
 # pulls the LLM stack into this early-imported production module).
-_FIDELITY_REPORT_TYPE = "scene_fidelity_report"
+_FIDELITY_REPORT_TYPE = ArtifactType.SCENE_FIDELITY_REPORT.value
 
 
 async def _latest_scene_map(session: AsyncSession, chapter_id: uuid.UUID) -> dict[int, Scene]:
@@ -1005,7 +1007,7 @@ async def _verify_chapter_scoped_repair(
             contract_reference=None,
             recommended_action=support.recommended_action_from_critique(critique),
             confidence=float(conf_val) if isinstance(conf_val, (int, float)) else None,
-            auto_repair_allowed=critique.severity not in ("hard", "block"),
+            auto_repair_allowed=not is_blocking(critique.severity),
             payload=payload | {"signature": signature},
         )
         created_new_issues.append(issue)
@@ -1016,7 +1018,7 @@ async def _verify_chapter_scoped_repair(
         if no_new_issues
         else (
             RepairVerificationVerdict.ESCALATE_TO_HUMAN
-            if any(issue.severity in ("hard", "block") for issue in created_new_issues)
+            if any(is_blocking(issue.severity) for issue in created_new_issues)
             else RepairVerificationVerdict.NEEDS_ANOTHER_REPAIR
         )
     )
@@ -1057,12 +1059,12 @@ async def _verify_chapter_scoped_repair(
         ]
         or None,
         target_issue_resolved=not remaining,
-        canon_preserved=not any(c.reviewer == "continuity" and c.severity in ("hard", "block") for c in new_critiques),
+        canon_preserved=not any(c.reviewer == "continuity" and is_blocking(c.severity) for c in new_critiques),
         scene_outcome_preserved=outcome_preserved,
-        voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
+        voice_preserved=not any(c.reviewer == "voice" and is_blocking(c.severity) for c in new_critiques),
         required_beats_preserved=beats_result.preserved,
         reader_state_preserved=not any(
-            c.reviewer in {"continuity", "state_drift"} and c.severity in ("hard", "block") for c in new_critiques
+            c.reviewer in {"continuity", "state_drift"} and is_blocking(c.severity) for c in new_critiques
         ),
         regression_score=float(len(remaining) + len(created_new_issues)),
         reason=(
@@ -1280,7 +1282,7 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
             contract_reference=str(revised.scene_packet_id) if revised.scene_packet_id else None,
             recommended_action=support.recommended_action_from_critique(critique),
             confidence=float(conf_val) if isinstance(conf_val, (int, float)) else None,
-            auto_repair_allowed=critique.severity not in ("hard", "block"),
+            auto_repair_allowed=not is_blocking(critique.severity),
             payload=payload | {"signature": signature},
         )
         created_new_issues.append(issue)
@@ -1299,7 +1301,7 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         if accept_cond
         else (
             RepairVerificationVerdict.ESCALATE_TO_HUMAN
-            if any(issue.severity in ("hard", "block") for issue in created_new_issues)
+            if any(is_blocking(issue.severity) for issue in created_new_issues)
             else RepairVerificationVerdict.NEEDS_ANOTHER_REPAIR
         )
     )
@@ -1328,14 +1330,14 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         or None,
         target_issue_resolved=not remaining and direct_checks.get("span_changed", True),
         canon_preserved=(
-            not any(c.reviewer == "continuity" and c.severity in ("hard", "block") for c in new_critiques)
+            not any(c.reviewer == "continuity" and is_blocking(c.severity) for c in new_critiques)
             and direct_checks.get("span_changed", True)
         ),
         scene_outcome_preserved=revised.scene_packet_id == base_scene.scene_packet_id,
-        voice_preserved=not any(c.reviewer == "voice" and c.severity in ("hard", "block") for c in new_critiques),
+        voice_preserved=not any(c.reviewer == "voice" and is_blocking(c.severity) for c in new_critiques),
         required_beats_preserved=beats_result.preserved,
         reader_state_preserved=not any(
-            c.reviewer in {"continuity", "state_drift"} and c.severity in ("hard", "block") for c in new_critiques
+            c.reviewer in {"continuity", "state_drift"} and is_blocking(c.severity) for c in new_critiques
         ),
         regression_score=float(len(remaining) + len(created_new_issues)),
         reason=(

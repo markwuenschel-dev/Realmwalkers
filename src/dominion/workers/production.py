@@ -37,6 +37,7 @@ from dominion.shared.models import (
     Scene,
     ScenePacket,
 )
+from dominion.shared.severity import is_blocking
 
 # Hoisted to module scope: production_sequence / production_repair do NOT import production back (nor does
 # anything in their import closure), so the old circular-import guard — a local re-import inside every
@@ -409,7 +410,7 @@ async def create_production_run(
                 contract_reference=str(scene.scene_packet_id) if scene.scene_packet_id else None,
                 recommended_action=support.recommended_action_from_critique(critique),
                 confidence=(lambda v: float(v) if isinstance(v, (int, float)) else None)(payload.get("confidence")),
-                auto_repair_allowed=scene.id is not None and critique.severity not in ("hard", "block"),
+                auto_repair_allowed=scene.id is not None and not is_blocking(critique.severity),
                 payload=payload | {"signature": signature},
             )
             issues.append(issue)
