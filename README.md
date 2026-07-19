@@ -137,7 +137,7 @@ docs/         DESIGN.md, BUILD.md, ROADMAP.md, DEPLOY.md, contract_first_draftin
 just verify                          # all backend gates, matching CI (see scripts/verify.sh)
 pytest -q                            # tests
 ruff check src tests                 # lint (F-codes catch real bugs: undefined names, unused vars)
-bash scripts/ci_pyright_changed.sh   # types — pyright over changed files, same as the CI static job
+bash scripts/ci_pyright_changed.sh   # types — fast pyright over changed files (a subset; use `just verify`/`just typecheck` for full-tree CI parity)
 ```
 
 Frontend gates (`pnpm typecheck` / `lint` / `format:check` / `test`) run from `frontend/`.
