@@ -16,7 +16,7 @@ from test_scene_fidelity_evaluator import _body, _clause, _req, _runner
 
 from dominion.shared.enums import IssueStatus, RepairAuthorityLevel, RepairTaskStatus
 from dominion.shared.models import Beat, Book, Chapter, Critique, DraftAttempt, Issue, ProductionRun, RepairTask, Scene
-from dominion.workers import production_repair
+from dominion.workers import production_fidelity
 from dominion.workers.scene_fidelity.evaluator import evaluate_scene_fidelity
 from dominion.workers.scene_fidelity.models import EvidenceAnchor
 
@@ -69,7 +69,7 @@ async def _issues(s, run):
 async def test_repair_eligible_materializes_a_human_required_issue(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s)
-        result = await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        result = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         assert len(result.created_issue_ids) == 1
         issue = (await _issues(s, run))[0]
         assert issue.validator == "scene_fidelity"
@@ -89,8 +89,8 @@ async def test_repair_eligible_materializes_a_human_required_issue(db_factory) -
 async def test_triage_is_idempotent(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s)
-        first = await production_repair.triage_scene_fidelity_for_production(s, run=run)
-        second = await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        first = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
+        second = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         assert len(first.created_issue_ids) == 1
         assert len(second.created_issue_ids) == 0  # keyed by (run, fidelity_critique) — no duplicate
         assert len(await _issues(s, run)) == 1
@@ -99,7 +99,7 @@ async def test_triage_is_idempotent(db_factory) -> None:
 async def test_missing_report_is_an_operational_hold(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s, make_report=False)
-        result = await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        result = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         assert result.created_issue_ids == []
         assert any("no fidelity evaluation report" in h for h in result.operational_holds)
 
@@ -111,7 +111,7 @@ async def test_stale_report_is_a_hold_and_creates_no_issue(db_factory) -> None:
         # stale. A stale report is an operational hold, never a prose failure or an Issue (ADR 0010).
         sp.body = _body([_req("req-1", "relationship_turn", [_clause("cl-1", kind="dialogue")])])
         await s.flush()
-        result = await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        result = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         assert result.created_issue_ids == []
         assert any("stale evaluation" in h for h in result.operational_holds)
         assert await _issues(s, run) == []
@@ -120,7 +120,7 @@ async def test_stale_report_is_a_hold_and_creates_no_issue(db_factory) -> None:
 async def test_current_satisfied_verifies_a_prior_issue(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s)
-        await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         issue = (await _issues(s, run))[0]
         # A new, clearly-later draft attempt whose fresh report shows the clause satisfied (explicit
         # created_at so it is unambiguously the current final attempt for this scene).
@@ -136,7 +136,7 @@ async def test_current_satisfied_verifies_a_prior_issue(db_factory) -> None:
         await evaluate_scene_fidelity(
             s, scene=scene, draft_attempt=da2, packet=sp, trigger="manual", adapter_runner=_runner({"cl-1": _SATISFIED})
         )
-        await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         await s.refresh(issue)
         assert issue.status == IssueStatus.VERIFIED.value
 
@@ -144,7 +144,7 @@ async def test_current_satisfied_verifies_a_prior_issue(db_factory) -> None:
 async def test_operational_hold_does_not_clear_a_prior_issue(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s)
-        await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         issue = (await _issues(s, run))[0]
         # Materialization queues a human-required repair task, so the Issue is REPAIR_QUEUED (still open).
         assert issue.status == IssueStatus.REPAIR_QUEUED.value
@@ -152,6 +152,6 @@ async def test_operational_hold_does_not_clear_a_prior_issue(db_factory) -> None
         # missing/stale complaint, ADR 0020).
         sp.body = _body([_req("req-1", "relationship_turn", [_clause("cl-1", kind="dialogue")])])
         await s.flush()
-        await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         await s.refresh(issue)
         assert issue.status == IssueStatus.REPAIR_QUEUED.value

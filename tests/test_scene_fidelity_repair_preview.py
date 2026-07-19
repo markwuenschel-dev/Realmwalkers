@@ -11,7 +11,7 @@ from test_scene_fidelity_production import PROSE, _issues, _setup
 
 from dominion.shared.enums import IssueStatus, SceneStatus
 from dominion.shared.models import DraftAttempt, Scene
-from dominion.workers import production_repair
+from dominion.workers import production_fidelity
 from dominion.workers.scene_fidelity.repair_preview import REPAIR_PREVIEW_ARTIFACT_TYPE
 
 CANDIDATE = 'Marcus stepped back from the door. "Your call," he said, and she stayed.'
@@ -19,7 +19,7 @@ CANDIDATE = 'Marcus stepped back from the door. "Your call," he said, and she st
 
 async def _issue_for_preview(s):
     run, scene, sp, da = await _setup(s)
-    await production_repair.triage_scene_fidelity_for_production(s, run=run)
+    await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
     issue = (await _issues(s, run))[0]
     return run, scene, sp, issue
 
@@ -33,7 +33,7 @@ async def _scene_versions(s, chapter_id):
 async def test_preview_is_immutable_and_never_changes_the_scene(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, issue = await _issue_for_preview(s)
-        preview = await production_repair.create_repair_preview(
+        preview = await production_fidelity.create_repair_preview(
             s, issue=issue, candidate_prose=CANDIDATE, rationale="restore Serra's agency"
         )
         assert preview.artifact_type == REPAIR_PREVIEW_ARTIFACT_TYPE
@@ -51,10 +51,10 @@ async def test_preview_is_immutable_and_never_changes_the_scene(db_factory) -> N
 async def test_accept_creates_a_new_author_visible_revision(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, issue = await _issue_for_preview(s)
-        preview = await production_repair.create_repair_preview(
+        preview = await production_fidelity.create_repair_preview(
             s, issue=issue, candidate_prose=CANDIDATE, rationale="x"
         )
-        new_scene = await production_repair.accept_repair_preview(s, preview_artifact_id=preview.id)
+        new_scene = await production_fidelity.accept_repair_preview(s, preview_artifact_id=preview.id)
         assert new_scene.version == scene.version + 1
         assert new_scene.parent_scene_id == scene.id
         assert new_scene.prose == CANDIDATE
@@ -75,10 +75,10 @@ async def test_edited_preview_records_human_edit_provenance(db_factory) -> None:
     edited = "Marcus watched her decide, and said nothing."
     async with db_factory() as s:
         run, scene, sp, issue = await _issue_for_preview(s)
-        preview = await production_repair.create_repair_preview(
+        preview = await production_fidelity.create_repair_preview(
             s, issue=issue, candidate_prose=CANDIDATE, rationale="x"
         )
-        new_scene = await production_repair.accept_repair_preview(
+        new_scene = await production_fidelity.accept_repair_preview(
             s, preview_artifact_id=preview.id, edited_prose=edited
         )
         assert new_scene.prose == edited
@@ -88,11 +88,11 @@ async def test_edited_preview_records_human_edit_provenance(db_factory) -> None:
 async def test_reject_leaves_the_issue_and_scene_intact(db_factory) -> None:
     async with db_factory() as s:
         run, scene, sp, issue = await _issue_for_preview(s)
-        preview = await production_repair.create_repair_preview(
+        preview = await production_fidelity.create_repair_preview(
             s, issue=issue, candidate_prose=CANDIDATE, rationale="x"
         )
         status_before = issue.status
-        await production_repair.reject_repair_preview(s, preview_artifact_id=preview.id, reason="not in her voice")
+        await production_fidelity.reject_repair_preview(s, preview_artifact_id=preview.id, reason="not in her voice")
         await s.refresh(preview)
         assert preview.status == "rejected"
         await s.refresh(issue)

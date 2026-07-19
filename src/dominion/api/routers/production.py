@@ -39,12 +39,12 @@ from dominion.shared.schemas import (
     SceneOut,
 )
 
-# `production` is the run-orchestration facade. `production_repair` and `production_support` are called
-# directly on purpose (not a facade bypass): production_repair owns the author-gated SceneFidelity
+# `production` is the run-orchestration facade. `production_fidelity` and `production_support` are called
+# directly on purpose (not a facade bypass): production_fidelity owns the author-gated SceneFidelity
 # repair-preview surface (ADR-0017) — a distinct human-controlled lane the facade deliberately does not
 # re-export — and production_support.update_run_summary is a standalone summary refresh. Both are acyclic
 # lane APIs; the facade never imports them back (tests/test_production_import.py pins the acyclic graph).
-from dominion.workers import background_work, production, production_delete, production_repair, production_support
+from dominion.workers import background_work, production, production_delete, production_fidelity, production_support
 
 router = APIRouter(tags=["production"])
 
@@ -580,7 +580,7 @@ async def create_fidelity_preview(
     """Create an immutable repair preview for one fidelity Issue. The candidate prose is author/tool
     supplied (a bounded repair-writer produces it); this endpoint never changes the current Scene."""
     issue = await _get_issue(session, issue_id)
-    preview = await production_repair.create_repair_preview(
+    preview = await production_fidelity.create_repair_preview(
         session, issue=issue, candidate_prose=body.candidate_prose, rationale=body.rationale
     )
     await session.commit()
@@ -592,7 +592,7 @@ async def create_fidelity_preview(
 async def accept_fidelity_preview(preview_id: uuid.UUID, body: RepairPreviewActionIn, session: SessionDep) -> Scene:
     """Accept (or edit) a preview into a NEW author-visible Scene revision (ADR 0017)."""
     await _get_preview(session, preview_id)
-    new_scene = await production_repair.accept_repair_preview(
+    new_scene = await production_fidelity.accept_repair_preview(
         session, preview_artifact_id=preview_id, edited_prose=body.edited_prose
     )
     await session.commit()
@@ -606,7 +606,9 @@ async def reject_fidelity_preview(
 ) -> RepairPreviewOut:
     """Reject a preview. The Critique, Issue, and current Scene are left intact (ADR 0017)."""
     await _get_preview(session, preview_id)
-    preview = await production_repair.reject_repair_preview(session, preview_artifact_id=preview_id, reason=body.reason)
+    preview = await production_fidelity.reject_repair_preview(
+        session, preview_artifact_id=preview_id, reason=body.reason
+    )
     await session.commit()
     await session.refresh(preview)
     return RepairPreviewOut(id=preview.id, status=preview.status, body=preview.body or {})
@@ -618,7 +620,7 @@ async def override_fidelity_issue(issue_id: uuid.UUID, body: IssueOverrideIn, se
     if not body.reason.strip():
         raise HTTPException(status_code=422, detail="an override requires a reason")
     issue = await _get_issue(session, issue_id)
-    await production_repair.override_fidelity_issue(session, issue=issue, reason=body.reason)
+    await production_fidelity.override_fidelity_issue(session, issue=issue, reason=body.reason)
     await session.commit()
     await session.refresh(issue)
     return issue

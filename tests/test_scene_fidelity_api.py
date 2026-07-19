@@ -22,7 +22,7 @@ from dominion.shared.schemas import (
     RepairPreviewActionIn,
     RepairPreviewCreateIn,
 )
-from dominion.workers import production_repair
+from dominion.workers import production_fidelity
 
 _REQ = {
     "requirement_id": "req-1",
@@ -132,7 +132,7 @@ async def test_scene_fidelity_endpoint_is_inert_without_a_contract(db_factory) -
 
 async def _issue(s):
     run, scene, sp, da = await _setup(s)
-    await production_repair.triage_scene_fidelity_for_production(s, run=run)
+    await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
     return run, scene, (await _issues(s, run))[0]
 
 

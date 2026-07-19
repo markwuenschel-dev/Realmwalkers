@@ -14,7 +14,7 @@ from test_scene_fidelity_production import _LOST, _SATISFIED, _issues, _setup
 
 from dominion.shared.enums import IssueStatus
 from dominion.shared.models import DraftAttempt
-from dominion.workers import production_repair
+from dominion.workers import production_fidelity
 from dominion.workers.scene_fidelity.evaluator import evaluate_scene_fidelity
 from dominion.workers.scene_fidelity.models import (
     ClauseEnforcement,
@@ -31,13 +31,13 @@ async def test_agency_loss_flows_to_a_repaired_revision(db_factory) -> None:
     """serra_agency_loss: lost hard clause → human-required Issue → author preview → new revision."""
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s)  # a current LOST report
-        result = await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        result = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         assert len(result.created_issue_ids) == 1
         issue = (await _issues(s, run))[0]
-        preview = await production_repair.create_repair_preview(
+        preview = await production_fidelity.create_repair_preview(
             s, issue=issue, candidate_prose="Marcus stepped aside; she chose to stay.", rationale="restore agency"
         )
-        new_scene = await production_repair.accept_repair_preview(s, preview_artifact_id=preview.id)
+        new_scene = await production_fidelity.accept_repair_preview(s, preview_artifact_id=preview.id)
     assert new_scene.version == scene.version + 1
     assert new_scene.prose == "Marcus stepped aside; she chose to stay."
 
@@ -46,7 +46,7 @@ async def test_true_negative_never_flags(db_factory) -> None:
     """mutual_escalation_preserved / combat_pillar_reversal: satisfied → no Issue, no hold."""
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s, results={"cl-1": _SATISFIED})
-        result = await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        result = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
     assert result.created_issue_ids == []
     assert result.operational_holds == []
 
@@ -56,9 +56,9 @@ async def test_override_then_fresh_loss_materializes_a_successor_issue(db_factor
     Issue while the overridden one keeps its truthful history."""
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s)
-        await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         issue1 = (await _issues(s, run))[0]
-        await production_repair.override_fidelity_issue(s, issue=issue1, reason="intentional beat")
+        await production_fidelity.override_fidelity_issue(s, issue=issue1, reason="intentional beat")
         assert issue1.status == IssueStatus.OVERRIDDEN.value
 
         # A new, later draft loses the same clause again.
@@ -74,7 +74,7 @@ async def test_override_then_fresh_loss_materializes_a_successor_issue(db_factor
         await evaluate_scene_fidelity(
             s, scene=scene, draft_attempt=da2, packet=sp, trigger="manual", adapter_runner=_runner_lost()
         )
-        result = await production_repair.triage_scene_fidelity_for_production(s, run=run)
+        result = await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         assert len(result.created_issue_ids) == 1  # a fresh successor Issue
         statuses = {i.status for i in await _issues(s, run)}
     assert IssueStatus.OVERRIDDEN.value in statuses  # the overridden one keeps its history

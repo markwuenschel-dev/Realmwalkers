@@ -26,7 +26,7 @@ def test_every_artifact_type_literal_is_registered():
 
 def test_fidelity_report_constant_consolidated_to_enum():
     from dominion.api.routers.scenes import _FIDELITY_REPORT_TYPE as scenes_const
-    from dominion.workers.production_repair import _FIDELITY_REPORT_TYPE as repair_const
+    from dominion.workers.production_fidelity import _FIDELITY_REPORT_TYPE as repair_const
     from dominion.workers.scene_fidelity.evaluator import REPORT_ARTIFACT_TYPE
 
     assert REPORT_ARTIFACT_TYPE == scenes_const == repair_const == ArtifactType.SCENE_FIDELITY_REPORT.value
