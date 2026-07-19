@@ -177,24 +177,11 @@ def _gateway_request_metadata(model: str, *, feature: str = "chat") -> dict[str,
     Prefer SERVICE_NAME (or LLG_SERVICE) in the process env so spend/traces name this
     product. Falls back to ``realmwalkers`` so gateway traffic is never blank.
     """
-    service = (
-        os.environ.get("SERVICE_NAME")
-        or os.environ.get("LLG_SERVICE")
-        or "realmwalkers"
-    ).strip()
-    environment = (
-        os.environ.get("ENVIRONMENT")
-        or os.environ.get("LLG_ENVIRONMENT")
-        or "development"
-    ).strip()
+    service = (os.environ.get("SERVICE_NAME") or os.environ.get("LLG_SERVICE") or "realmwalkers").strip()
+    environment = (os.environ.get("ENVIRONMENT") or os.environ.get("LLG_ENVIRONMENT") or "development").strip()
     if environment not in {"development", "staging", "production"}:
         environment = "development"
-    release = (
-        os.environ.get("GIT_SHA")
-        or os.environ.get("RELEASE")
-        or os.environ.get("LLG_RELEASE")
-        or "dev"
-    ).strip()
+    release = (os.environ.get("GIT_SHA") or os.environ.get("RELEASE") or os.environ.get("LLG_RELEASE") or "dev").strip()
     return {
         "request_id": str(uuid.uuid4()),
         "service": service or "realmwalkers",
