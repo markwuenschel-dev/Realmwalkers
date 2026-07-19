@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.chapter_order import chapter_position
 from dominion.shared.enums import KnowledgeStatus
 from dominion.shared.models import Chapter, KnowledgeFact, Scene, ScenePacket
 
@@ -28,6 +29,14 @@ def _reader_facts(body: dict[str, Any]) -> list[str]:
         if text:
             out.append(text)
     return out
+
+
+async def _story_order(session: AsyncSession, scene: Scene) -> tuple[int, int]:
+    """Global reading-order key for a scene: (chapter reading position, scene_no). Lets the reader-
+    knowledge marker stay at the EARLIEST revealing scene rather than the last writer (KNOW-MONO)."""
+    ch = await session.get(Chapter, scene.chapter_id)
+    pos = chapter_position(ch.kind, ch.chapter_no) if ch is not None else 0
+    return (pos, scene.scene_no)
 
 
 async def record_scene_reveals(session: AsyncSession, *, scene_id: uuid.UUID) -> int:
@@ -56,6 +65,7 @@ async def record_scene_reveals(session: AsyncSession, *, scene_id: uuid.UUID) ->
             )
         ).scalars()
     }
+    new_order = await _story_order(session, scene)
     for fact in facts:
         row = existing.get(fact)
         if row is None:
@@ -70,7 +80,13 @@ async def record_scene_reveals(session: AsyncSession, *, scene_id: uuid.UUID) ->
                 )
             )
         else:
-            row.known_by_reader_after_scene_id = scene.id
+            # KNOW-MONO: the marker is "known after scene X" and must track the EARLIEST reveal. Advance it
+            # only when THIS scene reveals the fact earlier in story order — a later recap must not push
+            # "known after" forward (re-approving a genuinely earlier scene correctly moves it back).
+            marker_id = row.known_by_reader_after_scene_id
+            marker = await session.get(Scene, marker_id) if marker_id is not None else None
+            if marker is None or new_order < await _story_order(session, marker):
+                row.known_by_reader_after_scene_id = scene.id
             row.status = KnowledgeStatus.REVEALED
             if row.source_scene_id is None:
                 row.source_scene_id = scene.id
