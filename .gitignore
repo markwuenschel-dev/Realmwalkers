@@ -29,6 +29,14 @@ logs/
 .claude/skills/
 # author's local working notes — scratch, never tracked
 author notes/
+# creative content — manuscript, canon, planning, style — managed OUTSIDE the code repo.
+# Untracked deliberately. NOTE: the app reads canon/style/planning/scenes from these dirs at
+# runtime (config.py canon_dir/scenes_dir/dialogue_rules_path; docs.py, world.py, seed.py,
+# canon_rag), so a fresh clone / CI checkout / deploy sees EMPTY dirs unless this content is
+# provisioned separately. Tests must use tmp_path fixtures, never these real dirs.
+book1/
+book2/
+series/
 # worker scratch output (e.g. tmp/packet_internal.json) and local MCP working dirs — never tracked
 tmp/
 mcps/

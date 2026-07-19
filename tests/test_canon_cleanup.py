@@ -199,7 +199,10 @@ async def test_bulk_delete_protects_manual_and_removes_the_rest(db_factory):
 # --- rebuild ---------------------------------------------------------------------------------------
 
 
-async def test_rebuild_preserves_manual_rows(db_factory):
+async def test_rebuild_preserves_manual_rows(db_factory, tmp_path):
+    root = tmp_path / "canon"
+    root.mkdir()
+    (root / "lore.md").write_text("# Rebuilt\n\nrepo-ingested canon passage.\n", encoding="utf-8")
     async with db_factory() as s:
         book = await _book(s)
         manual = CanonEntity(book_id=book.id, kind="lore", name="hand", body="hand authored canon", source="manual")
@@ -208,12 +211,13 @@ async def test_rebuild_preserves_manual_rows(db_factory):
         mid = manual.id
 
         # The rebuild endpoint is now an async scheduler (returns 202, work runs in a background task);
-        # exercise the work it schedules directly so this stays a synchronous assertion.
-        await canon_rag.ingest_incremental(s, book_id=book.id, root=world_router._PROJECT_ROOT / "series" / "canon")
+        # exercise the work it schedules directly so this stays a synchronous assertion. Ingest from a
+        # tmp_path fixture — series/canon is not tracked, so a fresh CI checkout has no real dir to read.
+        await canon_rag.ingest_incremental(s, book_id=book.id, root=root)
 
         survivor = await s.get(CanonEntity, mid)
         assert survivor is not None and survivor.source == "manual" and survivor.status == "active"
-        # any repo-ingested rows the rebuild produced carry the right provenance
+        # the rebuild produced at least one repo-ingested row, and every such row carries right provenance
         repo_rows = (
             (
                 await s.execute(
@@ -223,4 +227,4 @@ async def test_rebuild_preserves_manual_rows(db_factory):
             .scalars()
             .all()
         )
-        assert all(r.source == "repo_ingested" and r.status == "active" for r in repo_rows)
+        assert repo_rows and all(r.source == "repo_ingested" and r.status == "active" for r in repo_rows)
