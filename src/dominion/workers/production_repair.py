@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -30,6 +31,7 @@ from dominion.shared.enums import (
     is_manual_grant,
 )
 from dominion.shared.models import (
+    AgentRun,
     Approval,
     Artifact,
     Critique,
@@ -48,6 +50,7 @@ from dominion.workers import production_support as support
 from dominion.workers import repair_triage
 from dominion.workers.beat_preservation import (
     SCENE_BREAK,
+    BeatsPreservedResult,
     beats_preserved,
     ordered_unique,
     required_beats_for_scene,
@@ -866,6 +869,165 @@ def _critique_matches_issue(issue: Issue, critique: Critique) -> bool:
     ) == str((issue.payload_json or {}).get("signature") or "")
 
 
+async def _finalize_repair_verification(
+    session: AsyncSession,
+    *,
+    run: ProductionRun,
+    task: RepairTask,
+    verifier: AgentRun,
+    new_critiques: Sequence[Critique],
+    scene_no_by_id: Mapping[uuid.UUID, int | None],
+    contract_reference: str | None,
+    repair_attempt_id: uuid.UUID,
+    scene_outcome_preserved: bool,
+    beats_result: BeatsPreservedResult,
+    payload_json: dict[str, Any],
+    accept_cond_extra: bool = True,
+    span_changed_gate: bool = True,
+) -> RepairVerification:
+    """Shared tail for both verify paths (chapter-scoped fan-out and single-scene).
+
+    Owns the one copy of: the resolved/remaining partition, the new-issue-from-critique dedup loop,
+    the verdict computation, the ``RepairVerification`` construction, and the verdict->status mapping
+    (task/run status transitions + the ``repair_verified`` event + run reassembly). The genuine
+    differences between the two callers ride in as parameters:
+
+      * ``scene_no_by_id`` / ``contract_reference`` -- how a newly-surfaced critique is attributed to
+        a scene when minted as an Issue (per-critique scene map vs the single revised scene).
+      * ``repair_attempt_id`` -- the anchor attempt this verification hangs off.
+      * ``scene_outcome_preserved`` -- packet-identity check (union over revised scenes vs one scene).
+      * ``accept_cond_extra`` -- the single-scene span/quote/preserve acceptance gate; ``True`` for
+        the chapter-scoped path, which rides on critique disappearance alone.
+      * ``span_changed_gate`` -- folds the single-scene ``span_changed`` direct check into
+        ``target_issue_resolved`` and ``canon_preserved``; ``True`` (no gate) for chapter-scoped.
+      * ``beats_result`` / ``payload_json`` -- the path-specific beat scope and diagnostics blob.
+    """
+    task_issues = [await session.get(Issue, uuid.UUID(issue_id)) for issue_id in task.issue_ids]
+    task_issues = [issue for issue in task_issues if issue is not None]
+    remaining = [
+        issue for issue in task_issues if any(_critique_matches_issue(issue, critique) for critique in new_critiques)
+    ]
+    resolved = [issue for issue in task_issues if issue not in remaining]
+    known_signatures = {str((issue.payload_json or {}).get("signature") or "") for issue in task_issues}
+    created_new_issues: list[Issue] = []
+    for critique in new_critiques:
+        payload = critique.payload or {}
+        claim = critique.note or str(payload.get("claim") or f"{critique.reviewer} issue")
+        quote = payload.get("quote") if isinstance(payload.get("quote"), str) else payload.get("context_sentence")
+        conf_val = payload.get("confidence")
+        critique_scene_no = scene_no_by_id.get(critique.scene_id)
+        signature = support.issue_signature(
+            validator=critique.reviewer,
+            issue_kind=str(payload.get("kind") or critique.reviewer),
+            claim=claim,
+            quote=quote if isinstance(quote, str) else None,
+            scene_no=critique_scene_no,
+        )
+        if signature in known_signatures:
+            continue
+        known_signatures.add(signature)
+        issue = await support.create_issue(
+            session,
+            run=run,
+            artifact_type="scene_review_report",
+            artifact_id=uuid.uuid4(),
+            scene_id=critique.scene_id,
+            scene_no=critique_scene_no,
+            validator=critique.reviewer,
+            issue_kind=str(payload.get("kind") or critique.reviewer),
+            severity=str(critique.severity),
+            quote=quote if isinstance(quote, str) else None,
+            span_start=support.critique_span(payload)[0],
+            span_end=support.critique_span(payload)[1],
+            claim=claim,
+            contract_reference=contract_reference,
+            recommended_action=support.recommended_action_from_critique(critique),
+            confidence=float(conf_val) if isinstance(conf_val, (int, float)) else None,
+            auto_repair_allowed=not is_blocking(critique.severity),
+            payload=payload | {"signature": signature},
+        )
+        created_new_issues.append(issue)
+
+    no_new_issues = not remaining and not created_new_issues
+    accept_cond = no_new_issues and accept_cond_extra
+    verdict = (
+        RepairVerificationVerdict.ACCEPT
+        if accept_cond
+        else (
+            RepairVerificationVerdict.ESCALATE_TO_HUMAN
+            if any(is_blocking(issue.severity) for issue in created_new_issues)
+            else RepairVerificationVerdict.NEEDS_ANOTHER_REPAIR
+        )
+    )
+    verification = RepairVerification(
+        repair_attempt_id=repair_attempt_id,
+        agent_run_id=verifier.id,
+        verdict=verdict,
+        resolved_issue_ids=[str(issue.id) for issue in resolved],
+        remaining_issue_ids=[str(issue.id) for issue in remaining],
+        new_issues_json=[
+            {
+                "id": str(issue.id),
+                "validator": issue.validator,
+                "issue_kind": issue.issue_kind,
+                "claim": issue.claim,
+                "severity": issue.severity,
+            }
+            for issue in created_new_issues
+        ]
+        or None,
+        target_issue_resolved=not remaining and span_changed_gate,
+        canon_preserved=(
+            not any(c.reviewer == "continuity" and is_blocking(c.severity) for c in new_critiques) and span_changed_gate
+        ),
+        scene_outcome_preserved=scene_outcome_preserved,
+        voice_preserved=not any(c.reviewer == "voice" and is_blocking(c.severity) for c in new_critiques),
+        required_beats_preserved=beats_result.preserved,
+        reader_state_preserved=not any(
+            c.reviewer in {"continuity", "state_drift"} and is_blocking(c.severity) for c in new_critiques
+        ),
+        regression_score=float(len(remaining) + len(created_new_issues)),
+        reason=(
+            "Repair accepted."
+            if verdict == RepairVerificationVerdict.ACCEPT
+            else "Issues remain after repair verification."
+        ),
+        payload_json=payload_json,
+    )
+    session.add(verification)
+    await session.flush()
+    support.finish_agent_run(
+        verifier,
+        status=AgentRunStatus.COMPLETED,
+        payload={"repair_verification_id": str(verification.id), "verdict": str(verdict)},
+    )
+    for issue in resolved:
+        issue.status = IssueStatus.VERIFIED
+    for issue in remaining:
+        issue.status = IssueStatus.ACCEPTED
+    if verdict == RepairVerificationVerdict.ACCEPT:
+        task.status = RepairTaskStatus.VERIFIED
+    elif verdict == RepairVerificationVerdict.ESCALATE_TO_HUMAN:
+        task.status = RepairTaskStatus.WAITING_FOR_HUMAN
+        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
+    else:
+        task.status = RepairTaskStatus.QUEUED
+        run.status = ProductionRunStatus.REPAIRING
+    run.current_stage = "repair_verification"
+    await support.record_event(
+        session,
+        run_id=run.id,
+        event_type="repair_verified",
+        stage="repair_verification",
+        message=verification.reason,
+        payload={"repair_task_id": str(task.id), "verdict": str(verdict)},
+        agent_run_id=verifier.id,
+    )
+    await assemble_run(session, run)
+    await support.update_run_summary(session, run)
+    return verification
+
+
 async def _verify_chapter_scoped_repair(
     session: AsyncSession, run: ProductionRun, task: RepairTask
 ) -> RepairVerification:
@@ -954,63 +1116,6 @@ async def _verify_chapter_scoped_repair(
         .scalars()
         .all()
     )
-    task_issues = [await session.get(Issue, uuid.UUID(issue_id)) for issue_id in task.issue_ids]
-    task_issues = [issue for issue in task_issues if issue is not None]
-    remaining = [
-        issue for issue in task_issues if any(_critique_matches_issue(issue, critique) for critique in new_critiques)
-    ]
-    resolved = [issue for issue in task_issues if issue not in remaining]
-    known_signatures = {str((issue.payload_json or {}).get("signature") or "") for issue in task_issues}
-    created_new_issues: list[Issue] = []
-    for critique in new_critiques:
-        payload = critique.payload or {}
-        claim = critique.note or str(payload.get("claim") or f"{critique.reviewer} issue")
-        quote = payload.get("quote") if isinstance(payload.get("quote"), str) else payload.get("context_sentence")
-        conf_val = payload.get("confidence")
-        critique_scene_no = scene_no_by_id.get(critique.scene_id)
-        signature = support.issue_signature(
-            validator=critique.reviewer,
-            issue_kind=str(payload.get("kind") or critique.reviewer),
-            claim=claim,
-            quote=quote if isinstance(quote, str) else None,
-            scene_no=critique_scene_no,
-        )
-        if signature in known_signatures:
-            continue
-        known_signatures.add(signature)
-        issue = await support.create_issue(
-            session,
-            run=run,
-            artifact_type="scene_review_report",
-            artifact_id=uuid.uuid4(),
-            scene_id=critique.scene_id,
-            scene_no=critique_scene_no,
-            validator=critique.reviewer,
-            issue_kind=str(payload.get("kind") or critique.reviewer),
-            severity=str(critique.severity),
-            quote=quote if isinstance(quote, str) else None,
-            span_start=support.critique_span(payload)[0],
-            span_end=support.critique_span(payload)[1],
-            claim=claim,
-            contract_reference=None,
-            recommended_action=support.recommended_action_from_critique(critique),
-            confidence=float(conf_val) if isinstance(conf_val, (int, float)) else None,
-            auto_repair_allowed=not is_blocking(critique.severity),
-            payload=payload | {"signature": signature},
-        )
-        created_new_issues.append(issue)
-
-    no_new_issues = not remaining and not created_new_issues
-    verdict = (
-        RepairVerificationVerdict.ACCEPT
-        if no_new_issues
-        else (
-            RepairVerificationVerdict.ESCALATE_TO_HUMAN
-            if any(is_blocking(issue.severity) for issue in created_new_issues)
-            else RepairVerificationVerdict.NEEDS_ANOTHER_REPAIR
-        )
-    )
-    anchor_attempt = revised_by_attempt[-1][0]
     # Required-beat preservation over the whole revised chapter region: concatenate the revised scenes'
     # before/after prose so a beat that legitimately RELOCATED between revised scenes (chapter-scoped
     # repairs restructure scenes) still counts as preserved. Union the scenes' required beats.
@@ -1029,37 +1134,19 @@ async def _verify_chapter_scoped_repair(
         SCENE_BREAK.join(after for _, _, after in revised_regions),
         region_beats,
     )
-    verification = RepairVerification(
-        repair_attempt_id=anchor_attempt.id,
-        agent_run_id=verifier.id,
-        verdict=verdict,
-        resolved_issue_ids=[str(issue.id) for issue in resolved],
-        remaining_issue_ids=[str(issue.id) for issue in remaining],
-        new_issues_json=[
-            {
-                "id": str(issue.id),
-                "validator": issue.validator,
-                "issue_kind": issue.issue_kind,
-                "claim": issue.claim,
-                "severity": issue.severity,
-            }
-            for issue in created_new_issues
-        ]
-        or None,
-        target_issue_resolved=not remaining,
-        canon_preserved=not any(c.reviewer == "continuity" and is_blocking(c.severity) for c in new_critiques),
+    # Chapter-scoped acceptance rides on critique disappearance alone (no per-character span check), so
+    # the finalize gates stay at their defaults (accept_cond_extra / span_changed_gate = True).
+    return await _finalize_repair_verification(
+        session,
+        run=run,
+        task=task,
+        verifier=verifier,
+        new_critiques=new_critiques,
+        scene_no_by_id=scene_no_by_id,
+        contract_reference=None,
+        repair_attempt_id=revised_by_attempt[-1][0].id,
         scene_outcome_preserved=outcome_preserved,
-        voice_preserved=not any(c.reviewer == "voice" and is_blocking(c.severity) for c in new_critiques),
-        required_beats_preserved=beats_result.preserved,
-        reader_state_preserved=not any(
-            c.reviewer in {"continuity", "state_drift"} and is_blocking(c.severity) for c in new_critiques
-        ),
-        regression_score=float(len(remaining) + len(created_new_issues)),
-        reason=(
-            "Repair accepted."
-            if verdict == RepairVerificationVerdict.ACCEPT
-            else "Issues remain after repair verification."
-        ),
+        beats_result=beats_result,
         payload_json={
             "revised_scene_ids": [str(scene.id) for scene in revised_scenes],
             "new_critique_count": len(new_critiques),
@@ -1077,38 +1164,6 @@ async def _verify_chapter_scoped_repair(
             },
         },
     )
-    session.add(verification)
-    await session.flush()
-    support.finish_agent_run(
-        verifier,
-        status=AgentRunStatus.COMPLETED,
-        payload={"repair_verification_id": str(verification.id), "verdict": str(verdict)},
-    )
-    for issue in resolved:
-        issue.status = IssueStatus.VERIFIED
-    for issue in remaining:
-        issue.status = IssueStatus.ACCEPTED
-    if verdict == RepairVerificationVerdict.ACCEPT:
-        task.status = RepairTaskStatus.VERIFIED
-    elif verdict == RepairVerificationVerdict.ESCALATE_TO_HUMAN:
-        task.status = RepairTaskStatus.WAITING_FOR_HUMAN
-        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
-    else:
-        task.status = RepairTaskStatus.QUEUED
-        run.status = ProductionRunStatus.REPAIRING
-    run.current_stage = "repair_verification"
-    await support.record_event(
-        session,
-        run_id=run.id,
-        event_type="repair_verified",
-        stage="repair_verification",
-        message=verification.reason,
-        payload={"repair_task_id": str(task.id), "verdict": str(verdict)},
-        agent_run_id=verifier.id,
-    )
-    await assemble_run(session, run)
-    await support.update_run_summary(session, run)
-    return verification
 
 
 async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> RepairVerification:
@@ -1230,109 +1285,35 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
         .scalars()
         .all()
     )
-    task_issues = [await session.get(Issue, uuid.UUID(issue_id)) for issue_id in task.issue_ids]
-    task_issues = [issue for issue in task_issues if issue is not None]
-    remaining = [
-        issue for issue in task_issues if any(_critique_matches_issue(issue, critique) for critique in new_critiques)
-    ]
-    resolved = [issue for issue in task_issues if issue not in remaining]
-    known_signatures = {str((issue.payload_json or {}).get("signature") or "") for issue in task_issues}
-    created_new_issues: list[Issue] = []
-    for critique in new_critiques:
-        payload = critique.payload or {}
-        claim = critique.note or str(payload.get("claim") or f"{critique.reviewer} issue")
-        quote = payload.get("quote") if isinstance(payload.get("quote"), str) else payload.get("context_sentence")
-        conf_val = payload.get("confidence")
-        signature = support.issue_signature(
-            validator=critique.reviewer,
-            issue_kind=str(payload.get("kind") or critique.reviewer),
-            claim=claim,
-            quote=quote if isinstance(quote, str) else None,
-            scene_no=revised.scene_no,
-        )
-        if signature in known_signatures:
-            continue
-        known_signatures.add(signature)
-        issue = await support.create_issue(
-            session,
-            run=run,
-            artifact_type="scene_review_report",
-            artifact_id=uuid.uuid4(),
-            scene_id=revised.id,
-            scene_no=revised.scene_no,
-            validator=critique.reviewer,
-            issue_kind=str(payload.get("kind") or critique.reviewer),
-            severity=str(critique.severity),
-            quote=quote if isinstance(quote, str) else None,
-            span_start=support.critique_span(payload)[0],
-            span_end=support.critique_span(payload)[1],
-            claim=claim,
-            contract_reference=str(revised.scene_packet_id) if revised.scene_packet_id else None,
-            recommended_action=support.recommended_action_from_critique(critique),
-            confidence=float(conf_val) if isinstance(conf_val, (int, float)) else None,
-            auto_repair_allowed=not is_blocking(critique.severity),
-            payload=payload | {"signature": signature},
-        )
-        created_new_issues.append(issue)
-    no_new_issues = not remaining and not created_new_issues
-    if task.target_spans:
-        accept_cond = (
-            no_new_issues
-            and (direct_checks.get("anchors_preserved", False) or direct_checks.get("quote_changed", False))
-            and direct_checks.get("preserve_satisfied", True)
-            and (direct_checks.get("span_changed", False) or direct_checks.get("quote_changed", False))
-        )
-    else:
-        accept_cond = no_new_issues
-    verdict = (
-        RepairVerificationVerdict.ACCEPT
-        if accept_cond
-        else (
-            RepairVerificationVerdict.ESCALATE_TO_HUMAN
-            if any(is_blocking(issue.severity) for issue in created_new_issues)
-            else RepairVerificationVerdict.NEEDS_ANOTHER_REPAIR
-        )
-    )
     # Required-beat preservation delta for this single scene (before-prose vs the revised prose).
     from dominion.workers.production_sequence import latest_chapter_sequence
 
     single_scene_seq = await latest_chapter_sequence(session, base_scene.chapter_id)
     scene_beats = required_beats_for_scene(single_scene_seq, base_scene.scene_no)
     beats_result = beats_preserved(before_text, after_text, scene_beats)
-    verification = RepairVerification(
+    # A span/quote single-scene repair additionally requires the target actually changed and its anchors
+    # / preserve constraints held; the span_changed direct check also gates target/canon preservation.
+    if task.target_spans:
+        accept_cond_extra = (
+            (direct_checks.get("anchors_preserved", False) or direct_checks.get("quote_changed", False))
+            and direct_checks.get("preserve_satisfied", True)
+            and (direct_checks.get("span_changed", False) or direct_checks.get("quote_changed", False))
+        )
+    else:
+        accept_cond_extra = True
+    return await _finalize_repair_verification(
+        session,
+        run=run,
+        task=task,
+        verifier=verifier,
+        new_critiques=new_critiques,
+        scene_no_by_id={revised.id: revised.scene_no},
+        contract_reference=str(revised.scene_packet_id) if revised.scene_packet_id else None,
         repair_attempt_id=attempt.id,
-        agent_run_id=verifier.id,
-        verdict=verdict,
-        resolved_issue_ids=[str(issue.id) for issue in resolved],
-        remaining_issue_ids=[str(issue.id) for issue in remaining],
-        new_issues_json=[
-            {
-                "id": str(issue.id),
-                "validator": issue.validator,
-                "issue_kind": issue.issue_kind,
-                "claim": issue.claim,
-                "severity": issue.severity,
-            }
-            for issue in created_new_issues
-        ]
-        or None,
-        target_issue_resolved=not remaining and direct_checks.get("span_changed", True),
-        canon_preserved=(
-            not any(c.reviewer == "continuity" and is_blocking(c.severity) for c in new_critiques)
-            and direct_checks.get("span_changed", True)
-        ),
         scene_outcome_preserved=revised.scene_packet_id == base_scene.scene_packet_id,
-        voice_preserved=not any(c.reviewer == "voice" and is_blocking(c.severity) for c in new_critiques),
-        required_beats_preserved=beats_result.preserved,
-        reader_state_preserved=not any(
-            c.reviewer in {"continuity", "state_drift"} and is_blocking(c.severity) for c in new_critiques
-        ),
-        regression_score=float(len(remaining) + len(created_new_issues)),
-        reason=(
-            "Repair accepted."
-            if verdict == RepairVerificationVerdict.ACCEPT
-            else "Issues remain after repair verification."
-        ),
+        beats_result=beats_result,
+        accept_cond_extra=accept_cond_extra,
+        span_changed_gate=direct_checks.get("span_changed", True),
         payload_json={
             "revised_scene_id": str(revised.id),
             "new_critique_count": len(new_critiques),
@@ -1350,38 +1331,6 @@ async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> Repai
             },
         },
     )
-    session.add(verification)
-    await session.flush()
-    support.finish_agent_run(
-        verifier,
-        status=AgentRunStatus.COMPLETED,
-        payload={"repair_verification_id": str(verification.id), "verdict": str(verdict)},
-    )
-    for issue in resolved:
-        issue.status = IssueStatus.VERIFIED
-    for issue in remaining:
-        issue.status = IssueStatus.ACCEPTED
-    if verdict == RepairVerificationVerdict.ACCEPT:
-        task.status = RepairTaskStatus.VERIFIED
-    elif verdict == RepairVerificationVerdict.ESCALATE_TO_HUMAN:
-        task.status = RepairTaskStatus.WAITING_FOR_HUMAN
-        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
-    else:
-        task.status = RepairTaskStatus.QUEUED
-        run.status = ProductionRunStatus.REPAIRING
-    run.current_stage = "repair_verification"
-    await support.record_event(
-        session,
-        run_id=run.id,
-        event_type="repair_verified",
-        stage="repair_verification",
-        message=verification.reason,
-        payload={"repair_task_id": str(task.id), "verdict": str(verdict)},
-        agent_run_id=verifier.id,
-    )
-    await assemble_run(session, run)
-    await support.update_run_summary(session, run)
-    return verification
 
 
 async def _append_merged_issue_to_task(
