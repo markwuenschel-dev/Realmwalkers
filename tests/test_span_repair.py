@@ -34,9 +34,24 @@ from dominion.shared.models import (
     Scene,
 )
 from dominion.workers import production
+from dominion.workers.production_repair import _normalized_repair_targets
 from tests.conftest import seed_scene_packet
 
 QUOTE = "Mara moves through the breach"
+
+
+def test_target_spans_without_items_yields_no_targets():
+    """DEAD-BRANCH contract: the sole writer of ``target_spans`` emits ``{"items": [...]}``.
+
+    A ``target_spans`` dict lacking an ``items`` list (e.g. the removed legacy-flat shape) must
+    produce no targets — the normalizer must not silently reinterpret ``values()`` as ``[start, end]``
+    pairs or pluck a bare ``quote`` key. With no issues to fall back on, the result is empty.
+    """
+    legacy_flat = RepairTask(target_spans={"quote": QUOTE, "0": [1, 5]})
+    assert _normalized_repair_targets(legacy_flat) == []
+
+    empty_dict = RepairTask(target_spans={})
+    assert _normalized_repair_targets(empty_dict) == []
 
 
 async def _seed_scene(s):
