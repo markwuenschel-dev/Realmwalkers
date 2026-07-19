@@ -225,6 +225,16 @@ class KnowledgeStatus(StrEnum):
     REVEALED = "revealed"
 
 
+class CanonStatus(StrEnum):
+    """Lifecycle of a CanonEntity row (Workstream H — stale canon/ledger cleanup). Only ACTIVE canon
+    reaches agent/prose context; the retrievability rule lives in models.canon_retrievable_filter."""
+
+    ACTIVE = "active"
+    STALE = "stale"
+    RETIRED = "retired"
+    SUPERSEDED = "superseded"
+
+
 class DraftStage(StrEnum):
     """A preserved stage of one scene's prose pipeline (DraftAttempt provenance)."""
 

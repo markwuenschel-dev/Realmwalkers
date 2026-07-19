@@ -24,12 +24,14 @@ from sqlalchemy import (
     Integer,
     Text,
     func,
+    or_,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from dominion.shared.chapter_order import chapter_position
+from dominion.shared.enums import CanonStatus
 
 
 class Base(DeclarativeBase):
@@ -615,7 +617,9 @@ class CanonEntity(Base):
     source: Mapped[str] = mapped_column(
         Text, default="manual"
     )  # manual | repo_ingested | packet_derived | draft_derived | legacy
-    status: Mapped[str] = mapped_column(Text, default="active")  # active | stale | retired | superseded
+    status: Mapped[str] = mapped_column(
+        Text, default="active"
+    )  # see enums.CanonStatus (active|stale|retired|superseded)
     published: Mapped[bool] = mapped_column(Boolean, default=False)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
     doc_path: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -625,6 +629,14 @@ class CanonEntity(Base):
     content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     embedding_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+def canon_retrievable_filter():
+    """CANON-STATUS: the single status-aware canon retrieval gate (Workstream H). Only ACTIVE canon
+    reaches agent/prose context; stale/retired/superseded rows are excluded, and a NULL status is treated
+    as active so rows written before the `status` column existed still surface. Every retrieval path
+    (workers/memory/retrieval.py, canon_rag.py) imports this, so the rule lives in exactly one place."""
+    return or_(CanonEntity.status.is_(None), CanonEntity.status == CanonStatus.ACTIVE.value)
 
 
 class CharacterState(Base):
