@@ -17,9 +17,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import os
 import random
 import re
 import time
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
@@ -161,6 +163,40 @@ def _gateway_enabled() -> bool:
     """Route chat through local LiteLLM when a real virtual key is configured."""
     key = (getattr(settings, "litellm_virtual_key", None) or "").strip()
     return key.startswith("sk-")
+
+
+def _gateway_request_metadata(model: str, *, feature: str = "chat") -> dict[str, Any]:
+    """Origin fields for LiteLLM → Langfuse when chat is routed through the gateway.
+
+    Prefer SERVICE_NAME (or LLG_SERVICE) in the process env so spend/traces name this
+    product. Falls back to ``realmwalkers`` so gateway traffic is never blank.
+    """
+    service = (
+        os.environ.get("SERVICE_NAME")
+        or os.environ.get("LLG_SERVICE")
+        or "realmwalkers"
+    ).strip()
+    environment = (
+        os.environ.get("ENVIRONMENT")
+        or os.environ.get("LLG_ENVIRONMENT")
+        or "development"
+    ).strip()
+    if environment not in {"development", "staging", "production"}:
+        environment = "development"
+    release = (
+        os.environ.get("GIT_SHA")
+        or os.environ.get("RELEASE")
+        or os.environ.get("LLG_RELEASE")
+        or "dev"
+    ).strip()
+    return {
+        "request_id": str(uuid.uuid4()),
+        "service": service or "realmwalkers",
+        "feature": feature,
+        "environment": environment,
+        "release": release or "dev",
+        "model_alias": model,
+    }
 
 
 def _map_model_for_gateway(model: str) -> str:
@@ -673,7 +709,8 @@ async def complete(
         # Output-length param diverges by provider: OpenAI's current models (gpt-5 / o-series) REQUIRE
         # `max_completion_tokens` and 400 on the old `max_tokens`; xAI's Grok and Gemini's OpenAI-
         # compatible endpoint keep the classic `max_tokens` parameter.
-        if model.startswith(("grok-", "gemini-")):
+        # Gateway stable aliases (llm-general, *-general) accept max_tokens via LiteLLM.
+        if _gateway_enabled() or model.startswith(("grok-", "gemini-")):
             create_kwargs["max_tokens"] = max_tokens
         else:
             create_kwargs["max_completion_tokens"] = max_tokens
@@ -683,6 +720,8 @@ async def complete(
             create_kwargs["temperature"] = temperature
         if effort is not None and model.startswith("gemini-"):
             create_kwargs["reasoning_effort"] = effort
+        if _gateway_enabled():
+            create_kwargs["metadata"] = _gateway_request_metadata(model, feature="chat")
 
     preflight_input_tokens: int | None = None
     preflight_total: int | None = None
