@@ -21,6 +21,29 @@ os.environ["DOMINION_DATABASE_URL"] = _TEST_URL
 # "why is local pytest 8x slower than CI" mystery. Force the deterministic hash embedder.
 os.environ["DOMINION_EMBEDDING_PROVIDER"] = "hash"
 
+# ---------------------------------------------------------------------------
+# HARD COST KILL — process env wins over repo .env in pydantic-settings.
+# A populated developer .env with LITELLM_VIRTUAL_KEY=sk-… turns on the LiteLLM
+# gateway path inside llm.complete(). Unit tests that only mock _openai_client
+# (Responses path) then sail past the mock and bill a real provider. Same for
+# direct OPENAI_/ANTHROPIC_/XAI_/GEMINI_ keys. Blank every live credential here
+# BEFORE Settings() is constructed (first dominion import below).
+# ---------------------------------------------------------------------------
+for _cost_env in (
+    "LITELLM_VIRTUAL_KEY",
+    "LITELLM_BASE_URL",
+    "LITELLM_MODEL",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "XAI_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+):
+    os.environ[_cost_env] = ""
+# Marker so accidental live code can detect hermetic test runs.
+os.environ["DOMINION_HERMETIC_TESTS"] = "1"
+
 import pytest  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
@@ -29,8 +52,43 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
     create_async_engine,
 )
 
+from dominion.shared.config import settings as _app_settings  # noqa: E402
 from dominion.shared.migrations import apply_lightweight_migrations  # noqa: E402
 from dominion.shared.models import Base  # noqa: E402
+
+# Fail closed if Settings still bound a real gateway key (env_file beat us somehow).
+_gw = (_app_settings.litellm_virtual_key or "").strip()
+if _gw.startswith("sk-"):
+    raise RuntimeError(
+        "HERMETIC TEST GUARD: settings.litellm_virtual_key is a live sk-… key. "
+        "tests/conftest.py must blank LITELLM_VIRTUAL_KEY before Settings load. "
+        "Refusing to run tests that would bill the LiteLLM gateway."
+    )
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_llm_no_live_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test: gateway off, provider keys cleared, cached HTTP clients dropped.
+
+    Individual tests may monkeypatch settings.* back to fake keys for mocked paths;
+    they must still mock the client — empty keys alone do not open the network if
+    mocks are correct. Clearing the gateway flag is the critical part: it keeps
+    complete() on the Responses/Anthropic branches that tests actually patch.
+    """
+    monkeypatch.setattr(_app_settings, "litellm_virtual_key", None)
+    monkeypatch.setattr(_app_settings, "litellm_model", None)
+    monkeypatch.setattr(_app_settings, "openai_api_key", None)
+    monkeypatch.setattr(_app_settings, "anthropic_api_key", None)
+    monkeypatch.setattr(_app_settings, "xai_api_key", None)
+    monkeypatch.setattr(_app_settings, "google_api_key", None)
+
+    # Drop any cached httpx clients that might have been built with real base URLs.
+    from dominion.workers import llm as _llm
+
+    if hasattr(_llm._openai_compatible_client, "cache_clear"):
+        _llm._openai_compatible_client.cache_clear()
+    if hasattr(_llm, "_openai_client") and hasattr(_llm._openai_client, "cache_clear"):
+        _llm._openai_client.cache_clear()
 
 
 def _split_db(url: str) -> tuple[str, str]:

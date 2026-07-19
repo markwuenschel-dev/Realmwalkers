@@ -160,7 +160,13 @@ _GATEWAY_ALIASES = frozenset(
 
 
 def _gateway_enabled() -> bool:
-    """Route chat through local LiteLLM when a real virtual key is configured."""
+    """Route chat through local LiteLLM when a real virtual key is configured.
+
+    Hermetic unit tests set ``DOMINION_HERMETIC_TESTS=1`` (see tests/conftest.py)
+    so a developer's populated ``.env`` cannot bill the gateway during pytest.
+    """
+    if (os.environ.get("DOMINION_HERMETIC_TESTS") or "").strip() in {"1", "true", "yes", "on"}:
+        return False
     key = (getattr(settings, "litellm_virtual_key", None) or "").strip()
     return key.startswith("sk-")
 
