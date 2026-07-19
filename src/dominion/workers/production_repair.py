@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import (
     AgentRunStatus,
+    ArtifactType,
     Decision,
     IssueDecisionKind,
     IssueStatus,
@@ -68,7 +69,7 @@ from dominion.workers import run_stages  # isort: skip
 
 # The SceneFidelity report Artifact type, kept as a literal here to avoid importing the evaluator (which
 # pulls the LLM stack into this early-imported production module).
-_FIDELITY_REPORT_TYPE = "scene_fidelity_report"
+_FIDELITY_REPORT_TYPE = ArtifactType.SCENE_FIDELITY_REPORT.value
 
 
 async def _latest_scene_map(session: AsyncSession, chapter_id: uuid.UUID) -> dict[int, Scene]:

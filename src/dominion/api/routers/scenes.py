@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
 from dominion.api.scene_delete import hard_delete_scene
-from dominion.shared.enums import Decision, SceneStatus
+from dominion.shared.enums import ArtifactType, Decision, SceneStatus
 from dominion.shared.models import Approval, Artifact, Chapter, Critique, DraftAttempt, PovProfile, Scene, ScenePacket
 from dominion.shared.schemas import (
     ClauseEvaluationOut,
@@ -26,7 +26,7 @@ from dominion.workers.scene_fidelity import fidelity_contract_fingerprint, is_fi
 from dominion.workers.scene_fidelity.models import SceneFidelityReport
 from dominion.workers.scene_fidelity.policy import policy_outcome_for_clause_evaluation, report_is_current
 
-_FIDELITY_REPORT_TYPE = "scene_fidelity_report"  # literal to keep the LLM stack out of this router
+_FIDELITY_REPORT_TYPE = ArtifactType.SCENE_FIDELITY_REPORT.value
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 
