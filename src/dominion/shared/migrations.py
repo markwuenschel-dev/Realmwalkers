@@ -68,6 +68,10 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS run_id UUID",
     # Per-scene POV override: optional, null/blank inherits the chapter POV (Beat.pov).
     "ALTER TABLE beats ADD COLUMN IF NOT EXISTS pov TEXT",
+    # LEDGER: one-shot guard so a beat's relative '+N' deltas commit to the CharacterState ledger exactly
+    # once across scene revisions. DEFAULT FALSE for new rows; existing already-approved beats are marked
+    # committed by _BACKFILLS below (they already applied their deltas).
+    "ALTER TABLE beats ADD COLUMN IF NOT EXISTS deltas_committed BOOLEAN DEFAULT FALSE",
     # Per-call telemetry diagnostics (context budget breakdown, section name, fallback flags, …).
     "ALTER TABLE llm_calls ADD COLUMN IF NOT EXISTS metadata JSONB",
     # Production attribution: soft link (no FK) tying a draft/repair call's spend to its ProductionRun,
@@ -121,6 +125,16 @@ _BACKFILLS: tuple[str, ...] = (
     # inside artifact bodies keep the old spelling forever, so readers tolerate both.
     "UPDATE issues SET severity = 'block' WHERE severity = 'hard'",
     "UPDATE critiques SET severity = 'block' WHERE severity = 'hard'",
+    # LEDGER: a beat whose slot already has an APPROVED scene had its declared deltas committed (the buggy
+    # code committed on first approval), so mark it committed — otherwise the first post-migration
+    # re-approval would apply the delta once more. New/unapproved beats stay FALSE. Idempotent.
+    """UPDATE beats SET deltas_committed = TRUE
+       WHERE deltas_committed IS NOT TRUE
+         AND EXISTS (
+           SELECT 1 FROM scenes
+           WHERE scenes.chapter_id = beats.chapter_id AND scenes.scene_no = beats.scene_no
+             AND scenes.status = 'approved'
+         )""",
     # Export-metadata backfill: stamp the Dominion identity onto books that predate the metadata columns,
     # WITHOUT stamping it onto books created afterward. The IS NULL gate alone can't do that here — new
     # books also carry NULL (no server default) and would be wrongly backfilled on the next boot. So the

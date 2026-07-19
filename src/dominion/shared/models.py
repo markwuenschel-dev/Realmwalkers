@@ -245,6 +245,11 @@ class Beat(Base):
     characters_present: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)  # routes specialists
     expected_state_changes: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # declared deltas
+    # LEDGER: durable one-shot guard — True once this beat's expected_state_changes have been committed to
+    # the CharacterState ledger, so a scene revision's re-approval can't double-apply relative '+N' deltas.
+    # On the Beat (not the versioned Scene) because deltas are declared per beat and looked up by the stable
+    # (chapter_id, scene_no).
+    deltas_committed: Mapped[bool] = mapped_column(Boolean, default=False)
     knowledge_injections: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     beat_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_words: Mapped[int | None] = mapped_column(Integer, nullable=True)  # per-scene length guide

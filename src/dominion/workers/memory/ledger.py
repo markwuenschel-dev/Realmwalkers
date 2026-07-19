@@ -44,6 +44,11 @@ async def commit_declared_deltas(session: AsyncSession, *, scene_id: uuid.UUID) 
     ).scalar_one_or_none()
     if beat is None or not beat.expected_state_changes:
         return
+    if beat.deltas_committed:
+        # LEDGER: idempotent — a scene revision's re-approval reaches the same beat (looked up by the
+        # stable chapter_id/scene_no); its relative '+N' deltas must commit exactly once. The durable
+        # marker survives the new Scene row a revision mints, so first_approval being True again is safe.
+        return
 
     for character, deltas in beat.expected_state_changes.items():
         if not isinstance(deltas, dict):
@@ -64,4 +69,5 @@ async def commit_declared_deltas(session: AsyncSession, *, scene_id: uuid.UUID) 
             stats[attr] = _apply(stats.get(attr), val)
         row.stats_json = stats  # reassign so SQLAlchemy tracks the JSONB change
         row.as_of_scene_id = scene_id
+    beat.deltas_committed = True
     await session.flush()
