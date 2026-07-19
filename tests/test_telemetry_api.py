@@ -115,6 +115,42 @@ async def test_book_telemetry_sql_rollups_match_python_reference(db_factory):
         out = await book_telemetry(book.id, s, limit=100, offset=0)
 
         assert out.totals == TelemetryTotals(**_totals(rows))
+
+        # Independent literal oracle over the four seeded rows, hand-computed WITHOUT `_totals`, so a
+        # common-mode bug in the shared aggregation helper (a wrong cache-hit / latency / count rule
+        # that the SQL and Python sides would BOTH reproduce) is caught -- the SQL==helper parity above
+        # only proves the two agree, not that either is correct. Seed rows (see `_seed`):
+        #   author (run1): in=1000 out=200 cc=6000 cr=0    lat=1200 trunc=F err=-    fb=-
+        #   qa     (run1): in= 500 out= 50 cc=0    cr=400  lat= 800 trunc=T err=-    fb=fallback_attempt
+        #   summary(-   ): in=  10 out=  5 cc=0    cr=0    lat=None trunc=F err=-    fb=-
+        #   drafter(run2): in=2000 out=900 cc=0    cr=1500 lat=None trunc=F err=boom fb=-
+        #   input_tokens          = 1000 + 500 + 10 + 2000 = 3510
+        #   output_tokens         =  200 +  50 +  5 +  900 = 1155
+        #   cache_creation_tokens = 6000 (author row only)
+        #   cache_read_tokens     = 400 + 1500 = 1900
+        #   prompt tokens         = 3510 + 6000 + 1900 = 11410
+        #   cache_hit_ratio       = round(1900 / 11410, 3) = 0.167
+        #   cache_tokens_saved    = int(1900 * 0.9) = 1710
+        #   truncations = 1 (qa), errors = 1 (drafter), fallbacks = 1 (qa fallback_attempt)
+        #   avg_latency_ms        = int((1200 + 800) / 2) = 1000  (summary & drafter rows have no latency)
+        expected_book_totals = {
+            "calls": 4,
+            "input_tokens": 3510,
+            "output_tokens": 1155,
+            "cache_creation_tokens": 6000,
+            "cache_read_tokens": 1900,
+            "cache_hit_ratio": 0.167,
+            "cache_tokens_saved": 1710,
+            "truncations": 1,
+            "errors": 1,
+            "fallbacks": 1,
+            "avg_latency_ms": 1000,
+        }
+        # estimated_cost_usd/cache_savings_usd derive from external per-model pricing tables (not the
+        # aggregation rules under test here), so they remain covered by the SQL==helper assertion above.
+        _cost_fields = {"estimated_cost_usd", "cache_savings_usd"}
+        assert out.totals.model_dump(exclude=_cost_fields) == expected_book_totals  # SQL rollup
+        assert TelemetryTotals(**_totals(rows)).model_dump(exclude=_cost_fields) == expected_book_totals  # helper
         for groups, key in ((out.by_stage, lambda c: c.stage), (out.by_model, lambda c: c.model)):
             ref = dict(group_calls(rows, key))
             assert {g.key for g in groups} == set(ref)
