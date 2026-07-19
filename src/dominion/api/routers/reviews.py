@@ -81,7 +81,12 @@ async def _capture_edit_pair(session: SessionDep, scene: Scene, human_text: str)
 async def decide(
     scene_id: uuid.UUID, body: DecisionIn, session: SessionDep, background: BackgroundTasks
 ) -> dict[str, str | None]:
-    scene = (await session.execute(select(Scene).where(Scene.id == scene_id))).scalar_one_or_none()
+    # DECIDE-LOCK: serialize concurrent decisions on this scene (SELECT ... FOR UPDATE), matching the
+    # hardening apply_repair_task uses for the same cross-request race. Without it, two concurrent APPROVEs
+    # both read status != APPROVED, both enter the first_approval block, and race the one-shot side effects
+    # (the LEDGER beat-marker check-then-set, the CharacterState insert, the next-draft enqueue). The lock
+    # makes the second decision see the first's committed APPROVED status, so first_approval fires once.
+    scene = (await session.execute(select(Scene).where(Scene.id == scene_id).with_for_update())).scalar_one_or_none()
     if scene is None:
         raise HTTPException(status_code=404, detail="scene not found")
 
