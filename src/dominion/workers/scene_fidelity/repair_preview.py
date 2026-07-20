@@ -3,7 +3,7 @@
 A RepairPreview is an immutable, bounded proposal tied to one actionable fidelity Critique: it shows a
 diff, rationale, and preservation boundary but NEVER changes the current Scene (ADR 0017). Only the
 author, by accepting or editing it, materializes a new scene revision. The DB-touching create/accept/
-reject live in production_repair; this module owns the deterministic body, the diff, and the bounded
+reject live in production_fidelity; this module owns the deterministic body, the diff, and the bounded
 repair prompt (restricted to the cited loss — it may not touch canon, outcome, or unrelated scenes).
 """
 
