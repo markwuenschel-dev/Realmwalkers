@@ -11,25 +11,31 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Response
 from sqlalchemy import func, select
 
 from dominion.api.deps import SessionDep
-from dominion.shared.enums import Decision, SceneStatus
+from dominion.shared.enums import Decision, RevisionRequestOrigin, SceneStatus
 from dominion.shared.models import (
     Approval,
     Chapter,
     CharacterState,
     Critique,
     EditPair,
+    RevisionRequest,
     Scene,
 )
-from dominion.shared.schemas import ContinuityResolveIn, DecisionIn
+from dominion.shared.schemas import ContinuityResolveIn, DecisionIn, RevisionRequestOut
 from dominion.workers import activity
-from dominion.workers.draft_queue import DraftQueueBlocker
-from dominion.workers.draft_readiness import blocker_out
-from dominion.workers.job_scheduler import schedule_next_after_approval, schedule_revision
+from dominion.workers.job_scheduler import schedule_next_after_approval
 from dominion.workers.memory import knowledge, ledger, summaries
+from dominion.workers.revision import (
+    accept_revision_request,
+    cancel_active_requests_for_scene,
+    derive_display_phase,
+    prose_hash,
+    revision_request_out,
+)
 from dominion.workers.stat_render import render_stat_blocks
 
 log = structlog.get_logger()
@@ -79,7 +85,7 @@ async def _capture_edit_pair(session: SessionDep, scene: Scene, human_text: str)
 
 @router.post("/{scene_id}/decision")
 async def decide(
-    scene_id: uuid.UUID, body: DecisionIn, session: SessionDep, background: BackgroundTasks
+    scene_id: uuid.UUID, body: DecisionIn, session: SessionDep, background: BackgroundTasks, response: Response
 ) -> dict[str, str | None]:
     # DECIDE-LOCK: serialize concurrent decisions on this scene (SELECT ... FOR UPDATE), matching the
     # hardening apply_repair_task uses for the same cross-request race. Without it, two concurrent APPROVEs
@@ -102,19 +108,27 @@ async def decide(
     # re-enqueue an already-drafted next scene. Those fire only on the first pending -> approved cross.
     first_approval = scene.status != SceneStatus.APPROVED
 
-    session.add(
-        Approval(
-            scene_id=scene.id,
-            version=scene.version,
-            decision=body.decision,
-            target_pass=body.target_pass,
-            feedback=body.feedback,
+    # approve/deny record their verdict here; revise routes through accept_revision_request, which owns
+    # the Approval + durable RevisionRequest atomically (and persists neither on a 4xx).
+    if body.decision != Decision.REVISE:
+        session.add(
+            Approval(
+                scene_id=scene.id,
+                version=scene.version,
+                decision=body.decision,
+                target_pass=body.target_pass,
+                feedback=body.feedback,
+            )
         )
-    )
 
     next_job: uuid.UUID | None = None
+    revise_request: RevisionRequest | None = None
     if body.decision == Decision.APPROVE:
         scene.status = SceneStatus.APPROVED
+        # Interim escape (ADR 0028, a'): approving an imported/pending scene is allowed, but it must
+        # never leave an orphan active revision request beside APPROVED canon (the partial-unique-index
+        # / Slice-3 poison). Cancel any active request and delete its still-unclaimed job.
+        await cancel_active_requests_for_scene(session, scene.id)
         if first_approval:
             await ledger.commit_declared_deltas(session, scene_id=scene.id)  # fast (DB) — keep inline
             try:  # record the scene's reveals into the knowledge ledger (advisory, never gates)
@@ -128,14 +142,21 @@ async def decide(
     elif body.decision == Decision.DENY:
         scene.status = SceneStatus.SUPERSEDED
     elif body.decision == Decision.REVISE:
+        # The single revise-intent seam (ADR 0028): a durable request instead of a 409 rollback. An
+        # imported/uncontracted scene lands at awaiting_contract (202); a contracted one mints the linked
+        # revise job (202, queued); an exact replay returns the existing request (200). 4xx persists nothing.
+        result = await accept_revision_request(
+            session,
+            scene=scene,
+            feedback=body.feedback,
+            target_pass=body.target_pass,
+            expected_prose_hash=body.expected_prose_hash,
+            origin=RevisionRequestOrigin.REVIEW,
+        )
         scene.status = SceneStatus.REVISION_REQUESTED
-        revision = await schedule_revision(session, scene, target_pass=body.target_pass)
-        if isinstance(revision, DraftQueueBlocker):
-            # No resolvable contract (e.g. an imported scene): don't queue a job the resolver will
-            # reject at drain time. Raise an actionable 409 the Desk renders via draftBlockerMessage;
-            # the raise rolls back the pending Approval + status change, so the scene stays reviewable.
-            raise HTTPException(status_code=409, detail={"blockers": [blocker_out(revision).model_dump(mode="json")]})
-        next_job = revision
+        revise_request = result.request
+        next_job = revise_request.job_id
+        response.status_code = 200 if result.replayed else 202
 
     # Land this review action in the central Activity feed too, so the drawer is the single pane for
     # "what happened" across pages (best-effort; never blocks the verdict).
@@ -161,7 +182,34 @@ async def decide(
     )
 
     await session.commit()  # land the verdict before responding
-    return {"scene": str(scene.id), "status": str(scene.status), "next_job": str(next_job) if next_job else None}
+    result_body: dict[str, str | None] = {
+        "scene": str(scene.id),
+        "status": str(scene.status),
+        "next_job": str(next_job) if next_job else None,
+    }
+    if revise_request is not None:
+        phase, _action = derive_display_phase(revise_request.status)
+        result_body["revision_request"] = str(revise_request.id)
+        result_body["revision_status"] = str(revise_request.status)
+        result_body["display_phase"] = phase
+    return result_body
+
+
+@router.get("/{scene_id}/revision-request", response_model=RevisionRequestOut)
+async def get_revision_request(scene_id: uuid.UUID, session: SessionDep) -> RevisionRequestOut:
+    """The scene's current (most-recent) durable revision request, with its server-derived phase — the
+    Desk banner reads this to show an imported / awaiting-contract scene its next action (ADR 0028)."""
+    request = (
+        await session.execute(
+            select(RevisionRequest)
+            .where(RevisionRequest.target_scene_id == scene_id)
+            .order_by(RevisionRequest.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if request is None:
+        raise HTTPException(status_code=404, detail="no revision request for this scene")
+    return revision_request_out(request)
 
 
 @router.post("/{scene_id}/continuity/resolve")
@@ -203,19 +251,27 @@ async def resolve_continuity(
         return {"resolved": "ledger_updated", "job": None}
 
     if body.choice == "use_ledger":
-        # Ledger is right -> queue a targeted prose fix.
+        # Ledger is right -> record durable revise intent through the single seam (ADR 0028). The
+        # continuity panel acts on the CURRENT scene, so its expected hash IS the current prose hash
+        # (there is no client round-trip that could mismatch). An uncontracted scene lands at
+        # awaiting_contract rather than raising; the seam owns the Approval + RevisionRequest.
         feedback = (
             f"Continuity fix: {character}'s {attribute} must read {ledger_value!r}, "
             f"not {prose_value!r}. Correct the prose accordingly."
         )
-        session.add(Approval(scene_id=scene.id, version=scene.version, decision=Decision.REVISE, feedback=feedback))
+        result = await accept_revision_request(
+            session,
+            scene=scene,
+            feedback=feedback,
+            target_pass=None,
+            expected_prose_hash=prose_hash(scene.prose),
+            origin=RevisionRequestOrigin.CONTINUITY,
+        )
         scene.status = SceneStatus.REVISION_REQUESTED
-        job = await schedule_revision(session, scene, target_pass=None)
-        if isinstance(job, DraftQueueBlocker):
-            raise HTTPException(status_code=409, detail={"blockers": [blocker_out(job).model_dump(mode="json")]})
-        await session.delete(critique)  # superseded by the queued revision — clear it
+        await session.delete(critique)  # superseded by the durable revision request — clear it
         await session.commit()
-        return {"resolved": "revision_enqueued", "job": str(job) if job else None}
+        job_id = result.request.job_id
+        return {"resolved": "revision_enqueued", "job": str(job_id) if job_id else None}
 
     if body.choice == "edit":
         return {"resolved": "edit_in_inbox", "job": None}

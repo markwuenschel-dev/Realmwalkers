@@ -1,8 +1,9 @@
 """Prior draft prose and author revision feedback for revise jobs.
 
-Feedback is resolved through the durable RevisionRequest the Job was minted for (ADR 0028), never by
-re-reading "the latest revise Approval". Only a LEGACY revision job with no `revision_request_id`
-(minted before durable requests existed) falls back to the latest revise Approval, for backward compat.
+Feedback is resolved through the durable RevisionRequest the Job was minted for (ADR 0028). A revise job
+with no `revision_request_id` resolves feedback from its latest revise Approval instead — the current,
+demonstrated path for any job minted without a link (ADR-0031 D11: this is NOT 'legacy'; it stays valid
+until the request-linked path is fully cut over).
 """
 
 from __future__ import annotations
@@ -26,7 +27,8 @@ async def load_revision_state(session: AsyncSession, job: Job) -> RevisionState:
         request = await session.get(RevisionRequest, job.revision_request_id)
         revise_feedback = request.feedback if request else None
     elif job.target_scene_id is not None:
-        # Legacy backward-compat ONLY: a revision job minted before durable requests carries no link.
+        # No linked request: resolve feedback from the latest revise Approval — the current demonstrated
+        # path for a job minted without a link (ADR-0031 D11; not 'legacy', valid until full cutover).
         revise_feedback = (
             await session.execute(
                 select(Approval.feedback)

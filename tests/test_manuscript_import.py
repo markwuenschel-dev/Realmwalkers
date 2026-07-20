@@ -3,7 +3,8 @@ unless overwrite is set. Router function called directly with a session (see tes
 
 from __future__ import annotations
 
-from fastapi import BackgroundTasks
+import pytest
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.routers import manuscript
@@ -176,17 +177,20 @@ async def test_import_auto_title_schedules_batch_for_untitled_only(db_factory):
         assert len(bg.tasks) == 1
 
 
-async def test_import_approve_directly_lands_approved_and_schedules_fold(db_factory):
+async def test_import_approve_directly_is_rejected_for_imports(db_factory):
+    """ADR 0028 (Slice 2, soft-enforce): the skip-review rail is retired for imports —
+    approve_directly=True is a 422. Imported prose becomes canonical only through an approved contract;
+    existing contractless-approved imports keep an explicit operator escape (handled later)."""
     async with db_factory() as s:
         book = await _book(s)
         bg = BackgroundTasks()
-        await manuscript.import_manuscript(
-            book.id,
-            ManuscriptImportIn(chapters=[_chapter(1, [(1, "prose")], pov="M")], approve_directly=True),
-            s,
-            bg,
-        )
-        ch = (await s.execute(select(Chapter).where(Chapter.book_id == book.id))).scalar_one()
-        scene = (await s.execute(select(Scene).where(Scene.chapter_id == ch.id))).scalar_one()
-        assert scene.status == SceneStatus.APPROVED
-        assert len(bg.tasks) == 1  # directly-approved scene schedules a summary fold
+        with pytest.raises(HTTPException) as exc:
+            await manuscript.import_manuscript(
+                book.id,
+                ManuscriptImportIn(chapters=[_chapter(1, [(1, "prose")], pov="M")], approve_directly=True),
+                s,
+                bg,
+            )
+        assert exc.value.status_code == 422
+        # Nothing landed: the import was refused before any chapter/scene was created.
+        assert (await s.execute(select(Chapter).where(Chapter.book_id == book.id))).scalar_one_or_none() is None

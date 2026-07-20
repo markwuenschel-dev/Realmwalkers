@@ -7,7 +7,7 @@ ctx.exemplars — the wire the drafter already consumes but nothing fed. LLM/emb
 
 from __future__ import annotations
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, Response
 from sqlalchemy import select
 
 from dominion.api.routers import reviews, scenes
@@ -83,6 +83,7 @@ async def test_hand_edit_captures_rendered_agent_pair(db_factory):
             DecisionIn(decision=Decision.APPROVE, edited_prose="Marcus checked his sharpened sight."),
             s,
             BackgroundTasks(),
+            Response(),
         )
         await s.commit()
 
@@ -101,7 +102,7 @@ async def test_approve_without_edit_captures_no_pair(db_factory):
         book = await _book(s)
         ch = await _chapter(s, book)
         sc = await _scene(s, ch, 1, prose="Untouched agent prose.")
-        await reviews.decide(sc.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks())
+        await reviews.decide(sc.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks(), Response())
         await s.commit()
         assert (await s.execute(select(EditPair))).scalar_one_or_none() is None
 
@@ -119,6 +120,7 @@ async def test_reedit_refreshes_human_text_keeps_agent_draft(db_factory):
             DecisionIn(decision=Decision.APPROVE, edited_prose="First human edit."),
             s,
             BackgroundTasks(),
+            Response(),
         )
         await s.commit()
 
@@ -127,6 +129,7 @@ async def test_reedit_refreshes_human_text_keeps_agent_draft(db_factory):
             DecisionIn(decision=Decision.APPROVE, edited_prose="Second human edit."),
             s,
             BackgroundTasks(),
+            Response(),
         )
         await s.commit()
 

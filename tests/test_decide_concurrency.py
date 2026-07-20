@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, Response
 from sqlalchemy import select
 
 from dominion.api.routers import reviews
@@ -48,7 +48,7 @@ async def test_concurrent_approve_fires_side_effects_once(db_factory):
 
     async def _approve() -> None:
         async with db_factory() as s:
-            await reviews.decide(scene_id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks())
+            await reviews.decide(scene_id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks(), Response())
             await s.commit()
 
     # Two APPROVEs race on the same scene; the FOR UPDATE lock serializes them, so the second sees the
