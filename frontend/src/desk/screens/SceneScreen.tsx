@@ -23,6 +23,15 @@ import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus } from ".
 import type { ExportKind } from "../lib/docx";
 import { chapterLabel } from "../manuscript/labels";
 
+// sha256 hex of prose — the optimistic-concurrency token the revise seam checks against the scene's
+// current server-side prose hash (ADR 0028). Matches the backend's hashlib.sha256(text).hexdigest().
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 // Scene review status → Chip tone (the review lifecycle, not the StatusPill axes).
 const SCENE_STATUS_TONE: Record<string, ChipTone> = {
   approved: "good",
@@ -269,7 +278,14 @@ export default function SceneScreen() {
     const edited = finalProse !== (cur.prose ?? "") ? finalProse : null;
     const body =
       kind === "revise"
-        ? { decision: "revise" as const, feedback: desk.feedback || null, edited_prose: edited }
+        ? {
+            decision: "revise" as const,
+            feedback: desk.feedback || null,
+            edited_prose: edited,
+            // Hash the prose the server will hold when the seam runs: the edit if present (reviews.py
+            // applies edited_prose BEFORE the revise seam), else the current prose. Required (ADR 0028).
+            expected_prose_hash: await sha256Hex(edited ?? cur.prose ?? ""),
+          }
         : kind === "approve"
           ? { decision: "approve" as const, edited_prose: edited }
           : { decision: "deny" as const };

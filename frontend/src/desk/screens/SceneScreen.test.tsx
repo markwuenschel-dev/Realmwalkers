@@ -241,6 +241,8 @@ describe("SceneScreen", () => {
         decision: "revise",
         feedback: "Tighten the middle beat.",
         edited_prose: null,
+        // The required optimistic-concurrency token — a sha256 hex of the prose being revised (ADR 0028).
+        expected_prose_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
       }),
     );
   });

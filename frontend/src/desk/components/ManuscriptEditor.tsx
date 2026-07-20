@@ -60,11 +60,7 @@ function buildBlocks(parsed: ParsedManuscriptOut, defaultPov: string): Block[] {
   return blocks;
 }
 
-function toImport(
-  blocks: Block[],
-  approveDirectly: boolean,
-  autoTitle: boolean,
-): ManuscriptImportIn {
+function toImport(blocks: Block[], autoTitle: boolean): ManuscriptImportIn {
   const chapters: ManuscriptImportIn["chapters"] = [];
   let cur: ManuscriptImportIn["chapters"][number] | null = null;
   let paras: string[] = [];
@@ -108,7 +104,9 @@ function toImport(
     }
   });
   flushScene();
-  return { approve_directly: approveDirectly, auto_title: autoTitle, chapters };
+  // Imports always enter review (ADR 0028): the server rejects approve_directly=true for imported
+  // prose, which becomes canonical only through an approved contract. Always false — no UI to set it.
+  return { approve_directly: false, auto_title: autoTitle, chapters };
 }
 
 export default function ManuscriptEditor({
@@ -123,7 +121,6 @@ export default function ManuscriptEditor({
   const data = useDeskData();
   const [blocks, setBlocks] = useState<Block[]>(() => buildBlocks(parsed, ""));
   const [bulkPov, setBulkPov] = useState("");
-  const [approveDirectly, setApproveDirectly] = useState(false);
   const [autoTitle, setAutoTitle] = useState(false);
   const [importing, setImporting] = useState(false);
   const existing = new Set(parsed.existing_chapter_nos);
@@ -151,10 +148,7 @@ export default function ManuscriptEditor({
   const doImport = async () => {
     setImporting(true);
     try {
-      const report = await api.importManuscript(
-        bookId,
-        toImport(blocks, approveDirectly, autoTitle),
-      );
+      const report = await api.importManuscript(bookId, toImport(blocks, autoTitle));
       const skipped = report.skipped_conflicts.length
         ? `; skipped ch ${report.skipped_conflicts.join(", ")} (tick overwrite to replace)`
         : "";
@@ -342,18 +336,6 @@ export default function ManuscriptEditor({
           />
           auto-generate titles
         </label>
-        <label
-          style={css(
-            "display:flex;gap:5px;align-items:center;font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer",
-          )}
-        >
-          <input
-            type="checkbox"
-            checked={approveDirectly}
-            onChange={(e) => setApproveDirectly(e.target.checked)}
-          />
-          accept directly (skip review)
-        </label>
         <Button
           size="sm"
           variant="primary"
@@ -362,7 +344,7 @@ export default function ManuscriptEditor({
         >
           {importing
             ? "Importing…"
-            : `Import ${counts.scenes} scene${counts.scenes === 1 ? "" : "s"} ${approveDirectly ? "(accept directly)" : "for review"}`}
+            : `Import ${counts.scenes} scene${counts.scenes === 1 ? "" : "s"} for review`}
         </Button>
         {blocks.some(
           (b) => b.brk === "chapter" && existing.has(Number(b.chapterNo)) && !b.overwrite,
