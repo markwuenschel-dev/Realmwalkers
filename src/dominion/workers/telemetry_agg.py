@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+import uuid
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from dominion.shared.model_pricing import pricing_for_model
-from dominion.shared.models import LlmCall
+from dominion.shared.models import AgentRun, Chapter, LlmCall, ProductionRun
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
 from dominion.workers.telemetry_cost import (
     estimate_cache_savings_usd,
@@ -191,3 +196,307 @@ def sort_calls(calls: list[LlmCall]) -> list[LlmCall]:
         return (idx if isinstance(idx, int) else 999999, c.created_at)
 
     return sorted(calls, key=_key)
+
+
+# --- SQL-side rollups for the book/compare telemetry endpoints -----------------------------------
+# These aggregate the append-only llm_calls exhaust in SQL (never materializing per-call rows) and
+# return plain dicts / a small dataclass. The router wraps them into the `*Out` response schemas and
+# owns all 404s, so this module stays fastapi-free and schema-free.
+
+# Editorial-pipeline activity is a bounded recent feed (deterministic $0 agents can be numerous over a
+# book's life; the tab only needs the recent ones to show the pipeline is working).
+_EDITORIAL_RUN_LIMIT = 50
+
+# Job kinds (metadata->>'job_kind') that make up each side of the draft-vs-revision split. Anything
+# else (derive/planning calls with no job_kind) is neither and excluded — this is the original-drafting
+# vs repair comparison, not the whole book's spend.
+_KIND_BUCKETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("draft", ("draft",)),
+    ("revision", ("revise_full", "revise_pass")),
+)
+
+
+def agg_cols():
+    """Aggregate columns for SQL-side rollups (the SELECT twin of `_totals`'s per-call sums). Grouping
+    always keeps `model` as the innermost dimension so per-model pricing applies to the sums — cost is
+    linear in tokens, so summed tokens price identically to per-call pricing (totals_from_model_rows)."""
+    return (
+        func.count().label("calls"),
+        func.coalesce(func.sum(LlmCall.input_tokens), 0).label("input_tokens"),
+        func.coalesce(func.sum(LlmCall.output_tokens), 0).label("output_tokens"),
+        func.coalesce(func.sum(LlmCall.cache_creation_tokens), 0).label("cache_creation_tokens"),
+        func.coalesce(func.sum(LlmCall.cache_read_tokens), 0).label("cache_read_tokens"),
+        func.count().filter(LlmCall.truncated.is_(True)).label("truncations"),
+        # Python treated empty-string errors as "no error" (`if c.error`), so the filter does too.
+        func.count().filter(LlmCall.error.isnot(None), LlmCall.error != "").label("errors"),
+        func.count().filter(LlmCall.metadata_["fallback_attempt"].astext == "true").label("fallbacks"),
+        # Sum + count (NULLs excluded) instead of AVG so avg_latency_ms keeps `int(sum/len)` semantics.
+        func.sum(LlmCall.latency_ms).label("latency_sum"),
+        func.count(LlmCall.latency_ms).label("latency_count"),
+    )
+
+
+def group_model_rows(rows: Sequence[Any], key: str) -> list[tuple[str, dict[str, Any]]]:
+    """SQL twin of `group_calls`: bucket per-model aggregate rows by `key` (skipping empty keys, like
+    group_calls), ordered by call count descending. Returns the same `(key, totals)` shape as
+    `group_calls`; the router wraps each into a `TelemetryGroupOut`."""
+    buckets: dict[str, list[Any]] = {}
+    for r in rows:
+        k = getattr(r, key)
+        if k:
+            buckets.setdefault(str(k), []).append(r)
+    return sorted(
+        ((k, totals_from_model_rows(v)) for k, v in buckets.items()),
+        key=lambda kv: kv[1]["calls"],
+        reverse=True,
+    )
+
+
+@dataclass
+class BookTelemetryRollups:
+    """Plain-data result of `book_telemetry_rollups`. `totals` and each decorated list are dicts (the
+    router maps them to `TelemetryTotals` / `*RollupOut`); `by_stage`/`by_model`/`by_kind` are
+    `(key, totals)` tuples the router wraps into `TelemetryGroupOut`."""
+
+    totals: dict[str, Any]
+    by_chapter: list[dict[str, Any]]
+    by_run: list[dict[str, Any]]
+    run_total: int
+    by_stage: list[tuple[str, dict[str, Any]]]
+    by_model: list[tuple[str, dict[str, Any]]]
+    by_production_run: list[dict[str, Any]]
+    by_kind: list[tuple[str, dict[str, Any]]]
+    editorial_runs: list[dict[str, Any]]
+
+
+async def book_telemetry_rollups(
+    session: AsyncSession,
+    book_id: uuid.UUID,
+    *,
+    limit: int,
+    offset: int,
+) -> BookTelemetryRollups:
+    """All book-level telemetry rollups, aggregated in SQL. Behaviour-preserving extraction of the
+    former `book_telemetry` body; returns dicts/tuples the router wraps into `BookTelemetryOut`."""
+    chapters = {
+        ch.id: ch for ch in (await session.execute(select(Chapter).where(Chapter.book_id == book_id))).scalars()
+    }
+
+    # All rollups aggregate in SQL — the append-only exhaust is never materialized row-by-row. The
+    # (stage, model) grouping serves by_stage, by_model, and (rolled all the way up) the book totals.
+    stage_model_rows = (
+        await session.execute(
+            select(LlmCall.stage, LlmCall.model, *agg_cols())
+            .where(LlmCall.book_id == book_id)
+            .group_by(LlmCall.stage, LlmCall.model)
+        )
+    ).all()
+
+    chapter_model_rows = (
+        await session.execute(
+            select(LlmCall.chapter_id, LlmCall.model, *agg_cols())
+            .where(LlmCall.book_id == book_id, LlmCall.chapter_id.isnot(None))
+            .group_by(LlmCall.chapter_id, LlmCall.model)
+        )
+    ).all()
+    by_chapter_rows: dict[uuid.UUID, list[Any]] = {}
+    for r in chapter_model_rows:
+        by_chapter_rows.setdefault(r.chapter_id, []).append(r)
+    by_chapter = [
+        {
+            "chapter_id": cid,
+            "chapter_no": (ch.chapter_no if (ch := chapters.get(cid)) else None),
+            "title": (chapters[cid].title if cid in chapters else None),
+            **totals_from_model_rows(agg_rows),
+        }
+        for cid, agg_rows in by_chapter_rows.items()
+    ]
+    by_chapter.sort(key=lambda r: (r["chapter_no"] is None, r["chapter_no"]))
+
+    # by_run pages in SQL: newest-started runs first (run_id tiebreak keeps pages stable), with the
+    # unsliced group count as run_total — only the requested page's runs get aggregated.
+    run_groups = (
+        select(LlmCall.run_id, func.min(LlmCall.created_at).label("started_at"))
+        .where(LlmCall.book_id == book_id)
+        .group_by(LlmCall.run_id)
+    )
+    run_total = (await session.execute(select(func.count()).select_from(run_groups.subquery()))).scalar_one()
+    page = (
+        await session.execute(
+            run_groups.order_by(func.min(LlmCall.created_at).desc().nulls_last(), LlmCall.run_id)
+            .offset(offset)
+            .limit(limit)
+        )
+    ).all()
+    by_run: list[dict[str, Any]] = []
+    if page:
+        page_ids = [r.run_id for r in page]
+        run_match = LlmCall.run_id.in_([rid for rid in page_ids if rid is not None])
+        if None in page_ids:  # legacy rows predate run_id
+            run_match = or_(run_match, LlmCall.run_id.is_(None))
+        run_model_rows = (
+            await session.execute(
+                select(LlmCall.run_id, LlmCall.chapter_id, LlmCall.model, *agg_cols())
+                .where(LlmCall.book_id == book_id, run_match)
+                .group_by(LlmCall.run_id, LlmCall.chapter_id, LlmCall.model)
+            )
+        ).all()
+        by_run_rows: dict[uuid.UUID | None, list[Any]] = {}
+        for r in run_model_rows:
+            by_run_rows.setdefault(r.run_id, []).append(r)
+        for page_row in page:
+            agg_rows = by_run_rows.get(page_row.run_id, [])
+            cid = next((r.chapter_id for r in agg_rows if r.chapter_id is not None), None)
+            ch = chapters.get(cid) if cid is not None else None
+            by_run.append(
+                {
+                    "run_id": page_row.run_id,
+                    "started_at": page_row.started_at,
+                    "chapter_id": cid,
+                    "chapter_no": ch.chapter_no if ch else None,
+                    "title": ch.title if ch else None,
+                    **totals_from_model_rows(agg_rows),
+                }
+            )
+
+    # by_production_run: the already-captured draft+repair spend, grouped by the soft production_run_id
+    # link. Same measures as by_run; status/chapter_no come from production_runs (cheap join in Python).
+    prod_model_rows = (
+        await session.execute(
+            select(LlmCall.production_run_id, LlmCall.chapter_id, LlmCall.model, *agg_cols())
+            .where(LlmCall.book_id == book_id, LlmCall.production_run_id.isnot(None))
+            .group_by(LlmCall.production_run_id, LlmCall.chapter_id, LlmCall.model)
+        )
+    ).all()
+    by_production_run: list[dict[str, Any]] = []
+    if prod_model_rows:
+        prod_runs = {
+            pr.id: pr
+            for pr in (await session.execute(select(ProductionRun).where(ProductionRun.book_id == book_id))).scalars()
+        }
+        by_prod_rows: dict[uuid.UUID, list[Any]] = {}
+        for r in prod_model_rows:
+            by_prod_rows.setdefault(r.production_run_id, []).append(r)
+        for prid, agg_rows in by_prod_rows.items():
+            pr = prod_runs.get(prid)
+            cid = pr.chapter_id if pr else next((r.chapter_id for r in agg_rows if r.chapter_id is not None), None)
+            ch = chapters.get(cid) if cid is not None else None
+            by_production_run.append(
+                {
+                    "production_run_id": prid,
+                    "chapter_id": cid,
+                    "chapter_no": ch.chapter_no if ch else None,
+                    "status": pr.status if pr else None,
+                    **totals_from_model_rows(agg_rows),
+                }
+            )
+        by_production_run.sort(key=lambda r: (r["estimated_cost_usd"], r["calls"]), reverse=True)
+
+    # by_kind: draft vs revision (from metadata->>'job_kind'). One small per-bucket query grouped by
+    # model only — the job_kind filter lives in WHERE, so nothing groups by a JSON expression (which
+    # renders mismatched bound params in SELECT vs GROUP BY and trips Postgres). Empty buckets drop out.
+    by_kind: list[tuple[str, dict[str, Any]]] = []
+    for label, kinds in _KIND_BUCKETS:
+        kind_rows = (
+            await session.execute(
+                select(LlmCall.model, *agg_cols())
+                .where(LlmCall.book_id == book_id, LlmCall.metadata_["job_kind"].astext.in_(kinds))
+                .group_by(LlmCall.model)
+            )
+        ).all()
+        if kind_rows:
+            by_kind.append((label, totals_from_model_rows(kind_rows)))
+    by_kind.sort(key=lambda kv: kv[1]["calls"], reverse=True)
+
+    # editorial_runs: the deterministic orchestration agents that ran for this book's production runs.
+    # No LLM call, no cost — this is pipeline-activity visibility, bounded to the recent feed.
+    editorial_rows = (
+        await session.execute(
+            select(
+                AgentRun.production_run_id,
+                AgentRun.agent_name,
+                AgentRun.agent_role,
+                AgentRun.stage,
+                AgentRun.status,
+                AgentRun.duration_ms,
+                AgentRun.started_at,
+            )
+            .join(ProductionRun, ProductionRun.id == AgentRun.production_run_id)
+            .where(ProductionRun.book_id == book_id)
+            .order_by(func.coalesce(AgentRun.started_at, AgentRun.created_at).desc())
+            .limit(_EDITORIAL_RUN_LIMIT)
+        )
+    ).all()
+    editorial_runs = [
+        {
+            "production_run_id": r.production_run_id,
+            "agent_name": r.agent_name,
+            "agent_role": r.agent_role,
+            "stage": r.stage,
+            "status": r.status,
+            "duration_ms": r.duration_ms,
+            "started_at": r.started_at,
+            "cost_usd": 0.0,
+        }
+        for r in editorial_rows
+    ]
+
+    return BookTelemetryRollups(
+        totals=totals_from_model_rows(stage_model_rows),
+        by_chapter=by_chapter,
+        by_run=by_run,
+        run_total=run_total,
+        by_stage=group_model_rows(stage_model_rows, "stage"),
+        by_model=group_model_rows(stage_model_rows, "model"),
+        by_production_run=by_production_run,
+        by_kind=by_kind,
+        editorial_runs=editorial_runs,
+    )
+
+
+async def compare_run_rows(session: AsyncSession, run_id: uuid.UUID) -> Sequence[Any]:
+    """One grouped query per run, serving both the rollup and the per-stage deltas. Returns `[]` for a
+    run with no calls — the router raises the 404, preserving the original endpoint's behaviour."""
+    return (
+        await session.execute(
+            select(
+                LlmCall.stage,
+                LlmCall.chapter_id,
+                LlmCall.model,
+                *agg_cols(),
+                func.min(LlmCall.created_at).label("started_at"),
+            )
+            .where(LlmCall.run_id == run_id)
+            .group_by(LlmCall.stage, LlmCall.chapter_id, LlmCall.model)
+        )
+    ).all()
+
+
+def compare_rollup(run_id: uuid.UUID, rows: Sequence[Any], chapters: dict[uuid.UUID, Any]) -> dict[str, Any]:
+    """Run-level rollup dict (the RunRollupOut fields minus the schema wrap). `chapters` maps chapter
+    id -> Chapter for the chapter_no/title decoration; the router wraps the result into RunRollupOut."""
+    cid = next((r.chapter_id for r in rows if r.chapter_id is not None), None)
+    ch = chapters.get(cid) if cid else None
+    return dict(
+        run_id=run_id,
+        started_at=min(r.started_at for r in rows),
+        chapter_id=cid,
+        chapter_no=ch.chapter_no if ch else None,
+        title=ch.title if ch else None,
+        **totals_from_model_rows(rows),
+    )
+
+
+def compare_stage_delta_sums(rows: Sequence[Any]) -> dict[str, dict[str, int]]:
+    """Per-stage sums for one run (calls/input/output/truncations), keyed by stage. The router diffs
+    two of these into the `StageDeltaOut` list. Empty stage keys are skipped, like group_calls."""
+    out: dict[str, dict[str, int]] = {}
+    for r in rows:
+        if not r.stage:  # group_calls skipped empty keys
+            continue
+        t = out.setdefault(str(r.stage), {"calls": 0, "input_tokens": 0, "output_tokens": 0, "truncations": 0})
+        t["calls"] += r.calls
+        t["input_tokens"] += r.input_tokens
+        t["output_tokens"] += r.output_tokens
+        t["truncations"] += r.truncations
+    return out
