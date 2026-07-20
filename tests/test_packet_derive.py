@@ -4,9 +4,11 @@ Mirrors tests/test_packet_pipeline.py — router/worker functions are called dir
 
 from __future__ import annotations
 
+import copy
 import uuid
 from typing import Any
 
+import pytest
 from sqlalchemy import select
 
 from dominion.api.routers import packets
@@ -181,3 +183,53 @@ def test_contract_block_appears_in_both_prompts():
 def test_no_contract_means_no_block():
     prefix, user = _beat_prompt(_ctx(None))
     assert "CONTRACT — obey exactly" not in (prefix or "") + user
+
+
+# --- cross-pipeline parity: propose and update run the SAME canonicalize pipeline ------------------
+# The canonicalize steps (evaluate_chapter_packet_internal -> build_surface_contract ->
+# to_master_packet -> attach `_surface_contract` -> validate_master_packet) are hand-typed TWICE:
+#   * propose  (dominion.workers.packet.propose_packet)   builds the surface contract from the RAW,
+#     pre-to_master_packet body, THEN calls to_master_packet;
+#   * update   (dominion.api.routers.packets.update_packet) calls to_master_packet FIRST, then builds
+#     the surface contract from the CANONICAL, post-to_master_packet body (steps 2/3 swapped).
+# This pins that both orderings, fed a byte-identical body, persist the SAME derived `_surface_contract`
+# and the SAME violations — so the two hand-typed copies can never silently drift apart.
+#
+# xfail (VERIFIED 2026-07-20, pure-function repro of both call sites): the two paths do NOT currently
+# agree on `_surface_contract`. build_surface_contract copies every input key into surface_body, so
+# because update projects the post-to_master body its `_surface_contract` carries ~16 extra canonical
+# keys (schema_version, cast, chapter_contract, book_id/chapter_id/chapter_no/pov/status, the four
+# roster mirror arrays, open_questions, source_inputs, lineage, qa) that propose's lacks — and even the
+# shared scene_seeds diverge, because to_master_packet stamps "visible_character_evidence": [] onto each
+# seed BEFORE update projects it but AFTER propose has already projected the raw seed. The VIOLATIONS
+# halves DO match. Remove this marker once both paths project the same body (align the step order, or
+# project through master.drafter_view). Then this becomes a live green drift-pin.
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "propose builds _surface_contract from the raw pre-to_master body; update builds it from the "
+        "canonical post-to_master body, so the persisted _surface_contract key sets + scene_seeds "
+        "diverge (schema_version/cast/chapter_contract/... and visible_character_evidence). Violations "
+        "match. See workers/packet/__init__.py:405-454 vs api/routers/packets.py:119-132."
+    ),
+)
+async def test_surface_contract_and_violations_match_across_propose_and_update(db_factory, monkeypatch):
+    # No chapter_job, so both paths emit an identical, non-empty `contract_job_missing` repair — a real
+    # (not vacuous) violations-parity check alongside the surface-contract parity check.
+    _patch(monkeypatch, _body([_seed(1, "Only seed.")]))
+    async with db_factory() as s:
+        ch = await _seed_chapter(s)
+        proposed = await packet_pipeline.propose_packet(s, chapter=ch)
+        # Capture BEFORE update: update_packet mutates the SAME ORM row in place (it re-selects the
+        # chapter's latest packet — the very object propose returned — and rebinds row.body /
+        # row.qa_warnings), so snapshot the proposed projection + violations now.
+        proposed_surface = copy.deepcopy(proposed.body["_surface_contract"])
+        proposed_violations = copy.deepcopy((proposed.qa_warnings or {}).get("violations"))
+
+        # PUT the byte-identical proposed body straight back through the update (human-edit) path.
+        same_body = copy.deepcopy(proposed.body)
+        updated = await packets.update_packet(ch.id, PacketUpdateIn(body=same_body), s)
+
+        # Violations parity holds today; the surface-contract parity is what currently diverges (xfail).
+        assert (updated.qa_warnings or {}).get("violations") == proposed_violations
+        assert updated.body["_surface_contract"] == proposed_surface
