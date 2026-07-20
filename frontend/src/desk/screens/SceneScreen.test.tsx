@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SceneScreen from "./SceneScreen";
+import { api } from "../api/client";
+import type { RevisionRequestOut } from "../api/types";
 
 const routerPush = vi.fn();
 const routerReplace = vi.fn();
@@ -58,6 +60,8 @@ vi.mock("../api/client", () => ({
       clause_evaluations: [],
       operational_holds: [],
     }),
+    // Default: no durable revision request (404) — the banner falls back to "waiting to redraft".
+    getRevisionRequest: vi.fn().mockRejectedValue(new Error("404 no revision request")),
   },
 }));
 
@@ -217,6 +221,22 @@ describe("SceneScreen", () => {
     const restart = await screen.findByRole("button", { name: "Restart" });
     expect(restart).toBeDisabled();
     expect(restart.getAttribute("title")).toContain("Already drafting");
+  });
+
+  it("shows the awaiting-contract phase (not 'waiting to redraft') and hides Restart for an imported revise", async () => {
+    mockParams = { sceneId: "s1" };
+    mockData.detail = { ...SCENE, status: "revision_requested" };
+    vi.mocked(api.getRevisionRequest).mockResolvedValueOnce({
+      status: "awaiting_contract",
+      display_phase: "Preparing contract",
+      required_action: "This scene needs an approved story contract before the revision can run.",
+    } as unknown as RevisionRequestOut);
+    render(<SceneScreen />);
+
+    // Honest phase for an imported scene whose revise cannot advance until adoption exists (Slice 3) —
+    // and no Restart button, since a redraft would 409 on a scene with no contract.
+    expect(await screen.findByText(/Preparing contract/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
   });
 
   it("approves with the reviewer's edits (none here) via data.decide", async () => {

@@ -35,6 +35,7 @@ export type RepairPreviewActionIn = S["RepairPreviewActionIn"];
 export type IssueOverrideIn = S["IssueOverrideIn"];
 export type SceneOut = Omit<S["SceneOut"], "prose"> & { prose: string | null };
 export type SceneDetail = Omit<S["SceneDetail"], "prose"> & { prose: string | null };
+export type RevisionRequestOut = S["RevisionRequestOut"];
 export type SceneVersionOut = S["SceneVersionOut"];
 export type DecisionIn = S["DecisionIn"];
 export type ContinuityResolveIn = S["ContinuityResolveIn"];

@@ -19,7 +19,7 @@ import { severityChipTone, severityLabel, severityVar } from "../lib/severity";
 import { api } from "../api/client";
 import { Button, Chip, Eyebrow, Panel } from "../components/ui";
 import type { ChipTone } from "../components/ui";
-import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus } from "../api/types";
+import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus, RevisionRequestOut } from "../api/types";
 import type { ExportKind } from "../lib/docx";
 import { chapterLabel } from "../manuscript/labels";
 
@@ -151,6 +151,25 @@ export default function SceneScreen() {
     desk.setProse(initial);
     setRestored(didRestore);
   }, [cur?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The scene's durable revision request drives the banner (ADR 0028): an imported scene's revise is
+  // durable but cannot advance until adoption exists, so say that honestly instead of "waiting to
+  // redraft". A 404 means no durable request (e.g. a legacy revision_requested scene) → fall back.
+  const [revReq, setRevReq] = useState<RevisionRequestOut | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (focused && cur?.status === "revision_requested" && cur.id) {
+      api.getRevisionRequest(cur.id).then(
+        (r) => alive && setRevReq(r),
+        () => alive && setRevReq(null),
+      );
+    } else {
+      setRevReq(null);
+    }
+    return () => {
+      alive = false;
+    };
+  }, [focused, cur?.id, cur?.status]);
 
   // Autosave the hand-edit buffer per (scene, version); clear the draft once it matches the server.
   useEffect(() => {
@@ -820,13 +839,22 @@ export default function SceneScreen() {
             {cur.status.replace(/_/g, " ")}
           </span>
           {cur.status === "revision_requested" ? (
-            <span>
-              Waiting to redraft against your feedback. If it's been stuck a while (a failed or
-              missed job), <b>Restart</b> re-queues drafting now.
-              {data.jobs.queue_paused
-                ? " The queue is paused, so a restarted job waits until you resume."
-                : ""}
-            </span>
+            revReq?.status === "awaiting_contract" ? (
+              <span>
+                <b>{revReq.display_phase}.</b>{" "}
+                {revReq.required_action ??
+                  "This imported scene needs an approved story contract before the revision can run."}{" "}
+                Your feedback is saved and will run once the contract is approved.
+              </span>
+            ) : (
+              <span>
+                Waiting to redraft against your feedback. If it's been stuck a while (a failed or
+                missed job), <b>Restart</b> re-queues drafting now.
+                {data.jobs.queue_paused
+                  ? " The queue is paused, so a restarted job waits until you resume."
+                  : ""}
+              </span>
+            )
           ) : (
             <span>
               You're editing an already-decided scene. Switch to <b>Editing</b> to change the prose
@@ -834,7 +862,7 @@ export default function SceneScreen() {
               queue arrows to return to the review queue.
             </span>
           )}
-          {cur.status === "revision_requested" && (
+          {cur.status === "revision_requested" && revReq?.status !== "awaiting_contract" && (
             <Button
               size="sm"
               style="margin-left:auto;flex:none"
