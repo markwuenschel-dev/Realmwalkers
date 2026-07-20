@@ -19,7 +19,13 @@ import { severityChipTone, severityLabel, severityVar } from "../lib/severity";
 import { api } from "../api/client";
 import { Button, Chip, Eyebrow, Panel } from "../components/ui";
 import type { ChipTone } from "../components/ui";
-import type { CritiqueOut, DecisionKind, DraftAttemptOut, LengthStatus, RevisionRequestOut } from "../api/types";
+import type {
+  CritiqueOut,
+  DecisionKind,
+  DraftAttemptOut,
+  LengthStatus,
+  RevisionRequestOut,
+} from "../api/types";
 import type { ExportKind } from "../lib/docx";
 import { chapterLabel } from "../manuscript/labels";
 
