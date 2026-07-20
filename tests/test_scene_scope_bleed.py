@@ -214,3 +214,85 @@ def test_module_is_pure_and_deterministic(sequence_body: dict) -> None:
     # No I/O, DB, or LLM machinery in the module namespace.
     assert not hasattr(scene_scope, "AsyncSession")
     assert not hasattr(scene_scope, "llm")
+
+
+# ---------------------------------------------------------------------------------------------
+# BEAT-NOUN (option C) — a corpus-derived proper-noun set filters a name that LEADS a beat.
+# _beat_tokens only flags a capitalized token as proper when it is NOT sentence-initial, so a
+# name-first beat ("Marcus arrives ...") historically leaked the name as a keyword. This is latent
+# in real data (real beats lead with directive verbs), so these use small synthetic corpora — the
+# same "patterns derived from beat text, not hardcoded" contract the module documents.
+
+# Scene 2 owns a beat that LEADS with the POV name; the same name is capitalized mid-sentence in an
+# earlier beat, so _corpus_proper_nouns picks it up.
+_NAME_FIRST_BODY = {
+    "scenes": [
+        {"scene_no": 1, "owned_beats": ["Show Marcus studying the boundary logs."]},
+        {"scene_no": 2, "owned_beats": ["Marcus arrives at the tavern."]},
+    ]
+}
+_TAVERN_BEAT = "Marcus arrives at the tavern."
+# Scene-1 prose: Marcus arrives somewhere ELSE. Shares the name + "arrives" with the later beat but
+# NOT its distinctive content ("tavern") — exactly the coincidence a leading name inflates into a
+# spurious match.
+_MARCUS_ELSEWHERE = "Marcus arrives at the guild hall, tired from the road."
+
+# Content-first capitalized leading noun that never recurs as a proper token elsewhere — the owner's
+# flagged residual-risk boundary: it must be RETAINED, not stripped as if it were a name.
+_CONTENT_FIRST_BODY = {
+    "scenes": [
+        {"scene_no": 1, "owned_beats": ["Show Marcus guarding the gate."]},
+        {"scene_no": 2, "owned_beats": ["Tower collapses onto the square."]},
+    ]
+}
+_TOWER_BEAT = "Tower collapses onto the square."
+
+
+def test_corpus_proper_nouns_captures_a_recurring_name() -> None:
+    derived = scene_scope._corpus_proper_nouns(_NAME_FIRST_BODY)
+    # "Marcus" is capitalized mid-sentence in scene 1's beat -> lowercased into the derived set.
+    assert "marcus" in derived
+
+
+def test_leading_name_keyword_dropped_only_with_proper_nouns() -> None:
+    derived = scene_scope._corpus_proper_nouns(_NAME_FIRST_BODY)
+    # Default call is backward-compatible: the leading name still leaks (the latent bug).
+    assert "marcus" in beat_keywords(_TAVERN_BEAT)
+    # With the derived set the leading name is dropped; distinctive content survives.
+    filtered = beat_keywords(_TAVERN_BEAT, proper_nouns=derived)
+    assert "marcus" not in filtered
+    assert "arrives" in filtered and "tavern" in filtered
+
+
+def test_name_first_beat_false_positive_bleed_is_suppressed() -> None:
+    derived = scene_scope._corpus_proper_nouns(_NAME_FIRST_BODY)
+    # Without the fix the shared name + verb crosses the match threshold -> a spurious bleed.
+    assert detect_scene_scope_bleed(1, _MARCUS_ELSEWHERE, _NAME_FIRST_BODY)
+    # With the derived proper nouns the name no longer counts -> no bleed.
+    assert detect_scene_scope_bleed(1, _MARCUS_ELSEWHERE, _NAME_FIRST_BODY, proper_nouns=derived) == []
+    # evaluate_scene_scope derives the set itself, so the advisory does not fire end-to-end.
+    scene_2 = "That night Marcus arrives at the tavern and takes a corner seat."
+    issues = evaluate_scene_scope({1: _MARCUS_ELSEWHERE, 2: scene_2}, _NAME_FIRST_BODY)
+    assert [i for i in issues if i["kind"] == SCENE_SCOPE_BLEED and i["beat"] == _TAVERN_BEAT] == []
+
+
+def test_content_first_capitalized_noun_is_not_over_filtered() -> None:
+    derived = scene_scope._corpus_proper_nouns(_CONTENT_FIRST_BODY)
+    # "Tower" never appears capitalized mid-sentence, so it stays out of the derived set...
+    assert "tower" not in derived
+    # ...and is retained as a content keyword rather than stripped as a name.
+    assert "tower" in beat_keywords(_TOWER_BEAT, proper_nouns=derived)
+
+
+def test_recurring_capitalized_noun_is_over_filtered_accepted_residual() -> None:
+    # Owner-accepted residual: if the SAME word recurs capitalized mid-sentence anywhere, the corpus
+    # scan marks it proper and drops it even when it legitimately leads a content beat.
+    body = {
+        "scenes": [
+            {"scene_no": 1, "owned_beats": ["Show the guards flee the Tower district."]},
+            {"scene_no": 2, "owned_beats": [_TOWER_BEAT]},
+        ]
+    }
+    derived = scene_scope._corpus_proper_nouns(body)
+    assert "tower" in derived
+    assert "tower" not in beat_keywords(_TOWER_BEAT, proper_nouns=derived)
