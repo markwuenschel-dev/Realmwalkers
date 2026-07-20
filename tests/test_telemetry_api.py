@@ -18,13 +18,15 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from dominion.api.routers.telemetry import (
+    _links_for_calls,
+    _resolve_links,
     book_telemetry,
     book_telemetry_problems,
     chapter_telemetry,
     compare_runs,
     run_telemetry,
 )
-from dominion.shared.models import Book, Chapter, LlmCall
+from dominion.shared.models import Book, Chapter, Job, LlmCall, Scene
 from dominion.shared.schemas import TelemetryProblemOut, TelemetryTotals
 from dominion.workers.telemetry_agg import _totals, group_calls
 from dominion.workers.telemetry_diagnostics import build_problems
@@ -302,3 +304,48 @@ async def test_compare_runs_sql_deltas_match_reference(db_factory):
         with pytest.raises(HTTPException) as exc:
             await compare_runs(book.id, s, run_a=run1, run_b=uuid.uuid4())
         assert exc.value.status_code == 404
+
+
+async def test_resolve_links_matches_batched_links_for_calls(db_factory):
+    """Head-to-head parity for the hand-duplicated link resolvers (telemetry.py:137 vs :185): the
+    per-call `_resolve_links` (which has no coverage of its own — only the batched twin runs through
+    run_telemetry) must resolve the SAME (scene_packet_id, scene_id, job_id) as the batched
+    `_links_for_calls` the run endpoint serves. Seeds targets so every field is exercised: a
+    fully-linked pair (scene 1: packet + scene + draft job), a packet-only pair (scene 2), plus the
+    seed's scene-less and chapter-less calls whose links must stay empty in both.
+    """
+    async with db_factory() as s:
+        book, ch1, ch2, _run1, _run2 = await _seed(s)
+
+        # ch1/scene 1 — the two run1 (author + qa) calls share this pair; all three links resolve.
+        sp1 = await seed_scene_packet(s, chapter=ch1, beat=None)  # scene_no defaults to 1
+        scene1 = Scene(chapter_id=ch1.id, scene_no=1)
+        draft_job = Job(kind="draft", book_id=book.id, chapter_id=ch1.id, scene_no=1, token_budget=1000)
+        # A non-draft job on the same pair must be ignored by both twins (each filters kind == "draft").
+        revise_job = Job(kind="revise_full", book_id=book.id, chapter_id=ch1.id, scene_no=1, token_budget=1000)
+        # ch2/scene 2 — the run2 call: packet only, so scene_id/job_id stay None in both.
+        sp2 = await seed_scene_packet(s, chapter=ch2, beat=None)
+        sp2.scene_no = 2
+        s.add_all([scene1, draft_job, revise_job])
+        await s.flush()
+
+        calls = await _book_rows(s, book.id)
+        assert len(calls) == 4  # author + qa (ch1/sc1), summary (no chapter/scene), drafter (ch2/sc2)
+
+        single = {c.id: await _resolve_links(s, c) for c in calls}
+        batched = await _links_for_calls(s, calls)
+
+        # Whole-object parity (also covers chapter_id/run_id), then the three nav fields explicitly.
+        assert single == batched
+        for c in calls:
+            a, b = single[c.id], batched[c.id]
+            assert (a.scene_packet_id, a.scene_id, a.job_id) == (b.scene_packet_id, b.scene_id, b.job_id)
+
+        # Anchor the parity to concrete non-trivial values so "both empty" can't pass by accident.
+        by_pair = {(c.chapter_id, c.scene_no): batched[c.id] for c in calls}
+        ch1_links = by_pair[(ch1.id, 1)]
+        assert (ch1_links.scene_packet_id, ch1_links.scene_id, ch1_links.job_id) == (sp1.id, scene1.id, draft_job.id)
+        ch2_links = by_pair[(ch2.id, 2)]
+        assert ch2_links.scene_packet_id == sp2.id and ch2_links.scene_id is None and ch2_links.job_id is None
+        none_links = by_pair[(None, None)]  # the seed's summary call: no chapter, no scene
+        assert none_links.scene_packet_id is None and none_links.scene_id is None and none_links.job_id is None

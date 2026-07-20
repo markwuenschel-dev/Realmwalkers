@@ -8,7 +8,7 @@ problems) for the debugging console.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import Annotated, Any
 
 import structlog
@@ -23,7 +23,7 @@ from dominion.api.telemetry_delete import (
 )
 from dominion.shared.enums import JobStatus
 from dominion.shared.job_policy import scope_jobs_to_book
-from dominion.shared.models import AgentRun, Chapter, Job, LlmCall, ProductionRun, Scene, ScenePacket
+from dominion.shared.models import Chapter, Job, LlmCall, Scene, ScenePacket
 from dominion.shared.schemas import (
     BookTelemetryOut,
     ChapterRollupOut,
@@ -48,14 +48,17 @@ from dominion.shared.schemas import (
 )
 from dominion.workers.telemetry_agg import (
     _totals,
+    book_telemetry_rollups,
     call_metadata,
+    compare_rollup,
+    compare_run_rows,
+    compare_stage_delta_sums,
     group_calls,
     pipeline_steps,
     scene_stage_summary,
     scene_stages,
     scene_status,
     sort_calls,
-    totals_from_model_rows,
 )
 from dominion.workers.telemetry_cost import estimate_calls_cost_usd
 from dominion.workers.telemetry_diagnostics import build_problems, problem_call_criteria
@@ -64,57 +67,9 @@ from dominion.workers.telemetry_draft_problems import detect_draft_not_ready
 log = structlog.get_logger()
 router = APIRouter(tags=["telemetry"])
 
-# Editorial-pipeline activity is a bounded recent feed (deterministic $0 agents can be numerous over a
-# book's life; the tab only needs the recent ones to show the pipeline is working).
-_EDITORIAL_RUN_LIMIT = 50
-
-# Job kinds (metadata->>'job_kind') that make up each side of the draft-vs-revision split. Anything
-# else (derive/planning calls with no job_kind) is neither and excluded — this is the original-drafting
-# vs repair comparison, not the whole book's spend.
-_KIND_BUCKETS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("draft", ("draft",)),
-    ("revision", ("revise_full", "revise_pass")),
-)
-
 
 def _group(calls: list[LlmCall], key: Callable[[LlmCall], object]) -> list[TelemetryGroupOut]:
     return [TelemetryGroupOut(key=k, **t) for k, t in group_calls(calls, key)]
-
-
-def _agg_cols():
-    """Aggregate columns for SQL-side rollups (the SELECT twin of `_totals`'s per-call sums). Grouping
-    always keeps `model` as the innermost dimension so per-model pricing applies to the sums — cost is
-    linear in tokens, so summed tokens price identically to per-call pricing (totals_from_model_rows)."""
-    return (
-        func.count().label("calls"),
-        func.coalesce(func.sum(LlmCall.input_tokens), 0).label("input_tokens"),
-        func.coalesce(func.sum(LlmCall.output_tokens), 0).label("output_tokens"),
-        func.coalesce(func.sum(LlmCall.cache_creation_tokens), 0).label("cache_creation_tokens"),
-        func.coalesce(func.sum(LlmCall.cache_read_tokens), 0).label("cache_read_tokens"),
-        func.count().filter(LlmCall.truncated.is_(True)).label("truncations"),
-        # Python treated empty-string errors as "no error" (`if c.error`), so the filter does too.
-        func.count().filter(LlmCall.error.isnot(None), LlmCall.error != "").label("errors"),
-        func.count().filter(LlmCall.metadata_["fallback_attempt"].astext == "true").label("fallbacks"),
-        # Sum + count (NULLs excluded) instead of AVG so avg_latency_ms keeps `int(sum/len)` semantics.
-        func.sum(LlmCall.latency_ms).label("latency_sum"),
-        func.count(LlmCall.latency_ms).label("latency_count"),
-    )
-
-
-def _group_rows(rows: Sequence[Any], key: str) -> list[TelemetryGroupOut]:
-    """SQL twin of `_group`: bucket per-model aggregate rows by `key` (skipping empty keys, like
-    group_calls), ordered by call count descending."""
-    buckets: dict[str, list[Any]] = {}
-    for r in rows:
-        k = getattr(r, key)
-        if k:
-            buckets.setdefault(str(k), []).append(r)
-    groups = sorted(
-        ((k, totals_from_model_rows(v)) for k, v in buckets.items()),
-        key=lambda kv: kv[1]["calls"],
-        reverse=True,
-    )
-    return [TelemetryGroupOut(key=k, **t) for k, t in groups]
 
 
 def _scene_out(scene_no: int | None, calls: list[LlmCall]) -> SceneTelemetryOut:
@@ -353,179 +308,19 @@ async def book_telemetry(
     limit: Annotated[int, Query(ge=1, le=100)] = 5,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> BookTelemetryOut:
-    chapters = {
-        ch.id: ch for ch in (await session.execute(select(Chapter).where(Chapter.book_id == book_id))).scalars()
-    }
-
-    # All rollups aggregate in SQL — the append-only exhaust is never materialized row-by-row. The
-    # (stage, model) grouping serves by_stage, by_model, and (rolled all the way up) the book totals.
-    stage_model_rows = (
-        await session.execute(
-            select(LlmCall.stage, LlmCall.model, *_agg_cols())
-            .where(LlmCall.book_id == book_id)
-            .group_by(LlmCall.stage, LlmCall.model)
-        )
-    ).all()
-
-    chapter_model_rows = (
-        await session.execute(
-            select(LlmCall.chapter_id, LlmCall.model, *_agg_cols())
-            .where(LlmCall.book_id == book_id, LlmCall.chapter_id.isnot(None))
-            .group_by(LlmCall.chapter_id, LlmCall.model)
-        )
-    ).all()
-    by_chapter_rows: dict[uuid.UUID, list[Any]] = {}
-    for r in chapter_model_rows:
-        by_chapter_rows.setdefault(r.chapter_id, []).append(r)
-    by_chapter = [
-        ChapterRollupOut(
-            chapter_id=cid,
-            chapter_no=(ch.chapter_no if (ch := chapters.get(cid)) else None),
-            title=(chapters[cid].title if cid in chapters else None),
-            **totals_from_model_rows(agg_rows),
-        )
-        for cid, agg_rows in by_chapter_rows.items()
-    ]
-    by_chapter.sort(key=lambda r: (r.chapter_no is None, r.chapter_no))
-
-    # by_run pages in SQL: newest-started runs first (run_id tiebreak keeps pages stable), with the
-    # unsliced group count as run_total — only the requested page's runs get aggregated.
-    run_groups = (
-        select(LlmCall.run_id, func.min(LlmCall.created_at).label("started_at"))
-        .where(LlmCall.book_id == book_id)
-        .group_by(LlmCall.run_id)
-    )
-    run_total = (await session.execute(select(func.count()).select_from(run_groups.subquery()))).scalar_one()
-    page = (
-        await session.execute(
-            run_groups.order_by(func.min(LlmCall.created_at).desc().nulls_last(), LlmCall.run_id)
-            .offset(offset)
-            .limit(limit)
-        )
-    ).all()
-    by_run: list[RunRollupOut] = []
-    if page:
-        page_ids = [r.run_id for r in page]
-        run_match = LlmCall.run_id.in_([rid for rid in page_ids if rid is not None])
-        if None in page_ids:  # legacy rows predate run_id
-            run_match = or_(run_match, LlmCall.run_id.is_(None))
-        run_model_rows = (
-            await session.execute(
-                select(LlmCall.run_id, LlmCall.chapter_id, LlmCall.model, *_agg_cols())
-                .where(LlmCall.book_id == book_id, run_match)
-                .group_by(LlmCall.run_id, LlmCall.chapter_id, LlmCall.model)
-            )
-        ).all()
-        by_run_rows: dict[uuid.UUID | None, list[Any]] = {}
-        for r in run_model_rows:
-            by_run_rows.setdefault(r.run_id, []).append(r)
-        for page_row in page:
-            agg_rows = by_run_rows.get(page_row.run_id, [])
-            cid = next((r.chapter_id for r in agg_rows if r.chapter_id is not None), None)
-            ch = chapters.get(cid) if cid is not None else None
-            by_run.append(
-                RunRollupOut(
-                    run_id=page_row.run_id,
-                    started_at=page_row.started_at,
-                    chapter_id=cid,
-                    chapter_no=ch.chapter_no if ch else None,
-                    title=ch.title if ch else None,
-                    **totals_from_model_rows(agg_rows),
-                )
-            )
-
-    # by_production_run: the already-captured draft+repair spend, grouped by the soft production_run_id
-    # link. Same measures as by_run; status/chapter_no come from production_runs (cheap join in Python).
-    prod_model_rows = (
-        await session.execute(
-            select(LlmCall.production_run_id, LlmCall.chapter_id, LlmCall.model, *_agg_cols())
-            .where(LlmCall.book_id == book_id, LlmCall.production_run_id.isnot(None))
-            .group_by(LlmCall.production_run_id, LlmCall.chapter_id, LlmCall.model)
-        )
-    ).all()
-    by_production_run: list[ProductionRunRollupOut] = []
-    if prod_model_rows:
-        prod_runs = {
-            pr.id: pr
-            for pr in (await session.execute(select(ProductionRun).where(ProductionRun.book_id == book_id))).scalars()
-        }
-        by_prod_rows: dict[uuid.UUID, list[Any]] = {}
-        for r in prod_model_rows:
-            by_prod_rows.setdefault(r.production_run_id, []).append(r)
-        for prid, agg_rows in by_prod_rows.items():
-            pr = prod_runs.get(prid)
-            cid = pr.chapter_id if pr else next((r.chapter_id for r in agg_rows if r.chapter_id is not None), None)
-            ch = chapters.get(cid) if cid is not None else None
-            by_production_run.append(
-                ProductionRunRollupOut(
-                    production_run_id=prid,
-                    chapter_id=cid,
-                    chapter_no=ch.chapter_no if ch else None,
-                    status=pr.status if pr else None,
-                    **totals_from_model_rows(agg_rows),
-                )
-            )
-        by_production_run.sort(key=lambda r: (r.estimated_cost_usd, r.calls), reverse=True)
-
-    # by_kind: draft vs revision (from metadata->>'job_kind'). One small per-bucket query grouped by
-    # model only — the job_kind filter lives in WHERE, so nothing groups by a JSON expression (which
-    # renders mismatched bound params in SELECT vs GROUP BY and trips Postgres). Empty buckets drop out.
-    by_kind: list[TelemetryGroupOut] = []
-    for label, kinds in _KIND_BUCKETS:
-        kind_rows = (
-            await session.execute(
-                select(LlmCall.model, *_agg_cols())
-                .where(LlmCall.book_id == book_id, LlmCall.metadata_["job_kind"].astext.in_(kinds))
-                .group_by(LlmCall.model)
-            )
-        ).all()
-        if kind_rows:
-            by_kind.append(TelemetryGroupOut(key=label, **totals_from_model_rows(kind_rows)))
-    by_kind.sort(key=lambda g: g.calls, reverse=True)
-
-    # editorial_runs: the deterministic orchestration agents that ran for this book's production runs.
-    # No LLM call, no cost — this is pipeline-activity visibility, bounded to the recent feed.
-    editorial_rows = (
-        await session.execute(
-            select(
-                AgentRun.production_run_id,
-                AgentRun.agent_name,
-                AgentRun.agent_role,
-                AgentRun.stage,
-                AgentRun.status,
-                AgentRun.duration_ms,
-                AgentRun.started_at,
-            )
-            .join(ProductionRun, ProductionRun.id == AgentRun.production_run_id)
-            .where(ProductionRun.book_id == book_id)
-            .order_by(func.coalesce(AgentRun.started_at, AgentRun.created_at).desc())
-            .limit(_EDITORIAL_RUN_LIMIT)
-        )
-    ).all()
-    editorial_runs = [
-        EditorialAgentRunOut(
-            production_run_id=r.production_run_id,
-            agent_name=r.agent_name,
-            agent_role=r.agent_role,
-            stage=r.stage,
-            status=r.status,
-            duration_ms=r.duration_ms,
-            started_at=r.started_at,
-            cost_usd=0.0,
-        )
-        for r in editorial_rows
-    ]
-
+    # Worker aggregates every rollup in SQL and returns plain dicts/tuples; the router owns the schema
+    # wrapping (and, elsewhere, the 404s). Behaviour-preserving — see book_telemetry_rollups.
+    r = await book_telemetry_rollups(session, book_id, limit=limit, offset=offset)
     return BookTelemetryOut(
-        totals=TelemetryTotals(**totals_from_model_rows(stage_model_rows)),
-        by_chapter=by_chapter,
-        by_run=by_run,
-        run_total=run_total,
-        by_stage=_group_rows(stage_model_rows, "stage"),
-        by_model=_group_rows(stage_model_rows, "model"),
-        by_production_run=by_production_run,
-        by_kind=by_kind,
-        editorial_runs=editorial_runs,
+        totals=TelemetryTotals(**r.totals),
+        by_chapter=[ChapterRollupOut(**d) for d in r.by_chapter],
+        by_run=[RunRollupOut(**d) for d in r.by_run],
+        run_total=r.run_total,
+        by_stage=[TelemetryGroupOut(key=k, **t) for k, t in r.by_stage],
+        by_model=[TelemetryGroupOut(key=k, **t) for k, t in r.by_model],
+        by_production_run=[ProductionRunRollupOut(**d) for d in r.by_production_run],
+        by_kind=[TelemetryGroupOut(key=k, **t) for k, t in r.by_kind],
+        editorial_runs=[EditorialAgentRunOut(**d) for d in r.editorial_runs],
     )
 
 
@@ -685,55 +480,18 @@ async def compare_runs(
         ch.id: ch for ch in (await session.execute(select(Chapter).where(Chapter.book_id == book_id))).scalars()
     }
 
-    async def _run_rows(rid: uuid.UUID) -> Sequence[Any]:
-        # One grouped query per run serves both the rollup and the per-stage deltas.
-        rows = (
-            await session.execute(
-                select(
-                    LlmCall.stage,
-                    LlmCall.chapter_id,
-                    LlmCall.model,
-                    *_agg_cols(),
-                    func.min(LlmCall.created_at).label("started_at"),
-                )
-                .where(LlmCall.run_id == rid)
-                .group_by(LlmCall.stage, LlmCall.chapter_id, LlmCall.model)
-            )
-        ).all()
-        if not rows:
-            raise HTTPException(status_code=404, detail=f"Run {rid} not found")
-        return rows
-
-    def _rollup(rid: uuid.UUID, rows: Sequence[Any]) -> RunRollupOut:
-        cid = next((r.chapter_id for r in rows if r.chapter_id is not None), None)
-        ch = chapters.get(cid) if cid else None
-        return RunRollupOut(
-            run_id=rid,
-            started_at=min(r.started_at for r in rows),
-            chapter_id=cid,
-            chapter_no=ch.chapter_no if ch else None,
-            title=ch.title if ch else None,
-            **totals_from_model_rows(rows),
-        )
-
-    def _stage_sums(rows: Sequence[Any]) -> dict[str, dict[str, int]]:
-        out: dict[str, dict[str, int]] = {}
-        for r in rows:
-            if not r.stage:  # group_calls skipped empty keys
-                continue
-            t = out.setdefault(str(r.stage), {"calls": 0, "input_tokens": 0, "output_tokens": 0, "truncations": 0})
-            t["calls"] += r.calls
-            t["input_tokens"] += r.input_tokens
-            t["output_tokens"] += r.output_tokens
-            t["truncations"] += r.truncations
-        return out
-
-    rows_a = await _run_rows(run_a)
-    rows_b = await _run_rows(run_b)
-    ra = _rollup(run_a, rows_a)
-    rb = _rollup(run_b, rows_b)
-    stages_a = _stage_sums(rows_a)
-    stages_b = _stage_sums(rows_b)
+    # Worker runs one grouped query per run and returns rows/dicts; the router raises the 404s (a run
+    # with no calls comes back as [], exactly as the inline version raised) and owns the schema wrap.
+    rows_a = await compare_run_rows(session, run_a)
+    if not rows_a:
+        raise HTTPException(status_code=404, detail=f"Run {run_a} not found")
+    rows_b = await compare_run_rows(session, run_b)
+    if not rows_b:
+        raise HTTPException(status_code=404, detail=f"Run {run_b} not found")
+    ra = RunRollupOut(**compare_rollup(run_a, rows_a, chapters))
+    rb = RunRollupOut(**compare_rollup(run_b, rows_b, chapters))
+    stages_a = compare_stage_delta_sums(rows_a)
+    stages_b = compare_stage_delta_sums(rows_b)
     all_stages = sorted(set(stages_a) | set(stages_b))
     deltas = [
         StageDeltaOut(
