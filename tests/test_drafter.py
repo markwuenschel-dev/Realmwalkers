@@ -65,11 +65,14 @@ async def test_drafter_includes_phase2_context_when_present(monkeypatch):
     )
     await drafter.run(None, ctx)
 
-    # canon + pov_summary are stable and go into the cached user_prefix; knowledge_injections
+    # canon + pov_summary are stable and go into a single cached "user_prefix" block; knowledge_injections
     # are per-call volatile and stay in the main user message.
-    user_prefix = captured["user_prefix"]
-    assert "Eyes of Meszkhal" in user_prefix
-    assert "has just woken" in user_prefix
+    prefix_blocks = captured["user_prefix_blocks"]
+    assert len(prefix_blocks) == 1
+    (prefix_block,) = prefix_blocks
+    assert prefix_block.name == "user_prefix"
+    assert "Eyes of Meszkhal" in prefix_block.text
+    assert "has just woken" in prefix_block.text
     assert "not the truth of the place" in captured["user"]
 
 

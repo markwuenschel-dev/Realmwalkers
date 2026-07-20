@@ -90,3 +90,36 @@ async def test_lifespan_boot_runs_against_test_db(app_client: httpx.AsyncClient,
     async with db_factory() as session:
         state = await session.get(JobIntegrityState, 1)
     assert state is not None, "lifespan boot did not run / did not write JobIntegrityState(id=1)"
+
+
+async def test_post_then_get_books_round_trips_through_http(app_client: httpx.AsyncClient) -> None:
+    """STATEFUL E2E-GATE.
+
+    The single-shot smoke tests above each prove one request works in isolation; none prove that a
+    write PERSISTS and is visible to a later, independent request. This is that missing check: a
+    POST /books, then a SEPARATE fresh GET /books, and the created book must appear in the list.
+
+    Two independent HTTP round-trips against the same ASGI app + test DB pass only if all of these
+    cooperate end to end: URL routing to `create_book`/`list_books`, `Depends(SessionDep)` DI bound
+    to the per-test factory, request-body validation of `BookIn`, the handler's EXPLICIT
+    `session.commit()` (a mutating handler that forgot to commit would smoke-test green on the POST
+    yet vanish here), and `response_model=BookOut` serialization on both the create echo and the list.
+    Asserting BOTH `id` and `title` cross the boundary makes it a true persistence contract, not just
+    a status-code probe.
+    """
+    title = "E2E-GATE round-trip book"
+
+    created = await app_client.post("/books", json={"title": title})
+    assert created.status_code == 200, created.text
+    created_body = created.json()
+    book_id = created_body["id"]
+    assert created_body["title"] == title, created_body
+
+    # A SEPARATE, fresh request/response cycle through the same app — not a reuse of the POST response.
+    listed = await app_client.get("/books")
+    assert listed.status_code == 200, listed.text
+    books = listed.json()
+    assert isinstance(books, list), books
+    match = next((b for b in books if b["id"] == book_id), None)
+    assert match is not None, f"created book {book_id} not visible in GET /books: {books}"
+    assert match["title"] == title, match

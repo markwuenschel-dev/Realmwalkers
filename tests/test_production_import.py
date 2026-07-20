@@ -23,6 +23,42 @@ def test_production_module_imports_without_cycle():
     assert result.returncode == 0, f"importing dominion.workers.production failed:\n{result.stderr}"
 
 
+def test_production_fidelity_module_imports_without_cycle():
+    """REPAIR-GOD: the extracted SceneFidelity production lane imports cleanly in a fresh interpreter
+    (it pulls in production_repair for the public queue seam — that direction is fine)."""
+    src = Path(__file__).resolve().parent.parent / "src"
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(src), os.environ.get("PYTHONPATH", "")])}
+    result = subprocess.run(
+        [sys.executable, "-c", "import dominion.workers.production_fidelity"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, f"importing dominion.workers.production_fidelity failed:\n{result.stderr}"
+
+
+def test_production_repair_does_not_import_production_fidelity():
+    """One-way seam (REPAIR-GOD): production_fidelity imports production_repair, NEVER the reverse. A
+    fresh interpreter importing only production_repair must not transitively load production_fidelity —
+    otherwise the two lanes form a cycle."""
+    src = Path(__file__).resolve().parent.parent / "src"
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(src), os.environ.get("PYTHONPATH", "")])}
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, dominion.workers.production_repair; "
+            "assert 'dominion.workers.production_fidelity' not in sys.modules",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, (
+        f"production_repair transitively imported production_fidelity (import graph is not one-way):\n{result.stderr}"
+    )
+
+
 def test_facade_carries_no_dead_passthrough_shims():
     """PROD-FACADE: the facade must not carry zero-caller pass-through shims. The deleted ones stay
     deleted; the live wrappers (real callers: derive_contract_classification internally, the rest via

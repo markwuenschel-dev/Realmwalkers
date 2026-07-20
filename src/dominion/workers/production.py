@@ -42,7 +42,7 @@ from dominion.shared.severity import is_blocking
 # Hoisted to module scope: production_sequence / production_repair do NOT import production back (nor does
 # anything in their import closure), so the old circular-import guard — a local re-import inside every
 # delegating function — was unnecessary. tests/test_production_import.py pins that this stays acyclic.
-from dominion.workers import production_repair, production_sequence
+from dominion.workers import production_fidelity, production_repair, production_sequence
 from dominion.workers import production_support as support
 
 # L6 (run orchestration): pure stage machine — pinned stage strings + deterministic gates that must
@@ -496,7 +496,7 @@ async def create_production_run(
         # HUMAN_REQUIRED Issues + operational holds (ADR 0018). Additive/advisory — guarded so a triage
         # bug can never break the run's own triage (a legacy chapter with no active fidelity is a no-op).
         try:
-            await production_repair.triage_scene_fidelity_for_production(session, run=run)
+            await production_fidelity.triage_scene_fidelity_for_production(session, run=run)
         except Exception as exc:  # pragma: no cover - defensive; fidelity triage never blocks a run
             await support.record_event(
                 session,
@@ -538,8 +538,8 @@ async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> Pro
 
 
 async def triage_scene_fidelity_for_production(session: AsyncSession, *, run: ProductionRun):
-    """Facade seam for SceneFidelity production triage (ADR 0018) — see production_repair."""
-    return await production_repair.triage_scene_fidelity_for_production(session, run=run)
+    """Facade seam for SceneFidelity production triage (ADR 0018) — see production_fidelity."""
+    return await production_fidelity.triage_scene_fidelity_for_production(session, run=run)
 
 
 async def apply_repair_task(
