@@ -29,21 +29,10 @@ from dominion.shared.schemas import (
     ParsedSceneOut,
 )
 from dominion.workers import planner
-from dominion.workers.memory import summaries
 from dominion.workers.memory.manuscript_split import split_files
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/books", tags=["manuscript"])
-
-
-async def _fold_imported(scene_id: uuid.UUID) -> None:
-    """Best-effort background fold of a directly-approved imported scene into the summaries (own
-    session; mirrors chapters._fold_summary). PENDING_REVIEW imports fold later, on inbox approval."""
-    try:
-        async with SessionFactory() as session:
-            await summaries.refresh_on_approval(session, scene_id=scene_id)
-    except Exception as exc:  # noqa: BLE001 — the fold is advisory, never part of the import contract
-        log.warning("manuscript_import.summary_fold_failed", scene=str(scene_id), error=str(exc))
 
 
 async def _auto_title_chapter(chapter_id: uuid.UUID) -> None:
@@ -116,20 +105,29 @@ async def import_manuscript(
 ) -> ManuscriptImportReport:
     """Import the confirmed chapter/scene structure. Chapters upsert by (book_id, chapter_no) — a
     chapter number that already exists is refused (reported in skipped_conflicts) unless that chapter
-    carries overwrite=True. Scenes land as `imported`-sourced, PENDING_REVIEW by default (or APPROVED
-    when approve_directly), superseding any prior version at their scene_no. No LLM title call, and no
-    summary fold on the review path — folds happen when each scene is approved in the inbox."""
+    carries overwrite=True. Scenes land as `imported`-sourced and PENDING_REVIEW — imports are never
+    approved directly (ADR 0028; the guard below rejects approve_directly), superseding any prior
+    version at their scene_no. No LLM title call, and no summary fold on the review path — folds happen
+    when each scene is approved in the inbox."""
     book = await session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="book not found")
     if not body.chapters:
         raise HTTPException(status_code=400, detail="no chapters to import")
+    # ADR 0028 (Slice 2, soft-enforce): imported prose must not become canonical without a contract.
+    # The skip-review rail is retired for imports — they land in review; adoption (Slice 3) becomes the
+    # path to a contract. Existing contractless-approved imports get an explicit operator escape later.
+    if body.approve_directly:
+        raise HTTPException(
+            status_code=422,
+            detail="imported scenes cannot be approved directly; they land in review and become canonical "
+            "only through an approved contract (ADR 0028)",
+        )
 
-    status = SceneStatus.APPROVED if body.approve_directly else SceneStatus.PENDING_REVIEW
+    status = SceneStatus.PENDING_REVIEW  # imports always enter the review inbox (approve_directly rejected above)
     created = updated = imported = 0
     skipped: list[int] = []
     warnings: list[str] = []
-    fold_ids: list[uuid.UUID] = []
     auto_title_ids: set[uuid.UUID] = set()
 
     # Reading order is computed from kind + number (shared/chapter_order.py), never a raw number. `seq`
@@ -214,13 +212,8 @@ async def import_manuscript(
                 prior.status = SceneStatus.SUPERSEDED
             session.add(scene)
             imported += 1
-            if body.approve_directly:
-                await session.flush()  # need scene.id for the background fold
-                fold_ids.append(scene.id)
 
     await session.commit()
-    for sid in fold_ids:
-        background.add_task(_fold_imported, sid)
     for cid in auto_title_ids:
         background.add_task(_auto_title_chapter, cid)
 

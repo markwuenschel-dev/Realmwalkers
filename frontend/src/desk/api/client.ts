@@ -81,6 +81,7 @@ import type {
   RepairApplyAllOut,
   RepairTaskOut,
   RepairVerificationOut,
+  RevisionRequestOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
   RunCompareOut,
@@ -164,6 +165,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  // The scene's current durable revision request (ADR 0028), with its server-derived phase. 404 when
+  // the scene has none — callers treat that as "no active revision intent".
+  getRevisionRequest: (id: string) => http<RevisionRequestOut>(`/scenes/${id}/revision-request`),
   resolveContinuity: (id: string, body: ContinuityResolveIn) =>
     http<{ resolved: string; job: string | null }>(`/scenes/${id}/continuity/resolve`, {
       method: "POST",

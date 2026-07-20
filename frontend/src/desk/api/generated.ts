@@ -189,6 +189,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/scenes/{scene_id}/revision-request": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Revision Request
+     * @description The scene's current (most-recent) durable revision request, with its server-derived phase — the
+     *     Desk banner reads this to show an imported / awaiting-contract scene its next action (ADR 0028).
+     */
+    get: operations["get_revision_request_scenes__scene_id__revision_request_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/scenes/{scene_id}/continuity/resolve": {
     parameters: {
       query?: never;
@@ -3018,9 +3039,10 @@ export interface paths {
      * Import Manuscript
      * @description Import the confirmed chapter/scene structure. Chapters upsert by (book_id, chapter_no) — a
      *     chapter number that already exists is refused (reported in skipped_conflicts) unless that chapter
-     *     carries overwrite=True. Scenes land as `imported`-sourced, PENDING_REVIEW by default (or APPROVED
-     *     when approve_directly), superseding any prior version at their scene_no. No LLM title call, and no
-     *     summary fold on the review path — folds happen when each scene is approved in the inbox.
+     *     carries overwrite=True. Scenes land as `imported`-sourced and PENDING_REVIEW — imports are never
+     *     approved directly (ADR 0028; the guard below rejects approve_directly), superseding any prior
+     *     version at their scene_no. No LLM title call, and no summary fold on the review path — folds happen
+     *     when each scene is approved in the inbox.
      */
     post: operations["import_manuscript_books__book_id__manuscript_import_post"];
     delete?: never;
@@ -4826,6 +4848,8 @@ export interface components {
       feedback?: string | null;
       /** Edited Prose */
       edited_prose?: string | null;
+      /** Expected Prose Hash */
+      expected_prose_hash?: string | null;
     };
     /**
      * DeleteChapterPacketOut
@@ -7137,6 +7161,67 @@ export interface components {
       skipped: components["schemas"]["DraftQueueBlockerOut"][];
     };
     /**
+     * RevisionRequestOut
+     * @description Durable author edit-intent, as the wire sees it (ADR 0028). `display_phase` + `required_action`
+     *     are server-derived from `status`, never stored.
+     */
+    RevisionRequestOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /**
+       * Target Scene Id
+       * Format: uuid
+       */
+      target_scene_id: string;
+      /** Scene No */
+      scene_no: number;
+      /** Target Scene Version */
+      target_scene_version: number;
+      /** Target Prose Hash */
+      target_prose_hash: string;
+      /** Feedback */
+      feedback: string | null;
+      /** Target Pass */
+      target_pass: string | null;
+      /** Origin */
+      origin: string;
+      /** Status */
+      status: string;
+      /** Display Phase */
+      display_phase: string;
+      /** Required Action */
+      required_action: string | null;
+      /** Job Id */
+      job_id: string | null;
+      /** Import Adoption Id */
+      import_adoption_id: string | null;
+      /** Result Scene Id */
+      result_scene_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
      * RuleProposalDecisionIn
      * @description Accept or reject a proposed rule. On accept, `rule_text` (if set) replaces the proposed text,
      *     so the author can edit a rule before it lands in the POV's voice spec.
@@ -8770,6 +8855,37 @@ export interface operations {
           "application/json": {
             [key: string]: string | null;
           };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_revision_request_scenes__scene_id__revision_request_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scene_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RevisionRequestOut"];
         };
       };
       /** @description Validation Error */

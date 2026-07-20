@@ -20,11 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from dominion.shared import agent_ops, job_policy
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import JobStatus
+from dominion.shared.enums import JobStatus, RevisionRequestStatus
 from dominion.shared.models import Job, ProductionRun
 from dominion.workers import activity, background_work, progress, run_stages
 from dominion.workers.llm import find_rate_limit
 from dominion.workers.pipeline import generate_one_scene
+from dominion.workers.revision import mirror_job_status_to_request
 
 log = structlog.get_logger()
 WORKER_ID = f"worker-{os.getpid()}"
@@ -79,6 +80,11 @@ async def claim_one_job(session: AsyncSession) -> Job | None:
     job.status = JobStatus.RUNNING
     job.claimed_by = WORKER_ID
     job.claimed_at = datetime.now(UTC)
+    # Mirror the claim onto a linked revise request (ADR 0028): once it is RUNNING, a concurrent
+    # different-feedback revise is refused (revision_in_progress) instead of spawning a second job.
+    await mirror_job_status_to_request(
+        session, revision_request_id=job.revision_request_id, request_status=RevisionRequestStatus.RUNNING
+    )
     await session.flush()
     return job
 
@@ -109,11 +115,17 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         job_chapter_no = job.chapter_no
         job_scene_no = job.scene_no
         job_book_id = job.book_id
+        job_revision_request_id = job.revision_request_id
         progress.set_phase(str(job_id), "starting")
         try:
             scene = await asyncio.wait_for(generate_one_scene(session, job), timeout=settings.scene_time_budget_s)
             job.status = JobStatus.DONE
             job.finished_at = datetime.now(UTC)
+            # A linked revise request completes with its job (ADR 0028) — clears RUNNING so it no longer
+            # blocks, and reads as review-ready rather than stuck.
+            await mirror_job_status_to_request(
+                session, revision_request_id=job_revision_request_id, request_status=RevisionRequestStatus.COMPLETED
+            )
             # Stamp the produced scene so /jobs/recent can join word counts for draft jobs too
             # (fresh drafts otherwise never carry target_scene_id — only revisions do).
             if job.target_scene_id is None:
@@ -147,6 +159,11 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
                 update(Job)
                 .where(Job.id == job_id)
                 .values(status=JobStatus.FAILED, last_error=last_error, finished_at=datetime.now(UTC))
+            )
+            # A linked revise request fails with its job (ADR 0028) — clears RUNNING so Retry can
+            # reactivate it rather than seeing a request wedged in progress.
+            await mirror_job_status_to_request(
+                session, revision_request_id=job_revision_request_id, request_status=RevisionRequestStatus.FAILED
             )
             if error_kind == INFRA_RATE_LIMIT and production_run_id is not None:
                 # The run is not broken and neither is the contract — the provider refused the call.

@@ -111,16 +111,18 @@ describe("ManuscriptEditor", () => {
     expect(lastPayload().chapters[0].pov).toBe("Marcus");
   });
 
-  it("passes the accept-directly and auto-title toggles into the import payload", async () => {
+  it("always imports for review — approve_directly is never sent true (ADR 0028), auto-title passes", async () => {
     vi.mocked(api.importManuscript).mockResolvedValue(REPORT);
     render(<ManuscriptEditor parsed={PARSED} bookId="book-1" onImported={vi.fn()} />);
 
+    // The "accept directly (skip review)" checkbox is gone — imports become canonical only through an
+    // approved contract, so the payload always carries approve_directly=false.
+    expect(screen.queryByLabelText("accept directly (skip review)")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("auto-generate titles"));
-    fireEvent.click(screen.getByLabelText("accept directly (skip review)"));
-    fireEvent.click(screen.getByRole("button", { name: /Import 2 scenes \(accept directly\)/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Import 2 scenes for review/ }));
     await waitFor(() => expect(api.importManuscript).toHaveBeenCalled());
 
-    expect(lastPayload().approve_directly).toBe(true);
+    expect(lastPayload().approve_directly).toBe(false);
     expect(lastPayload().auto_title).toBe(true);
   });
 

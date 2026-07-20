@@ -64,6 +64,34 @@ class DecisionIn(BaseModel):
     target_pass: str | None = None  # set to scope a revision to one specialist pass
     feedback: str | None = None
     edited_prose: str | None = None  # hand-edit in the inbox -> becomes canonical text
+    # REQUIRED for decision=revise (ADR 0028): the prose hash the client last saw, an optimistic-
+    # concurrency token. A mismatch vs the scene's current prose is a 409 scene_changed; absent on a
+    # revise it is a 422. Unused by approve/deny, so it stays optional on the shared body.
+    expected_prose_hash: str | None = None
+
+
+class RevisionRequestOut(BaseModel):
+    """Durable author edit-intent, as the wire sees it (ADR 0028). `display_phase` + `required_action`
+    are server-derived from `status`, never stored."""
+
+    id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_id: uuid.UUID
+    target_scene_id: uuid.UUID
+    scene_no: int
+    target_scene_version: int
+    target_prose_hash: str
+    feedback: str | None
+    target_pass: str | None
+    origin: str
+    status: str
+    display_phase: str
+    required_action: str | None
+    job_id: uuid.UUID | None
+    import_adoption_id: uuid.UUID | None
+    result_scene_id: uuid.UUID | None
+    created_at: datetime
+    updated_at: datetime
 
 
 class RunIn(BaseModel):

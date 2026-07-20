@@ -100,8 +100,13 @@ async def revision_job_for_scene(
     run: Run | None,
     target_pass: str | None,
     production_run_id: uuid.UUID | None = None,
+    revision_request_id: uuid.UUID | None = None,
 ) -> Job:
-    """A revision job targeting an existing scene, with direct IDs resolved from the scene + its beat."""
+    """A revision job targeting an existing scene, with direct IDs resolved from the scene + its beat.
+
+    `revision_request_id` links the job to the durable RevisionRequest that authorized it (ADR 0028);
+    the revision-context loader resolves feedback through that link.
+    """
     beat = await _beat_for_scene(session, chapter_id=scene.chapter_id, scene_no=scene.scene_no)
     job = Job(
         run_id=run.id if run else None,
@@ -116,6 +121,7 @@ async def revision_job_for_scene(
         scene_no=scene.scene_no,
         token_budget=run.token_budget if run else settings.scene_token_budget,
         status=JobStatus.QUEUED,
+        revision_request_id=revision_request_id,
     )
     if production_run_id:
         job.production_run_id = production_run_id

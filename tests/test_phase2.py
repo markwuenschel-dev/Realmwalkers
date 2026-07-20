@@ -3,7 +3,7 @@ revise pipeline, continuity resolution. LLM calls (drafter/summaries) are mocked
 
 from __future__ import annotations
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, Response
 from sqlalchemy import select
 
 from dominion.api.routers import reviews
@@ -33,6 +33,7 @@ from dominion.workers import llm, worker
 from dominion.workers.budget import Usage
 from dominion.workers.job_scheduler import schedule_next_after_approval
 from dominion.workers.memory import canon_rag, ledger, summaries
+from dominion.workers.revision import prose_hash
 from dominion.workers.specialists import drafter as drafter_mod
 from tests.conftest import seed_scene_packet
 
@@ -161,7 +162,7 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
         await _beat(s, ch, 1, esc={"Marcus": {"level": "+1"}})
         await _beat(s, ch, 2)  # the next scene's beat exists -> auto-advance fires
         sc1 = await _scene(s, ch, 1, prose="Marcus wakes.")
-        result = await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks())
+        result = await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks(), Response())
         await s.commit()
         assert result["status"] == "approved"
         assert result["next_job"] is not None
@@ -194,7 +195,7 @@ async def test_reapprove_does_not_double_apply_deltas_or_readvance(db_factory, m
         await _beat(s, ch, 1, esc={"Marcus": {"level": "+1"}})
         await _beat(s, ch, 2)
         sc1 = await _scene(s, ch, 1, prose="Marcus wakes.")
-        await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks())
+        await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks(), Response())
         await s.commit()
 
         result = await reviews.decide(
@@ -202,6 +203,7 @@ async def test_reapprove_does_not_double_apply_deltas_or_readvance(db_factory, m
             DecisionIn(decision=Decision.APPROVE, edited_prose="Marcus wakes, edited."),
             s,
             BackgroundTasks(),
+            Response(),
         )
         await s.commit()
 
@@ -230,9 +232,14 @@ async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
         sc1 = await _scene(s, ch, 1, prose="Marcus slowly woke up. It was a sky.")
         out = await reviews.decide(
             sc1.id,
-            DecisionIn(decision=Decision.REVISE, feedback="Cut the throat-clearing; open mid-action."),
+            DecisionIn(
+                decision=Decision.REVISE,
+                feedback="Cut the throat-clearing; open mid-action.",
+                expected_prose_hash=prose_hash(sc1.prose),
+            ),
             s,
             BackgroundTasks(),
+            Response(),
         )
         await s.commit()
         assert out["status"] == "revision_requested" and out["next_job"] is not None
