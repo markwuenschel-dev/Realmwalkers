@@ -453,6 +453,50 @@
         }
       }
     },
+    "/scenes/{scene_id}/revision-request": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Revision Request",
+        "description": "The scene's current (most-recent) durable revision request, with its server-derived phase \u2014 the\nDesk banner reads this to show an imported / awaiting-contract scene its next action (ADR 0028).",
+        "operationId": "get_revision_request_scenes__scene_id__revision_request_get",
+        "parameters": [
+          {
+            "name": "scene_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scenes/{scene_id}/continuity/resolve": {
       "post": {
         "tags": [
@@ -8982,7 +9026,7 @@
           "manuscript"
         ],
         "summary": "Import Manuscript",
-        "description": "Import the confirmed chapter/scene structure. Chapters upsert by (book_id, chapter_no) \u2014 a\nchapter number that already exists is refused (reported in skipped_conflicts) unless that chapter\ncarries overwrite=True. Scenes land as `imported`-sourced, PENDING_REVIEW by default (or APPROVED\nwhen approve_directly), superseding any prior version at their scene_no. No LLM title call, and no\nsummary fold on the review path \u2014 folds happen when each scene is approved in the inbox.",
+        "description": "Import the confirmed chapter/scene structure. Chapters upsert by (book_id, chapter_no) \u2014 a\nchapter number that already exists is refused (reported in skipped_conflicts) unless that chapter\ncarries overwrite=True. Scenes land as `imported`-sourced and PENDING_REVIEW \u2014 imports are never\napproved directly (ADR 0028; the guard below rejects approve_directly), superseding any prior\nversion at their scene_no. No LLM title call, and no summary fold on the review path \u2014 folds happen\nwhen each scene is approved in the inbox.",
         "operationId": "import_manuscript_books__book_id__manuscript_import_post",
         "parameters": [
           {
@@ -13324,6 +13368,17 @@
               }
             ],
             "title": "Edited Prose"
+          },
+          "expected_prose_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Prose Hash"
           }
         },
         "type": "object",
@@ -18347,6 +18402,156 @@
         "type": "object",
         "title": "RetryFailedOut",
         "description": "Result of re-queuing FAILED jobs (contract-first: reconciles fresh ScenePackets)."
+      },
+      "RevisionRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "target_scene_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Scene Id"
+          },
+          "scene_no": {
+            "type": "integer",
+            "title": "Scene No"
+          },
+          "target_scene_version": {
+            "type": "integer",
+            "title": "Target Scene Version"
+          },
+          "target_prose_hash": {
+            "type": "string",
+            "title": "Target Prose Hash"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          },
+          "target_pass": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Pass"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "display_phase": {
+            "type": "string",
+            "title": "Display Phase"
+          },
+          "required_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Action"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "import_adoption_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Adoption Id"
+          },
+          "result_scene_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Scene Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "book_id",
+          "chapter_id",
+          "target_scene_id",
+          "scene_no",
+          "target_scene_version",
+          "target_prose_hash",
+          "feedback",
+          "target_pass",
+          "origin",
+          "status",
+          "display_phase",
+          "required_action",
+          "job_id",
+          "import_adoption_id",
+          "result_scene_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RevisionRequestOut",
+        "description": "Durable author edit-intent, as the wire sees it (ADR 0028). `display_phase` + `required_action`\nare server-derived from `status`, never stored."
       },
       "RuleProposalDecisionIn": {
         "properties": {
