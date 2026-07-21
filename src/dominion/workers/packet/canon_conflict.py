@@ -1,9 +1,10 @@
 """Author-time manuscript-vs-canon conflict detection (ADR 0028 Slice 3b / ADR 0029).
 
-Q5: at ChapterPacket author time, a manuscript-evidence claim that has been flagged as a *candidate*
-canon conflict is re-anchored against LIVE retrieved locked canon before it is trusted. The candidate is
-NOT taken from the extractor's `import_evidence.py` `canon_conflicts` ledger section — those are
-prose-only hints with no canon fingerprint. A candidate becomes a real, human-adjudicable open question
+Q5: at ChapterPacket author time, a manuscript-evidence claim flagged as a *candidate* canon conflict is
+re-anchored against LIVE retrieved locked canon before it is trusted. Candidates are taken as unconfirmed
+hints from the extractor's `canon_conflicts` ledger section, then re-anchored against live canon before
+they are trusted — those hints are prose-only, with no canon fingerprint, which is exactly why the
+re-anchor is mandatory, not optional. A candidate becomes a real, human-adjudicable open question
 ONLY when it re-anchors to BOTH sides:
 
   - the M# side: a valid immutable anchor into the imported-prose snapshot (a `prose_hash` plus a
