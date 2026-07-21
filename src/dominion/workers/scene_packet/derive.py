@@ -25,9 +25,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.config import settings
-from dominion.shared.enums import ScenePacketStatus
+from dominion.shared.enums import ImportAdoptionStatus, ScenePacketStatus
 from dominion.shared.grading import build_grade
-from dominion.shared.models import Beat, Chapter, ChapterPacket, Scene, ScenePacket, Summary
+from dominion.shared.models import (
+    Beat,
+    Chapter,
+    ChapterPacket,
+    ImportAdoption,
+    Scene,
+    ScenePacket,
+    Summary,
+)
 from dominion.shared.text_match import as_str_list, binding_replacements, project_drafter_fields
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
@@ -61,6 +69,14 @@ class _SceneWork:
     word_budget: dict[str, Any]
     src_hash: str
     row: ScenePacket | None
+    # ADR-0028 Slice 3b (Q9): the imported Scene this seed was adopted from, resolved from the producing
+    # ImportAdoption.seed_bindings. Set ONLY for adoption-derived packets (NULL for ordinary ones) — it is
+    # the JOIN key a waiting RevisionRequest's resume uses to find its target-scene contract.
+    source_scene_id: uuid.UUID | None
+    # True iff this packet is adoption-derived but its seed has NO binding — source_scene_id would be NULL.
+    # Such a seed fails the packet CLOSED (blocked, no author call) rather than derive with no lineage and
+    # NO scene_no fallback (Q9).
+    adoption_unbound: bool
     owner_snippets: list[str]
     canon_snippets: list[str]
     # Resolved provenance legend persisted on the packet: one entry per retrieved snippet,
@@ -467,6 +483,26 @@ async def derive_scene_packets(
         if sp.scene_seed_id is not None
     }
 
+    # ADR-0028 Slice 3b (Q8/Q9): if THIS chapter packet was produced by an import adoption, every scene
+    # packet derived from it must bind back to the imported Scene the adoption recorded for its seed — the
+    # JOIN key a waiting RevisionRequest's resume uses. `seed_bindings` is written once at adoption publish
+    # ({seed_id: {scene_no, scene_id}}). An adoption-derived seed with NO binding fails CLOSED below (never
+    # a scene_no fallback). An ordinary (planning-path) packet has no producing adoption → source_scene_id
+    # stays NULL for all its seeds.
+    adoption = (
+        await session.execute(
+            select(ImportAdoption)
+            .where(
+                ImportAdoption.chapter_packet_id == packet.id,
+                ImportAdoption.status == ImportAdoptionStatus.CONTRACT_PROPOSED.value,
+            )
+            .order_by(ImportAdoption.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    is_adoption_derived = adoption is not None
+    adoption_bindings: dict[str, Any] = (adoption.seed_bindings or {}) if adoption is not None else {}
+
     # Each scene drafts in its EFFECTIVE POV: the beat's per-scene override (Beat.pov) when set, else the
     # chapter POV. Load the chapter + its beats keyed by scene_no so an overridden scene gets that POV's
     # actual rolling summary, not just a label. When a scene_no has multiple beat rows, prefer one that
@@ -537,6 +573,21 @@ async def derive_scene_packets(
             scene_pov=pov_override or None,
         )
 
+        # Resolve this seed's adoption binding (Q9). For an adoption-derived packet the imported Scene id
+        # comes from seed_bindings[seed_id]["scene_id"]; a missing/invalid binding marks the seed unbound
+        # so it fails CLOSED (a blocked packet, no author call) instead of deriving with no lineage.
+        source_scene_id: uuid.UUID | None = None
+        adoption_unbound = False
+        if is_adoption_derived:
+            binding = adoption_bindings.get(str(seed_id))
+            raw_scene_id = binding.get("scene_id") if isinstance(binding, dict) else None
+            if raw_scene_id:
+                try:
+                    source_scene_id = uuid.UUID(str(raw_scene_id))
+                except (ValueError, TypeError):
+                    source_scene_id = None
+            adoption_unbound = source_scene_id is None
+
         row = existing.get(seed_id)
         # An approved packet whose inputs are unchanged needs no rebuild. Counted so the Desk can say
         # "4 skipped (approved, unchanged)" instead of a re-derive that looks like it did nothing.
@@ -574,6 +625,8 @@ async def derive_scene_packets(
                 ),
                 pov=scene_pov,
                 pov_summary=pov_summary_cache[scene_pov],
+                source_scene_id=source_scene_id,
+                adoption_unbound=adoption_unbound,
             )
         )
 
@@ -604,6 +657,21 @@ async def derive_scene_packets(
     async def _run(
         item: _SceneWork,
     ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None, list[dict[str, Any]], str | None]:
+        # Fail CLOSED before spending an author call: an adoption-derived seed with no source-scene
+        # binding cannot produce a lineage-complete contract (Q9). Persist it as a deterministic
+        # (validation-source) block so the human sees WHY, never a silently-unbound approved packet.
+        if item.adoption_unbound:
+            return (
+                None,
+                None,
+                (
+                    "adoption-derived scene packet has no source-scene binding "
+                    f"(seed {item.seed_id} is absent from the adoption's seed_bindings) — cannot bind "
+                    "source_scene_id; failing closed with no scene_no fallback (ADR-0028 Q9)"
+                ),
+                [],
+                "validation",
+            )
         async with sem:
             return await _author_then_qa(
                 item,
@@ -696,6 +764,9 @@ async def derive_scene_packets(
         # still see what canon the (failed) author was working from while diagnosing the block.
         row.sources = item.sources
         row.source_hash = item.src_hash
+        # ADR-0028 Slice 3b (Q9): bind the imported source Scene on an adoption-derived packet (NULL for
+        # ordinary packets). A fail-closed unbound seed persists as BLOCKED above with source_scene_id NULL.
+        row.source_scene_id = item.source_scene_id
         row.stale_reason = None
         if status == ScenePacketStatus.BLOCKED:
             counts["blocked"] += 1

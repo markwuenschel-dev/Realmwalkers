@@ -10,7 +10,7 @@ import uuid
 from typing import Any
 
 import pytest
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.routers import scene_packets as sp_router
@@ -249,7 +249,7 @@ async def test_approve_scene_packet_derives_beat(db_factory, monkeypatch):
         await s.commit()
         sp = (await s.execute(select(ScenePacket))).scalars().one()
 
-        await sp_router.approve_scene_packet(sp.id, s)
+        await sp_router.approve_scene_packet(sp.id, BackgroundTasks(), s)
         beats = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
         assert len(beats) == 1
         beat = beats[0]
@@ -278,7 +278,7 @@ async def test_derive_beats_prunes_legacy_unlinked_beats(db_factory, monkeypatch
         cp = await _approved_chapter_packet(s, book, ch, [_seed(sid, scene_type="combat")])
         await sp_derive.derive_scene_packets(s, packet=cp)
         sp = (await s.execute(select(ScenePacket))).scalars().one()
-        await sp_router.approve_scene_packet(sp.id, s)
+        await sp_router.approve_scene_packet(sp.id, BackgroundTasks(), s)
 
         # Three legacy orphans: plain, one with a FAILED historical job, one held by a QUEUED job.
         plain = Beat(chapter_id=ch.id, scene_no=5, status="approved")
@@ -401,7 +401,7 @@ async def test_proposed_packet_with_advisory_qa_is_approvable(db_factory, monkey
             verdict=ScenePacketVerdict.REVISE_REQUIRED,
             warnings={"residual_risks": [], "issues": []},
         )
-        await sp_router.approve_scene_packet(revise.id, s)
+        await sp_router.approve_scene_packet(revise.id, BackgroundTasks(), s)
         assert (await s.get(ScenePacket, revise.id)).status == ScenePacketStatus.APPROVED
 
         # approve_warn verdict with a legacy block-severity issue (persisted before the LLM cap) — the
@@ -414,7 +414,7 @@ async def test_proposed_packet_with_advisory_qa_is_approvable(db_factory, monkey
             verdict=ScenePacketVerdict.APPROVE_WARN,
             warnings={"residual_risks": [], "issues": [{"kind": "leak", "detail": "x", "severity": "block"}]},
         )
-        await sp_router.approve_scene_packet(warn_with_legacy_block_issue.id, s)
+        await sp_router.approve_scene_packet(warn_with_legacy_block_issue.id, BackgroundTasks(), s)
         assert (await s.get(ScenePacket, warn_with_legacy_block_issue.id)).status == ScenePacketStatus.APPROVED
 
 
@@ -438,7 +438,7 @@ async def test_batch_approve_returns_well_formed_out_list(db_factory, monkeypatc
         rows = (await s.execute(select(ScenePacket).where(ScenePacket.chapter_id == ch.id))).scalars().all()
         assert len(rows) >= 2  # two proposed, approve-eligible packets
 
-        out = await sp_router.approve_scene_packets(ch.id, s)
+        out = await sp_router.approve_scene_packets(ch.id, BackgroundTasks(), s)
         assert len(out) == len(rows)
         assert all(o.updated_at is not None for o in out)  # the column that greenlet-500s when unrefreshed
         assert any(o.status == ScenePacketStatus.APPROVED for o in out)
@@ -460,7 +460,7 @@ async def test_blocked_packet_cannot_be_approved(db_factory):
         blocked.status = ScenePacketStatus.BLOCKED
         await s.flush()
         with pytest.raises(HTTPException) as exc:
-            await sp_router.approve_scene_packet(blocked.id, s)
+            await sp_router.approve_scene_packet(blocked.id, BackgroundTasks(), s)
         assert exc.value.status_code == 409
 
 
@@ -479,7 +479,7 @@ async def test_proposed_packet_with_approve_warn_and_no_block_issue_approves(db_
             verdict=ScenePacketVerdict.APPROVE_WARN,
             warnings={"residual_risks": ["minor echo risk"], "issues": [{"detail": "soft", "severity": "warn"}]},
         )
-        await sp_router.approve_scene_packet(sp.id, s)
+        await sp_router.approve_scene_packet(sp.id, BackgroundTasks(), s)
         assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.APPROVED
 
 
@@ -589,7 +589,7 @@ async def test_chapter_packet_edit_marks_scene_packets_stale(db_factory, monkeyp
         await sp_derive.derive_scene_packets(s, packet=cp)
         await s.commit()
         sp = (await s.execute(select(ScenePacket))).scalars().one()
-        await sp_router.approve_scene_packet(sp.id, s)
+        await sp_router.approve_scene_packet(sp.id, BackgroundTasks(), s)
         assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.APPROVED
 
         # editing the chapter-packet body changes the derived inputs -> scene packet goes stale

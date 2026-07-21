@@ -262,6 +262,8 @@ def _scene_work() -> derive._SceneWork:
         budget=TokenBudget(max_tokens=10_000),
         pov="Marcus",
         pov_summary=None,
+        source_scene_id=None,
+        adoption_unbound=False,
     )
 
 

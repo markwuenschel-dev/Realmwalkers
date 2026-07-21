@@ -26,13 +26,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.enums import (
     Decision,
+    ImportAdoptionStatus,
     JobStatus,
     RevisionRequestOrigin,
     RevisionRequestStatus,
+    ScenePacketStatus,
     SceneStatus,
 )
-from dominion.shared.models import Approval, Book, Chapter, Job, RevisionRequest, Scene, ScenePacket
-from dominion.shared.prose_fingerprint import prose_sha256
+from dominion.shared.models import (
+    Approval,
+    Book,
+    Chapter,
+    ImportAdoption,
+    Job,
+    RevisionRequest,
+    Scene,
+    ScenePacket,
+)
+from dominion.shared.prose_fingerprint import chapter_source_fingerprint, prose_sha256
 from dominion.shared.schemas import RevisionRequestOut
 from dominion.workers.job_scheduler import schedule_revision
 from dominion.workers.revision_taxonomy import RevisionFacts, RevisionOutcome, classify_revision
@@ -233,12 +244,109 @@ async def accept_revision_request(
 
     # If a contract already exists, mint the explicit revise Job now and link it (D8) — the request
     # advances to queued. If not (imported/uncontracted), it stays awaiting_contract: durable, not a 409.
-    minted = await schedule_revision(session, scene, target_pass=target_pass, revision_request_id=request.id)
+    await _mint_and_queue_revision(session, request=request, scene=scene)
+
+    return AcceptResult(request=request, replayed=False)
+
+
+async def _mint_and_queue_revision(
+    session: AsyncSession, *, request: RevisionRequest, scene: Scene
+) -> uuid.UUID | None:
+    """Mint the explicit linked revise Job for `scene` and advance `request` -> queued, in ONE place.
+
+    `schedule_revision` is contract-first: it mints a Job only when the scene's Beat is backed by an
+    approved ScenePacket, otherwise it returns a `revision_contract_required` blocker (or None if the
+    chapter vanished). On a minted Job the request advances awaiting_contract -> queued and links it;
+    on a refusal the request is left untouched (still awaiting_contract). Shared by the Slice-2 accept
+    path (a scene that already has a contract) and the Slice-3b adoption resume (a scene that just got
+    one), so the mint + advance logic is never duplicated. Returns the minted job id, or None.
+    """
+    minted = await schedule_revision(session, scene, target_pass=request.target_pass, revision_request_id=request.id)
     if isinstance(minted, uuid.UUID):
         request.status = RevisionRequestStatus.QUEUED.value
         request.job_id = minted
+        return minted
+    return None
 
-    return AcceptResult(request=request, replayed=False)
+
+async def resume_awaiting_contract_on_approval(session: AsyncSession, *, scene_packet: ScenePacket) -> uuid.UUID | None:
+    """Close the adoption loop when an adoption-derived ScenePacket is approved (ADR-0028 Slice 3b, Q2/Q18).
+
+    An imported scene's revise landed a durable RevisionRequest at `awaiting_contract` (Slice 2). Once
+    that scene's reconstructed contract — the adoption-derived ScenePacket bound to it via
+    `source_scene_id` at derive — is APPROVED, this advances the waiting request `awaiting_contract` ->
+    `queued` by minting the linked revise Job through the shared Slice-2 seam.
+
+    Runs UNDER the caller's per-chapter workflow lock, AFTER beats are derived (so `schedule_revision`
+    can resolve the approved packet for the source scene's beat). REVALIDATES three invariants before
+    scheduling and is a fail-closed NO-OP (returns None) on any miss:
+      * packet-approved   — the locked packet is APPROVED (not a raced demotion);
+      * prose-hash        — the request's pinned `target_prose_hash` still matches the source scene's
+                            current prose (the scene was not edited out from under the intent);
+      * source-fingerprint — the producing adoption's captured `source_fingerprint` still matches the
+                            chapter's current source fingerprint (the chapter did not drift post-adoption).
+    The caller owns the commit and the post-commit drain kick. Returns the minted job id, or None.
+    """
+    if scene_packet.status != ScenePacketStatus.APPROVED:
+        return None
+    # Only adoption-derived packets carry a source-scene binding; an ordinary planning-path packet has
+    # source_scene_id NULL and never resumes anything.
+    source_scene_id = scene_packet.source_scene_id
+    if source_scene_id is None:
+        return None
+
+    request = (
+        await session.execute(
+            select(RevisionRequest)
+            .where(
+                RevisionRequest.target_scene_id == source_scene_id,
+                RevisionRequest.status == RevisionRequestStatus.AWAITING_CONTRACT.value,
+            )
+            .order_by(RevisionRequest.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if request is None:
+        return None
+
+    scene = await session.get(Scene, source_scene_id)
+    if scene is None:
+        return None
+    # prose-hash concurrency token: the request pinned the exact prose it was raised against; if the
+    # source scene was edited since, the contract no longer matches the intent — fail closed.
+    if request.target_prose_hash != prose_hash(scene.prose):
+        return None
+
+    # source-fingerprint: the adoption that produced this packet's chapter contract captured the
+    # chapter's source fingerprint; if the chapter's non-superseded prose drifted since, don't resume
+    # off a now-stale reconstruction.
+    adoption = (
+        await session.execute(
+            select(ImportAdoption)
+            .where(
+                ImportAdoption.chapter_packet_id == scene_packet.chapter_packet_id,
+                ImportAdoption.status == ImportAdoptionStatus.CONTRACT_PROPOSED.value,
+            )
+            .order_by(ImportAdoption.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if adoption is None:
+        return None
+    rows = (
+        await session.execute(
+            select(Scene.scene_no, Scene.id, Scene.version, Scene.prose).where(
+                Scene.chapter_id == scene_packet.chapter_id, Scene.status != SceneStatus.SUPERSEDED
+            )
+        )
+    ).all()
+    current_fingerprint = chapter_source_fingerprint((int(r[0]), r[1], int(r[2]), r[3]) for r in rows)
+    if current_fingerprint != adoption.source_fingerprint:
+        return None
+
+    # All three invariants hold: link the serving adoption and advance to queued via the shared seam.
+    request.import_adoption_id = adoption.id
+    return await _mint_and_queue_revision(session, request=request, scene=scene)
 
 
 async def mirror_job_status_to_request(
