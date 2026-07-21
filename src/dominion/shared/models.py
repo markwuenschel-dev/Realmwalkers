@@ -345,6 +345,13 @@ class ScenePacket(Base):
     sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ADR-0028 Slice 3b (Q9): the imported Scene an adoption-derived packet is bound to — the JOIN KEY
+    # the waiting RevisionRequest's resume uses to find its target-scene contract. Set at derive for
+    # adoption-linked packets ONLY; NULL for ordinary (planning-path) packets. A PLAIN UUID with NO inline
+    # ForeignKey — the FK is added NOT VALID in migrations._EXTRA_DDL on the existing scene_packets table
+    # (mirroring jobs.revision_request_id); an inline ForeignKey would make create_all emit a SECOND
+    # auto-named FK. Distinct from KnowledgeFact.source_scene_id despite the shared column name.
+    source_scene_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -411,6 +418,14 @@ class ImportAdoption(Base):
     # The immutable manifest of ImportSceneEvidence shards consumed: [{scene_id, scene_version,
     # prose_hash, extractor_schema_version, evidence_id}]. Filled as extraction checkpoints commit.
     evidence_manifest: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # ADR-0028 Slice 3b (Q8): seed→scene lineage, written ONCE at ChapterPacket publish,
+    # {seed_id: {"scene_no": int, "scene_id": uuid}}. Lets a later derive/resume map an approved packet's
+    # scene_seed back to the imported Scene it was adopted from.
+    seed_bindings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # ADR-0028 Slice 3b (Q11), tiered-idempotency tier B: a hash over the evidence-shard ids consumed AND
+    # the canon-retrieval snapshot the author saw, so an unchanged-input re-adoption is a lookup, not a
+    # re-run.
+    author_input_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The reviewable ChapterPacket produced on contract_proposed (a blocked packet stays here as
     # diagnostic evidence while status=failed).
     chapter_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapter_packets.id"), nullable=True)

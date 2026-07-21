@@ -116,6 +116,16 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # (0 writers → 0 rows), so every real row sets it. New child table import_scene_evidence_chunks is
     # provisioned wholesale by create_all (its own UniqueConstraint + CASCADE FK ride along).
     "ALTER TABLE import_scene_evidence ADD COLUMN IF NOT EXISTS snapshot_prose TEXT",
+    # ADR 0028 Slice 3b (import adoption engine): three nullable columns on tables that ALREADY exist in
+    # prod (scene_packets, import_adoptions), so create_all won't add them — these ALTERs must.
+    # scene_packets.source_scene_id (Q9): the imported Scene an adoption-derived packet is bound to — the
+    # JOIN KEY the waiting RevisionRequest's resume uses. Its FK is added NOT VALID in _EXTRA_DDL below.
+    "ALTER TABLE scene_packets ADD COLUMN IF NOT EXISTS source_scene_id UUID",
+    # import_adoptions.seed_bindings (Q8): seed→scene lineage written once at ChapterPacket publish.
+    "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS seed_bindings JSONB",
+    # import_adoptions.author_input_fingerprint (Q11): tiered-idempotency tier B hash over consumed
+    # evidence-shard ids + the canon-retrieval snapshot the author saw.
+    "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS author_input_fingerprint TEXT",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -275,6 +285,17 @@ _EXTRA_DDL: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_revision_requests_chapter_status ON revision_requests (chapter_id, status)",
     "CREATE INDEX IF NOT EXISTS ix_revision_requests_book_id ON revision_requests (book_id)",
     "CREATE INDEX IF NOT EXISTS ix_import_scene_evidence_chapter ON import_scene_evidence (chapter_id)",
+    # ADR 0028 Slice 3b: ScenePacket → Scene FK on the adoption-binding column, added NOT VALID so it
+    # enforces every future write immediately while tolerating pre-existing rows (mirrors
+    # fk_jobs_revision_request exactly). Guarded by a catalog check because Postgres has no ADD CONSTRAINT
+    # IF NOT EXISTS. scene_packets.source_scene_id was added above in _COLUMN_ADDS; scenes exists already.
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_scene_packets_source_scene') THEN
+           ALTER TABLE scene_packets ADD CONSTRAINT fk_scene_packets_source_scene
+             FOREIGN KEY (source_scene_id) REFERENCES scenes (id) NOT VALID;
+         END IF;
+       END $$""",
+    "CREATE INDEX IF NOT EXISTS ix_scene_packets_source_scene_id ON scene_packets (source_scene_id)",
 )
 
 
