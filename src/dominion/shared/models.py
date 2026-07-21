@@ -23,6 +23,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Text,
+    UniqueConstraint,
     func,
     or_,
     text,
@@ -440,15 +441,40 @@ class ImportSceneEvidence(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     scene_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scenes.id"))
     scene_version: Mapped[int] = mapped_column(Integer)
-    prose_hash: Mapped[str] = mapped_column(Text)  # sha256 of the exact snapshot prose
+    prose_hash: Mapped[str] = mapped_column(Text)  # sha256 of the exact snapshot prose (prose_fingerprint.prose_sha256)
+    # The immutable snapshot of the exact prose this evidence was extracted from (R1/ADR 0028). Scene.prose
+    # is the CURRENT manuscript and can be hand-edited in place, so it is NOT an audit of a past evidence
+    # identity — the snapshot bytes must live here. Copied before extraction; never mutated after.
+    snapshot_prose: Mapped[str] = mapped_column(Text)
     extractor_schema_version: Mapped[str] = mapped_column(Text)  # bump to invalidate reuse on schema change
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
     # The span-anchored fact ledger. When present this is a completed shard; a partial/merged extraction
     # records its chunk shards separately and links them here on merge.
     ledger: Mapped[dict[str, Any]] = mapped_column(JSONB)
-    # For an oversized scene: the ids of the per-chunk shards this row merged (audit; never truncation).
+    # Derived, write-once membership of the per-chunk children this row merged (audit convenience; the
+    # ImportSceneEvidenceChunk rows are authoritative). `{"chunk_ids": [...]}` for a chunked extraction,
+    # NULL for single-pass. Never truncation.
     merged_shard_ids: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ImportSceneEvidenceChunk(Base):
+    """One retained chunk shard of an oversized-scene extraction (ADR 0028, R2/R3). Chunk shards of one
+    snapshot share the parent's identity 4-tuple, so they CANNOT be rows in `import_scene_evidence`
+    (uq_import_scene_evidence_identity) — they live here, owned by the parent. The children are
+    authoritative for chunk membership and order; the parent's `merged_shard_ids` is a derived, write-once
+    convenience. Each row keeps its chunk-LOCAL ledger plus the [char_offset, char_end) window it covers in
+    whole-scene coordinates, so the merged parent ledger is reconstructible from the children alone."""
+
+    __tablename__ = "import_scene_evidence_chunks"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evidence_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("import_scene_evidence.id", ondelete="CASCADE"))
+    chunk_index: Mapped[int] = mapped_column(Integer)  # 0..N-1, extraction order
+    char_offset: Mapped[int] = mapped_column(Integer)  # start offset in whole-scene coordinates
+    char_end: Mapped[int] = mapped_column(Integer)  # end offset (offset + len(chunk_text)); NOT NULL (R3)
+    ledger: Mapped[dict[str, Any]] = mapped_column(JSONB)  # chunk-LOCAL span-anchored ledger (unshifted)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint("evidence_id", "chunk_index", name="uq_import_scene_evidence_chunk_index"),)
 
 
 class RevisionRequest(Base):

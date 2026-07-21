@@ -19,10 +19,16 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
+import dominion.workers.evidence_store as evidence_store_mod
 import dominion.workers.sweeper as sweeper_mod
 
-# Loop rows whose attributes must never be read inside an except handler after a savepoint.
-_ORM_ROW_NAMES = {"task", "run"}
+# Loop / working rows whose attributes must never be read inside an except handler after a savepoint.
+_ORM_ROW_NAMES = {"task", "run", "scene"}
+
+# Every module that legitimately opens a savepoint. Each is scanned by the greenlet check below; the
+# confinement test fails the moment `begin_nested` appears in a module NOT listed here — so a new
+# savepoint can't dodge the scan. Add a module here ONLY together with wiring it into the scan.
+_GUARDED_MODULES = (sweeper_mod, evidence_store_mod)
 
 
 def _savepoint_functions(source: str) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:
@@ -46,15 +52,17 @@ def _orm_reads_in_except(func: ast.AsyncFunctionDef | ast.FunctionDef) -> list[t
     return violations
 
 
-def test_sweeper_savepoint_functions_have_no_orm_reads_in_except():
-    source = Path(sweeper_mod.__file__).read_text(encoding="utf-8")
-    funcs = list(_savepoint_functions(source))
-    assert funcs, "guard is inert: no begin_nested() savepoint found in sweeper.py"
-    problems = {f.name: v for f in funcs if (v := _orm_reads_in_except(f))}
-    assert not problems, (
-        f"savepoint function(s) read ORM-row attributes inside an except handler (post-savepoint "
-        f"lazy-load / MissingGreenlet risk): {problems}. Capture a primitive before the savepoint instead."
-    )
+def test_savepoint_functions_have_no_orm_reads_in_except():
+    for mod in _GUARDED_MODULES:
+        name = Path(mod.__file__).name
+        funcs = list(_savepoint_functions(Path(mod.__file__).read_text(encoding="utf-8")))
+        assert funcs, f"guard is inert: no begin_nested() savepoint found in {name}"
+        problems = {f.name: v for f in funcs if (v := _orm_reads_in_except(f))}
+        assert not problems, (
+            f"savepoint function(s) in {name} read ORM-row attributes inside an except handler "
+            f"(post-savepoint lazy-load / MissingGreenlet risk): {problems}. Capture a primitive "
+            f"before the savepoint instead."
+        )
 
 
 def test_guard_flags_a_post_savepoint_orm_read():
@@ -78,7 +86,7 @@ def test_begin_nested_is_confined_to_the_guarded_module():
     other dominion module, that savepoint is unguarded — fail loudly so the guard is widened to cover
     it (extend `_savepoint_functions`' scan), not so this allowlist is quietly grown."""
     pkg_root = Path(sweeper_mod.__file__).resolve().parents[1]  # src/dominion
-    guarded = {"sweeper.py"}
+    guarded = {Path(m.__file__).name for m in _GUARDED_MODULES}
     offenders = sorted(
         str(py.relative_to(pkg_root))
         for py in pkg_root.rglob("*.py")

@@ -211,8 +211,7 @@ async def test_fake_default_ledger_and_validated_evidence_shape():
     assert isinstance(result, ValidatedEvidence)
     assert result.schema_version == EVIDENCE_SCHEMA_VERSION == "1"
     assert result.token_usage == 0
-    assert result.chunk_ledgers == []
-    assert result.merged_shard_ids == []
+    assert result.chunks == []
     assert set(result.ledger.keys()) == set(LEDGER_SECTIONS)
     # Default ledger anchors an events item spanning [0, min(len(prose), 1)].
     assert result.ledger["events"] == [{"summary": "scene 3", "span": [0, 1]}]
@@ -264,13 +263,17 @@ async def test_fake_fail_times_then_succeeds():
     assert fake.calls == [sid, sid, sid]  # every attempt, including the failures, is recorded
 
 
-async def test_fake_chunk_ledgers_are_validated_and_returned():
+async def test_fake_chunks_are_validated_and_returned_with_windows():
     sid = uuid.uuid4()
     fake = FakeImportEvidenceExtractor(
         chunk_ledgers={sid: [{"events": [{"span": [0, 1]}]}, {"pov": "P"}]},
     )
     result = await fake.extract_scene(_source(4, "prose", scene_id=sid), ExtractionBudget())
-    assert len(result.chunk_ledgers) == 2
-    assert all(set(cl.keys()) == set(LEDGER_SECTIONS) for cl in result.chunk_ledgers)
-    assert result.chunk_ledgers[0]["events"] == [{"span": [0, 1]}]
-    assert result.chunk_ledgers[1]["pov"] == "P"
+    assert len(result.chunks) == 2
+    # Each chunk is a cohesive EvidenceChunk (R2): validated chunk-local ledger + its [offset, end)
+    # window, indexed in order, with monotonic non-overlapping synthetic windows.
+    assert [c.chunk_index for c in result.chunks] == [0, 1]
+    assert [(c.char_offset, c.char_end) for c in result.chunks] == [(0, 500), (1000, 1500)]
+    assert all(set(c.ledger.keys()) == set(LEDGER_SECTIONS) for c in result.chunks)
+    assert result.chunks[0].ledger["events"] == [{"span": [0, 1]}]
+    assert result.chunks[1].ledger["pov"] == "P"
