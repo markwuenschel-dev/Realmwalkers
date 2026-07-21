@@ -25,6 +25,7 @@ still matches (`invalidated` wins over a late worker completion).
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, OperationalError
@@ -84,4 +85,37 @@ async def acquire_chapter_workflow_lock(
     except (OperationalError, DBAPIError) as exc:
         if _is_lock_timeout(exc):
             raise ChapterWorkflowBusy(chapter_id) from exc
+        raise
+
+
+async def run_under_chapter_workflow[T](
+    session: AsyncSession,
+    chapter_id: uuid.UUID,
+    body: Callable[[], Awaitable[T]],
+    *,
+    timeout_ms: int | None = DEFAULT_LOCK_TIMEOUT_MS,
+) -> T:
+    """Run one authority-changing chapter mutation as a single locked, atomic transaction (Q15).
+
+    The canonical wrapper for the mandatory protocol above: it acquires the per-chapter workflow
+    advisory lock FIRST — so the lock precedes EVERY row lock (`FOR UPDATE`) that `body` later takes,
+    the lock-ordering discipline this module exists to enforce — then awaits `body`, then commits. On
+    any exception it rolls the transaction back (releasing the advisory lock, which is transaction-scoped)
+    and re-raises. `ChapterWorkflowBusy` from the acquire propagates unchanged; `body` never ran, so
+    there is nothing to roll back.
+
+    CLEAN-TRANSACTION PRECONDITION: the session MUST enter with no uncommitted writes. This wrapper owns
+    the commit boundary — the advisory lock must be the first thing established in the unit of work and
+    the whole mutation commits (or rolls back) atomically together. `body` therefore MUST NOT commit or
+    roll back the session itself: it reloads the mutable rows under normal row locks, validates /
+    recomputes the fingerprint, and writes, leaving the commit to this function. Its return value is
+    passed straight back to the caller.
+    """
+    await acquire_chapter_workflow_lock(session, chapter_id, timeout_ms=timeout_ms)
+    try:
+        result = await body()
+        await session.commit()
+        return result
+    except Exception:
+        await session.rollback()
         raise

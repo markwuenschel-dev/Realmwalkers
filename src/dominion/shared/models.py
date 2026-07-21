@@ -345,6 +345,13 @@ class ScenePacket(Base):
     sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     source_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ADR-0028 Slice 3b (Q9): the imported Scene an adoption-derived packet is bound to — the JOIN KEY
+    # the waiting RevisionRequest's resume uses to find its target-scene contract. Set at derive for
+    # adoption-linked packets ONLY; NULL for ordinary (planning-path) packets. A PLAIN UUID with NO inline
+    # ForeignKey — the FK is added NOT VALID in migrations._EXTRA_DDL on the existing scene_packets table
+    # (mirroring jobs.revision_request_id); an inline ForeignKey would make create_all emit a SECOND
+    # auto-named FK. Distinct from KnowledgeFact.source_scene_id despite the shared column name.
+    source_scene_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -411,9 +418,37 @@ class ImportAdoption(Base):
     # The immutable manifest of ImportSceneEvidence shards consumed: [{scene_id, scene_version,
     # prose_hash, extractor_schema_version, evidence_id}]. Filled as extraction checkpoints commit.
     evidence_manifest: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # ADR-0028 Slice 3b (Q8): seed→scene lineage, written ONCE at ChapterPacket publish,
+    # {seed_id: {"scene_no": int, "scene_id": uuid}}. Lets a later derive/resume map an approved packet's
+    # scene_seed back to the imported Scene it was adopted from.
+    seed_bindings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # ADR-0028 Slice 3b (Q11), tiered-idempotency tier B: a hash over the evidence-shard ids consumed AND
+    # the canon-retrieval snapshot the author saw, so an unchanged-input re-adoption is a lookup, not a
+    # re-run.
+    author_input_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The reviewable ChapterPacket produced on contract_proposed (a blocked packet stays here as
-    # diagnostic evidence while status=failed).
-    chapter_packet_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("chapter_packets.id"), nullable=True)
+    # diagnostic evidence while status=failed). ON DELETE SET NULL (ADR-0028 Slice 3b, Q11 tier-C): a
+    # re-author REPLACES the chapter's current packet, so the pipeline deletes the old one — a prior
+    # contract_proposed adoption that still links it must not block that delete, so its link nulls instead.
+    # A NULL here on a `contract_proposed` row therefore means "that SUCCESSFUL historical proposal's
+    # transient packet was subsequently REPLACED", NOT that the adoption was retroactively unsuccessful.
+    # (The deployed FK is altered to SET NULL by migrations._EXTRA_DDL; create_all alone would not touch a
+    # persistent prod DB whose constraint predates this change.)
+    chapter_packet_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("chapter_packets.id", ondelete="SET NULL"), nullable=True
+    )
+    # ADR-0028 Slice 3b (Q11 tier-C, operator Re-author): the IMMUTABLE operator-action UUID the client
+    # supplies to force a fresh author pass past the reuse gate. It is simultaneously the one-run tier-C
+    # override signal (the worker BYPASSES _find_reuse when it is set) AND the idempotency key (a partial
+    # UNIQUE index on it — WHERE force_author_token IS NOT NULL — makes a retried Re-author with the same
+    # token collide instead of buying a second reroll). A PLAIN UUID with NO inline ForeignKey (it is not
+    # a row reference). It NEVER enters author_input_fingerprint — a force token is an execution command,
+    # not author-input identity, so a later ordinary Start reuses the force-generated packet via _find_reuse.
+    force_author_token: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    # Audit link to the prior adoption this Re-author supersedes (the most recent CONTRACT_PROPOSED one, or
+    # NULL). A PLAIN self-reference UUID; the FK is added NOT VALID in migrations._EXTRA_DDL (an inline
+    # ForeignKey would make create_all emit a second auto-named FK, mirroring scene_packets.source_scene_id).
+    reauthor_of_adoption_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Lease/claim (durable like jobs): a claim expires and boot recovery re-queues it.
     claimed_by: Mapped[str | None] = mapped_column(Text, nullable=True)

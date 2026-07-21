@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -35,11 +36,15 @@ from dominion.shared.models import Chapter, ChapterPacket, Summary
 from dominion.workers import progress, telemetry, telemetry_db
 from dominion.workers.budget import TokenBudget
 from dominion.workers.memory import canon_rag
-from dominion.workers.packet import approval_policy, master
+from dominion.workers.packet import approval_policy, canon_conflict, master
 from dominion.workers.packet import author as author_mod
+from dominion.workers.packet import evidence as evidence_mod
 from dominion.workers.packet import qa as qa_mod
 from dominion.workers.packet.surface_contract import build_surface_contract
 from dominion.workers.packet.validation import evaluate_chapter_packet_internal
+
+#: The author->QA->persist tail's fail-closed closure (built per-call by `_make_fail_closed`).
+FailClosed = Callable[..., Awaitable[ChapterPacket]]
 
 log = structlog.get_logger()
 
@@ -209,34 +214,22 @@ def _blocked_row(
     )
 
 
-async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_key: str | None = None) -> ChapterPacket:
-    """Author -> QA -> persist a ChapterPacket for this chapter (proposed/blocked). Fail-closed.
+def _propose_budget() -> TokenBudget:
+    """Soft/hard budget split shared by both propose paths, same policy as the scene derive: crossing the
+    soft target only warns (telemetry); only the hard ceiling fails closed. Without the split, a QA
+    escalation retry on a detailed chapter crossed the single 60k ceiling and the raising charge DISCARDED
+    the retry's already-produced verdict (the observed `token budget exceeded: 74673 > 60000` block)."""
+    return TokenBudget(max_tokens=settings.scene_token_budget, hard_max_tokens=settings.scene_token_hard_budget)
 
-    The row is added to the session (and existing packets for the chapter replaced on success) but the
-    caller commits. On a malformed/timed-out agent, an already-approved packet is preserved untouched.
 
-    `progress_key` (when run in the background) surfaces the live phase to `GET .../packet/status` so
-    the Desk can show 'authoring' -> 'qa' instead of a frozen spinner. Best-effort, never required.
-    """
+def _make_fail_closed(
+    session: AsyncSession, *, chapter: Chapter, sink: telemetry.TelemetrySink, run_id: uuid.UUID
+) -> FailClosed:
+    """The fail-closed closure shared by both propose paths. Persists telemetry (author/QA may have
+    charged before the failure), then — a failed (re)propose must NEVER wipe an already-approved packet —
+    returns the existing approved packet if one exists, else persists a visible blocked packet so the
+    human sees the failure (never silent partial constraints)."""
     book_id = chapter.book_id
-    outline = (chapter.outline or "").strip()
-    # Soft/hard budget split, same policy as the scene derive: crossing the soft target only warns
-    # (telemetry); only the hard ceiling fails closed. Without the split, a QA escalation retry on a
-    # detailed chapter crossed the single 60k ceiling and the raising charge DISCARDED the retry's
-    # already-produced verdict (the observed `token budget exceeded: 74673 > 60000` block).
-    budget = TokenBudget(
-        max_tokens=settings.scene_token_budget,
-        hard_max_tokens=settings.scene_token_hard_budget,
-    )
-
-    # Telemetry: the Packet Author + QA calls roll up under one run row (one propose = one run) so the
-    # chapter-packet stage shows in the Desk telemetry like the scene-packet derive. Persisted on EVERY
-    # exit (incl. fail-closed) since the author/QA calls may have charged before a failure path.
-    sink = telemetry.TelemetrySink()
-    run_id = uuid.uuid4()
-
-    def _persist_telemetry() -> None:
-        telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
 
     async def fail_closed(
         reason: str,
@@ -248,9 +241,7 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         recovery_actions: list[str] | None = None,
         blocker_diagnostics: dict[str, Any] | None = None,
     ) -> ChapterPacket:
-        # A failed (re)propose must never wipe an already-approved packet; otherwise persist a
-        # visible blocked packet so the human sees the failure (never silent partial constraints).
-        _persist_telemetry()
+        telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
         existing = await latest_approved(session, chapter.id)
         if existing is not None:
             return existing
@@ -272,104 +263,35 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
             ),
         )
 
-    if not outline:
-        return await fail_closed(
-            "Chapter has no outline to plan from. Add a chapter outline, then re-propose the packet.",
-            blocker_source="input",
-            blocker_kind="no_outline",
-            recovery_actions=["Add a chapter outline, then re-propose."],
-        )
+    return fail_closed
 
-    omniscient = await _omniscient_summary(session, book_id)
-    prior_exit = await _prior_exit_state(session, chapter=chapter)
-    canon_meta = await canon_rag.retrieve_with_meta(session, book_id=book_id, query=outline, k=_CANON_K)
-    handles = {f"C{i}": meta for i, meta in enumerate(canon_meta, start=1)}
 
-    # Three distinct fail-closed paths, kept distinguishable in both the stored reason and the logs so a
-    # block is debuggable after the fact (they used to collapse into one generic, unlogged reason):
-    #   1. the author *call* raised — timeout / budget / API error (logged below);
-    #   2. it returned text we couldn't parse to an object — usually truncation (see llm.truncated);
-    #   3. it parsed but the packet was too thin (no scene seeds or no claims list).
-    author_exc: Exception | None = None
-    progress.set_phase(progress_key, "authoring")
-    try:
-        with telemetry.call_context(
-            telemetry.CallContext(
-                sink=sink,
-                stage="packet_author",
-                book_id=str(book_id),
-                chapter_id=str(chapter.id),
-            )
-        ):
-            packet = await asyncio.wait_for(
-                author_mod.author_packet(
-                    chapter_no=chapter.chapter_no,
-                    pov=chapter.pov,
-                    outline=outline,
-                    omniscient_summary=omniscient,
-                    prior_exit_state=prior_exit,
-                    next_entry_intent=None,
-                    canon_handles=handles,
-                    budget=budget,
-                ),
-                timeout=settings.packet_time_budget_s,
-            )
-    except Exception as exc:  # noqa: BLE001 — any author failure (timeout/budget/API) must fail closed
-        log.error("packet.author_failed", chapter=str(chapter.id), error=str(exc), error_type=type(exc).__name__)
-        author_exc = exc
-        packet = None
+async def _qa_and_persist(
+    session: AsyncSession,
+    *,
+    chapter: Chapter,
+    packet: dict[str, Any],
+    source_inputs: dict[str, Any],
+    lineage: dict[str, Any],
+    sink: telemetry.TelemetrySink,
+    run_id: uuid.UUID,
+    budget: TokenBudget,
+    progress_key: str | None,
+    fail_closed: FailClosed,
+    extra_open_questions: Sequence[str] | None = None,
+) -> ChapterPacket:
+    """The shared Author->QA->persist tail for BOTH propose paths (outline + evidence).
 
-    if author_exc is not None:
-        diagnostics: dict[str, Any] = {
-            "stage": "packet_author",
-            "exception_type": type(author_exc).__name__,
-            "timeout_s": settings.packet_time_budget_s,
-            "model": settings.packet_author_model,
-            "fallback_model": settings.packet_author_fallback_model,
-        }
-        if str(author_exc):
-            diagnostics["message"] = str(author_exc)
-        if isinstance(author_exc, TimeoutError):
-            return await fail_closed(
-                "Packet Author timed out after "
-                f"{settings.packet_time_budget_s}s while authoring the chapter packet. "
-                "Re-propose will likely time out again unless the input/model/budget changes.",
-                blocker_source="author",
-                blocker_kind="timeout",
-                recovery_actions=_AUTHOR_TIMEOUT_ACTIONS,
-                blocker_diagnostics=diagnostics,
-            )
-        label = type(author_exc).__name__
-        detail = f": {author_exc}" if str(author_exc) else ""
-        return await fail_closed(
-            f"Packet Author call failed ({label}{detail}).",
-            blocker_source="author",
-            blocker_kind="call_failed",
-            recovery_actions=_AUTHOR_FAILURE_ACTIONS,
-            blocker_diagnostics=diagnostics,
-        )
-    if packet is None:
-        log.warning("packet.author_unparsable", chapter=str(chapter.id))
-        return await fail_closed(
-            "Packet Author response could not be parsed, possibly because the JSON was truncated.",
-            blocker_source="author",
-            blocker_kind="unparsable",
-            recovery_actions=_AUTHOR_BODY_ACTIONS,
-            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
-        )
-    if not _valid_packet(packet):
-        log.warning("packet.author_thin", chapter=str(chapter.id))
-        return await fail_closed(
-            "Packet Author returned an incomplete packet with no scene seeds or no claims list.",
-            body=packet,
-            blocker_source="author",
-            blocker_kind="thin_packet",
-            recovery_actions=_AUTHOR_BODY_ACTIONS,
-            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
-        )
-
+    `packet` is the raw authored dict with per-claim provenance ALREADY resolved by the caller; the caller
+    also supplies the `source_inputs`/`lineage` provenance stamps that differ between the two paths, and —
+    the evidence path only — `extra_open_questions`, the adoption's manuscript-vs-canon conflict questions
+    to fold into the packet (they block APPROVAL, never adoption, per Q14). Runs seed minting, the
+    internal->surface->master validation pipeline (fail-closed on a hard blocker), advisory QA, and
+    persists the proposed/blocked packet. QA is advisory: even BLOCK_DRAFTING yields a proposed packet;
+    only the deterministic paths here may block.
+    """
+    book_id = chapter.book_id
     _mint_seed_ids(packet)
-    _resolve_provenance(packet, handles)
 
     # === Scope-aware contract pipeline (internal -> surface) ===
     # 1. Internal validation: structure + roster contradictions only. Raw packet may contain hidden
@@ -442,16 +364,23 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         pov=chapter.pov,
         status=PacketStatus.PROPOSED,
     )
-    packet["source_inputs"] = {
-        "outline_chars": len(outline),
-        "prior_exit_state": bool(prior_exit),
-        "omniscient_summary": bool(omniscient),
-        "canon_handles": [
-            {"handle": handle, "id": str(meta.get("id")), "name": meta.get("name")} for handle, meta in handles.items()
-        ],
-    }
-    packet["lineage"] = {"source": "packet_author", "packet_id": str(packet_id)}
+    packet["source_inputs"] = source_inputs
+    packet["lineage"] = {**lineage, "packet_id": str(packet_id)}
     packet["_surface_contract"] = packet_surface  # DERIVED projection, never authoritative
+
+    # Fold the adoption's manuscript-vs-canon conflict questions into the canonical open-questions section
+    # (and its top-level mirror) BEFORE QA/persist. Any open-question item blocks ChapterPacket APPROVAL
+    # (approval_policy), so a conflict-laden packet is still a proposed contract that a human must clear —
+    # it does not fail the adoption closed (Q14). De-duplicated, append-only, order-preserving.
+    if extra_open_questions:
+        existing_items = list(packet["chapter_contract"]["open_questions"]["items"])
+        seen = set(existing_items)
+        for question in extra_open_questions:
+            if question and question not in seen:
+                existing_items.append(question)
+                seen.add(question)
+        packet["chapter_contract"]["open_questions"]["items"] = existing_items
+        packet["open_questions"] = list(existing_items)
 
     # Structural canary on the canonical body. Blockers here are the true-blocker list only (e.g. no
     # scene seed carries a usable scene_job); fixable gaps ride along as repair tasks.
@@ -558,8 +487,327 @@ async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_ke
         confidence=str(confidence),
         verdict=str(qa["verdict"]),
     )
-    _persist_telemetry()
+    telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
     return await _persist(session, chapter_id=chapter.id, row=row, replace=True)
+
+
+def _handle_author_failure(
+    author_exc: Exception,
+    *,
+    chapter: Chapter,
+    fail_closed: FailClosed,
+    context: str,
+) -> Awaitable[ChapterPacket]:
+    """Map a raised author call (timeout / budget / API error) to the right fail-closed blocked packet.
+    Shared by both propose paths; `context` names the input shape for the stored reason (e.g. 'the chapter
+    packet' vs 'the chapter packet from imported evidence')."""
+    diagnostics: dict[str, Any] = {
+        "stage": "packet_author",
+        "exception_type": type(author_exc).__name__,
+        "timeout_s": settings.packet_time_budget_s,
+        "model": settings.packet_author_model,
+        "fallback_model": settings.packet_author_fallback_model,
+    }
+    if str(author_exc):
+        diagnostics["message"] = str(author_exc)
+    if isinstance(author_exc, TimeoutError):
+        return fail_closed(
+            f"Packet Author timed out after {settings.packet_time_budget_s}s while authoring {context}. "
+            "Re-propose will likely time out again unless the input/model/budget changes.",
+            blocker_source="author",
+            blocker_kind="timeout",
+            recovery_actions=_AUTHOR_TIMEOUT_ACTIONS,
+            blocker_diagnostics=diagnostics,
+        )
+    label = type(author_exc).__name__
+    detail = f": {author_exc}" if str(author_exc) else ""
+    return fail_closed(
+        f"Packet Author call failed ({label}{detail}).",
+        blocker_source="author",
+        blocker_kind="call_failed",
+        recovery_actions=_AUTHOR_FAILURE_ACTIONS,
+        blocker_diagnostics=diagnostics,
+    )
+
+
+async def propose_packet(session: AsyncSession, *, chapter: Chapter, progress_key: str | None = None) -> ChapterPacket:
+    """Author -> QA -> persist a ChapterPacket for this chapter (proposed/blocked). Fail-closed.
+
+    The row is added to the session (and existing packets for the chapter replaced on success) but the
+    caller commits. On a malformed/timed-out agent, an already-approved packet is preserved untouched.
+
+    `progress_key` (when run in the background) surfaces the live phase to `GET .../packet/status` so
+    the Desk can show 'authoring' -> 'qa' instead of a frozen spinner. Best-effort, never required.
+    """
+    book_id = chapter.book_id
+    outline = (chapter.outline or "").strip()
+    budget = _propose_budget()
+
+    # Telemetry: the Packet Author + QA calls roll up under one run row (one propose = one run) so the
+    # chapter-packet stage shows in the Desk telemetry like the scene-packet derive. Persisted on EVERY
+    # exit (incl. fail-closed) since the author/QA calls may have charged before a failure path.
+    sink = telemetry.TelemetrySink()
+    run_id = uuid.uuid4()
+    fail_closed = _make_fail_closed(session, chapter=chapter, sink=sink, run_id=run_id)
+
+    if not outline:
+        return await fail_closed(
+            "Chapter has no outline to plan from. Add a chapter outline, then re-propose the packet.",
+            blocker_source="input",
+            blocker_kind="no_outline",
+            recovery_actions=["Add a chapter outline, then re-propose."],
+        )
+
+    omniscient = await _omniscient_summary(session, book_id)
+    prior_exit = await _prior_exit_state(session, chapter=chapter)
+    canon_meta = await canon_rag.retrieve_with_meta(session, book_id=book_id, query=outline, k=_CANON_K)
+    handles = {f"C{i}": meta for i, meta in enumerate(canon_meta, start=1)}
+
+    # Three distinct fail-closed paths, kept distinguishable in both the stored reason and the logs so a
+    # block is debuggable after the fact (they used to collapse into one generic, unlogged reason):
+    #   1. the author *call* raised — timeout / budget / API error (logged below);
+    #   2. it returned text we couldn't parse to an object — usually truncation (see llm.truncated);
+    #   3. it parsed but the packet was too thin (no scene seeds or no claims list).
+    author_exc: Exception | None = None
+    progress.set_phase(progress_key, "authoring")
+    try:
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink,
+                stage="packet_author",
+                book_id=str(book_id),
+                chapter_id=str(chapter.id),
+            )
+        ):
+            packet = await asyncio.wait_for(
+                author_mod.author_packet(
+                    chapter_no=chapter.chapter_no,
+                    pov=chapter.pov,
+                    outline=outline,
+                    omniscient_summary=omniscient,
+                    prior_exit_state=prior_exit,
+                    next_entry_intent=None,
+                    canon_handles=handles,
+                    budget=budget,
+                ),
+                timeout=settings.packet_time_budget_s,
+            )
+    except Exception as exc:  # noqa: BLE001 — any author failure (timeout/budget/API) must fail closed
+        log.error("packet.author_failed", chapter=str(chapter.id), error=str(exc), error_type=type(exc).__name__)
+        author_exc = exc
+        packet = None
+
+    if author_exc is not None:
+        return await _handle_author_failure(
+            author_exc, chapter=chapter, fail_closed=fail_closed, context="the chapter packet"
+        )
+    if packet is None:
+        log.warning("packet.author_unparsable", chapter=str(chapter.id))
+        return await fail_closed(
+            "Packet Author response could not be parsed, possibly because the JSON was truncated.",
+            blocker_source="author",
+            blocker_kind="unparsable",
+            recovery_actions=_AUTHOR_BODY_ACTIONS,
+            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
+        )
+    if not _valid_packet(packet):
+        log.warning("packet.author_thin", chapter=str(chapter.id))
+        return await fail_closed(
+            "Packet Author returned an incomplete packet with no scene seeds or no claims list.",
+            body=packet,
+            blocker_source="author",
+            blocker_kind="thin_packet",
+            recovery_actions=_AUTHOR_BODY_ACTIONS,
+            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
+        )
+
+    _resolve_provenance(packet, handles)
+    source_inputs = {
+        "outline_chars": len(outline),
+        "prior_exit_state": bool(prior_exit),
+        "omniscient_summary": bool(omniscient),
+        "canon_handles": [
+            {"handle": handle, "id": str(meta.get("id")), "name": meta.get("name")} for handle, meta in handles.items()
+        ],
+    }
+    return await _qa_and_persist(
+        session,
+        chapter=chapter,
+        packet=packet,
+        source_inputs=source_inputs,
+        lineage={"source": "packet_author"},
+        sink=sink,
+        run_id=run_id,
+        budget=budget,
+        progress_key=progress_key,
+        fail_closed=fail_closed,
+    )
+
+
+async def propose_packet_from_evidence(
+    session: AsyncSession,
+    *,
+    chapter: Chapter,
+    evidence: Sequence[evidence_mod.SceneEvidence],
+    retrieve: canon_conflict.CanonRetriever | None = None,
+    progress_key: str | None = None,
+) -> ChapterPacket:
+    """Author -> QA -> persist a ChapterPacket for an imported chapter from its EVIDENCE ledgers (the M#
+    bundle) instead of an outline (ADR 0028 Slice 3b import adoption). Fail-closed, and it SHARES
+    `propose_packet`'s QA + persist tail — a proposed evidence packet is validated, QA'd, graded, and
+    persisted identically to a proposed outline packet.
+
+    The import-adoption worker (Lane A4) orchestrates this: it snapshots the chapter's scenes, ensures
+    each `ImportSceneEvidence`, builds the `evidence` bundle, and maps the RESULT — a usable proposed
+    packet -> adoption `contract_proposed`; a blocked packet -> adoption `failed` with the blocked packet
+    linked as diagnostic (Q14). This function itself only ever returns a ChapterPacket.
+
+    Fail-closed authoring (the author call raised / unparsable output / a thin packet / no evidence to
+    plan from) yields a BLOCKED packet — never partial constraints. A USABLE packet is PROPOSED even when
+    red or conflict-laden: manuscript-vs-canon conflicts are folded in as open questions that block
+    APPROVAL, not adoption (Q14); QA stays advisory.
+
+    `retrieve` is the live locked-canon retrieval seam (author C# handles AND Lane A3's conflict
+    re-anchoring both flow through it); it defaults to `canon_conflict.session_retriever` and is injected
+    by unit tests. `evidence` may be empty — that fails closed (nothing to reconstruct from).
+    """
+    book_id = chapter.book_id
+    budget = _propose_budget()
+    sink = telemetry.TelemetrySink()
+    run_id = uuid.uuid4()
+    fail_closed = _make_fail_closed(session, chapter=chapter, sink=sink, run_id=run_id)
+
+    manuscript_handles = evidence_mod.build_manuscript_handles(evidence)
+    if not manuscript_handles:
+        return await fail_closed(
+            "No imported-scene evidence to reconstruct this chapter from. Extract scene evidence, then "
+            "re-run adoption.",
+            blocker_source="input",
+            blocker_kind="no_evidence",
+            recovery_actions=["Ensure the chapter's imported scenes have extracted evidence, then re-adopt."],
+        )
+
+    retrieve = retrieve or canon_conflict.session_retriever(session, book_id, k=_CANON_K)
+    omniscient = await _omniscient_summary(session, book_id)
+    prior_exit = await _prior_exit_state(session, chapter=chapter)
+    # No outline: the canon-retrieval query is built from what the manuscript actually asserts, so the
+    # author still sees the locked canon relevant to the imported prose.
+    canon_query = evidence_mod.evidence_query(evidence)
+    canon_hits = list(await retrieve(canon_query)) if canon_query.strip() else []
+    handles: dict[str, dict[str, Any]] = {f"C{i}": dict(hit) for i, hit in enumerate(canon_hits, start=1)}
+
+    author_exc: Exception | None = None
+    progress.set_phase(progress_key, "authoring")
+    try:
+        with telemetry.call_context(
+            telemetry.CallContext(
+                sink=sink,
+                stage="packet_author",
+                book_id=str(book_id),
+                chapter_id=str(chapter.id),
+            )
+        ):
+            packet = await asyncio.wait_for(
+                author_mod.author_packet_from_evidence(
+                    chapter_no=chapter.chapter_no,
+                    pov=chapter.pov,
+                    omniscient_summary=omniscient,
+                    prior_exit_state=prior_exit,
+                    next_entry_intent=None,
+                    canon_handles=handles,
+                    manuscript_handles=evidence_mod.rendered_bundle(manuscript_handles),
+                    budget=budget,
+                ),
+                timeout=settings.packet_time_budget_s,
+            )
+    except Exception as exc:  # noqa: BLE001 — any author failure (timeout/budget/API) must fail closed
+        log.error("packet.author_failed", chapter=str(chapter.id), error=str(exc), error_type=type(exc).__name__)
+        author_exc = exc
+        packet = None
+
+    if author_exc is not None:
+        return await _handle_author_failure(
+            author_exc, chapter=chapter, fail_closed=fail_closed, context="the chapter packet from imported evidence"
+        )
+    if packet is None:
+        log.warning("packet.author_unparsable", chapter=str(chapter.id))
+        return await fail_closed(
+            "Packet Author response could not be parsed, possibly because the JSON was truncated.",
+            blocker_source="author",
+            blocker_kind="unparsable",
+            recovery_actions=_AUTHOR_BODY_ACTIONS,
+            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
+        )
+    if not _valid_packet(packet):
+        log.warning("packet.author_thin", chapter=str(chapter.id))
+        return await fail_closed(
+            "Packet Author returned an incomplete packet with no scene seeds or no claims list.",
+            body=packet,
+            blocker_source="author",
+            blocker_kind="thin_packet",
+            recovery_actions=_AUTHOR_BODY_ACTIONS,
+            blocker_diagnostics={"stage": "packet_author", "model": settings.packet_author_model},
+        )
+
+    evidence_mod.resolve_evidence_provenance(packet, canon_handles=handles, manuscript_handles=manuscript_handles)
+
+    # Author-time manuscript-vs-canon conflict detection (Lane A3), gated by claim_precedence (Q4). Each
+    # candidate re-anchors the CANON side against LIVE locked canon; a re-anchored conflict becomes an
+    # encoded manuscript_canon_conflict question, a non-re-anchorable one a plain fail-closed question.
+    # BOTH block APPROVAL only — the packet is still a proposed contract (Q14).
+    candidates = evidence_mod.candidate_conflicts(manuscript_handles)
+    canon_handle_by_id = {str(hit.get("id")): handle for handle, hit in handles.items() if hit.get("id") is not None}
+    conflict_result = await canon_conflict.detect_manuscript_canon_conflicts(
+        candidates, retrieve=retrieve, canon_handle_by_id=canon_handle_by_id
+    )
+    extra_open_questions = [
+        *conflict_result.open_questions(),
+        *(
+            evidence_mod.fail_closed_question(fc.manuscript_handle, fc.scene_id, str(fc.reason), fc.detail)
+            for fc in conflict_result.fail_closed
+        ),
+    ]
+    if conflict_result.blocks_approval:
+        log.info(
+            "packet.evidence_conflicts",
+            chapter=str(chapter.id),
+            reanchored=len(conflict_result.reanchored),
+            fail_closed=len(conflict_result.fail_closed),
+        )
+
+    source_inputs = {
+        "prior_exit_state": bool(prior_exit),
+        "omniscient_summary": bool(omniscient),
+        "canon_handles": [
+            {"handle": handle, "id": str(hit.get("id")), "name": hit.get("name")} for handle, hit in handles.items()
+        ],
+        "manuscript_handles": [
+            {
+                "handle": handle,
+                "scene_id": str(se.scene_id),
+                "scene_no": se.scene_no,
+                "scene_version": se.scene_version,
+                "prose_hash": se.prose_hash,
+            }
+            for handle, se in manuscript_handles.items()
+        ],
+        # The asserted-fact precedence audit (ADR 0029) the packet was authored under — advisory, never a
+        # gate; see packet/evidence.precedence_adjudication.
+        "precedence": evidence_mod.precedence_adjudication(packet.get("claims", [])),
+    }
+    return await _qa_and_persist(
+        session,
+        chapter=chapter,
+        packet=packet,
+        source_inputs=source_inputs,
+        lineage={"source": "import_adoption"},
+        sink=sink,
+        run_id=run_id,
+        budget=budget,
+        progress_key=progress_key,
+        fail_closed=fail_closed,
+        extra_open_questions=extra_open_questions,
+    )
 
 
 async def _persist(

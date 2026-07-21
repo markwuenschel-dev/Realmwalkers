@@ -958,8 +958,13 @@ export interface paths {
     put?: never;
     /**
      * Approve Scene Packet
-     * @description Approve one ScenePacket, then derive the chapter's beats. Refused when blocked or when QA
-     *     blocks drafting.
+     * @description Approve one ScenePacket, derive the chapter's beats, THEN (ADR-0028 Slice 3b) resume any waiting
+     *     RevisionRequest whose imported source scene this now-approved adoption-derived packet contracts.
+     *
+     *     Approval is an authority-changing chapter mutation that can advance a durable request, so it runs
+     *     INSIDE `run_under_chapter_workflow` — the chapter lock precedes the row lock (Q15) and the resume's
+     *     revalidate + queue is atomic with the approval. A lock collision maps to `409 chapter_workflow_busy`
+     *     (Q16). Refused when blocked or when an active ApprovalBlocker holds it (409).
      */
     post: operations["approve_scene_packet_scene_packets__scene_packet_id__approve_post"];
     delete?: never;
@@ -1026,8 +1031,11 @@ export interface paths {
     put?: never;
     /**
      * Approve Scene Packets
-     * @description Batch approve. Approves only packets that are not blocked and have no blocking QA issues, then
-     *     derives the chapter's beats from the approved set.
+     * @description Batch approve. Approves only packets that are not blocked and have no blocking QA issues, derives
+     *     the chapter's beats from the approved set, THEN (ADR-0028 Slice 3b) resumes any waiting RevisionRequest
+     *     each newly-approved adoption-derived packet contracts. Runs under `run_under_chapter_workflow` so the
+     *     whole batch — approval, beats, and each resume — is one atomic, chapter-locked unit (Q15); a lock
+     *     collision maps to `409 chapter_workflow_busy` (Q16).
      */
     post: operations["approve_scene_packets_chapters__chapter_id__scene_packets_approve_post"];
     delete?: never;
@@ -3103,6 +3111,62 @@ export interface paths {
     put?: never;
     /** Enrich */
     post: operations["enrich_enrich_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/adoption/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start Contract Adoption
+     * @description Start (or resume) import adoption for an evidence-only imported chapter.
+     *
+     *     Creates a `queued` ImportAdoption, promotes an existing `awaiting_start` one to `queued`, or returns
+     *     an already-`queued`/`running` one unchanged (idempotent). Refuses a chapter with any contracted scene
+     *     (`409 chapter_has_contracted_scenes`) and a lock collision (`409 chapter_workflow_busy`). The whole
+     *     decision + write runs under the per-chapter workflow lock, so nothing is queued from a stale read.
+     */
+    post: operations["start_contract_adoption_chapters__chapter_id__adoption_start_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/adoption/reauthor": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reauthor Contract Adoption
+     * @description Operator Re-author (Q11 tier-C force override): explicitly author a FRESH chapter contract from the
+     *     imported prose, bypassing the worker's tiered-idempotency reuse gate that would otherwise return the
+     *     existing packet. The deliberate "I want a new proposal even though nothing changed" action.
+     *
+     *     The client supplies `force_author_token` (a UUID) — a client-stable idempotency key, never
+     *     server-generated, so a network retry cannot silently buy a second reroll. Under the per-chapter
+     *     workflow lock, in order: 404 if the chapter is missing; refuse (`409 chapter_has_contracted_scenes` /
+     *     `409 chapter_contract_already_approved`) rather than overwrite contracted or approved material; return
+     *     the existing adoption unchanged if this token already spent (idempotency); return an already in-flight
+     *     (`queued`/`running`) adoption rather than race a parallel author pass (serialize); else create a fresh
+     *     `queued`, force-flagged adoption linked to the prior proposed contract for audit. A lock collision maps
+     *     to `409 chapter_workflow_busy`.
+     */
+    post: operations["reauthor_contract_adoption_chapters__chapter_id__adoption_reauthor_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -5306,6 +5370,51 @@ export interface components {
       approve_directly: boolean;
     };
     /**
+     * ImportAdoptionOut
+     * @description An import-adoption row as the wire sees it (ADR 0028, Slice 3b). Returned by the operator
+     *     "Start contract adoption" and "Re-author" endpoints. `status=queued` is the durable spend-consent
+     *     record the adoption worker claims from; `chapter_packet_id` is populated only once the adoption
+     *     reaches `contract_proposed`. `force_author_token`/`reauthor_of_adoption_id` are NULL for an ordinary
+     *     Start and set only for a tier-C operator Re-author (Q11).
+     */
+    ImportAdoptionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Mode */
+      mode: string;
+      /** Status */
+      status: string;
+      /** Chapter Packet Id */
+      chapter_packet_id?: string | null;
+      /** Force Author Token */
+      force_author_token?: string | null;
+      /** Reauthor Of Adoption Id */
+      reauthor_of_adoption_id?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
      * IntegrityHoldOut
      * @description One job blocking the book-ownership invariant: quarantined (ownerless, withheld from execution)
      *     or an unresolved NULL-book terminal/conflict row. Has no retry/clear action.
@@ -6856,6 +6965,20 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /**
+     * ReauthorIn
+     * @description POST body for the operator Re-author (Q11 tier-C force override). `force_author_token` is a
+     *     CLIENT-supplied, client-stable idempotency key (a UUID): the same token retried returns the same
+     *     adoption (no second spend), a fresh token authorizes exactly one new author pass. It is deliberately
+     *     NOT server-generated — a server-minted token would let a client retry silently buy a second reroll.
+     */
+    ReauthorIn: {
+      /**
+       * Force Author Token
+       * Format: uuid
+       */
+      force_author_token: string;
     };
     /**
      * RecentJobOut
@@ -14496,6 +14619,72 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["EnrichOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_contract_adoption_chapters__chapter_id__adoption_start_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportAdoptionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reauthor_contract_adoption_chapters__chapter_id__adoption_reauthor_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReauthorIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportAdoptionOut"];
         };
       };
       /** @description Validation Error */

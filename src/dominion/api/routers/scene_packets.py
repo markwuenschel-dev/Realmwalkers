@@ -23,6 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
 from dominion.api.packet_delete import hard_delete_scene_packet, hard_delete_scene_packets_for_chapter
+from dominion.shared.chapter_lock import (
+    DEFAULT_LOCK_TIMEOUT_MS,
+    ChapterWorkflowBusy,
+    run_under_chapter_workflow,
+)
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import JobKind, JobStatus, ScenePacketStatus
@@ -60,6 +65,20 @@ from dominion.workers.scene_packet import blockers as _blockers
 
 log = structlog.get_logger()
 router = APIRouter(tags=["scene-packets"])
+
+# Request-path wait ceiling for the per-chapter workflow lock a scene-packet approval takes (ADR-0028
+# Q15/Q16). A module attribute so a busy-path test can patch it short; production uses the 4s default.
+LOCK_TIMEOUT_MS: int | None = DEFAULT_LOCK_TIMEOUT_MS
+
+
+def _chapter_busy_409() -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail={
+            "reason": "chapter_workflow_busy",
+            "message": "This chapter is busy with another workflow operation. Retry in a moment.",
+        },
+    )
 
 
 def _derive_key(chapter_id: uuid.UUID) -> str:
@@ -377,19 +396,45 @@ async def qa_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> Sc
 
 
 @router.post("/scene-packets/{scene_packet_id}/approve", response_model=ScenePacketOut)
-async def approve_scene_packet(scene_packet_id: uuid.UUID, session: SessionDep) -> ScenePacketOut:
-    """Approve one ScenePacket, then derive the chapter's beats. Refused when blocked or when QA
-    blocks drafting."""
+async def approve_scene_packet(
+    scene_packet_id: uuid.UUID, background: BackgroundTasks, session: SessionDep
+) -> ScenePacketOut:
+    """Approve one ScenePacket, derive the chapter's beats, THEN (ADR-0028 Slice 3b) resume any waiting
+    RevisionRequest whose imported source scene this now-approved adoption-derived packet contracts.
+
+    Approval is an authority-changing chapter mutation that can advance a durable request, so it runs
+    INSIDE `run_under_chapter_workflow` — the chapter lock precedes the row lock (Q15) and the resume's
+    revalidate + queue is atomic with the approval. A lock collision maps to `409 chapter_workflow_busy`
+    (Q16). Refused when blocked or when an active ApprovalBlocker holds it (409)."""
     row = await _get(session, scene_packet_id)
     if refusal := scene_packet_pipeline.can_approve(row):
         raise HTTPException(status_code=409, detail=refusal.detail)
-    try:
+
+    async def _body() -> tuple[int, uuid.UUID | None]:
         derived = await scene_packet_pipeline.approve_scene_packet(session, packet=row)
+        job_id = await scene_packet_pipeline.resume_awaiting_contract_on_approval(session, scene_packet=row)
+        return derived, job_id
+
+    try:
+        derived, resumed_job_id = await run_under_chapter_workflow(
+            session, row.chapter_id, _body, timeout_ms=LOCK_TIMEOUT_MS
+        )
+    except ChapterWorkflowBusy as exc:
+        raise _chapter_busy_409() from exc
     except _blockers.ApprovalBlockerError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    await session.commit()
+
+    # A resumed request minted a QUEUED revise Job — kick the drain after the commit run_under_chapter_workflow
+    # already performed (mirrors chapters.draft: the browser-driven queue only advances when nudged).
+    if resumed_job_id is not None:
+        background.add_task(background_work.drain_queued_jobs)
     await session.refresh(row)
-    log.info("scene_packet.approved", packet=str(row.id), derived_beats=derived)
+    log.info(
+        "scene_packet.approved",
+        packet=str(row.id),
+        derived_beats=derived,
+        resumed_revision_job=str(resumed_job_id) if resumed_job_id else None,
+    )
     return await scene_packet_pipeline.scene_out_with_blockers(session, row)
 
 
@@ -447,10 +492,13 @@ async def resolve_scene_packet_blocker(
 
 @router.post("/chapters/{chapter_id}/scene-packets/approve", response_model=list[ScenePacketOut])
 async def approve_scene_packets(
-    chapter_id: uuid.UUID, session: SessionDep, body: ScenePacketApproveIn | None = None
+    chapter_id: uuid.UUID, background: BackgroundTasks, session: SessionDep, body: ScenePacketApproveIn | None = None
 ) -> list[ScenePacketOut]:
-    """Batch approve. Approves only packets that are not blocked and have no blocking QA issues, then
-    derives the chapter's beats from the approved set."""
+    """Batch approve. Approves only packets that are not blocked and have no blocking QA issues, derives
+    the chapter's beats from the approved set, THEN (ADR-0028 Slice 3b) resumes any waiting RevisionRequest
+    each newly-approved adoption-derived packet contracts. Runs under `run_under_chapter_workflow` so the
+    whole batch — approval, beats, and each resume — is one atomic, chapter-locked unit (Q15); a lock
+    collision maps to `409 chapter_workflow_busy` (Q16)."""
     rows = (
         (
             await session.execute(
@@ -462,19 +510,45 @@ async def approve_scene_packets(
     )
     if not rows:
         raise HTTPException(status_code=400, detail="no scene packets to approve for this chapter")
-    approved, derived = await scene_packet_pipeline.approve_scene_packets(
-        session,
-        chapter_id=chapter_id,
-        rows=list(rows),
-        packet_ids=body.packet_ids if body else None,
-    )
-    await session.commit()
+
+    async def _body() -> tuple[int, int, list[uuid.UUID]]:
+        approved_n, derived_n = await scene_packet_pipeline.approve_scene_packets(
+            session,
+            chapter_id=chapter_id,
+            rows=list(rows),
+            packet_ids=body.packet_ids if body else None,
+        )
+        # Resume runs after the batch's single derive_beats. Each row is checked; the resume is a
+        # fail-closed no-op for a non-approved / non-adoption / already-queued packet, so iterating all
+        # rows is safe and idempotent.
+        minted: list[uuid.UUID] = []
+        for r in rows:
+            job_id = await scene_packet_pipeline.resume_awaiting_contract_on_approval(session, scene_packet=r)
+            if job_id is not None:
+                minted.append(job_id)
+        return approved_n, derived_n, minted
+
+    try:
+        approved, derived, minted_jobs = await run_under_chapter_workflow(
+            session, chapter_id, _body, timeout_ms=LOCK_TIMEOUT_MS
+        )
+    except ChapterWorkflowBusy as exc:
+        raise _chapter_busy_409() from exc
+
+    if minted_jobs:
+        background.add_task(background_work.drain_queued_jobs)
     # Refresh each row so its server-side `updated_at` (onupdate) is loaded before enrich serializes it
     # — otherwise model_validate triggers a sync lazy-load on the async session (MissingGreenlet).
     # Mirrors the mark-stale fix below. (N1)
     for r in rows:
         await session.refresh(r)
-    log.info("scene_packet.batch_approved", chapter=str(chapter_id), approved=approved, derived_beats=derived)
+    log.info(
+        "scene_packet.batch_approved",
+        chapter=str(chapter_id),
+        approved=approved,
+        derived_beats=derived,
+        resumed_revision_jobs=len(minted_jobs),
+    )
     return await scene_packet_pipeline.scene_outs_with_blockers(session, list(rows))
 
 

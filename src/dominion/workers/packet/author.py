@@ -12,6 +12,7 @@ ONE JSON object; the orchestration (packet/__init__.py) fails closed if it can't
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from dominion.shared.config import settings
@@ -30,8 +31,15 @@ _SYSTEM = (
     "Your job is to create the chapter knowledge packet that will constrain all drafting agents. Use "
     "only locked canon, the supplied outline, prior-chapter state, and explicitly marked inferences.\n\n"
     "Separate every claim by source strength using exactly one of these labels: LOCKED_CANON, "
-    "DERIVED_FROM_OUTLINE, PLAUSIBLE_INFERENCE, UNRESOLVED, FORBIDDEN. Flag any uncertainty as an open "
-    "question or UNRESOLVED claim instead of resolving it creatively.\n\n"
+    "DERIVED_FROM_MANUSCRIPT, DERIVED_FROM_OUTLINE, PLAUSIBLE_INFERENCE, UNRESOLVED, FORBIDDEN. Flag any "
+    "uncertainty as an open question or UNRESOLVED claim instead of resolving it creatively.\n\n"
+    "DERIVED_FROM_MANUSCRIPT is for a claim traceable to imported manuscript evidence — an M# handle that "
+    "resolves to an immutable (scene_id, version, prose_hash) plus a character span in a snapshot of "
+    "existing prose. It ranks BELOW LOCKED_CANON but ABOVE DERIVED_FROM_OUTLINE: the actual prose readers "
+    "have already seen outweighs an outline guess, yet manuscript evidence is NEVER promoted to canon and "
+    "NEVER overrides locked canon on its own. When a manuscript claim conflicts with locked canon, do NOT "
+    "pick a side — leave it as an open question for a human to adjudicate. Cite a manuscript claim's "
+    "source_id by its M# handle (e.g. M2), exactly as you cite locked canon by its C# handle.\n\n"
     "Roster: every named or referenced character belongs in EXACTLY ONE of these four buckets — never "
     "two, and never omit a character who has ANY role in the chapter:\n"
     "  - characters_present: physically in a scene this chapter, in ANY capacity — named or anonymous, "
@@ -125,9 +133,9 @@ _SCHEMA_HINT = (
     '     "word_budget": {"min": int, "target": int, "max": int, "hard_max": int}}],\n'
     '  "known_risks": [{"risk": str, "why_dangerous": str, "prevention": str}],\n'
     '  "claims": [{"claim": str, "source_strength": '
-    '"LOCKED_CANON|DERIVED_FROM_OUTLINE|PLAUSIBLE_INFERENCE|UNRESOLVED|FORBIDDEN",\n'
-    '     "source_id": str|null (a canon handle like "C3", or "OUTLINE", or null), '
-    '"confidence": "high|medium|low"}],\n'
+    '"LOCKED_CANON|DERIVED_FROM_MANUSCRIPT|DERIVED_FROM_OUTLINE|PLAUSIBLE_INFERENCE|UNRESOLVED|FORBIDDEN",\n'
+    '     "source_id": str|null (a canon handle like "C3", a manuscript handle like "M2", "OUTLINE", or '
+    'null), "confidence": "high|medium|low"}],\n'
     '  "open_questions": [str],\n'
     '  "confidence": "green|yellow|red"\n'
     "}"
@@ -185,6 +193,107 @@ async def author_packet(
         prior_exit_state=prior_exit_state,
         next_entry_intent=next_entry_intent,
         canon_handles=canon_handles,
+    )
+
+    async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, Any]:
+        raw, usage = await llm.complete(
+            model=model,
+            system=_SYSTEM,
+            user=user,
+            max_tokens=max_tokens,
+            budget=budget,
+            expect_cache=False,
+            setting_key="packet_author_model",
+        )
+        obj = extract_object(raw)
+        return obj if isinstance(obj, dict) else None, usage
+
+    result, _model, _esc = await attempt_with_escalation(
+        setting_key="packet_author_model",
+        primary_model=settings.packet_author_model,
+        primary_max_tokens=_AUTHOR_MAX_TOKENS,
+        attempt_fn=_attempt,
+        is_success=lambda v: isinstance(v, dict) and bool(v.get("chapter_job")),
+        policy=policy_for_setting("packet_author_model"),
+    )
+    return result if isinstance(result, dict) else None
+
+
+# --- authoring from imported-scene evidence (ADR 0028 Slice 3b, import adoption) -------------------
+
+# The import-adoption reconstruction differs from the outline path in exactly one way: the chapter is
+# rebuilt from the `M#` manuscript-evidence bundle, not a forward-looking outline. Everything else — the
+# system prompt (which already carries the DERIVED_FROM_MANUSCRIPT vocabulary), the JSON schema, the
+# escalation policy, the success predicate — is shared, so a proposed evidence packet flows through the
+# exact same QA + persist tail as a proposed outline packet.
+_EVIDENCE_MODE_NOTE = (
+    "RECONSTRUCTION MODE — there is NO outline. Rebuild this chapter's knowledge packet from the "
+    "MANUSCRIPT EVIDENCE below: a span-anchored fact ledger extracted from the chapter's EXISTING "
+    "imported prose (the prose readers have already seen). Treat every fact you take from it as a "
+    "DERIVED_FROM_MANUSCRIPT claim and cite its source_id by the M# handle it came from (e.g. M1), "
+    "exactly as you cite locked canon by its C# handle. Manuscript evidence is strong — it outranks an "
+    "outline guess — but it is NEVER canon and NEVER overrides locked canon on its own: when a "
+    "manuscript fact conflicts with locked canon, do NOT pick a side, raise it as an open question."
+)
+
+
+def build_evidence_prompt(
+    *,
+    chapter_no: int | None,
+    pov: str,
+    omniscient_summary: str | None,
+    prior_exit_state: str | None,
+    next_entry_intent: str | None,
+    canon_handles: Mapping[str, Mapping[str, Any]],
+    manuscript_handles: Mapping[str, str],
+) -> str:
+    """The evidence author's user message. `manuscript_handles` maps each `M#` handle to a rendered
+    digest of that scene's fact ledger (see `packet/evidence.render_ledger`); the author cites a
+    manuscript claim's provenance by that handle, just as `canon_handles` (`C#`) anchors canon claims."""
+    heading = f"CHAPTER {chapter_no}" if chapter_no is not None else "CHAPTER"
+    parts: list[str] = [f"{heading} — POV: {pov}", _EVIDENCE_MODE_NOTE]
+    if prior_exit_state:
+        parts.append(f"Previous chapter ended (entry state for this chapter):\n{prior_exit_state}")
+    if next_entry_intent:
+        parts.append(f"Next chapter is intended to open from:\n{next_entry_intent}")
+    if omniscient_summary:
+        parts.append(f"Story so far (all viewpoints):\n{omniscient_summary}")
+    if canon_handles:
+        snippets = "\n\n".join(
+            f"[{h}] ({meta.get('name') or 'canon'}) {meta.get('body') or ''}" for h, meta in canon_handles.items()
+        )
+        parts.append("CANON SNIPPETS (cite a claim's source_id by its bracket handle, e.g. C1):\n" + snippets)
+    if manuscript_handles:
+        evidence = "\n\n".join(f"[{h}]\n{text}" for h, text in manuscript_handles.items())
+        parts.append(
+            "MANUSCRIPT EVIDENCE (cite a manuscript claim's source_id by its bracket handle, e.g. M1):\n" + evidence
+        )
+    parts.append("Produce the chapter knowledge packet as ONE JSON object with exactly this shape:\n" + _SCHEMA_HINT)
+    return "\n\n".join(parts)
+
+
+async def author_packet_from_evidence(
+    *,
+    chapter_no: int | None,
+    pov: str,
+    omniscient_summary: str | None,
+    prior_exit_state: str | None,
+    next_entry_intent: str | None,
+    canon_handles: Mapping[str, Mapping[str, Any]],
+    manuscript_handles: Mapping[str, str],
+    budget: TokenBudget,
+) -> dict[str, Any] | None:
+    """One bounded call -> the parsed packet dict authored from the `M#` evidence bundle, or None when
+    nothing usable came back. Same escalation policy + success predicate as `author_packet`; only the
+    input (evidence, not outline) differs."""
+    user = build_evidence_prompt(
+        chapter_no=chapter_no,
+        pov=pov,
+        omniscient_summary=omniscient_summary,
+        prior_exit_state=prior_exit_state,
+        next_entry_intent=next_entry_intent,
+        canon_handles=canon_handles,
+        manuscript_handles=manuscript_handles,
     )
 
     async def _attempt(model: str, max_tokens: int) -> tuple[dict[str, Any] | None, Any]:

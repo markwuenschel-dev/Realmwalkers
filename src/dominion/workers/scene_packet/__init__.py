@@ -62,6 +62,8 @@ __all__ = [
     "derive_scene_packets",
     "approve_scene_packet",
     "approve_scene_packets",
+    # adoption-loop resume: advance a waiting RevisionRequest on an adoption-derived packet approval
+    "resume_awaiting_contract_on_approval",
     # beats-only projection refresh (no scene-packet mutation)
     "reconcile_beats",
     # advisory QA (no mutation of scene-packet state on its own)
@@ -175,6 +177,21 @@ async def approve_scene_packets(
             approved += 1
     derived = await _beats.derive_beats(session, chapter_id=chapter_id)
     return approved, derived
+
+
+async def resume_awaiting_contract_on_approval(session: AsyncSession, *, scene_packet: ScenePacket) -> uuid.UUID | None:
+    """Adoption-loop resume (ADR-0028 Slice 3b, Q2/Q18): on an adoption-derived ScenePacket's approval,
+    advance its source scene's waiting RevisionRequest `awaiting_contract` -> `queued` with a linked
+    revise Job. A fail-closed no-op for a non-adoption / non-approved packet or a revalidation miss.
+
+    Surfaced through this facade so the approval path's resume is invoked RIGHT AFTER `approve_scene_packet`
+    / `approve_scene_packets` (i.e. after `derive_beats`) and UNDER the caller's `run_under_chapter_workflow`
+    lock. The delegate lives in `workers/revision.py` (it reuses the Slice-2 mint seam and owns the
+    RevisionRequest); the import is local to keep the facade free of a revision-module import cycle. The
+    caller owns commit and the post-commit drain kick. Returns the minted job id, or None."""
+    from dominion.workers.revision import resume_awaiting_contract_on_approval as _resume
+
+    return await _resume(session, scene_packet=scene_packet)
 
 
 async def reconcile_beats(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
