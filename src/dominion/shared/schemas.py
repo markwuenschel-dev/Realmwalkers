@@ -94,6 +94,22 @@ class RevisionRequestOut(BaseModel):
     updated_at: datetime
 
 
+class ImportAdoptionOut(_ORM):
+    """An import-adoption row as the wire sees it (ADR 0028, Slice 3b). Returned by the operator
+    "Start contract adoption" endpoint. `status=queued` is the durable spend-consent record the adoption
+    worker claims from; `chapter_packet_id` is populated only once the adoption reaches
+    `contract_proposed`."""
+
+    id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_id: uuid.UUID
+    mode: str
+    status: str
+    chapter_packet_id: uuid.UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class RunIn(BaseModel):
     """POST body to start a generation run (DESIGN §8)."""
 

@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from dominion.api.routers import (
     activity,
+    adoption,
     beats,
     books,
     chapters,
@@ -206,3 +207,4 @@ app.include_router(settings_router.router)
 app.include_router(docs.router)
 app.include_router(manuscript.router)
 app.include_router(enrich.router)
+app.include_router(adoption.router)
