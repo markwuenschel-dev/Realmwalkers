@@ -17,7 +17,6 @@ Approval nor the RevisionRequest persists (the ADR-0028 rollback guarantee).
 
 from __future__ import annotations
 
-import hashlib
 import uuid
 from dataclasses import dataclass
 
@@ -33,6 +32,7 @@ from dominion.shared.enums import (
     SceneStatus,
 )
 from dominion.shared.models import Approval, Book, Chapter, Job, RevisionRequest, Scene, ScenePacket
+from dominion.shared.prose_fingerprint import prose_sha256
 from dominion.shared.schemas import RevisionRequestOut
 from dominion.workers.job_scheduler import schedule_revision
 from dominion.workers.revision_taxonomy import RevisionFacts, RevisionOutcome, classify_revision
@@ -61,10 +61,10 @@ _PHASES: dict[str, tuple[str, str | None]] = {
 
 
 def prose_hash(text: str | None) -> str:
-    """sha256 of the exact prose snapshot — the concurrency token pinned on a RevisionRequest and
-    checked against the caller's `expected_prose_hash`. None/absent prose still hashes to a value so a
-    hash always exists."""
-    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
+    """sha256 hex of the exact prose snapshot — the concurrency token pinned on a RevisionRequest and
+    checked against the scene's current prose. Delegates to the canonical `prose_fingerprint.prose_sha256`
+    (R4) so revise-intent and adoption evidence share ONE hash implementation. None/absent → hash of ''."""
+    return prose_sha256(text)
 
 
 def derive_display_phase(status: str) -> tuple[str, str | None]:

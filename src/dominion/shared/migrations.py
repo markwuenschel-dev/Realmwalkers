@@ -108,6 +108,14 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # link. The FK constraint (NOT VALID) is added in _EXTRA_DDL. New tables (import_adoptions,
     # import_scene_evidence, revision_requests) are provisioned by create_all.
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS revision_request_id UUID",
+    # ADR 0028 Slice 3a′ (R1): the immutable snapshot of the exact prose an ImportSceneEvidence row was
+    # extracted from — Scene.prose is the current manuscript (edited in place), so it cannot audit a past
+    # evidence identity. The parent table DOES change, so this ADD is required even though create_all
+    # provisions a fresh table complete: a prod table created before this column exists gets it here.
+    # Nullable in the ALTER (safe on a populated table); the model is NOT NULL, and the layer is inert
+    # (0 writers → 0 rows), so every real row sets it. New child table import_scene_evidence_chunks is
+    # provisioned wholesale by create_all (its own UniqueConstraint + CASCADE FK ride along).
+    "ALTER TABLE import_scene_evidence ADD COLUMN IF NOT EXISTS snapshot_prose TEXT",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only

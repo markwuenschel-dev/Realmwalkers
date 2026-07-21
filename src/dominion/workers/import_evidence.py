@@ -70,20 +70,30 @@ class ExtractionBudget:
     max_chars_per_chunk: int = 24000
 
 
+@dataclass(frozen=True)
+class EvidenceChunk:
+    """One retained chunk of an oversized-scene extraction (R2). A COHESIVE value — its chunk-LOCAL
+    span-anchored `ledger` plus the [char_offset, char_end) window it covers in whole-scene coordinates
+    — never parallel arrays. The worker persists each as an ImportSceneEvidenceChunk row keyed by
+    `chunk_index`; the parent's merged ledger is the offset-shifted union of these."""
+
+    chunk_index: int
+    char_offset: int
+    char_end: int
+    ledger: dict[str, Any]
+
+
 @dataclass
 class ValidatedEvidence:
-    """The extractor's validated output for one scene. `ledger` is the span-anchored fact ledger;
-    `merged_shard_ids` records the per-chunk shards a bounded merge combined (empty for a single-pass
-    extraction). `schema_version` echoes the identity key component. No DB rows here — the worker
-    persists this as an ImportSceneEvidence row."""
+    """The extractor's validated output for one scene. `ledger` is the merged, whole-scene span-anchored
+    fact ledger; `chunks` carries the retained per-chunk shards of an oversized extraction (empty for a
+    single-pass one). No DB rows and no DB ids here — the worker persists this as an ImportSceneEvidence
+    parent plus one ImportSceneEvidenceChunk child per `chunks` entry, and derives the parent's
+    `merged_shard_ids` from the children it wrote."""
 
     ledger: dict[str, Any]
     schema_version: str = EVIDENCE_SCHEMA_VERSION
-    # For an oversized scene: the per-chunk sub-ledgers the bounded merge combined. The WORKER persists
-    # each as a retained shard and records their DB ids on `merged_shard_ids` of the merged row (the
-    # extractor never touches the DB, so it cannot know ids). Empty for a single-pass extraction.
-    chunk_ledgers: list[dict[str, Any]] = field(default_factory=list)
-    merged_shard_ids: list[str] = field(default_factory=list)  # worker-filled after persisting chunk shards
+    chunks: list[EvidenceChunk] = field(default_factory=list)
     token_usage: int | None = None
 
 
@@ -160,13 +170,20 @@ class FakeImportEvidenceExtractor:
         if ledger is None:
             ledger = {"events": [{"summary": f"scene {source.scene_no}", "span": [0, min(len(source.prose), 1)]}]}
         normalized = validate_ledger(dict(ledger), len(source.prose))
-        return ValidatedEvidence(
-            ledger=normalized,
-            chunk_ledgers=[
-                validate_ledger(dict(c), len(source.prose)) for c in self._chunk_ledgers.get(source.scene_id, [])
-            ],
-            token_usage=0,
-        )
+        # Scripted chunks get deterministic, monotonic, non-overlapping synthetic windows so the persist
+        # oracle can assert interval integrity + order without a real chunker run (that is covered by
+        # _deterministic_chunks' own tests). Stride 1000, half-width → gaps, never overlaps.
+        scripted = self._chunk_ledgers.get(source.scene_id, [])
+        chunks = [
+            EvidenceChunk(
+                chunk_index=i,
+                char_offset=i * 1000,
+                char_end=i * 1000 + 500,
+                ledger=validate_ledger(dict(c), len(source.prose)),
+            )
+            for i, c in enumerate(scripted)
+        ]
+        return ValidatedEvidence(ledger=normalized, chunks=chunks, token_usage=0)
 
 
 def _deterministic_chunks(prose: str, max_chars: int) -> list[tuple[int, str]]:
@@ -242,18 +259,21 @@ class LlmImportEvidenceExtractor:
             ledger, usage = await self._extract_one(source, source.prose, budget)
             return ValidatedEvidence(ledger=validate_ledger(ledger, len(source.prose)), token_usage=usage)
 
-        chunk_ledgers: list[tuple[int, dict[str, Any]]] = []
+        evidence_chunks: list[EvidenceChunk] = []
         total_usage = 0
-        for offset, text in chunks:
+        for i, (offset, text) in enumerate(chunks):
             ledger, usage = await self._extract_one(source, text, budget)
-            chunk_ledgers.append((offset, validate_ledger(ledger, len(text))))
+            evidence_chunks.append(
+                EvidenceChunk(
+                    chunk_index=i,
+                    char_offset=offset,
+                    char_end=offset + len(text),
+                    ledger=validate_ledger(ledger, len(text)),
+                )
+            )
             total_usage += usage or 0
-        merged = _merge_chunk_ledgers(chunk_ledgers, len(source.prose))
-        return ValidatedEvidence(
-            ledger=merged,
-            chunk_ledgers=[cl for _off, cl in chunk_ledgers],
-            token_usage=total_usage,
-        )
+        merged = _merge_chunk_ledgers([(c.char_offset, c.ledger) for c in evidence_chunks], len(source.prose))
+        return ValidatedEvidence(ledger=merged, chunks=evidence_chunks, token_usage=total_usage)
 
     async def _extract_one(
         self, source: SceneSource, text: str, budget: ExtractionBudget
