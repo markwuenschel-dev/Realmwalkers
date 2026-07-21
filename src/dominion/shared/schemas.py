@@ -96,9 +96,10 @@ class RevisionRequestOut(BaseModel):
 
 class ImportAdoptionOut(_ORM):
     """An import-adoption row as the wire sees it (ADR 0028, Slice 3b). Returned by the operator
-    "Start contract adoption" endpoint. `status=queued` is the durable spend-consent record the adoption
-    worker claims from; `chapter_packet_id` is populated only once the adoption reaches
-    `contract_proposed`."""
+    "Start contract adoption" and "Re-author" endpoints. `status=queued` is the durable spend-consent
+    record the adoption worker claims from; `chapter_packet_id` is populated only once the adoption
+    reaches `contract_proposed`. `force_author_token`/`reauthor_of_adoption_id` are NULL for an ordinary
+    Start and set only for a tier-C operator Re-author (Q11)."""
 
     id: uuid.UUID
     book_id: uuid.UUID
@@ -106,8 +107,19 @@ class ImportAdoptionOut(_ORM):
     mode: str
     status: str
     chapter_packet_id: uuid.UUID | None = None
+    force_author_token: uuid.UUID | None = None
+    reauthor_of_adoption_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class ReauthorIn(BaseModel):
+    """POST body for the operator Re-author (Q11 tier-C force override). `force_author_token` is a
+    CLIENT-supplied, client-stable idempotency key (a UUID): the same token retried returns the same
+    adoption (no second spend), a fresh token authorizes exactly one new author pass. It is deliberately
+    NOT server-generated — a server-minted token would let a client retry silently buy a second reroll."""
+
+    force_author_token: uuid.UUID
 
 
 class RunIn(BaseModel):

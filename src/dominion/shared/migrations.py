@@ -126,6 +126,12 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # import_adoptions.author_input_fingerprint (Q11): tiered-idempotency tier B hash over consumed
     # evidence-shard ids + the canon-retrieval snapshot the author saw.
     "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS author_input_fingerprint TEXT",
+    # ADR-0028 Slice 3b (Q11 tier-C, operator Re-author): two nullable columns on the existing
+    # import_adoptions table (create_all won't ALTER it). force_author_token is the immutable operator
+    # override + idempotency key (a partial UNIQUE index in _EXTRA_DDL enforces one adoption per token);
+    # reauthor_of_adoption_id is the audit self-link (its NOT VALID self-FK is added in _EXTRA_DDL).
+    "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS force_author_token UUID",
+    "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS reauthor_of_adoption_id UUID",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -296,6 +302,43 @@ _EXTRA_DDL: tuple[str, ...] = (
          END IF;
        END $$""",
     "CREATE INDEX IF NOT EXISTS ix_scene_packets_source_scene_id ON scene_packets (source_scene_id)",
+    # ADR-0028 Slice 3b (Q11 tier-C, operator Re-author): ImportAdoption → ImportAdoption self-FK on the
+    # audit-lineage column, added NOT VALID so it enforces every future write while tolerating pre-existing
+    # rows (mirrors fk_scene_packets_source_scene / fk_jobs_revision_request). Guarded by a catalog check
+    # because Postgres has no ADD CONSTRAINT IF NOT EXISTS. reauthor_of_adoption_id was added above in
+    # _COLUMN_ADDS; import_adoptions exists already (create_all).
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_import_adoptions_reauthor_of') THEN
+           ALTER TABLE import_adoptions ADD CONSTRAINT fk_import_adoptions_reauthor_of
+             FOREIGN KEY (reauthor_of_adoption_id) REFERENCES import_adoptions (id) NOT VALID;
+         END IF;
+       END $$""",
+    # The retry-idempotency invariant: at most ONE adoption per operator force_author_token. Partial
+    # (WHERE force_author_token IS NOT NULL) so ordinary (non-force) adoptions are unconstrained, while a
+    # concurrent retried Re-author with the same token collides at the DB rather than racing a second
+    # spend — this is what makes endpoint idempotency race-safe, not just check-then-insert.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_import_adoptions_force_author_token
+       ON import_adoptions (force_author_token)
+       WHERE force_author_token IS NOT NULL""",
+    # ADR-0028 Slice 3b (Q11 tier-C): the DEPLOYED import_adoptions.chapter_packet_id FK was created NO
+    # ACTION, so a re-author's packet REPLACE (which DELETEs the chapter's prior packet) is blocked while a
+    # prior contract_proposed adoption still links it. Re-create the SAME-NAMED constraint with ON DELETE
+    # SET NULL, so a superseded adoption's link nulls instead of blocking the delete. A fresh create_all DB
+    # already emits SET NULL from the model (confdeltype='n' → this no-ops); a persistent prod DB has the
+    # old NO ACTION ('a') and gets the ALTER exactly once. Guarded on confdeltype so re-runs are a true
+    # no-op (no per-boot DROP+re-validate scan). ScenePacket.chapter_packet_id and the ChapterSequence FK
+    # are DELIBERATELY left restrictive — only adoption-owned, evidence-only packets become deletable here.
+    """DO $$
+       DECLARE deltype "char";
+       BEGIN
+         SELECT confdeltype INTO deltype FROM pg_constraint
+           WHERE conname = 'import_adoptions_chapter_packet_id_fkey';
+         IF deltype IS NOT NULL AND deltype <> 'n'::"char" THEN
+           ALTER TABLE import_adoptions DROP CONSTRAINT import_adoptions_chapter_packet_id_fkey;
+           ALTER TABLE import_adoptions ADD CONSTRAINT import_adoptions_chapter_packet_id_fkey
+             FOREIGN KEY (chapter_packet_id) REFERENCES chapter_packets (id) ON DELETE SET NULL;
+         END IF;
+       END $$""",
 )
 
 

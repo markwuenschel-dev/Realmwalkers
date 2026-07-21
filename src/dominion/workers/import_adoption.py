@@ -109,6 +109,9 @@ class _Claim:
     book_id: uuid.UUID
     mode: str
     source_fingerprint: str
+    # Q11 tier-C: the operator Re-author override. When set, run_one_adoption BYPASSES the reuse gate and
+    # authors fresh (one deliberate additional author call). NULL for an ordinary claim.
+    force_author_token: uuid.UUID | None
 
 
 # ------------------------------------------------------------------------------------------------ #
@@ -238,6 +241,9 @@ async def _claim_one(session_factory: async_sessionmaker[AsyncSession], lease_tt
             book_id=adoption.book_id,
             mode=adoption.mode,
             source_fingerprint=adoption.source_fingerprint,
+            # The claim SELECT loads the full ImportAdoption entity, so the tier-C override column rides
+            # along; surface it here before the ORM row expires at commit (Q11 tier-C).
+            force_author_token=adoption.force_author_token,
         )
         await session.commit()
         return claim
@@ -530,8 +536,16 @@ async def run_one_adoption(
         evidence_fingerprint = _evidence_fingerprint(manifest)
         canon_fingerprint = await _canon_snapshot_fingerprint(_retriever(session, claim.book_id, retrieve), bundle)
         author_input_fingerprint = _sha([evidence_fingerprint, canon_fingerprint])
-        reuse = await _find_reuse(
-            session, claim.chapter_id, claim.source_fingerprint, evidence_fingerprint, author_input_fingerprint
+        # Q11 tier-C (operator Re-author): a force token BYPASSES the reuse gate entirely — author fresh, a
+        # new proposed packet, one deliberate additional author call. The token is an execution command,
+        # NOT author-input identity: author_input_fingerprint is still computed above and written at publish
+        # unchanged, so a LATER ordinary Start reuses this force-generated packet via _find_reuse.
+        reuse = (
+            None
+            if claim.force_author_token is not None
+            else await _find_reuse(
+                session, claim.chapter_id, claim.source_fingerprint, evidence_fingerprint, author_input_fingerprint
+            )
         )
 
     if reuse is not None:
