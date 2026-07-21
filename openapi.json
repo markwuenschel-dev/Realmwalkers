@@ -2821,7 +2821,7 @@
           "scene-packets"
         ],
         "summary": "Approve Scene Packet",
-        "description": "Approve one ScenePacket, then derive the chapter's beats. Refused when blocked or when QA\nblocks drafting.",
+        "description": "Approve one ScenePacket, derive the chapter's beats, THEN (ADR-0028 Slice 3b) resume any waiting\nRevisionRequest whose imported source scene this now-approved adoption-derived packet contracts.\n\nApproval is an authority-changing chapter mutation that can advance a durable request, so it runs\nINSIDE `run_under_chapter_workflow` \u2014 the chapter lock precedes the row lock (Q15) and the resume's\nrevalidate + queue is atomic with the approval. A lock collision maps to `409 chapter_workflow_busy`\n(Q16). Refused when blocked or when an active ApprovalBlocker holds it (409).",
         "operationId": "approve_scene_packet_scene_packets__scene_packet_id__approve_post",
         "parameters": [
           {
@@ -3019,7 +3019,7 @@
           "scene-packets"
         ],
         "summary": "Approve Scene Packets",
-        "description": "Batch approve. Approves only packets that are not blocked and have no blocking QA issues, then\nderives the chapter's beats from the approved set.",
+        "description": "Batch approve. Approves only packets that are not blocked and have no blocking QA issues, derives\nthe chapter's beats from the approved set, THEN (ADR-0028 Slice 3b) resumes any waiting RevisionRequest\neach newly-approved adoption-derived packet contracts. Runs under `run_under_chapter_workflow` so the\nwhole batch \u2014 approval, beats, and each resume \u2014 is one atomic, chapter-locked unit (Q15); a lock\ncollision maps to `409 chapter_workflow_busy` (Q16).",
         "operationId": "approve_scene_packets_chapters__chapter_id__scene_packets_approve_post",
         "parameters": [
           {
@@ -9186,6 +9186,104 @@
           }
         }
       }
+    },
+    "/chapters/{chapter_id}/adoption/start": {
+      "post": {
+        "tags": [
+          "adoption"
+        ],
+        "summary": "Start Contract Adoption",
+        "description": "Start (or resume) import adoption for an evidence-only imported chapter.\n\nCreates a `queued` ImportAdoption, promotes an existing `awaiting_start` one to `queued`, or returns\nan already-`queued`/`running` one unchanged (idempotent). Refuses a chapter with any contracted scene\n(`409 chapter_has_contracted_scenes`) and a lock collision (`409 chapter_workflow_busy`). The whole\ndecision + write runs under the per-chapter workflow lock, so nothing is queued from a stale read.",
+        "operationId": "start_contract_adoption_chapters__chapter_id__adoption_start_post",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportAdoptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chapters/{chapter_id}/adoption/reauthor": {
+      "post": {
+        "tags": [
+          "adoption"
+        ],
+        "summary": "Reauthor Contract Adoption",
+        "description": "Operator Re-author (Q11 tier-C force override): explicitly author a FRESH chapter contract from the\nimported prose, bypassing the worker's tiered-idempotency reuse gate that would otherwise return the\nexisting packet. The deliberate \"I want a new proposal even though nothing changed\" action.\n\nThe client supplies `force_author_token` (a UUID) \u2014 a client-stable idempotency key, never\nserver-generated, so a network retry cannot silently buy a second reroll. Under the per-chapter\nworkflow lock, in order: 404 if the chapter is missing; refuse (`409 chapter_has_contracted_scenes` /\n`409 chapter_contract_already_approved`) rather than overwrite contracted or approved material; return\nthe existing adoption unchanged if this token already spent (idempotency); return an already in-flight\n(`queued`/`running`) adoption rather than race a parallel author pass (serialize); else create a fresh\n`queued`, force-flagged adoption linked to the prior proposed contract for audit. A lock collision maps\nto `409 chapter_workflow_busy`.",
+        "operationId": "reauthor_contract_adoption_chapters__chapter_id__adoption_reauthor_post",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReauthorIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportAdoptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -14257,6 +14355,91 @@
         "title": "HumanSceneIn",
         "description": "POST body to write a manuscript section by hand. By default it lands APPROVED (the human is\nthe gate) and flows straight into context; set ``approve_directly=False`` to route it into the\nreview inbox (PENDING_REVIEW) instead, where it clears via the normal /decision verdict."
       },
+      "ImportAdoptionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "chapter_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Packet Id"
+          },
+          "force_author_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Force Author Token"
+          },
+          "reauthor_of_adoption_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reauthor Of Adoption Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "book_id",
+          "chapter_id",
+          "mode",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ImportAdoptionOut",
+        "description": "An import-adoption row as the wire sees it (ADR 0028, Slice 3b). Returned by the operator\n\"Start contract adoption\" and \"Re-author\" endpoints. `status=queued` is the durable spend-consent\nrecord the adoption worker claims from; `chapter_packet_id` is populated only once the adoption\nreaches `contract_proposed`. `force_author_token`/`reauthor_of_adoption_id` are NULL for an ordinary\nStart and set only for a tier-C operator Re-author (Q11)."
+      },
       "IntegrityHoldOut": {
         "properties": {
           "id": {
@@ -17691,6 +17874,21 @@
         ],
         "title": "QueuedJobOut",
         "description": "A QUEUED job awaiting the drain \u2014 list order is queue position (created_at asc)."
+      },
+      "ReauthorIn": {
+        "properties": {
+          "force_author_token": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Force Author Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "force_author_token"
+        ],
+        "title": "ReauthorIn",
+        "description": "POST body for the operator Re-author (Q11 tier-C force override). `force_author_token` is a\nCLIENT-supplied, client-stable idempotency key (a UUID): the same token retried returns the same\nadoption (no second spend), a fresh token authorizes exactly one new author pass. It is deliberately\nNOT server-generated \u2014 a server-minted token would let a client retry silently buy a second reroll."
       },
       "RecentJobOut": {
         "properties": {
