@@ -30,8 +30,15 @@ _SYSTEM = (
     "Your job is to create the chapter knowledge packet that will constrain all drafting agents. Use "
     "only locked canon, the supplied outline, prior-chapter state, and explicitly marked inferences.\n\n"
     "Separate every claim by source strength using exactly one of these labels: LOCKED_CANON, "
-    "DERIVED_FROM_OUTLINE, PLAUSIBLE_INFERENCE, UNRESOLVED, FORBIDDEN. Flag any uncertainty as an open "
-    "question or UNRESOLVED claim instead of resolving it creatively.\n\n"
+    "DERIVED_FROM_MANUSCRIPT, DERIVED_FROM_OUTLINE, PLAUSIBLE_INFERENCE, UNRESOLVED, FORBIDDEN. Flag any "
+    "uncertainty as an open question or UNRESOLVED claim instead of resolving it creatively.\n\n"
+    "DERIVED_FROM_MANUSCRIPT is for a claim traceable to imported manuscript evidence — an M# handle that "
+    "resolves to an immutable (scene_id, version, prose_hash) plus a character span in a snapshot of "
+    "existing prose. It ranks BELOW LOCKED_CANON but ABOVE DERIVED_FROM_OUTLINE: the actual prose readers "
+    "have already seen outweighs an outline guess, yet manuscript evidence is NEVER promoted to canon and "
+    "NEVER overrides locked canon on its own. When a manuscript claim conflicts with locked canon, do NOT "
+    "pick a side — leave it as an open question for a human to adjudicate. Cite a manuscript claim's "
+    "source_id by its M# handle (e.g. M2), exactly as you cite locked canon by its C# handle.\n\n"
     "Roster: every named or referenced character belongs in EXACTLY ONE of these four buckets — never "
     "two, and never omit a character who has ANY role in the chapter:\n"
     "  - characters_present: physically in a scene this chapter, in ANY capacity — named or anonymous, "
@@ -125,9 +132,9 @@ _SCHEMA_HINT = (
     '     "word_budget": {"min": int, "target": int, "max": int, "hard_max": int}}],\n'
     '  "known_risks": [{"risk": str, "why_dangerous": str, "prevention": str}],\n'
     '  "claims": [{"claim": str, "source_strength": '
-    '"LOCKED_CANON|DERIVED_FROM_OUTLINE|PLAUSIBLE_INFERENCE|UNRESOLVED|FORBIDDEN",\n'
-    '     "source_id": str|null (a canon handle like "C3", or "OUTLINE", or null), '
-    '"confidence": "high|medium|low"}],\n'
+    '"LOCKED_CANON|DERIVED_FROM_MANUSCRIPT|DERIVED_FROM_OUTLINE|PLAUSIBLE_INFERENCE|UNRESOLVED|FORBIDDEN",\n'
+    '     "source_id": str|null (a canon handle like "C3", a manuscript handle like "M2", "OUTLINE", or '
+    'null), "confidence": "high|medium|low"}],\n'
     '  "open_questions": [str],\n'
     '  "confidence": "green|yellow|red"\n'
     "}"
