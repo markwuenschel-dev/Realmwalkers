@@ -1,46 +1,17 @@
-// Opt-in font embedding for the LitRPG DOCX. The interface labels use Bahnschrift, which SHIPS with
-// Windows 10+/Office, so nothing is embedded by default — Word already has the glyphs (older installs
-// fall back to Franklin Gothic). Georgia (body) and Consolas (code) also ship with Word/Windows and
-// are never embedded either.
+// Font descriptors for the LitRPG DOCX `fonts` option. The interface labels use Bahnschrift, which
+// SHIPS with Windows 10+/Office (older installs fall back to Franklin Gothic); Georgia (body) and
+// Consolas (code) are Word-native too — so nothing needs embedding by default.
 //
-// This module exists only for installs that lack the label font, or that want an exact custom label
-// look: drop the TTFs in assets/fonts/ (or set LITRPG_FONT_DIR) and list them in LABEL_FONTS below, e.g.
-//   MyLabelFont-Regular.ttf, MyLabelFont-Bold.ttf
-//
-// The docx `fonts` option takes { name, data: Buffer, bold?, italic? }. Loading is best-effort: if a
-// file is missing we skip it (the label just falls back to a substitute) rather than fail the export.
-// LABEL_FONTS is empty by default.
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-type FontFile = { name: string; file: string; bold?: boolean; italic?: boolean };
-
-// Bahnschrift is Word-native → nothing to embed. Populate to embed a non-installed label font instead.
-const LABEL_FONTS: FontFile[] = [];
-
-function fontDir(): string {
-  if (process.env.LITRPG_FONT_DIR) return resolve(process.env.LITRPG_FONT_DIR);
-  const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "..", "assets", "fonts");
-}
+// The Reader export runs in the BROWSER (see manuscript/exportActions.ts), which has no filesystem, so
+// custom label fonts cannot be read from disk and embedded here — embeddedFonts() returns []. This
+// stays as the seam docx.ts hands to docx's `fonts` option; wiring real embedding would need a
+// server-side export path that can read TTFs. A client bundle must NOT import node:fs — doing so breaks
+// the Next/Turbopack build, since docx.ts is reached from client components (e.g. PacketsScreen).
 
 export type EmbeddedFont = { name: string; data: Buffer; bold?: boolean; italic?: boolean };
 
-let cache: EmbeddedFont[] | null = null;
-
-/** docx `fonts` descriptors for the fonts that must be embedded; [] if none of the files are present. */
+/** docx `fonts` descriptors for fonts that must be embedded. Empty: Bahnschrift is Word-native and the
+ *  browser export cannot read font files from disk. */
 export function embeddedFonts(): EmbeddedFont[] {
-  if (cache) return cache;
-  const dir = fontDir();
-  const out: EmbeddedFont[] = [];
-  for (const f of LABEL_FONTS) {
-    try {
-      out.push({ name: f.name, data: readFileSync(join(dir, f.file)), bold: f.bold, italic: f.italic });
-    } catch {
-      // missing file — skip; Word will substitute for this weight
-    }
-  }
-  cache = out;
-  return out;
+  return [];
 }

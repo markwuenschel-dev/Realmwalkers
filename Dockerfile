@@ -56,8 +56,10 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 COPY src/ ./src/
 COPY scripts/ ./scripts/
-COPY series/ ./series/
-COPY book1/ ./book1/
+# NB: series/ and book1/ (the novel's creative content) are intentionally NOT in the image — gitignored
+# (never on GitHub) and never shipped to the box. The deployed app reads canon from Postgres (migrated
+# separately), not from these files; the file-backed doc/canon viewers and on-disk ingest/seed are
+# authoring-only and simply return empty in production. Do not re-add a COPY for them.
 
 # Next standalone server (+ static assets). Lives under /app/frontend; run with `node server.js`.
 COPY --from=frontend /app/frontend/.next/standalone ./frontend/

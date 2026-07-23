@@ -141,4 +141,5 @@ every role × domain × creature × intensity combination.
 ### Fonts
 - **Labels:** Bahnschrift (ships with Windows 10+/Office — no embedding; Franklin Gothic fallback).
 - **Body:** Georgia (Word-native serif).
-- To force-embed a custom label font, add its TTFs to `lib/fonts.ts` → `LABEL_FONTS`.
+- Font embedding is not wired: the Reader export runs in the browser (no filesystem), so a custom
+  label font can't be read and embedded. It would need a server-side export path.
