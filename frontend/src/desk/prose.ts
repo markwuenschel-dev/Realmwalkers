@@ -43,7 +43,10 @@ export type UiRole =
   | "corruption"
   | "name"
   | "vow"
-  | "item";
+  | "item"
+  | "levelup"
+  | "skill"
+  | "sheet";
 
 export type MagicDomain =
   | "fire"
@@ -96,6 +99,14 @@ export type InterfaceSpec = {
   intensity?: Intensity;
   skill?: string;
   tier?: string;
+  // Level-up banner + skill-learned + character sheet identity.
+  name?: string; // subject name (banner subtitle / sheet identity)
+  from?: string; // level-up: prior level
+  to?: string; // level-up: new level
+  rank?: string; // skill-learned: proficiency rank ("Novice")
+  via?: string; // skill-learned: how it was earned (footnote)
+  age?: string; // sheet identity
+  level?: string; // sheet identity
 };
 
 export type ProseBlock =
@@ -106,10 +117,10 @@ export type ProseBlock =
   | { kind: "ol"; items: string[] }
   | { kind: "callout"; tone: Tone; title: string | null; lines: string[] }
   | { kind: "hr" }
-  | { kind: "stat"; lines: string[] } // pre-rendered box-drawing window
+  | { kind: "stat"; lines: string[]; spec?: InterfaceSpec } // pre-rendered box-drawing window
   | { kind: "code"; lines: string[]; lang: string } // ``` fenced block
   | { kind: "interface"; spec: InterfaceSpec; lines: string[] } // ``` + @interface directive
-  | { kind: "table"; head: string[]; rows: string[][]; align: Align[] };
+  | { kind: "table"; head: string[]; rows: string[][]; align: Align[]; spec?: InterfaceSpec };
 
 // Exported so the manuscript `beautify()` pre-parse (lib/beautify.ts) classifies blocks with the SAME
 // structural detection this parser uses — so it never unwraps a stat window / list / table / fence.
@@ -232,6 +243,8 @@ function collect(lines: string[], i: number, re: RegExp): [string[], number] {
 }
 
 const INTERFACE_DIRECTIVE = /^@interface\s+(.+)$/;
+// Color-codes the immediately-following stat window / pipe table by domain (same attr grammar as @interface).
+const STYLE_DIRECTIVE = /^@style\s+(.+)$/;
 
 const UI_ROLES = new Set<UiRole>([
   "system",
@@ -249,6 +262,9 @@ const UI_ROLES = new Set<UiRole>([
   "name",
   "vow",
   "item",
+  "levelup",
+  "skill",
+  "sheet",
 ]);
 
 const MAGIC_DOMAINS = new Set<MagicDomain>([
@@ -301,14 +317,15 @@ function asEnum<T extends string>(value: string, allowed: Set<T>): T | undefined
   return allowed.has(value as T) ? (value as T) : undefined;
 }
 
-/** Parse `@interface role=insight creature=archdemon …` into a typed InterfaceSpec. */
+/** Parse `@interface role=insight creature=archdemon skill="Umbral Step" …` into a typed InterfaceSpec.
+ *  Values may be bare (`role=skill`) or double-quoted to include spaces (`name="Kaelen Voss"`). */
 export function parseInterfaceSpec(raw: string): InterfaceSpec {
   const spec: InterfaceSpec = {};
-  for (const part of raw.trim().split(/\s+/)) {
-    const eq = part.indexOf("=");
-    if (eq <= 0) continue;
-    const key = part.slice(0, eq);
-    const value = part.slice(eq + 1);
+  const attr = /(\w+)=(?:"([^"]*)"|(\S+))/g;
+  let m: RegExpExecArray | null;
+  while ((m = attr.exec(raw)) !== null) {
+    const key = m[1];
+    const value = m[2] !== undefined ? m[2] : m[3];
     switch (key) {
       case "role":
         spec.role = asEnum(value, UI_ROLES);
@@ -328,6 +345,27 @@ export function parseInterfaceSpec(raw: string): InterfaceSpec {
       case "tier":
         spec.tier = value;
         break;
+      case "name":
+        spec.name = value;
+        break;
+      case "from":
+        spec.from = value;
+        break;
+      case "to":
+        spec.to = value;
+        break;
+      case "rank":
+        spec.rank = value;
+        break;
+      case "via":
+        spec.via = value;
+        break;
+      case "age":
+        spec.age = value;
+        break;
+      case "level":
+        spec.level = value;
+        break;
     }
   }
   return spec;
@@ -338,12 +376,25 @@ export function parseBlocks(text: string): ProseBlock[] {
   const lines = text.split("\n");
   let p = 0; // paragraph index — drop-cap parity with seg()
   let i = 0;
+  // A `@style domain=… tier=… skill=…` directive line color-codes the stat window or pipe table that
+  // immediately follows it (survives exactly one block, then clears).
+  let pendingStyle: InterfaceSpec | null = null;
   while (i < lines.length) {
     const line = lines[i];
     if (!line.trim()) {
       i++;
       continue;
     }
+
+    const styleDirective = STYLE_DIRECTIVE.exec(line.trim());
+    if (styleDirective) {
+      pendingStyle = parseInterfaceSpec(styleDirective[1]);
+      i++;
+      continue;
+    }
+    // Consume any pending style for THIS block only; unrelated blocks drop it.
+    const style = pendingStyle;
+    pendingStyle = null;
 
     // fenced code block — collect to the closing fence (or EOF if unterminated)
     if (FENCE.test(line)) {
@@ -383,7 +434,7 @@ export function parseBlocks(text: string): ProseBlock[] {
     if (BOX.test(line)) {
       const start = i;
       while (i < lines.length && BOX.test(lines[i])) i++;
-      out.push({ kind: "stat", lines: lines.slice(start, i) });
+      out.push({ kind: "stat", lines: lines.slice(start, i), spec: style ?? undefined });
       continue;
     }
 
@@ -405,7 +456,7 @@ export function parseBlocks(text: string): ProseBlock[] {
         rows.push(splitCells(lines[i]));
         i++;
       }
-      out.push({ kind: "table", head, rows, align });
+      out.push({ kind: "table", head, rows, align, spec: style ?? undefined });
       continue;
     }
 

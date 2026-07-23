@@ -24,6 +24,7 @@ import {
   type IBorderOptions,
 } from "docx";
 import type { ManuscriptOut } from "../api/types";
+import type { MagicDomain } from "../prose";
 import {
   formatInterfaceHeader,
   formatInterfaceShunnHeader,
@@ -33,11 +34,12 @@ import {
   tableSurface,
   type Surface,
 } from "./litrpgSurfaces";
-import { parseBlocks, parseInline, type ProseBlock, type Tone } from "../prose";
+import { parseBlocks, parseInline, type InterfaceSpec, type ProseBlock, type Tone } from "../prose";
 import { wordCount } from "./format";
 import { bookNumberLabel } from "../manuscript/metadata";
 import { partKindWord, toRoman } from "../manuscript/labels";
 import { readerStyleDefs, STYLE } from "../manuscript/docxStyles";
+import { embeddedFonts } from "./fonts";
 import { planReaderProduction } from "../manuscript/readerFrontMatter";
 import type { ExportPolicy } from "../manuscript/presets";
 import {
@@ -218,9 +220,73 @@ function monoPanel(lines: string[], surface: Surface): Table {
   );
 }
 
-function interfacePanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
-  const surface = resolveSurface(b.spec);
-  const headerRow = new TableRow({
+export { formatInterfaceShunnHeader };
+
+// Interface panels (Reader DOCX). Labels use Bahnschrift — a condensed techy sans installed with
+// Windows 10+/Office, so no font embedding is needed (older installs fall back to Franklin Gothic /
+// the platform sans). Body prose uses the book serif (Georgia) so system/magic/creature descriptions read as
+// part of the novel, not a terminal dump. Three layouts dispatch off the spec:
+//   • creature       → bestiary card: colored header band (scan label) + tinted description body
+//   • domain (magic) → tinted body, colored spine, inline eyebrow label — the color-coded magic block
+//   • role only      → elegant system message: centered label under a hairline rule, serif body
+// Bahnschrift is a condensed techy sans that SHIPS with Windows 10+/Office, so labels need no font
+// embedding; "Franklin Gothic" (also Office-installed) is the graceful fallback for older installs.
+const LABEL_FONT = "Bahnschrift";
+const BODY_SERIF = "Georgia";
+
+/** Header text without the mono brackets: "[ SKILL ] FIRE · TIER III" -> "SKILL · FIRE · TIER III". */
+function displayLabel(spec: InterfaceSpec): string {
+  return formatInterfaceHeader(spec)
+    .replace(/\[\s*/g, "")
+    .replace(/\s*\]/g, " ·")
+    .replace(/\s*·\s*/g, " · ")
+    .replace(/\s*·\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Interface body prose as book-serif paragraphs (inline bold / em / code markup preserved). */
+function interfaceBody(lines: string[], surface: Surface): Paragraph[] {
+  const ps = lines.map((ln) =>
+    ln.trim()
+      ? new Paragraph({
+          spacing: { after: 60, line: 288, lineRule: "auto" },
+          children: inlineRuns(ln, { font: BODY_SERIF, size: 21, color: surface.text }),
+        })
+      : new Paragraph({ spacing: { after: 60 }, children: [new TextRun("")] }),
+  );
+  if (ps.length === 0) ps.push(new Paragraph(""));
+  return ps;
+}
+
+/** A single-cell colored header band carrying a label; optional right-aligned category tag. */
+function bandRow(label: string, surface: Surface, rightLabel?: string): TableRow {
+  const children = [
+    new TextRun({
+      text: label,
+      font: LABEL_FONT,
+      bold: true,
+      allCaps: true,
+      characterSpacing: 24,
+      color: surface.headerText,
+      size: 15,
+    }),
+  ];
+  if (rightLabel) {
+    children.push(
+      new TextRun({ text: "\t", font: LABEL_FONT, color: surface.headerText }),
+      new TextRun({
+        text: rightLabel,
+        font: LABEL_FONT,
+        bold: true,
+        allCaps: true,
+        characterSpacing: 20,
+        color: surface.headerText,
+        size: 12,
+      }),
+    );
+  }
+  return new TableRow({
     children: [
       new TableCell({
         shading: { type: ShadingType.CLEAR, fill: surface.headerFill, color: "auto" },
@@ -228,53 +294,610 @@ function interfacePanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
         children: [
           new Paragraph({
             spacing: { after: 0 },
-            children: [
-              new TextRun({
-                text: formatInterfaceHeader(b.spec),
-                bold: true,
-                color: surface.headerText,
-                size: 18,
-              }),
-            ],
+            ...(rightLabel
+              ? { tabStops: [{ type: TabStopType.RIGHT, position: convertInchesToTwip(6.3) }] }
+              : {}),
+            children,
           }),
         ],
       }),
     ],
   });
+}
 
-  const bodyParagraphs: Paragraph[] = b.lines.map((ln) =>
-    ln.trim()
-      ? new Paragraph({
-          spacing: { after: 40, line: 240, lineRule: "auto" },
-          children: [new TextRun({ text: ln, font: "Consolas", size: 18, color: surface.text })],
-        })
-      : new Paragraph({ spacing: { after: 40 }, children: [new TextRun("")] }),
-  );
-  if (bodyParagraphs.length === 0) bodyParagraphs.push(new Paragraph(""));
-
-  const bodyRow = new TableRow({
+function bodyRow(lines: string[], surface: Surface): TableRow {
+  return new TableRow({
     children: [
       new TableCell({
         shading: { type: ShadingType.CLEAR, fill: surface.fill, color: "auto" },
         margins: cellMargins,
-        children: bodyParagraphs,
+        children: interfaceBody(lines, surface),
+      }),
+    ],
+  });
+}
+
+/** Magic/skill block: color the header band with the domain palette (where the system shows its info),
+ *  then the tinted description body. Band label = skill name · domain · tier from the spec. */
+function magicPanel(b: Extract<ProseBlock, { kind: "interface" }>, surface: Surface): Table {
+  const s = b.spec;
+  const parts: string[] = [];
+  if (s.skill) parts.push(s.skill);
+  if (s.domain) parts.push(s.domain);
+  if (s.tier) parts.push(`Tier ${s.tier}`);
+  const label = parts.join("  ·  ") || displayLabel(s);
+  return panel([bandRow(label, surface), bodyRow(b.lines, surface)], surface);
+}
+
+/** System / role message: centered label under a hairline rule, serif body. */
+function systemPanel(b: Extract<ProseBlock, { kind: "interface" }>, surface: Surface): Table {
+  return singleCellPanel(
+    [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 90 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: surface.border, space: 4 } },
+        children: [
+          new TextRun({
+            text: displayLabel(b.spec),
+            font: LABEL_FONT,
+            bold: true,
+            allCaps: true,
+            characterSpacing: 44,
+            color: surface.labelColor,
+            size: 17,
+          }),
+        ],
+      }),
+      ...interfaceBody(b.lines, surface),
+    ],
+    surface,
+  );
+}
+
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Threat readout derived from the block's intensity. */
+function threatLabel(intensity?: string): string | null {
+  switch (intensity) {
+    case "subtle":
+      return "Minor";
+    case "standard":
+      return "Standard";
+    case "strong":
+      return "Severe";
+    case "apex":
+      return "Apex";
+    default:
+      return null;
+  }
+}
+
+/** Ruled bestiary sub-field strip — KIND · THREAT · DOMAIN, with a bottom rule dividing it from prose. */
+function creatureMetaRow(s: InterfaceSpec, surface: Surface): TableRow | null {
+  const fields: [string, string, string?][] = [];
+  if (s.creature) fields.push(["Kind", cap(s.creature)]);
+  const threat = threatLabel(s.intensity);
+  if (threat) fields.push(["Threat", threat, PALETTE.crimson]);
+  if (s.domain) fields.push(["Domain", cap(s.domain)]);
+  if (fields.length === 0) return null;
+
+  const runs: TextRun[] = [];
+  fields.forEach(([k, v, color], i) => {
+    if (i > 0) runs.push(new TextRun({ text: "        ", size: 18 }));
+    runs.push(
+      new TextRun({
+        text: `${k.toUpperCase()}  `,
+        font: LABEL_FONT,
+        bold: true,
+        characterSpacing: 12,
+        color: "9A8F7D",
+        size: 13,
+      }),
+      new TextRun({ text: v, font: BODY_SERIF, color: color ?? surface.text, size: 19 }),
+    );
+  });
+  return new TableRow({
+    children: [
+      new TableCell({
+        shading: { type: ShadingType.CLEAR, fill: surface.fill, color: "auto" },
+        margins: cellMargins,
+        borders: { bottom: line(surface.border, 4) },
+        children: [new Paragraph({ spacing: { after: 0 }, children: runs })],
+      }),
+    ],
+  });
+}
+
+/** Creature scan: bestiary card — name band (with BESTIARY tag right), ruled fields, tinted description. */
+function creaturePanel(b: Extract<ProseBlock, { kind: "interface" }>, surface: Surface): Table {
+  const name = b.spec.skill ? b.spec.skill : displayLabel(b.spec);
+  const rows: TableRow[] = [bandRow(name, surface, "Bestiary")];
+  const meta = creatureMetaRow(b.spec, surface);
+  if (meta) rows.push(meta);
+  rows.push(bodyRow(b.lines, surface));
+  return panel(rows, surface);
+}
+
+/** Fixed gold treatment for the celebratory level-up banner (louder than a system message). */
+const GOLD = {
+  accent: "B8901C",
+  band: "1C1608",
+  rule: "E5B52A",
+  fill: "FFFDF4",
+  border: "D8BF6A",
+  ink: "3A352F",
+  labelGold: "E5B52A",
+  subGold: "8A7A4E",
+  fieldLabel: "B09A55",
+  grid: "ECDFAE",
+  muted: "9C832F",
+} as const;
+
+const GAIN = "1A9D3F";
+const LOSS = "B4231F";
+
+/** A `- Label: old -> new` (or single-value) line parsed for the vitals grid. */
+type Delta = { label: string; value: string; delta?: string; color?: string };
+
+const DELTA_LINE = /^\s*-\s*(.+?):\s*(.+?)\s*(?:->|→)\s*(.+?)\s*$/;
+
+function parseDeltas(lines: string[]): { body: string[]; deltas: Delta[] } {
+  const body: string[] = [];
+  const deltas: Delta[] = [];
+  for (const ln of lines) {
+    const m = DELTA_LINE.exec(ln);
+    if (m) {
+      const [, label, oldV, newV] = m;
+      const on = Number(oldV.replace(/[^\d.-]/g, ""));
+      const nn = Number(newV.replace(/[^\d.-]/g, ""));
+      const color = !isNaN(on) && !isNaN(nn) ? (nn >= on ? GAIN : LOSS) : GAIN;
+      deltas.push({ label, value: oldV, delta: `\u2192 ${newV}`, color });
+    } else if (ln.trim()) {
+      body.push(ln);
+    }
+  }
+  return { body, deltas };
+}
+
+/** 3-up grid of stat cells (label + value → new), gold-ruled. */
+function gainsGrid(deltas: Delta[]): Table {
+  const rows: TableRow[] = [];
+  for (let i = 0; i < deltas.length; i += 3) {
+    const chunk = deltas.slice(i, i + 3);
+    while (chunk.length < 3) chunk.push({ label: "", value: "" });
+    rows.push(
+      new TableRow({
+        children: chunk.map(
+          (d) =>
+            new TableCell({
+              width: { size: 33.33, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.CLEAR, fill: GOLD.fill, color: "auto" },
+              margins: cellMargins,
+              children: [
+                new Paragraph({
+                  spacing: { after: 20 },
+                  children: d.label
+                    ? [
+                        new TextRun({
+                          text: d.label.toUpperCase(),
+                          font: LABEL_FONT,
+                          bold: true,
+                          characterSpacing: 12,
+                          color: GOLD.fieldLabel,
+                          size: 15,
+                        }),
+                      ]
+                    : [new TextRun("")],
+                }),
+                new Paragraph({
+                  spacing: { after: 0 },
+                  children: d.label
+                    ? [
+                        new TextRun({ text: `${d.value} `, font: BODY_SERIF, color: GOLD.ink, size: 22 }),
+                        new TextRun({
+                          text: d.delta ?? "",
+                          font: BODY_SERIF,
+                          bold: true,
+                          color: d.color ?? GAIN,
+                          size: 22,
+                        }),
+                      ]
+                    : [new TextRun("")],
+                }),
+              ],
+            }),
+        ),
+      }),
+    );
+  }
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: line(GOLD.grid, 4),
+      bottom: line(GOLD.grid, 4),
+      left: line(GOLD.grid, 4),
+      right: line(GOLD.grid, 4),
+      insideHorizontal: line(GOLD.grid, 4),
+      insideVertical: line(GOLD.grid, 4),
+    },
+    rows,
+  });
+}
+
+/** Level-up banner: loud dark band (LEVEL UP + from→to), announcement body, vitals-growth grid. */
+function levelupPanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
+  const s = b.spec;
+  const { body, deltas } = parseDeltas(b.lines);
+
+  const bandRuns: TextRun[] = [
+    new TextRun({
+      text: "Level Up",
+      font: LABEL_FONT,
+      bold: true,
+      allCaps: true,
+      characterSpacing: 60,
+      color: GOLD.labelGold,
+      size: 17,
+    }),
+  ];
+  if (s.from || s.to) {
+    bandRuns.push(new TextRun({ text: "\t", font: LABEL_FONT }));
+    if (s.from)
+      bandRuns.push(
+        new TextRun({ text: `${s.from} \u2192 `, font: LABEL_FONT, color: GOLD.subGold, size: 22 }),
+      );
+    if (s.to)
+      bandRuns.push(
+        new TextRun({ text: s.to, font: LABEL_FONT, bold: true, color: GOLD.labelGold, size: 40 }),
+      );
+  }
+
+  const bandChildren: Paragraph[] = [
+    new Paragraph({
+      spacing: { after: s.name ? 40 : 0 },
+      tabStops: [{ type: TabStopType.RIGHT, position: convertInchesToTwip(6.3) }],
+      children: bandRuns,
+    }),
+  ];
+  if (s.name)
+    bandChildren.push(
+      new Paragraph({
+        spacing: { after: 0 },
+        children: [new TextRun({ text: s.name, font: BODY_SERIF, italics: true, color: "F3EAD0", size: 24 })],
+      }),
+    );
+
+  const bandRow = new TableRow({
+    children: [
+      new TableCell({
+        shading: { type: ShadingType.CLEAR, fill: GOLD.band, color: "auto" },
+        margins: cellMargins,
+        borders: { bottom: line(GOLD.rule, 18) },
+        children: bandChildren,
       }),
     ],
   });
 
-  return panel([headerRow, bodyRow], surface);
+  const bodyChildren: (Paragraph | Table)[] = [];
+  for (const ln of body)
+    bodyChildren.push(
+      new Paragraph({
+        spacing: { after: 80, line: 288, lineRule: "auto" },
+        children: inlineRuns(ln, { font: BODY_SERIF, size: 21, color: GOLD.ink }),
+      }),
+    );
+  if (deltas.length) {
+    bodyChildren.push(
+      new Paragraph({
+        spacing: { before: 40, after: 80 },
+        children: [
+          new TextRun({
+            text: "Vitals restored & grown",
+            font: LABEL_FONT,
+            bold: true,
+            allCaps: true,
+            characterSpacing: 24,
+            color: GOLD.muted,
+            size: 15,
+          }),
+        ],
+      }),
+      gainsGrid(deltas),
+    );
+  }
+  const bodyRowCell = new TableRow({
+    children: [
+      new TableCell({
+        shading: { type: ShadingType.CLEAR, fill: GOLD.fill, color: "auto" },
+        margins: cellMargins,
+        children: bodyChildren.length ? bodyChildren : [new Paragraph("")],
+      }),
+    ],
+  });
+
+  const goldSurface: Surface = {
+    accent: GOLD.accent,
+    fill: GOLD.fill,
+    headerFill: GOLD.band,
+    border: GOLD.border,
+    text: GOLD.ink,
+    headerText: GOLD.labelGold,
+    labelColor: GOLD.accent,
+    leftBorderSize: 16,
+  };
+  return panel([bandRow, bodyRowCell], goldSurface);
 }
 
-export { formatInterfaceShunnHeader };
+/** Skill learned: domain-coded acquisition — band (SKILL LEARNED · domain + rank·tier), body, via footnote. */
+function skillPanel(b: Extract<ProseBlock, { kind: "interface" }>, surface: Surface): Table {
+  const s = b.spec;
+  const nameParts = ["Skill Learned"];
+  if (s.domain) nameParts.push(cap(s.domain));
+  const tag = [s.rank, s.tier].filter(Boolean).join(" · ") || undefined;
+
+  const rows: TableRow[] = [bandRow(nameParts.join("  ·  "), surface, tag)];
+  const bodyChildren: Paragraph[] = [];
+  if (s.skill)
+    bodyChildren.push(
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [new TextRun({ text: s.skill, font: BODY_SERIF, bold: true, color: surface.text, size: 22 })],
+      }),
+    );
+  bodyChildren.push(...interfaceBody(b.lines, surface));
+  if (s.via)
+    bodyChildren.push(
+      new Paragraph({
+        spacing: { before: 40, after: 0 },
+        children: [
+          new TextRun({
+            text: `Learned through use — ${s.via}.`,
+            font: BODY_SERIF,
+            italics: true,
+            color: surface.labelColor,
+            size: 19,
+          }),
+        ],
+      }),
+    );
+  rows.push(
+    new TableRow({
+      children: [
+        new TableCell({
+          shading: { type: ShadingType.CLEAR, fill: surface.fill, color: "auto" },
+          margins: cellMargins,
+          children: bodyChildren,
+        }),
+      ],
+    }),
+  );
+  return panel(rows, surface);
+}
+
+function interfacePanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
+  if (b.spec.role === "levelup") return levelupPanel(b);
+  const surface = resolveSurface(b.spec);
+  if (b.spec.role === "skill") return skillPanel(b, surface);
+  if (b.spec.creature) return creaturePanel(b, surface);
+  if (b.spec.domain) return magicPanel(b, surface);
+  return systemPanel(b, surface);
+}
+
+function domainAccent(domain: MagicDomain): string {
+  return resolveSurface({ domain }).accent;
+}
+
+/** Colors for the amber character-sheet layout (role=sheet). */
+const SHEET = {
+  identity: "E5B52A",
+  identityLabel: "6E4E12",
+  identityValue: "2E2611",
+  section: "F3D98A",
+  sectionText: "5A3F0E",
+  grid: "EEDDAB",
+  fill: "FFFDF4",
+  label: "B09A55",
+  ink: "3A352F",
+  border: "D8BF6A",
+} as const;
+
+const SECTION_CELL = /^#\s*(.+)$/; // `| # STATS |`
+const PIP_CELL = /^~(\w+)\s+(.+)$/; // `~fire Fire +40%`
+
+function sheetCell(text: string, cols: number, span?: number): TableCell {
+  const runs: TextRun[] = [];
+  const pip = PIP_CELL.exec(text.trim());
+  let body = text.trim();
+  if (pip) {
+    const dom = pip[1] as MagicDomain;
+    body = pip[2];
+    // A colored square glyph stands in for the domain pip (Word-safe, no image asset needed).
+    runs.push(
+      new TextRun({ text: "\u25A0 ", color: domainAccent(dom), size: 18 }),
+    );
+  }
+  // `Label value` — first word bold-small-caps label if it ends with a colon; else plain serif.
+  const colon = body.indexOf(":");
+  if (colon > 0 && colon < 18) {
+    runs.push(
+      new TextRun({
+        text: `${body.slice(0, colon).toUpperCase()} `,
+        font: LABEL_FONT,
+        bold: true,
+        characterSpacing: 8,
+        color: SHEET.label,
+        size: 15,
+      }),
+      new TextRun({ text: body.slice(colon + 1).trim(), font: BODY_SERIF, color: SHEET.ink, size: 21 }),
+    );
+  } else {
+    runs.push(new TextRun({ text: body, font: BODY_SERIF, color: SHEET.ink, size: 21 }));
+  }
+  return new TableCell({
+    columnSpan: span,
+    width: span ? undefined : { size: 100 / cols, type: WidthType.PERCENTAGE },
+    shading: { type: ShadingType.CLEAR, fill: SHEET.fill, color: "auto" },
+    margins: cellMargins,
+    children: [new Paragraph({ spacing: { after: 0 }, children: runs })],
+  });
+}
+
+/** Amber character sheet (role=sheet): identity band, gold `# SECTION` bands, `~domain` pips. */
+function characterSheet(b: Extract<ProseBlock, { kind: "table" }>): Table {
+  const s = b.spec!;
+  const all = [b.head, ...b.rows];
+  const cols = Math.max(1, ...all.map((r) => r.length));
+  const rows: TableRow[] = [];
+
+  // Identity band: name / age / level from the directive.
+  const idFields: [string, string][] = [];
+  if (s.name) idFields.push(["Name", s.name]);
+  if (s.age) idFields.push(["Age", s.age]);
+  if (s.level) idFields.push(["Level", s.level]);
+  if (idFields.length) {
+    rows.push(
+      new TableRow({
+        children: idFields.map(
+          ([k, v], i) =>
+            new TableCell({
+              columnSpan: i === idFields.length - 1 ? cols - idFields.length + 1 : 1,
+              shading: { type: ShadingType.CLEAR, fill: SHEET.identity, color: "auto" },
+              margins: cellMargins,
+              children: [
+                new Paragraph({
+                  spacing: { after: 0 },
+                  children: [
+                    new TextRun({
+                      text: `${k.toUpperCase()} `,
+                      font: LABEL_FONT,
+                      bold: true,
+                      characterSpacing: 10,
+                      color: SHEET.identityLabel,
+                      size: 15,
+                    }),
+                    new TextRun({ text: v, font: BODY_SERIF, color: SHEET.identityValue, size: 21 }),
+                  ],
+                }),
+              ],
+            }),
+        ),
+      }),
+    );
+  }
+
+  for (const r of all) {
+    const first = (r[0] ?? "").trim();
+    const section = SECTION_CELL.exec(first);
+    if (section && r.filter((c) => c.trim()).length === 1) {
+      rows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              columnSpan: cols,
+              shading: { type: ShadingType.CLEAR, fill: SHEET.section, color: "auto" },
+              margins: cellMargins,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 0 },
+                  children: [
+                    new TextRun({
+                      text: section[1].trim().toUpperCase(),
+                      font: LABEL_FONT,
+                      bold: true,
+                      characterSpacing: 34,
+                      color: SHEET.sectionText,
+                      size: 17,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
+      continue;
+    }
+    const cells = r.slice();
+    while (cells.length < cols) cells.push("");
+    rows.push(new TableRow({ children: cells.map((c) => sheetCell(c, cols)) }));
+  }
+
+  const g = line(SHEET.grid, 4);
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: line(SHEET.border, 6),
+      bottom: line(SHEET.border, 6),
+      left: line(SHEET.border, 6),
+      right: line(SHEET.border, 6),
+      insideHorizontal: g,
+      insideVertical: g,
+    },
+    rows,
+  });
+}
 
 function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
-  const surface = tableSurface();
+  if (b.spec?.role === "sheet") return characterSheet(b);
+  // A `@style domain=…` directive color-codes the table; otherwise it stays neutral.
+  const surface = b.spec?.domain ? resolveSurface(b.spec) : tableSurface();
+  const cols = b.head.length;
   const align = (i: number) =>
     b.align[i] === "center"
       ? AlignmentType.CENTER
       : b.align[i] === "right"
         ? AlignmentType.RIGHT
         : AlignmentType.LEFT;
+
+  // Optional domain band spanning all columns: skill · domain · tier on the left, category tag on the right.
+  const bandRows: TableRow[] = [];
+  if (b.spec?.domain) {
+    const s = b.spec;
+    const parts: string[] = [];
+    if (s.skill) parts.push(s.skill);
+    parts.push(s.domain!);
+    if (s.tier) parts.push(`Tier ${s.tier}`);
+    bandRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            columnSpan: cols,
+            shading: { type: ShadingType.CLEAR, fill: surface.headerFill, color: "auto" },
+            margins: cellMargins,
+            children: [
+              new Paragraph({
+                spacing: { after: 0 },
+                tabStops: [{ type: TabStopType.RIGHT, position: convertInchesToTwip(6.3) }],
+                children: [
+                  new TextRun({
+                    text: parts.join("  ·  "),
+                    font: LABEL_FONT,
+                    bold: true,
+                    allCaps: true,
+                    characterSpacing: 22,
+                    color: surface.headerText,
+                    size: 15,
+                  }),
+                  new TextRun({ text: "\t", font: LABEL_FONT, color: surface.headerText }),
+                  new TextRun({
+                    text: s.creature ? "Bestiary" : "Stats",
+                    font: LABEL_FONT,
+                    bold: true,
+                    allCaps: true,
+                    characterSpacing: 20,
+                    color: surface.headerText,
+                    size: 12,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+  }
 
   const header = new TableRow({
     tableHeader: true,
@@ -286,7 +909,15 @@ function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
           children: [
             new Paragraph({
               alignment: align(i),
-              children: [new TextRun({ text: h, bold: true, color: surface.headerText })],
+              children: [
+                new TextRun({
+                  text: h,
+                  font: LABEL_FONT,
+                  bold: true,
+                  characterSpacing: 12,
+                  color: surface.headerText,
+                }),
+              ],
             }),
           ],
         }),
@@ -337,7 +968,7 @@ function dataTable(b: Extract<ProseBlock, { kind: "table" }>): Table {
       insideHorizontal: line(surface.border),
       insideVertical: line(surface.border),
     },
-    rows: [header, ...body],
+    rows: [...bandRows, header, ...body],
   });
 }
 
@@ -415,9 +1046,13 @@ function renderBlocks(
       case "code":
         pushTable(monoPanel(b.lines, { ...neutral, fill: "F5F5F5" }));
         break;
-      case "stat":
-        pushTable(monoPanel(b.lines, { ...neutral, fill: "FAFAFA" }));
+      case "stat": {
+        const s = b.spec?.domain
+          ? resolveSurface(b.spec)
+          : { ...neutral, fill: "FAFAFA" };
+        pushTable(monoPanel(b.lines, s));
         break;
+      }
       case "interface":
         pushTable(interfacePanel(b));
         break;
@@ -458,6 +1093,7 @@ export function buildDocDoc(title: string, content: string): Document {
   return new Document({
     creator: "Writers' Desk",
     title,
+    fonts: embeddedFonts(),
     sections: [
       {
         properties: { page: { margin: pageMargin } },
@@ -693,6 +1329,7 @@ export function renderReaderDoc(
     creator: "Writers' Desk",
     title: spine.metadata.title,
     styles: readerStyleDefs(policy),
+    fonts: embeddedFonts(),
     sections: [
       {
         properties: { page: { margin: { top: m, bottom: m, left: m, right: m } } },
