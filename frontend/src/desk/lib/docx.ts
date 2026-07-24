@@ -494,7 +494,12 @@ function gainsGrid(deltas: Delta[]): Table {
                   spacing: { after: 0 },
                   children: d.label
                     ? [
-                        new TextRun({ text: `${d.value} `, font: BODY_SERIF, color: GOLD.ink, size: 22 }),
+                        new TextRun({
+                          text: `${d.value} `,
+                          font: BODY_SERIF,
+                          color: GOLD.ink,
+                          size: 22,
+                        }),
                         new TextRun({
                           text: d.delta ?? "",
                           font: BODY_SERIF,
@@ -564,7 +569,9 @@ function levelupPanel(b: Extract<ProseBlock, { kind: "interface" }>): Table {
     bandChildren.push(
       new Paragraph({
         spacing: { after: 0 },
-        children: [new TextRun({ text: s.name, font: BODY_SERIF, italics: true, color: "F3EAD0", size: 24 })],
+        children: [
+          new TextRun({ text: s.name, font: BODY_SERIF, italics: true, color: "F3EAD0", size: 24 }),
+        ],
       }),
     );
 
@@ -642,7 +649,15 @@ function skillPanel(b: Extract<ProseBlock, { kind: "interface" }>, surface: Surf
     bodyChildren.push(
       new Paragraph({
         spacing: { after: 40 },
-        children: [new TextRun({ text: s.skill, font: BODY_SERIF, bold: true, color: surface.text, size: 22 })],
+        children: [
+          new TextRun({
+            text: s.skill,
+            font: BODY_SERIF,
+            bold: true,
+            color: surface.text,
+            size: 22,
+          }),
+        ],
       }),
     );
   bodyChildren.push(...interfaceBody(b.lines, surface));
@@ -713,9 +728,7 @@ function sheetCell(text: string, cols: number, span?: number): TableCell {
     const dom = pip[1] as MagicDomain;
     body = pip[2];
     // A colored square glyph stands in for the domain pip (Word-safe, no image asset needed).
-    runs.push(
-      new TextRun({ text: "\u25A0 ", color: domainAccent(dom), size: 18 }),
-    );
+    runs.push(new TextRun({ text: "\u25A0 ", color: domainAccent(dom), size: 18 }));
   }
   // `Label value` — first word bold-small-caps label if it ends with a colon; else plain serif.
   const colon = body.indexOf(":");
@@ -729,7 +742,12 @@ function sheetCell(text: string, cols: number, span?: number): TableCell {
         color: SHEET.label,
         size: 15,
       }),
-      new TextRun({ text: body.slice(colon + 1).trim(), font: BODY_SERIF, color: SHEET.ink, size: 21 }),
+      new TextRun({
+        text: body.slice(colon + 1).trim(),
+        font: BODY_SERIF,
+        color: SHEET.ink,
+        size: 21,
+      }),
     );
   } else {
     runs.push(new TextRun({ text: body, font: BODY_SERIF, color: SHEET.ink, size: 21 }));
@@ -776,7 +794,12 @@ function characterSheet(b: Extract<ProseBlock, { kind: "table" }>): Table {
                       color: SHEET.identityLabel,
                       size: 15,
                     }),
-                    new TextRun({ text: v, font: BODY_SERIF, color: SHEET.identityValue, size: 21 }),
+                    new TextRun({
+                      text: v,
+                      font: BODY_SERIF,
+                      color: SHEET.identityValue,
+                      size: 21,
+                    }),
                   ],
                 }),
               ],
@@ -1047,9 +1070,7 @@ function renderBlocks(
         pushTable(monoPanel(b.lines, { ...neutral, fill: "F5F5F5" }));
         break;
       case "stat": {
-        const s = b.spec?.domain
-          ? resolveSurface(b.spec)
-          : { ...neutral, fill: "FAFAFA" };
+        const s = b.spec?.domain ? resolveSurface(b.spec) : { ...neutral, fill: "FAFAFA" };
         pushTable(monoPanel(b.lines, s));
         break;
       }
