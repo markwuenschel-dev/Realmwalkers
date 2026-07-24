@@ -5,7 +5,7 @@ Copy-paste examples for every styled panel the Reader DOCX exporter renders. All
 spaces (`name="Kaelen Voss"`). Any omitted attribute or line group degrades gracefully — no band, no
 footnote, no grid.
 
-- `@interface …` lines live **inside a fenced ```` ``` ```` block** (first line of the fence).
+- `@interface …` lines live **inside a fenced ` ``` ` block** (first line of the fence).
 - `@style …` is a **standalone line immediately above** a stat window or pipe table it color-codes.
 - Color comes from `domain=` (21 domains). Deltas: `->` or `→` between two values → old → new,
   green on a gain / red on a loss (sign-detected).
@@ -14,23 +14,24 @@ footnote, no grid.
 
 ## Attribute quick reference
 
-| Attribute | Used by | Meaning |
-|-----------|---------|---------|
-| `role` | all | `system` `warning` `combat` … `levelup` `skill` `sheet` (see roles below) |
-| `domain` | magic, skill, creature, `@style` | one of the 21 magic domains — drives palette |
-| `creature` | creature scan | creature kind → bestiary card |
-| `intensity` | creature, magic | `subtle` `standard` `strong` `apex` (creature threat is derived from this) |
-| `skill` | magic, skill, creature | display name (quote if it has spaces) |
-| `tier` | magic, skill | tier label, e.g. `III` |
-| `name` | levelup, sheet | subject name |
-| `from` / `to` | levelup | prior / new level (big `6 → 7` numerals) |
-| `rank` | skill | proficiency rank, e.g. `Novice` |
-| `via` | skill | how it was earned → italic footnote |
-| `age` / `level` | sheet | identity-band fields |
+| Attribute       | Used by                          | Meaning                                                                    |
+| --------------- | -------------------------------- | -------------------------------------------------------------------------- |
+| `role`          | all                              | `system` `warning` `combat` … `levelup` `skill` `sheet` (see roles below)  |
+| `domain`        | magic, skill, creature, `@style` | one of the 21 magic domains — drives palette                               |
+| `creature`      | creature scan                    | creature kind → bestiary card                                              |
+| `intensity`     | creature, magic                  | `subtle` `standard` `strong` `apex` (creature threat is derived from this) |
+| `skill`         | magic, skill, creature           | display name (quote if it has spaces)                                      |
+| `tier`          | magic, skill                     | tier label, e.g. `III`                                                     |
+| `name`          | levelup, sheet                   | subject name                                                               |
+| `from` / `to`   | levelup                          | prior / new level (big `6 → 7` numerals)                                   |
+| `rank`          | skill                            | proficiency rank, e.g. `Novice`                                            |
+| `via`           | skill                            | how it was earned → italic footnote                                        |
+| `age` / `level` | sheet                            | identity-band fields                                                       |
 
 ---
 
 ## System / role message
+
 Elegant centered label under a hairline rule, serif body.
 
 ````
@@ -42,6 +43,7 @@ your corruption resistance is being tested.
 ````
 
 ## Magic block
+
 Domain-colored header band (`skill · domain · tier`), tinted description body.
 
 ````
@@ -52,6 +54,7 @@ A whip of living flame that hungers for what it touches; each strike deepens the
 ````
 
 ## Creature scan → bestiary card
+
 Colored name band + `Bestiary` tag, ruled `KIND · THREAT · DOMAIN` strip (threat from `intensity`),
 tinted description.
 
@@ -64,6 +67,7 @@ chase — she waits, and the vault does the chasing for her.
 ````
 
 ## Level-up banner
+
 Loud dark gold band (`LEVEL UP` + `from → to`). Prose lines = the announcement (lead the banner).
 `- Label: old -> new` lines = the vitals-growth grid. Skills are **not** granted here — they come from
 use (see next).
@@ -80,6 +84,7 @@ you gain **4 free attribute points** to spend. Choose wisely.
 ````
 
 ## Skill learned (through use)
+
 Domain-coded acquisition band (`SKILL LEARNED · <domain>` + `rank · tier` tag), description, and a
 `via=` footnote. Use this — not level-up — for skill acquisition.
 
@@ -92,13 +97,15 @@ answers as an extension of your will.
 ````
 
 ## Character sheet
+
 `@style role=sheet …` on the line **above** a pipe table. Identity band comes from `name/age/level`.
 Inside the table:
+
 - `| # STATS |` (single cell starting `#`) → a gold section band spanning all columns.
 - `~domain ` at the start of a cell → a colored domain pip (■) before the text.
 - `Label: value` cells auto-style the label as small-caps.
 
-````
+```
 @style role=sheet name="Kaelen Voss" age=24 level=7
 | Race: Human | Discipline: Pyromancer | Language: Common |
 |---|---|---|
@@ -112,22 +119,24 @@ Inside the table:
 | ~fire Fire 40% | ~air Air 10% | ~earth Earth 15% |
 | # ABILITIES | | |
 | Emberlash · Umbral Step · Flamecall · Ward of Ash | | |
-````
+```
 
 ## Color-coding a stat window or plain table
+
 `@style` (no `role=sheet`) with a `domain=` tints any following stat window / pipe table — spanning
 band (`skill · domain · tier` + `STATS`/`BESTIARY` tag), colored header, domain spine.
 
-````
+```
 @style domain=fire skill="Emberlash" tier=III
 | Cost | Range | Burn |
 |---|---|---|
 | 24 vigor | 8 m | +2/s |
-````
+```
 
 ---
 
 ### The 21 domains
+
 `fire water air earth light shadow life death runic blood spirit mind force chaos celestial void
 planar time entropy eldritch aether`
 
@@ -139,6 +148,7 @@ stays vivid. No hand-maintained list: the check runs per surface, and the test s
 every role × domain × creature × intensity combination.
 
 ### Fonts
+
 - **Labels:** Bahnschrift (ships with Windows 10+/Office — no embedding; Franklin Gothic fallback).
 - **Body:** Georgia (Word-native serif).
 - Font embedding is not wired: the Reader export runs in the browser (no filesystem), so a custom
