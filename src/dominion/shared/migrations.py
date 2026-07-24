@@ -132,6 +132,12 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # reauthor_of_adoption_id is the audit self-link (its NOT VALID self-FK is added in _EXTRA_DDL).
     "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS force_author_token UUID",
     "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS reauthor_of_adoption_id UUID",
+    # ADR-0032 W0 (D2/D13): the retention-authority axis on the existing import_adoptions table. The
+    # TEMPORARY server DEFAULT backfills every existing row to operator_independent (a conservative
+    # compatibility choice — legacy rows lack trustworthy liveness provenance and auto-cancelling them
+    # would be unsafe) AND stops pre-W1 code minting null-basis rows in the W0->W1 window. W1 drops this
+    # default, makes the column NOT NULL, and CHECK-constrains it to the two permitted values.
+    "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS liveness_basis TEXT DEFAULT 'operator_independent'",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -320,6 +326,15 @@ _EXTRA_DDL: tuple[str, ...] = (
     """CREATE UNIQUE INDEX IF NOT EXISTS uq_import_adoptions_force_author_token
        ON import_adoptions (force_author_token)
        WHERE force_author_token IS NOT NULL""",
+    # ADR-0032 W0 (D3): the "≤1 active adoption per chapter" invariant as a DATABASE structural guarantee,
+    # not merely the lock+read convention start_contract_adoption relies on. Partial over the ACTIVE states
+    # so terminal adoptions (contract_proposed/failed/invalidated/cancelled) never permanently block a
+    # later valid adoption. The guarded preflight (_preflight_no_duplicate_active_adoptions, run before
+    # this block in apply_lightweight_migrations) refuses to build this over a DB that already violates the
+    # invariant — failing closed rather than silently discarding a conflicting row.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_import_adoptions_active_chapter
+       ON import_adoptions (chapter_id)
+       WHERE status IN ('awaiting_start', 'queued', 'running')""",
     # ADR-0028 Slice 3b (Q11 tier-C): the DEPLOYED import_adoptions.chapter_packet_id FK was created NO
     # ACTION, so a re-author's packet REPLACE (which DELETEs the chapter's prior packet) is blocked while a
     # prior contract_proposed adoption still links it. Re-create the SAME-NAMED constraint with ON DELETE
@@ -422,6 +437,64 @@ async def _dedup_character_state(conn: AsyncConnection) -> None:
         )
 
 
+class DuplicateActiveAdoptionError(RuntimeError):
+    """Raised (fail-closed) when the ADR-0032 W0 preflight finds more than one ACTIVE adoption for a
+    chapter, so `uq_import_adoptions_active_chapter` cannot be built without silently discarding a row.
+    The whole migration transaction aborts and rolls back; an operator must resolve the conflict by
+    hand (the message carries the offending chapter + each conflicting adoption's identity)."""
+
+
+async def _preflight_no_duplicate_active_adoptions(conn: AsyncConnection) -> None:
+    """ADR-0032 W0 (D13): BEFORE building `uq_import_adoptions_active_chapter`, refuse to proceed if the
+    "≤1 active adoption per chapter" invariant is ALREADY violated on disk. Unlike `_dedup_character_state`
+    (which merges), this FAILS CLOSED — it deletes nothing and picks no winner, because an adoption is
+    durable, leased, spend-bearing work and auto-choosing a survivor could strand or double-bill real
+    output. It raises with an operator report (chapter_id + each conflicting adoption's
+    id/status/liveness_basis/timestamps) so the conflict is resolved by a human. A no-op on a clean DB;
+    runs on every boot before `_EXTRA_DDL` creates the index."""
+    dup_chapters = (
+        await conn.execute(
+            text(
+                "SELECT chapter_id, count(*) AS n FROM import_adoptions "
+                "WHERE status IN ('awaiting_start', 'queued', 'running') "
+                "GROUP BY chapter_id HAVING count(*) > 1 "
+                "ORDER BY chapter_id"
+            )
+        )
+    ).all()
+    if not dup_chapters:
+        return
+
+    lines: list[str] = []
+    for chapter_id, n in dup_chapters:
+        lines.append(f"  chapter_id={chapter_id}: {n} active adoptions")
+        rows = (
+            (
+                await conn.execute(
+                    text(
+                        "SELECT id, status, liveness_basis, created_at, updated_at FROM import_adoptions "
+                        "WHERE chapter_id = :c AND status IN ('awaiting_start', 'queued', 'running') "
+                        "ORDER BY created_at, id"
+                    ),
+                    {"c": chapter_id},
+                )
+            )
+            .mappings()
+            .all()
+        )
+        for r in rows:
+            lines.append(
+                f"      id={r['id']} status={r['status']} liveness_basis={r['liveness_basis']} "
+                f"created_at={r['created_at']} updated_at={r['updated_at']}"
+            )
+    raise DuplicateActiveAdoptionError(
+        "ADR-0032 W0 uniqueness preflight FAILED CLOSED: import_adoptions already violates "
+        "'≤1 active adoption per chapter', so uq_import_adoptions_active_chapter cannot be built without "
+        "discarding data. NOTHING was changed. Resolve these conflicts by hand (cancel/terminate the "
+        "wrong adoptions), then reboot:\n" + "\n".join(lines)
+    )
+
+
 async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     """Run the idempotent column adds. Call inside an open (begin) connection."""
     for ddl in _COLUMN_ADDS:
@@ -431,6 +504,11 @@ async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     # CHAR-UNIQ: collapse (book_id, lower(character)) duplicates BEFORE _EXTRA_DDL builds the functional
     # unique index on them (it would fail if duplicates still existed). No-op on a clean DB.
     await _dedup_character_state(conn)
+    # ADR-0032 W0 (D13): refuse to build uq_import_adoptions_active_chapter over a DB that already has
+    # >1 active adoption per chapter — fail closed with an operator report rather than silently pick a
+    # winner. MUST run before _EXTRA_DDL (which creates that index). Unlike the CHAR-UNIQ dedup above,
+    # this repairs nothing; a raise here aborts (and rolls back) the whole migration transaction.
+    await _preflight_no_duplicate_active_adoptions(conn)
     for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))
     # Book-ownership invariant (ADR 0027): backfill book_id (chapter->run, reject conflicts), quarantine

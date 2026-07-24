@@ -1,6 +1,6 @@
 # ADR-0032: Unified Adoption-Entry Lifecycle
 
-**Status:** accepted · **implementation_authorized:** false · **Decision owner:** mark
+**Status:** accepted · **implementation_authorized:** true · **Decision owner:** mark
 **Charted as:** wayfinder map #258, ticket #260 (`/expanded-grill-with-docs`).
 
 **Revision history**

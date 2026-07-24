@@ -407,6 +407,21 @@ class ImportAdoptionStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class LivenessBasis(StrEnum):
+    """An ImportAdoption's CURRENT retention authority (ADR-0032 D2) — NOT historical creation
+    provenance. Orthogonal to entry status: `status` decides the initial state, `liveness_basis`
+    decides SURVIVAL when no RevisionRequest remains.
+
+    REQUEST_BOUND: active only while at least one qualifying RevisionRequest needs its output — a
+    request-orphan is reverse-cancellable (D9). OPERATOR_INDEPENDENT: an explicit operator command
+    (Start/Re-author) established chapter-contract reconstruction as independently-desired work, so the
+    operator command is itself durable demand and the adoption is never auto-cancelled. Merge is
+    MONOTONIC — operator_independent never downgrades (D2)."""
+
+    REQUEST_BOUND = "request_bound"
+    OPERATOR_INDEPENDENT = "operator_independent"
+
+
 class RevisionRequestStatus(StrEnum):
     """Durable author edit-intent lifecycle. Coarse and persisted; the fine UI banner (Preparing
     contract / Awaiting chapter approval / Derive target scene contract / Awaiting scene approval /
