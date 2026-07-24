@@ -4,6 +4,9 @@
 **Charted as:** wayfinder map #258, ticket #260 (`/expanded-grill-with-docs`).
 
 **Revision history**
+- **v2.1 (2026-07-24) — recorded tightened `liveness_basis` semantics.** Retention-authority definition, the
+  monotonic merge table, collision-reread merging both axes, and fail-closed reverse-cancel on an ambiguous
+  demand count. Documentation fidelity to the owner's stated design; no structural change to D2/D9.
 - **v2 (2026-07-24) — F2 re-ruled A′ → C.** The atomic-coupling decision was corrected: a false A/B binary
   conflated *orchestration* with *state ownership*. The command boundary (`accept_revision_intent`) now owns
   only lock/transaction/ordering; the revision module remains the sole `RevisionRequest` writer and the
@@ -98,10 +101,25 @@ except the ORM class declaration and the one inside the primitive.
 ### D2 — Entry intent and liveness are orthogonal axes
 
 `entry_intent` decides the **initial status**; `liveness_basis` (`request_bound | operator_independent`,
-persisted on the adoption) decides **survival** when no request remains. An operator command supplies `SPEND`
-**and** upgrades liveness **monotonically** to `operator_independent`: operator Start/Re-author touching an
-existing `request_bound` adoption — even one already `queued` — promotes/keeps it `queued`, sets operator
-lineage, and upgrades its basis. It never mints a second active row.
+persisted on the adoption) is **current retention authority**, not historical creation provenance — it decides
+**survival** when no request remains:
+
+- `request_bound` — active only while at least one qualifying `RevisionRequest` requires its output.
+- `operator_independent` — an explicit operator command established chapter-contract reconstruction as
+  independently desired work; the operator command is itself durable demand.
+
+An adoption may **begin** `request_bound` (sync revise / reconciliation) and later be **upgraded** by operator
+Start — its creator has not changed, but its current reason for survival has. Merge is **monotonic**; no path
+downgrades `operator_independent`:
+
+```
+request_bound        + request_bound        → request_bound
+request_bound        + operator_independent → operator_independent
+operator_independent + anything             → operator_independent
+```
+
+Operator Start/Re-author touching an existing `request_bound` adoption — even one already `queued` —
+promotes/keeps it `queued`, sets operator lineage, and upgrades its basis. It never mints a second active row.
 
 ### D3 — Active-adoption uniqueness is a structural invariant
 
@@ -116,7 +134,9 @@ valid adoption. On a constraint collision the primitive:
 
 1. rolls back **only** the insertion savepoint;
 2. reloads the winning active row;
-3. returns or promotes it **only** when compatible with the requested intent;
+3. **merges both dimensions** — promotes status (`awaiting_start` + `SPEND` → `queued`) *and* upgrades liveness
+   (`request_bound` + operator-independent intent → `operator_independent`), only when compatible; **neither
+   status nor liveness ever regresses** — never a bare "return the winning row";
 4. **emits high-severity invariant telemetry** — a correct canonical caller under the lock should almost never
    reach this race, so a collision signals an architectural bypass, not ordinary concurrency;
 5. **fails closed** on incompatible state.
@@ -267,10 +287,11 @@ Reverse cancellation belongs to the **adoption owner**, not `accept_revision_req
 
 ```
 reconcile_adoption_demand_locked(session, chapter_id)   # adoption-owned; assumes chapter lock
-    if chapter has 0 active RevisionRequests
-       and adoption.liveness_basis == request_bound          # round-2 guard, preserved
-       and adoption.status in {awaiting_start, queued}:
-           adoption.status = cancelled
+    cancel  ⇔  adoption.liveness_basis == request_bound          # round-2 guard, preserved
+           AND  adoption.status in {awaiting_start, queued}
+           AND  qualifying active-request count == 0
+    # the active-request count must resolve unambiguously; an ambiguous or failed count
+    # FAILS CLOSED (leave the adoption alone) — never infer "no demand" from a bad read.
 ```
 
 Invoked by any request-lifecycle mutation that can **remove demand** — principally the explicit request-cancel
@@ -278,8 +299,9 @@ path (`revision.py:387`), whose whole authority-changing transaction acquires th
 always installs a replacement request; by `COMPLETED`/`FAILED` (`worker.py:127/166`) the adoption is already
 `contract_proposed`. **The `liveness_basis` guard is load-bearing:** without it this would cancel an
 operator-started (`operator_independent`) adoption that legitimately has no request. Never cancel
-`operator_independent`, `running`, or terminal adoptions. `running` cancellation would require a cooperative
-cancellation policy — deferred (D10).
+`operator_independent`, `running`, or terminal adoptions — nor a row whose active-request count is ambiguous or
+failed (fail closed; request code reports changed demand, adoption code decides the consequence). `running`
+cancellation would require a cooperative cancellation policy — deferred (D10).
 
 ### D10 — Running adoptions finish
 
@@ -419,4 +441,5 @@ short of both.
 **Revisit triggers:** a 5th adoption minter appears; adoption cost becomes a real problem (→ a uniform
 worker-layer budget at the claim/execution boundary); `Approval` gains a prose hash (→ tighten D7 to true
 snapshot provenance); proof emerges that no DB writer can bypass the advisory lock (→ the partial-unique index
-becomes optional, D3).
+becomes optional, D3); operator Start is redefined from "prepare this chapter's contract" to "authorize spend
+for an existing revision request" (→ Start no longer implies `operator_independent`, D2).
