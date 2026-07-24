@@ -366,12 +366,15 @@ async def mirror_job_status_to_request(
     )
 
 
-async def cancel_active_requests_for_scene(session: AsyncSession, scene_id: uuid.UUID) -> int:
-    """Cancel every active RevisionRequest for a scene; return how many. An inbox APPROVE makes any
-    pending revise intent moot, and an APPROVED scene must never coexist with an active request — that
-    orphan is the partial-unique-index / Slice-3 poison this closes. Deletes a still-QUEUED (unclaimed)
-    job; a RUNNING job is left to land its version (killing an in-flight generation is out of scope),
-    but its request is cancelled regardless."""
+async def _cancel_active_requests_for_scene_locked(session: AsyncSession, scene_id: uuid.UUID) -> int:
+    """Cancel every active RevisionRequest for a scene; return how many. ASSUMES the per-chapter workflow
+    lock is held and NEVER commits — the committing caller (ADR-0032 W2 `accept_scene_approval`) owns the
+    lock + transaction boundary, and reverse-reconciles adoption demand in the SAME locked transaction (D9).
+
+    An inbox APPROVE makes any pending revise intent moot, and an APPROVED scene must never coexist with an
+    active request — that orphan is the partial-unique-index / Slice-3 poison this closes. Deletes a
+    still-QUEUED (unclaimed) job; a RUNNING job is left to land its version (killing an in-flight generation
+    is out of scope), but its request is cancelled regardless."""
     active = (
         (
             await session.execute(

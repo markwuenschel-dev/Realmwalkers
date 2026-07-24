@@ -4,6 +4,12 @@
 **Charted as:** wayfinder map #258, ticket #260 (`/expanded-grill-with-docs`).
 
 **Revision history**
+- **v2.2 (2026-07-24) — W2/W3 rollout re-split (build-time, honest amendment).** Code-level grilling of W2
+  found both Revise routes mutate/read outside the chapter-lock boundary, so the forward coordinator cannot be
+  integrated before its full route cutover. W2 now wires only the LIVE reverse path (the chapter-locked
+  scene-approval command + `reconcile_adoption_demand_locked`); `accept_revision_intent` and
+  `_accept_revision_request_locked` move to W3 WITH the forward cutover. Rollout-sequencing change only — no
+  F1/F2/F3, liveness, or ownership decision reopened. See the D13 W2/W3 lines and the v2.2 boundary note.
 - **v2.1 (2026-07-24) — recorded tightened `liveness_basis` semantics.** Retention-authority definition, the
   monotonic merge table, collision-reread merging both axes, and fail-closed reverse-cancel on an ambiguous
   demand count. Documentation fidelity to the owner's stated design; no structural change to D2/D9.
@@ -369,16 +375,25 @@ W1  Extract the adoption-owned seam; route existing Start + Re-author through it
       assign/upgrade liveness_basis explicitly; THEN drop the temp default, make the column NOT NULL, enforce
       the two permitted values. (Prevents an older revision minting null-basis rows between W0 and W1.)
 
-W2  Introduce accept_revision_intent (coordinator) over _accept_revision_request_locked; chapter-lock the
-      request-cancellation transaction; add adoption-owned reconcile_adoption_demand_locked (request-bound,
-      liveness-guarded); preserve running + operator-independent work. (Must precede any request-bound minter.)
+W2  Wire the demand-removal safety path before any request-bound minter: introduce the chapter-locked
+      scene-approval command over _cancel_active_requests_for_scene_locked and the adoption-owned
+      reconcile_adoption_demand_locked; preserve running, operator-independent, and terminal adoptions;
+      fail closed on an indeterminate demand read.
 
-W3  Sync auto-start via the coordinator; consent-on-replay; the typed RevisionAcceptanceOut on both HTTP
-      surfaces; OpenAPI + FE regen.
+W3  Introduce accept_revision_intent over _accept_revision_request_locked; route both Revise surfaces
+      through the coordinator; add sync request-bound adoption entry, consent-on-replay,
+      RevisionAcceptanceOut, and OpenAPI/frontend regeneration.
 
 W4  Boot reconciliation inserted AHEAD of the drain-resume block (currently main.py:67; drains kick at :102-106
       before the integrity probe at :110). Current-row Approval reconstruction; snapshot-keyed integrity events.
 ```
+
+**W2/W3 boundary (v2.2 amendment).** The original W2 wording placed the forward coordinator before its route
+cutover. Code-level grilling established that both Revise routes currently perform mutable reads/writes outside
+the chapter-lock boundary, so the coordinator cannot be integrated safely until the complete forward command
+cutover. W2 remains independently deployable by wiring the live reverse path; W3 performs the forward
+transaction migration once, without inert infrastructure or a transitional unlocked "_locked" body. No F1/F2/F3,
+liveness, or ownership decision changes — only rollout sequencing, corrected on verified integration evidence.
 
 Backfilling existing rows to `operator_independent` is a **conservative compatibility choice**, not a claim
 that every deployed row was operator-created — legacy rows lack trustworthy liveness provenance, and

@@ -463,6 +463,28 @@ class EntryEffect(StrEnum):
     UNCHANGED = "unchanged"
 
 
+class ReconcileDemandOutcome(StrEnum):
+    """What `reconcile_adoption_demand_locked` (ADR-0032 D9) did to the chapter's active adoption when a
+    request-lifecycle mutation REMOVED demand. Reverse cancellation is adoption-owned and fail-closed.
+
+    NO_ACTIVE_ADOPTION: the chapter has no active (awaiting_start/queued/running) adoption to reconcile.
+    PRESERVED_NON_REQUEST_BOUND: an `operator_independent` adoption is durable demand in its own right and
+      is NEVER auto-cancelled (D2/D9). PRESERVED_RUNNING: a running adoption finishes — interrupting a
+      mid-model-call claim is out of scope (D10). PRESERVED_ACTIVE_DEMAND: a `request_bound` adoption still
+      has at least one qualifying active RevisionRequest, so its demand stands. CANCELLED: a `request_bound`
+      awaiting_start/queued adoption with zero qualifying active requests is reverse-cancelled.
+
+    An INDETERMINATE demand read (SQL failure, >1 active adoption despite the partial-unique index, an
+    unknown liveness/status value) is NOT one of these outcomes — it raises and rolls the whole
+    authority-changing transaction back. Never infer 'no demand' from a bad read."""
+
+    NO_ACTIVE_ADOPTION = "no_active_adoption"
+    PRESERVED_NON_REQUEST_BOUND = "preserved_non_request_bound"
+    PRESERVED_RUNNING = "preserved_running"
+    PRESERVED_ACTIVE_DEMAND = "preserved_active_demand"
+    CANCELLED = "cancelled"
+
+
 class RevisionRequestStatus(StrEnum):
     """Durable author edit-intent lifecycle. Coarse and persisted; the fine UI banner (Preparing
     contract / Awaiting chapter approval / Derive target scene contract / Awaiting scene approval /
