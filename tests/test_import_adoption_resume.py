@@ -150,6 +150,7 @@ async def _adoption_scaffold(
         source_fingerprint=(
             source_fingerprint if source_fingerprint is not None else await _current_fingerprint(s, ch.id)
         ),
+        liveness_basis="operator_independent",
         chapter_packet_id=cp.id,
         seed_bindings=bindings or None,
         finished_at=datetime.now(UTC),

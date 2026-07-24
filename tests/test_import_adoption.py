@@ -65,6 +65,7 @@ def _adoption(book: Book, ch: Chapter, **kw) -> ImportAdoption:
         mode=kw.pop("mode", "initial"),
         status=kw.pop("status", "queued"),
         source_fingerprint=kw.pop("source_fingerprint", "pending"),
+        liveness_basis=kw.pop("liveness_basis", "operator_independent"),
         **kw,
     )
 
@@ -177,7 +178,12 @@ async def test_idempotent_reuse_skips_second_author_and_extraction(db_factory, m
         # A fresh, identical adoption for the same chapter.
         s.add(
             ImportAdoption(
-                book_id=book_id, chapter_id=ch_id, mode="initial", status="queued", source_fingerprint="pending"
+                book_id=book_id,
+                chapter_id=ch_id,
+                mode="initial",
+                status="queued",
+                source_fingerprint="pending",
+                liveness_basis="operator_independent",
             )
         )
         await s.commit()

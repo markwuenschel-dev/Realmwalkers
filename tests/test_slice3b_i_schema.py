@@ -72,6 +72,7 @@ async def test_columns_round_trip_intact(db_factory):
             book_id=book.id,
             chapter_id=ch.id,
             source_fingerprint="fp-source",
+            liveness_basis="operator_independent",
             seed_bindings=seed_bindings,
             author_input_fingerprint="fp-author-input",
         )

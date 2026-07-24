@@ -19,16 +19,19 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
+import dominion.shared.adoption_entry as adoption_entry_mod
 import dominion.workers.evidence_store as evidence_store_mod
 import dominion.workers.sweeper as sweeper_mod
 
 # Loop / working rows whose attributes must never be read inside an except handler after a savepoint.
-_ORM_ROW_NAMES = {"task", "run", "scene"}
+# `adoption` is the row the ADR-0032 W1 seam (adoption_entry.py) flushes INSIDE its collision savepoint —
+# expired on the savepoint rollback, so its attributes must not be read in the ensuing except handler.
+_ORM_ROW_NAMES = {"task", "run", "scene", "adoption"}
 
 # Every module that legitimately opens a savepoint. Each is scanned by the greenlet check below; the
 # confinement test fails the moment `begin_nested` appears in a module NOT listed here — so a new
 # savepoint can't dodge the scan. Add a module here ONLY together with wiring it into the scan.
-_GUARDED_MODULES = (sweeper_mod, evidence_store_mod)
+_GUARDED_MODULES = (sweeper_mod, evidence_store_mod, adoption_entry_mod)
 
 
 def _savepoint_functions(source: str) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:

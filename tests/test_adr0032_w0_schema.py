@@ -53,6 +53,18 @@ async def _seed_book_chapter(s, *, chapter_no: int = 1) -> tuple[Book, Chapter]:
     return book, ch
 
 
+def _active(book_id, chapter_id, *, source_fingerprint, status, liveness_basis="operator_independent"):
+    """An ImportAdoption seed. `liveness_basis` is now a required NOT-NULL column (W1), so tests must
+    supply it explicitly; this helper defaults the value tests don't care about."""
+    return ImportAdoption(
+        book_id=book_id,
+        chapter_id=chapter_id,
+        source_fingerprint=source_fingerprint,
+        status=status,
+        liveness_basis=liveness_basis,
+    )
+
+
 def _require_db_or_skip(exc: Exception) -> None:
     """Same fail/skip policy as conftest.db_factory: fail loudly under DOMINION_REQUIRE_DB, else skip."""
     require = os.environ.get("DOMINION_REQUIRE_DB", "").strip().lower() in {"1", "true", "yes", "on"}
@@ -135,10 +147,10 @@ async def test_index_rejects_second_active_adoption(db_factory):
     the database — the "≤1 active adoption per chapter" invariant as a structural guarantee, not a race."""
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch.id, source_fingerprint="fp1", status="queued"))
+        s.add(_active(book.id, ch.id, source_fingerprint="fp1", status="queued"))
         await s.commit()
 
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch.id, source_fingerprint="fp2", status="running"))
+        s.add(_active(book.id, ch.id, source_fingerprint="fp2", status="running"))
         with pytest.raises(IntegrityError):
             await s.commit()
         await s.rollback()
@@ -149,14 +161,14 @@ async def test_index_allows_active_alongside_terminal(db_factory):
     predicate, so they never permanently block a later valid adoption — but a 2nd ACTIVE row still can't."""
     async with db_factory() as s:
         book, ch = await _seed_book_chapter(s)
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch.id, source_fingerprint="t1", status="cancelled"))
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch.id, source_fingerprint="t2", status="contract_proposed"))
+        s.add(_active(book.id, ch.id, source_fingerprint="t1", status="cancelled"))
+        s.add(_active(book.id, ch.id, source_fingerprint="t2", status="contract_proposed"))
         await s.commit()  # two terminal rows for one chapter — allowed
 
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch.id, source_fingerprint="a1", status="queued"))
+        s.add(_active(book.id, ch.id, source_fingerprint="a1", status="queued"))
         await s.commit()  # one active alongside the terminals — allowed
 
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch.id, source_fingerprint="a2", status="awaiting_start"))
+        s.add(_active(book.id, ch.id, source_fingerprint="a2", status="awaiting_start"))
         with pytest.raises(IntegrityError):
             await s.commit()  # a SECOND active — rejected
         await s.rollback()
@@ -169,8 +181,8 @@ async def test_index_allows_active_in_different_chapters(db_factory):
         ch2 = Chapter(book_id=book.id, chapter_no=2, pov="Marcus")
         s.add(ch2)
         await s.flush()
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch1.id, source_fingerprint="c1", status="queued"))
-        s.add(ImportAdoption(book_id=book.id, chapter_id=ch2.id, source_fingerprint="c2", status="running"))
+        s.add(_active(book.id, ch1.id, source_fingerprint="c1", status="queued"))
+        s.add(_active(book.id, ch2.id, source_fingerprint="c2", status="running"))
         await s.commit()  # different chapters — both active, no collision
 
 
@@ -243,8 +255,8 @@ async def test_migration_backfills_existing_rows_and_builds_index(isolated_db_en
         ch2 = Chapter(book_id=book.id, chapter_no=2, pov="B")
         s.add_all([ch1, ch2])
         await s.flush()
-        a1 = ImportAdoption(book_id=book.id, chapter_id=ch1.id, source_fingerprint="fp1", status="queued")
-        a2 = ImportAdoption(book_id=book.id, chapter_id=ch2.id, source_fingerprint="fp2", status="awaiting_start")
+        a1 = _active(book.id, ch1.id, source_fingerprint="fp1", status="queued")
+        a2 = _active(book.id, ch2.id, source_fingerprint="fp2", status="awaiting_start")
         s.add_all([a1, a2])
         await s.commit()
         a1_id, a2_id = a1.id, a2.id

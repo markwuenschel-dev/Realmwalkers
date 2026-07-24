@@ -335,6 +335,20 @@ _EXTRA_DDL: tuple[str, ...] = (
     """CREATE UNIQUE INDEX IF NOT EXISTS uq_import_adoptions_active_chapter
        ON import_adoptions (chapter_id)
        WHERE status IN ('awaiting_start', 'queued', 'running')""",
+    # ADR-0032 W1 (D13): tighten liveness_basis now that the adoption seam is the sole writer and always
+    # supplies an explicit basis. Drop W0's TEMPORARY default (backfill already ran in _COLUMN_ADDS above),
+    # make the column NOT NULL, and CHECK-constrain it to the two permitted values. Safe here because the
+    # single-instance deploy recreates the container (no pre-W0 writer overlaps the tightened schema) and
+    # the null preflight (run before this block) refuses to proceed on any residual NULL basis. Each ALTER
+    # is idempotent; the CHECK is guarded by a catalog lookup (Postgres has no ADD CONSTRAINT IF NOT EXISTS).
+    "ALTER TABLE import_adoptions ALTER COLUMN liveness_basis DROP DEFAULT",
+    "ALTER TABLE import_adoptions ALTER COLUMN liveness_basis SET NOT NULL",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_import_adoptions_liveness_basis') THEN
+           ALTER TABLE import_adoptions ADD CONSTRAINT ck_import_adoptions_liveness_basis
+             CHECK (liveness_basis IN ('request_bound', 'operator_independent'));
+         END IF;
+       END $$""",
     # ADR-0028 Slice 3b (Q11 tier-C): the DEPLOYED import_adoptions.chapter_packet_id FK was created NO
     # ACTION, so a re-author's packet REPLACE (which DELETEs the chapter's prior packet) is blocked while a
     # prior contract_proposed adoption still links it. Re-create the SAME-NAMED constraint with ON DELETE
@@ -495,6 +509,26 @@ async def _preflight_no_duplicate_active_adoptions(conn: AsyncConnection) -> Non
     )
 
 
+class NullLivenessBasisError(RuntimeError):
+    """Raised (fail-closed) when the ADR-0032 W1 preflight finds import_adoptions rows with a NULL
+    liveness_basis just before the column is tightened to NOT NULL. W0's temporary default should have
+    backfilled every row; a residual NULL means a writer bypassed the seam, so the migration aborts with a
+    count rather than letting the raw `SET NOT NULL` fail cryptically."""
+
+
+async def _preflight_no_null_liveness_basis(conn: AsyncConnection) -> None:
+    """ADR-0032 W1 (D13): BEFORE the `SET NOT NULL` / CHECK in `_EXTRA_DDL`, refuse to proceed if any
+    import_adoptions row still has a NULL liveness_basis (W0's `_COLUMN_ADDS` default backfilled existing
+    rows above, so this should be zero). Fails closed with a count; a no-op on a clean DB."""
+    n = (await conn.execute(text("SELECT count(*) FROM import_adoptions WHERE liveness_basis IS NULL"))).scalar_one()
+    if n:
+        raise NullLivenessBasisError(
+            f"ADR-0032 W1 preflight FAILED CLOSED: {n} import_adoptions row(s) have a NULL liveness_basis, "
+            "so the column cannot be tightened to NOT NULL. W0's temporary default should have backfilled "
+            "them — a residual NULL means the seam was bypassed. Backfill these rows by hand, then reboot."
+        )
+
+
 async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     """Run the idempotent column adds. Call inside an open (begin) connection."""
     for ddl in _COLUMN_ADDS:
@@ -509,6 +543,10 @@ async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     # winner. MUST run before _EXTRA_DDL (which creates that index). Unlike the CHAR-UNIQ dedup above,
     # this repairs nothing; a raise here aborts (and rolls back) the whole migration transaction.
     await _preflight_no_duplicate_active_adoptions(conn)
+    # ADR-0032 W1 (D13): refuse to tighten liveness_basis to NOT NULL over any residual NULL row (W0's
+    # temp default backfilled existing rows in _COLUMN_ADDS above). MUST run before _EXTRA_DDL, which drops
+    # the default and does SET NOT NULL / the value CHECK.
+    await _preflight_no_null_liveness_basis(conn)
     for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))
     # Book-ownership invariant (ADR 0027): backfill book_id (chapter->run, reject conflicts), quarantine

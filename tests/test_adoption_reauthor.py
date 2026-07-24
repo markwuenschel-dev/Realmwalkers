@@ -74,6 +74,7 @@ def _queued(book_id: uuid.UUID, ch_id: uuid.UUID, **kw) -> ImportAdoption:
         mode="initial",
         status="queued",
         source_fingerprint="pending",
+        liveness_basis=kw.pop("liveness_basis", "operator_independent"),
         **kw,
     )
 
@@ -463,3 +464,79 @@ async def test_reauthor_source_drift_invalidates_and_discards_packet(db_factory,
         assert adoption.force_author_token == token  # the force path went through publish unchanged
         assert await _count(s, ChapterPacket) == 0  # the freshly authored packet was discarded
         assert await _count(s, ImportSceneEvidence) == 1  # evidence shards survive
+
+
+# ------------- ADR-0032 W1: Re-author endpoint characterization gaps (pre-extraction) ------------- #
+# Lock in Re-author ENDPOINT behaviors not previously asserted at the HTTP layer, so the W1 extraction of
+# the adoption seam stays behavior-preserving: chapter-not-found -> 404, workflow-lock busy -> 409, and
+# fresh-create lineage (reauthor_of_adoption_id -> the prior contract_proposed adoption). Green on the
+# pre-W1 code; they must remain green through the extraction.
+
+
+async def test_reauthor_on_unknown_chapter_is_404(app_client, db_factory):
+    """A Re-author on a chapter that does not exist is a 404 (parity with Start)."""
+    resp = await app_client.post(
+        f"/chapters/{uuid.uuid4()}/adoption/reauthor", json={"force_author_token": str(uuid.uuid4())}
+    )
+    assert resp.status_code == 404
+
+
+async def test_reauthor_maps_chapter_workflow_busy_to_409(app_client, db_factory, monkeypatch):
+    """A held per-chapter workflow lock maps Re-author to `409 chapter_workflow_busy`, writes nothing, and
+    the retry after the lock frees succeeds (parity with Start's Q16 oracle)."""
+    from dominion.api.routers import adoption as adoption_router
+    from dominion.shared.chapter_lock import acquire_chapter_workflow_lock
+
+    monkeypatch.setattr(adoption_router, "LOCK_TIMEOUT_MS", 250)
+    async with db_factory() as s:
+        _, ch, _ = await _seed(s, n_scenes=2)
+        await s.commit()
+        chapter_id = ch.id
+
+    token = str(uuid.uuid4())
+    async with db_factory() as holder:
+        await acquire_chapter_workflow_lock(holder, chapter_id, timeout_ms=None)
+        resp = await app_client.post(f"/chapters/{chapter_id}/adoption/reauthor", json={"force_author_token": token})
+        assert resp.status_code == 409
+        assert resp.json()["detail"]["reason"] == "chapter_workflow_busy"
+        async with db_factory() as probe:
+            assert await _count(probe, ImportAdoption) == 0  # nothing written on the busy path
+        await holder.rollback()
+
+    retry = await app_client.post(f"/chapters/{chapter_id}/adoption/reauthor", json={"force_author_token": token})
+    assert retry.status_code == 200, retry.text
+    assert retry.json()["status"] == "queued"
+
+
+async def test_reauthor_fresh_create_links_prior_proposed_lineage(app_client, db_factory):
+    """The fresh-create path stamps the force token and links `reauthor_of_adoption_id` to the chapter's
+    prior `contract_proposed` adoption (audit lineage); mode stays `initial`."""
+    async with db_factory() as s:
+        book, ch, _ = await _seed(s, n_scenes=2)
+        prior = ImportAdoption(
+            book_id=book.id,
+            chapter_id=ch.id,
+            mode="initial",
+            status="contract_proposed",
+            source_fingerprint="prior-proposed",
+            liveness_basis="operator_independent",
+        )
+        s.add(prior)
+        await s.commit()
+        chapter_id, prior_id = ch.id, prior.id
+
+    token = str(uuid.uuid4())
+    resp = await app_client.post(f"/chapters/{chapter_id}/adoption/reauthor", json={"force_author_token": token})
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["status"] == "queued"
+    assert data["mode"] == "initial"
+    assert data["force_author_token"] == token
+    assert data["reauthor_of_adoption_id"] == str(prior_id)  # lineage to the prior proposed adoption
+
+    async with db_factory() as s:
+        assert await _count(s, ImportAdoption) == 2  # prior untouched + the new force adoption
+        created = (
+            await s.execute(select(ImportAdoption).where(ImportAdoption.force_author_token == uuid.UUID(token)))
+        ).scalar_one()
+        assert created.reauthor_of_adoption_id == prior_id

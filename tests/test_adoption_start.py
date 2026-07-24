@@ -134,6 +134,7 @@ async def test_start_promotes_awaiting_start_to_queued(app_client, db_factory):
             mode="initial",
             status="awaiting_start",
             source_fingerprint="seed",
+            liveness_basis="operator_independent",
             error="was awaiting an explicit start",
         )
         s.add(adoption)
