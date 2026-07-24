@@ -422,6 +422,47 @@ class LivenessBasis(StrEnum):
     OPERATOR_INDEPENDENT = "operator_independent"
 
 
+class EntryIntent(StrEnum):
+    """What an adoption-entry caller consents to (ADR-0032 D1). Decides the INITIAL status the seam
+    mints, orthogonal to `liveness_basis`. An enum, never a boolean — amendment mode and future entry
+    policies would make a boolean unreadable.
+
+    SPEND: worker-claimable spend consent — mints/promotes to `queued`. RECORD_WITHOUT_SPEND: records
+    durable intent without consenting to spend — mints `awaiting_start` (an unpaused queue is not consent
+    for historical spend); used by boot reconciliation (W4)."""
+
+    SPEND = "spend"
+    RECORD_WITHOUT_SPEND = "record_without_spend"
+
+
+class AdoptionOperation(StrEnum):
+    """The canonical adoption-entry command discriminator (ADR-0032 D1/D4). It — not
+    `force_author_token`, which is only an idempotency/override contract — drives the seam's documented
+    eligibility table and each caller's (entry_intent, liveness_basis). Its value is also the D12
+    observability `trigger`.
+
+    OPERATOR_START / REAUTHOR are wired in W1; REVISION (sync auto-start, W3) and RECONCILIATION (boot,
+    W4) are wired in their waves — an unwired operation fails closed in the seam."""
+
+    OPERATOR_START = "operator_start"
+    REAUTHOR = "reauthor"
+    REVISION = "revision"
+    RECONCILIATION = "reconciliation"
+
+
+class EntryEffect(StrEnum):
+    """What an adoption-entry call actually did to persisted state (ADR-0032 D11/D12). CREATED: a new row
+    was inserted. PROMOTED: a meaningful mutation of an existing row (awaiting_start→queued, a
+    request_bound→operator_independent liveness upgrade, or attaching Re-author force-token/lineage where
+    the ADR requires it). UNCHANGED: no persisted field changed (a completely inert reuse — emits no
+    transition telemetry). `joined` is deliberately absent: it is a W3 coordinator/request-link
+    interpretation, not an adoption-row transition."""
+
+    CREATED = "created"
+    PROMOTED = "promoted"
+    UNCHANGED = "unchanged"
+
+
 class RevisionRequestStatus(StrEnum):
     """Durable author edit-intent lifecycle. Coarse and persisted; the fine UI banner (Preparing
     contract / Awaiting chapter approval / Derive target scene contract / Awaiting scene approval /

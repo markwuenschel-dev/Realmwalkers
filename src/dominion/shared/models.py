@@ -32,7 +32,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from dominion.shared.chapter_order import chapter_position
-from dominion.shared.enums import CanonStatus, LivenessBasis
+from dominion.shared.enums import CanonStatus
 
 
 class Base(DeclarativeBase):
@@ -414,16 +414,15 @@ class ImportAdoption(Base):
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
     mode: Mapped[str] = mapped_column(Text, default="initial")  # see enums.ImportAdoptionMode
     status: Mapped[str] = mapped_column(Text, default="queued")  # see enums.ImportAdoptionStatus
-    # ADR-0032 W0 (D2/D13): CURRENT retention authority (orthogonal to status) — the axis reverse-
-    # cancellation (W2) guards on. A TEMPORARY server default backfills existing rows to
-    # operator_independent (conservative — legacy rows lack trustworthy liveness provenance) and stops
-    # pre-W1 code minting null-basis rows in the W0->W1 window. W1 assigns basis explicitly in the seam,
-    # THEN drops this default and makes the column NOT NULL + CHECK-constrained to the two values.
+    # ADR-0032 W1 (D2/D13): CURRENT retention authority (orthogonal to status) — the axis reverse-
+    # cancellation (W2) guards on. NOT NULL with NEITHER a Python nor a server default: the adoption seam
+    # (shared/adoption_entry.py) is now the sole writer and always supplies an explicit basis (the AST
+    # guard enforces that), so a constructor that forgets it must FAIL rather than silently default. W0's
+    # TEMPORARY server default (which backfilled existing rows) is dropped by migrations, and the column is
+    # SET NOT NULL + CHECK-constrained to the two permitted values there.
     liveness_basis: Mapped[str] = mapped_column(
-        Text,
-        default=LivenessBasis.OPERATOR_INDEPENDENT.value,
-        server_default=text("'operator_independent'"),
-    )  # see enums.LivenessBasis (request_bound|operator_independent)
+        Text
+    )  # NOT NULL, no default; see enums.LivenessBasis (request_bound|operator_independent)
     source_fingerprint: Mapped[str] = mapped_column(Text)  # sorted (scene_no, scene_id, version, prose_sha256)
     # The immutable manifest of ImportSceneEvidence shards consumed: [{scene_id, scene_version,
     # prose_hash, extractor_schema_version, evidence_id}]. Filled as extraction checkpoints commit.

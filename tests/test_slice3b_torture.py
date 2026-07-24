@@ -182,6 +182,7 @@ async def _adoption_chapter_packet(
         source_fingerprint=(
             source_fingerprint if source_fingerprint is not None else await _current_fingerprint(s, ch.id)
         ),
+        liveness_basis="operator_independent",
         chapter_packet_id=cp.id,
         seed_bindings=bindings or None,
         finished_at=datetime.now(UTC),
@@ -342,16 +343,23 @@ def test_slice3b_authority_mutations_route_through_the_chapter_workflow_wrapper(
     """Source-level guard: every authority-changing chapter mutation Slice 3b added routes through
     `run_under_chapter_workflow` (which acquires the chapter lock BEFORE running its body — proven in
     tests/test_chapter_workflow_lock). This pins the wrapping so a future edit that approves/starts/
-    publishes WITHOUT the wrapper — reintroducing a row lock ahead of the chapter lock — trips CI here."""
+    publishes WITHOUT the wrapper — reintroducing a row lock ahead of the chapter lock — trips CI here.
+
+    ADR-0032 W1: the adoption endpoints now route through the lock TRANSITIVELY via the seam wrapper
+    `ensure_import_adoption(...)`, which is itself a thin caller of `run_under_chapter_workflow` — so the
+    lock is still acquired first. The `ensure_import_adoption(` token matches only the lock-acquiring
+    wrapper, never `ensure_import_adoption_locked(` (which assumes the lock is already held)."""
+    lock_routers = ("run_under_chapter_workflow(", "ensure_import_adoption(")
     mutations = (
         adoption_router.start_contract_adoption,
+        adoption_router.reauthor_contract_adoption,
         import_adoption.publish_adoption,
         sp_router.approve_scene_packet,
         sp_router.approve_scene_packets,
     )
     for fn in mutations:
         src = inspect.getsource(fn)
-        assert "run_under_chapter_workflow(" in src, f"{fn.__qualname__} does not route through the chapter lock"
+        assert any(tok in src for tok in lock_routers), f"{fn.__qualname__} does not route through the chapter lock"
 
 
 # ==================================== Q14: blocked packet -> failed =============================== #
@@ -393,6 +401,7 @@ async def test_worker_maps_blocked_packet_to_failed_adoption_with_diagnostic_lin
                 mode="initial",
                 status=ImportAdoptionStatus.QUEUED.value,
                 source_fingerprint="pending",
+                liveness_basis="operator_independent",
             )
         )
         await s.commit()
