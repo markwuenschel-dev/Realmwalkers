@@ -38,9 +38,11 @@ from dominion.shared.enums import (
     ImportAdoptionStatus,
     LivenessBasis,
     PacketStatus,
+    ReconcileDemandOutcome,
+    RevisionRequestStatus,
     SceneStatus,
 )
-from dominion.shared.models import Chapter, ChapterPacket, ImportAdoption, Scene
+from dominion.shared.models import Chapter, ChapterPacket, ImportAdoption, RevisionRequest, Scene
 from dominion.shared.prose_fingerprint import chapter_source_fingerprint
 
 log = structlog.get_logger()
@@ -53,6 +55,17 @@ _ACTIVE_INDEX_STATUSES = (
     ImportAdoptionStatus.RUNNING.value,
 )
 _UQ_ACTIVE_CHAPTER = "uq_import_adoptions_active_chapter"
+
+# The RevisionRequest states that constitute live demand a request_bound adoption serves. Mirrors
+# workers/revision._ACTIVE_STATUSES; both derive from the SAME enum members, so they cannot semantically
+# drift. Redefined here (not imported) so this shared seam never imports the workers layer (D9: request
+# code reports changed demand, adoption code decides the consequence).
+_ACTIVE_REQUEST_STATUSES = (
+    RevisionRequestStatus.AWAITING_CONTRACT.value,
+    RevisionRequestStatus.QUEUED.value,
+    RevisionRequestStatus.RUNNING.value,
+)
+_VALID_LIVENESS = frozenset((LivenessBasis.REQUEST_BOUND.value, LivenessBasis.OPERATOR_INDEPENDENT.value))
 
 
 # --------------------------------------------------------------------------- domain errors
@@ -431,3 +444,88 @@ async def ensure_import_adoption(
             collided=result.collided,
         )
     return result
+
+
+# --------------------------------------------------------------------------- reverse reconciliation (D9)
+
+
+class IndeterminateAdoptionDemand(RuntimeError):
+    """Fail-closed abort for reverse reconciliation (ADR-0032 D9): the active-adoption / active-request read
+    could not establish the singular authoritative result the schema guarantees — more than one active
+    adoption for the chapter (the partial-unique index should make this impossible) or an unknown
+    liveness/status value. NOT an `AdoptionEntryError` (those are eligibility refusals a caller maps to a
+    4xx); this is an integrity failure that must roll the whole authority-changing transaction back and
+    leave the adoption untouched. A raw SQL failure needs no wrapping — it propagates and rolls back too."""
+
+    def __init__(self, chapter_id: uuid.UUID, reason: str) -> None:
+        self.chapter_id = chapter_id
+        self.reason = reason
+        super().__init__(f"indeterminate adoption demand for chapter {chapter_id}: {reason}")
+
+
+async def _active_adoptions_for_chapter(session: AsyncSession, chapter_id: uuid.UUID) -> list[ImportAdoption]:
+    """EVERY active-index-state adoption for the chapter — NO limit, because reconcile must DETECT a >1
+    invariant break (and fail closed), not silently take the first. The partial-unique index guarantees
+    <=1 in normal operation, so >1 here means the invariant is already broken."""
+    return list(
+        (
+            await session.execute(
+                select(ImportAdoption).where(
+                    ImportAdoption.chapter_id == chapter_id,
+                    ImportAdoption.status.in_(_ACTIVE_INDEX_STATUSES),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
+async def reconcile_adoption_demand_locked(session: AsyncSession, chapter_id: uuid.UUID) -> ReconcileDemandOutcome:
+    """Adoption-owned reverse reconciliation (ADR-0032 D9). ASSUMES `run_under_chapter_workflow` is held;
+    NEVER commits. Invoked by a request-lifecycle mutation that REMOVES demand (W2: the chapter-locked
+    scene-approval command, AFTER it cancels the scene's active requests). Cancels the chapter's single
+    active adoption IFF it is `request_bound`, in `awaiting_start`/`queued`, and no qualifying active
+    RevisionRequest remains in the chapter. Preserves `operator_independent`, `running`, and terminal
+    adoptions (D2/D10). FAILS CLOSED on an indeterminate read — raising `IndeterminateAdoptionDemand` (or
+    letting a raw SQL error propagate), which rolls the caller's transaction back — never inferring 'no
+    demand' from a bad read.
+
+    DORMANT until W3: no `request_bound` adoption exists before the request-bound minter, so on current data
+    this only ever returns NO_ACTIVE_ADOPTION / PRESERVED_NON_REQUEST_BOUND. It is wired now so the
+    reverse-cancel defense lands BEFORE the first live request-bound minter (D13)."""
+    active = await _active_adoptions_for_chapter(session, chapter_id)
+    if not active:
+        return ReconcileDemandOutcome.NO_ACTIVE_ADOPTION
+    if len(active) > 1:
+        raise IndeterminateAdoptionDemand(chapter_id, f"{len(active)} active adoptions despite {_UQ_ACTIVE_CHAPTER}")
+    adoption = active[0]
+
+    # A malformed discriminating field is an integrity failure, not an implicit preserve/cancel.
+    if adoption.liveness_basis not in _VALID_LIVENESS:
+        raise IndeterminateAdoptionDemand(chapter_id, f"unknown liveness_basis {adoption.liveness_basis!r}")
+    if adoption.status not in _ACTIVE_INDEX_STATUSES:  # defensive: the query above already constrains this
+        raise IndeterminateAdoptionDemand(chapter_id, f"unexpected active status {adoption.status!r}")
+
+    if adoption.liveness_basis != LivenessBasis.REQUEST_BOUND.value:
+        return ReconcileDemandOutcome.PRESERVED_NON_REQUEST_BOUND
+    if adoption.status == ImportAdoptionStatus.RUNNING.value:
+        return ReconcileDemandOutcome.PRESERVED_RUNNING
+
+    # request_bound + awaiting_start/queued: cancel only when NO qualifying active request remains. count>0
+    # is valid demand; 0 is valid absence — neither is ambiguous (a raw read failure would raise on its own).
+    qualifying = (
+        await session.execute(
+            select(func.count())
+            .select_from(RevisionRequest)
+            .where(
+                RevisionRequest.chapter_id == chapter_id,
+                RevisionRequest.status.in_(_ACTIVE_REQUEST_STATUSES),
+            )
+        )
+    ).scalar_one()
+    if qualifying > 0:
+        return ReconcileDemandOutcome.PRESERVED_ACTIVE_DEMAND
+
+    adoption.status = ImportAdoptionStatus.CANCELLED.value
+    return ReconcileDemandOutcome.CANCELLED
