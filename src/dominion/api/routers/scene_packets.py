@@ -30,7 +30,7 @@ from dominion.shared.chapter_lock import (
 )
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import JobKind, JobStatus, ScenePacketStatus
+from dominion.shared.enums import JobKind, JobStatus, ScenePacketApprovalSource, ScenePacketStatus
 from dominion.shared.models import ApprovalBlocker, ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.schemas import (
     ApprovalBlockerOut,
@@ -338,7 +338,9 @@ async def update_scene_packet(
             # Even a human PUT override must go through the centralized blocker gate — never raw-approve
             # past an active ApprovalBlocker (A1c). approve_scene_packet locks the row + checks it.
             try:
-                await scene_packet_pipeline.approve_scene_packet(session, packet=row)
+                await scene_packet_pipeline.approve_scene_packet(
+                    session, packet=row, source=ScenePacketApprovalSource.MANUAL_COMMAND.value
+                )
             except _blockers.ApprovalBlockerError as exc:
                 raise HTTPException(status_code=409, detail=str(exc)) from exc
         else:
@@ -411,7 +413,9 @@ async def approve_scene_packet(
         raise HTTPException(status_code=409, detail=refusal.detail)
 
     async def _body() -> tuple[int, uuid.UUID | None]:
-        derived = await scene_packet_pipeline.approve_scene_packet(session, packet=row)
+        derived = await scene_packet_pipeline.approve_scene_packet(
+            session, packet=row, source=ScenePacketApprovalSource.MANUAL_COMMAND.value
+        )
         job_id = await scene_packet_pipeline.resume_awaiting_contract_on_approval(session, scene_packet=row)
         return derived, job_id
 
@@ -516,6 +520,9 @@ async def approve_scene_packets(
             session,
             chapter_id=chapter_id,
             rows=list(rows),
+            # ADR-0033 D5b: a batch approve through this route is still a deliberate command through an
+            # explicit route — manual_command, not an authenticated identity (the system has none).
+            source=ScenePacketApprovalSource.MANUAL_COMMAND.value,
             packet_ids=body.packet_ids if body else None,
         )
         # Resume runs after the batch's single derive_beats. Each row is checked; the resume is a

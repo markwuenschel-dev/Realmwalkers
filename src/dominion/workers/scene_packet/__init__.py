@@ -122,7 +122,7 @@ class ApprovalOutcome:
     blocked_by_open_question: bool = False
 
 
-async def _apply_approval_locked(session: AsyncSession, scene_packet_id: uuid.UUID) -> ApprovalOutcome:
+async def _apply_approval_locked(session: AsyncSession, scene_packet_id: uuid.UUID, *, source: str) -> ApprovalOutcome:
     """The single locked approval op every path funnels through (ADR-0031 D6/D9). Lock + refresh the row,
     then RE-EVALUATE both gates on that fresh row — base status eligibility (`can_approve`) AND active
     blocker — so a status or blocker change that landed between a caller's stale read and this lock can
@@ -137,16 +137,22 @@ async def _apply_approval_locked(session: AsyncSession, scene_packet_id: uuid.UU
         return ApprovalOutcome(False, packet, blocked_by_open_question=True)
     packet.status = ScenePacketStatus.APPROVED
     packet.stale_reason = None
+    # ADR-0033 D5b: record HOW this approval happened, in the one place that can. `status = approved` is
+    # identical whether a human or a policy set it, so without this nothing downstream can tell them
+    # apart — and D5's reviewer-trust split turns on exactly that. `source` has NO default: every caller
+    # declares its nature, the same discipline `apply_repair_task(autonomous=...)` uses, so a future
+    # automated approver cannot inherit human provenance by omission.
+    packet.approval_source = source
     return ApprovalOutcome(True, packet)
 
 
-async def approve_scene_packet(session: AsyncSession, *, packet: ScenePacket) -> int:
+async def approve_scene_packet(session: AsyncSession, *, packet: ScenePacket, source: str) -> int:
     """Approve ONE ScenePacket through the locked op, THEN reconcile the chapter's beats (returns the beat
     count; the caller commits). Raises `ApprovalBlockerError` when an active ApprovalBlocker holds it, OR
     when its base status is non-approvable on the locked row (a demotion that raced the caller's
     pre-check) — the router maps both to 409. Beats are a projection of approved packets, so approval
     re-derives them in the same breath; the facade owns that coupling (ADR-0031 D6)."""
-    outcome = await _apply_approval_locked(session, packet.id)
+    outcome = await _apply_approval_locked(session, packet.id, source=source)
     if not outcome.approved:
         if outcome.blocked_by_open_question:
             raise _blockers.ApprovalBlockerError("scene packet has an unresolved approval blocker — resolve it first")
@@ -160,6 +166,7 @@ async def approve_scene_packets(
     *,
     chapter_id: uuid.UUID,
     rows: list[ScenePacket],
+    source: str,
     packet_ids: list[uuid.UUID] | None = None,
 ) -> tuple[int, int]:
     """Batch-approve the approvable packets in `rows` (optionally restricted to `packet_ids`), THEN
@@ -172,7 +179,7 @@ async def approve_scene_packets(
     for row in rows:
         if selected is not None and row.id not in selected:
             continue
-        outcome = await _apply_approval_locked(session, row.id)
+        outcome = await _apply_approval_locked(session, row.id, source=source)
         if outcome.approved:
             approved += 1
     derived = await _beats.derive_beats(session, chapter_id=chapter_id)

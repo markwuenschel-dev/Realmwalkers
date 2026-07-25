@@ -144,6 +144,18 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # stays permanently (the ORM sets the column on every insert; the default only covers a mid-deploy
     # window where an older writer is still running).
     "ALTER TABLE repair_tasks ADD COLUMN IF NOT EXISTS authorization_requirement TEXT DEFAULT 'ceiling_gated'",
+    # T2 (#230, ADR-0031 D7): the PERSISTED repair-attempt budget and its terminal reason. The counter
+    # defaults to 0, so tasks already in flight when this lands start with a full budget — deliberately
+    # fail-open for one cycle rather than retroactively parking work mid-repair (#230's migration note).
+    # `terminal_reason` stays NULL for a live cycle; a non-null value is what survives a redeploy and
+    # stops the sweeper re-picking a parked task (the exact property the old in-process cap lacked).
+    "ALTER TABLE repair_tasks ADD COLUMN IF NOT EXISTS repair_cycle_attempts INTEGER DEFAULT 0",
+    "ALTER TABLE repair_tasks ADD COLUMN IF NOT EXISTS terminal_reason TEXT",
+    # ADR-0033 D5b: scene-packet approval provenance. No server DEFAULT — a fresh row must land NULL
+    # ("never approved") rather than claiming a provenance it does not have. The backfill below classifies
+    # rows that were ALREADY approved before this column existed as legacy_unclassified, which the
+    # reviewer-trust split treats as untrusted: unproven provenance is not human provenance.
+    "ALTER TABLE scene_packets ADD COLUMN IF NOT EXISTS approval_source TEXT",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -202,6 +214,14 @@ _BACKFILLS: tuple[str, ...] = (
     """UPDATE repair_tasks SET authorization_requirement = 'manual_grant'
        WHERE authority_level = 'human_required' AND authorization_requirement IS DISTINCT FROM 'manual_grant'""",
     "UPDATE repair_tasks SET authorization_requirement = 'ceiling_gated' WHERE authorization_requirement IS NULL",
+    # T2: the column default only applies to rows inserted after the ADD; a pre-existing row gets NULL
+    # under some paths, and a NULL budget would compare as "unspent" forever. Self-gating, so it is a
+    # no-op on every boot after the first.
+    "UPDATE repair_tasks SET repair_cycle_attempts = 0 WHERE repair_cycle_attempts IS NULL",
+    # ADR-0033 D5b: an already-APPROVED packet predates provenance, so it cannot claim a human read it.
+    # Self-gating on both columns: never touches an unapproved packet, no-op on every boot after the first.
+    """UPDATE scene_packets SET approval_source = 'legacy_unclassified'
+       WHERE status = 'approved' AND approval_source IS NULL""",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).

@@ -162,6 +162,9 @@ const DETAIL = {
       // server from (authorization_requirement, authority_level) — it stays on the wire for the Desk.
       authorization_requirement: "ceiling_gated",
       requires_human_approval: false,
+      // T2 (#230): the persisted automatic-attempt budget and, once the cycle parks, why.
+      repair_cycle_attempts: 0,
+      terminal_reason: null,
       created_at: "2026-07-02T10:00:00Z",
       updated_at: "2026-07-02T10:00:00Z",
     },
@@ -432,6 +435,8 @@ describe("ProductionScreen", () => {
       status: "waiting_for_human",
       authorization_requirement: "ceiling_gated",
       requires_human_approval: true,
+      repair_cycle_attempts: 0,
+      terminal_reason: null,
       human_approved_at: null,
     };
     vi.mocked(api.productionRun).mockResolvedValue({ ...DETAIL, repair_tasks: [heldTask] });
@@ -686,6 +691,8 @@ describe("ProductionScreen", () => {
       issue_ids: ["issue-1"],
       authorization_requirement: "ceiling_gated",
       requires_human_approval: true,
+      repair_cycle_attempts: 0,
+      terminal_reason: null,
       human_approved_at: null,
     };
     const deferredIssue = {

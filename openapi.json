@@ -18401,6 +18401,22 @@
             ],
             "title": "Human Approved At"
           },
+          "repair_cycle_attempts": {
+            "type": "integer",
+            "title": "Repair Cycle Attempts",
+            "default": 0
+          },
+          "terminal_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal Reason"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",

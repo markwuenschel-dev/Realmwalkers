@@ -353,6 +353,10 @@ class ScenePacket(Base):
     # (mirroring jobs.revision_request_id); an inline ForeignKey would make create_all emit a SECOND
     # auto-named FK. Distinct from KnowledgeFact.source_scene_id despite the shared column name.
     source_scene_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    # ADR-0033 D5b: HOW this packet was approved — see enums.ScenePacketApprovalSource. NULL until it is
+    # approved. `status = approved` alone cannot answer "did a human read this contract?", and D5's
+    # reviewer-trust split needs exactly that answer. Written only by the single approval seam.
+    approval_source: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -1126,6 +1130,17 @@ class RepairTask(Base):
     # stamp). A re-queued task (verify said NEEDS_ANOTHER_REPAIR) keeps its stamp — one human approval
     # covers the task's whole repair loop, not a single attempt.
     human_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # T2 (#230, ADR-0031 D7): AUTOMATIC apply attempts consumed by the current repair cycle. Persisted, so
+    # the budget survives a restart — the predecessor was `sweeper._attempts`, an in-process dict keyed by
+    # run_id that the drain never consulted, which left the drain path unbounded. Counted per CYCLE, not
+    # per RepairAttempt row: a chapter-scoped repair mints one attempt row per member scene, so counting
+    # rows would exhaust a cap of three on a three-scene chapter's first action. A manual Apply neither
+    # increments this nor is blocked by it; an explicit human Approve & apply resets it to 0 (the "reopen
+    # a cycle" action D7 requires).
+    repair_cycle_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    # Set when the cycle parks for good; NULL while it is still live. See enums.RepairTerminalReason.
+    # Its presence is what stops the sweeper re-picking a parked task after a redeploy.
+    terminal_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
