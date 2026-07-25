@@ -5,15 +5,22 @@
 **Refines** ADR-0030's `Editorial Convergence` and the `CONTEXT.md` glossary entry of that name.
 
 **Revision history**
+- **v2 (2026-07-25) — F2 CLOSED by author ruling: `S = Severity.INFO`.** D2 rewritten from a fork into a
+  decision, with the accepted cost stated (advisory `warn` findings now drive unattended rewriting, so the
+  attempt cap becomes load-bearing rather than a backstop). D2a added: the open-status set resolved
+  **factually** from each contested status's only write site, not ruled — and `_OPEN_FIDELITY_STATUSES` is
+  explicitly NOT folded into it, because it answers a different question. F1 and F3 remain open, so
+  `implementation_authorized` stays false.
 - v1 (2026-07-25) — first draft, authored during the ADR-0031 A1c build. Records what is **settled** and
   isolates **three blocking items** (F1 name, F2 threshold, F3 reviewer set) that are the author's to rule
   on. `implementation_authorized` stays **false** until F1–F3 close: a driver with an unpinned stopping
   condition has no mandate, and #220's whole question is precisely those three.
 
 > **Why this is not yet authorized.** ADR-0031 D10 makes "no decision" a blocking state, so the open items
-> below are recorded rather than defaulted. Two of the three are not mine to settle at all: F1 is a naming
-> decision (author-only), and F2 changes when a human is interrupted. F3 has a verified factual answer for
-> *which* reviewers run, but a genuine design fork on *what to do about them* — see D5.
+> below are recorded rather than defaulted. **F2 is now closed** (D2). Two remain: **F1** is a naming
+> decision and is author-only; **F3** has a verified factual answer for *which* reviewers run, but a
+> genuine design fork on whether they may trust a contract no human read — see D5. F3 became more
+> consequential, not less, when F2 chose `info`: every reviewer now drives the loop.
 
 ## Decision (the settled core)
 
@@ -26,7 +33,7 @@ Three things it is measured against, kept strictly apart because they gate diffe
 
 | Gate | Object it bounds | Effect when it trips | Owner |
 |---|---|---|---|
-| **Threshold S** | the prose, via open Issues | the converge loop keeps running | this ADR (F2) |
+| **Threshold S** = `info` | the prose, via open Issues | the converge loop keeps running | this ADR, D2 · **settled** |
 | **Attempt cap** | the loop itself | the cycle parks, terminally, for a human | D7 / T2 (#230) |
 | **Approval Blocker** | one ScenePacket's *contract* | approval is refused until resolved | ADR-0031 D14, live |
 
@@ -110,41 +117,54 @@ project and is not the done-signal. The unit is the **repair cycle**, not the `R
 chapter-scoped repair mints one attempt per member scene (`production_repair.py:576-601`), so counting
 rows would exhaust a cap of three on a three-scene chapter's first action.
 
-### D2 — Threshold S — [OPEN · **F2**, blocking]
+### D2 — Threshold S — [**SETTLED** · author ruling 2026-07-25 · closes F2]
 
-S must be pinned to a member of `shared.enums.Severity` (`info | warn | repair | block`) — prose like
-"a configured advisory severity" is what #220 exists to remove. Candidates, with grounds:
+> **S = `Severity.INFO`.** A scene is converged when it has **no open Issue with a severity above
+> `info`** — `warn`, `repair` and `block` keep the loop running; `info` does not. Pinned to the enum
+> member (`shared/enums.py:84`), not to prose.
 
-- **S = `info`** — converged ⟺ no open Issue above `info`. `warn` and up keep the loop running; `info`
-  noise does not. **This is the value that makes triage and verification agree**: triage already rejects
-  exactly `info` as non-actionable (fact 4), so pinning S here closes the live asymmetry in which a
-  finding triage refuses to act on can still re-queue the task forever. Keeps all seven reviewers in the
-  loop. **Cost:** reviewers are advisory by design (DESIGN §9); letting `warn` drive unattended rewriting
-  promotes advice into instruction, and the attempt cap becomes the main thing that ends a noisy scene.
-- **S = `warn`** — converged ⟺ no open Issue above `warn` ⟺ nothing that blocks final export
-  (`EXPORT_BLOCKING = {block, repair}`, `shared/severity.py:26`). One vocabulary, no new constant, and
-  "converged" would mean exactly "exportable". **Cost, from fact 8: six of the seven reviewers stop
-  mattering** — voice, pacing, state-drift, combat, sensory and dialogue cannot exceed `warn`, so a scene
-  with twenty open warnings from them converges on the first pass. Only continuity's hard-number `block`,
-  `scene_fidelity`, `scene_scope` and `chapter_assembly` would decide convergence.
-- **S = `repair`** — converged ⟺ only `block` keeps the loop running. Strictly weaker than `warn`;
-  recorded for completeness, and it makes `repair`-severity `scene_fidelity` findings non-blocking,
-  which contradicts ADR-0020's fidelity-issue lifecycle. Not recommended.
+Grounds recorded with the ruling:
 
-**Also unresolved inside F2:** *which Issue statuses count as OPEN.* Fact 9 — no shared predicate, and
-three local definitions that disagree. A threshold cannot be evaluated without that set, and shipping S
-against any one of the three would silently adopt its disagreement. Candidate: one shared frozenset,
-open = everything except `REJECTED | VERIFIED | FALSE_POSITIVE | OVERRIDDEN | SUPERSEDED | MERGED`, with
-the three call sites migrated onto it (the repair-task partition at `production_repair.py:95-109` is the
-model, including its test).
+- **It makes the two gates the system already has agree.** Triage rejects exactly `info` as
+  non-actionable — *"Info-level notes stay advisory and do not create repair work"*
+  (`production_repair.py:367-370`) — while verification is severity-blind and re-queues on any new
+  critique including `info` (`:940`). S = `info` closes that asymmetry: a finding triage refuses to act
+  on can no longer keep the task alive forever (fact 4).
+- **It keeps all seven reviewers in the loop.** Six of them cannot exceed `warn` (fact 8), so any higher
+  S would have retired voice, pacing, state-drift, combat, sensory and dialogue from the stopping
+  condition and quietly demoted them to a human-facing signal.
 
-**My lean:** `S = info`, because it is the only candidate that makes the two gates the system already has
-agree with each other, and because fact 8 makes `warn` a much larger change than it reads as — `warn`
-does not "raise the bar" so much as remove six of the seven reviewers from the stopping condition.
-**Counter-argument to weigh:** `warn` is the only candidate where "converged" and "exportable" are the
-same sentence, and a loop that reruns on advisory prose opinions is exactly the "free-running quality
-loop" #222 records the author as not wanting. If `warn` wins, the honest consequence is that the advisory
-reviewers are a **human-facing** signal only, and that should be said out loud rather than discovered.
+**Accepted cost, stated so it is not rediscovered as a surprise.** Reviewers are advisory by design
+(DESIGN §9), and S = `info` lets a `warn` drive unattended rewriting — advice becomes instruction. A
+scene whose reviewers keep producing fresh `warn` findings will therefore be ended by the **attempt cap**
+(D4), not by the threshold. That makes D4 load-bearing rather than a backstop, and it makes the cap's
+terminal reason the operator's main signal for "this scene argued with itself until it ran out of
+attempts". Rejected alternatives: `warn` (converged would equal exportable, but at the cost above);
+`repair` (weaker still, and it makes `repair`-severity `scene_fidelity` findings non-blocking, which
+contradicts ADR-0020's fidelity-issue lifecycle).
+
+#### D2a — Which Issue statuses count as OPEN — [SETTLED · resolved factually, not ruled]
+
+A threshold cannot be evaluated without this set, and fact 9 records that no shared predicate exists and
+three local definitions disagree. Both contested members resolve from their **only** write site, so this
+was a factual question, not a fork:
+
+| Status | Convergence | Why |
+|---|---|---|
+| `PROPOSED`, `ACCEPTED`, `REPAIR_QUEUED`, `ESCALATED` | **open** | undecided, or decided and unfinished |
+| `REPAIRED` | **open** | its one writer's own comment (`production_fidelity.py:396`): *"The source Issue's evidence is now stale; mark it REPAIRED (fresh evaluation VERIFIES or re-opens it)."* Awaiting evaluation is not resolved. |
+| `MERGED` | **closed** | its one writer (`production_repair.py:1385-1394`) folds the claim into a target Issue's repair task via `_append_merged_issue_to_task`. The target carries the work; counting both double-counts one defect. |
+| `REJECTED`, `VERIFIED`, `FALSE_POSITIVE`, `OVERRIDDEN`, `SUPERSEDED` | **closed** | terminal by construction |
+
+So `CONVERGENCE_OPEN = {PROPOSED, ACCEPTED, REPAIR_QUEUED, REPAIRED, ESCALATED}` — which is exactly
+`production_sequence.py:904-910`'s existing set. It belongs in one shared frozenset with an explicit
+complement, modelled on the repair-task partition (`production_repair.py:95-109`) and its test.
+
+**`_OPEN_FIDELITY_STATUSES` (`production_fidelity.py:67-75`) is NOT thereby wrong and must not be
+merged into it.** It answers a different question — *is this clause's defect already tracked?*
+(`:119`, a dedupe guard) — for which a `MERGED` issue correctly still counts. "Is there work left" and
+"is this already tracked" legitimately disagree on `MERGED`. Two named sets, not one; the divergence
+fact 9 records is only a defect where the same question is answered twice.
 
 ### D3 — S versus an Approval Blocker — [SETTLED]
 
@@ -189,10 +209,12 @@ fields are written by the ScenePacket author from evidence, with **no human read
   contract. More machinery; keeps precision where it is safe.
 
 **Flag → Issue needs no new design** (fact 7): the path is live, single-sited, and signature-deduped.
-What F3 must also settle is the **severity consequence** — because six of the seven reviewers cannot
-exceed `warn` (fact 5), F3's answer mostly only matters if F2 chooses `S = info`. Under `S = warn` those
-six have no effect on convergence at all and this fork shrinks to continuity alone. **F2 and F3 are
-therefore coupled, and F2 goes first.**
+
+**F2's ruling raised the stakes here.** With `S = info` (D2), every reviewer's `warn` findings keep the
+converge loop running — so a `reviewer_false_positive_traps` entry in an auto-derived contract does not
+merely hide a note from a human, it *ends the loop early* by suppressing the findings that would have kept
+it going. Under the rejected `S = warn` this fork would have shrunk to continuity alone; under `info` it
+applies to all seven lanes. F3 is now the last substantive item before a driver can be authorized.
 
 ### D6 — Name — [OPEN · **F1**, blocking, author-only]
 
@@ -211,11 +233,15 @@ the driver itself (#228). This ADR defines the stopping condition and nothing el
 
 ## Consequences
 
-- Until F1–F3 close, **no driver may be authorized**: `implementation_authorized: false` here is the
+- Until F1 and F3 close, **no driver may be authorized**: `implementation_authorized: false` here is the
   reason, and it is deliberate rather than an oversight.
-- Whatever S is chosen, it is a **narrowing** of today's behaviour (fact 2 — today any single `info`
+- `S = info` is a **narrowing** of today's verification behaviour (fact 2 — today any single `info`
   critique keeps the loop alive), so the first implementation must ship with the before/after visible in
-  a test at each band, not only at the chosen one.
+  a test at each band, not only at `info`.
+- **`S = info` makes D4's attempt cap load-bearing.** A scene whose reviewers keep producing fresh `warn`
+  findings is ended by the cap, not by the threshold — so T2/#230's persisted terminal reason stops being
+  an operator nicety and becomes the primary signal for "this scene never settled". T2 should be
+  sequenced before, not after, any driver that runs unattended.
 - The three-gate separation in D3 constrains T2: the attempt cap parks a *cycle*; it must not resolve an
   ApprovalBlocker, and resolving a blocker must not reset an attempt budget.
 - ADR-0030's "Layer 1 (objective floor)" is now half-live and this ADR does not complete it: the scene

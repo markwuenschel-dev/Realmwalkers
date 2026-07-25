@@ -133,10 +133,10 @@ The enforced total order `LOCKED_CANON > DERIVED_FROM_MANUSCRIPT > DERIVED_FROM_
 _Avoid_: claim label, source hint, canon promotion
 
 **Editorial Convergence** _(proposed — pending author-blessed name; see ADR-0033 F1)_:
-The system's definition of "done" for unattended work on a scene: repeat produce → review → repair until the scene has no open Issue above a configured advisory severity, bounded by capped repair attempts. It is a stopping condition built on Issue resolution, deliberately NOT a Fidelity score (scoring is a deferred side project), and distinct from human approval.
+The system's definition of "done" for unattended work on a scene: repeat produce → review → repair until the scene has **no open Issue above `info` severity** — `warn`, `repair` and `block` all keep the loop running — bounded by capped repair attempts. Open means `proposed | accepted | repair_queued | repaired | escalated`. It is a stopping condition built on Issue resolution, deliberately NOT a Fidelity score (scoring is a deferred side project), and distinct from human approval: a scene can be converged and unapprovable (an Approval Blocker holds its contract), or approved and unconverged.
 _Avoid_: quality score, fidelity verdict, human sign-off, "no findings"
 
-> **The `_(proposed)_` tag stays until the author rules.** ADR-0033 records the definition and isolates three blocking items: **F1** the name, **F2** the severity threshold `S` (pinned to a `Severity` member, plus which `IssueStatus` values count as open), and **F3** the reviewer set against an auto-derived contract. Naming is author-only, so nothing self-blesses a term here. ADR-0033's `implementation_authorized` is **false** until F1–F3 close — a driver with an unpinned stopping condition has no mandate.
+> **The `_(proposed)_` tag stays until the author rules on the NAME.** ADR-0033 records the definition and had three blocking items. **F2 is closed** (2026-07-25): the threshold is pinned to `Severity.INFO`, and the open-status set was resolved factually from each contested status's only write site. Still open: **F1** the name (author-only — nothing self-blesses a term here) and **F3** whether reviewers may trust an auto-derived contract's suppression fields. ADR-0033's `implementation_authorized` stays **false** until both close.
 
 > **Implementation status — autonomy & authorization (ADR-0030 / ADR-0031, verified 2026-07-25).** Of the
 > six terms that follow, **two are now LIVE** and four remain planned vocabulary.
