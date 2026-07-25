@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.authorization import DEFAULT_AUTHORIZATION_CEILING
 from dominion.shared.enums import (
     AgentRunStatus,
     ProductionRunStatus,
@@ -549,11 +550,19 @@ async def apply_repair_task(
     autonomous: bool,
     human_approved: bool = False,
     approval_reason: str | None = None,
+    authorization_ceiling: str = DEFAULT_AUTHORIZATION_CEILING,
 ) -> RepairTask:
     # `autonomous` is required (no default) end-to-end — see the core seam. Sweeper/drain pass
-    # autonomous=True; the human apply routes pass autonomous=False.
+    # autonomous=True; the human apply routes pass autonomous=False. `authorization_ceiling` is the
+    # ceiling THIS caller declares (ADR-0031 D16, A1c): the sweeper passes its configured ceiling, every
+    # other caller takes the default that the retired `requires_human_approval` boolean encoded.
     return await production_repair.apply_repair_task(
-        session, task_id, autonomous=autonomous, human_approved=human_approved, approval_reason=approval_reason
+        session,
+        task_id,
+        autonomous=autonomous,
+        human_approved=human_approved,
+        approval_reason=approval_reason,
+        authorization_ceiling=authorization_ceiling,
     )
 
 

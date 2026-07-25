@@ -1,33 +1,98 @@
-"""Approval Blocker boundary — the scene-tier hold that gates automated approval (A1c slice 1).
+"""Approval Blocker boundary — the scene-tier hold that gates automated approval (A1c).
 
-ADR-0031 D9/D14. A `manual_command` raises a durable, scene-packet-scoped ApprovalBlocker; an ACTIVE
-blocker blocks EVERY approval (human and autonomous) until an explicit resolver closes it with a
-rationale + source. The write seam and the approval gate both `SELECT ... FOR UPDATE` the owning
-ScenePacket row, so a blocker can never appear immediately after approval (the cross-table race, F7).
-Beats are a projection of approved packets, so demoting an approved packet reconciles them.
+ADR-0031 D9/D14. A durable, scene-packet-scoped ApprovalBlocker holds approval; an ACTIVE blocker blocks
+EVERY approval (human and autonomous) until an explicit resolver closes it with a rationale + source. The
+write seam and the approval gate both `SELECT ... FOR UPDATE` the owning ScenePacket row, so a blocker can
+never appear immediately after approval (the cross-table race, F7). Beats are a projection of approved
+packets, so demoting an approved packet reconciles them.
 
-Scope: this is the blocker boundary only. It does NOT deliver D9's durable Execution Authorization
-replacement (that remains `human_approved`/`human_approved_at`/`autonomous`, deferred) and does not touch
-draft/revise scheduling, the auto-verify selector, or downstream provenance.
+Two sources raise one (`enums.ApprovalBlockerSource`):
+
+* ``manual_command`` (slice 1) — a deliberate command through an explicit route.
+* ``canon_conflict`` (slice 2) — raised AUTOMATICALLY by the derive path when scene-packet QA reports a
+  canon-conflict finding on the freshly derived contract. Slice 1 shipped the channel with only a manual
+  producer, which meant the hold was reachable only after a human had already spotted the problem — an
+  escalation channel installed and unwired. `automatic_hold_for_qa` below is the trigger, and it is the
+  ONLY place the trigger predicate lives.
+
+Scope: this is the blocker boundary only. It does NOT deliver D9's durable Execution Authorization record
+(the repair tier's authorization axis is `shared/authorization.py`; a scene-tier grant record is separate
+and unbuilt), and does not touch draft/revise scheduling or downstream provenance.
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared.enums import ApprovalBlockerStatus, ScenePacketStatus
+from dominion.shared.enums import ApprovalBlockerSource, ApprovalBlockerStatus, ScenePacketStatus
 from dominion.shared.models import ApprovalBlocker, ScenePacket
+from dominion.shared.risk_scorer import CANON_CONFLICT_KINDS, score_qa_result, should_semantic_escalate
 from dominion.shared.schemas import ScenePacketOut
 
-MANUAL_COMMAND = "manual_command"
+MANUAL_COMMAND = ApprovalBlockerSource.MANUAL_COMMAND.value
+CANON_CONFLICT = ApprovalBlockerSource.CANON_CONFLICT.value
+
+#: The `source_key` every automatic canon-conflict blocker uses. It is a CONSTANT on purpose: the
+#: active partial-unique index is on `(scene_packet_id, source, source_key)`, so a stable key means one
+#: active automatic hold per packet, and a re-derive that scores risky again is idempotent rather than
+#: piling up a second row. A content-derived key (prose hash, issue set) would accumulate stale active
+#: holds every re-derive, since nothing auto-resolves them (approval is not a resolution).
+CANON_CONFLICT_KEY = "qa_canon_conflict"
 
 
 class ApprovalBlockerError(ValueError):
     """A blocker operation refused (the router maps it to 409/422)."""
+
+
+def automatic_hold_for_qa(qa: dict[str, Any] | None) -> str | None:
+    """THE trigger for an automatic scene-tier hold (A1c slice 2). Returns the open question to raise, or
+    None when the derived contract needs no human. The single place this predicate lives.
+
+    **The line is canon conflict, not quality.** Issue #217's ratified policy (recorded on map #213) is
+    that ADR-0029 claim-source precedence is the ONLY day-one escalation trigger — "ambiguities /
+    confidence / qa do NOT gate; that is what Layer 2 learns". ADR-0030 says the same in its Layer 1
+    paragraph: the objective floor is drawn by claim strength, not by a quality verdict. So this fires on
+    a QA finding whose `kind` is in `risk_scorer.CANON_CONFLICT_KINDS`, and on nothing else.
+
+    Relationship to the wider risk score, stated so the narrowing is legible rather than accidental:
+    `score_qa_result` returns MEDIUM whenever `canon_count >= 1`, so every hold raised here would also
+    satisfy `should_semantic_escalate` — this predicate is a strict SUBSET of that signal. It deliberately
+    does NOT fire on a bare REVISE_REQUIRED verdict or on five-plus residual risks, both of which would
+    hold approval on ordinary editorial noise. Whether to widen to the full risk score is an open item in
+    ADR-0033 and is one line here.
+
+    One consequence worth stating plainly: an ACTIVE blocker holds the HUMAN Approve button too, not only
+    an automated approver. That is slice 1's landed semantics (`blockers.raise_blocker` demotes an already
+    APPROVED packet), and the remedy is to resolve the hold with a rationale.
+    """
+    if not isinstance(qa, dict):
+        return None
+    issues = qa.get("issues")
+    if not isinstance(issues, list):
+        return None
+    kinds = sorted(
+        {
+            str(item.get("kind", "")).lower()
+            for item in issues
+            if isinstance(item, dict) and str(item.get("kind", "")).lower() in CANON_CONFLICT_KINDS
+        }
+    )
+    if not kinds:
+        return None
+    level = score_qa_result(qa)
+    assert should_semantic_escalate(level)  # a canon conflict always scores MEDIUM or higher
+    verdict = qa.get("verdict")
+    verdict_s = str(getattr(verdict, "value", verdict) or "none")
+    return (
+        f"Automated QA found a canon conflict in this derived scene contract: {', '.join(kinds)} "
+        f"(verdict: {verdict_s}; risk: {level.value}). Rule on the conflict before this packet is "
+        "approved, then resolve this hold with a rationale."
+    )
 
 
 async def lock_packet(session: AsyncSession, scene_packet_id: uuid.UUID) -> ScenePacket:
@@ -82,8 +147,9 @@ async def raise_blocker(
     a retry returns the existing active row. Locks the owning ScenePacket row FIRST so a concurrent
     approve can't slip in; if the (now-locked) packet is already APPROVED, DEMOTE it to PROPOSED and
     reconcile beats in the same transaction — the invariant is that no APPROVED packet may carry an
-    active blocker, or retain approved-derived beats. Provenance is `manual_command` (a deliberate route,
-    not an authenticated actor). The caller commits."""
+    active blocker, or retain approved-derived beats. `source` is provenance from
+    `enums.ApprovalBlockerSource`: `manual_command` (a deliberate route, not an authenticated actor) or
+    `canon_conflict` (the derive path's automatic hold). The caller commits."""
     if not source_key or not source_key.strip():
         raise ApprovalBlockerError("source_key is required")
     if not question or not question.strip():

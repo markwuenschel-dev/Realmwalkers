@@ -18381,6 +18381,10 @@
             ],
             "title": "Word Delta Target"
           },
+          "authorization_requirement": {
+            "type": "string",
+            "title": "Authorization Requirement"
+          },
           "requires_human_approval": {
             "type": "boolean",
             "title": "Requires Human Approval"
@@ -18423,6 +18427,7 @@
           "must_not_change",
           "allowed_operations",
           "forbidden_operations",
+          "authorization_requirement",
           "requires_human_approval",
           "created_at",
           "updated_at"

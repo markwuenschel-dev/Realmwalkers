@@ -9,14 +9,20 @@ survival, cascade purge, and the fail-closed projection overlay.
 from __future__ import annotations
 
 import asyncio
+import uuid
+from typing import Any
 
 import pytest
 from sqlalchemy import func, select
 
-from dominion.shared.enums import ApprovalBlockerStatus, ScenePacketStatus
+from dominion.shared.enums import ApprovalBlockerStatus, ScenePacketStatus, ScenePacketVerdict
 from dominion.shared.models import ApprovalBlocker, Beat, Book, Chapter, ChapterPacket, ScenePacket
 from dominion.workers import scene_packet as sp_pipeline
 from dominion.workers.scene_packet import approval_policy, blockers
+from dominion.workers.scene_packet import author as sp_author
+from dominion.workers.scene_packet import author_sections as sp_sections
+from dominion.workers.scene_packet import derive as sp_derive
+from dominion.workers.scene_packet import qa as sp_qa
 from dominion.workers.scene_packet.blockers import ApprovalBlockerError
 
 
@@ -61,6 +67,85 @@ async def _beat_count(s, scene_packet_id) -> int:
     return int(
         await s.scalar(select(func.count()).select_from(Beat).where(Beat.scene_packet_id == scene_packet_id)) or 0
     )
+
+
+# --- derive harness (A1c slice 2 — the automatic source runs inside the real derive path) ----------
+
+
+def _scene_body() -> dict[str, Any]:
+    """A minimal VALID scene-packet body, so `status_after_author_qa` leaves the packet PROPOSED and the
+    only thing that can hold it is the automatic blocker under test."""
+    mole = "Serra is the mole"
+    return {
+        "scene_no": 1,
+        "scene_job": "Marcus intercepts.",
+        "scene_type": "combat",
+        "word_budget": {"target": 1500, "min": 1050, "max": 2025, "hard_max": 2400},
+        "known_before_scene": {"reader": ["the route"], "pov": ["the route"], "omniscient_author": [mole]},
+        "learned_during_scene": {
+            "reader_must_learn": ["the cohort is converging"],
+            "reader_may_learn": [],
+            "reader_may_infer_only": [],
+        },
+        "must_remain_hidden": {"reader": [mole], "pov": [], "all_surface_prose": []},
+        "pov_permissions": {"may_notice": [], "may_infer": [], "must_not_know": [mole], "may_be_wrong_about": []},
+        "intentional_mysteries": [
+            {"mystery": "who tipped the cohort", "desired_reader_effect": "unease", "do_not_explain": True}
+        ],
+        "reviewer_false_positive_traps": ["the missing tip source is intentional"],
+        "required_beats": ["land the hit"],
+        "forbidden_beats": ["Marcus uses his Aspect"],
+        "exit_state": "both wounded",
+        "phrases_to_avoid_echoing": ["reader must learn"],
+        "reviewer_instructions": {"combat": ["track stamina"], "continuity": []},
+    }
+
+
+def _patch_scene_agents(monkeypatch, body: dict[str, Any], *, qa: dict[str, Any] | None = None) -> None:
+    """Mock the author + QA agents (both author entry points — the sectioned one is the default) and the
+    prefix primes, so a derive runs with no network. `qa` is the QA agent's exact return value: that is
+    the input the automatic-hold trigger scores."""
+
+    async def fake_author(**kw):
+        return dict(body)
+
+    async def fake_qa(_b, **kw):
+        return dict(qa or {"verdict": ScenePacketVerdict.APPROVE, "residual_risks": [], "issues": []})
+
+    async def noop_prime(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(sp_author, "author_scene_packet", fake_author)
+    monkeypatch.setattr(sp_sections, "author_scene_packet_sectioned", fake_author)
+    monkeypatch.setattr(sp_qa, "qa_scene_packet", fake_qa)
+    monkeypatch.setattr(sp_sections, "prime_author_shared_prefix", noop_prime)
+    monkeypatch.setattr(sp_qa, "prime_qa_shared_prefix", noop_prime)
+
+
+async def _seed_chapter_packet(s) -> tuple[Book, Chapter, ChapterPacket]:
+    """An approved ChapterPacket with ONE scene seed, ready for `derive_scene_packets`."""
+    book = Book(title="Realmwalkers")
+    s.add(book)
+    await s.flush()
+    ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus", outline="o")
+    s.add(ch)
+    await s.flush()
+    cp = ChapterPacket(
+        book_id=book.id,
+        chapter_id=ch.id,
+        status="approved",
+        confidence="green",
+        body={
+            "chapter_no": 1,
+            "chapter_job": "j",
+            "word_budget": {"target": 1500, "min": 1050, "max": 2025, "hard_max": 1500},
+            "scene_seeds": [{"seed_id": str(uuid.uuid4()), "scene_no": 1, "scene_type": "combat"}],
+        },
+        open_questions={"items": []},
+    )
+    s.add(cp)
+    await s.flush()
+    return book, ch, cp
 
 
 async def test_raise_on_approved_demotes_and_reconciles_beats(db_factory):
@@ -334,3 +419,136 @@ async def test_route_parity_summary_and_detail_agree_on_blocker(db_factory):
         assert row.approval_state == "blocked_by_open_question"
         assert detail.approval_state == "blocked_by_open_question"
         assert row.approval_blockers == detail.approval_blockers == ["Whose blade?"]
+
+
+# --- A1c slice 2: the AUTOMATIC blocker source ----------------------------------------------------
+# Slice 1 shipped the hold with one producer — a human route. That made the escalation channel reachable
+# only after a human had already spotted the problem, which is the opposite of an escalation. These pin
+# the automatic source end to end: the trigger predicate, the derive-path caller, and the hold itself.
+
+
+def test_automatic_hold_trigger_fires_on_canon_conflict_only():
+    """The escalation line is ADR-0029 canon conflict, not quality (issue #217's ratified policy: QA
+    verdicts and confidence do NOT gate). These pin BOTH halves — what fires and what deliberately does
+    not — because a trigger that also fired on editorial noise would hold every derived packet."""
+    clean = {"verdict": ScenePacketVerdict.APPROVE, "residual_risks": [], "issues": []}
+    assert blockers.automatic_hold_for_qa(clean) is None
+    assert blockers.automatic_hold_for_qa(None) is None
+    assert blockers.automatic_hold_for_qa("not a dict") is None  # type: ignore[arg-type]
+
+    conflict = {
+        "verdict": ScenePacketVerdict.APPROVE_WARN,
+        "residual_risks": [],
+        "issues": [{"kind": "canon_conflict", "severity": "warn", "detail": "d"}],
+    }
+    question = blockers.automatic_hold_for_qa(conflict)
+    assert question is not None
+    assert "canon_conflict" in question  # the human is told WHICH finding forced the hold
+
+    # Quality signals alone must NOT hold approval — this is the narrowing #217 requires.
+    assert blockers.automatic_hold_for_qa({"verdict": ScenePacketVerdict.REVISE_REQUIRED, "issues": []}) is None
+    assert (
+        blockers.automatic_hold_for_qa(
+            {"verdict": ScenePacketVerdict.APPROVE, "residual_risks": ["a", "b", "c", "d", "e"], "issues": []}
+        )
+        is None
+    )
+    assert (
+        blockers.automatic_hold_for_qa(
+            {"verdict": ScenePacketVerdict.APPROVE, "issues": [{"kind": "flat_dialogue", "severity": "repair"}]}
+        )
+        is None
+    )
+
+
+async def test_derive_raises_an_automatic_blocker_that_holds_approval(db_factory, monkeypatch):
+    """END TO END through the real derive path: risky QA on an otherwise-approvable packet must leave an
+    ACTIVE `canon_conflict` blocker, and the shared approval operation must then refuse. This is the
+    test that distinguishes 'the channel exists' from 'the channel is wired'."""
+    from dominion.shared.enums import ApprovalBlockerSource
+
+    _patch_scene_agents(
+        monkeypatch,
+        _scene_body(),
+        qa={
+            "verdict": ScenePacketVerdict.APPROVE_WARN,
+            "residual_risks": [],
+            "issues": [{"kind": "timeline_contradiction", "severity": "warn", "detail": "two dawns"}],
+        },
+    )
+    async with db_factory() as s:
+        book, ch, cp = await _seed_chapter_packet(s)
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.flush()
+        assert counts["created"] == 1
+        assert counts["held_for_question"] == 1
+        row = (await s.execute(select(ScenePacket).where(ScenePacket.chapter_id == ch.id))).scalars().one()
+        # The packet's own status is unremarkable — this is exactly the case the hold exists for: it
+        # LOOKS approvable, and only the risk score says a human should confirm the derived contract.
+        assert row.status == ScenePacketStatus.PROPOSED
+        assert approval_policy.can_approve(row) is None
+        blocker = (
+            (await s.execute(select(ApprovalBlocker).where(ApprovalBlocker.scene_packet_id == row.id))).scalars().one()
+        )
+        assert blocker.source == ApprovalBlockerSource.CANON_CONFLICT.value
+        assert blocker.status == ApprovalBlockerStatus.ACTIVE.value
+        assert blocker.source_key == blockers.CANON_CONFLICT_KEY
+        packet_id, blocker_id = row.id, blocker.id  # primitives: the rollback below expires both rows
+        await s.commit()
+
+        # ...and the hold is real: the one approval seam refuses, and no beat is derived.
+        with pytest.raises(ApprovalBlockerError):
+            await sp_pipeline.approve_scene_packet(s, packet=row)
+        await s.rollback()
+        await s.refresh(row)  # rollback expires the identity-mapped copy; re-read before asserting
+        assert row.status == ScenePacketStatus.PROPOSED
+        assert await _beat_count(s, packet_id) == 0
+
+        # Resolving it with a rationale is the ONLY way through, and then approval succeeds.
+        await blockers.resolve_blocker(
+            s, blocker_id=blocker_id, rationale="Two dawns is deliberate.", resolution_source="manual_command"
+        )
+        await s.commit()
+        await sp_pipeline.approve_scene_packet(s, packet=row)
+        await s.commit()
+        assert (await s.get(ScenePacket, packet_id)).status == ScenePacketStatus.APPROVED
+
+
+async def test_clean_derive_raises_no_automatic_blocker(db_factory, monkeypatch):
+    """The negative half: a clean QA result must not interrupt anyone. Without this the hold would be
+    indistinguishable from 'every derived packet now needs a click'."""
+    _patch_scene_agents(monkeypatch, _scene_body())
+    async with db_factory() as s:
+        _book, _ch, cp = await _seed_chapter_packet(s)
+        counts = await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.flush()
+        assert counts["held_for_question"] == 0
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert await _count_active(s, row.id) == 0
+        await s.commit()
+        await sp_pipeline.approve_scene_packet(s, packet=row)
+        await s.commit()
+        assert (await s.get(ScenePacket, row.id)).status == ScenePacketStatus.APPROVED
+
+
+async def test_rederive_with_the_same_risk_is_idempotent(db_factory, monkeypatch):
+    """The stable `source_key` means a second risky derive returns the existing active hold instead of
+    stacking a second one — otherwise every re-derive would accumulate holds nothing auto-resolves."""
+    _patch_scene_agents(
+        monkeypatch,
+        _scene_body(),
+        qa={
+            "verdict": ScenePacketVerdict.REVISE_REQUIRED,
+            "residual_risks": [],
+            "issues": [{"kind": "premature_reveal", "severity": "warn", "detail": "the mole surfaces early"}],
+        },
+    )
+    async with db_factory() as s:
+        _book, _ch, cp = await _seed_chapter_packet(s)
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        row = (await s.execute(select(ScenePacket))).scalars().one()
+        assert await _count_active(s, row.id) == 1
+        await sp_derive.derive_scene_packets(s, packet=cp)
+        await s.commit()
+        assert await _count_active(s, row.id) == 1

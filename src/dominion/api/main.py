@@ -70,7 +70,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # drain_queued_jobs already single-flights via its process-global lock and persists per-job
     # failures, so a boot-time kick is exactly as safe as a button-press kick.
     try:
-        from sqlalchemy import false, func, select
+        from sqlalchemy import func, select
+
+        from dominion.shared.authorization import requires_explicit_authorization_clause
 
         async with SessionFactory() as session:
             paused = await background_work.load_queue_paused(session)
@@ -90,7 +92,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await session.execute(
                     select(func.count())
                     .select_from(RepairTask)
-                    .where(RepairTask.status == "queued", RepairTask.requires_human_approval == false())
+                    # A1c: same predicate the drain claims on — work within the DEFAULT authorization
+                    # ceiling. Counting anything else would schedule a drain against work it can't take.
+                    .where(RepairTask.status == "queued", ~requires_explicit_authorization_clause())
                 )
             ).scalar_one()
         if (queued or queued_repairs) and paused:

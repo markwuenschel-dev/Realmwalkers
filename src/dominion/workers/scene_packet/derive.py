@@ -47,6 +47,7 @@ from dominion.workers.pov import effective_pov
 from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet import author as author_mod
 from dominion.workers.scene_packet import author_sections as author_sections_mod
+from dominion.workers.scene_packet import blockers as blockers_mod
 from dominion.workers.scene_packet import hash as hash_mod
 from dominion.workers.scene_packet import inputs as sp_inputs
 from dominion.workers.scene_packet import qa as qa_mod
@@ -454,7 +455,16 @@ async def derive_scene_packets(
     # are derived views of the chapter master packet, not an independent source of chapter truth.
     effective_body: dict[str, Any] = master.drafter_view(body)
     seeds = [s for s in (effective_body.get("scene_seeds") or []) if isinstance(s, dict) and s.get("seed_id")]
-    counts: dict[str, Any] = {"created": 0, "updated": 0, "blocked": 0, "stale": 0, "rate_limited": 0, "skipped": 0}
+    counts: dict[str, Any] = {
+        "created": 0,
+        "updated": 0,
+        "blocked": 0,
+        "stale": 0,
+        "rate_limited": 0,
+        "skipped": 0,
+        # A1c slice 2: how many packets this derive put on an automatic canon-conflict hold.
+        "held_for_question": 0,
+    }
     if not seeds:
         return counts
 
@@ -697,6 +707,7 @@ async def derive_scene_packets(
 
     # ---- Phase 3 (serial, DB): persist each scene's verdict. Order-independent — no task read another
     # scene's freshly-derived packet, so the write order doesn't change any result.
+    holds: list[tuple[uuid.UUID, str]] = []  # (scene_packet_id, question) — raised after the loop
     for item, (scene_body, qa, error_detail, violations, blocker_source) in zip(work, results, strict=True):
         status, blocked_reason = approval_policy.status_after_author_qa(
             scene_body, qa, error_detail, blocker_source=blocker_source
@@ -772,6 +783,25 @@ async def derive_scene_packets(
             counts["blocked"] += 1
         elif status == ScenePacketStatus.RATE_LIMITED:
             counts["rate_limited"] += 1
+        # A1c slice 2: the AUTOMATIC escalation source. A held packet (BLOCKED/RATE_LIMITED) already
+        # refuses approval on its own status, so a hold there would be noise; the case this exists for is
+        # the packet that LOOKS approvable but whose QA reported a canon conflict. Collected here and
+        # raised after the loop, because raise_blocker locks the owning row and the freshly-added rows
+        # must be flushed first.
+        elif (question := blockers_mod.automatic_hold_for_qa(qa)) is not None:
+            holds.append((row.id, question))
+
+    if holds:
+        await session.flush()  # the new ScenePacket rows must exist before a blocker references them
+        for scene_packet_id, question in holds:
+            await blockers_mod.raise_blocker(
+                session,
+                scene_packet_id=scene_packet_id,
+                source=blockers_mod.CANON_CONFLICT,
+                source_key=blockers_mod.CANON_CONFLICT_KEY,
+                question=question,
+            )
+        counts["held_for_question"] = len(holds)
 
     # One run_id for every call this derive made, so the Desk can isolate this run (Packets panel) and
     # build a per-run history (Telemetry tab) instead of reading one ever-growing cumulative total.

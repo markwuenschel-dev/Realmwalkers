@@ -138,6 +138,12 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # would be unsafe) AND stops pre-W1 code minting null-basis rows in the W0->W1 window. W1 drops this
     # default, makes the column NOT NULL, and CHECK-constrains it to the two permitted values.
     "ALTER TABLE import_adoptions ADD COLUMN IF NOT EXISTS liveness_basis TEXT DEFAULT 'operator_independent'",
+    # ADR-0031 A1c: the durable Authorization Requirement axis (ceiling_gated | manual_grant), orthogonal
+    # to authority_level (blast radius). The server DEFAULT backfills every pre-existing row to the safe
+    # value; the `_BACKFILLS` UPDATE below then flips human_required rows to manual_grant. The default
+    # stays permanently (the ORM sets the column on every insert; the default only covers a mid-deploy
+    # window where an older writer is still running).
+    "ALTER TABLE repair_tasks ADD COLUMN IF NOT EXISTS authorization_requirement TEXT DEFAULT 'ceiling_gated'",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -188,6 +194,14 @@ _BACKFILLS: tuple[str, ...] = (
            ELSE 2000000 + COALESCE(chapter_no, 0)
        END
        WHERE position IS NULL""",
+    # ADR-0031 A1c: derive the Authorization Requirement for rows that predate the column. The mint-time
+    # rule is `manual_grant` iff the blast radius is human_required (enums.is_manual_grant); everything
+    # else is ceiling_gated, which the column's server DEFAULT already supplied. Self-gating on the
+    # current value, so it is a no-op on every boot thereafter and never overwrites a deliberate
+    # orthogonal manual_grant that a low-blast-radius task carries.
+    """UPDATE repair_tasks SET authorization_requirement = 'manual_grant'
+       WHERE authority_level = 'human_required' AND authorization_requirement IS DISTINCT FROM 'manual_grant'""",
+    "UPDATE repair_tasks SET authorization_requirement = 'ceiling_gated' WHERE authorization_requirement IS NULL",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
@@ -368,6 +382,25 @@ _EXTRA_DDL: tuple[str, ...] = (
              FOREIGN KEY (chapter_packet_id) REFERENCES chapter_packets (id) ON DELETE SET NULL;
          END IF;
        END $$""",
+    # ADR-0031 A1c: close the Authorization Requirement axis. NOT NULL + a CHECK pinning the column to the
+    # two AuthorizationRequirement members, so an unrecognized requirement can never reach the gate (which
+    # fails closed on one anyway — this is the structural half of that guarantee). The backfill above ran
+    # in _BACKFILLS, and `_preflight_repair_authorization_axis` (run before this block) refuses to proceed
+    # if any row's retired boolean disagrees with the requirement the gate now derives.
+    "ALTER TABLE repair_tasks ALTER COLUMN authorization_requirement SET NOT NULL",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_repair_tasks_authorization_requirement') THEN
+           ALTER TABLE repair_tasks ADD CONSTRAINT ck_repair_tasks_authorization_requirement
+             CHECK (authorization_requirement IN ('ceiling_gated', 'manual_grant'));
+         END IF;
+       END $$""",
+    # ADR-0031 A1c: drop the retired boolean. `requires_human_approval` was a MUTABLE column standing in
+    # for the authorization requirement; it is now a derived read-only projection on the ORM
+    # (`RepairTask.requires_human_approval`) computed from authorization_requirement + authority_level, so
+    # the physical column has no writer and no reader. Dropping it is what stops it drifting back into a
+    # second source of truth. Gated by the preflight above: the drop only runs over data where the stored
+    # boolean and the derived value agree everywhere.
+    "ALTER TABLE repair_tasks DROP COLUMN IF EXISTS requires_human_approval",
 )
 
 
@@ -529,6 +562,59 @@ async def _preflight_no_null_liveness_basis(conn: AsyncConnection) -> None:
         )
 
 
+class AuthorizationAxisDriftError(RuntimeError):
+    """Raised (fail-closed) when the ADR-0031 A1c preflight finds `repair_tasks` rows whose retired
+    `requires_human_approval` boolean disagrees with the value the derived projection now computes. The
+    boolean was only ever written from `authority_level` at mint, so a disagreement means some path wrote
+    it independently — dropping the column would then silently change that task's gate."""
+
+
+async def _preflight_repair_authorization_axis(conn: AsyncConnection) -> None:
+    """ADR-0031 A1c: BEFORE `_EXTRA_DDL` drops `repair_tasks.requires_human_approval`, prove the drop is
+    lossless on THIS database. The derived projection is
+    `authority_level NOT IN (span_only, scene_local, scene_structural) OR authorization_requirement <>
+    'ceiling_gated'` (see `shared/authorization.requires_explicit_authorization`); every row's stored
+    boolean must already equal it. A no-op once the column is gone, and on a fresh create_all DB (which
+    never had it). This is the only check standing between the ADR's "the boolean was always derived"
+    claim and real deployed rows — D12 forbids inspecting prod ahead of time, so it runs at migration."""
+    exists = (
+        await conn.execute(
+            text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = 'repair_tasks' AND column_name = 'requires_human_approval'"
+            )
+        )
+    ).first()
+    if exists is None:
+        return
+    rows = (
+        await conn.execute(
+            text(
+                """SELECT authority_level, authorization_requirement, requires_human_approval, count(*) AS n
+                     FROM repair_tasks
+                    WHERE requires_human_approval IS DISTINCT FROM (
+                            authority_level NOT IN ('span_only', 'scene_local', 'scene_structural')
+                            OR authorization_requirement IS DISTINCT FROM 'ceiling_gated')
+                    GROUP BY 1, 2, 3"""
+            )
+        )
+    ).mappings()
+    drift = list(rows)
+    if not drift:
+        return
+    detail = "\n".join(
+        f"      authority_level={r['authority_level']} requirement={r['authorization_requirement']} "
+        f"requires_human_approval={r['requires_human_approval']} rows={r['n']}"
+        for r in drift
+    )
+    raise AuthorizationAxisDriftError(
+        "ADR-0031 A1c preflight FAILED CLOSED: repair_tasks.requires_human_approval disagrees with the "
+        "derived Authorization Requirement projection on the rows below, so dropping the column would "
+        "silently change how those tasks are gated. NOTHING was changed. Reconcile them by hand (set "
+        "authority_level/authorization_requirement to match the intended gate), then reboot:\n" + detail
+    )
+
+
 async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     """Run the idempotent column adds. Call inside an open (begin) connection."""
     for ddl in _COLUMN_ADDS:
@@ -547,6 +633,9 @@ async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     # temp default backfilled existing rows in _COLUMN_ADDS above). MUST run before _EXTRA_DDL, which drops
     # the default and does SET NOT NULL / the value CHECK.
     await _preflight_no_null_liveness_basis(conn)
+    # ADR-0031 A1c: refuse to DROP repair_tasks.requires_human_approval while any row's stored boolean
+    # disagrees with the derived projection. MUST run before _EXTRA_DDL, which performs that drop.
+    await _preflight_repair_authorization_axis(conn)
     for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))
     # Book-ownership invariant (ADR 0027): backfill book_id (chapter->run, reject conflicts), quarantine

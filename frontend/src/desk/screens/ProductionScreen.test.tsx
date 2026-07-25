@@ -158,6 +158,9 @@ const DETAIL = {
       must_not_change: ["Do not change canon."],
       allowed_operations: ["replace_span"],
       forbidden_operations: ["change_canon"],
+      // ADR-0031 A1c: the durable authorization axis. `requires_human_approval` is now derived on the
+      // server from (authorization_requirement, authority_level) — it stays on the wire for the Desk.
+      authorization_requirement: "ceiling_gated",
       requires_human_approval: false,
       created_at: "2026-07-02T10:00:00Z",
       updated_at: "2026-07-02T10:00:00Z",
@@ -427,6 +430,7 @@ describe("ProductionScreen", () => {
       scene_no: null,
       authority_level: "chapter_structural",
       status: "waiting_for_human",
+      authorization_requirement: "ceiling_gated",
       requires_human_approval: true,
       human_approved_at: null,
     };
@@ -680,6 +684,7 @@ describe("ProductionScreen", () => {
       authority_level: "chapter_structural",
       status: "waiting_for_human",
       issue_ids: ["issue-1"],
+      authorization_requirement: "ceiling_gated",
       requires_human_approval: true,
       human_approved_at: null,
     };

@@ -154,16 +154,18 @@ async def drain_queued_repair_tasks() -> None:
 
     Deliberate autonomy change (DESIGN §5): already-triaged, bounded repair work executes without a
     per-task click. The human keeps the same controls as drafting — the queue pause switch stops the
-    loop between tasks, requires_human_approval tasks are NEVER claimed (they wait for the explicit
-    Approve & apply), and every application stays verifiable/rejectable/rollbackable. One fresh
+    loop between tasks, work needing more than the DEFAULT authorization ceiling is NEVER claimed (it
+    waits for the explicit Approve & apply, or for the sweeper's higher configured ceiling), and every
+    application stays verifiable/rejectable/rollbackable. One fresh
     session per task so a poison task can't poison the batch; on failure the task parks
     WAITING_FOR_HUMAN with a repair_drain_error event, so the row leaves QUEUED and the loop always
     advances. Imported lazily so the API process only loads the production stack when it repairs."""
     if _repair_drain_lock.locked():
         return
     async with _repair_drain_lock:
-        from sqlalchemy import false, select
+        from sqlalchemy import select
 
+        from dominion.shared.authorization import requires_explicit_authorization_clause
         from dominion.shared.db import SessionFactory
         from dominion.shared.enums import RepairTaskStatus
         from dominion.shared.models import ProductionRun, RepairTask
@@ -179,7 +181,10 @@ async def drain_queued_repair_tasks() -> None:
                         select(RepairTask)
                         .where(
                             RepairTask.status == RepairTaskStatus.QUEUED,
-                            RepairTask.requires_human_approval == false(),
+                            # A1c: claim only work the DEFAULT authorization ceiling covers. This was
+                            # `requires_human_approval == false()`; the stored boolean encoded exactly
+                            # this ceiling, and the clause now derives it from the durable requirement.
+                            ~requires_explicit_authorization_clause(),
                         )
                         .order_by(RepairTask.created_at)
                         .limit(1)

@@ -123,7 +123,6 @@ async def _span_task(s, run, scene):
         must_change=[QUOTE],
         allowed_operations=["replace_span", "rewrite_scene"],
         forbidden_operations=["change_canon", "change_chapter_outcome"],
-        requires_human_approval=False,
     )
     s.add(task)
     await s.flush()
