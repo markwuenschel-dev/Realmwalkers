@@ -5,6 +5,12 @@
 **Refines and renames** ADR-0030's `Editorial Convergence`, which is retired in favour of `Review-Ready` (D6).
 
 **Revision history**
+- **v5 (2026-07-25) — the two carry-forward gaps are BUILT, not just recorded.** D4's cap is enforced
+  (T2/#230: `shared/repair_budget.py`, a persisted per-cycle counter + terminal reason, reserved through
+  the one seam both the drain and the sweeper pass through). D5b's prerequisite exists
+  (`ScenePacket.approval_source`, written by the single approval seam), and D5 itself is live — the
+  suppression fields are stripped in the contract PROJECTION, so no reviewer has to remember the rule.
+  Both sections below are updated from "must be built" to "built"; no decision is reopened.
 - **v4 (2026-07-25) — F1 CLOSED: the term is `Review-Ready`.** `Editorial Convergence` is retired. All
   three blocking items are now ruled, so **`implementation_authorized` flips to true** and the status
   moves to accepted. A driver has a mandate: a pinned stopping condition (D2), a pinned open-set (D2a),
@@ -184,7 +190,7 @@ operate on different objects (prose vs contract) and have different remedies (re
 with a rationale). A blocker that also stopped convergence would leave the prose frozen mid-repair while
 waiting on a contract question; an S that also permitted approval would approve a contract nobody ruled on.
 
-### D4 — The cap — [SETTLED · verbatim from ADR-0031 D7; **define only**]
+### D4 — The cap — [SETTLED · verbatim from ADR-0031 D7 · **ENFORCED 2026-07-25**]
 
 > **One persisted maximum of three repair attempts per repair cycle.** At the third failed attempt: do not
 > enqueue a fourth automatic repair; park deterministically; persist the terminal reason; expose it to
@@ -192,10 +198,17 @@ waiting on a contract question; an S that also permitted approval would approve 
 > multi-tier automatic ladder in this milestone.** Any escalation beyond parking for human review is out
 > of scope.
 
-Enforcement is **T2 / #230** and is a non-goal here. This ADR only fixes that the cap is part of the
-definition of convergence: an unconverged cycle that hits the cap is *parked*, never *converged*. The two
-terminal states must be distinguishable in the record — fact 10 says no column carries a terminal reason
-today, so T2 adds one.
+~~Enforcement is **T2 / #230** and is a non-goal here.~~ **Enforcement landed 2026-07-25.**
+`shared/repair_budget.py` holds the policy; `RepairTask.repair_cycle_attempts` holds the persisted
+budget and `RepairTask.terminal_reason` the terminal state, so fact 10 is now stale in both halves. The
+reservation happens inside `apply_repair_task`, which is the single seam **both** the unattended drain and
+the sweeper pass through — a cap either worker could bypass is not a cap, and that was precisely the
+drain's bug. A manual apply neither consumes the budget nor is blocked by it; a manual apply on a *parked*
+cycle reopens it. #230's seven acceptance tests are `tests/test_repair_attempt_cap.py`.
+
+This ADR still fixes the definitional half: an unconverged cycle that hits the cap is *parked*, never
+*converged*, and the two terminal states are distinguishable in the record
+(`attempt_cap_reached` vs `hard_failure`).
 
 ### D5 — Reviewer set against an auto-derived contract — [**SETTLED** · author ruling 2026-07-25 · closes F3]
 
@@ -233,10 +246,10 @@ tracking"), and the ruling's principle is that a derivation must not be able to 
 Anything that can suppress and cannot be verified is withheld. Recorded explicitly because a reasonable
 reader could put it in the positive column; if the author wants it trusted, that is a one-row change here.
 
-#### D5b — Prerequisite: scene-packet approval provenance does NOT exist yet
+#### D5b — Prerequisite: scene-packet approval provenance — [**BUILT 2026-07-25**]
 
-**(c) cannot be built as a branch in the reviewer.** It needs a fact the system does not record. Verified
-at HEAD:
+**(c) could not be built as a branch in the reviewer.** It needed a fact the system did not record. As
+verified when this ADR was written (all three now addressed — see the closing note):
 
 - `ScenePacket` has **no approval-provenance column**. Its full column list is `id, book_id, chapter_id,
   chapter_packet_id, scene_seed_id, scene_no, status, qa_verdict, qa_warnings, body, sources, source_hash,
@@ -248,11 +261,21 @@ at HEAD:
   ScenePackets. ADR-0031 D9's *Execution Authorization* grant record — the general form of it — is still
   unbuilt (`CONTEXT.md` autonomy status block).
 
-So D5 has a dependency, and it is a schema-and-seam change, not a flag: the approval seam must record
-approval provenance, and `context/contracts.py:89` → `assemble.py:60` must carry it to `ctx` so
-`lane.py:36` can branch on it. **The A1c work makes this cheap rather than ambiguous**: there is exactly
-one `ScenePacketStatus.APPROVED` writer repo-wide, so the provenance write has exactly one home. Before
-A1c it would have had three.
+**Built 2026-07-25.** `ScenePacket.approval_source` (`enums.ScenePacketApprovalSource`:
+`manual_command | autonomous_policy | legacy_unclassified`, NULL until approved) is written by the single
+approval seam, and `source` has **no default** on either the seam or the facade — the same discipline
+`apply_repair_task(autonomous=...)` uses, so a future autonomous approver cannot inherit human provenance
+by omission. Already-approved rows backfill to `legacy_unclassified`, which the split treats as untrusted:
+unproven provenance is not human provenance. **The A1c work made this cheap rather than ambiguous** —
+exactly one `ScenePacketStatus.APPROVED` writer repo-wide, so the provenance write had exactly one home;
+before A1c it would have had three.
+
+**The split is enforced in the PROJECTION, not in the reviewers** (`context/reviewer_trust.py`, applied at
+`context/contracts.py`). The reviewers are seven independent modules and an eighth will be added; a rule
+each must remember is a rule one will forget, and the failure would be silent — a reviewer that wrongly
+trusts a trap simply reports nothing. Filtering where the contract is built means an untrusted suppression
+field never reaches a reviewer's prompt, so `reviewers/lane.py` is unchanged by design. Tests:
+`tests/test_reviewer_trust.py`.
 
 #### D5c — This closes a loop with the Approval Blocker
 
@@ -295,18 +318,17 @@ the driver itself (#228). This ADR defines the stopping condition and nothing el
 - **A driver is now authorized by this record** (`implementation_authorized: true`). What it may rely on:
   the stopping condition (D2) and its open-set (D2a), the three-gate separation (D3), the D7 cap as a
   definition (D4 — enforcement is still T2/#230), and the reviewer-contract trust split (D5).
-- **D5 has a build prerequisite (D5b): scene-packet approval provenance.** The approval seam records
-  nothing about how a packet was approved, so "was this contract human-approved?" is currently
-  unanswerable. Any slice implementing D5 must add that fact first; it is the scene-tier instance of
-  ADR-0031 D9's still-unbuilt Execution Authorization, narrowed to one boolean-ish question with exactly
-  one writer.
+- ~~**D5 has a build prerequisite (D5b): scene-packet approval provenance.**~~ **Built 2026-07-25** —
+  `ScenePacket.approval_source`, written by the single approval seam, with the trust split enforced in the
+  contract projection. It is the scene-tier instance of ADR-0031 D9's still-unbuilt Execution
+  Authorization, narrowed to one question with exactly one writer; the general grant record remains open.
 - `S = info` is a **narrowing** of today's verification behaviour (fact 2 — today any single `info`
   critique keeps the loop alive), so the first implementation must ship with the before/after visible in
   a test at each band, not only at `info`.
 - **`S = info` makes D4's attempt cap load-bearing.** A scene whose reviewers keep producing fresh `warn`
-  findings is ended by the cap, not by the threshold — so T2/#230's persisted terminal reason stops being
-  an operator nicety and becomes the primary signal for "this scene never settled". T2 should be
-  sequenced before, not after, any driver that runs unattended.
+  findings is ended by the cap, not by the threshold — so the persisted terminal reason is the primary
+  signal for "this scene never settled", not an operator nicety. ~~T2 should be sequenced before, not
+  after, any driver that runs unattended.~~ **T2 landed 2026-07-25**, ahead of any driver, as required.
 - The three-gate separation in D3 constrains T2: the attempt cap parks a *cycle*; it must not resolve an
   ApprovalBlocker, and resolving a blocker must not reset an attempt budget.
 - ADR-0030's "Layer 1 (objective floor)" is now half-live and this ADR does not complete it: the scene

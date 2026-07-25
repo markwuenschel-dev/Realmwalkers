@@ -15,7 +15,12 @@ from typing import Any
 import pytest
 from sqlalchemy import func, select
 
-from dominion.shared.enums import ApprovalBlockerStatus, ScenePacketStatus, ScenePacketVerdict
+from dominion.shared.enums import (
+    ApprovalBlockerStatus,
+    ScenePacketApprovalSource,
+    ScenePacketStatus,
+    ScenePacketVerdict,
+)
 from dominion.shared.models import ApprovalBlocker, Beat, Book, Chapter, ChapterPacket, ScenePacket
 from dominion.workers import scene_packet as sp_pipeline
 from dominion.workers.scene_packet import approval_policy, blockers
@@ -24,6 +29,9 @@ from dominion.workers.scene_packet import author_sections as sp_sections
 from dominion.workers.scene_packet import derive as sp_derive
 from dominion.workers.scene_packet import qa as sp_qa
 from dominion.workers.scene_packet.blockers import ApprovalBlockerError
+
+#: Every approval in these tests is a deliberate command through a route (ADR-0033 D5b).
+MANUAL = ScenePacketApprovalSource.MANUAL_COMMAND.value
 
 
 async def _seed(s, *, status: ScenePacketStatus = ScenePacketStatus.PROPOSED, scene_no: int = 1) -> ScenePacket:
@@ -170,7 +178,7 @@ async def test_approve_operation_refuses_when_active_blocker(db_factory):
         await blockers.raise_blocker(s, scene_packet_id=packet.id, source_key="q1", question="Q?")
         await s.commit()
         with pytest.raises(ApprovalBlockerError):
-            await sp_pipeline.approve_scene_packet(s, packet=packet)
+            await sp_pipeline.approve_scene_packet(s, packet=packet, source=MANUAL)
         assert (await s.get(ScenePacket, packet.id)).status == ScenePacketStatus.PROPOSED
 
 
@@ -189,7 +197,7 @@ async def test_preloaded_approver_rereads_blocker_under_lock(db_factory):
         await blockers.raise_blocker(s2, scene_packet_id=pid, source_key="q1", question="Q?")
         await s2.commit()
         with pytest.raises(ApprovalBlockerError):
-            await sp_pipeline.approve_scene_packet(s1, packet=preloaded)
+            await sp_pipeline.approve_scene_packet(s1, packet=preloaded, source=MANUAL)
 
     async with db_factory() as s:
         assert (await s.get(ScenePacket, pid)).status == ScenePacketStatus.PROPOSED
@@ -267,7 +275,7 @@ async def test_batch_approve_skips_blocked_packet(db_factory):
         await blockers.raise_blocker(s, scene_packet_id=p1.id, source_key="q1", question="Q?")
         await s.commit()
 
-        approved, _ = await sp_pipeline.approve_scene_packets(s, chapter_id=p1.chapter_id, rows=[p1, p2])
+        approved, _ = await sp_pipeline.approve_scene_packets(s, chapter_id=p1.chapter_id, rows=[p1, p2], source=MANUAL)
         await s.commit()
         assert approved == 1  # only the unblocked p2
         assert (await s.get(ScenePacket, p1.id)).status == ScenePacketStatus.PROPOSED
@@ -338,7 +346,7 @@ async def test_f7_concurrent_raise_and_approve(db_factory):
         async with db_factory() as s:
             row = await s.get(ScenePacket, pid)
             try:
-                await sp_pipeline.approve_scene_packet(s, packet=row)
+                await sp_pipeline.approve_scene_packet(s, packet=row, source=MANUAL)
                 await s.commit()
                 return "approved"
             except ApprovalBlockerError:
@@ -377,7 +385,7 @@ async def test_f7_concurrent_resolve_and_approve(db_factory):
         async with db_factory() as s:
             row = await s.get(ScenePacket, pid)
             try:
-                await sp_pipeline.approve_scene_packet(s, packet=row)
+                await sp_pipeline.approve_scene_packet(s, packet=row, source=MANUAL)
                 await s.commit()
                 return "approved"
             except ApprovalBlockerError:
@@ -498,7 +506,7 @@ async def test_derive_raises_an_automatic_blocker_that_holds_approval(db_factory
 
         # ...and the hold is real: the one approval seam refuses, and no beat is derived.
         with pytest.raises(ApprovalBlockerError):
-            await sp_pipeline.approve_scene_packet(s, packet=row)
+            await sp_pipeline.approve_scene_packet(s, packet=row, source=MANUAL)
         await s.rollback()
         await s.refresh(row)  # rollback expires the identity-mapped copy; re-read before asserting
         assert row.status == ScenePacketStatus.PROPOSED
@@ -509,7 +517,7 @@ async def test_derive_raises_an_automatic_blocker_that_holds_approval(db_factory
             s, blocker_id=blocker_id, rationale="Two dawns is deliberate.", resolution_source="manual_command"
         )
         await s.commit()
-        await sp_pipeline.approve_scene_packet(s, packet=row)
+        await sp_pipeline.approve_scene_packet(s, packet=row, source=MANUAL)
         await s.commit()
         assert (await s.get(ScenePacket, packet_id)).status == ScenePacketStatus.APPROVED
 
@@ -526,7 +534,7 @@ async def test_clean_derive_raises_no_automatic_blocker(db_factory, monkeypatch)
         row = (await s.execute(select(ScenePacket))).scalars().one()
         assert await _count_active(s, row.id) == 0
         await s.commit()
-        await sp_pipeline.approve_scene_packet(s, packet=row)
+        await sp_pipeline.approve_scene_packet(s, packet=row, source=MANUAL)
         await s.commit()
         assert (await s.get(ScenePacket, row.id)).status == ScenePacketStatus.APPROVED
 

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared.models import ChapterPacket, ChapterSequence, ScenePacket
+from dominion.workers.context.reviewer_trust import trusted_reviewer_contract
 from dominion.workers.context.types import ScenePacketFields, ScenePacketRequiredError
 from dominion.workers.scene_packet import approval_policy
 from dominion.workers.scene_packet.projections import project
@@ -86,7 +87,11 @@ async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.
         chapter_contract=p.chapter_body,
         word_budget=p.word_budget,
         reader_state_contract=p.reader_state,
-        reviewer_contract=p.reviewer,
+        # ADR-0033 D5: a contract no human approved may not tell a reviewer what NOT to look at. The
+        # suppression fields are stripped HERE, where the contract is built, so no reviewer has to
+        # remember the rule and none can forget it (a reviewer that wrongly trusts a trap fails silently
+        # — it just reports nothing). Positive fields always survive.
+        reviewer_contract=trusted_reviewer_contract(p.reviewer, approval_source=sp.approval_source),
         contract=p.drafter_flat or None,
         fidelity=p.fidelity_drafter or None,
     )

@@ -7187,6 +7187,13 @@ export interface components {
       /** Human Approved At */
       human_approved_at?: string | null;
       /**
+       * Repair Cycle Attempts
+       * @default 0
+       */
+      repair_cycle_attempts: number;
+      /** Terminal Reason */
+      terminal_reason?: string | null;
+      /**
        * Created At
        * Format: date-time
        */

@@ -199,6 +199,32 @@ class ScenePacketVerdict(StrEnum):
     BLOCK_DRAFTING = "block_drafting"
 
 
+class ScenePacketApprovalSource(StrEnum):
+    """HOW a ScenePacket came to be APPROVED (ADR-0033 D5b). Before this existed, `status = approved` was
+    byte-identical whether a human or a policy set it, so nothing downstream could tell the difference —
+    which is exactly the question D5's reviewer-trust split turns on.
+
+    The vocabulary is ADR-0030's Execution Authorization, narrowed to this one tier:
+
+    * ``MANUAL_COMMAND`` — a deliberate command through an explicit route. It asserts a deliberate
+      command, NOT an authenticated human identity (the system has none). This is the value that makes a
+      contract's SUPPRESSION fields trustworthy to a reviewer.
+    * ``AUTONOMOUS_POLICY`` — approved by policy on the unattended path (ADR-0030). Its suppression
+      fields are withheld from reviewers: a drifted contract must not be able to silence the reviewer
+      that would expose the drift.
+    * ``LEGACY_UNCLASSIFIED`` — approved before this column existed. Treated as untrusted, deliberately:
+      unproven provenance is not human provenance.
+
+    NULL means the packet has never been approved. Written only by the single approval seam
+    (`workers/scene_packet/__init__.py:_apply_approval_locked`), which is the whole reason A1c's
+    single-writer cleanup had to land first.
+    """
+
+    MANUAL_COMMAND = "manual_command"
+    AUTONOMOUS_POLICY = "autonomous_policy"
+    LEGACY_UNCLASSIFIED = "legacy_unclassified"
+
+
 class ApprovalBlockerStatus(StrEnum):
     """Lifecycle of a scene-tier ApprovalBlocker (A1c slice 1, ADR-0031 D14). ACTIVE holds automated
     approval of its ScenePacket; RESOLVED requires an explicit rationale + source. No supersede in slice
@@ -392,6 +418,20 @@ class ApprovalBlockerSource(StrEnum):
 
     MANUAL_COMMAND = "manual_command"
     CANON_CONFLICT = "canon_conflict"
+
+
+class RepairTerminalReason(StrEnum):
+    """Why a repair cycle stopped for good (ADR-0031 D7 / T2 #230). Persisted on `RepairTask` so the
+    reason survives a restart and is visible to an operator without reconstructing it from the event log.
+
+    D7 requires the record to distinguish *cap reached* from *hard failure*: the first means the work is
+    intact and simply ran out of automatic attempts, the second means an apply threw and the task was
+    parked defensively. Both park the SAME way — WAITING_FOR_HUMAN, no fourth automatic repair — and both
+    clear only on explicit human action (an Approve & apply), which is what "reopen a cycle" means.
+    """
+
+    ATTEMPT_CAP_REACHED = "attempt_cap_reached"
+    HARD_FAILURE = "hard_failure"
 
 
 class RepairTaskStatus(StrEnum):

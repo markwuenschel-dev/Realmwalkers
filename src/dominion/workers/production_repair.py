@@ -17,6 +17,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared import repair_budget
 from dominion.shared.authorization import (
     DEFAULT_AUTHORIZATION_CEILING,
     authorize_repair,
@@ -31,6 +32,7 @@ from dominion.shared.enums import (
     ProductionRunStatus,
     RepairAuthorityLevel,
     RepairTaskStatus,
+    RepairTerminalReason,
     RepairVerificationVerdict,
     SceneStatus,
 )
@@ -698,6 +700,39 @@ async def apply_repair_task(
                 "reason": approval_reason,
             },
         )
+    # T2 (#230, ADR-0031 D7): a MANUAL apply reopens a PARKED cycle — the "explicit human action" D7
+    # requires to restart one. A manual route is exactly ADR-0030's `manual_command`: a deliberate command
+    # through an explicit route, which is the strongest human signal this system has (it has no
+    # authenticated identity). Both conditions matter: `not autonomous` so no worker can ever reopen its
+    # own cycle, and `terminal_reason` so a human clicking Apply on a LIVE cycle does not silently refund
+    # the automatic budget it is halfway through.
+    if not autonomous and task.terminal_reason:
+        repair_budget.reopen_cycle(task)
+    # T2: reserve one AUTOMATIC attempt. This is the single seam both the sweeper and the drain pass
+    # through, which is the property the predecessor lacked — `sweeper._attempts` was process-local and
+    # the drain never consulted it, so the drain path was unbounded. The increment rides the same row lock
+    # and the same transaction as the apply it authorizes, so two workers cannot both spend attempt 3.
+    # A manual apply is passed through untouched: it neither consumes budget nor is blocked by it.
+    reservation = repair_budget.reserve_automatic_attempt(task, autonomous=autonomous)
+    if not reservation.granted:
+        task.status = RepairTaskStatus.WAITING_FOR_HUMAN
+        task.terminal_reason = reservation.terminal_reason
+        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
+        await support.record_event(
+            session,
+            run_id=run.id,
+            event_type="repair_cycle_parked",
+            stage="repair_execution",
+            message=reservation.human_message,
+            payload={
+                "repair_task_id": str(task.id),
+                "terminal_reason": reservation.terminal_reason,
+                "attempts": reservation.attempts,
+                "max_attempts": repair_budget.MAX_REPAIR_CYCLE_ATTEMPTS,
+            },
+        )
+        await support.update_run_summary(session, run)
+        return task
     if task.scene_id is None:
         return await _apply_chapter_scoped_repair(session, run, task)
     scene = await session.get(Scene, task.scene_id)
@@ -766,6 +801,10 @@ async def apply_repair_task(
         # a changed scene. Escalate to a human instead of marking it RUNNING — otherwise verify would
         # keep raising "no revised scene yet" and the drain would re-apply it forever.
         task.status = RepairTaskStatus.WAITING_FOR_HUMAN
+        # T2 (#230): this is D7's HARD FAILURE, the terminal reason that is not "ran out of attempts".
+        # Nothing about retrying changes the outcome — there is no contract to revise against — so the
+        # cycle is terminal now rather than after burning its remaining budget on identical failures.
+        task.terminal_reason = RepairTerminalReason.HARD_FAILURE.value
         run.status = ProductionRunStatus.WAITING_FOR_HUMAN
         await support.record_event(
             session,

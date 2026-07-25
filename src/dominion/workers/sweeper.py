@@ -231,6 +231,11 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
                     # `requires_human_approval.is_(True)`, a stored boolean; it is now the SQL form of the
                     # same rule derived from (authorization_requirement, authority_level).
                     requires_explicit_authorization_clause(),
+                    # T2 (#230): never re-pick a cycle that has parked for good. The reservation seam
+                    # would refuse it anyway, but excluding it here means a parked task does not emit a
+                    # fresh park event every tick — and because `terminal_reason` is a COLUMN, this
+                    # exclusion survives the redeploy that used to reset the old in-process cap.
+                    RepairTask.terminal_reason.is_(None),
                 )
             )
         )

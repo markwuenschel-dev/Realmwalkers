@@ -2176,6 +2176,12 @@ class RepairTaskOut(_ORM):
     requires_human_approval: bool
     # Stamped by Approve & apply — lets the UI tell an approval-hold from a conflict-hold.
     human_approved_at: datetime | None = None
+    # T2 (#230, ADR-0031 D7): automatic attempts this repair cycle has spent, and — once it parks for
+    # good — WHY (`attempt_cap_reached` | `hard_failure`). D7 requires the terminal reason to be exposed
+    # to operators, so it rides the same DTO the Desk already reads; a non-null value means only an
+    # explicit Approve & apply will reopen the cycle.
+    repair_cycle_attempts: int = 0
+    terminal_reason: str | None = None
     created_at: datetime
     updated_at: datetime
 

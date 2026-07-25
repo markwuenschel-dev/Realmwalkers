@@ -15,7 +15,13 @@ from sqlalchemy import select
 from dominion.api.deps import SessionDep
 from dominion.shared.chapter_order import chapter_position
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import BeatStatus, ChapterStatus, ScenePacketStatus, SceneStatus
+from dominion.shared.enums import (
+    BeatStatus,
+    ChapterStatus,
+    ScenePacketApprovalSource,
+    ScenePacketStatus,
+    SceneStatus,
+)
 from dominion.shared.models import Beat, Chapter, Scene, ScenePacket, Summary
 from dominion.shared.schemas import (
     ApproveBeatsIn,
@@ -399,7 +405,7 @@ async def redraft_scene(
             # STALE packet's beat, and the old raw-assign-without-reconcile stranded this scene on the
             # "no approved beat" 409. An active blocker (or a raced demotion) raises → try the next candidate.
             try:
-                await _approve_scene_packet(session, packet=p)
+                await _approve_scene_packet(session, packet=p, source=ScenePacketApprovalSource.MANUAL_COMMAND.value)
             except _blockers.ApprovalBlockerError:
                 continue
             target = p

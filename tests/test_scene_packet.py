@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from dominion.api.routers import scene_packets as sp_router
 from dominion.shared.config import settings
-from dominion.shared.enums import ScenePacketStatus, ScenePacketVerdict
+from dominion.shared.enums import ScenePacketApprovalSource, ScenePacketStatus, ScenePacketVerdict
 from dominion.shared.models import (
     Beat,
     Book,
@@ -494,6 +494,11 @@ async def _approved_scene_packet_with_beat(s, book, ch, cp) -> tuple[ScenePacket
         scene_seed_id=uuid.uuid4(),
         scene_no=1,
         status=ScenePacketStatus.APPROVED,
+        # ADR-0033 D5b: an approved packet carries HOW it was approved. Set explicitly here because this
+        # fixture builds the row directly instead of going through the seam — and without it the packet
+        # reads as unproven provenance, so the reviewer projection correctly withholds its suppression
+        # fields (see tests/test_reviewer_trust.py).
+        approval_source=ScenePacketApprovalSource.MANUAL_COMMAND.value,
         qa_verdict=ScenePacketVerdict.APPROVE,
         body=_scene_body(),
         source_hash="h",
