@@ -76,7 +76,14 @@ async def _seed(s, *, scene_count: int = 2, with_prose: bool = True):
     return book, chapter, run, scenes
 
 
-async def _chapter_task(s, run, scenes, *, requires_approval: bool = True):
+async def _chapter_task(s, run, scenes, *, requires_approval: bool = True, authority=None):
+    """`requires_approval` is now DERIVED (ADR-0031 A1c): a chapter-scoped repair needs an explicit grant
+    because its blast radius is above the default authorization ceiling, not because a boolean says so.
+    A task that the unattended drain may claim is therefore one at a LOWER blast radius — which is what
+    the caller asking for `requires_approval=False` actually means."""
+    authority = authority or (
+        RepairAuthorityLevel.CHAPTER_STRUCTURAL if requires_approval else RepairAuthorityLevel.SCENE_LOCAL
+    )
     issues = []
     for scene in scenes:
         issue = Issue(
@@ -103,7 +110,7 @@ async def _chapter_task(s, run, scenes, *, requires_approval: bool = True):
         scene_id=None,
         scene_no=None,
         repair_kind="structural_rewrite",
-        authority_level=RepairAuthorityLevel.CHAPTER_STRUCTURAL,
+        authority_level=authority,
         status=RepairTaskStatus.WAITING_FOR_HUMAN if requires_approval else RepairTaskStatus.QUEUED,
         issue_ids=[str(issue.id) for issue in issues],
         instructions="Repair kind: structural_rewrite. Keep each beat in its owning scene.",
@@ -112,7 +119,6 @@ async def _chapter_task(s, run, scenes, *, requires_approval: bool = True):
         must_not_change=["Do not change canon or chapter outcome."],
         allowed_operations=["propose_human_repair"],
         forbidden_operations=["auto_apply"],
-        requires_human_approval=requires_approval,
     )
     s.add(task)
     await s.flush()

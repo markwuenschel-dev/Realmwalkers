@@ -132,21 +132,31 @@ _Avoid_: chapter row lock, global mutex, queue claim lock
 The enforced total order `LOCKED_CANON > DERIVED_FROM_MANUSCRIPT > DERIVED_FROM_OUTLINE > PLAUSIBLE_INFERENCE > UNRESOLVED` (with `FORBIDDEN` a separate surface prohibition, not a rank) that decides how conflicting packet claims resolve. A conflict the order cannot break becomes an approval-blocking open question; manuscript evidence never enters canon retrieval or overrides locked canon automatically (ADR 0029).
 _Avoid_: claim label, source hint, canon promotion
 
-**Editorial Convergence** _(proposed — pending author-blessed name)_:
+**Editorial Convergence** _(proposed — pending author-blessed name; see ADR-0033 F1)_:
 The system's definition of "done" for unattended work on a scene: repeat produce → review → repair until the scene has no open Issue above a configured advisory severity, bounded by capped repair attempts. It is a stopping condition built on Issue resolution, deliberately NOT a Fidelity score (scoring is a deferred side project), and distinct from human approval.
 _Avoid_: quality score, fidelity verdict, human sign-off, "no findings"
 
-> **Implementation status — autonomy & authorization (ADR-0030 / ADR-0031, verified 2026-07-16).** The six
-> terms that follow — Autonomy Control, Autonomy Epoch, Execution Authorization, Authorization Requirement,
-> Operational Hold, and Approval Blocker — describe the **target design** of ADR-0030/0031 and are **not yet
-> implemented**. In live code the machine-policy boundary is a single KV flag `autonomy_enabled` read per
-> sweeper tick (`workers/sweeper.py`); there is no autonomy singleton, no epoch, and no Operational Hold
-> state. Authorization is carried as **mutable** `RepairTask` fields (`requires_human_approval`,
-> `human_approved_at`). A1b (ADR-0031 D16) has retired `HUMAN_REQUIRED` as an auto-approval ceiling rung
-> — it is never autonomously approved and the sweeper no longer writes a false human stamp — but the full
-> first-class *Authorization Requirement* axis (orthogonal to `authority_level`) is still A1c. Treat these six
-> as planned vocabulary, not enforced invariants, until the ADRs are built. (`Job Book Ownership` above —
-> ADR-0027 — **is** wired and is not affected by this note.)
+> **The `_(proposed)_` tag stays until the author rules.** ADR-0033 records the definition and isolates three blocking items: **F1** the name, **F2** the severity threshold `S` (pinned to a `Severity` member, plus which `IssueStatus` values count as open), and **F3** the reviewer set against an auto-derived contract. Naming is author-only, so nothing self-blesses a term here. ADR-0033's `implementation_authorized` is **false** until F1–F3 close — a driver with an unpinned stopping condition has no mandate.
+
+> **Implementation status — autonomy & authorization (ADR-0030 / ADR-0031, verified 2026-07-25).** Of the
+> six terms that follow, **two are now LIVE** and four remain planned vocabulary.
+>
+> **LIVE — treat as enforced invariants.** *Approval Blocker* (A1c slices 1–2): the record, its active
+> partial-unique index, `workers/scene_packet/blockers.py`, its routes, the fail-closed projection, and
+> **two** producers — the manual route and an automatic `canon_conflict` source raised from the derive
+> path. *Authorization Requirement* (A1c, ADR-0031 D16): a durable `repair_tasks.authorization_requirement`
+> column (`ceiling_gated` | `manual_grant`), decided in exactly one place
+> (`shared/authorization.py:authorize_repair`), read by the apply seam, the unattended drain and the
+> sweeper. `requires_human_approval` is no longer a mutable field — it is a derived read-only projection
+> and its physical column is dropped.
+>
+> **STILL PLANNED — vocabulary, not invariants.** *Autonomy Control*, *Autonomy Epoch*, *Execution
+> Authorization*, and *Operational Hold*. In live code the machine-policy boundary is still a single KV
+> flag `autonomy_enabled` read per sweeper tick (`workers/sweeper.py`); there is no autonomy singleton, no
+> epoch, and no Operational Hold state. In particular **Execution Authorization is not built**: A1c makes
+> the authorization *decision* explicit and single-sited, but the *proof* of how a given execution was
+> authorized is still inferred from `human_approved_at` plus a run event — there is no append-only grant
+> record. (`Job Book Ownership` above — ADR-0027 — **is** wired and is not affected by this note.)
 
 **Autonomy Control** _(planned)_:
 The singleton record owning the machine-policy safety boundary: `enabled`, `epoch`, `updated_at`. Read plainly at autonomous mint and at claim; locked and re-checked immediately before finalization, never across generation. It is orthogonal to the queue pause, which stops asynchronous claims of every authorization. Neither implies the other: unpausing the queue is not consent to autonomous spend, and disabling autonomy does not drain the queue (ADR 0030).
@@ -160,9 +170,9 @@ _Avoid_: pause timestamp, generation counter, autonomy version, disabled_at
 The durable, immutable grant that authorizes one unit of background work to execute — `manual_command`, `autonomous_policy`, or `legacy_unclassified` — recorded as a grant event rather than a mutable field, so releasing held work *adds* a grant instead of overwriting the proof of how it was authorized. `manual_command` asserts a deliberate command through an explicit route, NOT an authenticated human identity (the system has none). Distinct from Authorization Requirement (what the work demands), from `authority_level` (blast radius), and from a Revision Request's `origin` (what created the intent).
 _Avoid_: human command, human approval flag, origin, authority, actor
 
-**Authorization Requirement** _(planned)_:
-What a unit of repair work demands before it may execute: ceiling-gated, or an explicit manual grant. Orthogonal to `authority_level`, which states blast radius only — the two were conflated while `human_required` was a rung on the blast-radius ladder that a raised ceiling could silently negate.
-_Avoid_: authority level, human required, ceiling, blast radius
+**Authorization Requirement** _(live — ADR-0031 D16 / A1c)_:
+What a unit of repair work demands before it may execute: **ceiling-gated**, or an explicit **manual grant**. Orthogonal to `authority_level`, which states blast radius only — the two were conflated while `human_required` was a rung on the blast-radius ladder that a raised ceiling could silently negate. Manual-grant work needs a human grant at any ceiling, and no automated caller can supply one; an automated caller authorizes ceiling-gated work only by *declaring* a ceiling that covers its blast radius. Being autonomous is not itself a grant.
+_Avoid_: authority level, human required, ceiling, blast radius, requires_human_approval
 
 **Decision Source**:
 What produced an `Approval` row: `human_review`, `repair_system`, or `legacy_unclassified`. `Approval` is defined as the human's verdict and doubles as a training/export label, so quality metrics and any learning corpus read human decisions only. The repair system writes `Approval(REVISE)` rows as an operational instruction carrier; those are system decisions and must never be counted as editorial verdicts.
@@ -172,6 +182,6 @@ _Avoid_: approval reason, actor, execution authorization, approved_by
 A nonterminal state for work that is retained but not executable, carrying a `hold_reason` (`autonomy_disabled`, `epoch_mismatch`, `legacy_authorization_unproven`). Held output is preserved, never published — no timeline advance, no supersede, no reviewable status. Release requires a fresh Execution Authorization under the current Autonomy Epoch and a re-evaluated predicate; re-enabling autonomy never auto-releases held work. Distinct from `quarantined`, which is integrity-terminal and ownerless.
 _Avoid_: quarantined, autonomy held, paused, failed, blocked
 
-**Approval Blocker** _(planned)_:
-A durable, scene-scoped record that an unresolved scene-level open question is holding automated approval of a ScenePacket, carrying an explicit lifecycle and resolution state. The shared domain approval operation approves a scene or derives its beats only when that scene has no active Approval Blocker. Blocker state is never embedded in ScenePacket `body` and never live-read from `ChapterPacket.open_questions` (chapter-tier questions are not scene-scoped) (ADR 0031 D14).
+**Approval Blocker** _(live — ADR-0031 D14 / A1c)_:
+A durable, scene-scoped record that an unresolved scene-level open question is holding approval of a ScenePacket, carrying an explicit lifecycle and resolution state. The shared domain approval operation approves a scene or derives its beats only when that scene has no active Approval Blocker; approval is never a resolution — closing one requires an explicit rationale and source. Raised from two sources: a `manual_command` route, and `canon_conflict` — raised automatically by the derive path when scene QA reports a canon-conflict finding, which is what makes the hold reachable without a human having already spotted the problem. Blocker state is never embedded in ScenePacket `body` and never live-read from `ChapterPacket.open_questions` (chapter-tier questions are not scene-scoped).
 _Avoid_: open_questions column, packet-body flag, derived chapter question, chapter open question

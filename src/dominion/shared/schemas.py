@@ -2168,6 +2168,11 @@ class RepairTaskOut(_ORM):
     allowed_operations: list[str]
     forbidden_operations: list[str]
     word_delta_target: int | None = None
+    # The durable Authorization Requirement (ADR-0031 D16, A1c): `ceiling_gated` | `manual_grant`.
+    # Orthogonal to authority_level — it says what the work DEMANDS, not how far it reaches.
+    authorization_requirement: str
+    # DERIVED (no longer a stored column): "the drain will not take this and a plain Apply parks it."
+    # `manual_grant` work is always True; `ceiling_gated` work is True only above the default ceiling.
     requires_human_approval: bool
     # Stamped by Approve & apply — lets the UI tell an approval-hold from a conflict-hold.
     human_approved_at: datetime | None = None

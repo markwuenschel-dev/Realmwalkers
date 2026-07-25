@@ -7180,6 +7180,8 @@ export interface components {
       forbidden_operations: string[];
       /** Word Delta Target */
       word_delta_target?: number | null;
+      /** Authorization Requirement */
+      authorization_requirement: string;
       /** Requires Human Approval */
       requires_human_approval: boolean;
       /** Human Approved At */

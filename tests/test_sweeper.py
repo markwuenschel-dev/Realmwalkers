@@ -90,7 +90,6 @@ async def _approval_task(s, run, scenes, *, authority):
         status=RepairTaskStatus.WAITING_FOR_HUMAN,
         issue_ids=[str(i.id) for i in issues],
         instructions="Keep each beat in its owning scene.",
-        requires_human_approval=True,
     )
     s.add(task)
     await s.flush()

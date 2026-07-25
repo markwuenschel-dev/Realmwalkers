@@ -132,15 +132,15 @@ async def pause(
     if not body.paused:
         # Resume BOTH drains the switch was holding. The repair drain chains into the job drain and
         # both single-flight, so kicking it first covers queued repairs AND queued jobs in one shot.
-        from sqlalchemy import false
-
+        from dominion.shared.authorization import requires_explicit_authorization_clause
         from dominion.shared.models import RepairTask
 
         queued_repairs = (
             await session.execute(
                 select(func.count())
                 .select_from(RepairTask)
-                .where(RepairTask.status == "queued", RepairTask.requires_human_approval == false())
+                # A1c: the drain-claimable set — within the DEFAULT authorization ceiling.
+                .where(RepairTask.status == "queued", ~requires_explicit_authorization_clause())
             )
         ).scalar_one()
         if queued_repairs and not background_work.repair_drain_locked():

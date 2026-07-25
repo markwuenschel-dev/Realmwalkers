@@ -118,7 +118,6 @@ async def _make_task(s, run, scene, *, status: RepairTaskStatus, quote: str = QU
         must_change=[quote],
         allowed_operations=["replace_span", "rewrite_scene"],
         forbidden_operations=["change_canon", "change_chapter_outcome"],
-        requires_human_approval=False,
     )
     s.add(task)
     await s.flush()

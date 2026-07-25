@@ -348,12 +348,50 @@ def is_manual_grant(authority_level: str | RepairAuthorityLevel) -> bool:
     persisted string (StrEnum-safe). Distinct from `not in AUTO_APPROVAL_CEILINGS`, which also rejects
     garbage ceilings — this predicate answers only "is it human_required?".
 
-    A1b→A1c: `human_required` is currently overloaded onto RepairAuthorityLevel, which otherwise ranks
-    blast radius. The durable fix — a first-class `authorization_requirement` axis orthogonal to blast
-    radius — is deferred, UNSCHEDULED follow-up (NOT one of ADR-0031 D18's ADR-0028 slices; it needs its
-    own ticket). Until it lands, this helper is the seam that keeps the conflation in one place.
+    A1b→A1c (LANDED): `human_required` on RepairAuthorityLevel is now only the *mint-time derivation
+    input* for a durable, first-class `RepairTask.authorization_requirement` (see
+    `AuthorizationRequirement` below and `shared/authorization.py`). The authorization decision reads the
+    persisted requirement, never this predicate; this helper survives as the default mint rule and as the
+    ceiling-validity guard (`human_required` is not a valid auto-approval ceiling).
     """
     return authority_level == RepairAuthorityLevel.HUMAN_REQUIRED
+
+
+class AuthorizationRequirement(StrEnum):
+    """What a unit of repair work DEMANDS before it may execute (ADR-0031 D16, A1c) — the authorization
+    axis, ORTHOGONAL to `RepairAuthorityLevel`, which states blast radius only.
+
+    * ``CEILING_GATED`` — may be authorized by an automated caller whose *declared ceiling* covers the
+      task's blast radius, or by an explicit human grant.
+    * ``MANUAL_GRANT``  — needs an explicit human grant REGARDLESS of ceiling. No automated caller can
+      supply it, at any blast radius.
+
+    The two axes were conflated while `human_required` was a rung on the blast-radius ladder that a raised
+    ceiling could silently negate (ADR-0031 B-3). Persisted on `repair_tasks.authorization_requirement`;
+    the decision lives in exactly one place, `shared/authorization.py:authorize_repair`. No bare
+    `autonomous` / `human_approved` / `requires_human_approval` boolean stands in for it any more.
+    """
+
+    CEILING_GATED = "ceiling_gated"
+    MANUAL_GRANT = "manual_grant"
+
+
+class ApprovalBlockerSource(StrEnum):
+    """WHO raised a scene-tier ApprovalBlocker — the row's `source` (provenance). Distinct from
+    `scene_packet/approval_policy.BlockerSource`, which names which *gate* held a packet
+    (author/validation/qa/derive/rate_limit); these two vocabularies are not interchangeable.
+
+    * ``MANUAL_COMMAND``      — a deliberate command through an explicit route (A1c slice 1). It asserts a
+      deliberate command, NOT an authenticated human identity (the system has none).
+    * ``CANON_CONFLICT`` — raised automatically by the derive path when scene-packet QA reports a
+      canon-conflict finding on the freshly derived contract (A1c slice 2). This is the source that makes
+      the hold reachable without a human having already spotted the problem. The escalation line is
+      ADR-0029 claim-source precedence, not quality (issue #217's ratified policy); the trigger itself
+      lives in `scene_packet/blockers.automatic_hold_for_qa`.
+    """
+
+    MANUAL_COMMAND = "manual_command"
+    CANON_CONFLICT = "canon_conflict"
 
 
 class RepairTaskStatus(StrEnum):

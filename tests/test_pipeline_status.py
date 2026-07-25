@@ -129,7 +129,6 @@ async def _seed_pipeline(s) -> Book:
             authority_level="span_only",
             status="queued",
             instructions="tighten",
-            requires_human_approval=False,
         )
     )
     s.add(
@@ -141,7 +140,6 @@ async def _seed_pipeline(s) -> Book:
             authority_level="chapter_structural",
             status="queued",
             instructions="restructure",
-            requires_human_approval=True,
         )
     )
 
@@ -166,7 +164,6 @@ async def _seed_pipeline(s) -> Book:
             authority_level="scene_local",
             status="waiting_for_human",
             instructions="fix",
-            requires_human_approval=False,
             human_approved_at=datetime.now(UTC),
         )
     )

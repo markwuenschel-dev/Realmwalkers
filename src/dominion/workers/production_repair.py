@@ -17,8 +17,14 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.authorization import (
+    DEFAULT_AUTHORIZATION_CEILING,
+    authorize_repair,
+    requirement_for_authority,
+)
 from dominion.shared.enums import (
     AgentRunStatus,
+    AuthorizationRequirement,
     Decision,
     IssueDecisionKind,
     IssueStatus,
@@ -27,7 +33,6 @@ from dominion.shared.enums import (
     RepairTaskStatus,
     RepairVerificationVerdict,
     SceneStatus,
-    is_manual_grant,
 )
 from dominion.shared.models import (
     AgentRun,
@@ -222,10 +227,17 @@ async def queue_repair_task_from_issues(
     authority_level: RepairAuthorityLevel | None = None,
     chapter_scoped: bool = False,
     instruction_preamble: str | None = None,
+    authorization_requirement: str | None = None,
 ) -> tuple[RepairTask, Artifact]:
     first = issues[0]
     repair_kind = repair_kind or _infer_repair_kind(first)
     authority_level = authority_level or _highest_authority(issues)
+    # ADR-0031 D16 (A1c): the Authorization Requirement is minted here as a DURABLE fact, orthogonal to
+    # blast radius. It DEFAULTS to the blast-radius derivation (manual_grant iff human_required) so today's
+    # behavior is unchanged, but a caller may demand a manual grant for low-blast-radius work — that
+    # independence is what makes the axis real rather than authority_level under a new name.
+    requirement = authorization_requirement or requirement_for_authority(authority_level)
+    manual_grant = requirement == AuthorizationRequirement.MANUAL_GRANT.value
     task = RepairTask(
         production_run_id=run.id,
         chapter_id=run.chapter_id,
@@ -233,7 +245,8 @@ async def queue_repair_task_from_issues(
         scene_no=None if chapter_scoped else first.scene_no,
         repair_kind=repair_kind,
         authority_level=authority_level,
-        status=RepairTaskStatus.WAITING_FOR_HUMAN if is_manual_grant(authority_level) else RepairTaskStatus.QUEUED,
+        authorization_requirement=requirement,
+        status=RepairTaskStatus.WAITING_FOR_HUMAN if manual_grant else RepairTaskStatus.QUEUED,
         issue_ids=[str(issue.id) for issue in issues],
         target_spans={
             "items": [
@@ -266,15 +279,7 @@ async def queue_repair_task_from_issues(
         if authority_level
         in {RepairAuthorityLevel.SPAN_ONLY, RepairAuthorityLevel.SCENE_LOCAL, RepairAuthorityLevel.SCENE_STRUCTURAL}
         else ["propose_human_repair"],
-        forbidden_operations=["change_canon", "change_chapter_outcome"]
-        if not is_manual_grant(authority_level)
-        else ["auto_apply"],
-        requires_human_approval=authority_level
-        in {
-            RepairAuthorityLevel.CROSS_SCENE,
-            RepairAuthorityLevel.CHAPTER_STRUCTURAL,
-            RepairAuthorityLevel.HUMAN_REQUIRED,
-        },
+        forbidden_operations=["change_canon", "change_chapter_outcome"] if not manual_grant else ["auto_apply"],
     )
     session.add(task)
     await session.flush()
@@ -625,6 +630,7 @@ async def apply_repair_task(
     autonomous: bool,
     human_approved: bool = False,
     approval_reason: str | None = None,
+    authorization_ceiling: str = DEFAULT_AUTHORIZATION_CEILING,
 ) -> RepairTask:
     # `autonomous` has NO default: every caller must declare its nature (a defaulted False would let
     # future automation impersonate the manual path by omission). Lock/claim the row AND refresh it before
@@ -643,11 +649,21 @@ async def apply_repair_task(
     # double application) and keeps Apply off verified/rejected/cancelled rows.
     if task.status not in (RepairTaskStatus.QUEUED, RepairTaskStatus.WAITING_FOR_HUMAN):
         raise ValueError(f"repair task is {task.status}; only queued or waiting_for_human tasks can be applied")
-    # ADR-0031 D16 (A1b): manual-grant work — authority_level == HUMAN_REQUIRED, the temporary A1b
-    # compatibility discriminator — needs an explicit HUMAN grant regardless of ceiling. An autonomous
-    # caller can NEVER authorize it; refuse here, before any stamp or job scheduling. (A1c replaces this
-    # discriminator with a durable Authorization Requirement axis orthogonal to authority_level.)
-    if autonomous and is_manual_grant(task.authority_level):
+    # ADR-0031 D16 (A1c): THE authorization gate. It reads the task's durable Authorization Requirement
+    # and the grant this caller can supply — an explicit human grant (now or already stamped), or the
+    # ceiling the caller DECLARES. `autonomous` is deliberately NOT an input: it is provenance (it decides
+    # whether a human stamp may be written below), never a grant. The predecessor here was
+    # `human_approved or task.human_approved_at is not None or autonomous`, three booleans in which
+    # "the caller is automated" authorized itself. Manual-grant work is refused to every caller that
+    # cannot show a human grant, at any ceiling.
+    decision = authorize_repair(
+        authorization_requirement=task.authorization_requirement,
+        authority_level=task.authority_level,
+        ceiling=authorization_ceiling,
+        human_approved=human_approved,
+        prior_human_grant=task.human_approved_at is not None,
+    )
+    if not decision.authorized:
         task.status = RepairTaskStatus.WAITING_FOR_HUMAN
         run.status = ProductionRunStatus.WAITING_FOR_HUMAN
         await support.record_event(
@@ -655,25 +671,14 @@ async def apply_repair_task(
             run_id=run.id,
             event_type="human_action_required",
             stage="repair_execution",
-            message="Manual-grant repair (human_required) needs an explicit human grant — use Approve & apply.",
-            payload={"repair_task_id": str(task.id), "authority_level": str(task.authority_level)},
-        )
-        await support.update_run_summary(session, run)
-        return task
-    # An approval-gated task proceeds on a human grant (now or already stamped) OR an autonomous
-    # authorization (the sweeper, already ceiling-gated; human_required was refused above). A plain manual
-    # apply with neither waits for a human.
-    authorized = human_approved or task.human_approved_at is not None or autonomous
-    if task.requires_human_approval and not authorized:
-        task.status = RepairTaskStatus.WAITING_FOR_HUMAN
-        run.status = ProductionRunStatus.WAITING_FOR_HUMAN
-        await support.record_event(
-            session,
-            run_id=run.id,
-            event_type="human_action_required",
-            stage="repair_execution",
-            message="Repair task requires explicit approval — use Approve & apply.",
-            payload={"repair_task_id": str(task.id), "authority_level": str(task.authority_level)},
+            message=decision.human_message,
+            payload={
+                "repair_task_id": str(task.id),
+                "authority_level": str(task.authority_level),
+                "authorization_requirement": str(task.authorization_requirement),
+                "authorization_refusal": decision.refusal,
+                "authorization_ceiling": authorization_ceiling,
+            },
         )
         await support.update_run_summary(session, run)
         return task

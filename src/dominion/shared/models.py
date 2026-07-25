@@ -31,8 +31,9 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from dominion.shared.authorization import requires_explicit_authorization
 from dominion.shared.chapter_order import chapter_position
-from dominion.shared.enums import CanonStatus
+from dominion.shared.enums import AuthorizationRequirement, CanonStatus
 
 
 class Base(DeclarativeBase):
@@ -1098,11 +1099,18 @@ class RepairTask(Base):
     scene_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scenes.id"), nullable=True)
     scene_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     repair_kind: Mapped[str] = mapped_column(Text)
-    # Blast radius of the repair. authority_level == "human_required" is the temporary A1b compatibility
-    # discriminator (ADR-0031 D16) for manual-grant work: never autonomously approved regardless of the
-    # sweeper ceiling — only a human "Approve & apply" can grant it. A1c makes authorization a first-class
-    # axis orthogonal to this blast-radius field.
+    # Blast radius of the repair, and NOTHING else (ADR-0031 D16). The authorization axis moved off this
+    # ladder in A1c: `human_required` here is now only the mint-time derivation input for
+    # `authorization_requirement` below, never itself the gate.
     authority_level: Mapped[str] = mapped_column(Text)
+    # A1c: the durable, first-class Authorization Requirement — `ceiling_gated` | `manual_grant`
+    # (enums.AuthorizationRequirement) — ORTHOGONAL to authority_level. It states what the work DEMANDS
+    # before it may execute; `shared/authorization.py:authorize_repair` is the only place that reads it as
+    # a decision. Set at mint (default derived from authority_level) and not mutated afterwards: it
+    # replaced `requires_human_approval`, a mutable boolean that stood in for the requirement.
+    authorization_requirement: Mapped[str] = mapped_column(
+        Text, default=AuthorizationRequirement.CEILING_GATED.value, server_default=text("'ceiling_gated'")
+    )
     status: Mapped[str] = mapped_column(Text, default="queued")
     issue_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
     target_spans: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
@@ -1113,7 +1121,6 @@ class RepairTask(Base):
     allowed_operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
     forbidden_operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
     word_delta_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    requires_human_approval: Mapped[bool] = mapped_column(Boolean, default=False)
     # A HUMAN approval audit stamp — written ONLY on a real human grant (the explicit Approve & apply),
     # never for the sweeper's autonomous authorization (ADR-0031 D16; the old "autonomous sweeper" false
     # stamp). A re-queued task (verify said NEEDS_ANOTHER_REPAIR) keeps its stamp — one human approval
@@ -1123,6 +1130,17 @@ class RepairTask(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    @property
+    def requires_human_approval(self) -> bool:
+        """DERIVED wire/UI projection: "this task will not execute for a default-ceiling automated caller
+        — the drain skips it and a plain /apply parks it." A1c retired the stored boolean of this name;
+        the durable fact is `authorization_requirement` (+ `authority_level` for blast radius), and the
+        gate reads those. Kept as a property so the Desk's approval affordances keep their contract.
+
+        SQL filters must use `authorization.requires_explicit_authorization_clause()` — a Python property
+        cannot go in a `.where(...)`; `tests/test_authorization_axis.py` pins that the two agree."""
+        return requires_explicit_authorization(self.authority_level, self.authorization_requirement)
 
 
 class RepairAttempt(Base):

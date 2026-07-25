@@ -147,7 +147,6 @@ async def test_single_scene_dropped_required_beat_flags_not_preserved_without_ga
             must_change=[QUOTE],
             allowed_operations=["replace_span", "rewrite_scene"],
             forbidden_operations=["change_canon"],
-            requires_human_approval=False,
         )
         s.add(task)
         await s.flush()
@@ -191,7 +190,6 @@ async def _chapter_scoped_task(s, run, chapter) -> RepairTask:
         must_change=[],
         allowed_operations=["rewrite_scene"],
         forbidden_operations=["change_canon"],
-        requires_human_approval=True,
     )
     s.add(task)
     await s.flush()

@@ -1,18 +1,19 @@
-"""A1b — the repair-authorization boundary (ADR-0031 D16, compatibility shim).
+"""A1b/A1c — the repair-authorization boundary (ADR-0031 D16).
 
-Autonomous authorization (the sweeper) is distinct from a human approval, and manual-grant work
-(`authority_level == HUMAN_REQUIRED`, the temporary A1b discriminator) can never be autonomously
-authorized regardless of ceiling. The core apply seam is the invariant: it locks the task row, then
-refuses an autonomous grant of human_required before any stamp or job scheduling. `human_approved_at`
-is a HUMAN audit stamp and is written only on a real human grant.
+Ceiling authorization (the sweeper's) is distinct from a human approval, and manual-grant work can never
+be autonomously authorized regardless of ceiling. The core apply seam is the invariant: it locks the task
+row, then decides once via `shared/authorization.authorize_repair` before any stamp or job scheduling.
+`human_approved_at` is a HUMAN audit stamp and is written only on a real human grant.
 
-The authorization matrix these pin:
+A1c changed what an automated caller must bring. Being autonomous is no longer itself a grant — a caller
+authorizes work by DECLARING a ceiling that covers its blast radius. The matrix these pin:
 
-    caller                              autonomous  human_approved  outcome
-    sweeper: cross/chapter-structural   True        False           applied, no human stamp
-    sweeper: human_required             True        False           refused (needs a human grant)
-    plain manual apply (no grant)       False       False           waits for a human
-    human "Approve & apply"             False       True            applied, human stamp written
+    caller                            declared ceiling    human_approved  outcome
+    sweeper: chapter-structural       chapter_structural  False           applied, no human stamp
+    sweeper: chapter-structural       (default)           False           refused — above the ceiling
+    sweeper: manual-grant work        any, incl. its own  False           refused (needs a human grant)
+    plain manual apply (no grant)     (default)           False           waits for a human
+    human "Approve & apply"           —                   True            applied, human stamp written
 """
 
 from __future__ import annotations
@@ -54,7 +55,28 @@ async def test_core_refuses_autonomous_human_required(db_factory):
         assert await _run_job_count(s, run.id) == 0  # no revision job scheduled
 
 
-async def test_core_autonomous_non_human_required_writes_no_human_stamp(db_factory):
+async def test_core_ceiling_authorized_apply_writes_no_human_stamp(db_factory):
+    async with db_factory() as s:
+        _book, _chapter, run, scenes = await _seed_run(s)
+        task = await _approval_task(s, run, scenes, authority=RepairAuthorityLevel.CHAPTER_STRUCTURAL)
+        await production.apply_repair_task(
+            s,
+            task.id,
+            autonomous=True,
+            human_approved=False,
+            authorization_ceiling=RepairAuthorityLevel.CHAPTER_STRUCTURAL.value,
+        )
+        await s.commit()
+
+        got = await s.get(RepairTask, task.id)
+        assert got.status == RepairTaskStatus.RUNNING  # ceiling-authorized + applied
+        assert got.human_approved_at is None  # ceiling authorization is not a human approval
+
+
+async def test_core_autonomous_without_a_covering_ceiling_is_refused(db_factory):
+    # THE A1c invariant. The retired gate read `... or autonomous`, so an automated caller authorized
+    # itself no matter how large the blast radius. An automated caller must now DECLARE a ceiling that
+    # covers the work; the default ceiling does not cover chapter-structural, so this parks.
     async with db_factory() as s:
         _book, _chapter, run, scenes = await _seed_run(s)
         task = await _approval_task(s, run, scenes, authority=RepairAuthorityLevel.CHAPTER_STRUCTURAL)
@@ -62,8 +84,9 @@ async def test_core_autonomous_non_human_required_writes_no_human_stamp(db_facto
         await s.commit()
 
         got = await s.get(RepairTask, task.id)
-        assert got.status == RepairTaskStatus.RUNNING  # autonomously authorized + applied
-        assert got.human_approved_at is None  # autonomous authorization is not a human approval
+        assert got.status == RepairTaskStatus.WAITING_FOR_HUMAN
+        assert got.human_approved_at is None
+        assert await _run_job_count(s, run.id) == 0  # refused before any revision was scheduled
 
 
 async def test_core_human_can_grant_human_required(db_factory):
@@ -87,17 +110,22 @@ async def test_concurrent_apply_schedules_one_revision(db_factory):
         task_id = task.id
         await setup.commit()
 
-    async def _apply(*, autonomous: bool, human_approved: bool) -> str:
+    async def _apply(*, autonomous: bool, human_approved: bool, ceiling: str | None = None) -> str:
         async with db_factory() as s:
             try:
-                await production.apply_repair_task(s, task_id, autonomous=autonomous, human_approved=human_approved)
+                kw = {"authorization_ceiling": ceiling} if ceiling else {}
+                await production.apply_repair_task(
+                    s, task_id, autonomous=autonomous, human_approved=human_approved, **kw
+                )
                 await s.commit()
                 return "ok"
             except ValueError:
                 return "rejected"  # lost the race → status guard 409
 
     results = await asyncio.gather(
-        _apply(autonomous=True, human_approved=False),  # sweeper
+        # The sweeper declares its configured ceiling (A1c) — otherwise it would simply park the task and
+        # the race under test would never happen.
+        _apply(autonomous=True, human_approved=False, ceiling=RepairAuthorityLevel.CHAPTER_STRUCTURAL.value),
         _apply(autonomous=False, human_approved=True),  # human Approve & apply
     )
 
@@ -131,7 +159,13 @@ async def test_preloaded_session_apply_after_concurrent_commit_does_not_double_s
         # its stale pre-load. The raise is the proof it never reached the (post-guard) scheduling step, so
         # no second revision is fanned out.
         with pytest.raises(ValueError, match="only queued or waiting_for_human"):
-            await production.apply_repair_task(s1, task_id, autonomous=True, human_approved=False)
+            await production.apply_repair_task(
+                s1,
+                task_id,
+                autonomous=True,
+                human_approved=False,
+                authorization_ceiling=RepairAuthorityLevel.CHAPTER_STRUCTURAL.value,
+            )
 
     async with db_factory() as s:
         assert (await s.get(RepairTask, task_id)).status == RepairTaskStatus.RUNNING  # s2's single apply stands
