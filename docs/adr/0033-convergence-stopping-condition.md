@@ -1,10 +1,14 @@
 # ADR-0033: Convergence — the stopping condition for unattended work
 
-**Status:** proposed · **implementation_authorized:** false · **Decision owner:** mark
+**Status:** accepted · **implementation_authorized:** true · **Decision owner:** mark
 **Charts:** issue #220 (`wayfinder:grilling`, "Convergence, concretely"), under map #213.
-**Refines** ADR-0030's `Editorial Convergence` and the `CONTEXT.md` glossary entry of that name.
+**Refines and renames** ADR-0030's `Editorial Convergence`, which is retired in favour of `Review-Ready` (D6).
 
 **Revision history**
+- **v4 (2026-07-25) — F1 CLOSED: the term is `Review-Ready`.** `Editorial Convergence` is retired. All
+  three blocking items are now ruled, so **`implementation_authorized` flips to true** and the status
+  moves to accepted. A driver has a mandate: a pinned stopping condition (D2), a pinned open-set (D2a),
+  the D7 cap (D4), a settled reviewer contract (D5) with its prerequisite named (D5b), and a blessed name.
 - **v3 (2026-07-25) — F3 CLOSED by author ruling: split the reviewer contract by trust (option c).** D5
   rewritten as a decision; D5a fixes the field-by-field split (`reviewer_instructions` treated as
   suppression, recorded as a derivation from the ruling rather than a separate choice); **D5b records a
@@ -24,9 +28,9 @@
   condition has no mandate, and #220's whole question is precisely those three.
 
 > **Why this is not yet authorized.** ADR-0031 D10 makes "no decision" a blocking state, so the open items
-> below are recorded rather than defaulted. **F2 (D2) and F3 (D5) are now closed by author ruling.**
-> **F1 — the name — is the only item left**, and it is author-only: nothing here self-blesses a term into
-> `CONTEXT.md`. The design is otherwise complete; `implementation_authorized` flips when F1 is ruled.
+> below were recorded rather than defaulted. **All three are now closed by author ruling** — F2 (D2,
+> `S = info`), F3 (D5, split the reviewer contract by trust), F1 (D6, `Review-Ready`). This record no
+> longer blocks anything; `implementation_authorized` is **true**.
 
 ## Decision (the settled core)
 
@@ -266,14 +270,19 @@ Until a human rules, the contract cannot suppress a reviewer *and* cannot be app
 it can do both. Provenance is therefore not a new gate the author has to service — it is a consequence of
 the ruling they already had to make.
 
-### D6 — Name — [OPEN · **F1**, blocking, author-only]
+### D6 — Name — [**SETTLED** · author ruling 2026-07-25 · closes F1]
 
-`CONTEXT.md` carries **Editorial Convergence** _(proposed — pending author-blessed name)_. Blessing or
-replacing it is the author's call and is not made here. For the record, the two things the name has to
-survive: it is not "editorial" in the human sense (no editor is involved), and it is not "done" (the human
-gate is still ahead of it). Candidates the author may pick from or ignore: keep **Editorial Convergence**;
-**Machine Convergence**; **Repair Convergence**; **Converged (review-ready)**. The `_(proposed)_` tag comes
-off `CONTEXT.md` when, and only when, this is ruled.
+> **The term is `Review-Ready`.** It replaces `Editorial Convergence`, which is retired. A scene is
+> Review-Ready when it has no open Issue above `info` (D2) or when its repair cycle has parked at the
+> attempt cap (D4) — either way, the machine is finished and the scene is waiting on the author.
+
+The name says what the state is *for* rather than what produced it, which is the correct emphasis:
+ADR-0030's whole point is "the machine finishes the work; the author finishes the decision". It also
+avoids the two things the retired name got wrong — no editor is involved, and "convergence" oversold the
+cap-exhausted case as if quality had been reached.
+
+`Review-Ready` is the blessed glossary term in `CONTEXT.md`. "Convergence" survives only as the informal
+name of the *loop* that produces the state (the converge loop), never as the name of the state itself.
 
 ## Non-goals
 
@@ -283,9 +292,9 @@ the driver itself (#228). This ADR defines the stopping condition and nothing el
 
 ## Consequences
 
-- Until F1 closes, **no driver may be authorized**: `implementation_authorized: false` here is the
-  reason, and it is deliberate rather than an oversight. F1 is a naming decision only — the design is
-  complete.
+- **A driver is now authorized by this record** (`implementation_authorized: true`). What it may rely on:
+  the stopping condition (D2) and its open-set (D2a), the three-gate separation (D3), the D7 cap as a
+  definition (D4 — enforcement is still T2/#230), and the reviewer-contract trust split (D5).
 - **D5 has a build prerequisite (D5b): scene-packet approval provenance.** The approval seam records
   nothing about how a packet was approved, so "was this contract human-approved?" is currently
   unanswerable. Any slice implementing D5 must add that fact first; it is the scene-tier instance of

@@ -1,4 +1,4 @@
-# Autonomous Contract Approval and Editorial Convergence
+# Autonomous Contract Approval and Review-Ready Output
 
 ## Status
 
@@ -8,7 +8,7 @@ Accepted — architecture agreed via grilling 2026-07-13. Implementation not yet
 
 ## Decision
 
-For the **unattended (autonomous) path**, the system **auto-derives and auto-approves** a scene's story contract by policy, rather than requiring human approval at each gate. "Done" for unattended work is **Editorial Convergence**: repeat produce → review → repair until the scene has **no open Issue above a configured advisory severity**, bounded by capped repair attempts. The human moves from *gating every contract* to *reviewing converged output* (plus escalations).
+For the **unattended (autonomous) path**, the system **auto-derives and auto-approves** a scene's story contract by policy, rather than requiring human approval at each gate. "Done" for unattended work is ~~**Editorial Convergence**~~ **`Review-Ready`** (renamed by ADR-0033 D6): repeat produce → review → repair until the scene has ~~**no open Issue above a configured advisory severity**~~ **no open Issue above `info`** (ADR-0033 D2 pins the threshold that this sentence left as prose), bounded by capped repair attempts. The human moves from *gating every contract* to *reviewing converged output* (plus escalations).
 
 The contract is **derived from the prose via ADR 0028 adoption's span-anchored evidence extractor** (`Import Scene Evidence`, prose-hash-keyed), never from a summary — because once no human reviews the contract, derivation fidelity is safety-critical: a drifted contract would silently corrupt the prose the converge loop rewrites to match it.
 
