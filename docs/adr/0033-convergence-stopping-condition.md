@@ -5,6 +5,13 @@
 **Refines** ADR-0030's `Editorial Convergence` and the `CONTEXT.md` glossary entry of that name.
 
 **Revision history**
+- **v3 (2026-07-25) — F3 CLOSED by author ruling: split the reviewer contract by trust (option c).** D5
+  rewritten as a decision; D5a fixes the field-by-field split (`reviewer_instructions` treated as
+  suppression, recorded as a derivation from the ruling rather than a separate choice); **D5b records a
+  prerequisite that did not surface during the fork** — scene-packet approval provenance does not exist,
+  so (c) is a schema-and-seam change, not a reviewer flag; D5c records how it composes with the A1c
+  canon-conflict blocker. **F1 (the name) is the only item left**, so `implementation_authorized` stays
+  false.
 - **v2 (2026-07-25) — F2 CLOSED by author ruling: `S = Severity.INFO`.** D2 rewritten from a fork into a
   decision, with the accepted cost stated (advisory `warn` findings now drive unattended rewriting, so the
   attempt cap becomes load-bearing rather than a backstop). D2a added: the open-status set resolved
@@ -17,10 +24,9 @@
   condition has no mandate, and #220's whole question is precisely those three.
 
 > **Why this is not yet authorized.** ADR-0031 D10 makes "no decision" a blocking state, so the open items
-> below are recorded rather than defaulted. **F2 is now closed** (D2). Two remain: **F1** is a naming
-> decision and is author-only; **F3** has a verified factual answer for *which* reviewers run, but a
-> genuine design fork on whether they may trust a contract no human read — see D5. F3 became more
-> consequential, not less, when F2 chose `info`: every reviewer now drives the loop.
+> below are recorded rather than defaulted. **F2 (D2) and F3 (D5) are now closed by author ruling.**
+> **F1 — the name — is the only item left**, and it is author-only: nothing here self-blesses a term into
+> `CONTEXT.md`. The design is otherwise complete; `implementation_authorized` flips when F1 is ruled.
 
 ## Decision (the settled core)
 
@@ -187,34 +193,78 @@ definition of convergence: an unconverged cycle that hits the cap is *parked*, n
 terminal states must be distinguishable in the record — fact 10 says no column carries a terminal reason
 today, so T2 adds one.
 
-### D5 — Reviewer set against an auto-derived contract — [OPEN · **F3**, blocking]
+### D5 — Reviewer set against an auto-derived contract — [**SETTLED** · author ruling 2026-07-25 · closes F3]
 
-*Which* reviewers run is **not** an open question: fact 6 answers it. `reviewers_for(tags)` is
-deterministic, already implemented, and needs no autonomy-specific variant — continuity, voice, pacing and
-state-drift always; combat, sensory, dialogue when the beat carries the tag.
+*Which* reviewers run was never open: fact 6 answers it. `reviewers_for(tags)` is deterministic, already
+implemented, and needs no autonomy-specific variant — continuity, voice, pacing and state-drift always;
+combat, sensory, dialogue when the beat carries the tag. **Flag → Issue needs no new design** either
+(fact 7): live, single-sited, signature-deduped.
 
-The real fork is what an **auto-derived** contract does to their inputs. Every lane reviewer reads
-`ctx.reviewer_contract` — `scene_job`, `required_beats`, `forbidden_beats`,
-`reviewer_false_positive_traps`, `reviewer_instructions` (`reviewers/lane.py:34-59`). Under ADR-0030 those
-fields are written by the ScenePacket author from evidence, with **no human reading them**. So:
+The fork was what an **auto-derived** contract does to their *inputs*, and it is ruled:
 
-- **(a) Trust the derived contract.** Reviewers consume it exactly as today. Simple; but a drifted
-  contract's `reviewer_false_positive_traps` silently suppresses the very findings that would expose the
-  drift, and `forbidden_beats` tells reviewers not to ask for things the human never approved.
-- **(b) Run lanes contract-blind under autonomy.** Reviewers see prose plus scene job only, ignoring the
-  suppression fields until a human has read the contract once. Loses precision (more false positives),
-  gains the property that a bad derivation cannot silence its own detector.
-- **(c) Split the contract by trust.** Positive fields (`scene_job`, `required_beats`) are honoured;
-  *suppression* fields (`false_positive_traps`, `forbidden_beats`) are honoured only on a human-approved
-  contract. More machinery; keeps precision where it is safe.
+> **Split the reviewer contract by trust (option c).** A reviewer always honours the contract's
+> **positive** fields. It honours the contract's **suppression** fields only when the owning ScenePacket
+> was approved by a human. An auto-approved contract cannot tell a reviewer what not to look at.
 
-**Flag → Issue needs no new design** (fact 7): the path is live, single-sited, and signature-deduped.
+Rejected: **(a) trust it** — a drifted contract's `reviewer_false_positive_traps` silently suppresses the
+very findings that would expose the drift; the detector is silenced by the thing it was meant to detect.
+**(b) contract-blind under autonomy** — safe, but it discards precision everywhere instead of only where
+trust is missing, and under `S = info` (D2) extra false positives are paid for in attempts, which are the
+scarce resource.
 
-**F2's ruling raised the stakes here.** With `S = info` (D2), every reviewer's `warn` findings keep the
-converge loop running — so a `reviewer_false_positive_traps` entry in an auto-derived contract does not
-merely hide a note from a human, it *ends the loop early* by suppressing the findings that would have kept
-it going. Under the rejected `S = warn` this fork would have shrunk to continuity alone; under `info` it
-applies to all seven lanes. F3 is now the last substantive item before a driver can be authorized.
+#### D5a — The split, field by field
+
+`reviewers/lane.py:34-59` reads exactly seven keys off `ctx.reviewer_contract`:
+
+| Key | Class | Honoured when |
+|---|---|---|
+| `scene_job`, `scene_type`, `required_beats`, `word_budget` | **positive** — tell a reviewer what to look FOR | always |
+| `forbidden_beats` — *"do not ask for these"* (`lane.py:47`) | **suppression** | human-approved contract only |
+| `reviewer_false_positive_traps` — *"do not flag"* (`lane.py:53`) | **suppression** | human-approved contract only |
+| `reviewer_instructions[lane]` — free text per lane (`lane.py:50`) | **unclassifiable → treated as suppression** | human-approved contract only |
+
+`reviewer_instructions` is the one judgement call, and it is a **derivation from the ruling, not a
+separate decision**: the field is free text, so its content *can* suppress ("don't flag the stamina
+tracking"), and the ruling's principle is that a derivation must not be able to silence its own detector.
+Anything that can suppress and cannot be verified is withheld. Recorded explicitly because a reasonable
+reader could put it in the positive column; if the author wants it trusted, that is a one-row change here.
+
+#### D5b — Prerequisite: scene-packet approval provenance does NOT exist yet
+
+**(c) cannot be built as a branch in the reviewer.** It needs a fact the system does not record. Verified
+at HEAD:
+
+- `ScenePacket` has **no approval-provenance column**. Its full column list is `id, book_id, chapter_id,
+  chapter_packet_id, scene_seed_id, scene_no, status, qa_verdict, qa_warnings, body, sources, source_hash,
+  stale_reason, source_scene_id, created_at, updated_at` (`shared/models.py`). `status = approved` is the
+  same value whether a human or a policy set it.
+- The single approval seam `_apply_approval_locked` (`scene_packet/__init__.py:125-140`) writes exactly
+  `status = APPROVED` and `stale_reason = None`. It records nothing about **how** approval happened.
+- `Decision Source` (`CONTEXT.md`) answers this question for `Approval` rows on **Scenes**, not for
+  ScenePackets. ADR-0031 D9's *Execution Authorization* grant record — the general form of it — is still
+  unbuilt (`CONTEXT.md` autonomy status block).
+
+So D5 has a dependency, and it is a schema-and-seam change, not a flag: the approval seam must record
+approval provenance, and `context/contracts.py:89` → `assemble.py:60` must carry it to `ctx` so
+`lane.py:36` can branch on it. **The A1c work makes this cheap rather than ambiguous**: there is exactly
+one `ScenePacketStatus.APPROVED` writer repo-wide, so the provenance write has exactly one home. Before
+A1c it would have had three.
+
+#### D5c — This closes a loop with the Approval Blocker
+
+The two A1c mechanisms compose, and the composition is the intended operator story:
+
+```
+auto-derived contract  ──▶  QA reports a canon conflict  ──▶  canon_conflict ApprovalBlocker
+                                                                      │
+                                    human rules on it + approves ◀────┘
+                                                                      │
+                        contract is now human-approved ──▶ suppression fields become trusted
+```
+
+Until a human rules, the contract cannot suppress a reviewer *and* cannot be approved. After they rule,
+it can do both. Provenance is therefore not a new gate the author has to service — it is a consequence of
+the ruling they already had to make.
 
 ### D6 — Name — [OPEN · **F1**, blocking, author-only]
 
@@ -233,8 +283,14 @@ the driver itself (#228). This ADR defines the stopping condition and nothing el
 
 ## Consequences
 
-- Until F1 and F3 close, **no driver may be authorized**: `implementation_authorized: false` here is the
-  reason, and it is deliberate rather than an oversight.
+- Until F1 closes, **no driver may be authorized**: `implementation_authorized: false` here is the
+  reason, and it is deliberate rather than an oversight. F1 is a naming decision only — the design is
+  complete.
+- **D5 has a build prerequisite (D5b): scene-packet approval provenance.** The approval seam records
+  nothing about how a packet was approved, so "was this contract human-approved?" is currently
+  unanswerable. Any slice implementing D5 must add that fact first; it is the scene-tier instance of
+  ADR-0031 D9's still-unbuilt Execution Authorization, narrowed to one boolean-ish question with exactly
+  one writer.
 - `S = info` is a **narrowing** of today's verification behaviour (fact 2 — today any single `info`
   critique keeps the loop alive), so the first implementation must ship with the before/after visible in
   a test at each band, not only at `info`.
