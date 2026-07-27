@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { css } from "../css";
 import { useDeskData } from "../api/data";
 import { api } from "../api/client";
+import { conflictMessage, toDeskError } from "../api/hooks/shared";
 import { formatElapsed } from "../components/DraftActivity";
 import { Button, Chip, Eyebrow, Panel as UiPanel, Spinner, StatusPill } from "../components/ui";
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
@@ -177,7 +178,9 @@ export default function PacketsScreen() {
       setPacket(await fn());
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      // #259 put approve/update under the chapter workflow lock, so these can now return
+      // 409 chapter_workflow_busy — show the sentence the backend wrote, not its JSON envelope.
+      setError(conflictMessage(e) ?? toDeskError(e));
       return false;
     } finally {
       setBusy(null);
@@ -429,7 +432,7 @@ export default function PacketsScreen() {
                     await api.deletePacket(chapterId);
                     setPacket(null);
                   } catch (e) {
-                    setError(e instanceof Error ? e.message : String(e));
+                    setError(conflictMessage(e) ?? toDeskError(e));
                   } finally {
                     setBusy(null);
                   }

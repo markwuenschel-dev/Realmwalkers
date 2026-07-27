@@ -61,10 +61,21 @@ BUSY_DETAIL = {
 }
 
 
-def _is_lock_timeout(exc: BaseException) -> bool:
+def is_lock_timeout(exc: BaseException) -> bool:
+    """SQLSTATE 55P03 (`lock_not_available`) anywhere under this error.
+
+    Public because `SET LOCAL lock_timeout` applies for the REST of the transaction, not just the
+    advisory acquire — so a ROW lock taken later inside a `run_under_chapter_workflow` body can also
+    time out, and surfaces as a bare `OperationalError` rather than `ChapterWorkflowBusy`. A caller
+    that wraps slow row work (e.g. `packets.delete_packet`, whose cascade purges draft Jobs a running
+    worker may hold for minutes) must map that to the same retryable 409 rather than a 500."""
     orig = getattr(exc, "orig", None)
     sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
     return sqlstate == _LOCK_NOT_AVAILABLE
+
+
+#: Back-compat alias for the module's own internal use.
+_is_lock_timeout = is_lock_timeout
 
 
 async def acquire_chapter_workflow_lock(
