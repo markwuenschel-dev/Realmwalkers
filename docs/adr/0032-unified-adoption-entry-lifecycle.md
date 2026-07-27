@@ -4,6 +4,13 @@
 **Charted as:** wayfinder map #258, ticket #260 (`/expanded-grill-with-docs`).
 
 **Revision history**
+- **v2.4 (2026-07-27) — W3 + W4 landed (#271); rollout closed.** No decision changed. Landing surfaced
+  one adjacent defect, fixed in the same PR: the Desk's 409 handler read `data.blockers`, but FastAPI
+  wraps every `HTTPException` payload in `detail` and this app registers no custom exception handler, so
+  it had never fired in production — its unit test passed only because the mock invented a flat shape.
+  It now reads `data.detail` and also surfaces W3's `{reason, message}` refusals, which would otherwise
+  have reached the author as a raw JSON toast. Unchanged and still out of scope: amendment mode (#261)
+  and the chapter-tier ChapterPacket lock-coverage gap (#259).
 - **v2.3 (2026-07-26) — W3 + W4 built; two build-time corrections.** The rollout is complete: both
   Revise surfaces run through `accept_revision_intent`, and boot reconciliation runs in the lifespan
   ahead of the drain-resume block. Two things the design did not anticipate, both found by building it:
@@ -424,7 +431,8 @@ W4  Boot reconciliation inserted AHEAD of the drain-resume block in the lifespan
       reconstruction; snapshot-keyed integrity events.
 ```
 
-**Build record (v2.3).** W0 (#262), W1 (#264), W2 (#265) landed as specified. W3 and W4 are built:
+**Build record (v2.3).** The rollout is fully landed: W0 (#262), W1 (#264), W2 (#265), and W3+W4
+together (#271), all as specified.
 
 | wave | where it lives | notes |
 |---|---|---|

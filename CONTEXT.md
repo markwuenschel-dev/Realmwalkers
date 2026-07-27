@@ -104,13 +104,13 @@ _Avoid_: run-owned job, run_id routing, dual-key scope
 An ownerless or ownership-conflicted Job withheld from execution and from the normal failure controls (retry/clear): the quarantined live jobs plus any unresolved NULL-book terminal/conflict rows. Retained as evidence and surfaced to the operator; blocks the book_id NOT NULL promotion until resolved.
 _Avoid_: failed job, dismissable error, transient failure
 
-> **Implementation status — import adoption & revision workflow (ADR-0028, updated 2026-07-26).**
+> **Implementation status — import adoption & revision workflow (ADR-0028, updated 2026-07-27).**
 > All four terms below are LIVE on main. **Revision Request** (Slice 2) and **Import Scene Evidence**
 > (Slice 3a′) landed first; **Import Adoption** and **Chapter Workflow Lock** landed with Slice 3b (PR #256).
 > `workers/import_adoption.py` is the leased adoption worker.
 >
-> **ADR-0032 completes the lifecycle tail.** W0–W2 are landed on main (#262, #264, #265); **W3–W4 are
-> built and verified but NOT yet landed** — treat W3/W4 as pending until they merge.
+> **ADR-0032 completes the lifecycle tail — the rollout is fully landed on main** (W0–W2 via #262,
+> #264, #265; W3–W4 via #271). Treat every term below as an enforced invariant, not pending work.
 > Adoption entry has exactly ONE writer, `shared/adoption_entry.ensure_import_adoption[_locked]`
 > (entry only; the leased worker still owns its own claim/requeue lifecycle), with four callers: operator **Start** and
 > **Re-author** (`routers/adoption.py`), the sync **Revise** command (`reviews.accept_revision_intent`),
