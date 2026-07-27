@@ -29,6 +29,7 @@ import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.chapter_lock import ChapterWorkflowBusy, acquire_chapter_workflow_lock
 from dominion.shared.config import settings
 from dominion.shared.enums import PacketConfidence, PacketStatus, PacketVerdict
 from dominion.shared.grading import build_grade
@@ -50,6 +51,16 @@ log = structlog.get_logger()
 
 _CANON_K = 16  # the author gets broad canon (scoping protects the writer, not the planner)
 _EXCERPT_CHARS = 240
+
+#: Wait ceiling for the chapter workflow lock in `_persist` (#259). Longer than the 4s request-path
+#: default because losing this acquisition discards 1-2 minutes of already-paid model work, and the
+#: writes it contends with are all short. Bounded, never None: a stalled holder must surface as a
+#: retryable busy rather than hang a background task forever.
+PERSIST_LOCK_TIMEOUT_MS = 10_000
+#: Bounded retries of that acquire, with linear backoff. Worst case ~2x10s waiting plus backoff, still
+#: far cheaper than re-running the author+QA pass this write is the tail of.
+PERSIST_LOCK_ATTEMPTS = 3
+PERSIST_LOCK_RETRY_S = 0.25
 
 _AUTHOR_TIMEOUT_ACTIONS = [
     "Reduce or split the chapter outline/context, then re-propose.",
@@ -162,12 +173,19 @@ async def _omniscient_summary(session: AsyncSession, book_id: uuid.UUID) -> str 
 
 
 async def latest_approved(session: AsyncSession, chapter_id: uuid.UUID) -> ChapterPacket | None:
+    """Newest APPROVED packet for the chapter, or None.
+
+    `populate_existing` because this IS the reload-under-the-lock of the chapter_lock protocol when
+    called from `_persist(preserve_approved=True)`: a bare ORM SELECT returns the identity-mapped
+    instance with its PRE-LOCK `status`, so a packet approved by another transaction could read as
+    still-unapproved and be replaced — the exact race `preserve_approved` exists to close."""
     return (
         await session.execute(
             select(ChapterPacket)
             .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED)
             .order_by(ChapterPacket.created_at.desc())
             .limit(1)
+            .execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()
 
@@ -241,14 +259,19 @@ def _make_fail_closed(
         recovery_actions: list[str] | None = None,
         blocker_diagnostics: dict[str, Any] | None = None,
     ) -> ChapterPacket:
-        telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
+        # Fast path only — the authoritative re-check happens under the chapter lock inside _persist
+        # (`preserve_approved=True`), because this read is not serialized against `approve_packet`.
         existing = await latest_approved(session, chapter.id)
         if existing is not None:
+            telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
             return existing
-        return await _persist(
+        # Telemetry AFTER the write for the same reason as the success path: `_persist` may roll back
+        # to retry a busy chapter lock, which would otherwise discard this run's `llm_calls` rows.
+        persisted = await _persist(
             session,
             chapter_id=chapter.id,
             replace=True,
+            preserve_approved=True,
             row=_blocked_row(
                 book_id=book_id,
                 chapter_id=chapter.id,
@@ -262,6 +285,8 @@ def _make_fail_closed(
                 blocker_diagnostics=blocker_diagnostics,
             ),
         )
+        telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
+        return persisted
 
     return fail_closed
 
@@ -487,8 +512,13 @@ async def _qa_and_persist(
         confidence=str(confidence),
         verdict=str(qa["verdict"]),
     )
+    # Telemetry AFTER the packet write, not before: `_persist` may roll back to retry a busy chapter
+    # lock, and a rollback here would discard this run's `llm_calls` rows even on a pass that then
+    # SUCCEEDS — silently zeroing cost attribution for a retried propose. Both land in the caller's
+    # single commit either way.
+    persisted = await _persist(session, chapter_id=chapter.id, row=row, replace=True)
     telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
-    return await _persist(session, chapter_id=chapter.id, row=row, replace=True)
+    return persisted
 
 
 def _handle_author_failure(
@@ -811,11 +841,75 @@ async def propose_packet_from_evidence(
 
 
 async def _persist(
-    session: AsyncSession, *, chapter_id: uuid.UUID, row: ChapterPacket, replace: bool = False
+    session: AsyncSession,
+    *,
+    chapter_id: uuid.UUID,
+    row: ChapterPacket,
+    replace: bool = False,
+    preserve_approved: bool = False,
 ) -> ChapterPacket:
     """Add the new packet; with replace, clear prior packets for the chapter first so GET returns
     exactly one current packet. Callers only replace after confirming no approved packet would be
-    lost (a failed re-propose returns the existing approved packet instead of reaching here)."""
+    lost (a failed re-propose returns the existing approved packet instead of reaching here).
+
+    This is the ONLY production INSERT/replace of a ChapterPacket, reached by both propose paths
+    (the router's background author and the adoption worker's evidence author), so it is where the
+    chapter workflow lock belongs (ADR-0028 "ChapterPacket propose/replace"; #259).
+
+    It takes the LOCK PRIMITIVE, not `run_under_chapter_workflow`, deliberately:
+      * the authoring that precedes this runs 1-2 minutes of model calls and MUST NOT hold the lock
+        (`shared/chapter_lock.py:20-22`); only this short write is serialized;
+      * the caller's session is already dirty here — `telemetry_db.persist_sink` writes `llm_calls`
+        rows just above — which violates the wrapper's clean-transaction precondition, and the
+        wrapper would take ownership of a commit boundary that belongs to the caller.
+    The advisory lock is transaction-scoped, so it is held from here until the caller's commit
+    (immediately after) and released by it. Acquired BEFORE the delete so the advisory lock is always
+    taken ahead of row locks, the ordering `chapter_lock.py:110-112` requires.
+
+    THIS FUNCTION MAY ROLL BACK THE CALLER'S TRANSACTION. A fired `lock_timeout` aborts the PG
+    transaction, so a retry has to clear it before issuing anything else. Callers must therefore treat
+    every ORM instance they hold as expired across this call (in async, a later plain attribute read on
+    an expired instance raises `MissingGreenlet`). Today neither caller reads one — `_run_propose`
+    commits immediately, and `run_one_adoption` only touches the returned `packet`.
+
+    BOUNDED RETRY. Losing this acquisition throws away 1-2 minutes of already-paid model work, while
+    the writes it contends with are all short — so a busy acquire is retried `PERSIST_LOCK_ATTEMPTS`
+    times before giving up (worst case ≈ `PERSIST_LOCK_ATTEMPTS × PERSIST_LOCK_TIMEOUT_MS` ≈ 30s of a
+    pooled connection, plus backoff). `row` is still TRANSIENT here — `session.add` happens below, after
+    the loop — so the rollback cannot expunge it and it is added exactly once. Telemetry written by the
+    caller before this call IS lost to the rollback; see the caller's note on ordering. Exhausting the
+    attempts re-raises `ChapterWorkflowBusy`; both callers handle it.
+
+    KNOWN LIMIT: `acquire_chapter_workflow_lock` issues `SET LOCAL lock_timeout`, which applies for the
+    REST of the transaction, not just the acquire. This transaction continues through the delete, the
+    insert, and the caller's commit — so a later row-lock wait beyond the ceiling aborts with a raw
+    `OperationalError` (SQLSTATE 55P03), NOT `ChapterWorkflowBusy`, and is therefore not caught by the
+    busy handlers in `_run_propose` / `run_one_adoption`. Pre-existing property of the primitive, newly
+    applied to a longer-lived transaction here."""
+    # max(1, ...): a misconfigured 0 would skip the loop body entirely and write with NO lock at all —
+    # fail-open in the one function the whole design declares to be the single lock point.
+    attempts_allowed = max(1, PERSIST_LOCK_ATTEMPTS)
+    for attempt in range(1, attempts_allowed + 1):
+        try:
+            await acquire_chapter_workflow_lock(session, chapter_id, timeout_ms=PERSIST_LOCK_TIMEOUT_MS)
+            break
+        except ChapterWorkflowBusy:
+            if attempt == attempts_allowed:
+                log.warning("packet.persist_chapter_busy_giving_up", chapter=str(chapter_id), attempts=attempt)
+                raise
+            # The failed acquire aborted the transaction; clear it before issuing anything else.
+            await session.rollback()
+            log.info("packet.persist_chapter_busy_retry", chapter=str(chapter_id), attempt=attempt)
+            await asyncio.sleep(PERSIST_LOCK_RETRY_S * attempt)
+    if preserve_approved:
+        # ADR-0028 protocol steps 3-4, re-done UNDER the lock. The fail-closed caller checks this too,
+        # but that check is only a fast path: it runs before the lock, so an `approve_packet` that
+        # commits between it and this acquire would otherwise be destroyed by the replace below. The
+        # authoritative decision is this one.
+        existing = await latest_approved(session, chapter_id)
+        if existing is not None:
+            log.info("packet.persist_preserved_approved", chapter=str(chapter_id), packet=str(existing.id))
+            return existing
     if replace:
         await session.execute(delete(ChapterPacket).where(ChapterPacket.chapter_id == chapter_id))
         await session.flush()

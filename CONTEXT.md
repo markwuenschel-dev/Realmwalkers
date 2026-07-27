@@ -122,9 +122,29 @@ _Avoid_: failed job, dismissable error, transient failure
 > Chapter-lock coverage, verified at HEAD — `run_under_chapter_workflow` wraps: the adoption worker's
 > publish, operator Start/Re-author (via the seam), scene APPROVE and the Revise command
 > (`routers/reviews.py`), request-resuming ScenePacket approval + chapter-derive (`routers/scene_packets.py`),
-> and boot reconciliation. **Known gap:** the chapter-tier ChapterPacket transitions in `routers/packets.py`
-> (propose/update/approve/delete) do NOT run under it, so the lock's coverage is narrower than "every
-> authority-changing chapter mutation" — tracked as #259, and a prerequisite of amendment mode (#261).
+> boot reconciliation, and — closing #259's residual 1 — the chapter-tier ChapterPacket transitions
+> `update`/`approve`/`delete` (`routers/packets.py`). The propose/replace write is covered too, but by
+> the lock PRIMITIVE inside `workers/packet._persist` — the single ChapterPacket insert/replace writer —
+> because the 1–2 min author+QA calls above it must NOT hold the lock; `_persist` acquires it for the
+> short delete+insert and the caller's commit releases it. A fitness guard
+> (`tests/test_issue259_chapter_packet_writer_guard.py`) enumerates ChapterPacket writers by AST and
+> fails an unlocked one, replacing an allowlist that could only re-check functions someone remembered
+> to add. It is stronger than that allowlist but NOT total — it tracks which locals hold a ChapterPacket
+> and so cannot see one reached via a cross-module helper, a subscript/attribute receiver, `setattr`,
+> or `session.merge`; the file enumerates its own blind spots and carries a regression test proving it
+> catches the pre-fix shape.
+>
+> **Remaining limits (honest boundary, not "every chapter mutation is serialized"):** the drafting
+> drain claims jobs with `FOR UPDATE SKIP LOCKED` and does not take this lock, so a draft already
+> running is not serialized against `delete_packet`'s job purge — and because `SET LOCAL lock_timeout`
+> applies for the whole transaction, that purge can now time out on the draft's row lock; it is mapped
+> to the same retryable 409, never a 500. `propose_packet`'s single-flight is still the process-local
+> `background_work._inflight` set, so two API replicas can each start a propose for one chapter — they
+> now serialize at `_persist` rather than racing the write, but the duplicate authoring spend still
+> happens. A background propose that stays locked out past its bounded retries has no durable
+> operator-facing signal (`progress` is cleared when the task ends); it logs
+> `packet.propose_chapter_busy` and the operator re-triggers. #259's residual 2 (D13 precedence
+> authority) is a design ruling, not lock coverage — see the note under **Claim Source Precedence**.
 
 **Import Adoption** _(live — Slice 3b; entry unified by ADR-0032)_:
 Durable, leased, checkpointed work that turns one whole chapter's imported prose into a reviewed ChapterPacket, on demand. It owns adoption progress only (its lifecycle ends at `contract_proposed`), never mirroring ChapterPacket approval, ScenePacket approval, Job execution, or revision completion (ADR 0028).
@@ -145,6 +165,17 @@ _Avoid_: chapter row lock, global mutex, queue claim lock
 **Claim Source Precedence**:
 The enforced total order `LOCKED_CANON > DERIVED_FROM_MANUSCRIPT > DERIVED_FROM_OUTLINE > PLAUSIBLE_INFERENCE > UNRESOLVED` (with `FORBIDDEN` a separate surface prohibition, not a rank) that decides how conflicting packet claims resolve. A conflict the order cannot break becomes an approval-blocking open question; manuscript evidence never enters canon retrieval or overrides locked canon automatically (ADR 0029).
 _Avoid_: claim label, source hint, canon promotion
+
+> **#259 residual 2 / ADR-0031 D13 — status, verified 2026-07-27.** D13 ruled on `shared/claim_precedence.py`
+> when it had *zero demonstrated importers*, defaulting to "deletion or replacement". That premise is now
+> false and the default no longer applies: the module has a concrete caller and a unique responsibility
+> (`workers/packet/evidence.py:15-18` gates conflict-candidate extraction on it), and ADR-0029's
+> approval-block is wired end to end — `workers/packet/__init__.py:758-763` produces the conflict open
+> questions, and `workers/packet/approval_policy.py:98,111` refuses approval while any remain. So the
+> *gating* half of "precedence authority" is decided and enforced. What is genuinely still open is only
+> whether that blocker folds into #229's shared authorization boundary or stands alone — a #229 decision,
+> not a lock-coverage one. **No ruling has been recorded**; this note states where the question actually
+> sits, it does not close it.
 
 **Scene Packet Approval Source** _(live — ADR-0033 D5b)_:
 How a ScenePacket came to be APPROVED: `manual_command` (a deliberate command through an explicit route — never an authenticated identity, the system has none), `autonomous_policy`, or `legacy_unclassified` (approved before the record existed). NULL until approval. Written only by the single approval seam, and no caller may omit it. `status = approved` cannot answer "did a human read this contract?"; this can, and the reviewer trust split depends on it. It is the scene-tier instance of the still-planned Execution Authorization, narrowed to one question with one writer.

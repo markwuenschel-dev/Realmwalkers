@@ -19,9 +19,11 @@ Lifecycle of one claimed adoption:
   3. PLAN (tiered idempotency, Q11): if the chapter already carries a proposed/approved ChapterPacket
      produced by a matching pass — same source fingerprint AND evidence set AND author-input fingerprint
      — REUSE it with NO model call (tier A/B). Otherwise author fresh (tier C).
-  4. AUTHOR (tier C only, OUTSIDE the chapter lock): propose_packet_from_evidence authors + QA's + persists
-     a proposed (or fail-closed blocked) ChapterPacket. This is the expensive model work and MUST NOT run
-     under the per-chapter workflow lock.
+  4. AUTHOR (tier C only, MODEL CALLS outside the chapter lock): propose_packet_from_evidence authors +
+     QA's + persists a proposed (or fail-closed blocked) ChapterPacket. The author/QA calls are the
+     expensive model work and MUST NOT run under the per-chapter workflow lock. The short packet WRITE at
+     the tail does take it (#259 — `packet._persist` is the single ChapterPacket insert/replace writer),
+     so this phase can also report busy; it re-queues exactly as publish does.
   5. PUBLISH (short locked txn, compare-and-set): under run_under_chapter_workflow, RE-compute the source
      fingerprint and CAS it against the claim-time value. Match -> finalize the adoption to
      `contract_proposed`, link the packet, and write `seed_bindings` (Q8) + `author_input_fingerprint`
@@ -29,10 +31,13 @@ Lifecycle of one claimed adoption:
      immutable evidence shards survive (Q13). `invalidated`/`cancelled` set by another path wins over a
      late worker completion.
 
-Lock discipline (Q15/Q16): the per-chapter workflow lock is taken ONLY in the publish txn, never across
-an evidence/author model call, and always before the adoption row lock. If it is busy, the publish raises
-ChapterWorkflowBusy; the worker ROLLS BACK, re-queues the adoption, and does NOT spin in-process — the
-drain re-enters it later (the 4s lock-acquire timeout is the backoff).
+Lock discipline (Q15/Q16, extended by #259): the per-chapter workflow lock is NEVER held across an
+evidence/author model call, and is always taken before the adoption row lock. It is acquired in exactly
+two short windows — the publish txn (`run_under_chapter_workflow`), and the packet write inside
+`packet._persist`. Either can raise ChapterWorkflowBusy; in both cases the worker ROLLS BACK, re-queues
+the adoption, and does NOT spin in-process — the drain re-enters it later (the lock-acquire timeout is
+the backoff). A busy that escaped uncaught would hit `drain_adoptions`' blanket handler and stop the
+whole pass, which is why both phases handle it explicitly.
 
 Non-goals fenced here (ADR 0028 later slices): `mode=amendment` is refused closed (never partially
 implemented); this worker ends at `contract_proposed` and NEVER advances a RevisionRequest, mints a
@@ -555,19 +560,32 @@ async def run_one_adoption(
     else:
         # Phase 4: author OUTSIDE the chapter lock (the expensive model work). propose_* flushes the packet;
         # we own the commit. A blocked packet is authored too — it is finalized to `failed` at publish.
-        async with session_factory() as session:
-            chapter = await session.get(Chapter, claim.chapter_id)
-            if chapter is None:
+        # The packet WRITE at the tail of propose_* does take the chapter lock (#259, `packet._persist`),
+        # so this phase can now report busy just like phase 5 — handled the same way, because without it
+        # a transient contention would escape to the drain loop's blanket handler and stop the whole pass.
+        try:
+            async with session_factory() as session:
+                chapter = await session.get(Chapter, claim.chapter_id)
+                if chapter is None:
+                    await session.commit()
+                    await _fail_adoption(session_factory, claim.adoption_id, "chapter vanished before authoring")
+                    return True
+                packet = await packet_pipeline.propose_packet_from_evidence(
+                    session, chapter=chapter, evidence=bundle, retrieve=_retriever(session, claim.book_id, retrieve)
+                )
                 await session.commit()
-                await _fail_adoption(session_factory, claim.adoption_id, "chapter vanished before authoring")
-                return True
-            packet = await packet_pipeline.propose_packet_from_evidence(
-                session, chapter=chapter, evidence=bundle, retrieve=_retriever(session, claim.book_id, retrieve)
+                packet_id = packet.id
+                packet_status = str(packet.status)
+                packet_body = dict(packet.body)
+        except ChapterWorkflowBusy:
+            await _requeue(session_factory, claim.adoption_id)
+            log.info(
+                "adoption.chapter_busy_requeued",
+                adoption=str(claim.adoption_id),
+                chapter=str(claim.chapter_id),
+                phase="author_persist",
             )
-            await session.commit()
-            packet_id = packet.id
-            packet_status = str(packet.status)
-            packet_body = dict(packet.body)
+            return True
         created_packet = True
         log.info("adoption.authored", adoption=str(claim.adoption_id), packet=str(packet_id), status=packet_status)
 

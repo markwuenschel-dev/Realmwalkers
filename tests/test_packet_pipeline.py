@@ -233,12 +233,18 @@ async def test_open_questions_block_approval_until_resolved(db_factory, monkeypa
         ch = await _seed_chapter(s)
         row = await packet_pipeline.propose_packet(s, chapter=ch)
         assert row.confidence == "yellow"
+        # #259 put approve/update under `run_under_chapter_workflow`, which owns the commit boundary
+        # and rolls back on refusal. So: commit the seed first (a 409 inside the lock body would
+        # otherwise discard it), and hold the chapter id as a primitive — the rollback expires every
+        # ORM instance in this session, and a later `ch.id` would lazy-load outside greenlet context.
+        await s.commit()
+        chapter_id = ch.id
         with pytest.raises(HTTPException) as exc:
-            await packets.approve_packet(ch.id, s)
+            await packets.approve_packet(chapter_id, s)
         assert exc.value.status_code == 409
 
-        await packets.update_packet(ch.id, PacketUpdateIn(open_questions={"items": []}), s)
-        approved = await packets.approve_packet(ch.id, s)
+        await packets.update_packet(chapter_id, PacketUpdateIn(open_questions={"items": []}), s)
+        approved = await packets.approve_packet(chapter_id, s)
         assert approved.status == PacketStatus.APPROVED
 
 
