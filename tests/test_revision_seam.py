@@ -1,4 +1,4 @@
-"""Characterization tests for the single revise-intent seam `accept_revision_request` (ADR 0028,
+"""Characterization tests for the single revise-intent seam `_accept_revision_request_locked` (ADR 0028,
 Slice 2). Direct-DB (needs Postgres; skips locally, runs under `just test` / CI).
 
 These pin the properties the design promised: durable intent instead of a 409 rollback, one active
@@ -19,6 +19,7 @@ from dominion.shared.enums import (
     BeatStatus,
     Decision,
     JobStatus,
+    RequestDisposition,
     RevisionRequestOrigin,
     RevisionRequestStatus,
     SceneStatus,
@@ -26,7 +27,7 @@ from dominion.shared.enums import (
 from dominion.shared.models import Beat, Book, Chapter, Job, RevisionRequest, Scene
 from dominion.shared.schemas import DecisionIn
 from dominion.workers.context.revision import load_revision_state
-from dominion.workers.revision import accept_revision_request, prose_hash
+from dominion.workers.revision import _accept_revision_request_locked, prose_hash
 from dominion.workers.worker import claim_one_job
 
 
@@ -85,7 +86,7 @@ async def test_imported_scene_lands_durable_awaiting_contract_not_a_409(db_facto
     intent at awaiting_contract with no job (nothing advances it until Slice 3's adoption)."""
     async with db_factory() as s:
         scene = await _imported_scene(s)
-        result = await accept_revision_request(
+        result = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="tighten the open",
@@ -95,7 +96,7 @@ async def test_imported_scene_lands_durable_awaiting_contract_not_a_409(db_facto
         )
         await s.commit()
 
-        assert result.replayed is False
+        assert result.disposition is RequestDisposition.CREATED
         req = result.request
         assert req.status == RevisionRequestStatus.AWAITING_CONTRACT.value
         assert req.job_id is None
@@ -107,7 +108,7 @@ async def test_imported_scene_lands_durable_awaiting_contract_not_a_409(db_facto
 async def test_second_revise_supersedes_the_first_one_active_per_scene(db_factory):
     async with db_factory() as s:
         scene = await _imported_scene(s)
-        first = await accept_revision_request(
+        first = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="v1",
@@ -115,7 +116,7 @@ async def test_second_revise_supersedes_the_first_one_active_per_scene(db_factor
             expected_prose_hash=prose_hash(scene.prose),
             origin=RevisionRequestOrigin.REVIEW,
         )
-        second = await accept_revision_request(
+        second = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="v2 — different intent",
@@ -125,7 +126,7 @@ async def test_second_revise_supersedes_the_first_one_active_per_scene(db_factor
         )
         await s.commit()
 
-        assert second.replayed is False
+        assert second.disposition is RequestDisposition.REPLACED
         assert (await s.get(RevisionRequest, first.request.id)).status == RevisionRequestStatus.SUPERSEDED.value
         assert await _active_count(s, scene.id) == 1  # the partial unique index invariant
 
@@ -133,7 +134,7 @@ async def test_second_revise_supersedes_the_first_one_active_per_scene(db_factor
 async def test_exact_replay_returns_the_existing_request_200(db_factory):
     async with db_factory() as s:
         scene = await _imported_scene(s)
-        first = await accept_revision_request(
+        first = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="same",
@@ -141,7 +142,7 @@ async def test_exact_replay_returns_the_existing_request_200(db_factory):
             expected_prose_hash=prose_hash(scene.prose),
             origin=RevisionRequestOrigin.REVIEW,
         )
-        replay = await accept_revision_request(
+        replay = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="same",
@@ -151,7 +152,7 @@ async def test_exact_replay_returns_the_existing_request_200(db_factory):
         )
         await s.commit()
 
-        assert replay.replayed is True  # -> HTTP 200
+        assert replay.disposition is RequestDisposition.REPLAYED  # -> HTTP 200 only if nothing moved forward
         assert replay.request.id == first.request.id
         total = (
             await s.execute(
@@ -165,7 +166,7 @@ async def test_stale_source_is_rejected_and_persists_nothing(db_factory):
     async with db_factory() as s:
         scene = await _imported_scene(s)
         with pytest.raises(HTTPException) as exc:
-            await accept_revision_request(
+            await _accept_revision_request_locked(
                 s,
                 scene=scene,
                 feedback="x",
@@ -183,7 +184,7 @@ async def test_missing_expected_hash_is_malformed_422(db_factory):
     async with db_factory() as s:
         scene = await _imported_scene(s)
         with pytest.raises(HTTPException) as exc:
-            await accept_revision_request(
+            await _accept_revision_request_locked(
                 s,
                 scene=scene,
                 feedback="x",
@@ -197,7 +198,7 @@ async def test_missing_expected_hash_is_malformed_422(db_factory):
 async def test_retry_after_a_failed_request_creates_a_fresh_one(db_factory):
     async with db_factory() as s:
         scene = await _imported_scene(s)
-        first = await accept_revision_request(
+        first = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="v1",
@@ -209,7 +210,7 @@ async def test_retry_after_a_failed_request_creates_a_fresh_one(db_factory):
         first.request.status = RevisionRequestStatus.FAILED.value
         await s.flush()
 
-        again = await accept_revision_request(
+        again = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="v1",
@@ -218,7 +219,7 @@ async def test_retry_after_a_failed_request_creates_a_fresh_one(db_factory):
             origin=RevisionRequestOrigin.REVIEW,
         )
         await s.commit()
-        assert again.replayed is False
+        assert again.disposition is RequestDisposition.CREATED
         assert again.request.id != first.request.id
         assert await _active_count(s, scene.id) == 1
 
@@ -228,7 +229,7 @@ async def test_contracted_scene_mints_a_linked_revise_job_and_lights_up_the_read
     revise job carrying revision_request_id, and load_revision_state resolves feedback through it."""
     async with db_factory() as s:
         scene = await _contracted_scene(s)
-        result = await accept_revision_request(
+        result = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="Cut the throat-clearing.",
@@ -254,7 +255,7 @@ async def test_running_revision_refuses_a_different_revise_no_second_job(db_fact
     sets it — a different-feedback revise is a 409, not a silent supersede that spawns a second job."""
     async with db_factory() as s:
         scene = await _contracted_scene(s)
-        first = await accept_revision_request(
+        first = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="v1",
@@ -269,7 +270,7 @@ async def test_running_revision_refuses_a_different_revise_no_second_job(db_fact
         await s.commit()
 
         with pytest.raises(HTTPException) as exc:
-            await accept_revision_request(
+            await _accept_revision_request_locked(
                 s,
                 scene=scene,
                 feedback="v2 — a different intent",
@@ -290,7 +291,7 @@ async def test_claiming_a_revise_job_marks_its_request_running(db_factory):
     async with db_factory() as s:
         scene = await _contracted_scene(s)
         req = (
-            await accept_revision_request(
+            await _accept_revision_request_locked(
                 s,
                 scene=scene,
                 feedback="v1",
@@ -313,7 +314,7 @@ async def test_approve_cancels_an_active_revision_request_and_its_queued_job(db_
     async with db_factory() as s:
         scene = await _contracted_scene(s)
         req = (
-            await accept_revision_request(
+            await _accept_revision_request_locked(
                 s,
                 scene=scene,
                 feedback="please revise",

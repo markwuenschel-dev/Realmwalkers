@@ -38,6 +38,7 @@ import type {
   DeleteProductionRunOut,
   DeleteSceneOut,
   ContinuityResolveIn,
+  ContinuityResolveOut,
   DecisionIn,
   DocDetail,
   DocMeta,
@@ -81,11 +82,13 @@ import type {
   RepairApplyAllOut,
   RepairTaskOut,
   RepairVerificationOut,
+  RevisionAcceptanceOut,
   RevisionRequestOut,
   RuleProposalDecisionIn,
   RuleProposalOut,
   RunCompareOut,
   RunTelemetryOut,
+  SceneDecisionOut,
   SceneDetail,
   SceneOut,
   ScenePacketDeriveStatusOut,
@@ -147,6 +150,24 @@ const qs = (params: Record<string, string | undefined>): string => {
   return pairs.length ? `?${new URLSearchParams(pairs).toString()}` : "";
 };
 
+/**
+ * The job id a decision / continuity response implies, whichever shape came back (ADR-0032 D11).
+ *
+ * Callers use it to decide whether to kick the draft drain. Two shapes can carry one: the revise
+ * command envelope (on its request) and approve/deny (`next_job`, the auto-advanced next scene). The
+ * non-revise continuity outcomes never queue anything, so they carry none.
+ *
+ * A revise that entered ADOPTION also returns null here — its next unit of work is the chapter
+ * contract, and the server hands that to the adoption drain itself, so there is nothing to kick.
+ */
+export function forwardJobId(
+  res: SceneDecisionOut | ContinuityResolveOut | RevisionAcceptanceOut,
+): string | null {
+  if ("request" in res) return res.request.job_id ?? null;
+  if ("next_job" in res) return res.next_job ?? null;
+  return null;
+}
+
 export const api = {
   // --- inject: enrich author-written prose ---------------------------------------------------------
   // Stateless: the enrichment passes take a plain string, so this touches no table and persists
@@ -160,16 +181,20 @@ export const api = {
   sceneVersions: (id: string) => http<SceneVersionOut[]>(`/scenes/${id}/versions`),
   revertScene: (id: string) => http<SceneOut>(`/scenes/${id}/revert`, { method: "POST" }),
   deleteScene: (id: string) => http<DeleteSceneOut>(`/scenes/${id}`, { method: "DELETE" }),
+  // approve/deny answer with SceneDecisionOut; revise is a command and answers with the typed
+  // RevisionAcceptanceOut envelope (ADR-0032 D11). Narrow with `forwardJobId` above.
   decide: (id: string, body: DecisionIn) =>
-    http<{ scene: string; status: string; next_job: string | null }>(`/scenes/${id}/decision`, {
+    http<SceneDecisionOut | RevisionAcceptanceOut>(`/scenes/${id}/decision`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
   // The scene's current durable revision request (ADR 0028), with its server-derived phase. 404 when
   // the scene has none — callers treat that as "no active revision intent".
   getRevisionRequest: (id: string) => http<RevisionRequestOut>(`/scenes/${id}/revision-request`),
+  // `use_ledger` raises durable revise intent and answers with the same command envelope the inbox
+  // Revise returns; `use_prose`/`edit` answer with ContinuityResolveOut.
   resolveContinuity: (id: string, body: ContinuityResolveIn) =>
-    http<{ resolved: string; job: string | null }>(`/scenes/${id}/continuity/resolve`, {
+    http<ContinuityResolveOut | RevisionAcceptanceOut>(`/scenes/${id}/continuity/resolve`, {
       method: "POST",
       body: JSON.stringify(body),
     }),

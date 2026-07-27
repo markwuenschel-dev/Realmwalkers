@@ -426,19 +426,23 @@ describe("useDeskSceneActions restartRedraft", () => {
 
   it("surfaces a 409's blocker required_action (not an opaque error) when no ScenePacket resolves", async () => {
     // The no-approved-ScenePacket case: redraft returns 409 with actionable blockers. restartRedraft
-    // must show that reason, not a generic red toast — see draftBlockerMessage / ApiError.
+    // must show that reason, not a generic red toast — see conflictMessage / ApiError.
+    // NB: the payload sits under `detail` — FastAPI wraps every HTTPException body and this app
+    // registers no custom exception handler. An earlier flat mock here let a real bug pass.
     const apiErr = Object.assign(new Error("409 Conflict"), {
       status: 409,
       data: {
-        blockers: [
-          {
-            chapter_id: "ch-1",
-            scene_no: 3,
-            reason: "beat_scene_packet_mismatch",
-            message: "Scene 3 has no approved ScenePacket.",
-            required_action: "Approve ScenePackets first",
-          },
-        ],
+        detail: {
+          blockers: [
+            {
+              chapter_id: "ch-1",
+              scene_no: 3,
+              reason: "beat_scene_packet_mismatch",
+              message: "Scene 3 has no approved ScenePacket.",
+              required_action: "Approve ScenePackets first",
+            },
+          ],
+        },
       },
     });
     vi.mocked(api.redraftScenes).mockRejectedValue(apiErr);
@@ -453,6 +457,58 @@ describe("useDeskSceneActions restartRedraft", () => {
     expect(arg).toBeInstanceOf(Error);
     expect((arg as Error).message).toContain("Scene 3");
     expect((arg as Error).message).toContain("Approve ScenePackets first");
+  });
+});
+
+describe("useDeskSceneActions decide", () => {
+  beforeEach(() => {
+    vi.mocked(api.decide).mockReset();
+  });
+
+  function setup() {
+    const fail = vi.fn();
+    const refreshScenes = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useDeskSceneActions(fail, vi.fn(), {
+        bookId: "book-1",
+        activeSceneId: null,
+        setJobs: vi.fn(),
+        setChapters: vi.fn(),
+        setDetail: vi.fn(),
+        openSceneById: vi.fn(),
+        refreshScenes,
+      }),
+    );
+    return { result, fail };
+  }
+
+  it("surfaces a chapter-workflow 409's prose message rather than the raw JSON body", async () => {
+    // ADR-0032 W3: the revise command refuses with `{detail: {reason, message}}` (no `blockers`) —
+    // see `_revise_http_error` in api/routers/reviews.py. The author must read the sentence the
+    // backend wrote, not `409 Conflict — {"detail":{...}}`.
+    const apiErr = Object.assign(new Error('409 Conflict — {"detail":{"reason":"..."}}'), {
+      status: 409,
+      data: {
+        detail: {
+          reason: "chapter_has_contracted_scenes",
+          message:
+            "This chapter has at least one contracted scene, so it is not evidence-only. " +
+            "Revising an imported scene here needs amendment mode, which is not available yet.",
+        },
+      },
+    });
+    vi.mocked(api.decide).mockRejectedValue(apiErr);
+    const { result, fail } = setup();
+
+    await act(async () => {
+      await result.current.decide("scene-1", { decision: "revise", feedback: "tighten" });
+    });
+
+    expect(fail).toHaveBeenCalledTimes(1);
+    const arg = fail.mock.calls[0]![0];
+    expect(arg).toBeInstanceOf(Error);
+    expect((arg as Error).message).toContain("needs amendment mode");
+    expect((arg as Error).message).not.toContain("409 Conflict");
   });
 });
 

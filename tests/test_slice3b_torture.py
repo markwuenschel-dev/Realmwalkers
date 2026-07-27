@@ -60,7 +60,7 @@ from dominion.workers.import_adoption import run_one_adoption
 from dominion.workers.import_evidence import FakeImportEvidenceExtractor
 from dominion.workers.packet import author as pkt_author
 from dominion.workers.packet import qa as pkt_qa
-from dominion.workers.revision import accept_revision_request, prose_hash
+from dominion.workers.revision import _accept_revision_request_locked, prose_hash
 from dominion.workers.scene_packet import author as sp_author
 from dominion.workers.scene_packet import author_sections as sp_sections
 from dominion.workers.scene_packet import derive as sp_derive
@@ -194,7 +194,7 @@ async def _adoption_chapter_packet(
 
 async def _await_request(s, scene: Scene) -> RevisionRequest:
     """Land a durable revise at awaiting_contract for an uncontracted import (Slice 2)."""
-    accepted = await accept_revision_request(
+    accepted = await _accept_revision_request_locked(
         s,
         scene=scene,
         feedback=f"tighten scene {scene.scene_no}",

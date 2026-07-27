@@ -4860,6 +4860,19 @@ export interface components {
       /** Choice */
       choice: string;
     };
+    /**
+     * ContinuityResolveOut
+     * @description The non-revise outcomes of `POST /scenes/{id}/continuity/resolve` (`use_prose`, `edit`). The
+     *     `use_ledger` choice raises durable revise intent and returns `RevisionAcceptanceOut` instead.
+     *
+     *     Neither remaining outcome can queue work — correcting the ledger and deferring to the inbox are
+     *     both terminal — so there is deliberately no `job` field. It was always null on these two branches;
+     *     only the `use_ledger` branch ever carried a job id, and that now rides on the command envelope.
+     */
+    ContinuityResolveOut: {
+      /** Resolved */
+      resolved: string;
+    };
     /** CritiqueOut */
     CritiqueOut: {
       /**
@@ -5337,6 +5350,27 @@ export interface components {
       /** Severity */
       severity: string;
     };
+    /**
+     * ForwardEffect
+     * @description Whether an accepted revise command moved the chapter's work FORWARD, and how (ADR-0032 D11) —
+     *     the second independent fact. Exactly one applies per invocation, because a contract-backed scene
+     *     mints its Job and never reaches the adoption branch.
+     *
+     *     NONE: nothing advanced (an inert replay against already-`queued`/`running` work).
+     *     REVISION_JOB_QUEUED: the scene had an approved contract, so the linked revise Job was minted.
+     *     ADOPTION_CREATED / ADOPTION_PROMOTED: the adoption seam inserted a new active row, or moved an
+     *       existing one (`awaiting_start`→`queued`, or a monotonic liveness upgrade).
+     *     ADOPTION_JOINED: this request attached to an already-`queued`/`running` chapter adoption without
+     *       creating or promoting it — the D11 `joined` interpretation, which is a coordinator/request-link
+     *       fact and deliberately NOT an `EntryEffect` adoption-row transition.
+     * @enum {string}
+     */
+    ForwardEffect:
+      | "none"
+      | "revision_job_queued"
+      | "adoption_created"
+      | "adoption_promoted"
+      | "adoption_joined";
     /**
      * GateMode
      * @enum {string}
@@ -7257,6 +7291,18 @@ export interface components {
       created_at: string;
     };
     /**
+     * RequestDisposition
+     * @description What an accepted revise command did to the durable `RevisionRequest` itself (ADR-0032 D11) —
+     *     one of the TWO independent facts a caller needs. Deliberately NOT a `replayed` boolean, which
+     *     collapsed disposition and forward movement into one bit.
+     *
+     *     CREATED: a new request was constructed. REPLACED: an active request for the same scene was
+     *     superseded and a new one constructed. REPLAYED: the existing active request matched the command
+     *     exactly, so no new request was constructed (its adoption entry is still reconciled — D5).
+     * @enum {string}
+     */
+    RequestDisposition: "created" | "replaced" | "replayed";
+    /**
      * RetryFailedOut
      * @description Result of re-queuing FAILED jobs (contract-first: reconciles fresh ScenePackets).
      */
@@ -7291,6 +7337,23 @@ export interface components {
        * @default []
        */
       skipped: components["schemas"]["DraftQueueBlockerOut"][];
+    };
+    /**
+     * RevisionAcceptanceOut
+     * @description The response to an accepted revise COMMAND (ADR-0032 D11) — not a durable resource.
+     *
+     *     `RevisionRequestOut` above is the durable GET resource and is unchanged. These two fields are
+     *     invocation facts: they cannot be reconstructed from a later GET, so they live here on the command
+     *     envelope rather than being smuggled onto the resource. They are independent by design — a replayed
+     *     request can still move adoption forward (D5), which a single `replayed` boolean could not express.
+     *
+     *     HTTP status is derived from exactly this pair: 200 iff `request_disposition == replayed` AND
+     *     `forward_effect == none` (a genuinely inert replay); 202 for every other accepted result.
+     */
+    RevisionAcceptanceOut: {
+      request: components["schemas"]["RevisionRequestOut"];
+      request_disposition: components["schemas"]["RequestDisposition"];
+      forward_effect: components["schemas"]["ForwardEffect"];
     };
     /**
      * RevisionRequestOut
@@ -7599,6 +7662,23 @@ export interface components {
       settings_snapshot?: {
         [key: string]: unknown;
       } | null;
+    };
+    /**
+     * SceneDecisionOut
+     * @description The approve / deny result of `POST /scenes/{id}/decision`. A revise on the same endpoint returns
+     *     `RevisionAcceptanceOut` instead (ADR-0032 D11) — revise is a command with its own coordinator, lock
+     *     boundary and invocation facts, so it cannot honestly share this shape.
+     */
+    SceneDecisionOut: {
+      /**
+       * Scene
+       * Format: uuid
+       */
+      scene: string;
+      /** Status */
+      status: string;
+      /** Next Job */
+      next_job: string | null;
     };
     /** SceneDetail */
     SceneDetail: {
@@ -8984,9 +9064,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: string | null;
-          };
+          "application/json":
+            | components["schemas"]["SceneDecisionOut"]
+            | components["schemas"]["RevisionAcceptanceOut"];
         };
       };
       /** @description Validation Error */
@@ -9052,9 +9132,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: string | null;
-          };
+          "application/json":
+            | components["schemas"]["ContinuityResolveOut"]
+            | components["schemas"]["RevisionAcceptanceOut"];
         };
       };
       /** @description Validation Error */

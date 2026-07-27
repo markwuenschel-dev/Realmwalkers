@@ -46,9 +46,9 @@ from dominion.api.routers import (
 from dominion.api.routers.settings import apply_model_overrides
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import JobStatus
-from dominion.shared.models import Job, RepairTask
-from dominion.workers import background_work
+from dominion.shared.enums import ImportAdoptionStatus, JobStatus
+from dominion.shared.models import ImportAdoption, Job, RepairTask
+from dominion.workers import background_work, import_adoption
 
 log = structlog.get_logger()
 
@@ -64,6 +64,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             log.info("settings.model_overrides_applied", count=n)
     except Exception as exc:  # noqa: BLE001 — never block boot on an optional override load
         log.warning("settings.model_overrides_load_failed", error=str(exc))
+    # Reconcile stranded imported-prose revise intent (ADR-0032 D7/D8, W4) — BEFORE the drains below.
+    # The ordering is load-bearing: reconciliation is what turns a scene the last redeploy stranded at
+    # `revision_requested` back into durable, adoption-linked work. Kicking the drains first would let
+    # this boot's drain pass run against a queue that is still missing exactly that work, so recovery
+    # would wait a whole extra deploy cycle. It awaits (rather than fire-and-forget) so the drains that
+    # follow observe a reconciled queue, and it commits per chapter, so it cannot hold boot open on one
+    # contended chapter. Never in `apply_lightweight_migrations` (D7) — that also builds the test fixture.
+    try:
+        from dominion.workers.boot_reconciliation import reconcile_legacy_revision_intent
+
+        await reconcile_legacy_revision_intent()
+    except Exception as exc:  # noqa: BLE001 — never block boot on recovery
+        # ERROR, not warning: a wholesale reconciliation failure means stranded scenes stay stranded
+        # and invisible, which is exactly the condition this step exists to surface.
+        log.error("adoption_reconciliation_failed", error=str(exc))
+
     # Resume the drafting drain if a redeploy stranded QUEUED jobs. The drain is an in-process
     # background task, so a container swap kills it mid-queue and the jobs otherwise sit QUEUED
     # forever — silently, as "N queued" — until a human posts /jobs/draft-next. Fire-and-forget:
@@ -97,6 +113,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     .where(RepairTask.status == "queued", ~requires_explicit_authorization_clause())
                 )
             ).scalar_one()
+            # Claimable adoptions strand for the same reason (ADR-0028's leased adoption worker is an
+            # in-process drain too), plus one worse: an expired lease leaves a row at `running` that
+            # nothing re-queues until a drain runs `recover_stale_adoptions`. Count both states.
+            queued_adoptions = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(ImportAdoption)
+                    .where(
+                        ImportAdoption.status.in_(
+                            (ImportAdoptionStatus.QUEUED.value, ImportAdoptionStatus.RUNNING.value)
+                        )
+                    )
+                )
+            ).scalar_one()
+        if queued_adoptions:
+            # drain_adoptions single-flights and honors the pause switch itself, so kick unconditionally
+            # and let it decide — a paused queue still needs the stale-lease recovery it runs first.
+            log.info("adoption.drain_resumed_on_boot", queued_adoptions=queued_adoptions)
+            asyncio.get_running_loop().create_task(import_adoption.drain_adoptions())
         if (queued or queued_repairs) and paused:
             # Honor the human pause switch across redeploys — work stays queued until resumed.
             log.info("draft.drain_resume_skipped_paused", queued=queued, queued_repairs=queued_repairs)

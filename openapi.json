@@ -424,17 +424,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SceneDecisionOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RevisionAcceptanceOut"
+                    }
+                  ],
                   "title": "Response Decide Scenes  Scene Id  Decision Post"
                 }
               }
@@ -532,17 +529,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ContinuityResolveOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RevisionAcceptanceOut"
+                    }
+                  ],
                   "title": "Response Resolve Continuity Scenes  Scene Id  Continuity Resolve Post"
                 }
               }
@@ -13290,6 +13284,20 @@
         "title": "ContinuityResolveIn",
         "description": "Resolve one continuity mismatch from the panel: pick prose or ledger (DESIGN \u00a79)."
       },
+      "ContinuityResolveOut": {
+        "properties": {
+          "resolved": {
+            "type": "string",
+            "title": "Resolved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resolved"
+        ],
+        "title": "ContinuityResolveOut",
+        "description": "The non-revise outcomes of `POST /scenes/{id}/continuity/resolve` (`use_prose`, `edit`). The\n`use_ledger` choice raises durable revise intent and returns `RevisionAcceptanceOut` instead.\n\nNeither remaining outcome can queue work \u2014 correcting the ledger and deferring to the inbox are\nboth terminal \u2014 so there is deliberately no `job` field. It was always null on these two branches;\nonly the `use_ledger` branch ever carried a job id, and that now rides on the command envelope."
+      },
       "CritiqueOut": {
         "properties": {
           "id": {
@@ -14296,6 +14304,18 @@
         ],
         "title": "FidelityViolationOut",
         "description": "One deterministic breach of the active fidelity contract, for author-facing validation feedback."
+      },
+      "ForwardEffect": {
+        "type": "string",
+        "enum": [
+          "none",
+          "revision_job_queued",
+          "adoption_created",
+          "adoption_promoted",
+          "adoption_joined"
+        ],
+        "title": "ForwardEffect",
+        "description": "Whether an accepted revise command moved the chapter's work FORWARD, and how (ADR-0032 D11) \u2014\nthe second independent fact. Exactly one applies per invocation, because a contract-backed scene\nmints its Job and never reaches the adoption branch.\n\nNONE: nothing advanced (an inert replay against already-`queued`/`running` work).\nREVISION_JOB_QUEUED: the scene had an approved contract, so the linked revise Job was minted.\nADOPTION_CREATED / ADOPTION_PROMOTED: the adoption seam inserted a new active row, or moved an\n  existing one (`awaiting_start`\u2192`queued`, or a monotonic liveness upgrade).\nADOPTION_JOINED: this request attached to an already-`queued`/`running` chapter adoption without\n  creating or promoting it \u2014 the D11 `joined` interpretation, which is a coordinator/request-link\n  fact and deliberately NOT an `EntryEffect` adoption-row transition."
       },
       "GateMode": {
         "type": "string",
@@ -18582,6 +18602,16 @@
         ],
         "title": "RepairVerificationOut"
       },
+      "RequestDisposition": {
+        "type": "string",
+        "enum": [
+          "created",
+          "replaced",
+          "replayed"
+        ],
+        "title": "RequestDisposition",
+        "description": "What an accepted revise command did to the durable `RevisionRequest` itself (ADR-0032 D11) \u2014\none of the TWO independent facts a caller needs. Deliberately NOT a `replayed` boolean, which\ncollapsed disposition and forward movement into one bit.\n\nCREATED: a new request was constructed. REPLACED: an active request for the same scene was\nsuperseded and a new one constructed. REPLAYED: the existing active request matched the command\nexactly, so no new request was constructed (its adoption entry is still reconciled \u2014 D5)."
+      },
       "RetryFailedOut": {
         "properties": {
           "requested": {
@@ -18621,6 +18651,27 @@
         "type": "object",
         "title": "RetryFailedOut",
         "description": "Result of re-queuing FAILED jobs (contract-first: reconciles fresh ScenePackets)."
+      },
+      "RevisionAcceptanceOut": {
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/RevisionRequestOut"
+          },
+          "request_disposition": {
+            "$ref": "#/components/schemas/RequestDisposition"
+          },
+          "forward_effect": {
+            "$ref": "#/components/schemas/ForwardEffect"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request",
+          "request_disposition",
+          "forward_effect"
+        ],
+        "title": "RevisionAcceptanceOut",
+        "description": "The response to an accepted revise COMMAND (ADR-0032 D11) \u2014 not a durable resource.\n\n`RevisionRequestOut` above is the durable GET resource and is unchanged. These two fields are\ninvocation facts: they cannot be reconstructed from a later GET, so they live here on the command\nenvelope rather than being smuggled onto the resource. They are independent by design \u2014 a replayed\nrequest can still move adoption forward (D5), which a single `replayed` boolean could not express.\n\nHTTP status is derived from exactly this pair: 200 iff `request_disposition == replayed` AND\n`forward_effect == none` (a genuinely inert replay); 202 for every other accepted result."
       },
       "RevisionRequestOut": {
         "properties": {
@@ -19270,6 +19321,39 @@
         ],
         "title": "RunTelemetryOut",
         "description": "Full drill-down for one telemetry run (all calls sharing a run_id)."
+      },
+      "SceneDecisionOut": {
+        "properties": {
+          "scene": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Scene"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "next_job": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Job"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scene",
+          "status",
+          "next_job"
+        ],
+        "title": "SceneDecisionOut",
+        "description": "The approve / deny result of `POST /scenes/{id}/decision`. A revise on the same endpoint returns\n`RevisionAcceptanceOut` instead (ADR-0032 D11) \u2014 revise is a command with its own coordinator, lock\nboundary and invocation facts, so it cannot honestly share this shape."
       },
       "SceneDetail": {
         "properties": {

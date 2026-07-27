@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "../client";
+import { api, forwardJobId } from "../client";
 import type {
   ChapterOut,
   ChapterUpdateIn,
@@ -13,7 +13,7 @@ import type {
   SceneDetail,
 } from "../types";
 import { purgeDraftLocalStorage, isHttpNotFound } from "../../lib/draftStorage";
-import { draftBlockerMessage, type DeskFail } from "./shared";
+import { conflictMessage, type DeskFail } from "./shared";
 
 export interface DeskSceneActionsDeps {
   bookId: string | null;
@@ -190,12 +190,13 @@ export function useDeskSceneActions(
     async (sceneId: string, body: DecisionIn): Promise<void> => {
       try {
         const res = await api.decide(sceneId, body);
-        if (res.next_job) await draftNext();
+        if (forwardJobId(res)) await draftNext();
         await refreshScenes();
       } catch (e) {
-        // A 409 with blockers means the revise can't be queued (e.g. an imported scene with no
-        // approved contract) — surface the actionable reason instead of an opaque red toast.
-        const msg = draftBlockerMessage(e);
+        // A 409 means the revise can't be accepted — either draft blockers, or a chapter-workflow
+        // refusal (contracted scenes / approved contract / busy). Surface the actionable reason
+        // instead of an opaque red toast.
+        const msg = conflictMessage(e);
         fail(msg ? new Error(msg) : e);
       }
     },
@@ -219,11 +220,11 @@ export function useDeskSceneActions(
     async (sceneId: string, body: ContinuityResolveIn): Promise<void> => {
       try {
         const res = await api.resolveContinuity(sceneId, body);
-        if (res.job) await draftNext();
+        if (forwardJobId(res)) await draftNext();
         openSceneById(sceneId);
         await refreshScenes();
       } catch (e) {
-        const msg = draftBlockerMessage(e);
+        const msg = conflictMessage(e);
         fail(msg ? new Error(msg) : e);
       }
     },
@@ -244,7 +245,7 @@ export function useDeskSceneActions(
       } catch (e) {
         // A 409 here means no approved ScenePacket resolved for the scene (stale / unapproved /
         // missing) — surface the blocker's actionable reason instead of an opaque red toast.
-        const msg = draftBlockerMessage(e);
+        const msg = conflictMessage(e);
         fail(msg ? new Error(msg) : e);
       }
     },

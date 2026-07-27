@@ -8,7 +8,15 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from dominion.shared.enums import ChapterKind, Decision, GateMode, RuleProposalStatus, SuggestionStatus
+from dominion.shared.enums import (
+    ChapterKind,
+    Decision,
+    ForwardEffect,
+    GateMode,
+    RequestDisposition,
+    RuleProposalStatus,
+    SuggestionStatus,
+)
 
 
 class _ORM(BaseModel):
@@ -92,6 +100,44 @@ class RevisionRequestOut(BaseModel):
     result_scene_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
+
+
+class SceneDecisionOut(BaseModel):
+    """The approve / deny result of `POST /scenes/{id}/decision`. A revise on the same endpoint returns
+    `RevisionAcceptanceOut` instead (ADR-0032 D11) — revise is a command with its own coordinator, lock
+    boundary and invocation facts, so it cannot honestly share this shape."""
+
+    scene: uuid.UUID
+    status: str
+    next_job: uuid.UUID | None
+
+
+class ContinuityResolveOut(BaseModel):
+    """The non-revise outcomes of `POST /scenes/{id}/continuity/resolve` (`use_prose`, `edit`). The
+    `use_ledger` choice raises durable revise intent and returns `RevisionAcceptanceOut` instead.
+
+    Neither remaining outcome can queue work — correcting the ledger and deferring to the inbox are
+    both terminal — so there is deliberately no `job` field. It was always null on these two branches;
+    only the `use_ledger` branch ever carried a job id, and that now rides on the command envelope."""
+
+    resolved: str
+
+
+class RevisionAcceptanceOut(BaseModel):
+    """The response to an accepted revise COMMAND (ADR-0032 D11) — not a durable resource.
+
+    `RevisionRequestOut` above is the durable GET resource and is unchanged. These two fields are
+    invocation facts: they cannot be reconstructed from a later GET, so they live here on the command
+    envelope rather than being smuggled onto the resource. They are independent by design — a replayed
+    request can still move adoption forward (D5), which a single `replayed` boolean could not express.
+
+    HTTP status is derived from exactly this pair: 200 iff `request_disposition == replayed` AND
+    `forward_effect == none` (a genuinely inert replay); 202 for every other accepted result.
+    """
+
+    request: RevisionRequestOut
+    request_disposition: RequestDisposition
+    forward_effect: ForwardEffect
 
 
 class ImportAdoptionOut(_ORM):

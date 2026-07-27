@@ -632,7 +632,16 @@ async def drain_adoptions(
 ) -> None:
     """Process claimable adoptions one at a time until none remain. Re-queues crashed leases first, then
     drains. Single-flight per process. An unexpected error stops the pass (the lease governs a later
-    retry); it never hot-loops."""
+    retry); it never hot-loops.
+
+    Honors the human queue-pause switch the same way `background_work.drain_queued_jobs` does — checked
+    between adoptions, so the in-flight one always finishes. Pause controls worker DRAINING, never
+    durable intent creation (ADR-0032 D6): a paused queue still accepts Revise and still records the
+    `queued` adoption, it just does not spend against it yet. Stale-lease recovery runs regardless — it
+    only moves an abandoned `running` row back to `queued`, which buys nothing.
+    """
+    from dominion.workers import background_work
+
     if _drain_lock.locked():
         return
     async with _drain_lock:
@@ -642,6 +651,9 @@ async def drain_adoptions(
         if requeued:
             log.info("adoption.recovered_stale", requeued=requeued)
         while True:
+            if background_work.queue_paused():
+                log.info("adoption.drain_paused", note="queue paused by human; drain stops between adoptions")
+                break
             try:
                 did = await run_one_adoption(
                     session_factory,

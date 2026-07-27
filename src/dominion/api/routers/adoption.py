@@ -3,8 +3,13 @@
 The operator "Start contract adoption" is the explicit, human-initiated entry point that turns an
 uncontracted, evidence-only imported chapter into worker-claimable adoption work. It either CREATES a
 `queued` ImportAdoption (queued == spend consent — the worker's claim loop drains it) or promotes an
-existing `awaiting_start` adoption to `queued` (Q3/Q17). The auto-start-on-revise reconciliation writer
-that mints `awaiting_start` rows is a Slice 3c non-goal and is NOT built here; unpause is not Start.
+existing `awaiting_start` adoption to `queued` (Q3/Q17). Unpause is not Start.
+
+Start is now one of FOUR entry paths into the single adoption-entry lifecycle (ADR-0032 D1), not the
+only writer: sync Revise (W3, `reviews.accept_revision_intent`) and boot reconciliation (W4,
+`workers.boot_reconciliation`) enter through the same seam. `awaiting_start` rows are minted by
+reconciliation (`RECORD_WITHOUT_SPEND`); what Start uniquely supplies is `operator_independent`
+liveness — the operator command is itself durable demand, so reverse-cancellation never retires it.
 
 Guards:
   * only EVIDENCE-ONLY chapters may start — every non-superseded scene must be imported/uncontracted
@@ -45,7 +50,7 @@ from dominion.shared.adoption_entry import (
     ChapterHasContractedScenes,
     ensure_import_adoption,
 )
-from dominion.shared.chapter_lock import DEFAULT_LOCK_TIMEOUT_MS, ChapterWorkflowBusy
+from dominion.shared.chapter_lock import BUSY_DETAIL, DEFAULT_LOCK_TIMEOUT_MS, ChapterWorkflowBusy
 from dominion.shared.enums import AdoptionOperation
 from dominion.shared.schemas import ImportAdoptionOut, ReauthorIn
 
@@ -55,11 +60,6 @@ router = APIRouter(tags=["adoption"])
 # The request-path wait ceiling for acquiring the per-chapter workflow lock (Q16). A module attribute so
 # the busy-path oracle can patch it to a short value; production uses the shared 4s default.
 LOCK_TIMEOUT_MS: int | None = DEFAULT_LOCK_TIMEOUT_MS
-
-_BUSY_DETAIL = {
-    "reason": "chapter_workflow_busy",
-    "message": "This chapter is busy with another workflow operation. Retry in a moment.",
-}
 
 
 @router.post("/chapters/{chapter_id}/adoption/start", response_model=ImportAdoptionOut)
@@ -93,7 +93,7 @@ async def start_contract_adoption(chapter_id: uuid.UUID, session: SessionDep) ->
             },
         ) from exc
     except ChapterWorkflowBusy as exc:
-        raise HTTPException(status_code=409, detail=_BUSY_DETAIL) from exc
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
 
     adoption = result.adoption
     # The seam's wrapper owns the commit; refresh so server-side defaults (created_at) and the onupdate
@@ -152,7 +152,7 @@ async def reauthor_contract_adoption(chapter_id: uuid.UUID, body: ReauthorIn, se
             },
         ) from exc
     except ChapterWorkflowBusy as exc:
-        raise HTTPException(status_code=409, detail=_BUSY_DETAIL) from exc
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
 
     adoption = result.adoption
     await session.refresh(adoption)

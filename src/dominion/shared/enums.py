@@ -591,3 +591,53 @@ class RevisionRequestOrigin(StrEnum):
     REVIEW = "review"  # POST /scenes/{id}/decision, decision=revise
     CONTINUITY = "continuity"  # POST /scenes/{id}/continuity/resolve, choice=use_ledger
     LEGACY_RECONCILIATION = "legacy_reconciliation"  # boot recovery from the latest revise Approval
+
+
+class IntegrityHoldReason(StrEnum):
+    """Why boot reconciliation could NOT rebuild a stranded scene's revise intent (ADR-0032 D8). The
+    hold itself is a DERIVED condition — `Scene.status == revision_requested` AND no active
+    `RevisionRequest` AND no valid current-row REVISE `Approval` — never a row that owns the state; the
+    operator surface is an append-only `Activity` projection of it.
+
+    MISSING_APPROVAL: the scene has no `Approval` at all. LATEST_DECISION_NOT_REVISE: the latest
+    approval OVERALL is an APPROVE/DENY, so the revise intent was replaced — resurrecting an older
+    REVISE would resurrect superseded intent. SCENE_VERSION_MISMATCH: the latest approval IS a REVISE
+    but was raised against a different scene version, so it is identity drift, not current intent."""
+
+    MISSING_APPROVAL = "missing_approval"
+    LATEST_DECISION_NOT_REVISE = "latest_decision_not_revise"
+    SCENE_VERSION_MISMATCH = "scene_version_mismatch"
+
+
+class RequestDisposition(StrEnum):
+    """What an accepted revise command did to the durable `RevisionRequest` itself (ADR-0032 D11) —
+    one of the TWO independent facts a caller needs. Deliberately NOT a `replayed` boolean, which
+    collapsed disposition and forward movement into one bit.
+
+    CREATED: a new request was constructed. REPLACED: an active request for the same scene was
+    superseded and a new one constructed. REPLAYED: the existing active request matched the command
+    exactly, so no new request was constructed (its adoption entry is still reconciled — D5)."""
+
+    CREATED = "created"
+    REPLACED = "replaced"
+    REPLAYED = "replayed"
+
+
+class ForwardEffect(StrEnum):
+    """Whether an accepted revise command moved the chapter's work FORWARD, and how (ADR-0032 D11) —
+    the second independent fact. Exactly one applies per invocation, because a contract-backed scene
+    mints its Job and never reaches the adoption branch.
+
+    NONE: nothing advanced (an inert replay against already-`queued`/`running` work).
+    REVISION_JOB_QUEUED: the scene had an approved contract, so the linked revise Job was minted.
+    ADOPTION_CREATED / ADOPTION_PROMOTED: the adoption seam inserted a new active row, or moved an
+      existing one (`awaiting_start`→`queued`, or a monotonic liveness upgrade).
+    ADOPTION_JOINED: this request attached to an already-`queued`/`running` chapter adoption without
+      creating or promoting it — the D11 `joined` interpretation, which is a coordinator/request-link
+      fact and deliberately NOT an `EntryEffect` adoption-row transition."""
+
+    NONE = "none"
+    REVISION_JOB_QUEUED = "revision_job_queued"
+    ADOPTION_CREATED = "adoption_created"
+    ADOPTION_PROMOTED = "adoption_promoted"
+    ADOPTION_JOINED = "adoption_joined"
