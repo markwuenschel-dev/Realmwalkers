@@ -211,7 +211,13 @@ async def test_approve_cancels_request_and_reverse_cancels_adoption_atomically(d
 
     async with db_factory() as s2:
         body = await _decide_approve(s2, scene_id)
-        assert body == {"scene": str(scene_id), "status": SceneStatus.APPROVED.value, "next_job": None}
+        # W3 types the response (SceneDecisionOut); the SERIALIZED shape is unchanged, and
+        # test_adr0032_w3_revise_command asserts that parity over the real HTTP wire.
+        assert body.model_dump(mode="json") == {
+            "scene": str(scene_id),
+            "status": SceneStatus.APPROVED.value,
+            "next_job": None,
+        }
 
     async with db_factory() as s3:
         assert (await s3.get(Scene, scene_id)).status == SceneStatus.APPROVED
@@ -287,8 +293,9 @@ async def test_approve_response_unchanged_and_operator_independent_preserved(db_
 
     async with db_factory() as s2:
         body = await _decide_approve(s2, scene_id)
-        assert set(body) == {"scene", "status", "next_job"}  # no revision_request/revision_status/display_phase
-        assert body["status"] == SceneStatus.APPROVED.value
+        # no revision_request/revision_status/display_phase leaking onto the approve shape
+        assert set(body.model_dump()) == {"scene", "status", "next_job"}
+        assert body.status == SceneStatus.APPROVED.value
 
     async with db_factory() as s3:
         assert (await s3.get(Scene, scene_id)).status == SceneStatus.APPROVED
@@ -308,4 +315,4 @@ async def test_reapprove_is_idempotent(db_factory):
         await _decide_approve(s2, scene_id)
     async with db_factory() as s3:
         body = await _decide_approve(s3, scene_id)  # second approve
-        assert body["status"] == SceneStatus.APPROVED.value
+        assert body.status == SceneStatus.APPROVED.value

@@ -4,6 +4,20 @@
 **Charted as:** wayfinder map #258, ticket #260 (`/expanded-grill-with-docs`).
 
 **Revision history**
+- **v2.3 (2026-07-26) — W3 + W4 built; two build-time corrections.** The rollout is complete: both
+  Revise surfaces run through `accept_revision_intent`, and boot reconciliation runs in the lifespan
+  ahead of the drain-resume block. Two things the design did not anticipate, both found by building it:
+  **(a) D7 tie is indeterminate.** `Approval` has no monotonic sequence — only `decided_at`, the Postgres
+  TRANSACTION timestamp — so "ORDER BY created_at DESC, id DESC" cannot order two approvals written in
+  one transaction, and the `id` tiebreak would coin-flip between a REVISE and the APPROVE that replaced
+  it. Reconciliation now SKIPS such a scene (no request, no adoption, and no D8 hold — a hold asserts
+  "no valid current intent", which that read cannot establish). See the D7 addendum.
+  **(b) `queued` was consent nothing acted on.** `drain_adoptions` had no production caller at all — no
+  console script, absent from the container CMD and the lifespan — so every `queued` adoption, including
+  operator Start's since Slice 3b, was claimed by nothing. Wiring the request-bound minter without fixing
+  that would have shipped a lifecycle that provably could not complete. The drain is now kicked from the
+  revise command (background task) and at boot, and honors the queue-pause switch itself (D6: pause
+  controls draining, not intent). No decision changed; this is ADR-0028 wiring the tail depends on.
 - **v2.2 (2026-07-24) — W2/W3 rollout re-split (build-time, honest amendment).** Code-level grilling of W2
   found both Revise routes mutate/read outside the chapter-lock boundary, so the forward coordinator cannot be
   integrated before its full route cutover. W2 now wires only the LIVE reverse path (the chapter-locked
@@ -33,9 +47,13 @@ coverage (#259), the ADR-0031 authorization axis, autonomy, cost ceilings, fidel
 Auto-start-on-revise and legacy reconciliation are **two entry paths into one canonical adoption-entry
 lifecycle**, not two peer slices. Three principles:
 
-1. **One writer of adoption state.** Exactly one adoption-owned primitive mutates the active adoption states
-   (`awaiting_start`/`queued`/`running`); all four callers supply *intent* and route through it. The invariant
-   "≤1 active adoption per chapter" is a **database structural guarantee**, not merely a lock convention.
+1. **One writer of adoption ENTRY.** Exactly one adoption-owned primitive creates an adoption and performs
+   the entry transitions into the active states (mint `awaiting_start`/`queued`, promote
+   `awaiting_start`→`queued`, merge liveness); all four callers supply *intent* and route through it.
+   Deliberately NOT "the only code that ever writes an active status" — the leased worker still owns its own
+   claim lifecycle (`queued`→`running`, and requeue on lease expiry in `recover_stale_adoptions`). Entry and
+   lease progression are different concerns. The invariant "≤1 active adoption per chapter" is a
+   **database structural guarantee**, not merely a lock convention.
 2. **Single ownership, coordinated atomically.** The revision module remains the sole `RevisionRequest` writer;
    the adoption module remains the sole `ImportAdoption` writer. A command coordinator above both owns the
    chapter lock, the transaction boundary, and operation ordering — and nothing else. No module owns another
@@ -44,7 +62,11 @@ lifecycle**, not two peer slices. Three principles:
    spend consent — no second confirmation, no revise-specific cost ceiling — but only *queues, promotes, or
    reuses an eligible adoption*; ineligible chapter states fail closed.
 
-## Context (verified at HEAD)
+## Context (verified at HEAD **as of v1, 2026-07-23 — pre-W0**)
+
+This section is the problem statement the ADR was written against and is deliberately preserved as
+written. **It no longer describes the code**: W0–W4 resolved every item below. For current state, read
+the Design sections and the D13 build record.
 
 Slice 3b shipped **explicit operator Start only**. The consequences the unification must resolve:
 
@@ -60,8 +82,9 @@ Slice 3b shipped **explicit operator Start only**. The consequences the unificat
   (`adoption.py:159`); the sole unique index is on `force_author_token` (`shared/migrations.py:320`). The
   chapter lock is a coordination protocol — a caller bypassing it bypasses the guarantee (`shared/chapter_lock.py`).
 - No reconciliation writer exists; `awaiting_start` is read (promoted by Start, `adoption.py:163`) but never
-  written. The two direct HTTP revise surfaces (`api/routers/reviews.py:148`, `:262`) return ad-hoc dicts and
-  derive `200/202` solely from `AcceptResult.replayed`.
+  written. The two direct HTTP revise surfaces (`reviews.decide` REVISE branch and
+  `reviews.resolve_continuity` `use_ledger`) return ad-hoc dicts and derive `200/202` solely from
+  `AcceptResult.replayed`.
 - `ImportAdoptionStatus.CANCELLED` is documented as "an `awaiting_start`/`queued` adoption with no remaining
   active requests" (`shared/enums.py:399`) — a reverse rule nothing enforces.
 
@@ -99,7 +122,7 @@ Callers:
 | sync revise | the **locked primitive**, inside the coordinator's txn (D4) | `SPEND` | `request_bound` |
 | operator Start | the **wrapper** | `SPEND` | `operator_independent` |
 | operator Re-author | the **wrapper** (force-token + lineage) | `SPEND` | `operator_independent` |
-| boot reconciliation | the **wrapper** | `RECORD_WITHOUT_SPEND` | `request_bound` |
+| boot reconciliation | the **locked primitive**, inside its own coordinator's txn (W4) | `RECORD_WITHOUT_SPEND` | `request_bound` |
 
 An **AST-aware production-source test** asserts no `ImportAdoption(...)` constructor exists under `src/dominion`
 except the ORM class declaration and the one inside the primitive.
@@ -177,7 +200,8 @@ Ownership stays clean:
 - **Command coordinator:** chapter lock, transaction boundary, operation ordering, atomic success-or-rollback
   across both owners — nothing else.
 
-All revise surfaces (`reviews.py:148`, `:262`) call `accept_revision_intent`; none individually sequences the
+All revise surfaces (`reviews.decide` REVISE, `reviews.resolve_continuity` `use_ledger`) call
+`accept_revision_intent`; none individually sequences the
 two mutations. There is **no `lock_already_held` flag** — the coordinator owns the lock; the owners' `_locked`
 bodies assume it. Adoption remains **chapter-shared** (one adoption serves every active request in its chapter);
 `RevisionRequest.import_adoption_id` is a serving/provenance link, not a request-private adoption.
@@ -247,12 +271,23 @@ Scan predicate:
 ```
 Scene.status == revision_requested
 AND no active RevisionRequest for the scene
-AND the LATEST Approval OVERALL for this scene row (ORDER BY created_at DESC, id DESC) has
+AND the LATEST Approval OVERALL for this scene row (ORDER BY decided_at DESC, id DESC — `Approval`
+      has NO `created_at`; see the v2.3 addendum on ties) has
       decision == REVISE AND scene_id == scene.id AND version == scene.version
 ```
 
 Query latest-**overall**, then test that it is REVISE — never "latest REVISE" (which can skip a later
 APPROVE/DENY and resurrect replaced intent). Fail closed on **identity drift**, not elapsed time.
+
+**v2.3 addendum — the tie is indeterminate.** `Approval` carries `decided_at` (`server_default=now()`),
+which is the *transaction* timestamp and therefore identical for rows written together; there is no
+monotonic sequence column. So `ORDER BY decided_at DESC, id DESC` is deterministic but, on a tie, is a
+**coin flip on a random UUID** — potentially between a REVISE and the APPROVE that superseded it. The
+reconciler reads the newest **two** and, when their `decided_at` match, **skips the scene entirely**:
+no request, no adoption, and **no D8 hold** (the hold asserts "no valid current intent", a conclusion
+this read cannot reach). Ordinary production writes each decision in its own request transaction, so
+this is a guard, not a common path. *What would remove it:* giving `Approval` an `Identity()` sequence,
+as `Activity` already has for exactly this reason.
 
 Legacy `Approval` carries **no prose hash** (only `RevisionRequest` carries `target_prose_hash`).
 Reconciliation therefore pins the **current** prose hash onto the reconstructed request; sets
@@ -301,7 +336,8 @@ reconcile_adoption_demand_locked(session, chapter_id)   # adoption-owned; assume
 ```
 
 Invoked by any request-lifecycle mutation that can **remove demand** — principally the explicit request-cancel
-path (`revision.py:387`), whose whole authority-changing transaction acquires the chapter lock. `SUPERSEDED`
+path (`revision._cancel_active_requests_for_scene_locked`), whose whole authority-changing transaction
+acquires the chapter lock. `SUPERSEDED`
 always installs a replacement request; by `COMPLETED`/`FAILED` (`worker.py:127/166`) the adoption is already
 `contract_proposed`. **The `liveness_basis` guard is load-bearing:** without it this would cancel an
 operator-started (`operator_independent`) adoption that legitimately has no request. Never cancel
@@ -384,9 +420,21 @@ W3  Introduce accept_revision_intent over _accept_revision_request_locked; route
       through the coordinator; add sync request-bound adoption entry, consent-on-replay,
       RevisionAcceptanceOut, and OpenAPI/frontend regeneration.
 
-W4  Boot reconciliation inserted AHEAD of the drain-resume block (currently main.py:67; drains kick at :102-106
-      before the integrity probe at :110). Current-row Approval reconstruction; snapshot-keyed integrity events.
+W4  Boot reconciliation inserted AHEAD of the drain-resume block in the lifespan. Current-row Approval
+      reconstruction; snapshot-keyed integrity events.
 ```
+
+**Build record (v2.3).** W0 (#262), W1 (#264), W2 (#265) landed as specified. W3 and W4 are built:
+
+| wave | where it lives | notes |
+|---|---|---|
+| W3 | `api/routers/reviews.py` — `accept_revision_intent` beside W2's `accept_scene_approval` | Both Revise surfaces (inbox `decision=revise`, continuity `use_ledger`) route through it; the legacy per-scene revise path is DELETED, leaving only DENY on it. `accept_revision_request` is renamed `_accept_revision_request_locked` (assumes the lock, never commits) — no second entry point survives. |
+| W4 | `workers/boot_reconciliation.py` (the one new module) | Coordinator only: it sequences the revision owner's `reconstruct_revision_request_locked` and the adoption owner's `ensure_import_adoption_locked`, per chapter, per transaction. Awaited in the lifespan BEFORE the drains, so this boot's drain pass sees reconciled work. |
+
+The coordinator lives in the router module because W2's `accept_scene_approval` already established
+that placement for a chapter-locked command; adding a module for the second one would split one
+concept across two homes. Ownership is unaffected — a two-way AST guard now proves the revision module
+never constructs an `ImportAdoption` **and** the adoption module never constructs a `RevisionRequest`.
 
 **W2/W3 boundary (v2.2 amendment).** The original W2 wording placed the forward coordinator before its route
 cutover. Code-level grilling established that both Revise routes currently perform mutable reads/writes outside

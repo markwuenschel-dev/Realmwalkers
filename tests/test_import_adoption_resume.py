@@ -41,7 +41,7 @@ from dominion.shared.models import (
     ScenePacket,
 )
 from dominion.shared.prose_fingerprint import chapter_source_fingerprint
-from dominion.workers.revision import accept_revision_request, prose_hash
+from dominion.workers.revision import _accept_revision_request_locked, prose_hash
 from dominion.workers.scene_packet import author as sp_author
 from dominion.workers.scene_packet import author_sections as sp_sections
 from dominion.workers.scene_packet import derive as sp_derive
@@ -219,7 +219,7 @@ async def test_approval_of_adoption_linked_packet_queues_the_waiting_request(db_
         cp, adoption = await _adoption_scaffold(s, book, ch, scene, seed_id=seed_id, bind=True)
 
         # A durable revise landed at awaiting_contract for the uncontracted import (Slice 2).
-        accepted = await accept_revision_request(
+        accepted = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="tighten the open",
@@ -264,7 +264,7 @@ async def test_stale_source_fingerprint_at_approval_declines_the_resume(db_facto
         cp, _adoption = await _adoption_scaffold(
             s, book, ch, scene, seed_id=seed_id, bind=True, source_fingerprint="stale-does-not-match"
         )
-        accepted = await accept_revision_request(
+        accepted = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="x",
@@ -296,7 +296,7 @@ async def test_prose_edit_after_request_declines_the_resume(db_factory, monkeypa
         book, ch, scene = await _seed_imported_chapter(s)
         seed_id = str(uuid.uuid4())
         cp, _adoption = await _adoption_scaffold(s, book, ch, scene, seed_id=seed_id, bind=True)
-        accepted = await accept_revision_request(
+        accepted = await _accept_revision_request_locked(
             s,
             scene=scene,
             feedback="x",

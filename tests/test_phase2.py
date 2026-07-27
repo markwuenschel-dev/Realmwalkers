@@ -11,6 +11,7 @@ from dominion.api.routers.scenes import scene_detail
 from dominion.shared.enums import (
     BeatStatus,
     Decision,
+    ForwardEffect,
     GateMode,
     JobKind,
     JobStatus,
@@ -164,8 +165,8 @@ async def test_approve_commits_ledger_summary_and_autoadvances(db_factory, monke
         sc1 = await _scene(s, ch, 1, prose="Marcus wakes.")
         result = await reviews.decide(sc1.id, DecisionIn(decision=Decision.APPROVE), s, BackgroundTasks(), Response())
         await s.commit()
-        assert result["status"] == "approved"
-        assert result["next_job"] is not None
+        assert result.status == "approved"
+        assert result.next_job is not None
         assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 1
         job = (await s.execute(select(Job).where(Job.scene_no == 2, Job.status == JobStatus.QUEUED))).scalar_one()
         assert job.kind == JobKind.DRAFT
@@ -207,7 +208,7 @@ async def test_reapprove_does_not_double_apply_deltas_or_readvance(db_factory, m
         )
         await s.commit()
 
-        assert result["next_job"] is None  # re-approval does not re-advance
+        assert result.next_job is None  # re-approval does not re-advance
         # the relative delta applied exactly once, not twice
         assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 1
         sc1b = (await s.execute(select(Scene).where(Scene.id == sc1.id))).scalar_one()
@@ -242,7 +243,11 @@ async def test_revise_enqueues_and_pipeline_versions(db_factory, monkeypatch):
             Response(),
         )
         await s.commit()
-        assert out["status"] == "revision_requested" and out["next_job"] is not None
+        # W3: revise returns the typed command envelope. A contracted scene mints its revise Job, so
+        # the forward effect is the JOB, never an adoption entry.
+        assert out.forward_effect is ForwardEffect.REVISION_JOB_QUEUED
+        assert out.request.job_id is not None
+        assert (await s.get(Scene, sc1.id)).status == SceneStatus.REVISION_REQUESTED
         job = (await s.execute(select(Job).where(Job.kind == JobKind.REVISE_FULL))).scalar_one()
         assert job.target_scene_id == sc1.id
 
@@ -271,9 +276,12 @@ async def test_continuity_resolve_use_prose_corrects_ledger(db_factory):
         )
         s.add(crit)
         await s.flush()
-        out = await reviews.resolve_continuity(sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_prose"), s)
+        await s.commit()  # the coordinator path requires a clean session; commit the seed first
+        out = await reviews.resolve_continuity(
+            sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_prose"), s, BackgroundTasks(), Response()
+        )
         await s.commit()
-        assert out["resolved"] == "ledger_updated"
+        assert out.resolved == "ledger_updated"
         assert (await s.execute(select(CharacterState))).scalar_one().stats_json["level"] == 7
         assert (await s.execute(select(Critique))).scalar_one_or_none() is None  # flag cleared
 
@@ -296,9 +304,12 @@ async def test_continuity_resolve_use_ledger_enqueues_and_clears(db_factory):
         )
         s.add(crit)
         await s.flush()
-        out = await reviews.resolve_continuity(sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_ledger"), s)
-        await s.commit()
-        assert out["resolved"] == "revision_enqueued" and out["job"] is not None
+        await s.commit()  # the coordinator owns the lock + commit; enter it with a clean session
+        out = await reviews.resolve_continuity(
+            sc.id, ContinuityResolveIn(critique_id=crit.id, choice="use_ledger"), s, BackgroundTasks(), Response()
+        )
+        assert out.forward_effect is ForwardEffect.REVISION_JOB_QUEUED
+        assert out.request.job_id is not None
         assert (await s.get(Scene, sc.id)).status == SceneStatus.REVISION_REQUESTED
         job = (await s.execute(select(Job).where(Job.kind == JobKind.REVISE_FULL))).scalar_one()
         assert job.target_scene_id == sc.id

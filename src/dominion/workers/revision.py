@@ -1,9 +1,15 @@
-"""The single revise-intent writer (ADR 0028, Slice 2).
+"""The single revise-intent writer (ADR 0028 Slice 2; locked body per ADR-0032 W3).
 
-`accept_revision_request` is the ONLY constructor of a `RevisionRequest`. It precomputes the DB facts
-the pure `classify_revision` (revision_taxonomy) needs, delegates the 200/202/404/422/409 decision to
-it, then persists durable author intent — replacing the old "schedule_revision -> 409 rollback" dead
+`_accept_revision_request_locked` is the ONLY constructor of a `RevisionRequest`. It precomputes the DB
+facts the pure `classify_revision` (revision_taxonomy) needs, delegates the 200/202/404/422/409 decision
+to it, then persists durable author intent — replacing the old "schedule_revision -> 409 rollback" dead
 end with a durable, observable `awaiting_contract` state.
+
+**Ownership (ADR-0032 D4).** This module owns `RevisionRequest` and NOTHING ELSE — it never constructs,
+promotes, or cancels an `ImportAdoption`. Adoption entry is the adoption module's (`shared.adoption_entry`),
+and the two are sequenced by the command coordinator `accept_revision_intent`
+(`api/routers/reviews.py`), which owns the chapter lock, the transaction boundary, and ordering. That is
+why the accept body is `_locked`: it ASSUMES `run_under_chapter_workflow` is held and NEVER commits.
 
 On a scene that already has an approved contract it mints the explicit revise Job (never a silent draft
 — D8) and links it via `job.revision_request_id`, which lights up the already-wired-but-dormant reader
@@ -28,6 +34,7 @@ from dominion.shared.enums import (
     Decision,
     ImportAdoptionStatus,
     JobStatus,
+    RequestDisposition,
     RevisionRequestOrigin,
     RevisionRequestStatus,
     ScenePacketStatus,
@@ -110,8 +117,14 @@ def revision_request_out(request: RevisionRequest) -> RevisionRequestOut:
 
 @dataclass(frozen=True)
 class AcceptResult:
+    """What the revision owner did to the REQUEST — one of ADR-0032 D11's two independent facts. The
+    other (did anything move forward) is the coordinator's to compute, because the adoption half of it
+    is not this module's to know. `job_minted` is reported, not interpreted: it is the raw fact that
+    THIS invocation minted the linked revise Job."""
+
     request: RevisionRequest
-    replayed: bool  # True -> HTTP 200 (exact replay); False -> 202 (new / replacement)
+    disposition: RequestDisposition
+    job_minted: bool
 
 
 async def _active_request(session: AsyncSession, scene_id: uuid.UUID) -> RevisionRequest | None:
@@ -135,7 +148,7 @@ async def _supported_passes() -> frozenset[str]:
     return frozenset(DRAFT_PASSES)
 
 
-async def accept_revision_request(
+async def _accept_revision_request_locked(
     session: AsyncSession,
     *,
     scene: Scene,
@@ -146,9 +159,13 @@ async def accept_revision_request(
 ) -> AcceptResult:
     """Precompute facts, classify, and persist durable revise intent for an existing `scene`.
 
-    Raises HTTPException(404/422/409) BEFORE adding any row, so the caller's transaction rolls back and
-    nothing persists. On accept, records the source Approval + the RevisionRequest atomically; if a
-    contract already exists, mints the linked revise Job and advances the request to `queued`.
+    ASSUMES `run_under_chapter_workflow` is held and NEVER commits (ADR-0032 D4) — the coordinator
+    `accept_revision_intent` owns the lock and the transaction boundary. `scene` must have been
+    reloaded UNDER that lock; a caller-side pre-lock read would classify against stale prose.
+
+    Raises HTTPException(404/422/409) BEFORE adding any row, so the coordinator's transaction rolls
+    back and nothing persists. On accept, records the source Approval + the RevisionRequest atomically;
+    if a contract already exists, mints the linked revise Job and advances the request to `queued`.
     """
     chapter = await session.get(Chapter, scene.chapter_id)
     book = await session.get(Book, chapter.book_id) if chapter is not None else None
@@ -205,12 +222,17 @@ async def accept_revision_request(
         raise HTTPException(status_code=409, detail={"blockers": [{"reason": decision.reason}]})
     if decision.outcome == RevisionOutcome.REPLAY_EXISTING:
         assert active is not None  # REPLAY_EXISTING is only returned when an active request exists
-        return AcceptResult(request=active, replayed=True)
+        # No new request, and no Job minted HERE. The coordinator still reconciles adoption entry for
+        # this replay (D5) — otherwise a reconciliation-restored request plus an `awaiting_start`
+        # adoption would leave a fresh explicit Revise click stuck behind operator Start.
+        return AcceptResult(request=active, disposition=RequestDisposition.REPLAYED, job_minted=False)
 
     # ACCEPTED_REPLACEMENT: supersede the active request and cancel its still-queued (unclaimed) job.
     # A job only leaves QUEUED by being claimed (-> RUNNING), so QUEUED == unclaimed; deleting it is a
     # true cancel (there is no JobStatus.CANCELLED to set).
+    disposition = RequestDisposition.CREATED
     if decision.outcome == RevisionOutcome.ACCEPTED_REPLACEMENT and active is not None:
+        disposition = RequestDisposition.REPLACED
         active.status = RevisionRequestStatus.SUPERSEDED.value
         if active.job_id is not None:
             job = await session.get(Job, active.job_id)
@@ -243,10 +265,11 @@ async def accept_revision_request(
     await session.flush()
 
     # If a contract already exists, mint the explicit revise Job now and link it (D8) — the request
-    # advances to queued. If not (imported/uncontracted), it stays awaiting_contract: durable, not a 409.
-    await _mint_and_queue_revision(session, request=request, scene=scene)
+    # advances to queued. If not (imported/uncontracted), it stays awaiting_contract: durable, not a
+    # 409, and the coordinator then routes it into adoption entry (D4).
+    minted = await _mint_and_queue_revision(session, request=request, scene=scene)
 
-    return AcceptResult(request=request, replayed=False)
+    return AcceptResult(request=request, disposition=disposition, job_minted=minted is not None)
 
 
 async def _mint_and_queue_revision(
@@ -267,6 +290,40 @@ async def _mint_and_queue_revision(
         request.job_id = minted
         return minted
     return None
+
+
+async def reconstruct_revision_request_locked(
+    session: AsyncSession, *, scene: Scene, chapter: Chapter, approval: Approval
+) -> RevisionRequest:
+    """Rebuild the durable request a stranding redeploy lost, from the scene's current-row REVISE
+    `Approval` (ADR-0032 D7). Revision-owned so this module stays the ONLY `RevisionRequest`
+    constructor; boot reconciliation coordinates, it does not write.
+
+    ASSUMES `run_under_chapter_workflow` is held; NEVER commits. Deliberately narrower than
+    `_accept_revision_request_locked`: it classifies nothing (the caller already proved the scan
+    predicate under the lock), creates NO new `Approval` — it PRESERVES the source `approval_id` —
+    and mints NO Job, because reconciliation records intent without consenting to spend.
+
+    Legacy `Approval` carries no prose hash, so the reconstructed request pins the scene's CURRENT
+    prose hash. That is honest about its provenance: intent re-anchored from VERSION-level evidence
+    (the approval's `version` matched the scene's), never a validated historical snapshot.
+    """
+    request = RevisionRequest(
+        book_id=chapter.book_id,
+        chapter_id=chapter.id,
+        target_scene_id=scene.id,
+        scene_no=scene.scene_no,
+        target_scene_version=scene.version,
+        target_prose_hash=prose_hash(scene.prose),
+        feedback=approval.feedback,
+        target_pass=approval.target_pass,
+        origin=RevisionRequestOrigin.LEGACY_RECONCILIATION.value,
+        status=RevisionRequestStatus.AWAITING_CONTRACT.value,
+        approval_id=approval.id,
+    )
+    session.add(request)
+    await session.flush()
+    return request
 
 
 async def resume_awaiting_contract_on_approval(session: AsyncSession, *, scene_packet: ScenePacket) -> uuid.UUID | None:

@@ -104,15 +104,29 @@ _Avoid_: run-owned job, run_id routing, dual-key scope
 An ownerless or ownership-conflicted Job withheld from execution and from the normal failure controls (retry/clear): the quarantined live jobs plus any unresolved NULL-book terminal/conflict rows. Retained as evidence and surfaced to the operator; blocks the book_id NOT NULL promotion until resolved.
 _Avoid_: failed job, dismissable error, transient failure
 
-> **Implementation status — import adoption & revision workflow (ADR-0028, updated 2026-07-22).**
+> **Implementation status — import adoption & revision workflow (ADR-0028, updated 2026-07-26).**
 > All four terms below are LIVE on main. **Revision Request** (Slice 2) and **Import Scene Evidence**
 > (Slice 3a′) landed first; **Import Adoption** and **Chapter Workflow Lock** landed with Slice 3b (PR #256).
-> `workers/import_adoption.py` is the leased adoption worker, and every authority-changing chapter mutation
-> now runs inside `chapter_lock.run_under_chapter_workflow` (callers: the adoption worker's publish, the
-> operator Start/Re-author endpoints, and request-resuming ScenePacket approval). Treat all four as enforced
-> invariants, not planned vocabulary.
+> `workers/import_adoption.py` is the leased adoption worker.
+>
+> **ADR-0032 completes the lifecycle tail.** W0–W2 are landed on main (#262, #264, #265); **W3–W4 are
+> built and verified but NOT yet landed** — treat W3/W4 as pending until they merge.
+> Adoption entry has exactly ONE writer, `shared/adoption_entry.ensure_import_adoption[_locked]`
+> (entry only; the leased worker still owns its own claim/requeue lifecycle), with four callers: operator **Start** and
+> **Re-author** (`routers/adoption.py`), the sync **Revise** command (`reviews.accept_revision_intent`),
+> and **boot reconciliation** (`workers/boot_reconciliation.py`). "≤1 active adoption per chapter" is a
+> partial-unique DB index, not merely a lock convention. `liveness_basis` decides survival when no request
+> remains: `request_bound` rows are reverse-cancelled by `reconcile_adoption_demand_locked`,
+> `operator_independent` rows never are.
+>
+> Chapter-lock coverage, verified at HEAD — `run_under_chapter_workflow` wraps: the adoption worker's
+> publish, operator Start/Re-author (via the seam), scene APPROVE and the Revise command
+> (`routers/reviews.py`), request-resuming ScenePacket approval + chapter-derive (`routers/scene_packets.py`),
+> and boot reconciliation. **Known gap:** the chapter-tier ChapterPacket transitions in `routers/packets.py`
+> (propose/update/approve/delete) do NOT run under it, so the lock's coverage is narrower than "every
+> authority-changing chapter mutation" — tracked as #259, and a prerequisite of amendment mode (#261).
 
-**Import Adoption** _(planned — Slice 3b)_:
+**Import Adoption** _(live — Slice 3b; entry unified by ADR-0032)_:
 Durable, leased, checkpointed work that turns one whole chapter's imported prose into a reviewed ChapterPacket, on demand. It owns adoption progress only (its lifecycle ends at `contract_proposed`), never mirroring ChapterPacket approval, ScenePacket approval, Job execution, or revision completion (ADR 0028).
 _Avoid_: adopt job, import bypass, packetless draft
 

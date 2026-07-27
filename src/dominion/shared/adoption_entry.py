@@ -124,8 +124,23 @@ _POLICY: dict[AdoptionOperation, _Policy] = {
     AdoptionOperation.REAUTHOR: _Policy(
         EntryIntent.SPEND, LivenessBasis.OPERATOR_INDEPENDENT, requires_evidence_only=True, refuses_approved_packet=True
     ),
-    # REVISION (sync auto-start, W3) and RECONCILIATION (boot, W4) are wired in their waves; an operation
-    # absent from this table fails closed in the seam.
+    # W3 — the sync Revise entry. SPEND because an explicit Revise IS spend consent (D6: no second
+    # confirmation, no revise-specific ceiling), but REQUEST_BOUND because the *reason it survives* is the
+    # request that raised it: once that demand is gone, D9's reverse-cancel retires it. The eligibility
+    # envelope is the strictest of the four — an already-contracted or approved chapter needs AMENDMENT
+    # mode (#261), which does not exist, so both guards are on and the chapter fails closed.
+    AdoptionOperation.REVISION: _Policy(
+        EntryIntent.SPEND, LivenessBasis.REQUEST_BOUND, requires_evidence_only=True, refuses_approved_packet=True
+    ),
+    # W4 — boot reconciliation. RECORD_WITHOUT_SPEND mints `awaiting_start` (not worker-claimable): an
+    # unpaused queue is not consent for historical spend (D7). REQUEST_BOUND for the same reason as
+    # REVISION — the reconstructed request is its only demand.
+    AdoptionOperation.RECONCILIATION: _Policy(
+        EntryIntent.RECORD_WITHOUT_SPEND,
+        LivenessBasis.REQUEST_BOUND,
+        requires_evidence_only=True,
+        refuses_approved_packet=True,
+    ),
 }
 
 

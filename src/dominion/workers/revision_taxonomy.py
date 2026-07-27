@@ -1,9 +1,13 @@
 """Pure decision logic for the revise/redraft response taxonomy (ADR 0028).
 
-The single `accept_revision_request(...)` seam computes DB facts, then calls `classify_revision(...)`
-here to decide the outcome. Keeping the decision pure makes the 200/202/404/422/409 mapping directly
-unit-testable and guarantees reviews, continuity resolution, and ScenePacket-approval resume can never
-drift in how they map state to a response.
+The single `_accept_revision_request_locked(...)` seam computes DB facts, then calls
+`classify_revision(...)` here to decide the outcome. Keeping the decision pure makes the
+200/202/404/422/409 mapping directly unit-testable and guarantees reviews, continuity resolution, and
+ScenePacket-approval resume can never drift in how they map state to a response.
+
+Note the 200/202 split is now decided one level up: ADR-0032 D11 makes it a function of BOTH the
+request disposition and whether adoption entry moved anything forward, so `accept_revision_intent`
+owns it. The outcomes here still decide accept-vs-refuse and the 4xx codes.
 """
 
 from __future__ import annotations

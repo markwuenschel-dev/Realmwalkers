@@ -52,6 +52,15 @@ class ChapterWorkflowBusy(Exception):
         super().__init__(f"chapter {chapter_id} workflow is busy; retry")
 
 
+# The 409 body every request-path caller returns for `ChapterWorkflowBusy`. It lives with the error it
+# describes so the operator Start/Re-author and Revise surfaces cannot drift into two different messages
+# for one condition.
+BUSY_DETAIL = {
+    "reason": "chapter_workflow_busy",
+    "message": "This chapter is busy with another workflow operation. Retry in a moment.",
+}
+
+
 def _is_lock_timeout(exc: BaseException) -> bool:
     orig = getattr(exc, "orig", None)
     sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)

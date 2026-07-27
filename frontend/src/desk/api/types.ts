@@ -36,6 +36,13 @@ export type IssueOverrideIn = S["IssueOverrideIn"];
 export type SceneOut = Omit<S["SceneOut"], "prose"> & { prose: string | null };
 export type SceneDetail = Omit<S["SceneDetail"], "prose"> & { prose: string | null };
 export type RevisionRequestOut = S["RevisionRequestOut"];
+// ADR-0032 D11: a revise is a COMMAND, so it answers with an envelope carrying two independent
+// invocation facts (what happened to the request, and whether anything moved forward) that a later
+// GET of RevisionRequestOut could not reconstruct. approve/deny and the non-revise continuity choices
+// keep their own shapes, so both endpoints return a union the caller narrows.
+export type RevisionAcceptanceOut = S["RevisionAcceptanceOut"];
+export type SceneDecisionOut = S["SceneDecisionOut"];
+export type ContinuityResolveOut = S["ContinuityResolveOut"];
 export type SceneVersionOut = S["SceneVersionOut"];
 export type DecisionIn = S["DecisionIn"];
 export type ContinuityResolveIn = S["ContinuityResolveIn"];
