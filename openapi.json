@@ -2181,7 +2181,7 @@
           "packets"
         ],
         "summary": "Update Packet",
-        "description": "Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after\nreviewing flags. An edited body is normalized to the canonical chapter_master_packet shape and its\nderived `_surface_contract` projection is rebuilt from the edited seeds (so scene-packet derivation\nnever reads a stale projection); open questions live in the body's chapter_contract with the\nsibling column written as a derived sync. A blocked packet can be edited but stays blocked until\nre-proposed.",
+        "description": "Human edit/adjudication: replace the body, clear open questions, and/or raise confidence after\nreviewing flags. An edited body is normalized to the canonical chapter_master_packet shape and its\nderived `_surface_contract` projection is rebuilt from the edited seeds (so scene-packet derivation\nnever reads a stale projection); open questions live in the body's chapter_contract with the\nsibling column written as a derived sync. A blocked packet can be edited but stays blocked until\nre-proposed.\n\nRuns under the chapter workflow lock (ADR-0028, #259): open questions and confidence are\napproval-gating inputs, so an edit must not interleave with an approve or a re-propose. The\nchapter id is a path parameter, so the lock is taken BEFORE the row is read \u2014 a busy chapter\nnever reaches its rows.",
         "operationId": "update_packet_chapters__chapter_id__packet_put",
         "parameters": [
           {
@@ -2233,7 +2233,7 @@
           "packets"
         ],
         "summary": "Delete Packet",
-        "description": "Clear the chapter packet and all derived scene packets for this chapter.",
+        "description": "Clear the chapter packet and all derived scene packets for this chapter.\n\nRuns under the chapter workflow lock (ADR-0028, #259) \u2014 the widest blast radius of the four\ntransitions: it cascades to ScenePackets, purges their draft Jobs, and detaches Beat/Scene/Job/\nCritique/DraftAttempt references. NOTE the honest limit: the drafting drain claims jobs with\n`FOR UPDATE SKIP LOCKED` and does NOT take this lock, so a draft already running is not serialized\nagainst the purge \u2014 this lock serializes chapter-tier authority writes, not job execution.",
         "operationId": "delete_packet_chapters__chapter_id__packet_delete",
         "parameters": [
           {
@@ -2321,7 +2321,7 @@
           "packets"
         ],
         "summary": "Approve Packet",
-        "description": "Approve the packet so drafting may proceed. Refused only when the packet is blocked or open\nquestions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves\n(approve-with-repairs \u2014 repairs still gate final export). No auto-approve during tuning: even a\ngreen packet needs this human action.",
+        "description": "Approve the packet so drafting may proceed. Refused only when the packet is blocked or open\nquestions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves\n(approve-with-repairs \u2014 repairs still gate final export). No auto-approve during tuning: even a\ngreen packet needs this human action.\n\nRuns under the chapter workflow lock (ADR-0028, #259). The `can_approve` gate is evaluated INSIDE\nthe lock with the row reloaded, so the gate and the write are atomic: previously a concurrent\n`update_packet` could add an open question between the check and the commit, approving a packet\nthat was no longer approvable.",
         "operationId": "approve_packet_chapters__chapter_id__packet_approve_post",
         "parameters": [
           {

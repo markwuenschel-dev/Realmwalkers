@@ -724,6 +724,11 @@ export interface paths {
      *     never reads a stale projection); open questions live in the body's chapter_contract with the
      *     sibling column written as a derived sync. A blocked packet can be edited but stays blocked until
      *     re-proposed.
+     *
+     *     Runs under the chapter workflow lock (ADR-0028, #259): open questions and confidence are
+     *     approval-gating inputs, so an edit must not interleave with an approve or a re-propose. The
+     *     chapter id is a path parameter, so the lock is taken BEFORE the row is read — a busy chapter
+     *     never reaches its rows.
      */
     put: operations["update_packet_chapters__chapter_id__packet_put"];
     /**
@@ -739,6 +744,12 @@ export interface paths {
     /**
      * Delete Packet
      * @description Clear the chapter packet and all derived scene packets for this chapter.
+     *
+     *     Runs under the chapter workflow lock (ADR-0028, #259) — the widest blast radius of the four
+     *     transitions: it cascades to ScenePackets, purges their draft Jobs, and detaches Beat/Scene/Job/
+     *     Critique/DraftAttempt references. NOTE the honest limit: the drafting drain claims jobs with
+     *     `FOR UPDATE SKIP LOCKED` and does NOT take this lock, so a draft already running is not serialized
+     *     against the purge — this lock serializes chapter-tier authority writes, not job execution.
      */
     delete: operations["delete_packet_chapters__chapter_id__packet_delete"];
     options?: never;
@@ -782,6 +793,11 @@ export interface paths {
      *     questions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves
      *     (approve-with-repairs — repairs still gate final export). No auto-approve during tuning: even a
      *     green packet needs this human action.
+     *
+     *     Runs under the chapter workflow lock (ADR-0028, #259). The `can_approve` gate is evaluated INSIDE
+     *     the lock with the row reloaded, so the gate and the write are atomic: previously a concurrent
+     *     `update_packet` could add an open question between the check and the commit, approving a packet
+     *     that was no longer approvable.
      */
     post: operations["approve_packet_chapters__chapter_id__packet_approve_post"];
     delete?: never;
