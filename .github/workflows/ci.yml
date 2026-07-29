@@ -3,7 +3,7 @@ name: CI
 # Path-aware, layered CI. A `changes` gate (dorny/paths-filter) decides which jobs run so a
 # frontend-only or docs-only PR doesn't pay for the full Postgres pytest + Playwright e2e.
 #   - backend job (lint+types, tests)  -> runs on src/tests/pyproject/uv.lock/scripts changes
-#   - frontend job (codegen/typecheck/lint/test) -> runs on frontend or API-contract changes
+#   - frontend job (codegen/typecheck/lint/test/build) -> runs on frontend or API-contract changes
 #   - Playwright e2e -> only on the "full" tier (main push, manual dispatch, `full-ci` label,
 #     or shared-core changes), keeping branch PRs fast while main stays fully validated.
 # The one thing CI adds over a laptop run is a real Postgres+pgvector, so DB-backed tests actually
@@ -42,14 +42,20 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         with:
           filters: |
+            # NOTE: the `backend` and `frontend` filters both include this workflow file — between
+            # them they gate every job. A PR that only edited ci.yml previously matched no filter at
+            # all, so static/tests/frontend all skipped and `CI passed` went green without ever
+            # running the gates being changed. A change to the CI definition must re-run it.
             backend:
               - 'src/dominion/**'
               - 'tests/**'
               - 'pyproject.toml'
               - 'uv.lock'
               - 'scripts/**'
+              - '.github/workflows/ci.yml'
             frontend:
               - 'frontend/**'
+              - '.github/workflows/ci.yml'
             api_contract:
               - 'openapi.json'
               - 'src/dominion/api/**'
@@ -147,7 +153,8 @@ jobs:
         # --cov-fail-under yet — that's a deliberate follow-up once a real baseline is measured.
         run: uv run --no-sync pytest -q -rs --cov=dominion --cov-report=term-missing
 
-  # ---- frontend: OpenAPI codegen drift + typecheck + lint + format + unit. e2e is full-tier only. ----
+  # ---- frontend: OpenAPI codegen drift + typecheck + lint + format + unit + production build.
+  # e2e is full-tier only. ----
   frontend:
     name: frontend
     needs: changes
@@ -179,6 +186,10 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm test
+      # The client/server boundary gate. `tsc --noEmit` and vitest both pass when a server-only
+      # import (node:fs, node:child_process, ...) leaks into a client component; only the real
+      # Next.js production build resolves the client bundle and rejects it.
+      - run: pnpm build
       # ---- Playwright e2e is heavy (Chromium download + full run); only on the full-ci tier. ----
       - if: ${{ needs.changes.outputs.full == 'true' }}
         uses: actions/cache@v5
