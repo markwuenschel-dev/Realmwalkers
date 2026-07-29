@@ -1,9 +1,15 @@
 """Pure tests of the authoritative draft gate (recovery L8) — resolve_draft_gate over counts.
 
 No DB, no fixtures beyond the preserved Ch1 bad-run JSON: each gate failing ALONE yields its own
-one-sentence reason; the FIRST failing gate in pipeline order (packet → sequence/budget → scene
-packets (stale/QA) → beats → jobs → prose coverage → rate limit) always wins; can_draft and
+one-sentence reason; the FIRST failing gate in pipeline order (packet → sequence/budget/structural →
+scene packets (coverage/stale) → beats → jobs → prose coverage → rate limit) always wins; can_draft and
 disabled_reason are mutually consistent by construction.
+
+The QA-verdict gate that once sat between `stale` and `beats` is GONE (#278, ADR-0031 R3 Fork 2): it was
+decided by raw LLM output that the QA prompt had already coached, so the gate's enforcement was one
+sentence of prose and its failure direction was permissive. Its one unique class of coverage — a
+contract that contradicts itself — is now a deterministic `canon_contract_leak` structural blocker,
+covered below and end-to-end in tests/test_issue278_prompt_gate_authority.py.
 """
 
 from __future__ import annotations
@@ -12,6 +18,8 @@ import dataclasses
 import json
 import uuid
 from pathlib import Path
+
+import pytest
 
 from dominion.shared.schemas import StructuralBlockerOut
 from dominion.workers.draft_readiness import (
@@ -35,7 +43,6 @@ _READY = DraftGateInputs(
     scene_packets_approved=4,
     missing_scene_packets=(),
     scene_packets_stale=0,
-    scene_packet_qa_blocking=0,
     approved_beats=4,
     unlinked_beats=0,
     queue_blocker_messages=(),
@@ -94,10 +101,11 @@ def test_gate_3_stale_scene_packets():
     assert reason == "2 scene packet(s) are stale — re-derive or re-approve them before drafting."
 
 
-def test_gate_3_qa_blocking_scene_packets():
-    can, reason = resolve_draft_gate(ready(scene_packet_qa_blocking=1))
-    assert can is False
-    assert reason is not None and reason.startswith("Scene-packet QA blocks drafting on 1 scene packet(s)")
+def test_no_gate_can_be_fed_from_llm_output():
+    """#278 — the gate that read `ScenePacket.qa_verdict` is removed, not renamed. Passing the retired
+    field must be a hard TypeError, so a revert or a merge that reintroduces it cannot pass silently."""
+    with pytest.raises(TypeError):
+        ready(scene_packet_qa_blocking=1)  # type: ignore[call-arg]
 
 
 def test_gate_4_no_approved_beats():
@@ -181,7 +189,6 @@ def test_can_draft_and_disabled_reason_are_mutually_consistent():
         ready(scene_packets_derived=0, scene_packets_approved=0),
         ready(scene_packets_approved=1, missing_scene_packets=(2, 3, 4)),
         ready(scene_packets_stale=4),
-        ready(scene_packet_qa_blocking=2),
         ready(approved_beats=0),
         ready(unlinked_beats=4),
         ready(queue_blocker_messages=("x",)),
@@ -299,3 +306,100 @@ def test_clean_contracts_produce_no_leaks():
         "must_remain_hidden": {"reader": ["Roth's identity."]},
     }
     assert canon_contract_leak_blockers(packets=[(1, body)], chapter_forbidden=["Marcus's true name."]) == []
+
+
+# --- #278: the exposure matrix that replaces the retired QA-verdict gate ---------------------------
+# Each case below is a contract the LLM QA prompt already asks the model to catch (qa.py:36-39) on a
+# field pair the detector never cross-checked, so it was reachable ONLY through the model's verdict.
+
+
+@pytest.mark.parametrize(
+    ("exposed_path", "body"),
+    [
+        (
+            "known_before_scene.reader",
+            {
+                "known_before_scene": {"reader": ["Mara lit the fire."]},
+                "must_remain_hidden": {"reader": ["Mara lit the fire."]},
+            },
+        ),
+        (
+            "learned_during_scene.reader_may_infer_only",
+            {
+                "learned_during_scene": {"reader_may_infer_only": ["Mara lit the fire."]},
+                "must_remain_hidden": {"reader": ["Mara lit the fire."]},
+            },
+        ),
+        (
+            "known_before_scene.pov",
+            {
+                "known_before_scene": {"pov": ["Mara lit the fire."]},
+                "must_remain_hidden": {"pov": ["Mara lit the fire."]},
+            },
+        ),
+        (
+            "pov_permissions.may_notice",
+            {
+                "pov_permissions": {"may_notice": ["Mara lit the fire."]},
+                "must_remain_hidden": {"pov": ["Mara lit the fire."]},
+            },
+        ),
+        (
+            "required_beats",
+            {
+                "required_beats": ["Mara lit the fire."],
+                "must_remain_hidden": {"all_surface_prose": ["Mara lit the fire."]},
+            },
+        ),
+        (
+            "exit_state",
+            {"exit_state": "Mara lit the fire.", "must_remain_hidden": {"reader": ["Mara lit the fire."]}},
+        ),
+    ],
+)
+def test_a_fact_declared_hidden_and_then_exposed_blocks(exposed_path, body):
+    out = canon_contract_leak_blockers(packets=[(3, body)], chapter_forbidden=[])
+    assert len(out) == 1, out
+    assert out[0].kind == "canon_contract_leak"
+    assert "both reveals and hides" in out[0].message
+    assert exposed_path in out[0].message
+
+
+def test_author_only_layering_is_correct_and_never_blocks():
+    """`known_before_scene.omniscient_author` is what the AUTHOR knows and legitimately overlaps what the
+    reader knows, so it is deliberately not a hiding declaration — pairing it would fail correct
+    contracts, and a structural blocker is unappealable (qa.py:47-52 states the same layering rule)."""
+    body = {
+        "known_before_scene": {
+            "reader": ["The garrison fell."],
+            "omniscient_author": ["The garrison fell.", "Mara lit it."],
+        },
+        "must_remain_hidden": {"reader": ["Mara lit it."]},
+    }
+    assert canon_contract_leak_blockers(packets=[(1, body)], chapter_forbidden=[]) == []
+
+
+def test_a_pov_who_knows_a_reader_secret_is_craft_not_a_leak():
+    """The chapter's forbidden list is about what the READER may learn. A POV holding a secret the reader
+    must not is ordinary dramatic irony, so POV-visible fields are excluded from the forbidden arm."""
+    body = {"known_before_scene": {"pov": ["Roth betrayed them."]}}
+    assert canon_contract_leak_blockers(packets=[(1, body)], chapter_forbidden=["Roth betrayed them."]) == []
+
+
+def test_forbidden_reveal_staged_on_page_blocks():
+    body = {"required_beats": ["Roth betrayed them."]}
+    out = canon_contract_leak_blockers(packets=[(2, body)], chapter_forbidden=["roth  BETRAYED them."])
+    assert len(out) == 1
+    assert "chapter packet forbids" in out[0].message
+
+
+def test_one_fact_exposed_in_two_fields_reports_both_once_each():
+    """Per-(field, fact) reporting: the human fixes fields, so each offending field is named — but a
+    single field is never double-reported when two hidden declarations cover the same fact."""
+    body = {
+        "known_before_scene": {"reader": ["Mara lit the fire."]},
+        "required_beats": ["Mara lit the fire."],
+        "must_remain_hidden": {"reader": ["Mara lit the fire."], "all_surface_prose": ["Mara lit the fire."]},
+    }
+    out = canon_contract_leak_blockers(packets=[(1, body)], chapter_forbidden=[])
+    assert len(out) == 2, [b.message for b in out]

@@ -3,6 +3,14 @@
 Deleting a scene keeps its beat but marks the slot's ScenePacket STALE ("scene deleted"), and
 contract-first drafting is fail-closed on an approved, non-stale packet — so the beat is undrafted
 yet unqueueable. The endpoint re-approves that STALE packet and queues a draft for JUST that scene.
+
+The route now runs inside `run_under_chapter_workflow` (#278 task C), which owns the transaction
+boundary and ROLLS BACK on any exception — including the 409 refusals below. The two refusal tests
+therefore COMMIT their seed before calling the route: a rollback would otherwise discard rows that
+were only flushed, and "the packet is untouched" would be asserted against a row that no longer
+exists. Committing first makes that assertion stronger, not weaker — it now checks durable state.
+Production is unaffected either way: `deps.db_session` already rolls back on an HTTPException, and a
+refusal writes nothing in both the old and new shapes.
 """
 
 from __future__ import annotations
@@ -16,6 +24,14 @@ from dominion.api.routers import chapters
 from dominion.api.scene_delete import hard_delete_scene
 from dominion.shared.enums import BeatStatus, JobKind, JobStatus, ScenePacketStatus, SceneStatus
 from dominion.shared.models import Beat, Book, Chapter, Job, Scene, ScenePacket
+
+
+async def _packet_status(s, packet_id):
+    """Read the packet status as a COLUMN, not via a held ORM instance. After the route's locked body
+    rolls back, every instance the test holds is expired, and a plain attribute read on an expired
+    async instance raises `MissingGreenlet` (the hazard `packet/__init__.py:_persist` documents). A
+    scalar select does its IO inside the await, so it reads durable state with no lazy load."""
+    return (await s.execute(select(ScenePacket.status).where(ScenePacket.id == packet_id))).scalar_one()
 
 
 async def _book_chapter(s):
@@ -105,7 +121,8 @@ async def test_redraft_scene_refuses_when_scene_already_has_prose(db_factory):
         sp.status = ScenePacketStatus.STALE
         sp.stale_reason = "upstream inputs changed since derivation"
         s.add(Scene(chapter_id=ch.id, scene_no=1, prose="still here", version=1, status=SceneStatus.APPROVED))
-        await s.flush()
+        await s.commit()  # survive the locked body's rollback-on-refusal (see module docstring)
+        packet_id = sp.id
 
         with pytest.raises(HTTPException) as exc:
             await chapters.redraft_scene(ch.id, 1, s, BackgroundTasks())
@@ -113,7 +130,7 @@ async def test_redraft_scene_refuses_when_scene_already_has_prose(db_factory):
         assert "already has prose" in str(exc.value.detail)
         # Nothing queued, packet untouched.
         assert (await s.execute(select(Job))).scalars().all() == []
-        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.STALE
+        assert await _packet_status(s, packet_id) == ScenePacketStatus.STALE
 
 
 async def test_redraft_scene_refuses_blocked_packet(db_factory):
@@ -126,7 +143,8 @@ async def test_redraft_scene_refuses_blocked_packet(db_factory):
         sp = await seed_scene_packet(s, chapter=ch, beat=beat)
         sp.status = ScenePacketStatus.BLOCKED
         sp.stale_reason = None
-        await s.flush()
+        await s.commit()  # survive the locked body's rollback-on-refusal (see module docstring)
+        packet_id = sp.id
 
         with pytest.raises(HTTPException) as exc:
             await chapters.redraft_scene(ch.id, 1, s, BackgroundTasks())
@@ -134,7 +152,7 @@ async def test_redraft_scene_refuses_blocked_packet(db_factory):
         assert "blocked" in str(exc.value.detail).lower()
         assert (await s.execute(select(Job))).scalars().all() == []
         # Still blocked — not flipped to approved.
-        assert (await s.get(ScenePacket, sp.id)).status == ScenePacketStatus.BLOCKED
+        assert await _packet_status(s, packet_id) == ScenePacketStatus.BLOCKED
 
 
 async def test_redraft_scene_404_when_chapter_missing(db_factory):

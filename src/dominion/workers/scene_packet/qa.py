@@ -6,9 +6,16 @@ fact that has ALSO leaked into a reader/POV-known or on-page field (NOT the mere
 known_before_scene.omniscient_author or must_remain_hidden — that is correct layering, not a leak),
 missing required reveal, premature reveal permission, contradictions with the chapter packet /
 relationship invariants / cast, implausible word budget, missing false-positive traps or
-phrase-avoidance. A RESOLVED AUTHOR RULING (when the chapter packet's `open_questions` carries one) is
-settled fact QA must not re-litigate or misread as still-unresolved. A malformed QA response blocks
-packet approval (fail closed).
+phrase-avoidance. A RESOLVED AUTHOR RULING (when the chapter packet's `open_questions` carries one) is a
+human's settled DECISION, which QA must not re-open or misread as still-unresolved — but which is never a
+licence to withhold a defect report (#278). A malformed QA response blocks packet approval (fail closed).
+
+**This agent's verdict does not gate drafting.** It did: `derive.py` persisted the raw verdict and
+`draft_readiness.py` refused drafting on a `BLOCK_DRAFTING` count, so a rulings block rendered into the
+prompt above could move a gate with nothing but model compliance enforcing it — permissively. ADR-0031
+R3 Fork 2 ruled (d): a model may nominate, never mint. The verdict is now advisory; a nominating verdict
+becomes a `repair` task (`parse._verdict_nomination`) that gates final export, and drafting is decided by
+the deterministic checks in `draft_readiness` and `scene_packet/validation`.
 """
 
 from __future__ import annotations
@@ -50,14 +57,20 @@ _SYSTEM = (
     "author-only canon into a reader-known field. Only flag when the SAME fact is found in BOTH an "
     "author-only field AND a reader/POV/on-page field, or when must_remain_hidden fails to list a fact that "
     "known_before_scene.omniscient_author or a RESOLVED AUTHOR RULING says must stay hidden.\n\n"
-    "If a RESOLVED AUTHOR RULING is supplied (in the chapter-packet prefix), it is settled fact — do NOT "
-    "flag it as an unresolved open question, do NOT contradict it, and do NOT treat the packet as missing "
-    "something just because it stays consistent with the ruling instead of re-deciding it. If an UNRESOLVED "
-    "OPEN QUESTION is supplied, a packet that stays silent on it (does not invent an answer) is CORRECT — "
-    "do not block or flag a packet merely for not resolving something genuinely still open.\n\n"
+    "If a RESOLVED AUTHOR RULING is supplied (in the chapter-packet prefix), a human already DECIDED it — "
+    "do not re-open the decision, do not flag it as an unresolved open question, and do not treat the packet "
+    "as missing something just because it stays consistent with the ruling instead of re-deciding it. A "
+    "settled decision is NOT a reason to withhold a DEFECT: if the packet applies the ruling to the wrong "
+    "field (a ruled author-only fact placed where the reader or POV can see it), contradicts the ruling, or "
+    "contradicts the chapter packet, REPORT IT as an issue. If an UNRESOLVED OPEN QUESTION is supplied, a "
+    "packet that stays silent on it (does not invent an answer) is CORRECT — do not flag a packet merely for "
+    "not resolving something genuinely still open.\n\n"
     "Return exactly one verdict: APPROVE, APPROVE_WARN, REVISE_REQUIRED, BLOCK_DRAFTING. "
-    "BLOCK_DRAFTING means you judge the packet unsafe to draft from — it is routed to the packet "
-    "author as urgent repair work.\n\n"
+    "BLOCK_DRAFTING means you judge the packet unsafe to draft from. YOUR VERDICT IS ADVISORY: whether "
+    "drafting may proceed is decided by deterministic contract checks, not by you. REVISE_REQUIRED and "
+    "BLOCK_DRAFTING are recorded as repair work that gates final export. So never soften a verdict to "
+    "avoid blocking anyone, and never inflate one to force attention — report exactly what you found, "
+    "itemized in `issues`, because an issue you leave out is the one nobody sees.\n\n"
     "For each issue, set `field` to the dotted path of the offending scene-packet field when one applies "
     '(e.g. "known_before_scene.reader", "learned_during_scene.reader_must_learn", "must_remain_hidden.pov", '
     '"required_beats", "exit_state"), or null for a whole-packet problem. The exact key names matter — '
