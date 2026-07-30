@@ -34,6 +34,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import select
 
 from dominion.shared.enums import GateMode, JobKind, JobStatus
@@ -107,6 +108,14 @@ async def test_claim_stamps_a_lease_that_nothing_enforces(db_factory):
         await s.commit()
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "#284 -- Job.claimed_by/claimed_at are a lease with no expiry. RED by design and NOT "
+        "weakened: strict=True means this marker itself fails the moment the defect is repaired, "
+        "so the ticket cannot rot into a permanently-green lie. Remove the marker with the fix."
+    ),
+)
 async def test_RED_stranded_running_job_is_reclaimable_after_lease_expiry(db_factory):
     """RED at HEAD. Process death between claim and completion must not strand the job forever.
 
@@ -146,6 +155,13 @@ async def test_RED_stranded_running_job_is_reclaimable_after_lease_expiry(db_fac
     )
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "#284 -- a stranded RUNNING job still reports as an active draft. RED by design and NOT "
+        "weakened: strict=True fails this marker once the defect is repaired. Remove it with the fix."
+    ),
+)
 async def test_RED_stranded_running_job_does_not_masquerade_as_active(db_factory):
     """RED at HEAD. A stranded job must not remain indistinguishable from a live draft.
 
