@@ -714,7 +714,17 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Get Packet */
+    /**
+     * Get Packet
+     * @description The chapter's NEWEST packet by `created_at` — which is NOT necessarily the one holding authority.
+     *
+     *     `_latest` applies no status filter, so once an amendment is proposed (#261) this returns the proposed
+     *     amendment while the APPROVED predecessor is still the chapter's authority. That read-vs-authority
+     *     split is deliberate here (the review surface must be able to see the artifact awaiting review), and
+     *     it is the caller's job to distinguish them: `status`, `origin_mode`, and `supersedes_packet_id` on
+     *     `PacketOut` say exactly which row this is and what it would replace. There is currently NO endpoint
+     *     that returns "the active authority" specifically.
+     */
     get: operations["get_packet_chapters__chapter_id__packet_get"];
     /**
      * Update Packet
@@ -798,8 +808,48 @@ export interface paths {
      *     the lock with the row reloaded, so the gate and the write are atomic: previously a concurrent
      *     `update_packet` could add an open question between the check and the commit, approving a packet
      *     that was no longer approvable.
+     *
+     *     REFUSES a proposed AMENDMENT (`409 amendment_requires_amendment_approval`, #261). `_latest` resolves
+     *     by recency with no status filter, so once an amendment is proposed it IS the newest row and this route
+     *     would otherwise approve it while leaving its predecessor approved — bypassing the supersede + scene
+     *     staling that approving an amendment means. Until this guard, that failed closed only by accident:
+     *     `uq_chapter_packets_active_chapter` rejected the second approved row and the author got a raw 500.
      */
     post: operations["approve_packet_chapters__chapter_id__packet_approve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/packet/{packet_id}/approve-amendment": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Approve Amendment Packet
+     * @description Approve an AMENDMENT packet and supersede its predecessor as one chapter-locked transaction (#261).
+     *
+     *     Distinct from `POST .../packet/approve` above only in what it takes on: the amendment names a
+     *     predecessor, so approving it hands chapter authority over — the predecessor becomes `superseded` and
+     *     the ScenePackets derived from it are marked stale for re-derivation. It is NOT a second approval seam:
+     *     both routes funnel into `workers/packet/amendment._apply_authority_locked`, and an ordinary approve is
+     *     the degenerate case with no predecessor.
+     *
+     *     The packet id is explicit in the path (rather than "the latest packet" as the ordinary route uses)
+     *     because the author is approving one reviewed artifact — resolving it by recency would let a
+     *     concurrently-published packet be approved in its place.
+     *
+     *     Fails CLOSED: the eligibility verdict, the prose fingerprint, and the predecessor's authority are all
+     *     re-checked under the lock, and any drift refuses with nothing written (`409
+     *     amendment_source_drifted`). Idempotent — an already-approved amendment returns its current state.
+     */
+    post: operations["approve_amendment_packet_chapters__chapter_id__packet__packet_id__approve_amendment_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3189,6 +3239,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/chapters/{chapter_id}/amendment/eligibility": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Amendment Eligibility
+     * @description Read-only preflight: may this chapter's approved contract be amended, and if not, WHY not.
+     *
+     *     Exists so the Desk can show the refusal (and which action to take instead — re-derive a scene packet,
+     *     run initial adoption, review the amendment already open) BEFORE the author commits to the model call
+     *     that `POST .../amendment/start` buys. It takes no lock, writes nothing, and calls no model.
+     *
+     *     ADVISORY ONLY. `POST .../packet/{packet_id}/approve-amendment` recomputes this same verdict under the
+     *     chapter workflow lock and fails closed there, so an `eligible: true` answer here is not authorization
+     *     — prose can move between this read and the commit.
+     */
+    get: operations["amendment_eligibility_chapters__chapter_id__amendment_eligibility_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/amendment/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start Amendment
+     * @description Start amendment mode: author a REPLACEMENT chapter contract for a chapter whose approved contract
+     *     has no seed for some imported scene (#261). The deliberate operator command that authorizes exactly
+     *     one amendment author pass; approving the result is a separate, second human action.
+     *
+     *     The FIFTH entry path into the one adoption-entry lifecycle, and the only one whose envelope is
+     *     positive rather than evidence-only: it REQUIRES an approved ChapterPacket and tolerates contracted
+     *     scenes (`shared/adoption_entry.py:177-183`). "May this chapter be amended" therefore has exactly one
+     *     implementation — `packet.amendment.assess_chapter` — shared with the eligibility preflight above and
+     *     with the locked approve transition, so the three cannot drift.
+     *
+     *     Refuses an unamendable chapter with the assessment's own `reason` token (409), and a lock collision
+     *     with `409 chapter_workflow_busy`. Idempotent: an amendment adoption already in flight is returned
+     *     unchanged rather than spending a second author pass.
+     */
+    post: operations["start_amendment_chapters__chapter_id__amendment_start_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3661,6 +3771,47 @@ export interface components {
       truncation_rate?: number | null;
       /** Qa Pass Rate */
       qa_pass_rate?: string | null;
+    };
+    /**
+     * AmendmentEligibilityOut
+     * @description Read-only amendment preflight (#261): may this chapter's approved contract be amended, and if not,
+     *     WHY not. The Desk fetches this BEFORE offering "Amend contract", so the author sees the refusal and
+     *     the action to take instead without paying for a model call.
+     *
+     *     `reason` is the stable machine-readable `amendment.AmendmentVerdict` token the Desk switches on, never
+     *     a prose message; `message` is the matching human sentence from `amendment.REFUSAL_MESSAGES` and is
+     *     deliberately NULL exactly when `eligible` is True (an eligible chapter has no refusal to explain).
+     *     ADVISORY ONLY: `approve_amendment` recomputes this verdict under the chapter workflow lock, so a
+     *     verdict fetched here can be stale by the time it is acted on — it informs the UI, it never authorizes.
+     */
+    AmendmentEligibilityOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** Reason */
+      reason: string;
+      /** Eligible */
+      eligible: boolean;
+      /** Message */
+      message?: string | null;
+      /** Approved Packet Id */
+      approved_packet_id?: string | null;
+      /** Open Amendment Packet Id */
+      open_amendment_packet_id?: string | null;
+      /**
+       * Unseeded Scene Ids
+       * @default []
+       */
+      unseeded_scene_ids: string[];
+      /**
+       * Seeded Scene Ids
+       * @default []
+       */
+      seeded_scene_ids: string[];
+      /** Source Fingerprint */
+      source_fingerprint?: string | null;
     };
     /** AnnotationIn */
     AnnotationIn: {
@@ -4451,6 +4602,8 @@ export interface components {
        * @default []
        */
       packet_approval_blockers: string[];
+      /** Open Amendment Packet Id */
+      open_amendment_packet_id?: string | null;
       /**
        * Scene Packets Total
        * @default 0
@@ -6158,6 +6311,28 @@ export interface components {
       recovery_actions?: string[] | null;
       /** Blocker Diagnostics */
       blocker_diagnostics?: {
+        [key: string]: unknown;
+      } | null;
+      /** Supersedes Packet Id */
+      supersedes_packet_id?: string | null;
+      /** Superseded By Packet Id */
+      superseded_by_packet_id?: string | null;
+      /** Superseded At */
+      superseded_at?: string | null;
+      /** Origin Mode */
+      origin_mode?: string | null;
+      /** Approval Source */
+      approval_source?: string | null;
+      /** Approved At */
+      approved_at?: string | null;
+      /** Source Fingerprint */
+      source_fingerprint?: string | null;
+      /** Evidence Manifest Fingerprint */
+      evidence_manifest_fingerprint?: string | null;
+      /** Origin Adoption Id */
+      origin_adoption_id?: string | null;
+      /** Amendment Scope */
+      amendment_scope?: {
         [key: string]: unknown;
       } | null;
     };
@@ -10373,6 +10548,38 @@ export interface operations {
       header?: never;
       path: {
         chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PacketOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_amendment_packet_chapters__chapter_id__packet__packet_id__approve_amendment_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+        packet_id: string;
       };
       cookie?: never;
     };
@@ -14782,6 +14989,68 @@ export interface operations {
         "application/json": components["schemas"]["ReauthorIn"];
       };
     };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportAdoptionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  amendment_eligibility_chapters__chapter_id__amendment_eligibility_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AmendmentEligibilityOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_amendment_chapters__chapter_id__amendment_start_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       /** @description Successful Response */
       200: {

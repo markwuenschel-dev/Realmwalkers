@@ -42,17 +42,25 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import DBAPIError
 
 from dominion.api.deps import SessionDep
 from dominion.shared.adoption_entry import (
     AdoptionChapterNotFound,
     ChapterContractAlreadyApproved,
     ChapterHasContractedScenes,
+    ChapterNotAmendable,
     ensure_import_adoption,
 )
-from dominion.shared.chapter_lock import BUSY_DETAIL, DEFAULT_LOCK_TIMEOUT_MS, ChapterWorkflowBusy
+from dominion.shared.chapter_lock import (
+    BUSY_DETAIL,
+    DEFAULT_LOCK_TIMEOUT_MS,
+    ChapterWorkflowBusy,
+    is_lock_timeout,
+)
 from dominion.shared.enums import AdoptionOperation
-from dominion.shared.schemas import ImportAdoptionOut, ReauthorIn
+from dominion.shared.schemas import AmendmentEligibilityOut, ImportAdoptionOut, ReauthorIn
+from dominion.workers.packet import amendment
 
 log = structlog.get_logger()
 router = APIRouter(tags=["adoption"])
@@ -161,6 +169,100 @@ async def reauthor_contract_adoption(chapter_id: uuid.UUID, body: ReauthorIn, se
         chapter=str(chapter_id),
         adoption=str(adoption.id),
         token=str(body.force_author_token),
+        status=adoption.status,
+    )
+    return ImportAdoptionOut.model_validate(adoption)
+
+
+# ----------------------------------- amendment mode (#261) ---------------------------------------- #
+
+
+@router.get("/chapters/{chapter_id}/amendment/eligibility", response_model=AmendmentEligibilityOut)
+async def amendment_eligibility(chapter_id: uuid.UUID, session: SessionDep) -> AmendmentEligibilityOut:
+    """Read-only preflight: may this chapter's approved contract be amended, and if not, WHY not.
+
+    Exists so the Desk can show the refusal (and which action to take instead — re-derive a scene packet,
+    run initial adoption, review the amendment already open) BEFORE the author commits to the model call
+    that `POST .../amendment/start` buys. It takes no lock, writes nothing, and calls no model.
+
+    ADVISORY ONLY. `POST .../packet/{packet_id}/approve-amendment` recomputes this same verdict under the
+    chapter workflow lock and fails closed there, so an `eligible: true` answer here is not authorization
+    — prose can move between this read and the commit.
+    """
+    try:
+        verdict = await amendment.assess_chapter(session, chapter_id=chapter_id)
+    except amendment.AmendmentChapterNotFound as exc:
+        raise HTTPException(status_code=404, detail="chapter not found") from exc
+
+    return AmendmentEligibilityOut(
+        chapter_id=verdict.chapter_id,
+        eligible=verdict.eligible,
+        reason=verdict.reason,
+        # One source for the sentence (`amendment.REFUSAL_MESSAGES`), and only for a refusal — an eligible
+        # chapter has nothing to explain. The eligible token is deliberately absent from that dict.
+        message=None if verdict.eligible else amendment.REFUSAL_MESSAGES.get(verdict.reason),
+        approved_packet_id=verdict.approved_packet_id,
+        open_amendment_packet_id=verdict.open_amendment_packet_id,
+        unseeded_scene_ids=list(verdict.unseeded_scene_ids),
+        seeded_scene_ids=list(verdict.seeded_scene_ids),
+        source_fingerprint=verdict.source_fingerprint,
+    )
+
+
+@router.post("/chapters/{chapter_id}/amendment/start", response_model=ImportAdoptionOut)
+async def start_amendment(chapter_id: uuid.UUID, session: SessionDep) -> ImportAdoptionOut:
+    """Start amendment mode: author a REPLACEMENT chapter contract for a chapter whose approved contract
+    has no seed for some imported scene (#261). The deliberate operator command that authorizes exactly
+    one amendment author pass; approving the result is a separate, second human action.
+
+    The FIFTH entry path into the one adoption-entry lifecycle, and the only one whose envelope is
+    positive rather than evidence-only: it REQUIRES an approved ChapterPacket and tolerates contracted
+    scenes (`shared/adoption_entry.py:177-183`). "May this chapter be amended" therefore has exactly one
+    implementation — `packet.amendment.assess_chapter` — shared with the eligibility preflight above and
+    with the locked approve transition, so the three cannot drift.
+
+    Refuses an unamendable chapter with the assessment's own `reason` token (409), and a lock collision
+    with `409 chapter_workflow_busy`. Idempotent: an amendment adoption already in flight is returned
+    unchanged rather than spending a second author pass.
+    """
+    try:
+        result = await ensure_import_adoption(
+            session,
+            chapter_id=chapter_id,
+            operation=AdoptionOperation.AMENDMENT,
+            timeout_ms=LOCK_TIMEOUT_MS,
+        )
+    except AdoptionChapterNotFound as exc:
+        raise HTTPException(status_code=404, detail="chapter not found") from exc
+    except ChapterNotAmendable as exc:
+        # The token comes from the eligibility verdict, and the sentence from the SAME dict the preflight
+        # reads, so the Desk sees one message per condition on both surfaces. `str(exc)` is the fallback
+        # for the eligible token (never a refusal) or any token added to the verdict but not the dict.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": exc.reason,
+                "message": amendment.REFUSAL_MESSAGES.get(exc.reason) or str(exc),
+            },
+        ) from exc
+    except ChapterWorkflowBusy as exc:
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
+    except DBAPIError as exc:
+        # `SET LOCAL lock_timeout` from the acquire applies for the REST of the transaction, so a ROW lock
+        # taken later inside the seam (the adoption insert's savepoint, the chapter reload) can time out
+        # too — as a bare 55P03, not ChapterWorkflowBusy. Same operator-visible condition, same retryable
+        # 409 rather than a 500 (`shared/chapter_lock.py:64-74`).
+        if not is_lock_timeout(exc):
+            raise
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
+
+    adoption = result.adoption
+    await session.refresh(adoption)
+    log.info(
+        "adoption.amendment_started",
+        chapter=str(chapter_id),
+        adoption=str(adoption.id),
+        mode=adoption.mode,
         status=adoption.status,
     )
     return ImportAdoptionOut.model_validate(adoption)

@@ -91,9 +91,24 @@ def resolve_blocker_diagnostics(packet: ChapterPacket) -> dict[str, Any] | None:
 # precedence (held → open-questions → already-approved → approvable) and the three independent reason
 # contracts; this policy supplies only the tier's classification, strings, and DTO extras.
 _POLICY = ApprovalPolicy(
-    held_state=lambda p: "blocked" if p.status == PacketStatus.BLOCKED else None,
+    # SUPERSEDED is held, not approvable (#261). Without it a superseded row with no open questions falls
+    # through the precedence chain to the terminal "approvable" branch and `can_approve` returns True for a
+    # terminal historical record — so the DTO would invite the author to re-approve a contract that has
+    # already been replaced. There is no reader that feeds a superseded row into this projection today
+    # (`_latest` takes the newest row and the successor is always newer), so this closes a LATENT trap in
+    # the one module that interprets `status` rather than a live bug — which is exactly when it is cheap.
+    held_state=lambda p: (
+        "blocked"
+        if p.status == PacketStatus.BLOCKED
+        else ("superseded" if p.status == PacketStatus.SUPERSEDED else None)
+    ),
     resolve_reason=resolve_blocked_reason,
-    held_action_text=lambda p, _state: resolve_blocked_reason(p) or "packet is blocked",
+    held_action_text=lambda p, state: (
+        "This packet was superseded by an approved amendment — it is a historical record and cannot be "
+        "approved. Open the chapter's current contract instead."
+        if state == "superseded"
+        else (resolve_blocked_reason(p) or "packet is blocked")
+    ),
     extra_gate=lambda p: (
         ("open_questions", ["resolve the packet's open questions first"]) if open_question_items(p) else None
     ),

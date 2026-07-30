@@ -179,6 +179,12 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm test
+      # The PRODUCTION build is its own gate, not a duplicate of `pnpm typecheck`. `tsc --noEmit` and
+      # vitest both pass on a client component that imports a server-only module (`node:fs`, a DB client,
+      # anything pulled in transitively through a shared helper); only `next build` resolves the real
+      # client/server bundle graph and fails on it. That failure mode has shipped here before, so a green
+      # typecheck is not evidence the app builds.
+      - run: pnpm build
       # ---- Playwright e2e is heavy (Chromium download + full run); only on the full-ci tier. ----
       - if: ${{ needs.changes.outputs.full == 'true' }}
         uses: actions/cache@v5

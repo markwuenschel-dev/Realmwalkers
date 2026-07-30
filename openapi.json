@@ -2140,6 +2140,7 @@
           "packets"
         ],
         "summary": "Get Packet",
+        "description": "The chapter's NEWEST packet by `created_at` \u2014 which is NOT necessarily the one holding authority.\n\n`_latest` applies no status filter, so once an amendment is proposed (#261) this returns the proposed\namendment while the APPROVED predecessor is still the chapter's authority. That read-vs-authority\nsplit is deliberate here (the review surface must be able to see the artifact awaiting review), and\nit is the caller's job to distinguish them: `status`, `origin_mode`, and `supersedes_packet_id` on\n`PacketOut` say exactly which row this is and what it would replace. There is currently NO endpoint\nthat returns \"the active authority\" specifically.",
         "operationId": "get_packet_chapters__chapter_id__packet_get",
         "parameters": [
           {
@@ -2321,7 +2322,7 @@
           "packets"
         ],
         "summary": "Approve Packet",
-        "description": "Approve the packet so drafting may proceed. Refused only when the packet is blocked or open\nquestions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves\n(approve-with-repairs \u2014 repairs still gate final export). No auto-approve during tuning: even a\ngreen packet needs this human action.\n\nRuns under the chapter workflow lock (ADR-0028, #259). The `can_approve` gate is evaluated INSIDE\nthe lock with the row reloaded, so the gate and the write are atomic: previously a concurrent\n`update_packet` could add an open question between the check and the commit, approving a packet\nthat was no longer approvable.",
+        "description": "Approve the packet so drafting may proceed. Refused only when the packet is blocked or open\nquestions remain; confidence and QA verdicts are advisory, so a red/repair-laden packet approves\n(approve-with-repairs \u2014 repairs still gate final export). No auto-approve during tuning: even a\ngreen packet needs this human action.\n\nRuns under the chapter workflow lock (ADR-0028, #259). The `can_approve` gate is evaluated INSIDE\nthe lock with the row reloaded, so the gate and the write are atomic: previously a concurrent\n`update_packet` could add an open question between the check and the commit, approving a packet\nthat was no longer approvable.\n\nREFUSES a proposed AMENDMENT (`409 amendment_requires_amendment_approval`, #261). `_latest` resolves\nby recency with no status filter, so once an amendment is proposed it IS the newest row and this route\nwould otherwise approve it while leaving its predecessor approved \u2014 bypassing the supersede + scene\nstaling that approving an amendment means. Until this guard, that failed closed only by accident:\n`uq_chapter_packets_active_chapter` rejected the second approved row and the author got a raw 500.",
         "operationId": "approve_packet_chapters__chapter_id__packet_approve_post",
         "parameters": [
           {
@@ -2332,6 +2333,60 @@
               "type": "string",
               "format": "uuid",
               "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PacketOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chapters/{chapter_id}/packet/{packet_id}/approve-amendment": {
+      "post": {
+        "tags": [
+          "packets"
+        ],
+        "summary": "Approve Amendment Packet",
+        "description": "Approve an AMENDMENT packet and supersede its predecessor as one chapter-locked transaction (#261).\n\nDistinct from `POST .../packet/approve` above only in what it takes on: the amendment names a\npredecessor, so approving it hands chapter authority over \u2014 the predecessor becomes `superseded` and\nthe ScenePackets derived from it are marked stale for re-derivation. It is NOT a second approval seam:\nboth routes funnel into `workers/packet/amendment._apply_authority_locked`, and an ordinary approve is\nthe degenerate case with no predecessor.\n\nThe packet id is explicit in the path (rather than \"the latest packet\" as the ordinary route uses)\nbecause the author is approving one reviewed artifact \u2014 resolving it by recency would let a\nconcurrently-published packet be approved in its place.\n\nFails CLOSED: the eligibility verdict, the prose fingerprint, and the predecessor's authority are all\nre-checked under the lock, and any drift refuses with nothing written (`409\namendment_source_drifted`). Idempotent \u2014 an already-approved amendment returns its current state.",
+        "operationId": "approve_amendment_packet_chapters__chapter_id__packet__packet_id__approve_amendment_post",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "name": "packet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Packet Id"
             }
           }
         ],
@@ -9278,6 +9333,94 @@
           }
         }
       }
+    },
+    "/chapters/{chapter_id}/amendment/eligibility": {
+      "get": {
+        "tags": [
+          "adoption"
+        ],
+        "summary": "Amendment Eligibility",
+        "description": "Read-only preflight: may this chapter's approved contract be amended, and if not, WHY not.\n\nExists so the Desk can show the refusal (and which action to take instead \u2014 re-derive a scene packet,\nrun initial adoption, review the amendment already open) BEFORE the author commits to the model call\nthat `POST .../amendment/start` buys. It takes no lock, writes nothing, and calls no model.\n\nADVISORY ONLY. `POST .../packet/{packet_id}/approve-amendment` recomputes this same verdict under the\nchapter workflow lock and fails closed there, so an `eligible: true` answer here is not authorization\n\u2014 prose can move between this read and the commit.",
+        "operationId": "amendment_eligibility_chapters__chapter_id__amendment_eligibility_get",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AmendmentEligibilityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chapters/{chapter_id}/amendment/start": {
+      "post": {
+        "tags": [
+          "adoption"
+        ],
+        "summary": "Start Amendment",
+        "description": "Start amendment mode: author a REPLACEMENT chapter contract for a chapter whose approved contract\nhas no seed for some imported scene (#261). The deliberate operator command that authorizes exactly\none amendment author pass; approving the result is a separate, second human action.\n\nThe FIFTH entry path into the one adoption-entry lifecycle, and the only one whose envelope is\npositive rather than evidence-only: it REQUIRES an approved ChapterPacket and tolerates contracted\nscenes (`shared/adoption_entry.py:177-183`). \"May this chapter be amended\" therefore has exactly one\nimplementation \u2014 `packet.amendment.assess_chapter` \u2014 shared with the eligibility preflight above and\nwith the locked approve transition, so the three cannot drift.\n\nRefuses an unamendable chapter with the assessment's own `reason` token (409), and a lock collision\nwith `409 chapter_workflow_busy`. Idempotent: an amendment adoption already in flight is returned\nunchanged rather than spending a second author pass.",
+        "operationId": "start_amendment_chapters__chapter_id__amendment_start_post",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportAdoptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10584,6 +10727,95 @@
           "label"
         ],
         "title": "AgentStatsOut"
+      },
+      "AmendmentEligibilityOut": {
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "approved_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Packet Id"
+          },
+          "open_amendment_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Amendment Packet Id"
+          },
+          "unseeded_scene_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Unseeded Scene Ids",
+            "default": []
+          },
+          "seeded_scene_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Seeded Scene Ids",
+            "default": []
+          },
+          "source_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Fingerprint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_id",
+          "reason",
+          "eligible"
+        ],
+        "title": "AmendmentEligibilityOut",
+        "description": "Read-only amendment preflight (#261): may this chapter's approved contract be amended, and if not,\nWHY not. The Desk fetches this BEFORE offering \"Amend contract\", so the author sees the refusal and\nthe action to take instead without paying for a model call.\n\n`reason` is the stable machine-readable `amendment.AmendmentVerdict` token the Desk switches on, never\na prose message; `message` is the matching human sentence from `amendment.REFUSAL_MESSAGES` and is\ndeliberately NULL exactly when `eligible` is True (an eligible chapter has no refusal to explain).\nADVISORY ONLY: `approve_amendment` recomputes this verdict under the chapter workflow lock, so a\nverdict fetched here can be stale by the time it is acted on \u2014 it informs the UI, it never authorizes."
       },
       "AnnotationIn": {
         "properties": {
@@ -12527,6 +12759,18 @@
             "type": "array",
             "title": "Packet Approval Blockers",
             "default": []
+          },
+          "open_amendment_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Amendment Packet Id"
           },
           "scene_packets_total": {
             "type": "integer",
@@ -16066,6 +16310,122 @@
               }
             ],
             "title": "Blocker Diagnostics"
+          },
+          "supersedes_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Packet Id"
+          },
+          "superseded_by_packet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Packet Id"
+          },
+          "superseded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded At"
+          },
+          "origin_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Mode"
+          },
+          "approval_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Source"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "source_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Fingerprint"
+          },
+          "evidence_manifest_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Manifest Fingerprint"
+          },
+          "origin_adoption_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Adoption Id"
+          },
+          "amendment_scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amendment Scope"
           }
         },
         "type": "object",

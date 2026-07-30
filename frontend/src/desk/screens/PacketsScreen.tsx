@@ -12,6 +12,10 @@ import { Button, Chip, Eyebrow, Panel as UiPanel, Spinner, StatusPill } from "..
 import { ScenePacketsPanel } from "../components/ScenePacketsPanel";
 import { ViolationGroups } from "../components/ViolationGroups";
 import ClearFailedPanel from "../components/ClearFailedPanel";
+import AmendmentPanel, {
+  hasAmendmentSurface,
+  isProposedAmendment,
+} from "../components/AmendmentPanel";
 import { resolveAuthorName, useAuthorName } from "../lib/authorName";
 import { downloadBlob } from "../lib/download";
 import {
@@ -20,6 +24,7 @@ import {
   packetRepairTasks,
 } from "../lib/packetBlockers";
 import type {
+  AmendmentEligibilityOut,
   PacketBody,
   PacketClaim,
   PacketOut,
@@ -63,6 +68,15 @@ export default function PacketsScreen() {
   const [proposing, setProposing] = useState(false);
   const [phase, setPhase] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState<number | null>(null);
+
+  // Amendment mode (#261). `eligibility` is the read-only preflight — it costs nothing and is what lets
+  // the Desk refuse (with a reason) before the author buys an author pass. The amendment failure is kept
+  // SEPARATE from `error` above because it needs the machine `reason` token, not just a sentence: drift
+  // and already-open demand different recovery, and AmendmentPanel maps the token to that recovery.
+  const [eligibility, setEligibility] = useState<AmendmentEligibilityOut | null>(null);
+  const [amendBusy, setAmendBusy] = useState<"start" | "approve" | null>(null);
+  const [amendFailure, setAmendFailure] = useState<unknown>(null);
+  const [amendNotice, setAmendNotice] = useState<string | null>(null);
 
   // Batch panel: fire chapter-packet authoring for several EXISTING chapters at once (e.g. a whole
   // arc that already has outlines but no packets yet). Reuses the same fire-and-forget per-chapter
@@ -108,14 +122,25 @@ export default function PacketsScreen() {
     setPacket(null);
     setEditing(false);
     setJsonOpen(false);
-    Promise.allSettled([api.packet(chapterId), api.packetStatus(chapterId)])
-      .then(([pkt, st]) => {
+    setEligibility(null);
+    setAmendFailure(null);
+    setAmendNotice(null);
+    // The amendment preflight rides along: it takes no lock, writes nothing and calls no model, so it is
+    // safe to fetch on every chapter open — and it is the only thing that can tell the author WHY
+    // amendment is or is not available before they spend an author pass on it.
+    Promise.allSettled([
+      api.packet(chapterId),
+      api.packetStatus(chapterId),
+      api.amendmentEligibility(chapterId),
+    ])
+      .then(([pkt, st, el]) => {
         if (!alive) return;
         setPacket(pkt.status === "fulfilled" ? pkt.value : null); // 404: no packet yet
         const running = st.status === "fulfilled" && st.value.running;
         setProposing(running);
         setPhase(running && st.status === "fulfilled" ? (st.value.phase ?? "authoring") : null);
         setElapsed(running && st.status === "fulfilled" ? (st.value.elapsed_s ?? null) : null);
+        setEligibility(el.status === "fulfilled" ? el.value : null);
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -187,6 +212,62 @@ export default function PacketsScreen() {
     }
   }, []);
 
+  // --- amendment mode (#261) ----------------------------------------------------------------------
+  // Re-read the packet and the verdict TOGETHER: they move as a pair. Publishing an amendment flips
+  // eligibility to `amendment_already_open`; approving it flips the packet to approved and re-opens the
+  // verdict. A refresh that read only one of them would show a coherent-looking, wrong pair.
+  // A failed re-read keeps the last good packet — unlike the chapter-open fetch, where a 404 genuinely
+  // means "no packet yet", here it would blank a packet that was just successfully approved.
+  const refreshAmendment = useCallback(async () => {
+    if (!chapterId) return;
+    const [pkt, el] = await Promise.allSettled([
+      api.packet(chapterId),
+      api.amendmentEligibility(chapterId),
+    ]);
+    if (pkt.status === "fulfilled") setPacket(pkt.value);
+    if (el.status === "fulfilled") setEligibility(el.value);
+  }, [chapterId]);
+
+  // Buys ONE amendment author pass. The pass runs in the adoption worker, not here, so there is nothing
+  // to poll on this screen — say that plainly instead of implying a packet is about to appear by itself.
+  const startAmendment = async () => {
+    if (!chapterId) return;
+    setAmendBusy("start");
+    setAmendFailure(null);
+    setAmendNotice(null);
+    try {
+      const adoption = await api.startAmendment(chapterId);
+      setAmendNotice(
+        `Amendment authorized — adoption ${adoption.id.slice(0, 8)} is "${adoption.status}". ` +
+          "The replacement contract is authored in the background; it shows up here as a proposed " +
+          "amendment once that pass publishes it. This screen does not poll for it — use Refresh.",
+      );
+      await refreshAmendment();
+    } catch (e) {
+      setAmendFailure(e);
+    } finally {
+      setAmendBusy(null);
+    }
+  };
+
+  // The ONLY route that may approve an amendment. Every refusal it raises means nothing was written, so
+  // the raw error is handed to AmendmentPanel, which turns the `reason` token into recovery instructions.
+  const approveAmendment = async () => {
+    if (!chapterId || !packet) return;
+    setAmendBusy("approve");
+    setAmendFailure(null);
+    setAmendNotice(null);
+    try {
+      const approved = await api.approveAmendment(chapterId, packet.id);
+      setPacket(approved);
+      await refreshAmendment();
+    } catch (e) {
+      setAmendFailure(e);
+    } finally {
+      setAmendBusy(null);
+    }
+  };
+
   // Chapters eligible for batch packet generation: same "has an outline" gate the single-chapter
   // button already uses (author_packet needs an outline to work from). Re-propose is safe here too
   // (it's the same button/endpoint the single-chapter flow calls "Re-propose"), so a chapter that
@@ -235,13 +316,19 @@ export default function PacketsScreen() {
   // Approval is the SERVER's gate: repair/warn issues never disable it locally (approve-with-repairs
   // — the repairs still gate final export). Only `blocked` packets refuse approval.
   const canApprove = packet?.can_approve ?? false;
+  // A proposed AMENDMENT must never go through this button: the ordinary approve route refuses one with
+  // 409 `amendment_requires_amendment_approval` precisely because it cannot supersede the predecessor and
+  // stale that predecessor's scene contracts in the same transaction. So the Desk refuses it locally too,
+  // with the reason — rather than letting the author click into a server error.
+  const amendmentUnderReview = isProposedAmendment(packet);
   // The server guarantees a reason for every non-approvable state; the keyed fallback only covers
   // pre-approval_state payloads so a greyed Approve can never be silent again.
-  const disabledReason =
-    packet?.approval_blockers[0] ??
-    (packet?.approval_state === "already_approved"
-      ? "Packet already approved — edit or re-propose to make changes."
-      : "Packet is not approvable right now — derive or re-propose it first.");
+  const disabledReason = amendmentUnderReview
+    ? "This chapter's newest packet is a proposed amendment — approve it with “Approve amendment” in the Amendment panel above, which supersedes its predecessor and stales that predecessor's scene contracts in one transaction."
+    : (packet?.approval_blockers[0] ??
+      (packet?.approval_state === "already_approved"
+        ? "Packet already approved — edit or re-propose to make changes."
+        : "Packet is not approvable right now — derive or re-propose it first."));
   const repairCount = packet ? packetRepairTasks(packet.qa_warnings).length : 0;
 
   // Raw canonical JSON of the chapter packet body — the exact contract the drafting agents receive.
@@ -561,6 +648,24 @@ export default function PacketsScreen() {
         </div>
       )}
 
+      {/* Amendment mode (#261) — deliberately ABOVE the packet view. When the newest packet is a
+          proposed amendment, everything below it is a PROPOSAL while the approved predecessor still
+          governs the chapter, and the author has to know that before reading any of it. */}
+      {!loading && hasAmendmentSurface(packet, eligibility, amendFailure) && (
+        <div style={css("margin-bottom:16px")}>
+          <AmendmentPanel
+            packet={packet}
+            eligibility={eligibility}
+            busy={amendBusy}
+            failure={amendFailure}
+            notice={amendNotice}
+            onStart={() => void startAmendment()}
+            onApprove={() => void approveAmendment()}
+            onRefresh={() => void refreshAmendment()}
+          />
+        </div>
+      )}
+
       {proposing && (
         <div
           style={css(
@@ -658,8 +763,8 @@ export default function PacketsScreen() {
           <Button
             variant="primary"
             style="background:var(--good);border-color:transparent"
-            disabled={!canApprove || busy === "approve"}
-            title={!canApprove ? disabledReason : undefined}
+            disabled={!canApprove || amendmentUnderReview || busy === "approve"}
+            title={!canApprove || amendmentUnderReview ? disabledReason : undefined}
             onClick={() => {
               if (chapterId) void run("approve", () => api.approvePacket(chapterId));
             }}
@@ -672,13 +777,16 @@ export default function PacketsScreen() {
                   ? `Approve (${repairCount} repair task${repairCount === 1 ? "" : "s"} outstanding)`
                   : "Approve packet"}
           </Button>
-          {canApprove && packet.status !== "approved" && repairCount > 0 && (
-            <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
-              repair tasks gate final export, not drafting — approving proceeds with them
-              outstanding
-            </span>
-          )}
-          {!canApprove && packet.status !== "approved" && (
+          {canApprove &&
+            !amendmentUnderReview &&
+            packet.status !== "approved" &&
+            repairCount > 0 && (
+              <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
+                repair tasks gate final export, not drafting — approving proceeds with them
+                outstanding
+              </span>
+            )}
+          {(!canApprove || amendmentUnderReview) && packet.status !== "approved" && (
             <span style={css("font-family:var(--mono);font-size:11.5px;color:var(--dim)")}>
               {disabledReason}
             </span>

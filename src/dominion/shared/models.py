@@ -303,7 +303,10 @@ class ChapterPacket(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
     chapter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chapters.id"))
-    status: Mapped[str] = mapped_column(Text, default="proposed")  # proposed | approved | blocked
+    # see enums.PacketStatus — proposed | approved | blocked | superseded. At most ONE row per chapter may
+    # be `approved` (uq_chapter_packets_active_chapter, a partial unique index); `superseded` is outside
+    # that index, which is what lets an amendment take the slot its predecessor vacates in ONE transaction.
+    status: Mapped[str] = mapped_column(Text, default="proposed")
     confidence: Mapped[str | None] = mapped_column(Text, nullable=True)  # green | yellow | red
     qa_verdict: Mapped[str | None] = mapped_column(Text, nullable=True)  # approve|approve_warn|revise_required|block
     qa_warnings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # {residual_risks: [...]}
@@ -312,6 +315,61 @@ class ChapterPacket(Base):
     # `seed_id` (UUID) — the sync key for later contract derivation, NOT scene_no (display order).
     body: Mapped[dict[str, Any]] = mapped_column(JSONB)
     open_questions: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # --- amendment lineage & provenance (#261, ADR-0028 §38) -------------------------------------- #
+    # Copy-on-write amendment: this packet was authored FROM `supersedes_packet_id` and, on approval,
+    # atomically replaced it. Both directions are stored because both have distinct readers and each
+    # backs a different CHECK: the forward link proves an approved amendment has a real predecessor, the
+    # reverse link proves a superseded packet has a real successor. Neither is inferable from the other
+    # by a query that stays correct when a chapter has several generations of amendment.
+    # PLAIN UUIDs with NO ForeignKey AT ALL — neither inline nor added in migrations. This DEPARTS from
+    # scene_packets.source_scene_id and import_adoptions.reauthor_of_adoption_id, which do get a NOT VALID
+    # FK, and the reason is the delete shape: `api/packet_delete.hard_delete_chapter_packets` removes EVERY
+    # chapter_packets row for a chapter in one transaction, so a self-FK would make the per-row delete ORDER
+    # load-bearing, and an `ON DELETE SET NULL` escape hatch would instead trip the two lineage CHECKs.
+    # Lineage integrity is therefore enforced by those CHECKs plus the boot reconciliation sweep. See the
+    # matching note in migrations._EXTRA_DDL, which is the authority on what DDL actually exists.
+    supersedes_packet_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    superseded_by_packet_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # WHICH lifecycle produced this packet: see enums.ImportAdoptionMode (initial | amendment). NOT NULL
+    # with a server default of 'initial' — every packet that predates amendment mode was, by definition,
+    # an initial proposal. Read by the eligibility envelope (only one open amendment branch per chapter)
+    # and by the Desk badge that tells the author they are reviewing an amendment, not a fresh contract.
+    origin_mode: Mapped[str] = mapped_column(Text, server_default=text("'initial'"), default="initial")
+    # HOW this packet was approved: see enums.ChapterPacketApprovalSource. NULL until approved. The
+    # CHECK deliberately permits NO autonomous value — invariant 8 (no model output may approve or
+    # supersede a chapter contract) is enforced by the absence, so adding an automated chapter approver
+    # requires a migration. Written only by the single locked transition seam (workers/packet/amendment.py).
+    approval_source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # THE DRIFT GATE (invariant 4). The chapter prose fingerprint (prose_fingerprint.
+    # chapter_source_fingerprint) as it stood when this packet was authored, captured OUTSIDE the lock.
+    # The approve transition reacquires the lock, recomputes it, and FAILS CLOSED on any difference — so
+    # an amendment authored against prose that has since been hand-edited can never be promoted to
+    # authority. NULL for packets authored before this column existed (they get no drift protection,
+    # which is why the projection reports it rather than defaulting it to "verified").
+    source_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The evidence-shard set this packet was authored from, as an order-independent hash
+    # (import_adoption._evidence_fingerprint). Read by the Desk to answer "what evidence changed between
+    # the predecessor and this amendment", and by the idempotent-retry check that refuses to open a
+    # second lineage branch for an unchanged evidence set.
+    evidence_manifest_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The ImportAdoption pass that produced this packet. The reverse link (ImportAdoption.
+    # chapter_packet_id) is ON DELETE SET NULL and therefore NOT a durable audit of origin; this one is
+    # write-once and survives. A PLAIN UUID with NO FK (same reason as the lineage columns above): a
+    # restrictive FK would block an adoption purge, and a SET NULL one would erase the very provenance
+    # this column exists to keep.
+    origin_adoption_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    # WHY this amendment existed and WHAT it consequently invalidated, written ONCE at approval by
+    # `workers/packet/amendment._apply_authority_locked`. Exact keys written, and nothing else:
+    #   {"predecessor_packet_id": str, "unseeded_scene_ids": [str], "staled_scene_packet_ids": [str],
+    #    "superseded_at": iso8601}
+    # This is the queryable consequence record invariant 7 requires — without it "which scenes did this
+    # amendment affect" is answerable only by re-deriving the diff, which a later reader cannot do once the
+    # prose has moved on. `unseeded_scene_ids` is the JUSTIFICATION (the scenes that had no seed, which is
+    # why amendment was permitted at all) and `staled_scene_packet_ids` is the CONSEQUENCE. Read by the
+    # Desk's affected-scenes list and by the boot reconciliation sweep.
+    amendment_scope: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

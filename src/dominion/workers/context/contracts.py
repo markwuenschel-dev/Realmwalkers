@@ -7,6 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.enums import PacketStatus
 from dominion.shared.models import ChapterPacket, ChapterSequence, ScenePacket
 from dominion.workers.context.reviewer_trust import trusted_reviewer_contract
 from dominion.workers.context.types import ScenePacketFields, ScenePacketRequiredError
@@ -23,9 +24,30 @@ async def load_scene_packet_fields(session: AsyncSession, scene_packet_id: uuid.
     approval_policy.assert_draft_ready(sp)
 
     body = dict(sp.body or {})
+    # FAIL CLOSED on a SUPERSEDED chapter contract (#261). This dereferences a STORED pointer
+    # (`sp.chapter_packet_id`), so it does not automatically follow an amendment: once an amendment is
+    # approved the predecessor becomes `superseded`, and a scene packet still pointing at the predecessor
+    # would otherwise load the REPLACED body and draft prose against the contract the author just
+    # discarded. `_stale_children_of` stales those scene packets, but STALE is re-approvable by design
+    # (`scene_packet/approval_policy.py:238-240` — "the UI must offer the button"), and re-approval clears
+    # `stale_reason` WITHOUT re-pointing `chapter_packet_id`. So the stale marking alone does not close
+    # this path; the status filter here does. Refusing is correct rather than silently resolving the
+    # chapter's current approved packet: the scene contract was DERIVED from the superseded body, so its
+    # reveals and knowledge state may contradict the new authority — it must be re-derived, not re-pointed.
     chapter_body = (
-        await session.execute(select(ChapterPacket.body).where(ChapterPacket.id == sp.chapter_packet_id))
+        await session.execute(
+            select(ChapterPacket.body).where(
+                ChapterPacket.id == sp.chapter_packet_id,
+                ChapterPacket.status == PacketStatus.APPROVED,
+            )
+        )
     ).scalar_one_or_none()
+    if chapter_body is None:
+        raise ScenePacketRequiredError(
+            f"scene packet {scene_packet_id} is derived from chapter packet {sp.chapter_packet_id}, which is no "
+            "longer the chapter's approved contract (it was superseded by an amendment, or deleted). "
+            "Re-derive this chapter's scene packets against the current approved contract before drafting."
+        )
     chapter_body = chapter_body if isinstance(chapter_body, dict) else {}
 
     # Make ChapterSequence operational for the drafter: overlay sequence fields into the

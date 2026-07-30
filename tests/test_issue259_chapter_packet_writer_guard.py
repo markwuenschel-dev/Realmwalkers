@@ -63,9 +63,32 @@ LOCK_TOKENS = (
     "ensure_import_adoption(",
 )
 
-#: ChapterPacket columns whose value decides authority: the lifecycle status, the contract body, and
-#: the approval-gating inputs `can_approve` reads.
-AUTHORITY_FIELDS = frozenset({"status", "body", "open_questions", "confidence", "qa_verdict", "qa_warnings"})
+#: ChapterPacket columns whose value decides authority: the lifecycle status, the contract body, the
+#: approval-gating inputs `can_approve` reads, and (#261) the amendment lineage/provenance fields.
+#:
+#: The amendment additions are not cosmetic. `supersedes_packet_id` / `superseded_by_packet_id` are what
+#: the two lineage CHECKs test, so a write to either can move a chapter between "has an authority" and
+#: "has none"; `approval_source` is the invariant-8 record of who approved; `origin_mode` selects which
+#: partial unique index a row falls under, so flipping it can free or occupy the single active slot.
+#: Each therefore decides authority as surely as `status` does, and an unlocked write to any of them is
+#: the same defect #259 was filed for.
+AUTHORITY_FIELDS = frozenset(
+    {
+        "status",
+        "body",
+        "open_questions",
+        "confidence",
+        "qa_verdict",
+        "qa_warnings",
+        "supersedes_packet_id",
+        "superseded_by_packet_id",
+        "superseded_at",
+        "origin_mode",
+        "approval_source",
+        "approved_at",
+        "amendment_scope",
+    }
+)
 
 #: Real ChapterPacket writers that carry no lock token because a NAMED caller holds the lock for them.
 #: The caller is re-verified by `test_every_exemption_still_points_at_a_locked_caller`, so an
@@ -95,6 +118,23 @@ EXEMPT_LOCKED_BY_CALLER: dict[str, tuple[str, str]] = {
         "workers/import_adoption.py::publish_adoption",
         "Called only at import_adoption.py:459 and :472, both inside publish_adoption's _body(), "
         "which run_under_chapter_workflow wraps at :490.",
+    ),
+    "workers/packet/amendment_author.py::_amendment_row": (
+        "workers/packet/__init__.py::_persist",
+        "#261 W2a. Pure factory — builds the copy-on-write amendment row in memory (proposed or "
+        "fail-closed blocked) and touches no session. Both call sites hand it straight to "
+        "packet._persist(..., replace=False), the single locked ChapterPacket writer; holding the lock in "
+        "the author pass instead would span the author+QA model calls (chapter_lock.py:20-22). It is the "
+        "ONE place the amendment lineage columns are written, which is why the construction lives here "
+        "rather than as attribute stores on the row.",
+    ),
+    "workers/packet/amendment.py::apply_authority_locked": (
+        "workers/packet/amendment.py::approve_amendment",
+        "#261. THE single authority transition (approve + supersede + stale children). Its name declares "
+        "the precondition and its docstring states it: the chapter workflow lock is already held and it "
+        "performs no commit. approve_amendment wraps it in run_under_chapter_workflow and owns the commit, "
+        "so holding the lock here too would violate the wrapper's clean-transaction precondition. "
+        "test_every_exemption_still_points_at_a_locked_caller re-verifies that caller on every run.",
     ),
 }
 
@@ -366,7 +406,11 @@ def test_the_guard_is_not_inert():
     """If the detector stops finding the writers we KNOW exist, it has gone blind."""
     sites = _all_sites()
     for expected in (
-        "api/routers/packets.py::approve_packet",
+        # `approve_packet` is DELIBERATELY absent now (#261): it no longer stores a status itself, it
+        # delegates to `amendment.apply_authority_locked`, which is the single authority transition. That
+        # function replaces it in this canary — if BOTH ever vanish from the detected set, the guard has
+        # gone blind to chapter-packet approval entirely, which is the thing this test exists to notice.
+        "workers/packet/amendment.py::apply_authority_locked",
         "api/routers/packets.py::_update_packet_locked",
         "workers/packet/__init__.py::_persist",
         "api/packet_delete.py::hard_delete_chapter_packets",

@@ -575,6 +575,59 @@ class PacketOut(_ORM):
     blocker_kind: str | None = None
     recovery_actions: list[str] | None = None
     blocker_diagnostics: dict[str, Any] | None = None
+    # --- amendment lineage & provenance (#261, ADR-0028 §38; columns at models.py:318-364) --------- #
+    # Copy-on-write lineage, both directions, so the Desk can render "this amendment replaced packet X"
+    # from the successor AND "superseded by Y" from the predecessor without a second request.
+    supersedes_packet_id: uuid.UUID | None = None
+    superseded_by_packet_id: uuid.UUID | None = None
+    superseded_at: datetime | None = None
+    # initial | amendment (enums.ImportAdoptionMode) — the badge that tells the author they are reviewing
+    # an amendment rather than a fresh contract. Nullable on the WIRE only because an unpersisted row has
+    # no column default applied yet (the column itself is NOT NULL with server default 'initial'); every
+    # row that reaches the DB answers this.
+    origin_mode: str | None = None
+    # Approval provenance (enums.ChapterPacketApprovalSource: manual_command | legacy_unclassified; NULL
+    # until approved). `status == approved` alone cannot answer "was this a deliberate command?".
+    approval_source: str | None = None
+    approved_at: datetime | None = None
+    # Evidence identity: the prose fingerprint this packet was authored against (the drift gate's
+    # subject) and the evidence-shard set it was built from. NULL for packets predating the columns —
+    # reported honestly rather than defaulted to "verified".
+    source_fingerprint: str | None = None
+    evidence_manifest_fingerprint: str | None = None
+    origin_adoption_id: uuid.UUID | None = None
+    # WHY the amendment existed and WHAT it invalidated, written once at approval:
+    # {"predecessor_packet_id", "staled_scene_packet_ids", "superseded_at"} — the Desk's affected-scenes
+    # list (workers/packet/amendment.py:462-466).
+    amendment_scope: dict[str, Any] | None = None
+
+
+class AmendmentEligibilityOut(BaseModel):
+    """Read-only amendment preflight (#261): may this chapter's approved contract be amended, and if not,
+    WHY not. The Desk fetches this BEFORE offering "Amend contract", so the author sees the refusal and
+    the action to take instead without paying for a model call.
+
+    `reason` is the stable machine-readable `amendment.AmendmentVerdict` token the Desk switches on, never
+    a prose message; `message` is the matching human sentence from `amendment.REFUSAL_MESSAGES` and is
+    deliberately NULL exactly when `eligible` is True (an eligible chapter has no refusal to explain).
+    ADVISORY ONLY: `approve_amendment` recomputes this verdict under the chapter workflow lock, so a
+    verdict fetched here can be stale by the time it is acted on — it informs the UI, it never authorizes.
+    """
+
+    chapter_id: uuid.UUID
+    # no_approved_packet | no_imported_scenes | all_scenes_seeded | unseeded_scenes_present |
+    # amendment_already_open. `unseeded_scenes_present` is the ONLY eligible token.
+    reason: str
+    eligible: bool
+    message: str | None = None
+    approved_packet_id: uuid.UUID | None = None
+    # Set when a proposed amendment branch already exists (the idempotent refusal) — review that one.
+    open_amendment_packet_id: uuid.UUID | None = None
+    # The scenes with prose but no seed in the approved contract (the reason amendment exists) and the
+    # ones already covered, so the Desk can show the blast radius before the author commits.
+    unseeded_scene_ids: list[uuid.UUID] = []
+    seeded_scene_ids: list[uuid.UUID] = []
+    source_fingerprint: str | None = None
 
 
 class PacketUpdateIn(BaseModel):
@@ -1248,6 +1301,12 @@ class ChapterPipelineOut(BaseModel):
     packet_status: str | None = None  # proposed | approved | blocked
     packet_approval_state: str | None = None  # approvable | open_questions | already_approved | blocked
     packet_approval_blockers: list[str] = []
+    # An OPEN amendment (origin_mode=amendment, status=proposed) awaiting review — reported ALONGSIDE the
+    # packet_* fields above and never in place of them (#261). The chapter's packet is its APPROVED one, so
+    # a proposed amendment must not flip packet_status to "proposed" or fail the readiness row on a chapter
+    # that is still fully approved. None when no amendment is open; at most one per chapter
+    # (uq_chapter_packets_open_amendment).
+    open_amendment_packet_id: uuid.UUID | None = None
     # scene packets (contract axis, aggregated)
     scene_packets_total: int = 0
     scene_packets_approved: int = 0
