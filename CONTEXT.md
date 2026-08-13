@@ -150,6 +150,14 @@ _Avoid_: failed job, dismissable error, transient failure
 Durable, leased, checkpointed work that turns one whole chapter's imported prose into a reviewed ChapterPacket, on demand. It owns adoption progress only (its lifecycle ends at `contract_proposed`), never mirroring ChapterPacket approval, ScenePacket approval, Job execution, or revision completion (ADR 0028).
 _Avoid_: adopt job, import bypass, packetless draft
 
+**Amendment** _(live — #261 / ADR-0034)_:
+A new ChapterPacket row, copy-on-write from the chapter's approved packet, admitted only when imported prose exists and some imported scene has **no seed** in `body["scene_seeds"]`. On human `approve-amendment` it takes the single authority slot in the same transaction its predecessor becomes `superseded`.
+_Avoid_: re-author, edit approved contract, re-derive
+
+**Chapter Packet Authority** _(live — #261)_:
+The unique `status=approved` ChapterPacket for a chapter. `GET /chapters/{id}/packet` is newest-by-`created_at` (may be a proposed amendment). `GET /chapters/{id}/packet/authority` is this row.
+_Avoid_: latest packet, current packet
+
 **Import Scene Evidence** _(live — Slice 3a′)_:
 An immutable, span-anchored LLM fact ledger extracted from one imported scene snapshot, keyed by `(scene_id, scene_version, prose_hash, extractor_schema_version)` and reusable across adoptions. It is evidence the ChapterPacket Author reads as `M#` sources; raw prose stays auditable but never enters the author prompt.
 _Avoid_: scene summary, raw prose chunk, canon fact
