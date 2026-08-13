@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared import job_policy
 from dominion.shared.enums import (
     BeatStatus,
     ChapterSequenceStatus,
@@ -630,7 +631,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
             .where(
                 Job.chapter_id == chapter_id,
                 Job.kind == JobKind.DRAFT,
-                Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+                job_policy.in_flight_clause(),
             )
         )
     ).scalar_one() or 0
@@ -774,15 +775,15 @@ async def fetch_book_readiness_rows(session: AsyncSession, book_id: uuid.UUID) -
     sp_required_failed: dict[uuid.UUID, int] = {cid: 0 for cid in chapter_ids}
     job_rows = (
         await session.execute(
-            select(Job.chapter_id, Job.status, Job.scene_packet_id, Job.last_error).where(
+            select(Job.chapter_id, Job.status, Job.scene_packet_id, Job.last_error, Job.claimed_at).where(
                 Job.chapter_id.in_(chapter_ids),
                 Job.kind == JobKind.DRAFT,
                 Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
             )
         )
     ).all()
-    for cid, status, scene_packet_id, last_error in job_rows:
-        if status in (JobStatus.QUEUED, JobStatus.RUNNING):
+    for cid, status, scene_packet_id, last_error, claimed_at in job_rows:
+        if status == JobStatus.QUEUED or job_policy.is_live_running_status(status, claimed_at):
             active[cid] += 1
         if scene_packet_id is None:
             malformed[cid] += 1

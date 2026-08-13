@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared import job_policy
 from dominion.shared.enums import (
     AgentRunStatus,
     IssueStatus,
@@ -147,7 +148,7 @@ async def build_pipeline_status(session: AsyncSession, book_id: uuid.UUID) -> Pi
         await session.execute(
             _scope(
                 select(Job.id, Job.kind, Job.chapter_no, Job.scene_no, Job.claimed_at).where(
-                    Job.status == JobStatus.RUNNING
+                    job_policy.live_running_clause()
                 )
             )
             .order_by(Job.claimed_at.desc())

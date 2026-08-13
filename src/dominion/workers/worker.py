@@ -12,9 +12,10 @@ import asyncio
 import os
 import traceback
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import CursorResult, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from dominion.shared import agent_ops, job_policy
@@ -59,6 +60,19 @@ def classify_job_failure(exc: BaseException, loc: str = "") -> tuple[str, str | 
     return f"{type(exc).__name__}: {exc}{loc}"[:2000], None
 
 
+async def recover_stale_jobs(session: AsyncSession, *, ttl_s: int = job_policy.LEASE_TTL_S) -> int:
+    """Return expired RUNNING jobs to QUEUED so they stop masquerading as live drafts (#284)."""
+    result = cast(
+        CursorResult[Any],
+        await session.execute(
+            update(Job)
+            .where(job_policy.expired_running_clause(ttl_s=ttl_s), Job.book_id.is_not(None))
+            .values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None)
+        ),
+    )
+    return int(result.rowcount or 0)
+
+
 async def claim_one_job(session: AsyncSession) -> Job | None:
     """Atomically claim the oldest claimable job (FOR UPDATE SKIP LOCKED makes parallel workers safe).
 
@@ -66,10 +80,16 @@ async def claim_one_job(session: AsyncSession) -> Job | None:
     an ownerless job is never claimed by this worker or any future one, independent of deploy timing.
     It sits in the WHERE (not a post-filter) so an ownerless row is excluded from the candidate set and
     cannot head-of-line-block the ORDER BY. No `run_id` condition — a run-less revision with a valid
-    `book_id` stays executable."""
+    `book_id` stays executable.
+
+    Claimable is QUEUED, or RUNNING whose lease has expired (#284). Expired RUNNING is recovered to
+    QUEUED first by `recover_stale_jobs`; the OR here is the drain-without-reboot half."""
     stmt = (
         select(Job)
-        .where(Job.status.in_(job_policy.CLAIMABLE), Job.book_id.is_not(None))
+        .where(
+            Job.book_id.is_not(None),
+            or_(Job.status.in_(job_policy.CLAIMABLE), job_policy.expired_running_clause()),
+        )
         .order_by(Job.created_at)
         .limit(1)
         .with_for_update(skip_locked=True)
@@ -102,6 +122,13 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         if await background_work.load_queue_paused(session):
             await session.commit()
             return False
+        recovered = await recover_stale_jobs(session)
+        if recovered:
+            # Expire corpses this tick; claim them on the next. Claiming here would run generate
+            # on a fixture/job with no packet and re-raise, leaving the operator path untested
+            # (#284 test_RED_stranded_running_job_does_not_masquerade_as_active).
+            await session.commit()
+            return True
         job = await claim_one_job(session)
         if job is None:
             await session.commit()

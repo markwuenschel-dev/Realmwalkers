@@ -107,6 +107,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         async with SessionFactory() as session:
             paused = await background_work.load_queue_paused(session)
+            from dominion.workers.worker import recover_stale_jobs
+
+            await recover_stale_jobs(session)
+            await session.commit()
             # Any QUEUED kind, not just DRAFT: the worker's claim is kind-agnostic, and an
             # upload-originated revision (revise_full/revise_pass, no Run) would otherwise sit
             # stranded across redeploys because nothing else kicks its drain. The `book_id IS NOT NULL`

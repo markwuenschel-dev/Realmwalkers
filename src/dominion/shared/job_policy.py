@@ -11,14 +11,63 @@ this module and the integrity/migration modules.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import Select
+from sqlalchemy import Select, and_, or_
+from sqlalchemy.sql.elements import ColumnElement
 
 from dominion.shared.enums import JobStatus
 from dominion.shared.models import Job
 
 # --- Status classification: the ONLY sanctioned selection policies. -----------------------------
-CLAIMABLE = frozenset({JobStatus.QUEUED})  # a worker may claim and run
+CLAIMABLE = frozenset({JobStatus.QUEUED})  # a worker may claim a fresh QUEUED row
+# 6× default scene_time_budget_s (300). Same magnitude as import_adoption.LEASE_TTL_S so a live
+# generate_one_scene cannot be mistaken for a dead worker.
+LEASE_TTL_S = 1800
+
+
+def lease_cutoff(now: datetime | None = None, *, ttl_s: int = LEASE_TTL_S) -> datetime:
+    return (now or datetime.now(UTC)) - timedelta(seconds=ttl_s)
+
+
+def is_live_running(job: Job, *, now: datetime | None = None, ttl_s: int = LEASE_TTL_S) -> bool:
+    return is_live_running_status(job.status, job.claimed_at, now=now, ttl_s=ttl_s)
+
+
+def is_live_running_status(
+    status: object, claimed_at: datetime | None, *, now: datetime | None = None, ttl_s: int = LEASE_TTL_S
+) -> bool:
+    if status != JobStatus.RUNNING and str(status) != JobStatus.RUNNING.value:
+        return False
+    if claimed_at is None:
+        return False
+    claimed = claimed_at if claimed_at.tzinfo else claimed_at.replace(tzinfo=UTC)
+    return claimed >= lease_cutoff(now, ttl_s=ttl_s)
+
+
+def live_running_clause(*, now: datetime | None = None, ttl_s: int = LEASE_TTL_S) -> ColumnElement[bool]:
+    cutoff = lease_cutoff(now, ttl_s=ttl_s)
+    return and_(
+        Job.status == JobStatus.RUNNING,
+        Job.claimed_at.is_not(None),
+        Job.claimed_at >= cutoff,
+    )
+
+
+def expired_running_clause(*, now: datetime | None = None, ttl_s: int = LEASE_TTL_S) -> ColumnElement[bool]:
+    cutoff = lease_cutoff(now, ttl_s=ttl_s)
+    return and_(
+        Job.status == JobStatus.RUNNING,
+        Job.claimed_at.is_not(None),
+        Job.claimed_at < cutoff,
+    )
+
+
+def in_flight_clause(*, now: datetime | None = None, ttl_s: int = LEASE_TTL_S) -> ColumnElement[bool]:
+    """QUEUED, or RUNNING with an unexpired lease. Expired RUNNING is a corpse, not in-flight."""
+    return or_(Job.status == JobStatus.QUEUED, live_running_clause(now=now, ttl_s=ttl_s))
+
+
 RETRYABLE = frozenset({JobStatus.FAILED})  # retry-failed may requeue
 DISMISSABLE = frozenset({JobStatus.FAILED})  # clear-failed (user dismiss) — distinct policy from retention
 RETENTION_PURGEABLE = frozenset({JobStatus.DONE})  # retention / clear-finished — DONE only, never FAILED

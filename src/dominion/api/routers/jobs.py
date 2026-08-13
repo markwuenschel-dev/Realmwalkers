@@ -23,6 +23,7 @@ from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy import func, or_, select
 
 from dominion.api.deps import SessionDep
+from dominion.shared import job_policy
 from dominion.shared.enums import JobStatus
 from dominion.shared.job_integrity import inspect_job_ownership
 from dominion.shared.job_policy import scope_jobs_to_book
@@ -236,10 +237,10 @@ async def status(session: SessionDep, book_id: uuid.UUID | None = None) -> JobsS
     (the terminal-driven path has no book context)."""
     counts = await _queue_counts(session, book_id)
     active_stmt = scope_jobs_to_book(
-        select(Job.id, Job.chapter_no, Job.scene_no).where(Job.status == JobStatus.RUNNING), book_id
+        select(Job.id, Job.chapter_no, Job.scene_no).where(job_policy.live_running_clause()), book_id
     )
     active = (await session.execute(active_stmt.order_by(Job.claimed_at.desc()).limit(1))).first()
-    running = JobStatus.RUNNING in counts
+    running = active is not None
     if book_id is None:
         running = running or background_work.drain_locked()
     active_scene = None

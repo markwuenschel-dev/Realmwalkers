@@ -271,7 +271,7 @@ async def find_active_draft_job_id(
     q = select(Job.id).where(
         Job.kind == JobKind.DRAFT,
         Job.scene_packet_id == scene_packet_id,
-        Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING]),
+        job_policy.in_flight_clause(),
     )
     if target_scene_id is not None:
         q = q.where(Job.target_scene_id == target_scene_id)

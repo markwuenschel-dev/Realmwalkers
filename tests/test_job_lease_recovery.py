@@ -34,7 +34,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from sqlalchemy import select
 
 from dominion.shared.enums import GateMode, JobKind, JobStatus
@@ -108,14 +107,6 @@ async def test_claim_stamps_a_lease_that_nothing_enforces(db_factory):
         await s.commit()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "#284 -- Job.claimed_by/claimed_at are a lease with no expiry. RED by design and NOT "
-        "weakened: strict=True means this marker itself fails the moment the defect is repaired, "
-        "so the ticket cannot rot into a permanently-green lie. Remove the marker with the fix."
-    ),
-)
 async def test_RED_stranded_running_job_is_reclaimable_after_lease_expiry(db_factory):
     """RED at HEAD. Process death between claim and completion must not strand the job forever.
 
@@ -155,13 +146,6 @@ async def test_RED_stranded_running_job_is_reclaimable_after_lease_expiry(db_fac
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "#284 -- a stranded RUNNING job still reports as an active draft. RED by design and NOT "
-        "weakened: strict=True fails this marker once the defect is repaired. Remove it with the fix."
-    ),
-)
 async def test_RED_stranded_running_job_does_not_masquerade_as_active(db_factory):
     """RED at HEAD. A stranded job must not remain indistinguishable from a live draft.
 
@@ -192,8 +176,25 @@ async def test_RED_stranded_running_job_does_not_masquerade_as_active(db_factory
         status = (await s.execute(select(Job.status).where(Job.id == job_id))).scalar_one()
 
     assert status != JobStatus.RUNNING, (
-        f"job {job_id} is still RUNNING with a 48h-stale lease and no executing process. "
-        "Nothing expires the claim (no `Job.claimed_at < cutoff` exists in src/) and boot "
-        "recovery covers QUEUED only (api/main.py:83), so the operator surface reports a dead "
-        "job as an active draft indefinitely."
+        f"job {job_id} is still RUNNING with a 48h-stale lease and no executing process."
     )
+
+
+async def test_expired_lease_is_not_live_running(db_factory):
+    from dominion.shared import job_policy
+
+    job_id = await _seed_queued_job(db_factory)
+    async with db_factory() as s:
+        claimed = await worker.claim_one_job(s)
+        assert claimed is not None
+        await s.commit()
+
+    async with db_factory() as s:
+        job = await s.get(Job, job_id)
+        assert job_policy.is_live_running(job) is True
+        job.claimed_at = datetime.now(UTC) - _LONG_DEAD
+        await s.commit()
+
+    async with db_factory() as s:
+        job = await s.get(Job, job_id)
+        assert job_policy.is_live_running(job) is False

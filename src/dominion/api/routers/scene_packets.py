@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
 from dominion.api.packet_delete import hard_delete_scene_packet, hard_delete_scene_packets_for_chapter
+from dominion.shared import job_policy
 from dominion.shared.chapter_lock import (
     BUSY_DETAIL,
     DEFAULT_LOCK_TIMEOUT_MS,
@@ -247,15 +248,19 @@ async def list_scene_packet_summaries(chapter_id: uuid.UUID, session: SessionDep
 
     job_rows = (
         await session.execute(
-            select(Job.scene_packet_id, Job.status).where(
+            select(Job.scene_packet_id, Job.status, Job.claimed_at).where(
                 Job.chapter_id == chapter_id,
                 Job.kind == JobKind.DRAFT,
                 Job.status.in_([JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FAILED]),
             )
         )
     ).all()
-    active_jobs = {sp_id for sp_id, status in job_rows if sp_id and status in (JobStatus.QUEUED, JobStatus.RUNNING)}
-    failed_jobs = {sp_id for sp_id, status in job_rows if sp_id and status == JobStatus.FAILED}
+    active_jobs = {
+        sp_id
+        for sp_id, status, claimed_at in job_rows
+        if sp_id and (status == JobStatus.QUEUED or job_policy.is_live_running_status(status, claimed_at))
+    }
+    failed_jobs = {sp_id for sp_id, status, _claimed in job_rows if sp_id and status == JobStatus.FAILED}
 
     def _prose_state(row: ScenePacket) -> str:
         if latest_prose.get(row.scene_no, "").strip():
