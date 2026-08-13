@@ -86,6 +86,15 @@ def format_chapter_rulings(open_questions: dict[str, Any] | None) -> str | None:
     was never reaching the author or QA prompt at all — a human's ruling ("It's Mara; 404 doesn't know
     until Chapter 2") was invisible downstream of the chapter-packet editor. Shared by both the scene
     author and scene QA prompts (imported, not duplicated) so the two can't drift on how a ruling reads.
+
+    **#278 — a ruling constrains the WRITING, never the REPORTING.** The block used to read "do NOT
+    re-litigate or contradict", which for the QA agent is a suppression instruction, and QA's verdict
+    was wired straight into the draft gate (`draft_readiness.resolve_draft_gate`). So a human ruling
+    injected here could lower a gate, enforced by nothing but the model's compliance with one sentence —
+    and the failure direction was permissive. The gate is now deterministic (`DraftGateInputs` carries no
+    model-derived field), and the text below says plainly that a settled decision does not license
+    silence about a defect. Both halves matter: the prompt no longer asks for suppression, and the gate
+    no longer depends on the answer.
     """
     if not isinstance(open_questions, dict):
         return None
@@ -102,11 +111,15 @@ def format_chapter_rulings(open_questions: dict[str, Any] | None) -> str | None:
                 lines.append(f"- Q: {q}\n  RULING: {res}")
         if lines:
             parts.append(
-                "RESOLVED AUTHOR RULINGS (settled — treat as fact; do NOT re-litigate or contradict. A "
-                "ruling being true does NOT make it reader/POV-known — apply it with normal knowledge-access "
-                "rules: author-only truth belongs in known_before_scene.omniscient_author / "
-                "must_remain_hidden, never in a reader/POV-visible or on-page field, unless the ruling "
-                "itself says the fact is already reader/POV-known):\n" + "\n".join(lines)
+                "RESOLVED AUTHOR RULINGS (a human decided these — treat them as fact and do NOT re-open the "
+                "DECISION or write against it. A ruling being true does NOT make it reader/POV-known — apply "
+                "it with normal knowledge-access rules: author-only truth belongs in "
+                "known_before_scene.omniscient_author / must_remain_hidden, never in a reader/POV-visible or "
+                "on-page field, unless the ruling itself says the fact is already reader/POV-known. A settled "
+                "decision is NOT a reason to withhold a DEFECT REPORT: a ruling applied to the wrong field, or "
+                "a packet that contradicts one, must still be reported — nothing you return decides on its own "
+                "whether drafting may proceed, so a finding you keep to yourself is simply "
+                "lost):\n" + "\n".join(lines)
             )
     items = open_questions.get("items")
     if isinstance(items, list):

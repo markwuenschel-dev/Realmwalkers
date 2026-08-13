@@ -11,8 +11,16 @@ import uuid
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError
 
 from dominion.api.deps import SessionDep
+from dominion.shared.chapter_lock import (
+    BUSY_DETAIL,
+    DEFAULT_LOCK_TIMEOUT_MS,
+    ChapterWorkflowBusy,
+    is_lock_timeout,
+    run_under_chapter_workflow,
+)
 from dominion.shared.chapter_order import chapter_position
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import (
@@ -51,6 +59,11 @@ from dominion.workers.scene_packet import blockers as _blockers
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/chapters", tags=["chapters"])
+
+# Request-path wait ceiling for the per-chapter workflow lock (ADR-0028 Q15/Q16). A module attribute
+# (not the constant directly) so a busy-path test can patch it short; production uses the 4s default —
+# same idiom as routers/packets.py:45 and routers/scene_packets.py:71.
+LOCK_TIMEOUT_MS: int | None = DEFAULT_LOCK_TIMEOUT_MS
 
 
 def _schedule_out(chapter_id: uuid.UUID, result: DraftScheduleResult) -> DraftScheduleOut:
@@ -348,110 +361,142 @@ async def redraft_scene(
     contract-first drafting is fail-closed on an approved, non-stale packet — so the beat is left
     "undrafted" yet unqueueable. This re-approves that STALE packet (flip STALE → APPROVED, clear
     stale_reason), then queues a draft job for just this scene's approved beat and kicks the drain.
-    Never touches the rest of the chapter, and never force-approves a BLOCKED/RATE_LIMITED packet."""
+    Never touches the rest of the chapter, and never force-approves a BLOCKED/RATE_LIMITED packet.
+
+    Runs under the chapter workflow lock (ADR-0028; #278 task C). It performs TWO authority-changing
+    chapter writes — a scene-packet approval that reconciles the chapter's beats, and a draft Job mint —
+    and `run_under_chapter_workflow` appeared ZERO times in this module, so both could interleave with a
+    concurrent `approve_scene_packet` / packet delete. Everything from the packet lookup onward is
+    decided INSIDE the lock (protocol steps 1-4); a collision maps to `409 chapter_workflow_busy`. The
+    drain kick stays OUTSIDE, after the commit: a long job must never run while the lock is held."""
     chapter = await session.get(Chapter, chapter_id)
-    if chapter is None:
+    if chapter is None:  # locate only (protocol step 1); every decision below is made under the lock
         raise HTTPException(status_code=404, detail="chapter not found")
 
-    # The slot's scene packet(s). The delete flow normally leaves exactly one, marked STALE.
-    packets = (
-        (
+    async def _locked() -> DraftScheduleOut:
+        # The slot's scene packet(s). The delete flow normally leaves exactly one, marked STALE.
+        # `populate_existing`: this request already read `chapter`, and a same-session caller may hold
+        # these rows in the identity map — a bare SELECT would hand back PRE-LOCK values and the
+        # reload-under-the-lock step would silently do nothing (see routers/packets.py:_latest).
+        packets = (
+            (
+                await session.execute(
+                    select(ScenePacket)
+                    .where(ScenePacket.chapter_id == chapter_id, ScenePacket.scene_no == scene_no)
+                    .order_by(ScenePacket.updated_at.desc())
+                    .execution_options(populate_existing=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not packets:
+            raise HTTPException(
+                status_code=409,
+                detail=f"no scene packet for scene {scene_no} — derive and approve scene packets first",
+            )
+
+        # This action is for a MISSING scene. If the slot already has drafted prose the scene wasn't
+        # deleted — the user wants the supersede-in-place path (POST /chapters/{id}/scenes/redraft).
+        existing = (
             await session.execute(
-                select(ScenePacket)
-                .where(ScenePacket.chapter_id == chapter_id, ScenePacket.scene_no == scene_no)
-                .order_by(ScenePacket.updated_at.desc())
+                select(Scene)
+                .where(Scene.chapter_id == chapter_id, Scene.scene_no == scene_no)
+                .order_by(Scene.version.desc())
+                .limit(1)
             )
-        )
-        .scalars()
-        .all()
-    )
-    if not packets:
-        raise HTTPException(
-            status_code=409,
-            detail=f"no scene packet for scene {scene_no} — derive and approve scene packets first",
-        )
-
-    # This action is for a MISSING scene. If the slot already has drafted prose the scene wasn't
-    # deleted — the user wants the supersede-in-place path (POST /chapters/{id}/scenes/redraft).
-    existing = (
-        await session.execute(
-            select(Scene)
-            .where(Scene.chapter_id == chapter_id, Scene.scene_no == scene_no)
-            .order_by(Scene.version.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    if existing is not None and (existing.prose or "").strip():
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"scene {scene_no} already has prose (v{existing.version}) — use redraft to supersede "
-                "it, not re-draft this scene"
-            ),
-        )
-
-    # Re-approve the slot's contract so contract-first scheduling can resolve an approved packet. An
-    # already-approved (non-stale) packet needs nothing; otherwise re-approve a STALE one (STALE is
-    # re-approvable — assert_draft_ready's own remedy is "re-derive or re-approve"). can_approve() is
-    # the real approval gate: it refuses BLOCKED/RATE_LIMITED, so we never force-approve one of those.
-    target = next((p for p in packets if p.status == ScenePacketStatus.APPROVED and not p.stale_reason), None)
-    if target is None:
-        for p in packets:
-            if p.status != ScenePacketStatus.STALE or sp_approval.can_approve(p) is not None:
-                continue
-            # Re-approve the STALE contract through the ONE locked approval op — never raw-assign. It locks
-            # + revalidates status and blockers on the fresh row, sets APPROVED, clears stale_reason, AND
-            # reconciles beats, so the re-approved slot actually has its beat: an earlier reconcile prunes a
-            # STALE packet's beat, and the old raw-assign-without-reconcile stranded this scene on the
-            # "no approved beat" 409. An active blocker (or a raced demotion) raises → try the next candidate.
-            try:
-                await _approve_scene_packet(session, packet=p, source=ScenePacketApprovalSource.MANUAL_COMMAND.value)
-            except _blockers.ApprovalBlockerError:
-                continue
-            target = p
-            break
-    if target is None:
-        # Everything at this slot is blocked/rate-limited/proposed — surface the clearest refusal.
-        refusal = next((r for p in packets if (r := sp_approval.can_approve(p)) is not None), None)
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                refusal.detail
-                if refusal
-                else f"scene packet for scene {scene_no} is not approved — approve or re-derive it first"
-            ),
-        )
-
-    # Queue a draft for JUST this scene's approved, undrafted beat — a scoped schedule_undrafted_beats.
-    beat = (
-        await session.execute(
-            select(Beat).where(
-                Beat.chapter_id == chapter_id,
-                Beat.scene_no == scene_no,
-                Beat.status == BeatStatus.APPROVED,
+        ).scalar_one_or_none()
+        if existing is not None and (existing.prose or "").strip():
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"scene {scene_no} already has prose (v{existing.version}) — use redraft to supersede "
+                    "it, not re-draft this scene"
+                ),
             )
-        )
-    ).scalar_one_or_none()
-    if beat is None:
-        raise HTTPException(
-            status_code=409,
-            detail=f"no approved beat for scene {scene_no} — approve scene packets to derive beats first",
-        )
 
-    run = await _latest_run(session, chapter.book_id)
-    result = await schedule_contract_first_draft_jobs(
-        session, chapter=chapter, beats=[beat], run=run, skip_drafted=True
-    )
-    out = _schedule_out(chapter_id, result)
-    if not out.queued_job_ids:
-        if out.skipped:
-            # Same UUID-serialization hazard as draft_chapter: mode="json" keeps the blocker detail
-            # JSON-native so HTTPException renders a 409 instead of a 500 on a raw UUID.
-            raise HTTPException(status_code=409, detail={"blockers": [s.model_dump(mode="json") for s in out.skipped]})
-        raise HTTPException(status_code=409, detail=f"nothing to draft for scene {scene_no}")
-    await session.commit()
+        # Re-approve the slot's contract so contract-first scheduling can resolve an approved packet. An
+        # already-approved (non-stale) packet needs nothing; otherwise re-approve a STALE one (STALE is
+        # re-approvable — assert_draft_ready's own remedy is "re-derive or re-approve"). can_approve() is
+        # the real approval gate: it refuses BLOCKED/RATE_LIMITED, so we never force-approve one of those.
+        target = next((p for p in packets if p.status == ScenePacketStatus.APPROVED and not p.stale_reason), None)
+        if target is None:
+            for p in packets:
+                if p.status != ScenePacketStatus.STALE or sp_approval.can_approve(p) is not None:
+                    continue
+                # Re-approve the STALE contract through the ONE locked approval op — never raw-assign. It
+                # locks + revalidates status and blockers on the fresh row, sets APPROVED, clears
+                # stale_reason, AND reconciles beats, so the re-approved slot actually has its beat: an
+                # earlier reconcile prunes a STALE packet's beat, and the old raw-assign-without-reconcile
+                # stranded this scene on the "no approved beat" 409. An active blocker (or a raced
+                # demotion) raises → try the next candidate.
+                try:
+                    await _approve_scene_packet(
+                        session, packet=p, source=ScenePacketApprovalSource.MANUAL_COMMAND.value
+                    )
+                except _blockers.ApprovalBlockerError:
+                    continue
+                target = p
+                break
+        if target is None:
+            # Everything at this slot is blocked/rate-limited/proposed — surface the clearest refusal.
+            refusal = next((r for p in packets if (r := sp_approval.can_approve(p)) is not None), None)
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    refusal.detail
+                    if refusal
+                    else f"scene packet for scene {scene_no} is not approved — approve or re-derive it first"
+                ),
+            )
+
+        # Queue a draft for JUST this scene's approved, undrafted beat — a scoped schedule_undrafted_beats.
+        beat = (
+            await session.execute(
+                select(Beat).where(
+                    Beat.chapter_id == chapter_id,
+                    Beat.scene_no == scene_no,
+                    Beat.status == BeatStatus.APPROVED,
+                )
+            )
+        ).scalar_one_or_none()
+        if beat is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"no approved beat for scene {scene_no} — approve scene packets to derive beats first",
+            )
+
+        run = await _latest_run(session, chapter.book_id)
+        result = await schedule_contract_first_draft_jobs(
+            session, chapter=chapter, beats=[beat], run=run, skip_drafted=True
+        )
+        scheduled = _schedule_out(chapter_id, result)
+        if not scheduled.queued_job_ids:
+            if scheduled.skipped:
+                # Same UUID-serialization hazard as draft_chapter: mode="json" keeps the blocker detail
+                # JSON-native so HTTPException renders a 409 instead of a 500 on a raw UUID.
+                raise HTTPException(
+                    status_code=409,
+                    detail={"blockers": [s.model_dump(mode="json") for s in scheduled.skipped]},
+                )
+            raise HTTPException(status_code=409, detail=f"nothing to draft for scene {scene_no}")
+        return scheduled
+
+    try:
+        out = await run_under_chapter_workflow(session, chapter_id, _locked, timeout_ms=LOCK_TIMEOUT_MS)
+    except ChapterWorkflowBusy as exc:
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
+    except DBAPIError as exc:
+        # `SET LOCAL lock_timeout` from the acquire applies for the REST of the transaction, so a ROW
+        # lock the approval takes later can time out too — as a bare 55P03, not ChapterWorkflowBusy.
+        # Same operator-visible condition, so the same retryable 409 rather than a 500 (packets.py:286).
+        if not is_lock_timeout(exc):
+            raise
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
     # One-click: kick the drain so the queued job starts without a separate Draft-next call. The drain
     # single-flights (process-global lock) and honors the pause switch, so an unconditional kick is safe.
+    # Deliberately OUTSIDE the lock and after the commit — a drain runs long LLM work, and the lock must
+    # never be held across that (chapter_lock.py:20-22).
     background.add_task(background_work.drain_queued_jobs)
     return out
 

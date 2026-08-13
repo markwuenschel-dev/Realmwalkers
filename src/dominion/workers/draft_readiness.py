@@ -20,6 +20,7 @@ from dominion.shared.enums import (
 )
 from dominion.shared.models import Beat, Chapter, ChapterPacket, ChapterSequence, Job, Scene, ScenePacket
 from dominion.shared.schemas import DraftQueueBlockerOut, DraftReadinessOut, StructuralBlockerOut
+from dominion.shared.text_match import collect_strings, get_dotted
 from dominion.workers.budget_reconciliation import check_sequence_budget_consistency
 from dominion.workers.draft_queue import DraftQueueBlocker, resolve_approved_scene_packet_for_beat_prefetched
 
@@ -38,11 +39,13 @@ def blocker_out(b: DraftQueueBlocker) -> DraftQueueBlockerOut:
 
 # --- authoritative draft gate (recovery L8) --------------------------------------------------------
 # Pure functions over counts — no ORM, no DB — unit-tested in tests/test_draft_readiness_gates.py.
-# The gate order is FIXED pipeline order: packet → sequence/budget → scene packets (stale/QA) →
-# beats → jobs → prose coverage → provider rate limit. `resolve_draft_gate` names the FIRST failing
-# gate in one human sentence so the Desk never renders a disabled Draft button (or hides a "ready"
-# claim behind one) without saying exactly why. Kept separable from the readiness query below —
-# lanes 3/6 also touch this module.
+# The gate order is FIXED pipeline order: packet → sequence/budget/structural → scene packets
+# (coverage/stale) → beats → jobs → prose coverage → provider rate limit. `resolve_draft_gate` names
+# the FIRST failing gate in one human sentence so the Desk never renders a disabled Draft button (or
+# hides a "ready" claim behind one) without saying exactly why. Kept separable from the readiness
+# query below — lanes 3/6 also touch this module.
+#
+# EVERY input to this gate is deterministic (#278). Nothing an LLM returned may decide it.
 
 
 def _norm(text: object) -> str:
@@ -167,53 +170,128 @@ def duplicate_irreversible_beat_blockers(
     return out
 
 
+# --- the exposure matrix (#278) --------------------------------------------------------------------
+# The scene-contract fields that EXPOSE a fact, split by WHO they expose it to. This is the field list
+# `scene_packet/qa.py:_SYSTEM` already recites when it asks the model to look for "a hidden/author-only
+# fact that has ALSO leaked into a reader-known or POV-known field ... or into an on-page field" — and
+# `qa.py`'s own rule for when that is a defect ("Only flag when the SAME fact is found in BOTH an
+# author-only field AND a reader/POV/on-page field"). Mechanized here so the finding no longer depends
+# on the model choosing to report it: an LLM verdict is a nomination, never a gate (#278, ADR-0031 R3).
+_READER_VISIBLE_PATHS: tuple[str, ...] = (
+    "known_before_scene.reader",
+    "learned_during_scene.reader_must_learn",
+    "learned_during_scene.reader_may_learn",
+    "learned_during_scene.reader_may_infer_only",
+)
+_POV_VISIBLE_PATHS: tuple[str, ...] = (
+    "known_before_scene.pov",
+    "pov_permissions.may_notice",
+    "pov_permissions.may_infer",
+)
+#: Fields that put a fact into the drafted prose itself — visible to reader and POV alike.
+_ON_PAGE_PATHS: tuple[str, ...] = ("required_beats", "exit_state")
+
+# (hidden-declaration path -> the paths that contradict it). Only `must_remain_hidden.*` is a
+# DECLARATION that a fact is withheld, so only it can be contradicted. `known_before_scene
+# .omniscient_author` is deliberately NOT a source: it is what the AUTHOR knows, which legitimately
+# includes everything the reader knows, so pairing it would fail the writer on correct contracts —
+# and a structural blocker is unappealable. Exact normalized equality only (`_norm`), never fuzzy
+# matching, the same discipline `scene_packet/validation.py:23-25` holds to.
+_HIDDEN_EXPOSURE_MATRIX: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("must_remain_hidden.reader", _READER_VISIBLE_PATHS + _ON_PAGE_PATHS),
+    ("must_remain_hidden.pov", _POV_VISIBLE_PATHS + _ON_PAGE_PATHS),
+    ("must_remain_hidden.all_surface_prose", _READER_VISIBLE_PATHS + _POV_VISIBLE_PATHS + _ON_PAGE_PATHS),
+)
+
+
+def _at(body: dict[str, Any], dotted: str) -> list[str]:
+    """Every string reachable at a dotted body path, whatever its shape (`exit_state` is a bare str,
+    the rest are lists) — empty when the path is absent or the body is not a dict."""
+    if not isinstance(body, dict):
+        return []
+    return [s for s in collect_strings(get_dotted(body, dotted)) if s.strip()]
+
+
 def canon_contract_leak_blockers(
     *,
     packets: list[tuple[int, dict[str, Any]]],
     chapter_forbidden: list[str],
 ) -> list[StructuralBlockerOut]:
-    """`canon_contract_leak`: a scene contract lets the reader learn something the chapter packet
-    forbids (or that the same contract must keep hidden) — the drafter would obey the leak, and QA
-    missed exactly this in Ch1 (§4). `packets` = (scene_no, scene packet body)."""
+    """`canon_contract_leak`: a scene contract exposes something the chapter packet forbids, or that the
+    same contract declares must stay hidden — the drafter would obey the leak, and QA missed exactly this
+    in Ch1 (§4). `packets` = (scene_no, scene packet body).
+
+    Two deterministic arms, both over the full exposure matrix above:
+
+    * **chapter-forbidden exposure** — a `forbidden_reveals` / `forbidden_knowledge` entry appearing in a
+      reader-visible or on-page field. POV-visible fields are excluded: the chapter's forbidden list is
+      about what the READER may learn, and a POV who knows a secret the reader must not is ordinary
+      craft, not a leak.
+    * **self-contradiction** — the contract declares a fact hidden from an audience and then hands it to
+      that same audience. This is the arm that replaces the retired raw-verdict gate (#278): it is the
+      one draft-unsafe class the LLM verdict uniquely covered, now decided from the contract itself.
+
+    Recall is narrower than a model's (verbatim restatements only, no paraphrase), and that is the
+    deliberate trade: the model's paraphrase-catching survives as `repair` issues that gate final export
+    and as the automatic canon-conflict `ApprovalBlocker` (`scene_packet/blockers.py:52`), neither of
+    which a prompt sentence can silently flip to permissive.
+    """
     out: list[StructuralBlockerOut] = []
     forbidden = {_norm(x) for x in chapter_forbidden}
     for scene_no, body in packets:
-        learned = body.get("learned_during_scene") if isinstance(body, dict) else None
-        learned = learned if isinstance(learned, dict) else {}
-        reveals = _str_list(learned.get("reader_must_learn")) + _str_list(learned.get("reader_may_learn"))
-        hidden_group = body.get("must_remain_hidden") if isinstance(body, dict) else None
-        hidden_group = hidden_group if isinstance(hidden_group, dict) else {}
-        own_hidden = {
-            _norm(x) for x in _str_list(hidden_group.get("reader")) + _str_list(hidden_group.get("all_surface_prose"))
-        }
-        for reveal in reveals:
-            key = _norm(reveal)
-            if key in forbidden:
-                out.append(
-                    StructuralBlockerOut(
-                        kind="canon_contract_leak",
-                        message=(
-                            f"Scene {scene_no}'s contract lets the reader learn '{reveal}', which the chapter "
-                            "packet forbids — fix the scene contract or the chapter packet."
-                        ),
+        seen: set[tuple[str, str]] = set()  # (exposure path, normalized text) — report each pair once
+        for path in _READER_VISIBLE_PATHS + _ON_PAGE_PATHS:
+            for text in _at(body, path):
+                key = _norm(text)
+                if key in forbidden and (path, key) not in seen:
+                    seen.add((path, key))
+                    out.append(
+                        StructuralBlockerOut(
+                            kind="canon_contract_leak",
+                            message=(
+                                f"Scene {scene_no}'s contract lets the reader learn '{text}', which the chapter "
+                                "packet forbids — fix the scene contract or the chapter packet."
+                            ),
+                        )
                     )
-                )
-            elif key in own_hidden:
-                out.append(
-                    StructuralBlockerOut(
-                        kind="canon_contract_leak",
-                        message=(
-                            f"Scene {scene_no}'s contract both reveals and hides '{reveal}' — resolve the "
-                            "contradiction before drafting."
-                        ),
-                    )
-                )
+        for hidden_path, exposed_paths in _HIDDEN_EXPOSURE_MATRIX:
+            hidden = {_norm(x) for x in _at(body, hidden_path)}
+            if not hidden:
+                continue
+            for path in exposed_paths:
+                for text in _at(body, path):
+                    key = _norm(text)
+                    if key in hidden and (path, key) not in seen:
+                        seen.add((path, key))
+                        out.append(
+                            StructuralBlockerOut(
+                                kind="canon_contract_leak",
+                                message=(
+                                    f"Scene {scene_no}'s contract both reveals and hides '{text}' — "
+                                    f"{path} exposes what {hidden_path} protects; resolve the "
+                                    "contradiction before drafting."
+                                ),
+                            )
+                        )
     return out
 
 
 @dataclass(frozen=True)
 class DraftGateInputs:
-    """Everything the authoritative gate needs, as plain counts — cheap to assemble, pure to test."""
+    """Everything the authoritative gate needs, as plain counts — cheap to assemble, pure to test.
+
+    **EVERY field here is deterministic, and that is an invariant, not an accident (#278).** No field
+    may be derived from LLM output. `scene_packet_qa_blocking` used to be: it counted rows whose raw
+    `ScenePacket.qa_verdict` equalled `BLOCK_DRAFTING`, so a drafting gate was decided by a model that
+    the author/QA prompts had already told what to think (`scene_packet/author.py:format_chapter_rulings`
+    injects a human's ruling with "do NOT re-litigate", `scene_packet/qa.py:_SYSTEM` adds "do NOT flag
+    it as an unresolved open question"). One sentence of prose was the only enforcement, and the failure
+    direction was permissive. ADR-0031 R3 Fork 2 ruled (d): a model may nominate, never mint — so the
+    field is gone and the draft-unsafe class it covered is decided by `canon_contract_leak_blockers`
+    instead. The verdict still rides out on `DraftReadinessOut.scene_packet_qa_blocking` as an ADVISORY
+    count for the Desk's checklist; it is not an input to this struct. Pinned by
+    `tests/test_issue278_prompt_gate_authority.py::test_draft_gate_inputs_carry_no_model_derived_field`.
+    """
 
     chapter_packet_approved: bool = False
     structural_blockers: tuple[StructuralBlockerOut, ...] = ()
@@ -221,7 +299,6 @@ class DraftGateInputs:
     scene_packets_approved: int = 0
     missing_scene_packets: tuple[int, ...] = ()
     scene_packets_stale: int = 0
-    scene_packet_qa_blocking: int = 0
     approved_beats: int = 0
     unlinked_beats: int = 0
     queue_blocker_messages: tuple[str, ...] = ()
@@ -234,8 +311,11 @@ class DraftGateInputs:
 def resolve_draft_gate(g: DraftGateInputs) -> tuple[bool, str | None]:
     """(can_draft, disabled_reason) — mutually consistent by construction: exactly one of
     `can_draft=True` / `disabled_reason is not None` holds. The reason names the FIRST failing gate
-    in pipeline order: packet → sequence/budget → scene packets (stale/QA) → beats → jobs → prose
-    coverage → provider rate limit."""
+    in pipeline order: packet → sequence/budget/structural → scene packets (coverage/stale) → beats →
+    jobs → prose coverage → provider rate limit.
+
+    Deterministic end to end (#278): every branch below reads a count derived from persisted contract
+    state, never from a model's judgement."""
     # 1. Chapter packet — nothing downstream exists without the approved macro contract.
     if not g.chapter_packet_approved:
         return False, "Chapter packet is not approved yet — approve it first."
@@ -259,11 +339,9 @@ def resolve_draft_gate(g: DraftGateInputs) -> tuple[bool, str | None]:
         return False, (
             f"{g.scene_packets_stale} scene packet(s) are stale — re-derive or re-approve them before drafting."
         )
-    if g.scene_packet_qa_blocking:
-        return False, (
-            f"Scene-packet QA blocks drafting on {g.scene_packet_qa_blocking} scene packet(s) — "
-            "fix the contract and re-run QA, or re-derive."
-        )
+    # (A QA-verdict gate stood here. It was decided by raw model output that the prompts had already
+    # coached — #278. Its one unique class of coverage, a self-contradictory contract, is now a
+    # deterministic `canon_contract_leak` structural blocker resolved at gate 2 above.)
     # 4. Beats — the routing projection of the approved contracts.
     if g.approved_beats == 0:
         return False, "No approved beats yet — approving scene packets derives the chapter's beats."
@@ -440,6 +518,9 @@ def derive_draft_readiness(rows: ReadinessRows) -> DraftReadinessOut:
         chapter_forbidden=_str_list(cp_body.get("forbidden_reveals")) + _str_list(cp_body.get("forbidden_knowledge")),
     )
 
+    # ADVISORY ONLY (#278): how many contracts the LLM QA agent NOMINATED as unsafe. It is reported so
+    # the Desk can show the nomination, and it is deliberately NOT passed to `resolve_draft_gate` — see
+    # `DraftGateInputs`. The draft-safety facts are decided by `structural` above.
     qa_blocking = sum(
         1
         for p in sp_rows
@@ -454,7 +535,6 @@ def derive_draft_readiness(rows: ReadinessRows) -> DraftReadinessOut:
             scene_packets_approved=len(approved_sp),
             missing_scene_packets=tuple(missing),
             scene_packets_stale=len(stale_sp),
-            scene_packet_qa_blocking=qa_blocking,
             approved_beats=len(approved_beats),
             unlinked_beats=len(unlinked),
             queue_blocker_messages=tuple(b.message for b in blockers),
