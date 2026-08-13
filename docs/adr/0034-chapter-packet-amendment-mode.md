@@ -10,39 +10,23 @@ References ADR-0033 D5b (scene-tier approval provenance) as the pattern this del
 at the chapter tier (D6).
 
 **Revision history**
+- v2 (2026-08-13) — build-state caught up to #289 and the hole-close pass: W3 authoring, W4 sweep,
+  W5a shared approve writer, W5b Revise copy, W5c author tests, Start/Re-author/amendment drain kick,
+  `GET /packet/authority`, and the #284 draft-job lease. The v1 banner below is superseded; do not
+  treat its "NOT BUILT" claims as current.
 - v1 (2026-07-30) — first record, authored against the implementation as it stood at the final
   verification pass. Records the eight decisions the build made, the two invariants that became DATABASE
   guarantees rather than conventions, and the reason eligibility is keyed on seed **presence** rather than
-  on `ScenePacket.status == STALE`. **Three divergences between the code and the design as described are
-  recorded inline** rather than smoothed over: D4's shared transition is documented in two docstrings but
-  the ordinary approve route still writes `status` itself; D7's model-layer comment claims self-referential
-  FKs the migration deliberately does not create; and the rollout stops two waves short of a completable
-  operator flow (build-state note below).
+  on `ScenePacket.status == STALE`.
 
-> **Build state at v1 — read this before relying on the record.** The decisions below are settled and the
-> **domain layer, the schema, and the operator surfaces are live**: eligibility
-> (`workers/packet/amendment.py:185-296`), the one locked authority transition (`:363-484`), the entry
-> policy (`shared/adoption_entry.py:177-183`), all four CHECKs and both partial unique indexes
-> (`shared/migrations.py:326-398`), and three routes — the advisory preflight
-> (`api/routers/adoption.py:180-209`), amendment start (`:212-268`, supplying
-> `AdoptionOperation.AMENDMENT`), and the approve+supersede transition
-> (`api/routers/packets.py:339-433`), with the ordinary approve route now refusing a proposed amendment
-> (`packets.py:277-308`).
->
-> **Two pieces are NOT built, and one of them is reachable.** (a) The **copy-on-write authoring pass does
-> not exist**: `workers/import_adoption.py:515-520` still fails any `mode=amendment` claim closed with the
-> Slice-3b `AmendmentModeUnsupported` (`:96-104`). `POST .../amendment/start` therefore mints an adoption
-> the worker will immediately fail — the entry path is live in front of a pipeline that refuses itself.
-> (b) The boot **authority sweep is named but undefined**: `workers/boot_reconciliation.py:39` says *"See
-> `reconcile_chapter_packet_authority` for the five states and their predicates"*, and a grep across `src`
-> and `tests` finds no such definition; the five `IntegrityHoldReason` members it would write
-> (`shared/enums.py`, `MULTIPLE_APPROVED_CHAPTER_PACKETS` … `CHAPTER_AUTHORITY_VACATED`) have no writer.
-> D7 and D8 mark these `[OPEN]`. Nothing here is a claim that an author can complete an amendment today.
->
-> **This record was written against a moving tree.** The #261 changes are uncommitted, and the operator
-> routes landed between this ADR's first draft and its final verification pass. Every citation was
-> re-opened at that final pass; anything asserted about the two unbuilt pieces above is true as of it and
-> is the first thing to re-check.
+> **Build state at v2.** The decisions below are settled. The domain layer, schema, operator surfaces,
+> copy-on-write author (`workers/packet/amendment_author.py:578`, wired at `import_adoption.py:613`),
+> boot authority sweep (`reconcile_chapter_packet_authority` at `boot_reconciliation.py:861`, called
+> from `api/main.py:92`), and the one approval writer (`packets.py` `approve_packet` →
+> `amendment.apply_authority_locked`) are live. Revise 409s point at `POST .../amendment/start` rather
+> than claiming the feature does not exist. Start / Re-author / amendment/start kick `drain_adoptions`.
+> `GET /chapters/{id}/packet/authority` is `latest_approved`. Author tests live in
+> `tests/test_amendment_author.py`. Draft-job leases expire like adoption leases (`job_policy.LEASE_TTL_S`).
 
 ## Decision (the settled core)
 
@@ -480,20 +464,15 @@ W2  Operator surfaces — LANDED.  GET .../amendment/eligibility (advisory, no l
       409 carrying the verdict's own token + REFUSAL_MESSAGES sentence);
       POST .../packet/{id}/approve-amendment over approve_amendment, with a typed 409 per failure
       mode; and the wrong-endpoint guard on the ordinary approve route.
-W3  The authoring pass — NOT BUILT.  [OPEN]  The blocking gap, because W2 is reachable without it:
-      the copy-on-write author must replace the AmendmentModeUnsupported refusal at
-      import_adoption.py:515-520 (copy the approved body, author seeds for the unseeded scenes from
-      evidence, capture source_fingerprint + evidence_manifest_fingerprint + origin_adoption_id +
-      supersedes_packet_id, publish at status=proposed). Until it lands, .../amendment/start mints an
-      adoption the worker immediately fails.
-W4  Lineage reconciliation — NOT BUILT.  [OPEN]  reconcile_chapter_packet_authority, promised at
-      boot_reconciliation.py:39, observe-only, writing the five IntegrityHoldReason members (D7).
-W5  Residual wiring — NOT BUILT.  [OPEN]
-      (a) fold approve_packet into _apply_authority_locked so the shared transition is real and not
-          only documented (the D4 divergence);
-      (b) replace "amendment mode, which is not available yet" at reviews.py:431,442 — reviews.py is
-          untouched by this work and still tells the author the feature does not exist;
-      (c) tests over _apply_authority_locked itself — see the coverage note in Consequences.
+W3  The authoring pass — LANDED.  author_amendment_from_evidence (amendment_author.py:578),
+      wired at import_adoption.py:613; tests in tests/test_amendment_author.py.
+W4  Lineage reconciliation — LANDED.  reconcile_chapter_packet_authority at
+      boot_reconciliation.py:861, called from api/main.py:92. Observe-only.
+W5  Residual wiring — LANDED.
+      (a) approve_packet delegates to amendment.apply_authority_locked;
+      (b) Revise 409s point at POST .../amendment/start (reviews.py);
+      (c) author-pass tests in tests/test_amendment_author.py (not a dedicated
+          _apply_authority_locked unit file).
 ```
 
 **Rollback:** drop the two partial unique indexes and the four CHECKs, accepting the weaker
@@ -614,15 +593,10 @@ rollback.
   policy entry (`shared/adoption_entry.py:177-183`) is the inverse envelope its `entry_intent` enum was
   kept non-boolean for (ADR-0032's Alternatives: *"`entry_intent` as a boolean — rejected: unreadable once
   amendment mode or another entry policy is added"*).
-- **The operator story is reachable but not yet completable, and that asymmetry is the live risk.**
-  `POST .../amendment/start` mints a `mode=amendment` adoption; the worker then fails it closed at
-  `import_adoption.py:515-520`. So an author who follows the eligibility preflight's advice gets a failed
-  adoption rather than a proposal to review — worse than a refusal, because the refusal at least said what
-  to do instead. **W3 is therefore not merely "the next slice"; it is what makes W2 honest.** Until it
-  lands, `.../amendment/start` should be treated as unreleased regardless of it being routable. Separately,
-  Revise still tells the author amendment mode *"is not available yet"*
-  (`api/routers/reviews.py:431,442` — that file is untouched by this work), which will read as a
-  contradiction to anyone who has already used the amendment routes.
+- **The operator story is completable.** `POST .../amendment/start` mints a `mode=amendment` adoption
+  and kicks `drain_adoptions`. The worker runs `author_amendment_from_evidence`. Revise stays
+  fail-closed (ADR-0032) and points at amendment/start. `GET /packet/authority` is the governing
+  approved row; `GET /packet` remains newest-by-recency for review.
 
 **Revisit triggers:** the derive/recompute `source_hash` asymmetry is fixed (→ re-read D1's rejection of
 STALE; the structural predicate stays correct, but the *reason* it was chosen weakens, and a cheaper
