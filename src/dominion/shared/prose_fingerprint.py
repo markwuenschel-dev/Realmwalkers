@@ -12,6 +12,37 @@ from __future__ import annotations
 import hashlib
 import uuid
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def chapter_scene_rows(
+    session: AsyncSession, chapter_id: uuid.UUID
+) -> list[tuple[int, uuid.UUID, int, str | None]]:
+    """The chapter's non-superseded scenes as `(scene_no, scene_id, version, prose)` — the SINGLE
+    membership query behind EVERY chapter source fingerprint (ADR-0028 Q10).
+
+    It lives here, beside `chapter_source_fingerprint`, because "which scenes are in the snapshot" and
+    "how the snapshot is hashed" are one decision: two callers that disagree about membership produce
+    fingerprints that compare unequal even when the prose is identical, which would make the adoption
+    worker's drift CAS and amendment mode's drift gate silently incomparable. `import_adoption` and
+    `packet.amendment` both delegate here rather than each holding a copy of the query.
+    """
+    from sqlalchemy import select
+
+    from dominion.shared.enums import SceneStatus
+    from dominion.shared.models import Scene
+
+    rows = (
+        await session.execute(
+            select(Scene.scene_no, Scene.id, Scene.version, Scene.prose).where(
+                Scene.chapter_id == chapter_id, Scene.status != SceneStatus.SUPERSEDED
+            )
+        )
+    ).all()
+    return [(int(r[0]), r[1], int(r[2]), r[3]) for r in rows]
 
 
 def prose_sha256(prose: str | None) -> str:

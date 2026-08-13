@@ -25,13 +25,18 @@ from dominion.shared.chapter_lock import (
     run_under_chapter_workflow,
 )
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import PacketConfidence, PacketStatus
+from dominion.shared.enums import (
+    ChapterPacketApprovalSource,
+    ImportAdoptionMode,
+    PacketConfidence,
+    PacketStatus,
+)
 from dominion.shared.models import Chapter, ChapterPacket
 from dominion.shared.schemas import DeleteChapterPacketOut, PacketOut, PacketProposeOut, PacketUpdateIn
 from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
+from dominion.workers.packet import amendment, master
 from dominion.workers.packet import approval_policy as packet_approval
-from dominion.workers.packet import master
 from dominion.workers.packet.surface_contract import build_surface_contract
 from dominion.workers.packet.validation import evaluate_chapter_packet_internal
 from dominion.workers.scene_packet import staleness as packet_staleness
@@ -121,6 +126,14 @@ async def packet_status(chapter_id: uuid.UUID) -> PacketProposeOut:
 
 @router.get("/{chapter_id}/packet", response_model=PacketOut)
 async def get_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOut:
+    """The chapter's NEWEST packet by `created_at` — which is NOT necessarily the one holding authority.
+
+    `_latest` applies no status filter, so once an amendment is proposed (#261) this returns the proposed
+    amendment while the APPROVED predecessor is still the chapter's authority. That read-vs-authority
+    split is deliberate here (the review surface must be able to see the artifact awaiting review), and
+    it is the caller's job to distinguish them: `status`, `origin_mode`, and `supersedes_packet_id` on
+    `PacketOut` say exactly which row this is and what it would replace. There is currently NO endpoint
+    that returns "the active authority" specifically."""
     row = await _latest(session, chapter_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no packet for this chapter yet")
@@ -264,20 +277,61 @@ async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOu
     Runs under the chapter workflow lock (ADR-0028, #259). The `can_approve` gate is evaluated INSIDE
     the lock with the row reloaded, so the gate and the write are atomic: previously a concurrent
     `update_packet` could add an open question between the check and the commit, approving a packet
-    that was no longer approvable."""
+    that was no longer approvable.
+
+    REFUSES a proposed AMENDMENT (`409 amendment_requires_amendment_approval`, #261). `_latest` resolves
+    by recency with no status filter, so once an amendment is proposed it IS the newest row and this route
+    would otherwise approve it while leaving its predecessor approved — bypassing the supersede + scene
+    staling that approving an amendment means. Until this guard, that failed closed only by accident:
+    `uq_chapter_packets_active_chapter` rejected the second approved row and the author got a raw 500."""
 
     async def _body() -> ChapterPacket:
         row = await _latest(session, chapter_id)
         if row is None:
             raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+        # Checked HERE — inside the locked body, on the post-lock reload (`_latest` uses
+        # `populate_existing`) — not on a pre-lock read: an amendment can be published by the adoption
+        # worker between a caller's read and this transaction, and a guard that ran outside the lock would
+        # miss exactly that interleaving. Ordered BEFORE `can_approve` on purpose: this is a wrong-endpoint
+        # error, so it stays true even after the author clears every blocker the gate would report.
+        if (
+            str(row.origin_mode) == ImportAdoptionMode.AMENDMENT.value
+            and str(row.status) == PacketStatus.PROPOSED.value
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "reason": "amendment_requires_amendment_approval",
+                    "message": (
+                        "This chapter's newest packet is a proposed AMENDMENT, and an amendment cannot be "
+                        "approved here. Approving one must supersede the contract it replaces and mark the "
+                        "scene contracts derived from that predecessor stale — in the SAME transaction — "
+                        "which this route does not do. Use POST /chapters/"
+                        f"{chapter_id}/packet/{row.id}/approve-amendment instead."
+                    ),
+                },
+            )
         if refusal := packet_approval.can_approve(row):
             raise HTTPException(status_code=409, detail=refusal.detail)
-        row.status = PacketStatus.APPROVED
-        # Keep the canonical artifact's lifecycle mirror truthful (body.status mirrors the column; the
-        # column stays the operational gate). Legacy bodies are left untouched.
-        if isinstance(row.body, dict) and row.body.get("schema_version"):
-            row.body = {**row.body, "status": PacketStatus.APPROVED.value}
-        return row
+        # Delegate the WRITE to the one shared authority transition (#261) instead of setting the status
+        # here. An ordinary approve is the degenerate case of that transition — no predecessor to supersede
+        # and no children to stale — so routing through it keeps exactly ONE function that moves a
+        # ChapterPacket into `approved`. Two write sites is how "two approved packets" becomes reachable
+        # again, and a route-level guard alone would not have recorded the approval PROVENANCE: before this,
+        # every normally-approved packet landed with `approval_source`/`approved_at` NULL, which is the same
+        # shape `migrations._BACKFILLS` uses to mean "approved before provenance existed" — so a reader could
+        # not tell a fresh deliberate approval from an unproven legacy one.
+        outcome = await amendment.apply_authority_locked(
+            session,
+            chapter_id=chapter_id,
+            packet_id=row.id,
+            approval_source=ChapterPacketApprovalSource.MANUAL_COMMAND,
+            expect_amendment=False,
+        )
+        refreshed = await session.get(ChapterPacket, outcome.packet_id, populate_existing=True)
+        if refreshed is None:  # pragma: no cover - the row was just written in this transaction
+            raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+        return refreshed
 
     try:
         row = await run_under_chapter_workflow(session, chapter_id, _body, timeout_ms=LOCK_TIMEOUT_MS)
@@ -297,4 +351,102 @@ async def approve_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOu
     # human next derives ScenePackets (POST .../scene-packets/derive), approves them, and beats are
     # derived from the approved ScenePackets — the writer drafts against the scene-local contract.
     log.info("packet.approved", chapter=str(chapter_id), packet=str(row.id))
+    return packet_approval.enrich_packet_out(row)
+
+
+@router.post("/{chapter_id}/packet/{packet_id}/approve-amendment", response_model=PacketOut)
+async def approve_amendment_packet(chapter_id: uuid.UUID, packet_id: uuid.UUID, session: SessionDep) -> PacketOut:
+    """Approve an AMENDMENT packet and supersede its predecessor as one chapter-locked transaction (#261).
+
+    Distinct from `POST .../packet/approve` above only in what it takes on: the amendment names a
+    predecessor, so approving it hands chapter authority over — the predecessor becomes `superseded` and
+    the ScenePackets derived from it are marked stale for re-derivation. It is NOT a second approval seam:
+    both routes funnel into `workers/packet/amendment._apply_authority_locked`, and an ordinary approve is
+    the degenerate case with no predecessor.
+
+    The packet id is explicit in the path (rather than "the latest packet" as the ordinary route uses)
+    because the author is approving one reviewed artifact — resolving it by recency would let a
+    concurrently-published packet be approved in its place.
+
+    Fails CLOSED: the eligibility verdict, the prose fingerprint, and the predecessor's authority are all
+    re-checked under the lock, and any drift refuses with nothing written (`409
+    amendment_source_drifted`). Idempotent — an already-approved amendment returns its current state.
+    """
+    try:
+        outcome = await amendment.approve_amendment(
+            session,
+            chapter_id=chapter_id,
+            packet_id=packet_id,
+            timeout_ms=LOCK_TIMEOUT_MS,
+        )
+    except amendment.AmendmentChapterNotFound as exc:
+        raise HTTPException(status_code=404, detail="chapter not found") from exc
+    except amendment.AmendmentPacketNotFound as exc:
+        raise HTTPException(status_code=404, detail="no such chapter packet for this chapter") from exc
+    except amendment.AmendmentNotEligible as exc:
+        # Same token + same sentence as the eligibility preflight and `.../amendment/start`, both sourced
+        # from `amendment.REFUSAL_MESSAGES`, so one condition never grows two operator-facing messages.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": exc.reason,
+                "message": amendment.REFUSAL_MESSAGES.get(exc.reason) or str(exc),
+            },
+        ) from exc
+    except amendment.AmendmentSourceDrifted as exc:
+        # Invariant 4. The message must say NOTHING CHANGED, because the operator's next move depends on
+        # it: this is not a partial write to clean up, it is a refusal to promote an amendment authored
+        # against prose that no longer exists. The fingerprints ride along as extra keys for the Desk's
+        # diff, never in place of the sentence.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "amendment_source_drifted",
+                "message": (
+                    "The chapter's prose changed after this amendment was authored, so NOTHING was "
+                    "changed — the approved contract and every scene packet are exactly as they were. "
+                    "Re-run the amendment against the current prose, then approve that one."
+                ),
+                "expected": exc.expected,
+                "actual": exc.actual,
+            },
+        ) from exc
+    except amendment.AmendmentPredecessorMissing as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "amendment_predecessor_missing",
+                "message": (
+                    "This amendment no longer has an approved predecessor to replace — another operation "
+                    "changed the chapter's contract first. Nothing was changed; re-check the chapter's "
+                    "amendment eligibility and re-run the amendment."
+                ),
+            },
+        ) from exc
+    except ChapterWorkflowBusy as exc:
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
+    except DBAPIError as exc:
+        # `SET LOCAL lock_timeout` from the acquire applies for the REST of the transaction, so a ROW lock
+        # taken later in the body (the packet/predecessor reloads, the `FOR UPDATE` over the scene packets
+        # being staled) can time out too — as a bare 55P03, not ChapterWorkflowBusy. Same retryable 409.
+        if not is_lock_timeout(exc):
+            raise
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
+
+    # Post-commit, outside the lock. `populate_existing` is load-bearing here for the same reason it is
+    # inside the transition: `expire_on_commit=False` (shared/db.py:22) means a bare `session.get` would
+    # hand back the identity-mapped instance untouched, so the lineage/provenance columns the transition
+    # wrote — and the predecessor's — are read from the authoritative row, not from memory.
+    row = await session.get(ChapterPacket, outcome.packet_id, populate_existing=True)
+    if row is None:  # pragma: no cover — the row was just committed under the chapter lock
+        raise HTTPException(status_code=404, detail="no such chapter packet for this chapter")
+    log.info(
+        "packet.amendment_approved",
+        chapter=str(chapter_id),
+        packet=str(outcome.packet_id),
+        superseded=str(outcome.superseded_packet_id) if outcome.superseded_packet_id else None,
+        staled_scene_packets=len(outcome.staled_scene_packet_ids),
+        approval_source=outcome.approval_source,
+        already_approved=outcome.was_already_approved,
+    )
     return packet_approval.enrich_packet_out(row)

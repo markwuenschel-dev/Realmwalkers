@@ -516,7 +516,14 @@ async def _qa_and_persist(
     # lock, and a rollback here would discard this run's `llm_calls` rows even on a pass that then
     # SUCCEEDS — silently zeroing cost attribution for a retried propose. Both land in the caller's
     # single commit either way.
-    persisted = await _persist(session, chapter_id=chapter.id, row=row, replace=True)
+    # `preserve_approved=True` (#261): a re-propose must NEVER destroy the chapter's approved authority.
+    # Previously only the FAILED path asked for this (see the fail-closed caller above), so a SUCCESSFUL
+    # re-propose deleted the approved packet — and, once amendment mode exists, its whole `superseded`
+    # lineage with it. `_persist`'s own docstring already claimed callers "only replace after confirming no
+    # approved packet would be lost"; this makes that true of the success path too. The re-check happens
+    # UNDER the lock inside `_persist`, so it also closes the window where an approve commits between here
+    # and the acquire.
+    persisted = await _persist(session, chapter_id=chapter.id, row=row, replace=True, preserve_approved=True)
     telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id, chapter_id=chapter.id)
     return persisted
 
@@ -911,7 +918,19 @@ async def _persist(
             log.info("packet.persist_preserved_approved", chapter=str(chapter_id), packet=str(existing.id))
             return existing
     if replace:
-        await session.execute(delete(ChapterPacket).where(ChapterPacket.chapter_id == chapter_id))
+        # SCOPED to the replaceable states (#261). An unqualified chapter-wide delete would take the
+        # APPROVED authority and every `SUPERSEDED` row with it — and a superseded packet is the immutable
+        # record of which contract the book was written against before an amendment, so destroying it
+        # silently erases provenance invariant 7 exists to keep. `preserve_approved` above already returns
+        # early when an approved packet exists, so this predicate is the second, structural line of defence
+        # rather than the only one: a future caller that forgets the flag still cannot delete authority or
+        # history. PROPOSED and BLOCKED are the genuinely transient rows a re-propose is entitled to clear.
+        await session.execute(
+            delete(ChapterPacket).where(
+                ChapterPacket.chapter_id == chapter_id,
+                ChapterPacket.status.in_((PacketStatus.PROPOSED.value, PacketStatus.BLOCKED.value)),
+            )
+        )
         await session.flush()
     session.add(row)
     await session.flush()

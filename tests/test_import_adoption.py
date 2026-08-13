@@ -11,7 +11,8 @@ The four required oracles:
   * fingerprint-drift at publish INVALIDATES the pass and deletes the packet, while the evidence shards
     survive;
   * a busy per-chapter workflow lock raises ChapterWorkflowBusy, writes nothing, and re-enters cleanly.
-Plus the amendment-mode fail-closed refusal (a Slice 3b non-goal).
+Plus amendment mode's boundary condition: a chapter with no approved contract cannot be amended (#261 W2a
+replaced the old blanket "amendment is not implemented" refusal with the real copy-on-write author pass).
 """
 
 from __future__ import annotations
@@ -314,9 +315,15 @@ async def test_chapter_workflow_busy_writes_nothing_and_reenters(db_factory):
         assert list((adoption.seed_bindings or {}).values())[0]["scene_id"] == str(scene_id)
 
 
-async def test_amendment_mode_is_refused_closed(db_factory, monkeypatch):
-    """A `mode=amendment` adoption is a Slice 3b non-goal — the worker fails it closed with a typed reason
-    and authors nothing."""
+async def test_amendment_without_an_approved_packet_is_refused_closed(db_factory, monkeypatch):
+    """Amendment mode is copy-on-write FROM an approved contract, so a chapter with NO approved packet is
+    the INITIAL case and cannot be amended: the worker fails the adoption closed with amendment mode's own
+    typed reason and authors nothing (no model call, no ChapterPacket).
+
+    This used to assert the Slice-3b blanket refusal ("amendment mode is not implemented"). #261 W2a built
+    the copy-on-write author pass, so the blanket refusal — and the `AmendmentModeUnsupported` name that
+    carried it — are gone; what survives is the genuine boundary condition, refused with
+    `amendment.AmendmentNotEligible` carrying the `no_approved_packet` verdict token."""
     _patch_author(monkeypatch, packet=_author_packet(1))
     async with db_factory() as s:
         book, ch, _ = await _seed(s, n_scenes=1)
@@ -332,7 +339,8 @@ async def test_amendment_mode_is_refused_closed(db_factory, monkeypatch):
     async with db_factory() as s:
         adoption = (await s.execute(select(ImportAdoption))).scalar_one()
         assert adoption.status == "failed"
-        assert "AmendmentModeUnsupported" in (adoption.error or "")
+        assert "AmendmentNotEligible" in (adoption.error or "")
+        assert "no approved contract" in (adoption.error or "")
         assert (
             await s.execute(
                 select(func.count()).select_from(ChapterPacket).where(ChapterPacket.chapter_id == chapter_id)

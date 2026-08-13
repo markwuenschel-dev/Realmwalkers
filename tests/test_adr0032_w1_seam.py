@@ -164,16 +164,50 @@ async def test_operator_command_upgrades_request_bound_liveness_monotonically(db
         assert row.liveness_basis == "operator_independent"  # upgraded, never downgraded
 
 
-async def test_all_four_adoption_operations_are_wired(db_factory):
-    """ADR-0032 D1 names exactly four callers of the one seam. After W4 all four have an explicit
-    (entry_intent, liveness_basis) policy — a fifth minter appearing unwired is a revisit trigger, not
-    something the seam may guess through."""
+async def test_every_adoption_operation_is_wired(db_factory):
+    """ADR-0032 D1 named four callers of the one seam; #261's AMENDMENT is the fifth, and ADR-0032's own
+    revisit triggers list "a 5th adoption minter appears" as exactly the event that had to be ruled rather
+    than guessed through. It is now wired with an explicit policy, so this assertion still holds over the
+    WHOLE enum — which is the property that matters, and why the test is no longer named "all_four".
+
+    An operation absent from the table fails closed (see `test_unwired_operation_fails_closed`)."""
     assert set(adoption_entry._POLICY) == set(AdoptionOperation)
     assert adoption_entry._POLICY[AdoptionOperation.REVISION].liveness_basis is LivenessBasis.REQUEST_BOUND
     assert adoption_entry._POLICY[AdoptionOperation.REVISION].entry_intent is EntryIntent.SPEND
     reconciliation = adoption_entry._POLICY[AdoptionOperation.RECONCILIATION]
     assert reconciliation.entry_intent is EntryIntent.RECORD_WITHOUT_SPEND  # a boot never buys anything
     assert reconciliation.liveness_basis is LivenessBasis.REQUEST_BOUND
+
+
+async def test_amendment_policy_is_the_mirror_of_the_others(db_factory):
+    """#261. AMENDMENT's eligibility envelope is the INVERSE of every other operation's, which is why it
+    needed its own axis rather than a combination of the existing flags:
+
+      * it REQUIRES an approved ChapterPacket (there is nothing to amend without one), where the other
+        operations either refuse one or are indifferent;
+      * it must TOLERATE contracted scenes — a chapter with an approved contract has derived scene packets
+        by definition, so `requires_evidence_only` would refuse every genuine amendment candidate.
+
+    `requires_amendable_chapter` and `refuses_approved_packet` must never both be set on one operation: an
+    operation that simultaneously demands and forbids an approved packet could never run, and the failure
+    would surface as a permanently-refused endpoint rather than an obvious contradiction."""
+    amendment_policy = adoption_entry._POLICY[AdoptionOperation.AMENDMENT]
+    assert amendment_policy.requires_amendable_chapter is True
+    assert amendment_policy.refuses_approved_packet is False
+    assert amendment_policy.requires_evidence_only is False
+    # Entering amendment is a deliberate operator command: it authorises spend, and the command is itself
+    # durable demand so reverse-cancellation must never retire a half-reviewed amendment.
+    assert amendment_policy.entry_intent is EntryIntent.SPEND
+    assert amendment_policy.liveness_basis is LivenessBasis.OPERATOR_INDEPENDENT
+
+    for operation, policy in adoption_entry._POLICY.items():
+        assert not (policy.requires_amendable_chapter and policy.refuses_approved_packet), (
+            f"{operation} both requires and refuses an approved packet — it could never run"
+        )
+        if operation is not AdoptionOperation.AMENDMENT:
+            assert policy.requires_amendable_chapter is False, (
+                f"{operation} must not require an amendable chapter; amendment is the only such operation"
+            )
 
 
 async def test_unwired_operation_fails_closed(db_factory, monkeypatch):

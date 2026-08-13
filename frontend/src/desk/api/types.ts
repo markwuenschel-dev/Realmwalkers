@@ -200,6 +200,16 @@ export type DocMeta = S["DocMeta"];
 /** Full library document (OpenAPI schema name: DocOut). */
 export type DocDetail = S["DocOut"];
 export type PacketProposeOut = S["PacketProposeOut"];
+// --- amendment mode (#261) ------------------------------------------------------------------------
+// Read-only preflight for "may this chapter's approved contract be amended". `reason` is a closed set
+// of machine tokens (no_approved_packet | no_imported_scenes | all_scenes_seeded |
+// unseeded_scenes_present | amendment_already_open) — switch on it, never on `message`. Only
+// `unseeded_scenes_present` is eligible, and `message` is null exactly then. ADVISORY: the approve
+// route recomputes the same verdict under the chapter lock, so this informs the UI, never authorizes.
+export type AmendmentEligibilityOut = S["AmendmentEligibilityOut"];
+// The adoption row `POST /chapters/{id}/amendment/start` returns: a durable spend-consent record the
+// amendment author claims. `chapter_packet_id` stays null until the amendment packet is published.
+export type ImportAdoptionOut = S["ImportAdoptionOut"];
 export type ScenePacketDeriveOut = S["ScenePacketDeriveOut"];
 export type ScenePacketDeriveStatusOut = S["ScenePacketDeriveStatusOut"];
 export type TelemetryTotals = S["TelemetryTotals"];
@@ -398,6 +408,16 @@ export interface PacketWarnings {
   blocked_reason?: string;
 }
 
+/** `PacketOut.amendment_scope` — written ONCE, by the locked approve transition, and never on the
+ *  proposal (`workers/packet/amendment.py:462-466`). `predecessor_packet_id` is WHY the amendment
+ *  existed; `staled_scene_packet_ids` is WHAT it invalidated — the scene contracts the supersession
+ *  marked stale, which must be re-derived before those scenes can be drafted. */
+export interface AmendmentScope {
+  predecessor_packet_id?: string;
+  staled_scene_packet_ids?: string[];
+  superseded_at?: string;
+}
+
 export type PacketOut = Omit<
   S["PacketOut"],
   | "body"
@@ -408,6 +428,7 @@ export type PacketOut = Omit<
   | "blocker_kind"
   | "recovery_actions"
   | "blocker_diagnostics"
+  | "amendment_scope"
 > & {
   body: PacketBody;
   qa_warnings: PacketWarnings | null;
@@ -417,6 +438,9 @@ export type PacketOut = Omit<
   blocker_kind?: string | null;
   recovery_actions?: string[];
   blocker_diagnostics?: Record<string, unknown> | null;
+  // Re-typed from the generated JSONB `{[key: string]: unknown}` to the concrete shape the approve
+  // transition writes, so the Desk's affected-scenes list reads real fields instead of casting.
+  amendment_scope?: AmendmentScope | null;
 };
 
 export type PacketUpdateIn = Omit<S["PacketUpdateIn"], "body" | "open_questions"> & {

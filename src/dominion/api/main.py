@@ -80,6 +80,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # and invisible, which is exactly the condition this step exists to surface.
         log.error("adoption_reconciliation_failed", error=str(exc))
 
+    # Verify chapter-packet authority (#261 invariant 6, second half) — also BEFORE the drains, and for a
+    # sharper version of the same reason: `draft_readiness`'s approved-packet query has no ORDER BY, so a
+    # drain that resolves "the chapter's approved contract" over a split-brain chapter picks one
+    # arbitrarily. VERIFICATION ONLY — it changes no ChapterPacket row by design; see the sweep's docstring.
+    try:
+        from dataclasses import asdict
+
+        from dominion.workers.boot_reconciliation import reconcile_chapter_packet_authority
+
+        authority = await reconcile_chapter_packet_authority()
+        if authority.findings_total:
+            log.error("chapter_packet_authority_violations", **asdict(authority))
+    except Exception as exc:  # noqa: BLE001 — never block boot on a verification sweep
+        log.error("chapter_packet_authority_failed", error=str(exc))
+
     # Resume the drafting drain if a redeploy stranded QUEUED jobs. The drain is an in-process
     # background task, so a container swap kills it mid-queue and the jobs otherwise sit QUEUED
     # forever — silently, as "N queued" — until a human posts /jobs/draft-next. Fire-and-forget:

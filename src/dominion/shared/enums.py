@@ -147,9 +147,48 @@ class PacketVerdict(StrEnum):
 
 
 class PacketStatus(StrEnum):
+    """A ChapterPacket's lifecycle. Exactly ONE packet per chapter may be APPROVED at a time — the
+    chapter's sole active authority — and that is a DATABASE guarantee, not a convention
+    (`uq_chapter_packets_active_chapter`, see shared/migrations.py).
+
+    PROPOSED: reviewable, not authoritative. APPROVED: the chapter's single active authority.
+    BLOCKED: authored fail-closed; retained as diagnostic evidence, never authoritative.
+    SUPERSEDED: was approved, then replaced by an amendment (#261, ADR-0028 §38). A terminal,
+      immutable historical record — it MUST name its successor (`superseded_by_packet_id`, enforced by
+      `ck_chapter_packets_superseded_names_successor`) and it no longer occupies the active slot, which
+      is precisely what lets the successor take it inside the same transaction.
+
+    SUPERSEDED is the one state that is NOT a candidate for anything: it is never re-approved, never
+    re-derived from, and never returned by an authority reader.
+    """
+
     PROPOSED = "proposed"
     APPROVED = "approved"
     BLOCKED = "blocked"
+    SUPERSEDED = "superseded"
+
+
+class ChapterPacketApprovalSource(StrEnum):
+    """HOW a ChapterPacket came to be APPROVED. Mirrors `ScenePacketApprovalSource` (ADR-0033 D5b) with
+    one deliberate, load-bearing difference: there is NO `autonomous_policy` member.
+
+    At the scene tier an automated approver is legitimate within its ceiling (ADR-0030). At the CHAPTER
+    tier it is not — no model output may approve a chapter contract, supersede a predecessor, clear a
+    blocker, or select which packet holds authority. That prohibition is expressed as the ABSENCE of a
+    value here and a CHECK constraint that permits only the members below, so introducing an autonomous
+    chapter approver requires a schema migration rather than a one-line code change.
+
+    * ``MANUAL_COMMAND`` — a deliberate command through an explicit route. It asserts a deliberate
+      command, NOT an authenticated human identity (the system has none).
+    * ``LEGACY_UNCLASSIFIED`` — approved before this column existed. Treated as unproven, deliberately:
+      unproven provenance is not human provenance.
+
+    NULL means the packet has never been approved. Written only by the single locked transition seam
+    (`workers/packet/amendment.py`).
+    """
+
+    MANUAL_COMMAND = "manual_command"
+    LEGACY_UNCLASSIFIED = "legacy_unclassified"
 
 
 class ClaimSource(StrEnum):
@@ -520,12 +559,19 @@ class AdoptionOperation(StrEnum):
     observability `trigger`.
 
     OPERATOR_START / REAUTHOR are wired in W1; REVISION (sync auto-start, W3) and RECONCILIATION (boot,
-    W4) are wired in their waves — an unwired operation fails closed in the seam."""
+    W4) are wired in their waves — an unwired operation fails closed in the seam.
+
+    AMENDMENT (#261) is the ONLY operation whose eligibility envelope REQUIRES an already-approved
+    ChapterPacket. Every other operation refuses one (`refuses_approved_packet`), because changing
+    approved material is an amendment, not a re-author. It is also the only operation that mints
+    `mode=amendment`, and it is admitted only for the genuine no-seed case — a chapter whose every
+    imported scene still resolves to a seed is refused, and a merely-stale seed is a normal re-derive."""
 
     OPERATOR_START = "operator_start"
     REAUTHOR = "reauthor"
     REVISION = "revision"
     RECONCILIATION = "reconciliation"
+    AMENDMENT = "amendment"
 
 
 class EntryEffect(StrEnum):
@@ -594,19 +640,43 @@ class RevisionRequestOrigin(StrEnum):
 
 
 class IntegrityHoldReason(StrEnum):
-    """Why boot reconciliation could NOT rebuild a stranded scene's revise intent (ADR-0032 D8). The
-    hold itself is a DERIVED condition — `Scene.status == revision_requested` AND no active
-    `RevisionRequest` AND no valid current-row REVISE `Approval` — never a row that owns the state; the
-    operator surface is an append-only `Activity` projection of it.
+    """Why a boot reconciliation sweep raised an integrity hold. Every hold is a DERIVED condition —
+    never a row that owns the state — and the operator surface is an append-only `Activity` projection
+    of it. Two independent sweeps share this vocabulary, because the Desk switches on one `reason_code`
+    field regardless of which sweep produced it.
 
-    MISSING_APPROVAL: the scene has no `Approval` at all. LATEST_DECISION_NOT_REVISE: the latest
-    approval OVERALL is an APPROVE/DENY, so the revise intent was replaced — resurrecting an older
-    REVISE would resurrect superseded intent. SCENE_VERSION_MISMATCH: the latest approval IS a REVISE
-    but was raised against a different scene version, so it is identity drift, not current intent."""
+    STRANDED REVISE INTENT (ADR-0032 D8) — `Scene.status == revision_requested` AND no active
+    `RevisionRequest` AND no valid current-row REVISE `Approval`, i.e. reconciliation could not rebuild
+    the scene's revise intent. MISSING_APPROVAL: the scene has no `Approval` at all.
+    LATEST_DECISION_NOT_REVISE: the latest approval OVERALL is an APPROVE/DENY, so the revise intent was
+    replaced — resurrecting an older REVISE would resurrect superseded intent. SCENE_VERSION_MISMATCH:
+    the latest approval IS a REVISE but was raised against a different scene version, so it is identity
+    drift, not current intent.
+
+    CHAPTER-PACKET AUTHORITY (#261 invariant 6, second half) — the approve+supersede transition is ONE
+    chapter-locked transaction, so every state below is unreachable while the constraints hold. Observing
+    one therefore means a constraint was bypassed, and the sweep REPORTS rather than repairs: which
+    contract a book is written against is a human's decision, and silently picking one would destroy the
+    evidence. MULTIPLE_APPROVED_CHAPTER_PACKETS: >1 approved packet for one chapter — the split-brain
+    `uq_chapter_packets_active_chapter` exists to prevent, which makes `draft_readiness.py`'s
+    no-ORDER-BY approved-packet query resolve arbitrarily. SUPERSESSION_SUCCESSOR_MISSING: a `superseded`
+    packet naming no successor, or naming one that does not exist (there is deliberately no FK on the
+    lineage columns, so a dangling id is representable). APPROVED_AMENDMENT_WITHOUT_PREDECESSOR: an
+    approved `amendment` with no `supersedes_packet_id` — an amendment that superseded nothing.
+    SUPERSEDED_PACKET_HAS_LIVE_CHILDREN: a `superseded` packet still has APPROVED ScenePacket children,
+    i.e. scene contracts claiming authority from a chapter contract that no longer governs (invariant 3's
+    third clause; the one genuinely reachable case, e.g. a scene packet approved through another route
+    after the supersession). CHAPTER_AUTHORITY_VACATED: a chapter with zero approved packets but at least
+    one superseded one — authority was given up and never re-taken."""
 
     MISSING_APPROVAL = "missing_approval"
     LATEST_DECISION_NOT_REVISE = "latest_decision_not_revise"
     SCENE_VERSION_MISMATCH = "scene_version_mismatch"
+    MULTIPLE_APPROVED_CHAPTER_PACKETS = "multiple_approved_chapter_packets"
+    SUPERSESSION_SUCCESSOR_MISSING = "supersession_successor_missing"
+    APPROVED_AMENDMENT_WITHOUT_PREDECESSOR = "approved_amendment_without_predecessor"
+    SUPERSEDED_PACKET_HAS_LIVE_CHILDREN = "superseded_packet_has_live_children"
+    CHAPTER_AUTHORITY_VACATED = "chapter_authority_vacated"
 
 
 class RequestDisposition(StrEnum):

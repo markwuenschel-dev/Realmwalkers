@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from dominion.api.deps import SessionDep
 from dominion.api.scene_delete import hard_delete_scene
-from dominion.shared.enums import SceneStatus
+from dominion.shared.enums import ImportAdoptionMode, PacketStatus, SceneStatus
 from dominion.shared.models import Book, Chapter, ChapterPacket, Part, ProductionRun, Scene, Volume
 from dominion.shared.schemas import (
     BookIn,
@@ -205,22 +205,45 @@ async def chapters_overview(book_id: uuid.UUID, session: SessionDep) -> list[Cha
     chapter_ids = [c.id for c in chapters]
     readiness_rows = await fetch_book_readiness_rows(session, book_id)
 
-    # Latest chapter packet per chapter, ANY status — a proposed/blocked packet must read as such,
-    # not as "no packet" (the readiness rows only carry the approved one).
-    latest_packet: dict[uuid.UUID, ChapterPacket] = {}
+    # THE CHAPTER'S PACKET IS ITS APPROVED ONE (#261). `readiness_rows[cid].cp` already resolves exactly
+    # that (`fetch_book_readiness_rows` filters `status == PacketStatus.APPROVED`), and it is the precedent
+    # for what "the chapter's packet" means here. Taking the newest row of ANY status instead let an open
+    # amendment overwrite the authority the moment it was proposed: `packet_status` flipped
+    # "approved" -> "proposed" and `packet_approval_state` was projected from the amendment, so the Chapters
+    # chip and the readiness gate row both reported a still-fully-approved chapter as regressed.
+    #
+    # The fallback below is for a chapter with NO approved packet, where a proposed/blocked packet must
+    # still read as such rather than as "no packet". `superseded` rows are excluded outright: they are
+    # terminal history and never a chapter's packet (see enums.PacketStatus), so once an amendment lands
+    # the replaced predecessor can no longer surface here either.
+    reviewable_packet: dict[uuid.UUID, ChapterPacket] = {}
+    open_amendment_id: dict[uuid.UUID, uuid.UUID] = {}
     if chapter_ids:
         for row in (
             (
                 await session.execute(
                     select(ChapterPacket)
-                    .where(ChapterPacket.chapter_id.in_(chapter_ids))
+                    .where(
+                        ChapterPacket.chapter_id.in_(chapter_ids),
+                        ChapterPacket.status != PacketStatus.SUPERSEDED,
+                    )
                     .order_by(ChapterPacket.chapter_id, ChapterPacket.created_at.desc())
                 )
             )
             .scalars()
             .all()
         ):
-            latest_packet.setdefault(row.chapter_id, row)
+            reviewable_packet.setdefault(row.chapter_id, row)
+            # An open amendment is reported ALONGSIDE the authority, never in place of it. Same predicate
+            # as `workers/packet/amendment.assess_chapter`'s own `open_amendment` query and
+            # `uq_chapter_packets_open_amendment`: origin_mode=amendment AND status=proposed, at most one
+            # per chapter by index.
+            if (
+                row.status == PacketStatus.PROPOSED
+                and row.origin_mode == ImportAdoptionMode.AMENDMENT
+                and row.chapter_id not in open_amendment_id
+            ):
+                open_amendment_id[row.chapter_id] = row.id
 
     latest_run: dict[uuid.UUID, ProductionRun] = {}
     if chapter_ids:
@@ -241,7 +264,8 @@ async def chapters_overview(book_id: uuid.UUID, session: SessionDep) -> list[Cha
     for chapter in chapters:
         rows = readiness_rows[chapter.id]
         readiness = derive_draft_readiness(rows)
-        pkt = latest_packet.get(chapter.id)
+        # Authority first; the reviewable fallback only speaks for a chapter that has no approved packet.
+        pkt = rows.cp or reviewable_packet.get(chapter.id)
         state, blockers = packet_approval_state(pkt) if pkt is not None else (None, [])
 
         # Same violation fold as GET /chapters/{id}/scene-packets/summary, summed chapter-wide.
@@ -264,6 +288,7 @@ async def chapters_overview(book_id: uuid.UUID, session: SessionDep) -> list[Cha
                 packet_status=str(pkt.status) if pkt is not None else None,
                 packet_approval_state=state,
                 packet_approval_blockers=blockers,
+                open_amendment_packet_id=open_amendment_id.get(chapter.id),
                 scene_packets_total=len(rows.sp_rows),
                 scene_packets_approved=_as_int(readiness.scene_packets.get("approved")),
                 scene_packets_blocked=_as_int(readiness.scene_packets.get("blocked")),

@@ -107,19 +107,36 @@ async def seed_scene_packet(s, *, chapter, beat, body: dict | None = None):
     `beat.scene_packet_id` (which assemble_context reads). Returns the ScenePacket.
 
     Importable from tests: `from conftest import seed_scene_packet` (tests/ is on sys.path).
+
+    REUSES the chapter's existing approved ChapterPacket when there is one, and only mints a packet when
+    the chapter has none. Two calls for the same chapter (several tests do this deliberately, to build two
+    approved ScenePackets at one scene_no) used to create two approved ChapterPackets — which
+    `uq_chapter_packets_active_chapter` (#261) now correctly rejects, because "at most one approved
+    ChapterPacket per chapter" is a real invariant and this helper was quietly violating it. The second
+    packet was always incidental to what those tests assert.
     """
+    from sqlalchemy import select
+
     from dominion.shared.models import ChapterPacket, ScenePacket
 
-    cp = ChapterPacket(
-        book_id=chapter.book_id,
-        chapter_id=chapter.id,
-        status="approved",
-        confidence="green",
-        body={"scene_seeds": []},
-        open_questions={"items": []},
-    )
-    s.add(cp)
-    await s.flush()
+    cp = (
+        await s.execute(
+            select(ChapterPacket)
+            .where(ChapterPacket.chapter_id == chapter.id, ChapterPacket.status == "approved")
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if cp is None:
+        cp = ChapterPacket(
+            book_id=chapter.book_id,
+            chapter_id=chapter.id,
+            status="approved",
+            confidence="green",
+            body={"scene_seeds": []},
+            open_questions={"items": []},
+        )
+        s.add(cp)
+        await s.flush()
     # No word_budget by default, so the length guard stays inert for tests that fake short prose
     # (a budget would trigger an expansion LLM call). Tests exercising length pass an explicit body.
     sp = ScenePacket(

@@ -94,6 +94,21 @@ class ChapterContractAlreadyApproved(AdoptionEntryError):
         super().__init__(f"chapter {chapter_id} already has an approved contract")
 
 
+class ChapterNotAmendable(AdoptionEntryError):
+    """#261: the AMENDMENT operation was requested for a chapter that is not in the genuine no-seed state.
+
+    Carries the machine-readable `reason` token from `packet.amendment.assess_chapter` so the route can
+    tell the author WHICH boundary condition refused — "every scene already resolves to a seed" (re-derive
+    instead), "no approved contract to amend" (run initial adoption instead), and "an amendment is already
+    open" (review that one) each need a different action, and collapsing them into one 409 would send the
+    author looking in the wrong place."""
+
+    def __init__(self, chapter_id: uuid.UUID, reason: str) -> None:
+        self.chapter_id = chapter_id
+        self.reason = reason
+        super().__init__(f"chapter {chapter_id} is not amendable: {reason}")
+
+
 class IncompatibleAdoptionEntry(AdoptionEntryError):
     """Fail-closed: the requested operation, or a reconciled collision winner, is in a state the seam
     will not silently guess through (unwired operation, force-token conflict, or a vanished winner). Never
@@ -112,6 +127,12 @@ class _Policy:
     liveness_basis: LivenessBasis
     requires_evidence_only: bool
     refuses_approved_packet: bool
+    #: #261 AMENDMENT only: this operation REQUIRES an approved ChapterPacket to amend, and requires the
+    #: chapter to be in the genuine no-seed state. It is the mirror image of `refuses_approved_packet` and
+    #: the two are mutually exclusive by construction — an operation that both demands and forbids an
+    #: approved packet could never run, and `test_amendment_policy_is_the_mirror_of_the_others` pins that.
+    #: Defaults False so the four pre-existing operations are unchanged by this axis.
+    requires_amendable_chapter: bool = False
 
 
 _POLICY: dict[AdoptionOperation, _Policy] = {
@@ -127,8 +148,10 @@ _POLICY: dict[AdoptionOperation, _Policy] = {
     # W3 — the sync Revise entry. SPEND because an explicit Revise IS spend consent (D6: no second
     # confirmation, no revise-specific ceiling), but REQUEST_BOUND because the *reason it survives* is the
     # request that raised it: once that demand is gone, D9's reverse-cancel retires it. The eligibility
-    # envelope is the strictest of the four — an already-contracted or approved chapter needs AMENDMENT
-    # mode (#261), which does not exist, so both guards are on and the chapter fails closed.
+    # envelope is the strictest of these — an already-contracted or approved chapter needs AMENDMENT mode
+    # (#261), so both guards stay on here and the chapter fails closed; the operator enters amendment
+    # deliberately through the AMENDMENT operation below rather than having Revise silently escalate into a
+    # supersession of approved material.
     AdoptionOperation.REVISION: _Policy(
         EntryIntent.SPEND, LivenessBasis.REQUEST_BOUND, requires_evidence_only=True, refuses_approved_packet=True
     ),
@@ -140,6 +163,23 @@ _POLICY: dict[AdoptionOperation, _Policy] = {
         LivenessBasis.REQUEST_BOUND,
         requires_evidence_only=True,
         refuses_approved_packet=True,
+    ),
+    # #261 — amendment mode. The INVERSE envelope of every operation above, which is why it needs its own
+    # axis rather than a flag combination: it REQUIRES an approved ChapterPacket (there is nothing to amend
+    # without one) and it must tolerate contracted scenes (a chapter with an approved contract has derived
+    # scene packets by definition — `requires_evidence_only` would refuse every real amendment candidate).
+    # SPEND: entering amendment is a deliberate operator command that authorises one author pass.
+    # OPERATOR_INDEPENDENT: like Start/Re-author, the command is itself durable demand, so reverse
+    # cancellation must never retire a half-finished amendment out from under a reviewing author.
+    # The narrowing that replaces the two disabled guards is `requires_amendable_chapter`, which defers to
+    # `packet.amendment.assess_chapter` — so "may this chapter be amended" has exactly ONE definition and
+    # the seam cannot drift from the transition that later acts on it.
+    AdoptionOperation.AMENDMENT: _Policy(
+        EntryIntent.SPEND,
+        LivenessBasis.OPERATOR_INDEPENDENT,
+        requires_evidence_only=False,
+        refuses_approved_packet=False,
+        requires_amendable_chapter=True,
     ),
 }
 
@@ -311,6 +351,17 @@ async def ensure_import_adoption_locked(
         raise ChapterHasContractedScenes(chapter_id)
     if policy.refuses_approved_packet and await _has_approved_chapter_packet(session, chapter_id):
         raise ChapterContractAlreadyApproved(chapter_id)
+    # #261: amendment's envelope is a POSITIVE requirement, delegated to the amendment module so the
+    # "is this chapter amendable" question has exactly one implementation. Imported locally to keep
+    # `shared` free of an import-time dependency on `workers` (the seam is imported by routers and by boot
+    # reconciliation; a module-level workers import would make that a cycle).
+    if policy.requires_amendable_chapter:
+        from dominion.workers.packet import amendment as _amendment
+
+        verdict = await _amendment.assess_chapter(session, chapter_id=chapter_id)
+        if not verdict.eligible:
+            raise ChapterNotAmendable(chapter_id, verdict.reason)
+        mode = ImportAdoptionMode.AMENDMENT
 
     # 3) Force-token idempotency (REAUTHOR): a token that already spent returns its row, inert.
     if force_author_token is not None:

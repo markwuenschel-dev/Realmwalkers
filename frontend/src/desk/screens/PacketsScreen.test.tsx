@@ -79,6 +79,10 @@ vi.mock("../api/client", () => ({
     updatePacket: vi.fn(),
     approvePacket: vi.fn(),
     deletePacket: vi.fn(),
+    // Amendment mode (#261) — the eligibility preflight is fetched on every chapter open.
+    amendmentEligibility: vi.fn(),
+    startAmendment: vi.fn(),
+    approveAmendment: vi.fn(),
     // Called by ScenePacketsPanel, which mounts once a packet is approved.
     scenePackets: vi.fn(),
     deriveStatus: vi.fn(),
@@ -134,6 +138,14 @@ const REPAIR_PACKET = {
   approval_state: "approvable",
   approval_blockers: [],
 };
+
+// The amendment preflight rides along on every chapter open. Default it to "no verdict" so the suites
+// that are not about amendment mode render exactly as they did before it existed.
+beforeEach(() => {
+  vi.mocked(api.amendmentEligibility).mockReset().mockRejectedValue(new Error("404"));
+  vi.mocked(api.startAmendment).mockReset();
+  vi.mocked(api.approveAmendment).mockReset();
+});
 
 describe("PacketsScreen batch generate", () => {
   beforeEach(() => {
@@ -329,6 +341,168 @@ describe("PacketsScreen approve with repairs", () => {
     const approve = await screen.findByRole("button", { name: /Approve/ });
     expect(approve).toBeDisabled();
     expect(screen.getByText(/not approvable right now/)).toBeInTheDocument();
+  });
+});
+
+// Amendment mode (#261) wired end-to-end at the screen: eligibility fetched on chapter open, the
+// authority-split banner, the amendment-only approve route, and the fail-closed 409 recovery. Mocked at
+// the `api` boundary — no network.
+describe("PacketsScreen amendment mode", () => {
+  const PROPOSED_AMENDMENT = {
+    ...REPAIR_PACKET,
+    id: "amend-1",
+    status: "proposed",
+    origin_mode: "amendment",
+    supersedes_packet_id: "pred-0000-0000",
+    source_fingerprint: "aaaaaaaaaaaaaaaabbbb",
+    qa_warnings: null,
+  };
+  const APPROVED_AMENDMENT = {
+    ...PROPOSED_AMENDMENT,
+    status: "approved",
+    approved_at: "2026-07-03T09:00:00Z",
+    approval_source: "manual_command",
+    amendment_scope: {
+      predecessor_packet_id: "pred-0000-0000",
+      staled_scene_packet_ids: ["scenepkt-1", "scenepkt-2"],
+      superseded_at: "2026-07-03T09:00:00Z",
+    },
+  };
+  const ALREADY_OPEN = {
+    chapter_id: "c1",
+    reason: "amendment_already_open",
+    eligible: false,
+    message: "An amendment for this chapter is already open and awaiting review.",
+    approved_packet_id: "pred-0000-0000",
+    open_amendment_packet_id: "amend-1",
+    unseeded_scene_ids: ["scene-9"],
+    seeded_scene_ids: [],
+    source_fingerprint: "aaaaaaaaaaaaaaaabbbb",
+  };
+  const ELIGIBLE = {
+    ...ALREADY_OPEN,
+    reason: "unseeded_scenes_present",
+    eligible: true,
+    message: null,
+    open_amendment_packet_id: null,
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.packetStatus).mockReset().mockResolvedValue({ running: false });
+    // Approving flips the packet to approved, which mounts ScenePacketsPanel — quiet defaults for it.
+    vi.mocked(api.scenePackets).mockReset().mockResolvedValue([]);
+    vi.mocked(api.deriveStatus).mockReset().mockResolvedValue({ running: false });
+    vi.mocked(api.draftReadiness).mockReset().mockRejectedValue(new Error("404"));
+    vi.mocked(api.chapterTelemetry).mockReset().mockRejectedValue(new Error("404"));
+  });
+
+  it("fetches eligibility on chapter open and offers Start amendment when eligible", async () => {
+    vi.mocked(api.packet).mockReset().mockRejectedValue(new Error("404"));
+    vi.mocked(api.amendmentEligibility).mockReset().mockResolvedValue(ELIGIBLE);
+    vi.mocked(api.startAmendment).mockResolvedValue({
+      id: "adopt-1234-5678",
+      book_id: "b1",
+      chapter_id: "c1",
+      mode: "amendment",
+      status: "queued",
+      created_at: "2026-07-03T09:00:00Z",
+      updated_at: "2026-07-03T09:00:00Z",
+    });
+
+    render(<PacketsScreen />);
+    await waitFor(() => expect(api.amendmentEligibility).toHaveBeenCalledWith("c1"));
+
+    const start = await screen.findByRole("button", { name: "Start amendment" });
+    expect(start).not.toBeDisabled();
+    fireEvent.click(start);
+
+    await waitFor(() => expect(api.startAmendment).toHaveBeenCalledWith("c1"));
+    const notice = await screen.findByTestId("amendment-notice");
+    expect(notice.textContent).toMatch(/adopt-12/);
+    expect(notice.textContent).toMatch(/queued/);
+    expect(notice.textContent).toMatch(/does not poll/i);
+  });
+
+  it("banners the authority split and blocks the ordinary Approve for a proposed amendment", async () => {
+    vi.mocked(api.packet).mockReset().mockResolvedValue(PROPOSED_AMENDMENT);
+    vi.mocked(api.amendmentEligibility).mockReset().mockResolvedValue(ALREADY_OPEN);
+
+    render(<PacketsScreen />);
+    const banner = await screen.findByTestId("amendment-authority-banner");
+    expect(banner.textContent).toMatch(/still governed by its predecessor/i);
+    expect(banner.textContent).toContain("pred-000");
+
+    // The ordinary approve route refuses an amendment (409 amendment_requires_amendment_approval), so
+    // the Desk must not offer it — and must say where to go instead.
+    const ordinary = screen.getByRole("button", { name: "Approve packet" });
+    expect(ordinary).toBeDisabled();
+    expect(ordinary.getAttribute("title")).toMatch(/Approve amendment/);
+    expect(screen.getByText(/newest packet is a proposed amendment/i)).toBeInTheDocument();
+  });
+
+  it("approves through the amendment route and shows what it invalidated", async () => {
+    vi.mocked(api.packet)
+      .mockReset()
+      .mockResolvedValueOnce(PROPOSED_AMENDMENT)
+      .mockResolvedValue(APPROVED_AMENDMENT);
+    vi.mocked(api.amendmentEligibility).mockReset().mockResolvedValue(ALREADY_OPEN);
+    vi.mocked(api.approveAmendment).mockResolvedValue(APPROVED_AMENDMENT);
+
+    render(<PacketsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Approve amendment" }));
+
+    await waitFor(() => expect(api.approveAmendment).toHaveBeenCalledWith("c1", "amend-1"));
+    await waitFor(() =>
+      expect(screen.queryByTestId("amendment-authority-banner")).not.toBeInTheDocument(),
+    );
+    const panel = screen.getByTestId("amendment-panel");
+    expect(panel.textContent).toMatch(/Scene contracts staled by this amendment · 2/);
+    expect(panel.textContent).toContain("scenepkt");
+  });
+
+  it("renders the drift 409 as 'nothing was changed' plus the real fix", async () => {
+    vi.mocked(api.packet).mockReset().mockResolvedValue(PROPOSED_AMENDMENT);
+    vi.mocked(api.amendmentEligibility).mockReset().mockResolvedValue(ALREADY_OPEN);
+    // The shape `http()` throws for a 409: FastAPI wraps the payload one level down in `detail`.
+    vi.mocked(api.approveAmendment).mockRejectedValue({
+      status: 409,
+      statusText: "Conflict",
+      message: "409 Conflict",
+      data: {
+        detail: {
+          reason: "amendment_source_drifted",
+          message:
+            "The chapter's prose changed after this amendment was authored, so NOTHING was changed " +
+            "— the approved contract and every scene packet are exactly as they were. Re-run the " +
+            "amendment against the current prose, then approve that one.",
+          expected: "aaaaaaaaaaaaaaaabbbb",
+          actual: "9999999999999999eeee",
+        },
+      },
+    });
+
+    render(<PacketsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: "Approve amendment" }));
+
+    const recovery = await screen.findByTestId("amendment-recovery");
+    expect(recovery.textContent).toMatch(/NOTHING was changed/);
+    expect(recovery.textContent).toMatch(/exactly as they were/);
+    expect(recovery.textContent).toMatch(/not a partial write, so there is nothing to clean up/i);
+    expect(recovery.textContent).toMatch(/Re-run the amendment against the current prose/i);
+    expect(screen.getByTestId("amendment-recovery-reason").textContent).toBe(
+      "amendment_source_drifted",
+    );
+    // Refused, so the proposal is still under review and the banner still stands.
+    expect(screen.getByTestId("amendment-authority-banner")).toBeInTheDocument();
+  });
+
+  it("shows no amendment panel for an ordinary packet with no verdict", async () => {
+    vi.mocked(api.packet).mockReset().mockResolvedValue(REPAIR_PACKET);
+    vi.mocked(api.amendmentEligibility).mockReset().mockRejectedValue(new Error("404"));
+
+    render(<PacketsScreen />);
+    await screen.findByRole("button", { name: /Approve \(2 repair tasks outstanding\)/ });
+    expect(screen.queryByTestId("amendment-panel")).not.toBeInTheDocument();
   });
 });
 

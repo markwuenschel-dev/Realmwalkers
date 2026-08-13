@@ -2,6 +2,7 @@
 // reads real story state through here. Requests go to the same-origin Next BFF proxy at /api/desk,
 // which forwards to FastAPI (server-side API_BASE) — so the browser never needs the backend host.
 import type {
+  AmendmentEligibilityOut,
   AnnotationIn,
   AnnotationOut,
   BeatOut,
@@ -46,6 +47,7 @@ import type {
   DraftAttemptOut,
   DraftNextOut,
   FailedJobOut,
+  ImportAdoptionOut,
   IssueOut,
   JobsStatusOut,
   LlmCallListOut,
@@ -356,6 +358,32 @@ export const api = {
       `/chapters/${chapterId}/packet`,
       { method: "DELETE" },
     ),
+
+  // --- amendment mode (#261): replace an APPROVED chapter contract that never seeded some imported
+  // scene. Copy-on-write FROM the approved packet: the amendment is authored as a new PROPOSED packet
+  // naming its predecessor, and approving it supersedes that predecessor + stales the scene contracts
+  // derived from it, in one chapter-locked transaction.
+  //
+  // NOTE on `packet(chapterId)` above: it resolves by RECENCY with no status filter, so once an
+  // amendment is proposed it returns the PROPOSAL while the approved predecessor is still the
+  // chapter's governing authority. There is no endpoint that returns "the active authority" —
+  // callers must say which one they are showing (see components/AmendmentPanel.tsx).
+  //
+  // Read-only preflight: no lock, no model spend. ADVISORY ONLY — approveAmendment recomputes the same
+  // verdict under the chapter workflow lock, so `eligible: true` here informs the UI, never authorizes.
+  amendmentEligibility: (chapterId: string) =>
+    http<AmendmentEligibilityOut>(`/chapters/${chapterId}/amendment/eligibility`),
+  // Buys exactly one amendment author pass (returns the adoption row; the packet appears when that pass
+  // publishes it). 409 carries the eligibility `reason` token, or `chapter_workflow_busy`.
+  startAmendment: (chapterId: string) =>
+    http<ImportAdoptionOut>(`/chapters/${chapterId}/amendment/start`, { method: "POST" }),
+  // The ONLY route that may approve an amendment (the ordinary approve refuses one with 409
+  // `amendment_requires_amendment_approval`). Fails closed: 409 `amendment_source_drifted` /
+  // `amendment_predecessor_missing` mean NOTHING was written.
+  approveAmendment: (chapterId: string, packetId: string) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet/${packetId}/approve-amendment`, {
+      method: "POST",
+    }),
 
   // --- scene packets (scene-local contract; derive runs Author+QA per scene in the background) -----
   scenePackets: (chapterId: string) =>

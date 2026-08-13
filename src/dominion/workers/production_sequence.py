@@ -21,6 +21,7 @@ from dominion.shared.enums import (
     IssueStatus,
     JobKind,
     JobStatus,
+    PacketStatus,
     ProductionRunStatus,
     SceneStatus,
 )
@@ -1512,6 +1513,27 @@ async def align_sequence_scene_count(session: AsyncSession, sequence_id: uuid.UU
     packet = await session.get(ChapterPacket, sequence.chapter_packet_id) if sequence.chapter_packet_id else None
     if packet is None:
         raise ValueError("chapter packet for this sequence not found")
+    # REFUSE on a contract that is no longer the chapter's authority (#261). This dereferences the
+    # sequence's STORED `chapter_packet_id`, which does NOT follow an amendment: once an amendment is
+    # approved the predecessor becomes `superseded`, and without this guard the align action would read
+    # `scene_seeds` from the REPLACED body, write that count as `target_scene_count`, and — through
+    # `update_chapter_sequence` -> `chapter_sequence_qa` — re-mark the sequence APPROVED against a contract
+    # that no longer governs. Silent: nothing else in this path consults packet status.
+    #
+    # REFUSING, not resolving the chapter's current approved packet. The sequence's `scenes[]` is already
+    # one-per-seed OF THE OLD BODY (that is the premise this whole action rests on — only the scalar target
+    # diverges), so re-pointing the scalar at a NEW seed count would leave the plan internally
+    # inconsistent: a target of N over a scenes[] built from a different N. `derive_chapter_sequence_
+    # for_chapter` above already heals the pointer — it resolves the chapter's approved packet through
+    # `_latest_approved_packet` and re-derives the sequence from it — so the recovery here is a re-derive,
+    # never a re-align.
+    if str(packet.status) != PacketStatus.APPROVED.value:
+        raise ValueError(
+            f"chapter packet {packet.id} is no longer this chapter's approved contract "
+            f"(status={str(packet.status)!r}) — aligning the plan would re-approve the sequence against a "
+            "replaced contract. Re-derive the chapter sequence (derive_chapter_sequence_for_chapter) "
+            "against the current approved packet instead."
+        )
     seed_count = len((packet.body or {}).get("scene_seeds") or [])
     if not seed_count:
         raise ValueError("chapter packet has no scene seeds — author seeds before aligning the plan")

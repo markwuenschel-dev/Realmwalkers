@@ -18,12 +18,14 @@ Lifecycle of one claimed adoption:
      progress record.
   3. PLAN (tiered idempotency, Q11): if the chapter already carries a proposed/approved ChapterPacket
      produced by a matching pass — same source fingerprint AND evidence set AND author-input fingerprint
-     — REUSE it with NO model call (tier A/B). Otherwise author fresh (tier C).
-  4. AUTHOR (tier C only, MODEL CALLS outside the chapter lock): propose_packet_from_evidence authors +
-     QA's + persists a proposed (or fail-closed blocked) ChapterPacket. The author/QA calls are the
-     expensive model work and MUST NOT run under the per-chapter workflow lock. The short packet WRITE at
-     the tail does take it (#259 — `packet._persist` is the single ChapterPacket insert/replace writer),
-     so this phase can also report busy; it re-queues exactly as publish does.
+     — REUSE it with NO model call (tier A/B). Otherwise author fresh (tier C). AMENDMENT mode NEVER
+     consults the reuse gate — see the comment at the `reuse` assignment.
+  4. AUTHOR (tier C only, MODEL CALLS outside the chapter lock): propose_packet_from_evidence (initial) or
+     amendment_author.author_amendment_from_evidence (amendment) authors + QA's + persists a proposed (or
+     fail-closed blocked) ChapterPacket. The author/QA calls are the expensive model work and MUST NOT run
+     under the per-chapter workflow lock. The short packet WRITE at the tail does take it (#259 —
+     `packet._persist` is the single ChapterPacket insert/replace writer), so this phase can also report
+     busy; it re-queues exactly as publish does.
   5. PUBLISH (short locked txn, compare-and-set): under run_under_chapter_workflow, RE-compute the source
      fingerprint and CAS it against the claim-time value. Match -> finalize the adoption to
      `contract_proposed`, link the packet, and write `seed_bindings` (Q8) + `author_input_fingerprint`
@@ -39,9 +41,15 @@ the adoption, and does NOT spin in-process — the drain re-enters it later (the
 the backoff). A busy that escaped uncaught would hit `drain_adoptions`' blanket handler and stop the
 whole pass, which is why both phases handle it explicitly.
 
-Non-goals fenced here (ADR 0028 later slices): `mode=amendment` is refused closed (never partially
-implemented); this worker ends at `contract_proposed` and NEVER advances a RevisionRequest, mints a
-revision Job, or reconciles on-revise (Slice 3c).
+AMENDMENT MODE (#261, ADR-0034 W2a) rides the SAME five phases; only phase 4 differs. Where the initial
+path proposes the chapter's first contract, the amendment path authors a copy-on-write successor from the
+approved packet plus this pass's evidence (`packet/amendment_author.py`) and persists it BESIDE the
+predecessor. It does not approve or supersede anything: that is one locked human-commanded transition,
+`packet/amendment.approve_amendment`, reached from a route — invariant 8 is that no model output may
+approve or supersede a chapter contract.
+
+Non-goals fenced here (ADR 0028 later slices): this worker ends at `contract_proposed` and NEVER advances a
+RevisionRequest, mints a revision Job, or reconciles on-revise (Slice 3c).
 """
 
 from __future__ import annotations
@@ -72,7 +80,7 @@ from dominion.shared.enums import (
     SceneStatus,
 )
 from dominion.shared.models import Chapter, ChapterPacket, ImportAdoption, ImportSceneEvidence, Scene
-from dominion.shared.prose_fingerprint import chapter_source_fingerprint, prose_sha256
+from dominion.shared.prose_fingerprint import chapter_scene_rows, chapter_source_fingerprint, prose_sha256
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.evidence_store import ensure_scene_evidence
 from dominion.workers.import_evidence import (
@@ -80,7 +88,7 @@ from dominion.workers.import_evidence import (
     ImportEvidenceExtractor,
     LlmImportEvidenceExtractor,
 )
-from dominion.workers.packet import canon_conflict
+from dominion.workers.packet import amendment, amendment_author, canon_conflict
 from dominion.workers.packet import evidence as evidence_mod
 
 log = structlog.get_logger()
@@ -93,15 +101,14 @@ WORKER_ID = f"adoption-{os.getpid()}"
 # abandoned and re-claimable — the durable-lease half of crash recovery.
 LEASE_TTL_S = 1800
 
-_AMENDMENT_REFUSAL = (
-    "amendment adoption mode is a Slice 3b non-goal and is refused closed; it is never partially "
-    "implemented (ADR 0028)."
-)
-
-
-class AmendmentModeUnsupported(Exception):
-    """`mode=amendment` reached the worker. Slice 3b refuses it closed rather than run a partial
-    copy-on-write adoption; the adoption is failed with this typed reason (never a silent proceed)."""
+# `AmendmentModeUnsupported` USED TO LIVE HERE and is deliberately gone rather than repurposed. It named
+# a Slice-3b non-goal ("amendment mode is refused closed"); with W2a built, that name would assert the
+# opposite of the truth, and a lying exception name is worse than none — the four states an amendment
+# genuinely cannot be authored for (no approved packet, no unseeded scene, an amendment already open, a
+# predecessor that is no longer the authority) are ALREADY typed, in the one module that owns amendment
+# semantics: `packet/amendment.AmendmentError` and its subclasses. Reusing those means the worker, the
+# route, and any future reconciliation all refuse with the SAME vocabulary and the same machine-readable
+# `reason` token, which a worker-local exception could never provide.
 
 
 @dataclass(frozen=True)
@@ -133,15 +140,13 @@ async def _chapter_scene_rows(
     session: AsyncSession, chapter_id: uuid.UUID
 ) -> list[tuple[int, uuid.UUID, int, str | None]]:
     """The chapter's non-superseded scenes as `(scene_no, scene_id, version, prose)` — the SINGLE
-    membership query used at BOTH claim and publish (Q10), so the fingerprints are comparable."""
-    rows = (
-        await session.execute(
-            select(Scene.scene_no, Scene.id, Scene.version, Scene.prose).where(
-                Scene.chapter_id == chapter_id, Scene.status != SceneStatus.SUPERSEDED
-            )
-        )
-    ).all()
-    return [(int(r[0]), r[1], int(r[2]), r[3]) for r in rows]
+    membership query used at BOTH claim and publish (Q10), so the fingerprints are comparable.
+
+    Now a thin delegation to `shared.prose_fingerprint.chapter_scene_rows`, which owns the one definition
+    of snapshot membership. #261's amendment drift gate compares its fingerprint against the one this
+    worker stamps, so a second copy of this query would make the two silently incomparable. Kept as a
+    module-local name because the surrounding worker (and its tests) reference it by this name."""
+    return await chapter_scene_rows(session, chapter_id)
 
 
 def _manifest_entries(manifest: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -255,8 +260,9 @@ async def _claim_one(session_factory: async_sessionmaker[AsyncSession], lease_tt
 
 
 async def _fail_adoption(session_factory: async_sessionmaker[AsyncSession], adoption_id: uuid.UUID, error: str) -> None:
-    """Mark an adoption terminally FAILED with a diagnosable reason. Used for a refused amendment and for a
-    non-resumable evidence-extraction failure; the already-committed evidence shards survive for reuse."""
+    """Mark an adoption terminally FAILED with a diagnosable reason. Used for a non-resumable
+    evidence-extraction failure, a vanished chapter, and an amendment the chapter is not in a state to
+    receive (a typed `AmendmentError`); the already-committed evidence shards survive for reuse."""
     async with session_factory() as session:
         adoption = await session.get(ImportAdoption, adoption_id, with_for_update=True)
         if adoption is None:
@@ -446,6 +452,17 @@ async def publish_adoption(
 
     Raises ChapterWorkflowBusy if the lock can't be acquired within `timeout_ms`; nothing is written and
     the caller re-queues (Q16). The chapter lock is taken FIRST, then the adoption row lock (order-safe).
+
+    MODE-BLIND BY VERIFICATION, not by accident (#261). Every write below lands on the ImportAdoption row;
+    the only ChapterPacket touched is the one `_delete_pass_packet` discards, which refuses to delete an
+    `approved` row and so can never take the amendment's predecessor. Nothing here stamps a ChapterPacket
+    column, and nothing needs to: all four amendment provenance values (`origin_mode`,
+    `supersedes_packet_id`, `source_fingerprint`, `evidence_manifest_fingerprint`, `origin_adoption_id`)
+    are known to the author pass and written by it at insert time, and the two that are NOT — `approval_source`
+    and `amendment_scope` — belong exclusively to the locked approve transition. The fingerprint CAS is
+    likewise unchanged and still load-bearing for amendment: the author pass stamps the CLAIM-time
+    fingerprint onto the amendment row, so this CAS and `amendment.apply_authority_locked`'s drift gate
+    compare the same value.
     """
     async with session_factory() as session:
 
@@ -483,6 +500,11 @@ async def publish_adoption(
             adoption.status = ImportAdoptionStatus.CONTRACT_PROPOSED.value
             adoption.chapter_packet_id = packet_id
             adoption.author_input_fingerprint = author_input_fingerprint
+            # For an AMENDMENT, `packet_body` is the MERGED body, so these bindings cover the carried-over
+            # seeds as well as the new ones — which is required, not incidental. This adoption becomes the
+            # amendment packet's producer, so it is the row `amendment._bound_scene_ids` reads to
+            # decide seed coverage, and `derive.py:591-599` fails a scene CLOSED when its seed has no
+            # binding here. Binding only the new seeds would strand every preserved seed.
             adoption.seed_bindings = _seed_bindings(packet_body, {r[0]: r[1] for r in rows})
             adoption.error = None
             return "contract_proposed"
@@ -513,13 +535,7 @@ async def run_one_adoption(
     claim = await _claim_one(session_factory, lease_ttl_s)
     if claim is None:
         return False
-
-    if claim.mode == ImportAdoptionMode.AMENDMENT.value:
-        await _fail_adoption(
-            session_factory, claim.adoption_id, f"{AmendmentModeUnsupported.__name__}: {_AMENDMENT_REFUSAL}"
-        )
-        log.info("adoption.amendment_refused", adoption=str(claim.adoption_id))
-        return True
+    is_amendment = claim.mode == ImportAdoptionMode.AMENDMENT.value
 
     # Phase 2: evidence checkpoints (resumable). A non-resumable extraction error fails the pass closed;
     # committed shards survive for a re-started adoption to reuse.
@@ -545,9 +561,16 @@ async def run_one_adoption(
         # new proposed packet, one deliberate additional author call. The token is an execution command,
         # NOT author-input identity: author_input_fingerprint is still computed above and written at publish
         # unchanged, so a LATER ordinary Start reuses this force-generated packet via _find_reuse.
+        #
+        # AMENDMENT NEVER CONSULTS THE REUSE GATE (#261). `_find_reuse` resolves the chapter's newest
+        # proposed/APPROVED packet (:373-386) — in amendment mode that is the PREDECESSOR itself, so a match
+        # would link this adoption to the very contract the amendment exists to supersede, report
+        # `contract_proposed`, and author nothing at all. Tier A/B idempotency for amendment is enforced
+        # instead by `uq_chapter_packets_open_amendment` plus the `amendment_already_open` verdict the
+        # author pass refuses on, which returns the existing branch rather than forking a second lineage.
         reuse = (
             None
-            if claim.force_author_token is not None
+            if is_amendment or claim.force_author_token is not None
             else await _find_reuse(
                 session, claim.chapter_id, claim.source_fingerprint, evidence_fingerprint, author_input_fingerprint
             )
@@ -558,11 +581,15 @@ async def run_one_adoption(
         created_packet = False
         log.info("adoption.reuse", adoption=str(claim.adoption_id), packet=str(packet_id))
     else:
-        # Phase 4: author OUTSIDE the chapter lock (the expensive model work). propose_* flushes the packet;
-        # we own the commit. A blocked packet is authored too — it is finalized to `failed` at publish.
-        # The packet WRITE at the tail of propose_* does take the chapter lock (#259, `packet._persist`),
-        # so this phase can now report busy just like phase 5 — handled the same way, because without it
-        # a transient contention would escape to the drain loop's blanket handler and stop the whole pass.
+        # Phase 4: author OUTSIDE the chapter lock (the expensive model work). Both authors flush the
+        # packet; we own the commit. A blocked packet is authored too — it is finalized to `failed` at
+        # publish. The packet WRITE at the tail does take the chapter lock (#259, `packet._persist`), so
+        # this phase can report busy just like phase 5 — handled the same way, because without it a
+        # transient contention would escape to the drain loop's blanket handler and stop the whole pass.
+        #
+        # The AMENDMENT branch is the same shape on purpose: same unlocked window, same commit ownership,
+        # same busy handling. Only the author differs, because only the BODY rule differs — copy-on-write
+        # from the approved predecessor instead of a first proposal (`packet/amendment_author.py`).
         try:
             async with session_factory() as session:
                 chapter = await session.get(Chapter, claim.chapter_id)
@@ -570,9 +597,39 @@ async def run_one_adoption(
                     await session.commit()
                     await _fail_adoption(session_factory, claim.adoption_id, "chapter vanished before authoring")
                     return True
-                packet = await packet_pipeline.propose_packet_from_evidence(
-                    session, chapter=chapter, evidence=bundle, retrieve=_retriever(session, claim.book_id, retrieve)
-                )
+                if is_amendment:
+                    # `latest_approved` reloads with populate_existing (`packet/__init__.py:175-190`), so
+                    # the predecessor we name is this session's authoritative read, not a stale identity-map
+                    # hit. A chapter with no approved packet is the INITIAL case, not an amendment: refuse
+                    # with amendment mode's own typed vocabulary rather than a worker-local exception, and
+                    # never author anything (this is the state the deleted AmendmentModeUnsupported used to
+                    # stand in for). The author pass re-checks eligibility against live state as well.
+                    approved = await packet_pipeline.latest_approved(session, claim.chapter_id)
+                    if approved is None:
+                        raise amendment.AmendmentNotEligible(
+                            amendment.REASON_NO_APPROVED_PACKET,
+                            amendment.REFUSAL_MESSAGES[amendment.REASON_NO_APPROVED_PACKET],
+                        )
+                    packet = await amendment_author.author_amendment_from_evidence(
+                        session,
+                        chapter=chapter,
+                        evidence=bundle,
+                        approved_packet=approved,
+                        adoption_id=claim.adoption_id,
+                        # The fingerprint captured at CLAIM (:239-240), not a fresh one: it is the value the
+                        # whole pass ran against, and it is what publish's CAS and the amendment drift gate
+                        # (`packet/amendment.apply_authority_locked`) both compare under the lock.
+                        source_fingerprint=claim.source_fingerprint,
+                        evidence_manifest_fingerprint=evidence_fingerprint,
+                        retrieve=_retriever(session, claim.book_id, retrieve),
+                    )
+                else:
+                    packet = await packet_pipeline.propose_packet_from_evidence(
+                        session,
+                        chapter=chapter,
+                        evidence=bundle,
+                        retrieve=_retriever(session, claim.book_id, retrieve),
+                    )
                 await session.commit()
                 packet_id = packet.id
                 packet_status = str(packet.status)
@@ -586,8 +643,29 @@ async def run_one_adoption(
                 phase="author_persist",
             )
             return True
+        except amendment.AmendmentError as exc:
+            # The chapter is not in a state an amendment may be authored for at all (no approved packet, no
+            # unseeded scene, an amendment already open, or a predecessor that is no longer the authority).
+            # Distinct from a BLOCKED amendment, which records work that WAS attempted: nothing was authored
+            # here, no model call was spent, and no ChapterPacket exists — so the adoption fails closed with
+            # the typed reason and the evidence shards survive for a later, eligible pass.
+            await _fail_adoption(session_factory, claim.adoption_id, f"{type(exc).__name__}: {exc}")
+            log.info(
+                "adoption.amendment_not_eligible",
+                adoption=str(claim.adoption_id),
+                chapter=str(claim.chapter_id),
+                error=type(exc).__name__,
+                reason=getattr(exc, "reason", None),
+            )
+            return True
         created_packet = True
-        log.info("adoption.authored", adoption=str(claim.adoption_id), packet=str(packet_id), status=packet_status)
+        log.info(
+            "adoption.authored",
+            adoption=str(claim.adoption_id),
+            packet=str(packet_id),
+            status=packet_status,
+            mode=claim.mode,
+        )
 
     # Phase 5: CAS publish under the chapter workflow lock. Busy -> roll back + re-queue (no in-process spin).
     try:

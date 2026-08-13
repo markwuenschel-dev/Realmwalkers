@@ -25,13 +25,26 @@ every chapter already committed and the next boot picks up the rest. Every predi
 UNDER the lock, so a second scanner (or a live Revise racing the boot) finds the request already there
 and does nothing. Bounded growth: hold events dedup on (hold_code, scene_id, current prose hash), so
 repeated boots over an unrepaired scene append no new rows.
+
+SECOND SWEEP — CHAPTER-PACKET AUTHORITY (#261, invariant 6 second half). `reconcile_chapter_packet_
+authority` verifies that the approve+supersede lineage is coherent and REPAIRS NOTHING. The two sweeps
+live together because they share the seam (the lifespan), the lock discipline, and the `Activity`
+integrity-hold projection — but they are opposites in intent: the D7/D8 sweep RECONSTRUCTS lost intent
+(the crash happened BEFORE a commit, so nothing durable is at stake), whereas the authority sweep only
+OBSERVES. "A crash before commit changes nothing; a crash after commit leaves a complete state that boot
+reconciliation VERIFIES without guessing" is the whole invariant, and the second half is why the
+authority sweep must never write a ChapterPacket row: the transition is one chapter-locked transaction,
+so a torn half-state is unreachable, and observing one means a CONSTRAINT was bypassed. Guessing which
+contract a book is written against would destroy the evidence and could pick the wrong one — that call
+belongs to a human. See `reconcile_chapter_packet_authority` for the five states and their predicates.
 """
 
 from __future__ import annotations
 
 import hashlib
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 import structlog
 from sqlalchemy import func, select
@@ -43,11 +56,22 @@ from dominion.shared.db import SessionFactory
 from dominion.shared.enums import (
     AdoptionOperation,
     Decision,
+    ImportAdoptionMode,
     IntegrityHoldReason,
+    PacketStatus,
     RevisionRequestStatus,
+    ScenePacketStatus,
     SceneStatus,
 )
-from dominion.shared.models import Activity, Approval, Chapter, RevisionRequest, Scene
+from dominion.shared.models import (
+    Activity,
+    Approval,
+    Chapter,
+    ChapterPacket,
+    RevisionRequest,
+    Scene,
+    ScenePacket,
+)
 from dominion.workers.activity import record_activity
 from dominion.workers.revision import prose_hash, reconstruct_revision_request_locked
 
@@ -175,6 +199,31 @@ async def _current_row_revise_approval(
     return latest, None
 
 
+async def _hold_already_recorded(session: AsyncSession, dedup_key: str) -> bool:
+    """Has this exact hold snapshot already been projected onto `Activity`?
+
+    `integrity_hold` is a SHARED kind — the boot job-ownership probe (ADR 0027) emits it too — so the
+    dedup read is scoped by source as well. Matching on the key alone would work today only because the
+    other producer writes no `dedup_key`, which is an accident, not a contract.
+
+    Every sweep in this module funnels through here so they cannot drift apart on the scoping predicate;
+    their keys can never collide because each hashes its own `hold_code` into the digest.
+    """
+    return bool(
+        (
+            await session.execute(
+                select(func.count())
+                .select_from(Activity)
+                .where(
+                    Activity.kind == "integrity_hold",
+                    Activity.source == "reconciliation",
+                    Activity.payload_json["dedup_key"].astext == dedup_key,
+                )
+            )
+        ).scalar_one()
+    )
+
+
 async def _record_hold_locked(
     session: AsyncSession, *, scene: Scene, chapter: Chapter, reason: IntegrityHoldReason
 ) -> bool:
@@ -185,21 +234,7 @@ async def _record_hold_locked(
     event was appended, False if this snapshot was already reported."""
     current_hash = prose_hash(scene.prose)
     dedup_key = hold_dedup_key(scene.id, current_hash)
-    # `integrity_hold` is a SHARED kind — the boot job-ownership probe (ADR 0027) emits it too — so the
-    # dedup read is scoped by source as well. Matching on the key alone would work today only because
-    # the other producer writes no `dedup_key`, which is an accident, not a contract.
-    already = (
-        await session.execute(
-            select(func.count())
-            .select_from(Activity)
-            .where(
-                Activity.kind == "integrity_hold",
-                Activity.source == "reconciliation",
-                Activity.payload_json["dedup_key"].astext == dedup_key,
-            )
-        )
-    ).scalar_one()
-    if already:
+    if await _hold_already_recorded(session, dedup_key):
         return False
 
     await record_activity(
@@ -346,6 +381,536 @@ async def reconcile_legacy_revision_intent(
             "adoption_reconciliation_pass",
             scanned=result.scanned,
             reconstructed=result.reconstructed,
+            holds_recorded=result.holds_recorded,
+            holds_deduped=result.holds_deduped,
+            skipped=result.skipped,
+            deferred=result.deferred,
+        )
+    return result
+
+
+# ======================= CHAPTER-PACKET AUTHORITY: VERIFY, NEVER REPAIR ========================== #
+#
+# Invariant 6, second half (#261). Everything below OBSERVES. It reads `chapter_packets` /
+# `scene_packets`, projects what it finds onto `Activity`, and changes no ChapterPacket row — ever.
+#
+# WHY VERIFICATION AND NOT REPAIR. The ONE locked authority transition in `packet/amendment.py` performs
+# the whole approve+supersede move inside ONE `run_under_chapter_workflow` transaction: the predecessor
+# leaves `approved` naming its successor, the successor takes the freed slot, the orphaned children are
+# staled, and `run_under_chapter_workflow` owns the single commit. A crash anywhere before that commit
+# rolls the lot back, so a torn half-state is not merely unlikely — it is unreachable. Four of the five
+# states below are additionally forbidden by a DB constraint (`shared/migrations.py:326-387`).
+#
+# Which means: observing one of them is evidence that a constraint was BYPASSED — a hand-dropped index, a
+# direct UPDATE, a writer that skipped the seam. A "repair" would then have to choose which packet holds
+# authority, i.e. which contract a book is written against. That is a human's decision, and guessing it
+# would also erase the only evidence of how the state arose. So the sweep's whole product is a durable,
+# deduped, operator-visible report.
+
+#: The one hold code this sweep can raise, mirroring `HOLD_CODE`'s role for D7/D8: a distinct code per
+#: diagnosable CONDITION, with `reason_code` inside saying which way the condition failed.
+AUTHORITY_HOLD_CODE = "chapter_packet_authority_violation"
+
+#: Operator-facing title per reason. Written as the one line a human reads in the Desk feed, so it names
+#: the state, not the check — "this chapter has two contracts" is actionable, "invariant 2 violated" is not.
+_AUTHORITY_TITLES: dict[IntegrityHoldReason, str] = {
+    IntegrityHoldReason.MULTIPLE_APPROVED_CHAPTER_PACKETS: (
+        "This chapter has more than one approved contract, so drafting may obey either one"
+    ),
+    IntegrityHoldReason.SUPERSESSION_SUCCESSOR_MISSING: (
+        "A superseded chapter contract does not name a contract that replaced it"
+    ),
+    IntegrityHoldReason.APPROVED_AMENDMENT_WITHOUT_PREDECESSOR: (
+        "An approved amendment does not name the contract it replaced"
+    ),
+    IntegrityHoldReason.SUPERSEDED_PACKET_HAS_LIVE_CHILDREN: (
+        "Scene contracts still claim authority from a superseded chapter contract"
+    ),
+    IntegrityHoldReason.CHAPTER_AUTHORITY_VACATED: (
+        "This chapter gave up its approved contract and never took a new one"
+    ),
+}
+
+#: Secondary line per reason: what a human should DO. Every one of them ends at a human decision, because
+#: the sweep is forbidden from making it.
+_AUTHORITY_DETAILS: dict[IntegrityHoldReason, str] = {
+    IntegrityHoldReason.MULTIPLE_APPROVED_CHAPTER_PACKETS: (
+        "Only one chapter contract may be approved at a time, and the readiness query picks an arbitrary "
+        "one when there are two. Nothing was changed — decide which contract governs this chapter and "
+        "supersede the other."
+    ),
+    IntegrityHoldReason.SUPERSESSION_SUCCESSOR_MISSING: (
+        "The supersession record is incomplete: it points at no successor, or at a contract that no "
+        "longer exists. Nothing was changed — the lineage needs a human to reconstruct it."
+    ),
+    IntegrityHoldReason.APPROVED_AMENDMENT_WITHOUT_PREDECESSOR: (
+        "An amendment is copy-on-write FROM an approved contract, so an approved one must record which "
+        "contract it replaced. Nothing was changed — the lineage needs a human to reconstruct it."
+    ),
+    IntegrityHoldReason.SUPERSEDED_PACKET_HAS_LIVE_CHILDREN: (
+        "These scene contracts were derived from a chapter contract that no longer governs, so drafting "
+        "against them would obey a retired contract. Nothing was changed — re-derive them against the "
+        "current chapter contract."
+    ),
+    IntegrityHoldReason.CHAPTER_AUTHORITY_VACATED: (
+        "The chapter has a superseded contract but no approved one, so no contract governs it and "
+        "drafting cannot proceed. Nothing was changed — approve a replacement contract."
+    ),
+}
+
+
+@dataclass(frozen=True)
+class AuthorityFinding:
+    """One observed impossible state, with the rows that evidence it.
+
+    `dedup_subjects` — not `packet_ids` — is what the dedup key hashes, because the two differ for the
+    findings whose identity includes something other than a ChapterPacket id (a dangling successor id, the
+    set of live scene-packet children). Keeping them separate is what makes "the condition CHANGED" a new
+    event while "the condition PERSISTS" stays one event: the subjects move, the packet ids may not.
+    """
+
+    chapter_id: uuid.UUID
+    reason: IntegrityHoldReason
+    packet_ids: tuple[uuid.UUID, ...]
+    dedup_subjects: tuple[str, ...]
+    evidence: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def dedup_key(self) -> str:
+        return authority_hold_dedup_key(self.chapter_id, self.reason, self.dedup_subjects)
+
+
+@dataclass(frozen=True)
+class ChapterAuthorityReport:
+    """What one authority sweep observed. Per-category counts so the caller can log ONE line.
+
+    The five category counters count FINDINGS, not chapters: a single chapter can be broken in several
+    ways at once and each way is separately diagnosable. `holds_recorded + holds_deduped` therefore equals
+    `findings_total` on a completed pass, and a persistent condition shows up as `deduped` on every boot
+    after the first — that is the bounded-growth guarantee, visible in the log line rather than asserted.
+
+    `skipped` counts chapters a contended lock or a concurrent writer took off the table (the next boot
+    re-evaluates them); `deferred` counts chapters beyond `MAX_CANDIDATES_PER_BOOT` this pass never looked
+    at, so a capped run can never be mistaken for a complete one.
+    """
+
+    scanned_chapters: int = 0
+    multiple_approved: int = 0
+    supersession_successor_missing: int = 0
+    amendment_without_predecessor: int = 0
+    superseded_with_live_children: int = 0
+    authority_vacated: int = 0
+    holds_recorded: int = 0
+    holds_deduped: int = 0
+    skipped: int = 0
+    deferred: int = 0
+
+    @property
+    def findings_total(self) -> int:
+        return (
+            self.multiple_approved
+            + self.supersession_successor_missing
+            + self.amendment_without_predecessor
+            + self.superseded_with_live_children
+            + self.authority_vacated
+        )
+
+
+#: Report field name per reason, so the tally cannot silently drop a category when a reason is added.
+_AUTHORITY_COUNTERS: dict[IntegrityHoldReason, str] = {
+    IntegrityHoldReason.MULTIPLE_APPROVED_CHAPTER_PACKETS: "multiple_approved",
+    IntegrityHoldReason.SUPERSESSION_SUCCESSOR_MISSING: "supersession_successor_missing",
+    IntegrityHoldReason.APPROVED_AMENDMENT_WITHOUT_PREDECESSOR: "amendment_without_predecessor",
+    IntegrityHoldReason.SUPERSEDED_PACKET_HAS_LIVE_CHILDREN: "superseded_with_live_children",
+    IntegrityHoldReason.CHAPTER_AUTHORITY_VACATED: "authority_vacated",
+}
+
+
+def authority_hold_dedup_key(chapter_id: uuid.UUID, reason: IntegrityHoldReason, subjects: tuple[str, ...]) -> str:
+    """Deterministic dedup key: one event per unresolved CONDITION SNAPSHOT, not per boot.
+
+    Mirrors `hold_dedup_key` exactly, including hashing the hold code into the digest so the two sweeps'
+    keys can never collide in the shared `integrity_hold` Activity kind. `subjects` is SORTED before
+    hashing so a set of offending rows keys the same regardless of the read order that produced it —
+    otherwise a plan change in Postgres would silently re-report an unchanged condition.
+    """
+    material = f"{AUTHORITY_HOLD_CODE}|{chapter_id}|{reason.value}|{'|'.join(sorted(subjects))}"
+    return hashlib.sha256(material.encode()).hexdigest()
+
+
+async def chapter_authority_findings(session: AsyncSession, *, chapter_id: uuid.UUID) -> list[AuthorityFinding]:
+    """Evaluate all five authority states for ONE chapter. Reads only, writes nothing.
+
+    This is the AUTHORITATIVE evaluation — the boot loop calls it a second time under the chapter lock
+    rather than trusting the lock-free locator pass (chapter_lock protocol step 1). It is also the unit
+    the tests drive, because a category is proven by the predicate that detects it, not by the loop.
+
+    The five predicates, each with the constraint that should make it unreachable:
+
+      1. MULTIPLE_APPROVED_CHAPTER_PACKETS
+           COUNT(*) FILTER (WHERE status = 'approved') > 1
+         `uq_chapter_packets_active_chapter` (partial unique on chapter_id WHERE status='approved').
+         Checked anyway because a partial index can be dropped by hand, and this is precisely the
+         split-brain that makes `draft_readiness.py`'s no-ORDER-BY approved-packet query resolve
+         arbitrarily — two boots could disagree about which contract governs the same chapter.
+
+      2. SUPERSESSION_SUCCESSOR_MISSING
+           status = 'superseded'
+             AND (superseded_by_packet_id IS NULL
+                  OR NOT EXISTS (SELECT 1 FROM chapter_packets q WHERE q.id = superseded_by_packet_id))
+         The NULL half is `ck_chapter_packets_superseded_names_successor`. The DANGLING half is guarded by
+         NOTHING: `migrations.py:399-406` deliberately declines a self-referential FK on the lineage
+         columns (a whole-chapter contract delete would make per-row delete order load-bearing) and names
+         this sweep as the compensating control. So the second disjunct is the reachable one.
+
+      3. APPROVED_AMENDMENT_WITHOUT_PREDECESSOR
+           status = 'approved' AND origin_mode = 'amendment' AND supersedes_packet_id IS NULL
+         `ck_chapter_packets_amendment_names_predecessor`.
+
+      4. SUPERSEDED_PACKET_HAS_LIVE_CHILDREN
+           p.status = 'superseded'
+             AND EXISTS (SELECT 1 FROM scene_packets sp
+                          WHERE sp.chapter_packet_id = p.id AND sp.status = 'approved')
+         No constraint at all — this is invariant 3's third clause ("never a superseded packet with
+         authoritative live children"), upheld by `_stale_children_of` at supersession time and therefore
+         genuinely reachable afterwards: any route that approves a ScenePacket bound to the retired packet
+         re-creates it. The one case here a healthy system can actually produce.
+
+      5. CHAPTER_AUTHORITY_VACATED
+           COUNT(*) FILTER (WHERE status = 'approved') = 0
+             AND COUNT(*) FILTER (WHERE status = 'superseded') > 0
+         No single-row constraint can express it. Reachable in combination — e.g. a supersession whose
+         named successor exists but was never promoted past `proposed`, which satisfies every CHECK while
+         leaving the chapter governed by nothing.
+    """
+    rows = (
+        await session.execute(
+            select(
+                ChapterPacket.id,
+                ChapterPacket.status,
+                ChapterPacket.origin_mode,
+                ChapterPacket.supersedes_packet_id,
+                ChapterPacket.superseded_by_packet_id,
+            )
+            .where(ChapterPacket.chapter_id == chapter_id)
+            .order_by(ChapterPacket.created_at, ChapterPacket.id)
+        )
+    ).all()
+
+    approved = [r for r in rows if str(r.status) == PacketStatus.APPROVED.value]
+    superseded = [r for r in rows if str(r.status) == PacketStatus.SUPERSEDED.value]
+    findings: list[AuthorityFinding] = []
+
+    # (1) The split-brain. Subjects are ALL the approved ids, so the finding re-reports if the set changes
+    # (a third packet appears, or one is resolved away) but stays one event while it persists unchanged.
+    if len(approved) > 1:
+        ids = tuple(r.id for r in approved)
+        findings.append(
+            AuthorityFinding(
+                chapter_id=chapter_id,
+                reason=IntegrityHoldReason.MULTIPLE_APPROVED_CHAPTER_PACKETS,
+                packet_ids=ids,
+                dedup_subjects=tuple(str(x) for x in ids),
+                evidence={"approved_packet_ids": [str(x) for x in ids], "approved_count": len(ids)},
+            )
+        )
+
+    # (5) Authority vacated. Evaluated from the same aggregate so the two cannot disagree about the chapter.
+    if not approved and superseded:
+        ids = tuple(r.id for r in superseded)
+        findings.append(
+            AuthorityFinding(
+                chapter_id=chapter_id,
+                reason=IntegrityHoldReason.CHAPTER_AUTHORITY_VACATED,
+                packet_ids=ids,
+                dedup_subjects=tuple(str(x) for x in ids),
+                evidence={"superseded_packet_ids": [str(x) for x in ids], "approved_count": 0},
+            )
+        )
+
+    # (2) Existence of every NAMED successor, resolved GLOBALLY rather than within this chapter: a
+    # successor that landed under a different chapter_id is still a broken lineage, and scoping the lookup
+    # to this chapter would misreport it as "does not exist" for the wrong reason.
+    named = {r.superseded_by_packet_id for r in superseded if r.superseded_by_packet_id is not None}
+    live_ids: set[uuid.UUID] = set()
+    if named:
+        live_ids = set(
+            (await session.execute(select(ChapterPacket.id).where(ChapterPacket.id.in_(named)))).scalars().all()
+        )
+    for r in superseded:
+        successor = r.superseded_by_packet_id
+        if successor is not None and successor in live_ids:
+            continue
+        findings.append(
+            AuthorityFinding(
+                chapter_id=chapter_id,
+                reason=IntegrityHoldReason.SUPERSESSION_SUCCESSOR_MISSING,
+                packet_ids=(r.id,),
+                # The named id is part of the identity: a NULL link repaired into a DANGLING one is a
+                # different diagnostic state and earns its own event.
+                dedup_subjects=(str(r.id), f"successor={successor}"),
+                evidence={
+                    "packet_id": str(r.id),
+                    "superseded_by_packet_id": str(successor) if successor else None,
+                    "successor_exists": False,
+                },
+            )
+        )
+
+    # (3) An approved amendment that superseded nothing.
+    for r in approved:
+        if str(r.origin_mode) != ImportAdoptionMode.AMENDMENT.value or r.supersedes_packet_id is not None:
+            continue
+        findings.append(
+            AuthorityFinding(
+                chapter_id=chapter_id,
+                reason=IntegrityHoldReason.APPROVED_AMENDMENT_WITHOUT_PREDECESSOR,
+                packet_ids=(r.id,),
+                dedup_subjects=(str(r.id),),
+                evidence={"packet_id": str(r.id), "origin_mode": str(r.origin_mode)},
+            )
+        )
+
+    # (4) Live authoritative children of a retired contract. One query for every superseded packet, then
+    # one finding per PARENT — an operator resolves this per retired contract, not per orphaned child.
+    if superseded:
+        child_rows = (
+            await session.execute(
+                select(ScenePacket.chapter_packet_id, ScenePacket.id, ScenePacket.scene_no)
+                .where(
+                    ScenePacket.chapter_packet_id.in_([r.id for r in superseded]),
+                    ScenePacket.status == ScenePacketStatus.APPROVED,
+                )
+                .order_by(ScenePacket.scene_no, ScenePacket.id)
+            )
+        ).all()
+        by_parent: dict[uuid.UUID, list[tuple[uuid.UUID, int]]] = {}
+        for parent_id, sp_id, scene_no in child_rows:
+            by_parent.setdefault(parent_id, []).append((sp_id, scene_no))
+        for r in superseded:
+            children = by_parent.get(r.id)
+            if not children:
+                continue
+            findings.append(
+                AuthorityFinding(
+                    chapter_id=chapter_id,
+                    reason=IntegrityHoldReason.SUPERSEDED_PACKET_HAS_LIVE_CHILDREN,
+                    packet_ids=(r.id,),
+                    # The child set is part of the identity: staling three of four children is genuine
+                    # progress, and the remaining one is a new snapshot worth its own event.
+                    dedup_subjects=(str(r.id), *(str(sp_id) for sp_id, _no in children)),
+                    evidence={
+                        "packet_id": str(r.id),
+                        "live_scene_packet_ids": [str(sp_id) for sp_id, _no in children],
+                        "live_scene_nos": [no for _sp, no in children],
+                    },
+                )
+            )
+
+    return findings
+
+
+async def _authority_candidate_chapter_ids(session: AsyncSession) -> list[uuid.UUID]:
+    """Locate candidate chapters only — decide nothing from this read (chapter_lock protocol step 1).
+
+    Four cheap lock-free reads whose union is a SUPERSET of the broken chapters; `chapter_authority_findings`
+    re-derives the actual verdict under the lock. A superset is the safe direction: a chapter that healed
+    between locate and lock simply yields no findings and is not counted.
+    """
+    per_chapter = (
+        await session.execute(
+            select(
+                ChapterPacket.chapter_id,
+                func.count().filter(ChapterPacket.status == PacketStatus.APPROVED).label("approved_n"),
+                func.count().filter(ChapterPacket.status == PacketStatus.SUPERSEDED).label("superseded_n"),
+            ).group_by(ChapterPacket.chapter_id)
+        )
+    ).all()
+    found: set[uuid.UUID] = {
+        chapter_id
+        for chapter_id, approved_n, superseded_n in per_chapter
+        if approved_n > 1 or (approved_n == 0 and superseded_n > 0)
+    }
+
+    # Lineage: a superseded packet whose successor link is NULL or dangling. The dangling test is an
+    # anti-join against the same table (there is no FK to lean on).
+    successor = ChapterPacket.__table__.alias("successor")
+    found.update(
+        (
+            await session.execute(
+                select(ChapterPacket.chapter_id)
+                .where(
+                    ChapterPacket.status == PacketStatus.SUPERSEDED,
+                    ChapterPacket.superseded_by_packet_id.is_(None)
+                    | ~select(successor.c.id).where(successor.c.id == ChapterPacket.superseded_by_packet_id).exists(),
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    found.update(
+        (
+            await session.execute(
+                select(ChapterPacket.chapter_id)
+                .where(
+                    ChapterPacket.status == PacketStatus.APPROVED,
+                    ChapterPacket.origin_mode == ImportAdoptionMode.AMENDMENT,
+                    ChapterPacket.supersedes_packet_id.is_(None),
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    found.update(
+        (
+            await session.execute(
+                select(ChapterPacket.chapter_id)
+                .where(
+                    ChapterPacket.status == PacketStatus.SUPERSEDED,
+                    select(ScenePacket.id)
+                    .where(
+                        ScenePacket.chapter_packet_id == ChapterPacket.id,
+                        ScenePacket.status == ScenePacketStatus.APPROVED,
+                    )
+                    .exists(),
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    # Sorted for a stable, reproducible pass order (and therefore a reproducible cap).
+    return sorted(found)
+
+
+async def _record_authority_hold_locked(session: AsyncSession, *, finding: AuthorityFinding, chapter: Chapter) -> bool:
+    """Project one authority finding onto `Activity`. Existence-check and insert in the SAME
+    chapter-locked transaction, so two boots cannot both append. `record_activity`, NOT
+    `safe_record_activity`: a swallowed integrity hold is worse than a failed boot step, because the
+    operator would never learn the chapter needs attention. Returns True if a new event was appended,
+    False if this exact snapshot was already reported.
+
+    Writes nothing but the Activity row — no ChapterPacket, no ScenePacket. That is the contract.
+    """
+    dedup_key = finding.dedup_key
+    if await _hold_already_recorded(session, dedup_key):
+        return False
+    await record_activity(
+        session,
+        kind="integrity_hold",
+        title=_AUTHORITY_TITLES[finding.reason],
+        source="reconciliation",
+        severity="error",  # error, not warn: an impossible state means a constraint was bypassed
+        book_id=chapter.book_id,
+        chapter_id=chapter.id,
+        detail=_AUTHORITY_DETAILS[finding.reason],
+        payload={
+            "hold_code": AUTHORITY_HOLD_CODE,
+            "reason_code": finding.reason.value,
+            "chapter_id": str(finding.chapter_id),
+            "packet_ids": [str(x) for x in finding.packet_ids],
+            "evidence": finding.evidence,
+            "repaired": False,  # stated explicitly: this sweep never changes a packet row
+            "dedup_key": dedup_key,
+        },
+    )
+    return True
+
+
+async def _verify_one_chapter(session: AsyncSession, *, chapter_id: uuid.UUID, report: dict[str, int]) -> None:
+    """One candidate chapter, one locked transaction. Mutates `report` counters in place.
+
+    The lock is held for a READ-ONLY verification, which is not the usual reason to take it. Two reasons it
+    is still right: the findings must be derived from a state no concurrent approve+supersede is halfway
+    through (an unlocked read could observe the predecessor demoted before the successor is promoted and
+    report a phantom CHAPTER_AUTHORITY_VACATED), and the dedup existence-check plus the insert must be
+    atomic against a second boot. Only chapters the locator already flagged pay the cost.
+    """
+
+    async def _body() -> None:
+        chapter = await session.get(Chapter, chapter_id)
+        if chapter is None:
+            report["skipped"] += 1  # raced: the chapter was deleted between locate and lock
+            return
+        for finding in await chapter_authority_findings(session, chapter_id=chapter_id):
+            report[_AUTHORITY_COUNTERS[finding.reason]] += 1
+            if await _record_authority_hold_locked(session, finding=finding, chapter=chapter):
+                report["holds_recorded"] += 1
+            else:
+                report["holds_deduped"] += 1
+            log.error(
+                "chapter_packet_authority_violation",
+                chapter_id=str(chapter_id),
+                hold_code=AUTHORITY_HOLD_CODE,
+                reason_code=finding.reason.value,
+                packet_ids=[str(x) for x in finding.packet_ids],
+                evidence=finding.evidence,
+                repaired=False,
+            )
+
+    await run_under_chapter_workflow(session, chapter_id, _body, timeout_ms=LOCK_TIMEOUT_MS)
+
+
+async def reconcile_chapter_packet_authority(
+    session_factory: async_sessionmaker[AsyncSession] = SessionFactory,
+) -> ChapterAuthorityReport:
+    """VERIFY the chapter-packet authority lineage and durably report every impossible state. Repairs
+    nothing (see the section header above for why, and `chapter_authority_findings` for the five
+    predicates and the constraint that should make each unreachable).
+
+    Idempotent and read-mostly: the only rows it can create are `Activity` integrity holds, and those
+    dedup on (hold_code, chapter_id, reason, offending-row snapshot), so a condition that persists across a
+    hundred boots produces exactly one Desk event — while a condition that CHANGES produces a new one,
+    because the change is itself diagnostic.
+
+    Commits per chapter, never in bulk, and one FRESH SESSION per chapter for the reason
+    `reconcile_legacy_revision_intent` spells out: a failure while ACQUIRING the lock happens outside
+    `run_under_chapter_workflow`'s try/rollback, so on a shared session it would leave an aborted
+    transaction that fails every remaining chapter — one poison chapter silently degrading the whole pass.
+    A `ChapterWorkflowBusy` (bounded by `LOCK_TIMEOUT_MS`) is counted as `skipped` and re-evaluated on the
+    next boot; nothing here is allowed to fail the boot.
+    """
+    report = {name: 0 for name in _AUTHORITY_COUNTERS.values()}
+    report.update({"holds_recorded": 0, "holds_deduped": 0, "skipped": 0})
+
+    async with session_factory() as scan_session:
+        candidates = await _authority_candidate_chapter_ids(scan_session)
+
+    deferred = 0
+    if len(candidates) > MAX_CANDIDATES_PER_BOOT:
+        deferred = len(candidates) - MAX_CANDIDATES_PER_BOOT
+        candidates = candidates[:MAX_CANDIDATES_PER_BOOT]
+        log.error(
+            "chapter_packet_authority_capped",
+            cap=MAX_CANDIDATES_PER_BOOT,
+            deferred=deferred,
+            note="flagged-chapter backlog exceeds one boot's budget; the remainder is verified next boot",
+        )
+
+    for chapter_id in candidates:
+        try:
+            async with session_factory() as session:
+                await _verify_one_chapter(session, chapter_id=chapter_id, report=report)
+        except ChapterWorkflowBusy:
+            report["skipped"] += 1
+            log.info("chapter_packet_authority_skipped", chapter_id=str(chapter_id), reason="ChapterWorkflowBusy")
+        except Exception as exc:  # noqa: BLE001 — one poison chapter must never fail the boot
+            report["skipped"] += 1
+            log.error("chapter_packet_authority_error", chapter_id=str(chapter_id), error=str(exc))
+
+    result = ChapterAuthorityReport(scanned_chapters=len(candidates), deferred=deferred, **report)
+    if candidates:
+        log.info(
+            "chapter_packet_authority_pass",
+            scanned_chapters=result.scanned_chapters,
+            findings=result.findings_total,
             holds_recorded=result.holds_recorded,
             holds_deduped=result.holds_deduped,
             skipped=result.skipped,

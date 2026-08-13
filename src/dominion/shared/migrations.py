@@ -156,6 +156,33 @@ _COLUMN_ADDS: tuple[str, ...] = (
     # rows that were ALREADY approved before this column existed as legacy_unclassified, which the
     # reviewer-trust split treats as untrusted: unproven provenance is not human provenance.
     "ALTER TABLE scene_packets ADD COLUMN IF NOT EXISTS approval_source TEXT",
+    # --- #261 amendment mode: ChapterPacket lineage & provenance on the EXISTING chapter_packets table.
+    # Every column is nullable in the ALTER, so each is safe on a populated prod table; the two CHECKs and
+    # the two partial UNIQUE indexes that give them teeth live in _EXTRA_DDL below, behind the
+    # `_preflight_single_active_chapter_packet` guard.
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS supersedes_packet_id UUID",
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS superseded_by_packet_id UUID",
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ",
+    # origin_mode is the ONE amendment column that must be NOT NULL: the eligibility envelope and the
+    # one-open-amendment-branch index both read it, and a NULL would silently escape a partial index's
+    # WHERE clause. The server DEFAULT backfills every pre-existing row to 'initial', which is correct by
+    # definition — every packet authored before amendment mode existed WAS an initial proposal. Unlike
+    # ADR-0032 W0's liveness_basis default this one is PERMANENT: the ORM supplies the value on every
+    # insert, and the default only covers a mid-deploy window where an older writer is still running.
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS origin_mode TEXT DEFAULT 'initial'",
+    # No server DEFAULT: a fresh row must land NULL ("never approved") rather than claim a provenance it
+    # does not have. The backfill below classifies rows ALREADY approved before this column existed as
+    # legacy_unclassified — unproven provenance is not human provenance (same discipline as
+    # scene_packets.approval_source above).
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS approval_source TEXT",
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ",
+    # The drift gate + evidence identity + write-once origin link + the consequence record. All stay NULL
+    # for pre-amendment rows: a legacy packet genuinely HAS no captured fingerprint, and defaulting one in
+    # would manufacture a "drift verified" claim that no code ever checked.
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS source_fingerprint TEXT",
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS evidence_manifest_fingerprint TEXT",
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS origin_adoption_id UUID",
+    "ALTER TABLE chapter_packets ADD COLUMN IF NOT EXISTS amendment_scope JSONB",
 )
 
 # One-time backfills for freshly-added nullable columns. Each is gated on `IS NULL`, so it fills only
@@ -222,6 +249,32 @@ _BACKFILLS: tuple[str, ...] = (
     # Self-gating on both columns: never touches an unapproved packet, no-op on every boot after the first.
     """UPDATE scene_packets SET approval_source = 'legacy_unclassified'
        WHERE status = 'approved' AND approval_source IS NULL""",
+    # #261: the same discipline one tier up. An already-APPROVED ChapterPacket predates chapter-tier
+    # approval provenance, so it must not claim a deliberate command approved it. Self-gating on both
+    # columns: never touches a never-approved packet, no-op on every boot after the first.
+    # `superseded` is included because a superseded packet WAS approved — it is exactly the row this
+    # backfill is about, one amendment later. Unreachable on the intended upgrade path (a pre-#261 DB has no
+    # `superseded` rows at all, since the status did not exist), but REACHABLE whenever the migration meets
+    # a DB that already carries them: a restored dump from a post-#261 cluster, or a `create_all`-provisioned
+    # DB (the test fixture's own path) seeded before `apply_lightweight_migrations` runs. Narrowed to
+    # `approved` only, those rows would keep approval_source NULL forever, i.e. an approved-then-superseded
+    # contract whose provenance reads "never approved" — a lie the reviewer-trust split would act on.
+    """UPDATE chapter_packets SET approval_source = 'legacy_unclassified'
+       WHERE status IN ('approved', 'superseded') AND approval_source IS NULL""",
+    # #261: every packet that predates amendment mode was an initial proposal by definition. The server
+    # DEFAULT covers rows inserted after the ADD; this covers rows that existed before it.
+    "UPDATE chapter_packets SET origin_mode = 'initial' WHERE origin_mode IS NULL",
+    # #261: stamp `approved_at` for packets approved before the column existed. `created_at` is the only
+    # timestamp such a row HAS — for an initial packet, propose and approve are usually the same sitting,
+    # so it is the honest available approximation rather than a fabricated precise time. Deliberately NOT
+    # applied to never-approved rows. Idempotent via IS NULL.
+    # `superseded` is included for the same reason as the approval_source backfill above: a superseded
+    # packet WAS approved, so it needs an `approved_at` just as much — and the widened predicate is the only
+    # thing that reaches it on a restored dump or a `create_all`-provisioned DB that already holds
+    # superseded rows. Gated on `approved_at IS NULL`, so it never rewrites a timestamp the real transition
+    # already stamped, and `superseded_at` (a different column, written by the transition) is untouched.
+    """UPDATE chapter_packets SET approved_at = created_at
+       WHERE status IN ('approved', 'superseded') AND approved_at IS NULL""",
 )
 
 # Idempotent indexes for contract-first draft job dedupe (CHECK deferred — app layer enforces).
@@ -271,6 +324,112 @@ _EXTRA_DDL: tuple[str, ...] = (
        WHERE reviewer = 'scene_fidelity'""",
     "CREATE INDEX IF NOT EXISTS ix_scene_packets_chapter_no ON scene_packets (chapter_id, scene_no)",
     "CREATE INDEX IF NOT EXISTS ix_chapter_packets_chapter_id ON chapter_packets (chapter_id)",
+    # ---- #261 amendment mode: the single-authority invariant as a DATABASE guarantee --------------- #
+    # I2. At most ONE approved ChapterPacket per chapter. Until now this was an APPLICATION invariant
+    # only — upheld solely by `packet._persist`'s delete-then-insert under the chapter lock — so any writer
+    # that bypassed that seam produced two approved rows with no complaint, and `draft_readiness.py`'s
+    # approved-packet query (which has no ORDER BY) would then silently resolve an arbitrary one. Partial
+    # over `approved` ONLY: `proposed` amendments must coexist with the approved predecessor they were
+    # copied from (that IS the review state), and `superseded`/`blocked` rows are history, not authority.
+    # That exclusion is what lets the approve+supersede transaction hand the slot over atomically — the
+    # predecessor leaves `approved` in the same statement batch that the successor enters it.
+    # The `_preflight_single_active_chapter_packet` guard (run before this block) refuses to build the
+    # index over a DB that already violates it, failing closed rather than silently discarding a row.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_chapter_packets_active_chapter
+       ON chapter_packets (chapter_id)
+       WHERE status = 'approved'""",
+    # I5. At most one OPEN amendment branch per chapter — the structural half of retry-idempotency. A
+    # duplicate amendment request must return the existing branch, never fork a second lineage. Partial
+    # over `proposed` only: a `blocked` amendment is terminal diagnostic evidence, and including it would
+    # let one failed attempt bar every future amendment of that chapter forever.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_chapter_packets_open_amendment
+       ON chapter_packets (chapter_id)
+       WHERE origin_mode = 'amendment' AND status = 'proposed'""",
+    # Lineage lookup: "what superseded this packet / what did this one supersede" must not table-scan the
+    # chapter's history. Partial, because the overwhelming majority of rows have no lineage at all.
+    """CREATE INDEX IF NOT EXISTS ix_chapter_packets_supersedes
+       ON chapter_packets (supersedes_packet_id)
+       WHERE supersedes_packet_id IS NOT NULL""",
+    # The lifecycle vocabulary itself. Guarded by a catalog lookup (Postgres has no ADD CONSTRAINT IF NOT
+    # EXISTS); `_preflight_single_active_chapter_packet` also refuses any row carrying a status outside
+    # this set, so the ALTER cannot fail mid-DDL on legacy data.
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_chapter_packets_status') THEN
+           ALTER TABLE chapter_packets ADD CONSTRAINT ck_chapter_packets_status
+             CHECK (status IN ('proposed', 'approved', 'blocked', 'superseded'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_chapter_packets_origin_mode') THEN
+           ALTER TABLE chapter_packets ADD CONSTRAINT ck_chapter_packets_origin_mode
+             CHECK (origin_mode IN ('initial', 'amendment'));
+         END IF;
+       END $$""",
+    "ALTER TABLE chapter_packets ALTER COLUMN origin_mode SET NOT NULL",
+    # I3, the DB half. A `superseded` packet with no successor is an orphaned supersession: a packet
+    # demoted out of authority with nothing holding authority in its place. The CHECK makes that state
+    # UNREACHABLE rather than merely unlikely — so a partial commit or a future writer cannot leave the
+    # chapter with zero authorities, and boot reconciliation never has to guess which half of a
+    # supersession ran.
+    """DO $$ BEGIN
+         IF NOT EXISTS (
+           SELECT 1 FROM pg_constraint WHERE conname = 'ck_chapter_packets_superseded_names_successor'
+         ) THEN
+           ALTER TABLE chapter_packets ADD CONSTRAINT ck_chapter_packets_superseded_names_successor
+             CHECK (status <> 'superseded' OR superseded_by_packet_id IS NOT NULL);
+         END IF;
+       END $$""",
+    # I3, the mirror half: an APPROVED amendment must name the predecessor it superseded. Together with the
+    # constraint above, "approved amendment with no superseded predecessor" is unrepresentable.
+    """DO $$ BEGIN
+         IF NOT EXISTS (
+           SELECT 1 FROM pg_constraint WHERE conname = 'ck_chapter_packets_amendment_names_predecessor'
+         ) THEN
+           ALTER TABLE chapter_packets ADD CONSTRAINT ck_chapter_packets_amendment_names_predecessor
+             CHECK (origin_mode <> 'amendment' OR status <> 'approved' OR supersedes_packet_id IS NOT NULL);
+         END IF;
+       END $$""",
+    # No packet may be its own predecessor or successor — a self-loop would satisfy both lineage CHECKs
+    # above while making the lineage walk non-terminating.
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_chapter_packets_no_self_lineage') THEN
+           ALTER TABLE chapter_packets ADD CONSTRAINT ck_chapter_packets_no_self_lineage
+             CHECK (supersedes_packet_id IS DISTINCT FROM id AND superseded_by_packet_id IS DISTINCT FROM id);
+         END IF;
+       END $$""",
+    # I8, structurally — and it takes BOTH clauses to mean anything. `autonomous_policy` is a legal
+    # ScenePacket approval source (ADR-0030) but is deliberately ABSENT from the permitted set here: no
+    # model output may approve a chapter contract, supersede a predecessor, clear a blocker, or select which
+    # packet holds authority.
+    #
+    # HONEST LIMIT — this CHECK constrains the SPELLING of a provenance claim, not its EXISTENCE. Because
+    # NULL is permitted, a future autonomous approver could write status='approved' and simply leave
+    # approval_source NULL, and this constraint would not stop it. An adversarial review found exactly that
+    # hole in the original "requires a migration" claim, so the claim is corrected here rather than restated.
+    #
+    # A second clause (`status <> 'approved' OR approval_source IS NOT NULL`) WOULD close it and was
+    # attempted. It is not here because it also rejects the 75 test fixtures across ~20 files that construct
+    # an approved ChapterPacket directly, and rewriting them all to assert a provenance they never had is
+    # churn that buys less than it looks: the clause prevents silent OMISSION, not a writer that names
+    # itself `manual_command` untruthfully. The property is therefore enforced one level up, where it can be
+    # checked precisely and without fixture damage: `tests/test_issue259_chapter_packet_writer_guard.py`
+    # asserts that every production function which stores `status = APPROVED` on a ChapterPacket ALSO stores
+    # `approval_source`, or delegates to the single transition that does. Tightening this to a DB clause
+    # remains the stronger end state and is recorded as follow-up in ADR-0034.
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_chapter_packets_approval_source') THEN
+           ALTER TABLE chapter_packets ADD CONSTRAINT ck_chapter_packets_approval_source
+             CHECK (approval_source IS NULL OR approval_source IN ('manual_command', 'legacy_unclassified'));
+         END IF;
+       END $$""",
+    # DELIBERATELY NO self-referential FOREIGN KEYs on supersedes_packet_id / superseded_by_packet_id,
+    # unlike import_adoptions.reauthor_of_adoption_id which does get one. The difference is the delete
+    # shape: `packet_delete.hard_delete_chapter_packets` removes EVERY chapter_packets row for a chapter in
+    # one transaction, so a self-FK would make the per-row delete ORDER load-bearing (and an ON DELETE SET
+    # NULL escape hatch would then trip the two lineage CHECKs above instead). Lineage integrity is
+    # therefore enforced by those CHECKs plus the boot reconciliation sweep, and a dangling lineage id can
+    # only ever arise from a deliberate whole-chapter contract delete, where losing the history is the
+    # point of the operation.
     "CREATE INDEX IF NOT EXISTS ix_annotations_scene_id ON annotations (scene_id)",
     "CREATE INDEX IF NOT EXISTS ix_suggestions_scene_id ON suggestions (scene_id)",
     "CREATE INDEX IF NOT EXISTS ix_approvals_scene_id ON approvals (scene_id)",
@@ -562,6 +721,148 @@ async def _preflight_no_duplicate_active_adoptions(conn: AsyncConnection) -> Non
     )
 
 
+class DuplicateActiveChapterPacketError(RuntimeError):
+    """Raised (fail-closed) when the #261 preflight finds a chapter with more than one APPROVED
+    ChapterPacket, or a packet whose `status` is outside the four permitted values, so
+    `uq_chapter_packets_active_chapter` / `ck_chapter_packets_status` cannot be built without silently
+    discarding an authority record. The whole migration transaction aborts and rolls back; an operator must
+    resolve the conflict by hand (the message carries the chapter plus each conflicting packet's identity)."""
+
+
+async def _preflight_single_active_chapter_packet(conn: AsyncConnection) -> None:
+    """#261: BEFORE building the amendment-mode index and CHECKs in `_EXTRA_DDL`, refuse to proceed if
+    `chapter_packets` ALREADY violates them on disk.
+
+    FAILS CLOSED — it deletes nothing and picks no winner. A ChapterPacket is the constraint document every
+    drafting agent obeys, and auto-selecting a survivor would silently change which contract the book is
+    written against; that is a human's decision, not a migration's. Two checks, one report:
+
+      1. >1 row at `status='approved'` for one chapter — the invariant the partial unique index encodes.
+         This is REACHABLE on a real database today: the "one packet per chapter" rule was upheld only by
+         `packet._persist`'s delete-then-insert under the chapter lock, never by the schema.
+      2. any row whose `status` is outside ('proposed','approved','blocked','superseded') — otherwise the
+         raw `ADD CONSTRAINT ck_chapter_packets_status` would fail cryptically mid-DDL instead of naming
+         the offending rows.
+
+    A no-op on a clean DB; runs on every boot before `_EXTRA_DDL`.
+    """
+    lines: list[str] = []
+
+    dup_chapters = (
+        await conn.execute(
+            text(
+                "SELECT chapter_id, count(*) AS n FROM chapter_packets "
+                "WHERE status = 'approved' "
+                "GROUP BY chapter_id HAVING count(*) > 1 "
+                "ORDER BY chapter_id"
+            )
+        )
+    ).all()
+    for chapter_id, n in dup_chapters:
+        lines.append(f"  chapter_id={chapter_id}: {n} APPROVED chapter packets (only one may be active)")
+        rows = (
+            (
+                await conn.execute(
+                    text(
+                        "SELECT id, status, confidence, origin_mode, created_at FROM chapter_packets "
+                        "WHERE chapter_id = :c AND status = 'approved' ORDER BY created_at, id"
+                    ),
+                    {"c": chapter_id},
+                )
+            )
+            .mappings()
+            .all()
+        )
+        for r in rows:
+            lines.append(
+                f"      id={r['id']} status={r['status']} confidence={r['confidence']} "
+                f"origin_mode={r['origin_mode']} created_at={r['created_at']}"
+            )
+
+    bad_status = (
+        (
+            await conn.execute(
+                text(
+                    "SELECT id, chapter_id, status FROM chapter_packets "
+                    "WHERE status NOT IN ('proposed', 'approved', 'blocked', 'superseded') "
+                    "ORDER BY chapter_id, id"
+                )
+            )
+        )
+        .mappings()
+        .all()
+    )
+    for r in bad_status:
+        lines.append(f"  id={r['id']} chapter_id={r['chapter_id']} has unknown status={r['status']!r}")
+
+    # Every OTHER constraint `_EXTRA_DDL` is about to build needs its own branch here, or the ADD CONSTRAINT
+    # fails with Postgres's bare "is violated by some row" — which names nothing and is exactly the
+    # undiagnosable state this preflight exists to prevent. An empirical probe walked the whole trap: the
+    # duplicate-approved branch raised and rolled back (taking the ADD COLUMNs with it), the operator followed
+    # the message's advice to "supersede" a packet, could not set `superseded_by_packet_id` because the column
+    # no longer existed, set `status='superseded'` alone — the only form available — rebooted, and got the
+    # rowless CHECK error with NOTHING built. Each query below mirrors one constraint, so the report names the
+    # offending ids instead.
+    # Which amendment columns physically exist. A genuinely pre-#261 database whose `_COLUMN_ADDS` were
+    # rolled back by an earlier raise will not have them, and probing a missing column would raise
+    # UndefinedColumn — which in Postgres ABORTS the whole transaction, so a try/except around the query
+    # could not recover and would mask the real finding. Checking the catalog first needs no error handling.
+    present = {
+        r[0]
+        for r in (
+            await conn.execute(
+                text("SELECT column_name FROM information_schema.columns WHERE table_name = 'chapter_packets'")
+            )
+        ).all()
+    }
+    for label, needs, sql in (
+        (
+            "is superseded but names no successor (ck_chapter_packets_superseded_names_successor)",
+            {"superseded_by_packet_id"},
+            "SELECT id, chapter_id FROM chapter_packets "
+            "WHERE status = 'superseded' AND superseded_by_packet_id IS NULL",
+        ),
+        (
+            "is an approved amendment with no predecessor (ck_chapter_packets_amendment_names_predecessor)",
+            {"origin_mode", "supersedes_packet_id"},
+            "SELECT id, chapter_id FROM chapter_packets "
+            "WHERE origin_mode = 'amendment' AND status = 'approved' AND supersedes_packet_id IS NULL",
+        ),
+        (
+            "is its own predecessor or successor (ck_chapter_packets_no_self_lineage)",
+            {"supersedes_packet_id", "superseded_by_packet_id"},
+            "SELECT id, chapter_id FROM chapter_packets "
+            "WHERE supersedes_packet_id = id OR superseded_by_packet_id = id",
+        ),
+        (
+            "has an unknown origin_mode (ck_chapter_packets_origin_mode)",
+            {"origin_mode"},
+            "SELECT id, chapter_id FROM chapter_packets "
+            "WHERE origin_mode IS NOT NULL AND origin_mode NOT IN ('initial', 'amendment')",
+        ),
+        (
+            "has an unknown approval_source (ck_chapter_packets_approval_source)",
+            {"approval_source"},
+            "SELECT id, chapter_id FROM chapter_packets WHERE approval_source IS NOT NULL "
+            "AND approval_source NOT IN ('manual_command', 'legacy_unclassified')",
+        ),
+    ):
+        if not needs <= present:
+            continue
+        offenders = (await conn.execute(text(sql + " ORDER BY chapter_id, id"))).mappings().all()
+        for r in offenders:
+            lines.append(f"  id={r['id']} chapter_id={r['chapter_id']} {label}")
+
+    if not lines:
+        return
+    raise DuplicateActiveChapterPacketError(
+        "#261 amendment-mode preflight FAILED CLOSED: chapter_packets already violates the invariants the "
+        "amendment lifecycle depends on, so uq_chapter_packets_active_chapter / ck_chapter_packets_status "
+        "cannot be built without discarding an authority record. NOTHING was changed. Resolve these by hand "
+        "(supersede or delete the packets that should not be active), then reboot:\n" + "\n".join(lines)
+    )
+
+
 class NullLivenessBasisError(RuntimeError):
     """Raised (fail-closed) when the ADR-0032 W1 preflight finds import_adoptions rows with a NULL
     liveness_basis just before the column is tightened to NOT NULL. W0's temporary default should have
@@ -656,6 +957,10 @@ async def apply_lightweight_migrations(conn: AsyncConnection) -> None:
     # ADR-0031 A1c: refuse to DROP repair_tasks.requires_human_approval while any row's stored boolean
     # disagrees with the derived projection. MUST run before _EXTRA_DDL, which performs that drop.
     await _preflight_repair_authorization_axis(conn)
+    # #261: refuse to build uq_chapter_packets_active_chapter / ck_chapter_packets_status over a DB that
+    # already has >1 approved packet for a chapter or an unknown status value. MUST run before _EXTRA_DDL,
+    # which creates both. Repairs nothing — which contract the book is written against is a human's call.
+    await _preflight_single_active_chapter_packet(conn)
     for ddl in _EXTRA_DDL:
         await conn.execute(text(ddl))
     # Book-ownership invariant (ADR 0027): backfill book_id (chapter->run, reject conflicts), quarantine

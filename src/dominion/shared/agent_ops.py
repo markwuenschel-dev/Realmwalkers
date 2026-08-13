@@ -27,6 +27,7 @@ from dominion.shared.agent_registry import (
     tier_of,
 )
 from dominion.shared.config import settings
+from dominion.shared.enums import PacketStatus
 from dominion.shared.model_pricing import estimate_agent_chapter_usd, estimate_pipeline_chapter_usd
 from dominion.shared.models import (
     AgentCustomPreset,
@@ -625,8 +626,29 @@ def _format_pass_rate(passed: int, total: int) -> str | None:
 
 async def _qa_pass_rates(session: AsyncSession, cutoff: datetime) -> dict[str, str | None]:
     """Join verdict / approval tables for per-agent pass rates in the stats window."""
+    # THE HONEST SAMPLE UNIT IS ONE VERDICT PER LIVE CHAPTER CONTRACT, so `superseded` rows are excluded
+    # (#261). A superseded packet is a terminal historical record — the contract an approved amendment
+    # replaced (enums.PacketStatus) — and an amendment is COPY-ON-WRITE from its predecessor, so leaving it
+    # in scores the packet-QA model twice on largely the same chapter material inside one 7-day window.
+    # Those two verdicts are not independent samples, and what triggers an amendment is an import gap (a
+    # scene with no seed), never QA quality — so the doubled weight lands on chapters selected by something
+    # this metric does not measure. Excluding it gives one current sample per live contract, matching the
+    # unit the siblings already use: `scene_packet_qa_model` counts one row per scene packet, and
+    # `review_model` below dedupes per SCENE (`hard_by_scene` is a set), not per critique.
+    #
+    # `blocked` rows are deliberately KEPT. `packet._blocked_row` stamps qa_verdict=block_drafting on every
+    # fail-closed row without a QA call ever running, so they do misattribute a deterministic gate to the QA
+    # model — but that is a separate, pre-existing question with its own fix, and folding it in here would
+    # move this number for reasons supersession did not cause.
     packet_verdicts = list(
-        (await session.execute(select(ChapterPacket.qa_verdict).where(ChapterPacket.created_at >= cutoff))).scalars()
+        (
+            await session.execute(
+                select(ChapterPacket.qa_verdict).where(
+                    ChapterPacket.created_at >= cutoff,
+                    ChapterPacket.status != PacketStatus.SUPERSEDED,
+                )
+            )
+        ).scalars()
     )
     scene_verdicts = list(
         (await session.execute(select(ScenePacket.qa_verdict).where(ScenePacket.created_at >= cutoff))).scalars()

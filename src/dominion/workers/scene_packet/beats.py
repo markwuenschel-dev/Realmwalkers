@@ -18,7 +18,7 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared.enums import BeatStatus, JobStatus, ScenePacketStatus
+from dominion.shared.enums import BeatStatus, JobStatus, PacketStatus, ScenePacketStatus
 from dominion.shared.models import Beat, ChapterPacket, Job, Scene, ScenePacket
 from dominion.shared.text_match import binding_replacements, project_text
 
@@ -56,10 +56,40 @@ def _target_words(body: dict[str, Any]) -> int | None:
     return target if isinstance(target, int) else None
 
 
-async def _chapter_cast(session: AsyncSession, chapter_packet_id: uuid.UUID) -> list[str] | None:
-    """Cast for a chapter's beats = the chapter packet's present characters minus the absent ones."""
+async def _chapter_cast(session: AsyncSession, chapter_id: uuid.UUID) -> list[str] | None:
+    """Cast for a chapter's beats = the chapter's CURRENT APPROVED packet's present characters minus its
+    absent ones.
+
+    RESOLVED FROM THE CHAPTER, never dereferenced from `ScenePacket.chapter_packet_id` (#261). That stored
+    pointer does not follow an amendment: once an amendment is approved the predecessor becomes
+    `superseded`, and a scene packet still pointing at the predecessor would project the PRE-amendment cast
+    onto `beat.characters_present` — silently, with no error. `amendment._stale_children_of` stales those
+    scene packets, but STALE is re-approvable by design (`scene_packet/approval_policy.py`) and re-approval
+    does not re-point `chapter_packet_id`, so a re-approved scene packet is exactly the row that reaches
+    here holding a dead pointer.
+
+    DELIBERATELY RESOLVE RATHER THAN FAIL CLOSED — the opposite choice to `workers/context/contracts.py`
+    on the same hazard, for three reasons:
+      * a Beat is the display/routing PROJECTION of a scene packet (module docstring), not a drafting
+        constraint. The hard constraints stay in the ScenePacket and are read at draft time through
+        `contracts.load_scene_packet_fields`, which already REFUSES a superseded chapter contract — so a
+        wrong cast here can never reach prose;
+      * `derive_beats` is the reconciler: it upserts beats in place and prunes the legacy rows that cause
+        the `beats_linked` hard-block dead-end. Raising mid-chapter would abandon that repair half-done and
+        block the very re-derive an operator would be told to run;
+      * "the chapter's cast" is a CHAPTER-wide fact, and `uq_chapter_packets_active_chapter` makes the
+        chapter's approved packet singular — so resolving it is a lookup, not a guess.
+
+    A chapter with NO approved packet yields None (an unknown cast, which is honest) rather than a
+    fabricated pre-amendment one.
+    """
     body = (
-        await session.execute(select(ChapterPacket.body).where(ChapterPacket.id == chapter_packet_id))
+        await session.execute(
+            select(ChapterPacket.body).where(
+                ChapterPacket.chapter_id == chapter_id,
+                ChapterPacket.status == PacketStatus.APPROVED,
+            )
+        )
     ).scalar_one_or_none()
     if not isinstance(body, dict):
         return None
@@ -98,11 +128,16 @@ async def derive_beats(session: AsyncSession, *, chapter_id: uuid.UUID) -> int:
     existing: dict[uuid.UUID, Beat] = {b.scene_packet_id: b for b in all_beats if b.scene_packet_id is not None}
     legacy = [b for b in all_beats if b.scene_packet_id is None]
 
+    # Resolved ONCE per chapter, not once per scene packet: the cast belongs to the chapter's approved
+    # contract, not to whichever packet each scene happens to point at (see `_chapter_cast`). After an
+    # amendment those pointers can disagree with each other, and a per-scene lookup would hand different
+    # chapters-worth of cast to different beats of the SAME chapter.
+    cast = await _chapter_cast(session, chapter_id)
+
     seen: set[uuid.UUID] = set()
     for sp in packets:
         seen.add(sp.id)
         body = sp.body or {}
-        cast = await _chapter_cast(session, sp.chapter_packet_id)
         beat = existing.get(sp.id)
         if beat is None:
             beat = Beat(chapter_id=chapter_id, scene_packet_id=sp.id, scene_no=sp.scene_no)
