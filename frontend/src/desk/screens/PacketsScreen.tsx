@@ -56,6 +56,7 @@ export default function PacketsScreen() {
 
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [packet, setPacket] = useState<PacketOut | null>(null);
+  const [authority, setAuthority] = useState<PacketOut | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +121,7 @@ export default function PacketsScreen() {
     setLoading(true);
     setError(null);
     setPacket(null);
+    setAuthority(null);
     setEditing(false);
     setJsonOpen(false);
     setEligibility(null);
@@ -130,12 +132,14 @@ export default function PacketsScreen() {
     // amendment is or is not available before they spend an author pass on it.
     Promise.allSettled([
       api.packet(chapterId),
+      api.packetAuthority(chapterId),
       api.packetStatus(chapterId),
       api.amendmentEligibility(chapterId),
     ])
-      .then(([pkt, st, el]) => {
+      .then(([pkt, auth, st, el]) => {
         if (!alive) return;
         setPacket(pkt.status === "fulfilled" ? pkt.value : null); // 404: no packet yet
+        setAuthority(auth.status === "fulfilled" ? auth.value : null);
         const running = st.status === "fulfilled" && st.value.running;
         setProposing(running);
         setPhase(running && st.status === "fulfilled" ? (st.value.phase ?? "authoring") : null);
@@ -220,11 +224,13 @@ export default function PacketsScreen() {
   // means "no packet yet", here it would blank a packet that was just successfully approved.
   const refreshAmendment = useCallback(async () => {
     if (!chapterId) return;
-    const [pkt, el] = await Promise.allSettled([
+    const [pkt, auth, el] = await Promise.allSettled([
       api.packet(chapterId),
+      api.packetAuthority(chapterId),
       api.amendmentEligibility(chapterId),
     ]);
     if (pkt.status === "fulfilled") setPacket(pkt.value);
+    if (auth.status === "fulfilled") setAuthority(auth.value);
     if (el.status === "fulfilled") setEligibility(el.value);
   }, [chapterId]);
 
@@ -655,6 +661,7 @@ export default function PacketsScreen() {
         <div style={css("margin-bottom:16px")}>
           <AmendmentPanel
             packet={packet}
+            authority={authority}
             eligibility={eligibility}
             busy={amendBusy}
             failure={amendFailure}

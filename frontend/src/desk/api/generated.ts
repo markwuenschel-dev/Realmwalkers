@@ -729,8 +729,8 @@ export interface paths {
      *     amendment while the APPROVED predecessor is still the chapter's authority. That read-vs-authority
      *     split is deliberate here (the review surface must be able to see the artifact awaiting review), and
      *     it is the caller's job to distinguish them: `status`, `origin_mode`, and `supersedes_packet_id` on
-     *     `PacketOut` say exactly which row this is and what it would replace. There is currently NO endpoint
-     *     that returns "the active authority" specifically.
+     *     `PacketOut` say exactly which row this is and what it would replace. The governing contract is
+     *     `GET /chapters/{chapter_id}/packet/authority`.
      */
     get: operations["get_packet_chapters__chapter_id__packet_get"];
     /**
@@ -787,6 +787,26 @@ export interface paths {
      *     `running` is False once the packet is persisted — the cue to GET the packet.
      */
     get: operations["packet_status_chapters__chapter_id__packet_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/packet/authority": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Packet Authority
+     * @description The chapter's governing ChapterPacket: the unique `status=approved` row, or 404.
+     */
+    get: operations["get_packet_authority_chapters__chapter_id__packet_authority_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -10549,6 +10569,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["PacketProposeOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_packet_authority_chapters__chapter_id__packet_authority_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PacketOut"];
         };
       };
       /** @description Validation Error */

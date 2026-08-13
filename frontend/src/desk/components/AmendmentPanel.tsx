@@ -197,6 +197,7 @@ function recoveryFor(
 
 export default function AmendmentPanel({
   packet,
+  authority = null,
   eligibility,
   busy = null,
   failure = null,
@@ -207,6 +208,8 @@ export default function AmendmentPanel({
 }: {
   /** The chapter's newest packet as `GET .../packet` resolved it — by recency, ANY status. */
   packet: PacketOut | null;
+  /** The governing approved packet from `GET .../packet/authority`, or null if none / not fetched. */
+  authority?: PacketOut | null;
   /** The read-only preflight verdict, or null when it has not been fetched / 404'd. */
   eligibility: AmendmentEligibilityOut | null;
   busy?: "start" | "approve" | null;
@@ -234,7 +237,8 @@ export default function AmendmentPanel({
       : false;
   const scope = packet?.amendment_scope ?? null;
   const staled = scope?.staled_scene_packet_ids ?? [];
-  const predecessorId = packet?.supersedes_packet_id ?? scope?.predecessor_packet_id ?? null;
+  const predecessorId =
+    authority?.id ?? packet?.supersedes_packet_id ?? scope?.predecessor_packet_id ?? null;
   // Both fingerprints are advisory reads, but they are the SAME function on both sides
   // (`shared/prose_fingerprint.chapter_source_fingerprint`), and the drift gate compares exactly these
   // two (`workers/packet/amendment.py:414-416`) — so a mismatch predicts the refusal.
@@ -275,8 +279,9 @@ export default function AmendmentPanel({
               amendment is approved.
             </Line>
             <Line>
-              This proposal is what you see because the chapter-packet endpoint resolves by recency
-              with no status filter — being newest is not the same as being in force.
+              This proposal is what you see because GET /packet resolves by recency with no status
+              filter. GET /packet/authority is the governing contract
+              {authority ? ` (${shortId(authority.id)})` : ""}.
             </Line>
             <Line>
               Approving it will supersede that predecessor and mark the scene contracts derived from

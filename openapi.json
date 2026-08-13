@@ -2140,7 +2140,7 @@
           "packets"
         ],
         "summary": "Get Packet",
-        "description": "The chapter's NEWEST packet by `created_at` \u2014 which is NOT necessarily the one holding authority.\n\n`_latest` applies no status filter, so once an amendment is proposed (#261) this returns the proposed\namendment while the APPROVED predecessor is still the chapter's authority. That read-vs-authority\nsplit is deliberate here (the review surface must be able to see the artifact awaiting review), and\nit is the caller's job to distinguish them: `status`, `origin_mode`, and `supersedes_packet_id` on\n`PacketOut` say exactly which row this is and what it would replace. There is currently NO endpoint\nthat returns \"the active authority\" specifically.",
+        "description": "The chapter's NEWEST packet by `created_at` \u2014 which is NOT necessarily the one holding authority.\n\n`_latest` applies no status filter, so once an amendment is proposed (#261) this returns the proposed\namendment while the APPROVED predecessor is still the chapter's authority. That read-vs-authority\nsplit is deliberate here (the review surface must be able to see the artifact awaiting review), and\nit is the caller's job to distinguish them: `status`, `origin_mode`, and `supersedes_packet_id` on\n`PacketOut` say exactly which row this is and what it would replace. The governing contract is\n`GET /chapters/{chapter_id}/packet/authority`.",
         "operationId": "get_packet_chapters__chapter_id__packet_get",
         "parameters": [
           {
@@ -2299,6 +2299,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PacketProposeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chapters/{chapter_id}/packet/authority": {
+      "get": {
+        "tags": [
+          "packets"
+        ],
+        "summary": "Get Packet Authority",
+        "description": "The chapter's governing ChapterPacket: the unique `status=approved` row, or 404.",
+        "operationId": "get_packet_authority_chapters__chapter_id__packet_authority_get",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PacketOut"
                 }
               }
             }

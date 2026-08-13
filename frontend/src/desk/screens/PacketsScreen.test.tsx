@@ -74,6 +74,7 @@ vi.mock("../api/data", () => ({
 vi.mock("../api/client", () => ({
   api: {
     packet: vi.fn(),
+    packetAuthority: vi.fn(),
     packetStatus: vi.fn(),
     proposePacket: vi.fn(),
     updatePacket: vi.fn(),
@@ -143,6 +144,7 @@ const REPAIR_PACKET = {
 // that are not about amendment mode render exactly as they did before it existed.
 beforeEach(() => {
   vi.mocked(api.amendmentEligibility).mockReset().mockRejectedValue(new Error("404"));
+  vi.mocked(api.packetAuthority).mockReset().mockRejectedValue(new Error("404"));
   vi.mocked(api.startAmendment).mockReset();
   vi.mocked(api.approveAmendment).mockReset();
 });

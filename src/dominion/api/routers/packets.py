@@ -132,11 +132,20 @@ async def get_packet(chapter_id: uuid.UUID, session: SessionDep) -> PacketOut:
     amendment while the APPROVED predecessor is still the chapter's authority. That read-vs-authority
     split is deliberate here (the review surface must be able to see the artifact awaiting review), and
     it is the caller's job to distinguish them: `status`, `origin_mode`, and `supersedes_packet_id` on
-    `PacketOut` say exactly which row this is and what it would replace. There is currently NO endpoint
-    that returns "the active authority" specifically."""
+    `PacketOut` say exactly which row this is and what it would replace. The governing contract is
+    `GET /chapters/{chapter_id}/packet/authority`."""
     row = await _latest(session, chapter_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+    return packet_approval.enrich_packet_out(row)
+
+
+@router.get("/{chapter_id}/packet/authority", response_model=PacketOut)
+async def get_packet_authority(chapter_id: uuid.UUID, session: SessionDep) -> PacketOut:
+    """The chapter's governing ChapterPacket: the unique `status=approved` row, or 404."""
+    row = await packet_pipeline.latest_approved(session, chapter_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="no approved packet for this chapter")
     return packet_approval.enrich_packet_out(row)
 
 

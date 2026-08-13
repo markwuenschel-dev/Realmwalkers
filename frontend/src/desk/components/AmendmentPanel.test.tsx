@@ -99,10 +99,10 @@ describe("AmendmentPanel authority split", () => {
     expect(banner.textContent).toMatch(/stale/i);
   });
 
-  it("says out loud that no endpoint returns the active authority", () => {
+  it("names GET /packet/authority as the governing-contract read", () => {
     render(<AmendmentPanel packet={PROPOSED_AMENDMENT} eligibility={null} />);
     expect(screen.getByTestId("amendment-authority-banner").textContent).toMatch(
-      /no endpoint returns "the active authority"/i,
+      /GET \/packet\/authority is the governing contract/i,
     );
   });
 

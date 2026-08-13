@@ -343,6 +343,7 @@ export const api = {
   // --- contract-first drafting: chapter knowledge packets (Phase 1) -------------------------------
   // GET may 404 (no packet yet); callers treat that as "none".
   packet: (chapterId: string) => http<PacketOut>(`/chapters/${chapterId}/packet`),
+  packetAuthority: (chapterId: string) => http<PacketOut>(`/chapters/${chapterId}/packet/authority`),
   // Author+QA now run in the background (so a tab switch never loses the work). POST kicks it off and
   // returns the live status; poll packetStatus until running flips false, then refetch the packet.
   proposePacket: (chapterId: string) =>
@@ -366,8 +367,7 @@ export const api = {
   //
   // NOTE on `packet(chapterId)` above: it resolves by RECENCY with no status filter, so once an
   // amendment is proposed it returns the PROPOSAL while the approved predecessor is still the
-  // chapter's governing authority. There is no endpoint that returns "the active authority" —
-  // callers must say which one they are showing (see components/AmendmentPanel.tsx).
+  // chapter's governing authority. `packetAuthority` is that governing row (`status=approved`).
   //
   // Read-only preflight: no lock, no model spend. ADVISORY ONLY — approveAmendment recomputes the same
   // verdict under the chapter workflow lock, so `eligible: true` here informs the UI, never authorizes.
