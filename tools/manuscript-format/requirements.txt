@@ -1,0 +1,4 @@
+# The only runtime dependency. python-docx supplies the OOXML package container
+# ([Content_Types].xml, relationships, styles.xml, numbering.xml, headers/footers, sectPr);
+# manuscript_format/ooxml.py builds the body content itself.
+python-docx>=1.1
