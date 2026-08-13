@@ -768,6 +768,11 @@ async def derive_scene_packets(
         # Only record a QA verdict when QA actually ran. A deterministic/author block skips QA, so
         # forcing BLOCK_DRAFTING here is what made every such block look like a QA block downstream —
         # leave it None and let the persisted blocker_source name the real gate.
+        #
+        # This column is an ADVISORY RECORD, not a gate input (#278). Nothing may re-derive a drafting
+        # decision from it: `DraftGateInputs` carries no model-derived field, and a nominating verdict
+        # already rode in as a `repair` issue via `parse._verdict_nomination`, persisted in qa_warnings
+        # below where the repair queue and the export gate can see it.
         row.qa_verdict = qa["verdict"] if qa else None
         row.qa_warnings = qa_warnings
         row.body = persisted_body

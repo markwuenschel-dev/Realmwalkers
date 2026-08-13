@@ -1,22 +1,60 @@
 # Roadmap
 
-Execution roadmap. The spec is [`DESIGN.md`](DESIGN.md) (esp. §14 phased build, §15 decisions log);
-the dev guide is [`BUILD.md`](BUILD.md). This file is the forward-looking plan and the place to check
-work off — it does not redefine the architecture.
+> **This file is no longer the live roadmap.** It is retained as a historical record, and because
+> [`README.md`](../README.md) and [`BUILD.md`](BUILD.md) link to this path.
+>
+> The plan it used to carry predates every ADR in the 0028–0033 range and no longer describes what is
+> being built or what has shipped. Rather than invent a replacement plan here, this file now points at
+> the sources that are actually maintained.
 
-> **Note (2026-07-03):** the plan archived below predates contract-first drafting. Drafting now runs
-> chapter packets → scene packets → derived beats → draft, and beat-first drafting is disabled — the
-> authoritative contract is [`contract_first_drafting.md`](contract_first_drafting.md).
+## Where the live plan lives
 
-## Current effort — repo scrub + drafting unblock
+| For | Read |
+|---|---|
+| **What the system is, and which subsystems are live** | [`CONTEXT.md`](../CONTEXT.md) — the glossary is the source of truth for domain terms, and its `Implementation status` blocks state what has landed on `main` and when |
+| **Architecture decisions and what is authorized to be built** | [`docs/adr/`](adr/) — most recently ADR-0028 through ADR-0033. Newer ADRs carry an explicit `implementation_authorized` flag on line 3; **an ADR without that flag is not a work order** |
+| **The forward plan, per destination** | The wayfinder **map issues** — [#213](https://github.com/markwuenschel-dev/Realmwalkers/issues/213) (ADR-0030 autonomy engine) and [#258](https://github.com/markwuenschel-dev/Realmwalkers/issues/258) (ADR-0028 imported-prose lifecycle tail) |
+| **What is actually queued** | The open issues themselves — map issues are decisions-only and hand off to execution tickets |
+| **Architecture rationale (stable, still current)** | [`DESIGN.md`](DESIGN.md), [`contract_first_drafting.md`](contract_first_drafting.md) |
+| **How to build, test and deploy** | [`BUILD.md`](BUILD.md), [`DEPLOY.md`](DEPLOY.md) |
 
-- [x] **Phase 1 — repo scrub (PR #138, merged):** path-aware CI (`changes` gate + `ci-passed`
-  aggregator, cached builds), test suite trimmed 579 → 215, worker modules 91 → 81 (`learning`
+---
+
+# Archived — superseded
+
+Everything below this line is a historical record. **It is not a plan, and its claims are not
+maintained.** When this file was archived on 2026-07-29, one claim below was measurably false and one
+stated a status that cannot be supported; both are corrected inline so the record cannot be misread.
+
+## Archived — repo scrub + drafting unblock (2026-07-03 plan)
+
+> **Note (2026-07-03), as written at the time:** the plan archived below predates contract-first
+> drafting. Drafting now runs chapter packets → scene packets → derived beats → draft, and beat-first
+> drafting is disabled — the authoritative contract is
+> [`contract_first_drafting.md`](contract_first_drafting.md).
+
+- **Phase 1 — repo scrub (PR #138, merged):** path-aware CI (`changes` gate + `ci-passed`
+  aggregator, cached builds), ~~test suite trimmed 579 → 215~~, worker modules 91 → 81 (`learning`
   promoted, legacy CLIs like `workers/enqueue` removed), stale-canon cleanup UI/API on the Ledger.
-- [ ] **Phase 2 — drafting unblock (in progress):** a repair-severity tier so *repairable* packet
+
+  > **Correction 2026-07-29 — the test-count figure is stale.** Measured at HEAD `033eb20`:
+  > `find tests -name 'test_*.py' | wc -l` → **160** files, and
+  > `grep -rc "^\s*def test_\|^\s*async def test_" tests --include='test_*.py'` summed → **1096**
+  > test functions. Neither `579` nor `215` describes the suite today; the suite grew back by roughly
+  > 5× after the trim. The trim itself happened — only the number is frozen at PR #138.
+
+- ~~**Phase 2 — drafting unblock (in progress):**~~ a repair-severity tier so *repairable* packet
   issues become repair tasks instead of hard drafting blocks; one canonical packet artifact (instead
   of parallel packet representations); production-tab remediation UX so blockers are fixable from
   the Desk.
+
+  > **Correction 2026-07-29 — "in progress" is not a supportable status.** This line was written
+  > before ADR-0028 through ADR-0033 existed and has not been reconciled with them.
+  > `docs/agent-briefs/phase2-drafting-unblock.md:256` already flagged this file as
+  > *"predates contract-first packets — update or archive"*. **Whether these three items shipped was
+  > not re-derived when this file was archived** — do not read the strikethrough as "done" or as
+  > "abandoned". If the question matters, verify against `CONTEXT.md` and the production-repair
+  > sources rather than trusting this line.
 
 ---
 

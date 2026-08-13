@@ -1253,12 +1253,15 @@ class StructuralBlockerOut(BaseModel):
 class DraftReadinessOut(BaseModel):
     """Contract-first drafting gate diagnostics. `can_draft` is the authoritative gate the Draft
     button (and every "ready" badge) obeys; when it is False, `disabled_reason` names the FIRST
-    failing gate in pipeline order (packet → sequence/budget → scene packets (stale/QA) → beats →
-    jobs → prose coverage → rate limit) in one human sentence — the UI never shows a disabled button
-    (or a "ready to draft" claim) without an explanation. `draftable` is the legacy queueability
-    flag (kept for compatibility; `can_draft` implies `draftable` but is stricter). `prose` reports
-    scene prose coverage — `assembly_ready` is the production-assembly gate (all expected scenes
-    have prose)."""
+    failing gate in pipeline order (packet → sequence/budget/structural → scene packets
+    (coverage/stale) → beats → jobs → prose coverage → rate limit) in one human sentence — the UI
+    never shows a disabled button (or a "ready to draft" claim) without an explanation. `draftable`
+    is the legacy queueability flag (kept for compatibility; `can_draft` implies `draftable` but is
+    stricter). `prose` reports scene prose coverage — `assembly_ready` is the production-assembly
+    gate (all expected scenes have prose).
+
+    EVERY input to `can_draft` is deterministic (#278): no LLM output decides it. `scene_packet_qa_blocking`
+    is reported here but is ADVISORY — see its note below."""
 
     chapter_id: uuid.UUID
     chapter_packet_approved: bool = False
@@ -1271,6 +1274,11 @@ class DraftReadinessOut(BaseModel):
     blockers: list[DraftQueueBlockerOut] = []
     # --- authoritative draft gate (recovery L8) — flat fields the Desk binds actions/badges to ----
     scene_packets_stale: int = 0
+    #: ADVISORY, NOT A GATE (#278). How many scene packets the LLM QA agent NOMINATED as unsafe
+    #: (`qa_verdict == block_drafting`). It used to refuse drafting on its own, which put a gate in the
+    #: hands of a model the QA prompt had already coached; ADR-0031 R3 Fork 2 ruled a model may nominate,
+    #: never mint. A genuinely draft-unsafe contract now surfaces in `structural_blockers` instead. Safe
+    #: to render as an informational count; never gate a UI action on it — gate on `can_draft`.
     scene_packet_qa_blocking: int = 0
     active_draft_jobs: int = 0
     missing_scene_drafts: list[int] = []

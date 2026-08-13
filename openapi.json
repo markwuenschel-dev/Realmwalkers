@@ -1415,7 +1415,7 @@
           "chapters"
         ],
         "summary": "Redraft Scene",
-        "description": "One-click re-draft of a single deleted/undrafted scene, scoped to ONE scene_no.\n\nDeleting a scene keeps its beat but marks the slot's ScenePacket STALE (\"scene deleted\"), and\ncontract-first drafting is fail-closed on an approved, non-stale packet \u2014 so the beat is left\n\"undrafted\" yet unqueueable. This re-approves that STALE packet (flip STALE \u2192 APPROVED, clear\nstale_reason), then queues a draft job for just this scene's approved beat and kicks the drain.\nNever touches the rest of the chapter, and never force-approves a BLOCKED/RATE_LIMITED packet.",
+        "description": "One-click re-draft of a single deleted/undrafted scene, scoped to ONE scene_no.\n\nDeleting a scene keeps its beat but marks the slot's ScenePacket STALE (\"scene deleted\"), and\ncontract-first drafting is fail-closed on an approved, non-stale packet \u2014 so the beat is left\n\"undrafted\" yet unqueueable. This re-approves that STALE packet (flip STALE \u2192 APPROVED, clear\nstale_reason), then queues a draft job for just this scene's approved beat and kicks the drain.\nNever touches the rest of the chapter, and never force-approves a BLOCKED/RATE_LIMITED packet.\n\nRuns under the chapter workflow lock (ADR-0028; #278 task C). It performs TWO authority-changing\nchapter writes \u2014 a scene-packet approval that reconciles the chapter's beats, and a draft Job mint \u2014\nand `run_under_chapter_workflow` appeared ZERO times in this module, so both could interleave with a\nconcurrent `approve_scene_packet` / packet delete. Everything from the packet lookup onward is\ndecided INSIDE the lock (protocol steps 1-4); a collision maps to `409 chapter_workflow_busy`. The\ndrain kick stays OUTSIDE, after the commit: a long job must never run while the lock is held.",
         "operationId": "redraft_scene_chapters__chapter_id__scenes__scene_no__redraft_post",
         "parameters": [
           {
@@ -2730,7 +2730,7 @@
           "scene-packets"
         ],
         "summary": "Update Scene Packet",
-        "description": "Human edit/adjudication. Editing the body returns an approved packet to `proposed` (re-approval\nrequired) unless the same call explicitly sets status back to approved.",
+        "description": "Human edit/adjudication. Editing the body returns an approved packet to `proposed` (re-approval\nrequired) unless the same call explicitly sets status back to approved.\n\nRuns under the chapter workflow lock (ADR-0028; #278 task C). This rewrites the scene contract, can\nflip the packet in or out of the APPROVED set, and RECONCILES THE CHAPTER'S BEATS \u2014 an\nauthority-changing chapter mutation that previously ran with no serialization at all, so it could\ninterleave with `approve_scene_packet`'s locked approve+derive_beats and leave the beat projection\ndisagreeing with the packet statuses it projects. A lock collision maps to `409\nchapter_workflow_busy` (Q16). The mutable row is reloaded INSIDE the lock (`_blockers.lock_packet`\n\u2192 `session.get(..., with_for_update=True, populate_existing=True)`): without `populate_existing` the\nreload silently returns the pre-lock identity-mapped copy and step 3 of the mandatory protocol does\nnothing.",
         "operationId": "update_scene_packet_scene_packets__scene_packet_id__put",
         "parameters": [
           {
@@ -14140,7 +14140,7 @@
           "chapter_id"
         ],
         "title": "DraftReadinessOut",
-        "description": "Contract-first drafting gate diagnostics. `can_draft` is the authoritative gate the Draft\nbutton (and every \"ready\" badge) obeys; when it is False, `disabled_reason` names the FIRST\nfailing gate in pipeline order (packet \u2192 sequence/budget \u2192 scene packets (stale/QA) \u2192 beats \u2192\njobs \u2192 prose coverage \u2192 rate limit) in one human sentence \u2014 the UI never shows a disabled button\n(or a \"ready to draft\" claim) without an explanation. `draftable` is the legacy queueability\nflag (kept for compatibility; `can_draft` implies `draftable` but is stricter). `prose` reports\nscene prose coverage \u2014 `assembly_ready` is the production-assembly gate (all expected scenes\nhave prose)."
+        "description": "Contract-first drafting gate diagnostics. `can_draft` is the authoritative gate the Draft\nbutton (and every \"ready\" badge) obeys; when it is False, `disabled_reason` names the FIRST\nfailing gate in pipeline order (packet \u2192 sequence/budget/structural \u2192 scene packets\n(coverage/stale) \u2192 beats \u2192 jobs \u2192 prose coverage \u2192 rate limit) in one human sentence \u2014 the UI\nnever shows a disabled button (or a \"ready to draft\" claim) without an explanation. `draftable`\nis the legacy queueability flag (kept for compatibility; `can_draft` implies `draftable` but is\nstricter). `prose` reports scene prose coverage \u2014 `assembly_ready` is the production-assembly\ngate (all expected scenes have prose).\n\nEVERY input to `can_draft` is deterministic (#278): no LLM output decides it. `scene_packet_qa_blocking`\nis reported here but is ADVISORY \u2014 see its note below."
       },
       "DraftScheduleOut": {
         "properties": {

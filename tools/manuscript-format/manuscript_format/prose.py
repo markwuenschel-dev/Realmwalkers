@@ -102,6 +102,9 @@ class InterfaceSpec:
     role: str | None = None
     domain: str | None = None
     creature: str | None = None
+    # Free-form race/species label. Unlike ``creature``, this is not restricted to the built-in
+    # taxonomy, so manuscript scans can colour-code newly introduced peoples automatically.
+    race: str | None = None
     intensity: str | None = None
     skill: str | None = None
     tier: str | None = None
@@ -352,7 +355,7 @@ _ENUM_FIELDS: dict[str, frozenset[str]] = {
     "creature": CREATURE_KINDS,
     "intensity": INTENSITIES,
 }
-_FREE_FIELDS = ("skill", "tier", "name", "from", "to", "rank", "via", "age", "level")
+_FREE_FIELDS = ("skill", "tier", "name", "from", "to", "rank", "via", "age", "level", "race", "species")
 
 
 def parse_interface_spec(raw: str) -> InterfaceSpec:
@@ -368,7 +371,8 @@ def parse_interface_spec(raw: str) -> InterfaceSpec:
         if key in _ENUM_FIELDS:
             setattr(spec, key, value if value in _ENUM_FIELDS[key] else None)
         elif key in _FREE_FIELDS:
-            setattr(spec, "from_" if key == "from" else key, value)
+            attr = "from_" if key == "from" else "race" if key == "species" else key
+            setattr(spec, attr, value)
     return spec
 
 

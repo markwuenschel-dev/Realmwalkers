@@ -50,6 +50,7 @@ from manuscript_format.surfaces import (
     ROLE_STYLES,
     contrast_ratio,
     format_interface_header,
+    race_style,
     resolve_surface,
 )
 
@@ -212,6 +213,81 @@ def test_interface_header_forms():
     assert format_interface_header(InterfaceSpec(creature="nhal")) == "[ WARNING ] CREATURE SCAN · N'HAL"
 
 
+def test_race_surfaces_include_author_locked_archdemon_and_archangel_palettes():
+    archdemon = resolve_surface(InterfaceSpec(race="Archdemon"))
+    archangel = resolve_surface(InterfaceSpec(race="Archangel"))
+
+    assert (archdemon.accent, archdemon.fill, archdemon.header_fill) == (
+        "B3132A",
+        "FCEBED",
+        "9B111E",
+    )
+    assert (archangel.accent, archangel.fill, archangel.header_fill) == (
+        "C9A227",
+        "FFFDF2",
+        "F4E6A6",
+    )
+
+
+def test_unknown_race_gets_a_stable_non_neutral_palette():
+    first = race_style("Veyrkin")
+    second = race_style("Veyrkin")
+    assert first == second
+    assert first != ROLE_STYLES["system"]
+    surface = resolve_surface(InterfaceSpec(race="Veyrkin"))
+    assert contrast_ratio(surface.label_color, surface.fill) >= AA_SMALL_TEXT
+
+
+def test_race_inference_and_health_change_styling_render_to_docx(tmp_path):
+    content = """```
+[ INTERFACE ]
+INSIGHT Partial success.
+NAME Xazzidiuk
+RACE Archdemon
+HEALTH 6,623 / 6,623
+```
+
+```
+[ INTERFACE ]
+HEALTH 37 / 50.
+Bleeding detected.
+```
+
+```
+[ INTERFACE ]
+Restorative effect received.
+HEALTH RESTORED 50 / 50.
+Bleeding halted.
+```
+
+```
+[ INTERFACE ]
+INSIGHT Partial success.
+NAME Zazriel
+SPECIES Archangel
+HEALTH 8,212 / 8,212
+```
+"""
+    out = tmp_path / "race-health.docx"
+    build_doc_doc("Race Health", content).save(out)
+    xml = _xml(out)
+
+    # Race/species lines colour the existing interface box without requiring source directives.
+    assert "Xazzidiuk" in xml and "Zazriel" in xml
+    assert 'w:fill="9B111E"' in xml and 'w:fill="FCEBED"' in xml
+    assert 'w:fill="F4E6A6"' in xml and 'w:fill="FFFDF2"' in xml
+
+    loss_pos = xml.index("HEALTH 37 / 50.")
+    loss_run = xml[max(0, loss_pos - 500) : loss_pos]
+    assert 'w:color w:val="B4231F"' in loss_run
+    assert "<w:i" in loss_run
+
+    gain_pos = xml.index("HEALTH RESTORED 50 / 50.")
+    gain_run = xml[max(0, gain_pos - 500) : gain_pos]
+    assert 'w:color w:val="1A9D3F"' in gain_run
+    assert "<w:i" in gain_run
+
+
 # ── level-up delta parsing ───────────────────────────────────────────────────
 
 
@@ -245,8 +321,12 @@ def _fixture() -> Manuscript:
                               scenes=[ManuscriptScene(1, "Before the vault, there was the door.")]),
             ManuscriptChapter(position=1, chapter_no=2, title="The Channel", pov="Wren", part_id="p1",
                               epigraph="Every door remembers.",
-                              scenes=[ManuscriptScene(1, "One.\n\nA second paragraph remains ordinary body text.\n\n```\n@interface role=levelup from=6 to=7\n"
-                                                        "Up.\n- Health: 72 -> 84\n- Corruption: 40 -> 12\n```\n"),
+                              scenes=[ManuscriptScene(
+                                  1,
+                                  "One.\n\nA second paragraph remains ordinary body text.\n\n"
+                                  "```\n@interface role=levelup from=6 to=7\n"
+                                  "Up.\n- Health: 72 -> 84\n- Corruption: 40 -> 12\n```\n",
+                              ),
                                       ManuscriptScene(2, "Two.")]),
             ManuscriptChapter(position=2, chapter_no=4, pov="Wren", part_id="p2",
                               scenes=[ManuscriptScene(1, "Four.")]),

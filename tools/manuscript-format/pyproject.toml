@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "manuscript-format"
-version = "1.3.0"
+version = "1.3.1"
 description = "Desktop manuscript formatter with multi-file merging, linked contents, and LitRPG interface styling"
 requires-python = ">=3.12"
 dependencies = ["python-docx>=1.1"]

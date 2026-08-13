@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.api.deps import SessionDep
 from dominion.api.packet_delete import hard_delete_scene_packet, hard_delete_scene_packets_for_chapter
 from dominion.shared.chapter_lock import (
+    BUSY_DETAIL,
     DEFAULT_LOCK_TIMEOUT_MS,
     ChapterWorkflowBusy,
     run_under_chapter_workflow,
@@ -72,13 +73,9 @@ LOCK_TIMEOUT_MS: int | None = DEFAULT_LOCK_TIMEOUT_MS
 
 
 def _chapter_busy_409() -> HTTPException:
-    return HTTPException(
-        status_code=409,
-        detail={
-            "reason": "chapter_workflow_busy",
-            "message": "This chapter is busy with another workflow operation. Retry in a moment.",
-        },
-    )
+    """The shared 409 body (`chapter_lock.BUSY_DETAIL`), never a re-typed dict — one condition must not
+    grow two operator-facing messages (#259)."""
+    return HTTPException(status_code=409, detail=BUSY_DETAIL)
 
 
 def _derive_key(chapter_id: uuid.UUID) -> str:
@@ -320,36 +317,52 @@ async def update_scene_packet(
     scene_packet_id: uuid.UUID, body: ScenePacketUpdateIn, session: SessionDep
 ) -> ScenePacketOut:
     """Human edit/adjudication. Editing the body returns an approved packet to `proposed` (re-approval
-    required) unless the same call explicitly sets status back to approved."""
-    row = await _get(session, scene_packet_id)
+    required) unless the same call explicitly sets status back to approved.
+
+    Runs under the chapter workflow lock (ADR-0028; #278 task C). This rewrites the scene contract, can
+    flip the packet in or out of the APPROVED set, and RECONCILES THE CHAPTER'S BEATS — an
+    authority-changing chapter mutation that previously ran with no serialization at all, so it could
+    interleave with `approve_scene_packet`'s locked approve+derive_beats and leave the beat projection
+    disagreeing with the packet statuses it projects. A lock collision maps to `409
+    chapter_workflow_busy` (Q16). The mutable row is reloaded INSIDE the lock (`_blockers.lock_packet`
+    → `session.get(..., with_for_update=True, populate_existing=True)`): without `populate_existing` the
+    reload silently returns the pre-lock identity-mapped copy and step 3 of the mandatory protocol does
+    nothing."""
+    # Locate + 404 only (protocol step 1) — every DECISION below is made on the row reloaded under the lock.
+    chapter_id = (await _get(session, scene_packet_id)).chapter_id
     explicit_status = (body.status or "").strip().lower() or None
-    if body.body is not None:
-        row.body = body.body
-        if row.status == ScenePacketStatus.APPROVED and explicit_status != ScenePacketStatus.APPROVED:
-            row.status = ScenePacketStatus.PROPOSED
-    if explicit_status is not None:
-        try:
+    if explicit_status is not None and explicit_status not in {s.value for s in ScenePacketStatus}:
+        raise HTTPException(status_code=422, detail="status must be proposed|approved|blocked|stale|rate_limited")
+
+    async def _locked() -> ScenePacket:
+        row = await _blockers.lock_packet(session, scene_packet_id)
+        if body.body is not None:
+            row.body = body.body
+            if row.status == ScenePacketStatus.APPROVED and explicit_status != ScenePacketStatus.APPROVED:
+                row.status = ScenePacketStatus.PROPOSED
+        if explicit_status is not None:
             target_status = ScenePacketStatus(explicit_status)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=422, detail="status must be proposed|approved|blocked|stale|rate_limited"
-            ) from exc
-        if target_status == ScenePacketStatus.APPROVED:
-            # Even a human PUT override must go through the centralized blocker gate — never raw-approve
-            # past an active ApprovalBlocker (A1c). approve_scene_packet locks the row + checks it.
-            try:
+            if target_status == ScenePacketStatus.APPROVED:
+                # Even a human PUT override must go through the centralized blocker gate — never
+                # raw-approve past an active ApprovalBlocker (A1c). approve_scene_packet re-locks the
+                # row + checks it (re-entrant: the same transaction already holds that row lock).
                 await scene_packet_pipeline.approve_scene_packet(
                     session, packet=row, source=ScenePacketApprovalSource.MANUAL_COMMAND.value
                 )
-            except _blockers.ApprovalBlockerError as exc:
-                raise HTTPException(status_code=409, detail=str(exc)) from exc
-        else:
-            row.status = target_status
-    # A body edit or explicit status change can flip this packet out of (or into) the approved set, so
-    # reconcile beats — the projection follows the packet's status. Beats-only: no scene packet is
-    # re-derived here.
-    await scene_packet_pipeline.reconcile_beats(session, chapter_id=row.chapter_id)
-    await session.commit()
+            else:
+                row.status = target_status
+        # A body edit or explicit status change can flip this packet out of (or into) the approved set,
+        # so reconcile beats — the projection follows the packet's status. Beats-only: no scene packet
+        # is re-derived here.
+        await scene_packet_pipeline.reconcile_beats(session, chapter_id=row.chapter_id)
+        return row
+
+    try:
+        row = await run_under_chapter_workflow(session, chapter_id, _locked, timeout_ms=LOCK_TIMEOUT_MS)
+    except ChapterWorkflowBusy as exc:
+        raise _chapter_busy_409() from exc
+    except _blockers.ApprovalBlockerError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     await session.refresh(row)
     return await scene_packet_pipeline.scene_out_with_blockers(session, row)
 

@@ -10,9 +10,13 @@ from __future__ import annotations
 import os
 
 # Must run BEFORE any dominion import so Settings binds to the test database.
+# The local test Postgres is the `realmwalkers-db` container, published on 5433 — NOT 5432. Other
+# projects routinely run their own Postgres on 5432, so a 5432 default silently pointed a bare
+# `pytest` at a foreign database instead of failing. CI is unaffected: it sets
+# DOMINION_TEST_DATABASE_URL explicitly (`.github/workflows/ci.yml:131`), so this default is local-only.
 _TEST_URL = os.environ.get(
     "DOMINION_TEST_DATABASE_URL",
-    "postgresql+asyncpg://dominion:dominion@127.0.0.1:5432/dominion_test",
+    "postgresql+asyncpg://dominion:dominion@127.0.0.1:5433/dominion_test",
 )
 os.environ["DOMINION_DATABASE_URL"] = _TEST_URL
 # Tests must NEVER touch the network. With a real OPENAI_API_KEY in the developer's .env and the

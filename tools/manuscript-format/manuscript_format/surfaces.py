@@ -7,6 +7,7 @@ role → creature → domain styles, then applies the intensity modifier.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 
 from .prose import InterfaceSpec
@@ -129,9 +130,11 @@ CREATURE_STYLES: dict[str, StyleMap] = {
     "beast": _s(PALETTE.ochre, "FFFBEB", PALETTE.brown, "451A03"),
     "monster": _s(PALETTE.rust, "FFF7ED", PALETTE.rust, "7C2D12"),
     "demon": _s(PALETTE.crimson, "FEF2F2", PALETTE.crimson, "450A0A"),
-    "archdemon": _s(PALETTE.crimson, "FEF2F2", PALETTE.black, PALETTE.black),
+    # Author lock: Archdemon scans read as ruby-red cards, not generic demon crimson.
+    "archdemon": _s("B3132A", "FCEBED", "9B111E", "5B0713", border="D7A2AC"),
     "angel": _s(PALETTE.gold, PALETTE.ivory, "D97706", "78350F"),
-    "archangel": _s(PALETTE.gold, PALETTE.ivory, "FDE68A", "78350F"),
+    # Author lock: Archangel scans use a warm yellow-white / ivory treatment.
+    "archangel": _s("C9A227", "FFFDF2", "F4E6A6", "8A6A12", border="E5D9A8"),
     "undead": _s(PALETTE.bone, "F5F5F4", PALETTE.charcoal, PALETTE.black),
     "dragon": _s(PALETTE.bronze, "FFF7ED", "B45309", "78350F"),
     "construct": _s(PALETTE.steel_blue, "F1F5F9", PALETTE.steel, PALETTE.charcoal),
@@ -143,6 +146,41 @@ CREATURE_STYLES: dict[str, StyleMap] = {
     "xyloryn": _s("84CC16", PALETTE.pearl, PALETTE.black, PALETTE.black),
     "nhal": _s(PALETTE.static_gray, "F3F4F6", PALETTE.black, PALETTE.black),
 }
+
+
+# Unknown races still receive a stable, readable tint. The SHA-256 selection is deterministic across
+# machines and Python processes (unlike ``hash()``), so the same race never changes colour between runs.
+_RACE_FALLBACKS: tuple[StyleMap, ...] = (
+    _s("315A8A", "EEF5FC", "D5E5F5", "1E3A5F", border="B8CCE2"),
+    _s("6B4C8A", "F5F0FA", "E4D7F0", "432A5C", border="CDBBDD"),
+    _s("39745B", "EFF8F3", "D5EBDD", "20503B", border="B9D8C7"),
+    _s("9A5C24", "FCF4EA", "F2DDC3", "643713", border="DFC5A8"),
+    _s("8A3F64", "FAF0F5", "EFD5E2", "5B203E", border="DDB8CA"),
+    _s("3E6F78", "EFF7F8", "D6E8EB", "24474D", border="BCD5D9"),
+)
+
+_RACE_ALIASES: dict[str, str] = {
+    "human": "mortal",
+    "humans": "mortal",
+}
+
+
+def normalize_race_key(value: str | None) -> str | None:
+    """Normalize a display race/species to a built-in creature key when one exists."""
+    if not value:
+        return None
+    key = "".join(ch for ch in value.casefold() if ch.isalnum())
+    key = _RACE_ALIASES.get(key, key)
+    return key or None
+
+
+def race_style(value: str) -> StyleMap:
+    """Return the explicit creature style or a deterministic fallback for an arbitrary race."""
+    key = normalize_race_key(value) or "unknown"
+    if key in CREATURE_STYLES:
+        return CREATURE_STYLES[key]
+    digest = hashlib.sha256(key.encode("utf-8")).digest()
+    return _RACE_FALLBACKS[digest[0] % len(_RACE_FALLBACKS)]
 
 
 def _luminance(hex_color: str) -> float:
@@ -205,8 +243,9 @@ def resolve_surface(spec: InterfaceSpec | None = None) -> Surface:
     spec = spec or InterfaceSpec()
     merged = ROLE_STYLES.get(spec.role or "system", ROLE_STYLES["system"])
 
-    if spec.creature and spec.creature in CREATURE_STYLES:
-        merged = _merge(merged, CREATURE_STYLES[spec.creature])
+    race_value = spec.race or spec.creature
+    if race_value:
+        merged = _merge(merged, race_style(race_value))
 
     if spec.domain and spec.domain in DOMAIN_STYLES:
         domain = DOMAIN_STYLES[spec.domain]
@@ -284,7 +323,7 @@ _PROGRESSION_ROLES = frozenset({"progression", "xp", "crafting"})
 
 def format_interface_header(spec: InterfaceSpec) -> str:
     """Uppercase display header shared by Reader DOCX and Shunn plain text."""
-    if spec.creature == "nhal":
+    if normalize_race_key(spec.creature) == "nhal":
         return "[ WARNING ] CREATURE SCAN · N'HAL"
 
     role = (spec.role or "interface").upper()
