@@ -422,24 +422,27 @@ def _revise_http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, AdoptionChapterNotFound):
         return HTTPException(status_code=404, detail="chapter not found")
     if isinstance(exc, ChapterHasContractedScenes):
+        chapter_id = exc.chapter_id
         return HTTPException(
             status_code=409,
             detail={
                 "reason": "chapter_has_contracted_scenes",
                 "message": (
                     "This chapter has at least one contracted scene, so it is not evidence-only. "
-                    "Revising an imported scene here needs amendment mode, which is not available yet."
+                    f"Use POST /chapters/{chapter_id}/amendment/start to open amendment mode "
+                    f"(GET /chapters/{chapter_id}/amendment/eligibility for the refusal token)."
                 ),
             },
         )
     if isinstance(exc, ChapterContractAlreadyApproved):
+        chapter_id = exc.chapter_id
         return HTTPException(
             status_code=409,
             detail={
                 "reason": "chapter_contract_already_approved",
                 "message": (
-                    "This chapter already has an approved contract. Revising an imported scene here "
-                    "needs amendment mode, which is not available yet."
+                    "This chapter already has an approved contract. "
+                    f"Use POST /chapters/{chapter_id}/amendment/start — Revise will not supersede it."
                 ),
             },
         )

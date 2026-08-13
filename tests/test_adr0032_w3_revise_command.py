@@ -268,8 +268,8 @@ async def test_different_feedback_replaces_the_request_and_reuses_the_adoption(a
 
 
 async def test_contracted_chapter_fails_closed_and_persists_nothing(app_client, db_factory):
-    """D6: a mixed chapter needs AMENDMENT mode (#261), which does not exist. Rather than commit an
-    `awaiting_contract` request nothing can advance, the whole command is refused."""
+    """D6: a mixed chapter needs AMENDMENT mode (#261). Revise fails closed rather than silently
+    escalate into a supersession; the 409 points at amendment/start."""
     async with db_factory() as s:
         book, ch, (scene,) = await _seed(s)
         contracted = Scene(
@@ -290,7 +290,10 @@ async def test_contracted_chapter_fails_closed_and_persists_nothing(app_client, 
 
     resp = await app_client.post(f"/scenes/{scene_id}/decision", json=body)
     assert resp.status_code == 409
-    assert resp.json()["detail"]["reason"] == "chapter_has_contracted_scenes"
+    detail = resp.json()["detail"]
+    assert detail["reason"] == "chapter_has_contracted_scenes"
+    assert "not available yet" not in detail["message"]
+    assert f"/chapters/{ch.id}/amendment/start" in detail["message"]
 
     async with db_factory() as s:
         assert (await s.execute(select(func.count()).select_from(RevisionRequest))).scalar_one() == 0

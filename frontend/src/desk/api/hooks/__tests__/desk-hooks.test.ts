@@ -493,7 +493,8 @@ describe("useDeskSceneActions decide", () => {
           reason: "chapter_has_contracted_scenes",
           message:
             "This chapter has at least one contracted scene, so it is not evidence-only. " +
-            "Revising an imported scene here needs amendment mode, which is not available yet.",
+            "Use POST /chapters/ch-1/amendment/start to open amendment mode " +
+            "(GET /chapters/ch-1/amendment/eligibility for the refusal token).",
         },
       },
     });
@@ -507,7 +508,7 @@ describe("useDeskSceneActions decide", () => {
     expect(fail).toHaveBeenCalledTimes(1);
     const arg = fail.mock.calls[0]![0];
     expect(arg).toBeInstanceOf(Error);
-    expect((arg as Error).message).toContain("needs amendment mode");
+    expect((arg as Error).message).toContain("amendment/start");
     expect((arg as Error).message).not.toContain("409 Conflict");
   });
 });
