@@ -18,12 +18,28 @@ from __future__ import annotations
 
 import uuid
 
+import pytest
 from sqlalchemy import func, select
 
 from dominion.api.routers import adoption as adoption_router
 from dominion.shared.chapter_lock import acquire_chapter_workflow_lock
 from dominion.shared.enums import SceneStatus
 from dominion.shared.models import Book, Chapter, ChapterPacket, ImportAdoption, Scene, ScenePacket
+from dominion.workers import import_adoption as import_adoption_worker
+
+
+@pytest.fixture(autouse=True)
+def captured_drains(monkeypatch):
+    """Start/amendment/start now kick drain_adoptions via BackgroundTasks. Record instead of running
+    so these oracles do not claim the adoption and reach for a live model."""
+    kicks: list[str] = []
+
+    async def _record() -> None:
+        kicks.append("drain_adoptions")
+
+    monkeypatch.setattr(import_adoption_worker, "drain_adoptions", _record)
+    return kicks
+
 
 # ----------------------------------------- seed helpers ------------------------------------------ #
 
@@ -199,3 +215,47 @@ async def test_start_maps_chapter_workflow_busy_to_409(app_client, db_factory, m
     retry = await app_client.post(f"/chapters/{chapter_id}/adoption/start")
     assert retry.status_code == 200, retry.text
     assert retry.json()["status"] == "queued"
+
+
+async def test_start_kicks_the_adoption_drain(app_client, db_factory, captured_drains):
+    async with db_factory() as s:
+        _, ch, _ = await _seed_evidence_only(s)
+        await s.commit()
+        chapter_id = ch.id
+
+    resp = await app_client.post(f"/chapters/{chapter_id}/adoption/start")
+    assert resp.status_code == 200, resp.text
+    assert captured_drains == ["drain_adoptions"]
+
+
+async def test_start_409_does_not_kick_the_adoption_drain(app_client, db_factory, captured_drains):
+    async with db_factory() as s:
+        book, ch, scenes = await _seed_evidence_only(s, n_scenes=2)
+        await _contract_scene(s, book, ch, scenes[0])
+        await s.commit()
+        chapter_id = ch.id
+
+    resp = await app_client.post(f"/chapters/{chapter_id}/adoption/start")
+    assert resp.status_code == 409
+    assert captured_drains == []
+
+
+async def test_amendment_start_kicks_the_adoption_drain(app_client, db_factory, captured_drains):
+    async with db_factory() as s:
+        book, ch, _ = await _seed_evidence_only(s, n_scenes=1)
+        s.add(
+            ChapterPacket(
+                book_id=book.id,
+                chapter_id=ch.id,
+                status="approved",
+                body={"scene_seeds": []},
+                open_questions={"items": []},
+            )
+        )
+        await s.commit()
+        chapter_id = ch.id
+
+    resp = await app_client.post(f"/chapters/{chapter_id}/amendment/start")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["mode"] == "amendment"
+    assert captured_drains == ["drain_adoptions"]

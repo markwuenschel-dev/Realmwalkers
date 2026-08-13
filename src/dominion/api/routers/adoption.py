@@ -41,7 +41,7 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy.exc import DBAPIError
 
 from dominion.api.deps import SessionDep
@@ -70,8 +70,21 @@ router = APIRouter(tags=["adoption"])
 LOCK_TIMEOUT_MS: int | None = DEFAULT_LOCK_TIMEOUT_MS
 
 
+def _kick_adoption_drain(background: BackgroundTasks) -> None:
+    """Hand a freshly-queued adoption to the worker that claims it.
+
+    `queued` is spend consent. Without this kick the row sits until boot or a Revise path fires
+    `drain_adoptions`. The drain is single-flight per process, so an idempotent remint is cheap.
+    """
+    from dominion.workers.import_adoption import drain_adoptions
+
+    background.add_task(drain_adoptions)
+
+
 @router.post("/chapters/{chapter_id}/adoption/start", response_model=ImportAdoptionOut)
-async def start_contract_adoption(chapter_id: uuid.UUID, session: SessionDep) -> ImportAdoptionOut:
+async def start_contract_adoption(
+    chapter_id: uuid.UUID, session: SessionDep, background: BackgroundTasks
+) -> ImportAdoptionOut:
     """Start (or resume) import adoption for an evidence-only imported chapter.
 
     Creates a `queued` ImportAdoption, promotes an existing `awaiting_start` one to `queued`, or returns
@@ -108,11 +121,14 @@ async def start_contract_adoption(chapter_id: uuid.UUID, session: SessionDep) ->
     # (updated_at) are loaded before serialization instead of lazy-loading on the async session.
     await session.refresh(adoption)
     log.info("adoption.started", chapter=str(chapter_id), adoption=str(adoption.id), status=adoption.status)
+    _kick_adoption_drain(background)
     return ImportAdoptionOut.model_validate(adoption)
 
 
 @router.post("/chapters/{chapter_id}/adoption/reauthor", response_model=ImportAdoptionOut)
-async def reauthor_contract_adoption(chapter_id: uuid.UUID, body: ReauthorIn, session: SessionDep) -> ImportAdoptionOut:
+async def reauthor_contract_adoption(
+    chapter_id: uuid.UUID, body: ReauthorIn, session: SessionDep, background: BackgroundTasks
+) -> ImportAdoptionOut:
     """Operator Re-author (Q11 tier-C force override): explicitly author a FRESH chapter contract from the
     imported prose, bypassing the worker's tiered-idempotency reuse gate that would otherwise return the
     existing packet. The deliberate "I want a new proposal even though nothing changed" action.
@@ -171,6 +187,7 @@ async def reauthor_contract_adoption(chapter_id: uuid.UUID, body: ReauthorIn, se
         token=str(body.force_author_token),
         status=adoption.status,
     )
+    _kick_adoption_drain(background)
     return ImportAdoptionOut.model_validate(adoption)
 
 
@@ -210,7 +227,7 @@ async def amendment_eligibility(chapter_id: uuid.UUID, session: SessionDep) -> A
 
 
 @router.post("/chapters/{chapter_id}/amendment/start", response_model=ImportAdoptionOut)
-async def start_amendment(chapter_id: uuid.UUID, session: SessionDep) -> ImportAdoptionOut:
+async def start_amendment(chapter_id: uuid.UUID, session: SessionDep, background: BackgroundTasks) -> ImportAdoptionOut:
     """Start amendment mode: author a REPLACEMENT chapter contract for a chapter whose approved contract
     has no seed for some imported scene (#261). The deliberate operator command that authorizes exactly
     one amendment author pass; approving the result is a separate, second human action.
@@ -265,4 +282,5 @@ async def start_amendment(chapter_id: uuid.UUID, session: SessionDep) -> ImportA
         mode=adoption.mode,
         status=adoption.status,
     )
+    _kick_adoption_drain(background)
     return ImportAdoptionOut.model_validate(adoption)

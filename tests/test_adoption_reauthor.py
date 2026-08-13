@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import uuid
 
+import pytest
 from sqlalchemy import func, select, text
 
 from dominion.shared.enums import PacketVerdict, SceneStatus
@@ -35,10 +36,25 @@ from dominion.shared.models import (
     Scene,
     ScenePacket,
 )
+from dominion.workers import import_adoption as import_adoption_worker
 from dominion.workers.import_adoption import run_one_adoption
 from dominion.workers.import_evidence import FakeImportEvidenceExtractor
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import qa as qa_mod
+
+
+@pytest.fixture(autouse=True)
+def captured_drains(monkeypatch):
+    """HTTP Re-author now kicks drain_adoptions. Worker oracles call run_one_adoption directly
+    and are unaffected; ASGI oracles must not claim a real author pass."""
+    kicks: list[str] = []
+
+    async def _record() -> None:
+        kicks.append("drain_adoptions")
+
+    monkeypatch.setattr(import_adoption_worker, "drain_adoptions", _record)
+    return kicks
+
 
 # ----------------------------------------- seed helpers ------------------------------------------ #
 
@@ -257,6 +273,19 @@ async def test_reauthor_retry_same_token_no_double_spend(app_client, db_factory)
 
     async with db_factory() as s:
         assert await _count(s, ImportAdoption) == 1  # no second spend
+
+
+async def test_reauthor_kicks_the_adoption_drain(app_client, db_factory, captured_drains):
+    async with db_factory() as s:
+        _, ch, _ = await _seed(s, n_scenes=1)
+        await s.commit()
+        chapter_id = ch.id
+
+    resp = await app_client.post(
+        f"/chapters/{chapter_id}/adoption/reauthor", json={"force_author_token": str(uuid.uuid4())}
+    )
+    assert resp.status_code == 200, resp.text
+    assert captured_drains == ["drain_adoptions"]
 
 
 async def test_readers_resolve_producer_from_live_packet(db_factory, monkeypatch):
