@@ -3,7 +3,7 @@
 A standalone Python program that formats Markdown or DOCX chapters into a complete manuscript.
 It began as a port of `frontend/src/desk/lib/docx.ts` and now adds desktop merge workflows,
 Realmwalkers interface recovery, linked contents entries, title-page bylines, working-draft running
-headers, and chapter-opening drop caps.
+headers, chapter-opening drop caps, automatic race/species interface palettes, and health-change styling.
 
 The point is that you can run the export outside the browser: on a file, from a shell, in CI, over a
 whole directory — without the app, the database, or a running frontend.
@@ -97,7 +97,9 @@ each one will otherwise look like a bug in this tool.
 **1. DOCX input is a recovery path, not a fully lossless source format.**
 The formatter recognizes and reconstructs its own Realmwalkers Current Status sheet, pale-blue
 interface notice, compact Insight scan, resource readout tables, and working-draft running-header
-marker when formatted chapter DOCX files are merged. Arbitrary third-party Word tables and custom
+marker when formatted chapter DOCX files are merged. Visible `RACE`, `SPECIES`, and `NAME` fields are
+also re-inferred, so creature colour coding survives the DOCX recovery path. Health/HP losses render
+red and italic; gains/restoration render green and italic. Arbitrary third-party Word tables and custom
 interface designs still recover as plain table grids because their original directives no longer
 exist. Markdown remains the lossless source format.
 
@@ -189,7 +191,7 @@ python -m pytest
 python -m ruff check .
 ```
 
-36 tests. The DOCX assertions deliberately mirror the repo's own suites — structural labels and
+49 tests. The DOCX assertions deliberately mirror the repo's own suites — structural labels and
 named-style ids as in `frontend/src/desk/manuscript/docxXml.test.ts`, panel text and hex colours as
 in `frontend/src/desk/lib/docxInterface.test.ts` — so a failure means the port has drifted from the
 TypeScript, not merely that a byte moved.

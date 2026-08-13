@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
-from .labels import book_number_label, part_kind_word, to_roman
+from .labels import part_kind_word, to_roman
 from .ooxml import (
     NO_BORDER,
     Border,
@@ -48,7 +48,6 @@ from .prose import (
     InterfacePanel,
     InterfaceSpec,
     OrderedList,
-    Para as ProsePara,
     ProseBlock,
     Rule,
     StatWindow,
@@ -56,6 +55,9 @@ from .prose import (
     UnorderedList,
     parse_blocks,
     parse_inline,
+)
+from .prose import (
+    Para as ProsePara,
 )
 from .spine import (
     ManuscriptSpine,
@@ -89,6 +91,109 @@ TONE_COLOR: dict[str, str] = {
 # Day/date marker divider: the litRPG `time` surface accent for the label, a muted rule flanking it.
 TIME_ACCENT = "B45309"
 TIME_RULE = "9C9C9C"
+
+GAIN = "1A9D3F"
+LOSS = "B4231F"
+
+_RACE_FIELD = re.compile(r"^\s*(RACE|SPECIES|KIND)\s*:?\s+(.+?)\s*[.]?\s*$", re.IGNORECASE)
+_NAME_FIELD = re.compile(r"^\s*NAME\s*:?\s+(.+?)\s*[.]?\s*$", re.IGNORECASE)
+_HEALTH_RATIO = re.compile(
+    r"^\s*(?:[-*]\s*)?(?:HEALTH|HP)\b(?P<descriptor>.*?)(?P<current>\d[\d,]*)"
+    r"\s*/\s*(?P<maximum>\d[\d,]*)\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+_HEALTH_GAIN_WORDS = ("restored", "gained", "healed", "recovered", "regenerated", "increased")
+_HEALTH_LOSS_WORDS = ("lost", "damage", "damaged", "reduced", "decreased", "drained")
+
+
+def _clean_field_value(value: str) -> str:
+    return value.strip().rstrip(". ")
+
+
+def infer_interface_panel(b: InterfacePanel) -> InterfacePanel:
+    """Infer NAME + RACE/SPECIES from ordinary scan lines when no directive supplied them.
+
+    DOCX recovery preserves the visible fields but cannot recover the original ``@interface``
+    attributes. Inferring here makes race colour-coding work identically for Markdown and DOCX input.
+    """
+    spec = replace(b.spec)
+    found_race: str | None = None
+    found_name: str | None = None
+    for raw in b.lines:
+        line = raw.strip()
+        race_match = _RACE_FIELD.match(line)
+        if race_match and not found_race:
+            found_race = _clean_field_value(race_match.group(2))
+            continue
+        name_match = _NAME_FIELD.match(line)
+        if name_match and not found_name:
+            found_name = _clean_field_value(name_match.group(1))
+
+    if not spec.race and not spec.creature and found_race:
+        spec.race = found_race
+    if not spec.name and found_name:
+        spec.name = found_name
+    return replace(b, spec=spec)
+
+
+def _is_scan_identity_line(line: str) -> bool:
+    return bool(_RACE_FIELD.match(line.strip()) or _NAME_FIELD.match(line.strip()))
+
+
+@dataclass
+class HealthTracker:
+    """Classify health readouts as gain/loss without confusing one scanned creature for another."""
+
+    values: dict[str, int] = field(default_factory=dict)
+
+    def colour_for(self, line: str, panel_lines: list[str], subject: str) -> str | None:
+        lower = line.casefold()
+        ratio = _HEALTH_RATIO.match(line)
+        is_health_delta = lower.lstrip().startswith(("health", "hp"))
+        if not ratio and not is_health_delta:
+            return None
+
+        explicit_gain = any(word in lower for word in _HEALTH_GAIN_WORDS)
+        explicit_loss = any(word in lower for word in _HEALTH_LOSS_WORDS)
+        panel_text = " ".join(panel_lines).casefold()
+        context_gain = any(
+            word in panel_text
+            for word in ("restorative", "healing received", "healing effect", "regeneration")
+        )
+        context_loss = any(
+            word in panel_text
+            for word in ("fatal damage", "damage received", "bleeding detected", "wound detected")
+        )
+
+        if ratio:
+            current = int(ratio.group("current").replace(",", ""))
+            maximum = int(ratio.group("maximum").replace(",", ""))
+            previous = self.values.get(subject)
+
+            if explicit_gain:
+                colour = GAIN
+            elif explicit_loss:
+                colour = LOSS
+            elif previous is not None and current > previous:
+                colour = GAIN
+            elif previous is not None and current < previous:
+                colour = LOSS
+            elif context_gain:
+                colour = GAIN
+            elif context_loss or current < maximum:
+                colour = LOSS
+            else:
+                colour = None
+
+            self.values[subject] = current
+            return colour
+
+        if explicit_gain:
+            return GAIN
+        if explicit_loss:
+            return LOSS
+        return None
+
 
 CELL_MARGINS = {"top": 60, "bottom": 60, "left": 110, "right": 110}
 
@@ -257,15 +362,40 @@ def _field_map(lines: list[str]) -> dict[str, str] | None:
     return fields if fields else None
 
 
-def readout_panel(lines: list[str]) -> Tbl:
-    """Compact steel-blue interface card modelled on the one-line readout reference."""
-    surface = resolve_surface(InterfaceSpec(role="system"))
+def readout_panel(lines: list[str], health_tracker: HealthTracker | None = None) -> Tbl:
+    """Compact interface card with automatic race palettes and health-change emphasis.
+
+    This is the path used by visible ``[ INTERFACE ]`` blocks and by recovered Reader DOCX files,
+    where the original ``@interface`` directive is no longer available.
+    """
     cleaned = _clean_readout_lines(lines)
     first = cleaned[0].strip()
+
+    found_race: str | None = None
+    found_name: str | None = None
+    for raw in cleaned:
+        race_match = _RACE_FIELD.match(raw.strip())
+        if race_match and not found_race:
+            found_race = _clean_field_value(race_match.group(2))
+        name_match = _NAME_FIELD.match(raw.strip())
+        if name_match and not found_name:
+            found_name = _clean_field_value(name_match.group(1))
+
+    spec = InterfaceSpec(role="system", race=found_race, name=found_name)
+    surface = resolve_surface(spec)
+    tracker = health_tracker or HealthTracker()
+    subject = (found_name or found_race or "__active__").casefold()
 
     # Pure key/value scans become a single compact readout line.
     fields = _field_map(cleaned)
     if fields is not None:
+        if not found_race and fields.get("Race"):
+            found_race = fields["Race"]
+            spec.race = found_race
+            surface = resolve_surface(spec)
+        if not found_name and fields.get("Name"):
+            found_name = fields["Name"]
+            subject = found_name.casefold()
         ordered = [k for k in _READOUT_ORDER if k in fields]
         ordered.extend(k for k in fields if k not in ordered)
         runs: list[Run | Hyperlink] = []
@@ -273,13 +403,19 @@ def readout_panel(lines: list[str]) -> Tbl:
             if i:
                 runs.append(R("     ", font=LABEL_FONT, size=14, color=surface.text))
             value = fields[key]
+            health_colour = None
+            if key.casefold() in {"health", "hp"}:
+                health_colour = tracker.colour_for(
+                    f"HEALTH {value}", cleaned, subject
+                )
             if key == "Name":
                 runs.append(
                     R(
                         value,
                         font=LABEL_FONT,
                         bold=True,
-                        color=surface.text,
+                        color=health_colour or surface.text,
+                        italics=bool(health_colour),
                         size=19,
                     )
                 )
@@ -290,15 +426,32 @@ def readout_panel(lines: list[str]) -> Tbl:
                         font=LABEL_FONT,
                         bold=True,
                         character_spacing=8,
-                        color=surface.label_color,
+                        color=health_colour or surface.label_color,
+                        italics=bool(health_colour),
                         size=14,
                     )
                 )
-                runs.append(R(value, font=BODY_SERIF, color=surface.text, size=18))
-        return single_cell_panel(
-            [Par(spacing=Spacing(after=0), children=runs)],
-            surface,
+                runs.append(
+                    R(
+                        value,
+                        font=BODY_SERIF,
+                        color=health_colour or surface.text,
+                        italics=bool(health_colour),
+                        size=18,
+                    )
+                )
+        compact = Row(
+            cells=[
+                Cell(
+                    shading=surface.fill,
+                    margins=CELL_MARGINS,
+                    children=[Par(spacing=Spacing(after=0), children=runs)],
+                )
+            ]
         )
+        if found_race:
+            return panel([band_row("INTERFACE", surface), compact], surface)
+        return panel([compact], surface)
 
     if first.startswith("[") and first.endswith("]"):
         title = first.strip("[] ")
@@ -309,6 +462,70 @@ def readout_panel(lines: list[str]) -> Tbl:
     else:
         title = "INTERFACE"
         body = cleaned
+
+    body_children: list[Par] = []
+    for i, raw in enumerate(body):
+        if not raw.strip():
+            continue
+        health_colour = tracker.colour_for(raw.strip(), body, subject)
+        m = _FIELD_LINE.match(raw.strip())
+        if m:
+            body_children.append(
+                Par(
+                    spacing=Spacing(after=45, line=260, line_rule="auto"),
+                    children=[
+                        R(
+                            f"{m.group(1).strip().upper()}  ",
+                            font=LABEL_FONT,
+                            bold=True,
+                            character_spacing=8,
+                            color=health_colour or surface.label_color,
+                            italics=bool(health_colour),
+                            size=14,
+                        ),
+                        R(
+                            m.group(2).strip(),
+                            font=BODY_SERIF,
+                            color=health_colour or surface.text,
+                            italics=bool(health_colour),
+                            size=20,
+                        ),
+                    ],
+                )
+            )
+        else:
+            body_children.append(
+                Par(
+                    spacing=Spacing(after=45, line=270, line_rule="auto"),
+                    children=[
+                        R(
+                            raw.strip(),
+                            font=LABEL_FONT if i == 0 else BODY_SERIF,
+                            bold=i == 0,
+                            italics=bool(health_colour),
+                            color=health_colour or surface.text,
+                            size=20,
+                        )
+                    ],
+                )
+            )
+
+    if found_race:
+        return panel(
+            [
+                band_row(title, surface),
+                Row(
+                    cells=[
+                        Cell(
+                            shading=surface.fill,
+                            margins=CELL_MARGINS,
+                            children=body_children or [_empty_par()],
+                        )
+                    ]
+                ),
+            ],
+            surface,
+        )
 
     children: list[Par] = [
         Par(
@@ -324,44 +541,9 @@ def readout_panel(lines: list[str]) -> Tbl:
                     size=18,
                 )
             ],
-        )
+        ),
+        *body_children,
     ]
-    for i, raw in enumerate(body):
-        if not raw.strip():
-            continue
-        m = _FIELD_LINE.match(raw.strip())
-        if m:
-            children.append(
-                Par(
-                    spacing=Spacing(after=45, line=260, line_rule="auto"),
-                    children=[
-                        R(
-                            f"{m.group(1).strip().upper()}  ",
-                            font=LABEL_FONT,
-                            bold=True,
-                            character_spacing=8,
-                            color=surface.label_color,
-                            size=14,
-                        ),
-                        R(m.group(2).strip(), font=BODY_SERIF, color=surface.text, size=20),
-                    ],
-                )
-            )
-        else:
-            children.append(
-                Par(
-                    spacing=Spacing(after=45, line=270, line_rule="auto"),
-                    children=[
-                        R(
-                            raw.strip(),
-                            font=LABEL_FONT if i == 0 else BODY_SERIF,
-                            bold=i == 0,
-                            color=surface.text,
-                            size=20,
-                        )
-                    ],
-                )
-            )
     return single_cell_panel(children, surface)
 
 
@@ -404,7 +586,11 @@ def status_sheet_panel(lines: list[str]) -> Tbl:
         )
     )
 
-    identity = (("Name", fields.get("Name", "????")), ("Race", fields.get("Race", "????")), ("Level", fields.get("Level", "????")))
+    identity = (
+        ("Name", fields.get("Name", "????")),
+        ("Race", fields.get("Race", "????")),
+        ("Level", fields.get("Level", "????")),
+    )
     rows.append(
         Row(
             cells=[
@@ -576,17 +762,25 @@ def display_label(spec: InterfaceSpec) -> str:
     return s.strip()
 
 
-def interface_body(lines: list[str], surface: Surface) -> list[Par]:
-    """Interface body prose as book-serif paragraphs (inline bold / em / code preserved)."""
+def interface_body(
+    lines: list[str],
+    surface: Surface,
+    health_tracker: HealthTracker | None = None,
+    subject: str = "__active__",
+) -> list[Par]:
+    """Interface body prose, including automatic red/green italic health-change readouts."""
     ps: list[Par] = []
+    tracker = health_tracker or HealthTracker()
     for ln in lines:
         if ln.strip():
+            base: dict = {"font": BODY_SERIF, "size": 21, "color": surface.text}
+            health_colour = tracker.colour_for(ln.strip(), lines, subject)
+            if health_colour:
+                base.update(color=health_colour, italics=True)
             ps.append(
                 Par(
                     spacing=Spacing(after=60, line=288, line_rule="auto"),
-                    children=inline_runs(
-                        ln, {"font": BODY_SERIF, "size": 21, "color": surface.text}
-                    ),
+                    children=inline_runs(ln, base),
                 )
             )
         else:
@@ -641,19 +835,26 @@ def band_row(label: str, surface: Surface, right_label: str | None = None) -> Ro
     )
 
 
-def body_row(lines: list[str], surface: Surface) -> Row:
+def body_row(
+    lines: list[str],
+    surface: Surface,
+    health_tracker: HealthTracker | None = None,
+    subject: str = "__active__",
+) -> Row:
     return Row(
         cells=[
             Cell(
                 shading=surface.fill,
                 margins=CELL_MARGINS,
-                children=interface_body(lines, surface),
+                children=interface_body(lines, surface, health_tracker, subject),
             )
         ]
     )
 
 
-def magic_panel(b: InterfacePanel, surface: Surface) -> Tbl:
+def magic_panel(
+    b: InterfacePanel, surface: Surface, health_tracker: HealthTracker | None = None
+) -> Tbl:
     """Magic/skill block: colour the header band with the domain palette, then the tinted body."""
     s = b.spec
     parts: list[str] = []
@@ -664,10 +865,14 @@ def magic_panel(b: InterfacePanel, surface: Surface) -> Tbl:
     if s.tier:
         parts.append(f"Tier {s.tier}")
     label = "  ·  ".join(parts) or display_label(s)
-    return panel([band_row(label, surface), body_row(b.lines, surface)], surface)
+    return panel(
+        [band_row(label, surface), body_row(b.lines, surface, health_tracker)], surface
+    )
 
 
-def system_panel(b: InterfacePanel, surface: Surface) -> Tbl:
+def system_panel(
+    b: InterfacePanel, surface: Surface, health_tracker: HealthTracker | None = None
+) -> Tbl:
     """System / role message: a soft readout card with a ruled title line and serif body."""
     return single_cell_panel(
         [
@@ -685,7 +890,21 @@ def system_panel(b: InterfacePanel, surface: Surface) -> Tbl:
                     )
                 ],
             ),
-            *interface_body(b.lines, surface),
+            *interface_body(b.lines, surface, health_tracker),
+        ],
+        surface,
+    )
+
+
+def race_panel(
+    b: InterfacePanel, surface: Surface, health_tracker: HealthTracker | None = None
+) -> Tbl:
+    """Race/species-coloured interface box: strong band, existing visible fields preserved."""
+    subject = (b.spec.name or b.spec.race or "__active__").casefold()
+    return panel(
+        [
+            band_row(display_label(b.spec), surface),
+            body_row(b.lines, surface, health_tracker, subject),
         ],
         surface,
     )
@@ -708,8 +927,9 @@ def threat_label(intensity: str | None) -> str | None:
 def creature_meta_row(s: InterfaceSpec, surface: Surface) -> Row | None:
     """Ruled bestiary sub-field strip — KIND · THREAT · DOMAIN, with a bottom rule under it."""
     fields: list[tuple[str, str, str | None]] = []
-    if s.creature:
-        fields.append(("Kind", _cap(s.creature), None))
+    race_value = s.race or s.creature
+    if race_value:
+        fields.append(("Race" if s.race else "Kind", _cap(race_value), None))
     threat = threat_label(s.intensity)
     if threat:
         fields.append(("Threat", threat, PALETTE.crimson))
@@ -745,14 +965,18 @@ def creature_meta_row(s: InterfaceSpec, surface: Surface) -> Row | None:
     )
 
 
-def creature_panel(b: InterfacePanel, surface: Surface) -> Tbl:
-    """Creature scan: bestiary card — name band, ruled fields, tinted description."""
+def creature_panel(
+    b: InterfacePanel, surface: Surface, health_tracker: HealthTracker | None = None
+) -> Tbl:
+    """Creature scan: bestiary card — name band, race strip, tinted description."""
     name = b.spec.skill if b.spec.skill else display_label(b.spec)
+    subject = name.casefold() if name else "__active__"
     rows: list[Row] = [band_row(name, surface, "Bestiary")]
     meta = creature_meta_row(b.spec, surface)
     if meta:
         rows.append(meta)
-    rows.append(body_row(b.lines, surface))
+    body_lines = [line for line in b.lines if not _is_scan_identity_line(line)]
+    rows.append(body_row(body_lines, surface, health_tracker, subject))
     return panel(rows, surface)
 
 
@@ -770,10 +994,6 @@ class GOLD:
     field_label = "B09A55"
     grid = "ECDFAE"
     muted = "9C832F"
-
-
-GAIN = "1A9D3F"
-LOSS = "B4231F"
 
 
 @dataclass
@@ -1024,17 +1244,20 @@ def skill_panel(b: InterfacePanel, surface: Surface) -> Tbl:
     return panel(rows, surface)
 
 
-def interface_panel(b: InterfacePanel) -> Tbl:
+def interface_panel(b: InterfacePanel, health_tracker: HealthTracker | None = None) -> Tbl:
+    b = infer_interface_panel(b)
     if b.spec.role == "levelup":
         return levelup_panel(b)
     surface = resolve_surface(b.spec)
     if b.spec.role == "skill":
         return skill_panel(b, surface)
     if b.spec.creature:
-        return creature_panel(b, surface)
+        return creature_panel(b, surface, health_tracker)
+    if b.spec.race:
+        return race_panel(b, surface, health_tracker)
     if b.spec.domain:
-        return magic_panel(b, surface)
-    return system_panel(b, surface)
+        return magic_panel(b, surface, health_tracker)
+    return system_panel(b, surface, health_tracker)
 
 
 def domain_accent(domain: str) -> str:
@@ -1534,7 +1757,7 @@ def render_blocks(
         out.append(t)
         out.append(_empty_par())
 
-    neutral = neutral_surface()
+    health_tracker = HealthTracker()
     seen_book_para = False
     i = 0
     while i < len(blocks):
@@ -1557,11 +1780,11 @@ def render_blocks(
         elif isinstance(b, DataTable):
             push_table(data_table(b))
         elif isinstance(b, CodeBlock):
-            push_table(readout_panel(b.lines))
+            push_table(readout_panel(b.lines, health_tracker))
         elif isinstance(b, StatWindow):
             push_table(status_sheet_panel(b.lines))
         elif isinstance(b, InterfacePanel):
-            push_table(interface_panel(b))
+            push_table(interface_panel(b, health_tracker))
         elif isinstance(b, Rule):
             out.append(
                 Par(
