@@ -1,0 +1,12 @@
+HOW TO START
+
+1. Extract the entire ZIP.
+2. Open the extracted manuscript-format folder.
+3. Double-click FORMAT_MANUSCRIPT.bat.
+
+Do not move the BAT away from the shortcuts and manuscript_format folders.
+
+If you downloaded START_HERE_FORMAT_MANUSCRIPT.bat separately, place it beside the ZIP and
+double-click it. It can extract and locate the formatter automatically.
+
+The launcher now keeps the terminal open whenever an error occurs.
