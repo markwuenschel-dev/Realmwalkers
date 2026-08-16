@@ -343,7 +343,8 @@ export const api = {
   // --- contract-first drafting: chapter knowledge packets (Phase 1) -------------------------------
   // GET may 404 (no packet yet); callers treat that as "none".
   packet: (chapterId: string) => http<PacketOut>(`/chapters/${chapterId}/packet`),
-  packetAuthority: (chapterId: string) => http<PacketOut>(`/chapters/${chapterId}/packet/authority`),
+  packetAuthority: (chapterId: string) =>
+    http<PacketOut>(`/chapters/${chapterId}/packet/authority`),
   // Author+QA now run in the background (so a tab switch never loses the work). POST kicks it off and
   // returns the live status; poll packetStatus until running flips false, then refetch the packet.
   proposePacket: (chapterId: string) =>
