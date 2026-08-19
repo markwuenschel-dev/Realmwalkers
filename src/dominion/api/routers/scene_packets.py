@@ -212,9 +212,22 @@ async def rederive_beats(chapter_id: uuid.UUID, session: SessionDep) -> DraftRea
     """Reconcile beats with the CURRENT approved scene packets: upsert one beat per approved packet
     and prune orphans (legacy beat-first rows, beats of no-longer-approved packets). The escape hatch
     for a gate stuck on 'N approved beats are not linked' when every packet is already approved — no
-    approval state changes, so it is safe to run any time. Returns fresh readiness."""
-    derived = await scene_packet_pipeline.reconcile_beats(session, chapter_id=chapter_id)
-    await session.commit()
+    approval state changes, so it is safe to run any time.
+
+    Runs under the chapter workflow lock (ADR-0028): it reads the CURRENT approved set and writes the
+    Beat projection from it, so it must serialize against every other scene-packet mutation on this
+    chapter (approve, edit, mark-stale, fidelity) — previously this ran with no serialization at all,
+    so it could read a set that a concurrent locked mutation was about to change and commit a beat
+    projection that was already stale by the time it landed. A lock collision maps to 409
+    chapter_workflow_busy (Q16). Returns fresh readiness."""
+
+    async def _locked() -> int:
+        return await scene_packet_pipeline.reconcile_beats(session, chapter_id=chapter_id)
+
+    try:
+        derived = await run_under_chapter_workflow(session, chapter_id, _locked, timeout_ms=LOCK_TIMEOUT_MS)
+    except ChapterWorkflowBusy as exc:
+        raise _chapter_busy_409() from exc
     log.info("scene_packet.beats_rederived", chapter=str(chapter_id), beats=derived)
     return await compute_draft_readiness(session, chapter_id)
 
@@ -610,27 +623,47 @@ async def delete_scene_packets(chapter_id: uuid.UUID, session: SessionDep) -> De
 async def mark_scene_packets_stale(
     chapter_id: uuid.UUID, session: SessionDep, body: ScenePacketApproveIn | None = None
 ) -> list[ScenePacketOut]:
-    """Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed."""
-    rows = (
-        (
-            await session.execute(
-                select(ScenePacket).where(ScenePacket.chapter_id == chapter_id).order_by(ScenePacket.scene_no)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    """Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed.
+
+    Runs under the chapter workflow lock (ADR-0028): dropping a packet out of the approved set is the
+    same authority-changing move `update_scene_packet` makes (and this route can drop several at once),
+    so it must serialize against every other scene-packet mutation on this chapter — previously this ran
+    with no serialization at all. Rows are (re)loaded `with_for_update` + `populate_existing` INSIDE the
+    lock (protocol step 3): nothing here is decided from a pre-lock read, and `populate_existing` matters
+    for a same-session caller who already holds a pre-lock copy in the identity map — without it the
+    reload silently returns that stale copy instead of the row this lock actually protects. A lock
+    collision maps to 409 chapter_workflow_busy (Q16)."""
     selected = set(body.packet_ids) if body and body.packet_ids else None
-    for row in rows:
-        if selected is not None and row.id not in selected:
-            continue
-        if row.status != ScenePacketStatus.BLOCKED:
-            row.status = ScenePacketStatus.STALE
-            row.stale_reason = "manually marked stale"
-    # Marking approved packets stale drops them from the approved set, so reconcile beats to prune the
-    # now-orphaned beats. Beats-only: no scene packet is re-derived here.
-    await scene_packet_pipeline.reconcile_beats(session, chapter_id=chapter_id)
-    await session.commit()
+
+    async def _locked() -> list[ScenePacket]:
+        rows = (
+            (
+                await session.execute(
+                    select(ScenePacket)
+                    .where(ScenePacket.chapter_id == chapter_id)
+                    .order_by(ScenePacket.scene_no)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for row in rows:
+            if selected is not None and row.id not in selected:
+                continue
+            if row.status != ScenePacketStatus.BLOCKED:
+                row.status = ScenePacketStatus.STALE
+                row.stale_reason = "manually marked stale"
+        # Marking approved packets stale drops them from the approved set, so reconcile beats to prune
+        # the now-orphaned beats. Beats-only: no scene packet is re-derived here.
+        await scene_packet_pipeline.reconcile_beats(session, chapter_id=chapter_id)
+        return list(rows)
+
+    try:
+        rows = await run_under_chapter_workflow(session, chapter_id, _locked, timeout_ms=LOCK_TIMEOUT_MS)
+    except ChapterWorkflowBusy as exc:
+        raise _chapter_busy_409() from exc
     # Refresh after commit so each STALE update's server-side `updated_at` (onupdate) is loaded before
     # enrich serializes it — otherwise model_validate triggers a sync lazy-load on the async session
     # (MissingGreenlet). Mirrors update_scene_packet's post-commit refresh.
@@ -657,16 +690,34 @@ def _fidelity_out(row: ScenePacket) -> ScenePacketFidelityOut:
     )
 
 
-async def _apply_fidelity_mutation(
-    session: AsyncSession, row: ScenePacket, new_body, violations
-) -> ScenePacketFidelityOut:
-    if violations:
-        raise HTTPException(status_code=422, detail=[v.as_dict() for v in violations])
-    row.body = new_body
-    if row.status == ScenePacketStatus.APPROVED:
-        row.status = ScenePacketStatus.PROPOSED
-    await scene_packet_pipeline.reconcile_beats(session, chapter_id=row.chapter_id)
-    await session.commit()
+async def _apply_fidelity_mutation(session: AsyncSession, scene_packet_id: uuid.UUID, mutate) -> ScenePacketFidelityOut:
+    """Runs under the chapter workflow lock (ADR-0028). `mutate` is a pure function of the packet's
+    CURRENT body (accept/refine/replace from `workers/scene_packet/fidelity.py`), so it must run on the
+    body reloaded under the lock, never on a pre-lock read — otherwise a concurrent edit, approve, or
+    other fidelity call landing between the read and this write is silently lost (the caller's body
+    computed from stale data overwrites it). Also flips APPROVED→PROPOSED and reconciles beats, the same
+    authority-changing move `update_scene_packet` makes — this endpoint previously ran unlocked. A lock
+    collision maps to 409 chapter_workflow_busy (Q16); the packet vanishing under the lock (a concurrent
+    hard-delete) maps to 409 as well, mirroring `update_scene_packet`."""
+    chapter_id = (await _get(session, scene_packet_id)).chapter_id  # locate only (protocol step 1)
+
+    async def _locked() -> ScenePacket:
+        row = await _blockers.lock_packet(session, scene_packet_id)
+        new_body, violations = mutate(row.body or {})
+        if violations:
+            raise HTTPException(status_code=422, detail=[v.as_dict() for v in violations])
+        row.body = new_body
+        if row.status == ScenePacketStatus.APPROVED:
+            row.status = ScenePacketStatus.PROPOSED
+        await scene_packet_pipeline.reconcile_beats(session, chapter_id=row.chapter_id)
+        return row
+
+    try:
+        row = await run_under_chapter_workflow(session, chapter_id, _locked, timeout_ms=LOCK_TIMEOUT_MS)
+    except ChapterWorkflowBusy as exc:
+        raise _chapter_busy_409() from exc
+    except _blockers.ApprovalBlockerError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     await session.refresh(row)
     return _fidelity_out(row)
 
@@ -681,11 +732,13 @@ async def accept_fidelity_suggestions(
     scene_packet_id: uuid.UUID, body: FidelityAcceptIn, session: SessionDep
 ) -> ScenePacketFidelityOut:
     """Promote suggested requirements into the active contract with freshly minted identities."""
-    row = await _get(session, scene_packet_id)
-    new_body, violations = scene_packet_pipeline.accept_suggestions(
-        row.body or {}, requirement_ids=body.requirement_ids
+    return await _apply_fidelity_mutation(
+        session,
+        scene_packet_id,
+        lambda current_body: scene_packet_pipeline.accept_suggestions(
+            current_body, requirement_ids=body.requirement_ids
+        ),
     )
-    return await _apply_fidelity_mutation(session, row, new_body, violations)
 
 
 @router.post("/scene-packets/{scene_packet_id}/fidelity/refine", response_model=ScenePacketFidelityOut)
@@ -693,11 +746,13 @@ async def refine_fidelity_requirement(
     scene_packet_id: uuid.UUID, body: FidelityRequirementActionIn, session: SessionDep
 ) -> ScenePacketFidelityOut:
     """Refine an active requirement in place (identity preserved; non-semantic clarification only)."""
-    row = await _get(session, scene_packet_id)
-    new_body, violations = scene_packet_pipeline.refine_requirement(
-        row.body or {}, body.requirement_id, body.requirement
+    return await _apply_fidelity_mutation(
+        session,
+        scene_packet_id,
+        lambda current_body: scene_packet_pipeline.refine_requirement(
+            current_body, body.requirement_id, body.requirement
+        ),
     )
-    return await _apply_fidelity_mutation(session, row, new_body, violations)
 
 
 @router.post("/scene-packets/{scene_packet_id}/fidelity/replace", response_model=ScenePacketFidelityOut)
@@ -705,8 +760,10 @@ async def replace_fidelity_requirement(
     scene_packet_id: uuid.UUID, body: FidelityRequirementActionIn, session: SessionDep
 ) -> ScenePacketFidelityOut:
     """Replace an active requirement with a freshly minted identity (mode/policy/criterion change)."""
-    row = await _get(session, scene_packet_id)
-    new_body, violations = scene_packet_pipeline.replace_requirement(
-        row.body or {}, body.requirement_id, body.requirement
+    return await _apply_fidelity_mutation(
+        session,
+        scene_packet_id,
+        lambda current_body: scene_packet_pipeline.replace_requirement(
+            current_body, body.requirement_id, body.requirement
+        ),
     )
-    return await _apply_fidelity_mutation(session, row, new_body, violations)

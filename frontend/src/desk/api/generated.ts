@@ -961,7 +961,14 @@ export interface paths {
      * @description Reconcile beats with the CURRENT approved scene packets: upsert one beat per approved packet
      *     and prune orphans (legacy beat-first rows, beats of no-longer-approved packets). The escape hatch
      *     for a gate stuck on 'N approved beats are not linked' when every packet is already approved — no
-     *     approval state changes, so it is safe to run any time. Returns fresh readiness.
+     *     approval state changes, so it is safe to run any time.
+     *
+     *     Runs under the chapter workflow lock (ADR-0028): it reads the CURRENT approved set and writes the
+     *     Beat projection from it, so it must serialize against every other scene-packet mutation on this
+     *     chapter (approve, edit, mark-stale, fidelity) — previously this ran with no serialization at all,
+     *     so it could read a set that a concurrent locked mutation was about to change and commit a beat
+     *     projection that was already stale by the time it landed. A lock collision maps to 409
+     *     chapter_workflow_busy (Q16). Returns fresh readiness.
      */
     post: operations["rederive_beats_chapters__chapter_id__beats_derive_post"];
     delete?: never;
@@ -1159,6 +1166,15 @@ export interface paths {
     /**
      * Mark Scene Packets Stale
      * @description Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed.
+     *
+     *     Runs under the chapter workflow lock (ADR-0028): dropping a packet out of the approved set is the
+     *     same authority-changing move `update_scene_packet` makes (and this route can drop several at once),
+     *     so it must serialize against every other scene-packet mutation on this chapter — previously this ran
+     *     with no serialization at all. Rows are (re)loaded `with_for_update` + `populate_existing` INSIDE the
+     *     lock (protocol step 3): nothing here is decided from a pre-lock read, and `populate_existing` matters
+     *     for a same-session caller who already holds a pre-lock copy in the identity map — without it the
+     *     reload silently returns that stale copy instead of the row this lock actually protects. A lock
+     *     collision maps to 409 chapter_workflow_busy (Q16).
      */
     post: operations["mark_scene_packets_stale_chapters__chapter_id__scene_packets_mark_stale_post"];
     delete?: never;

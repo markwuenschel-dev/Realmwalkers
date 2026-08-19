@@ -14,7 +14,8 @@ from test_scene_fidelity_production import _issues, _setup
 from dominion.api.routers import production as prod_router
 from dominion.api.routers import scene_packets as sp_router
 from dominion.api.routers import scenes as scenes_router
-from dominion.shared.models import Beat, Book, Chapter, Scene
+from dominion.shared.chapter_lock import acquire_chapter_workflow_lock
+from dominion.shared.models import Beat, Book, Chapter, Scene, ScenePacket
 from dominion.shared.schemas import (
     FidelityAcceptIn,
     FidelityRequirementActionIn,
@@ -102,6 +103,33 @@ async def test_replace_mints_new_identity(db_factory) -> None:
         )
         assert out.violations == []
         assert out.active_requirements[0]["requirement_id"] != "req-1"
+
+
+async def test_accept_fidelity_maps_chapter_workflow_busy_to_409(app_client, db_factory, monkeypatch):
+    """Q16: fidelity accept/refine/replace share `_apply_fidelity_mutation`, which used to commit with
+    no serialization at all. A held per-chapter lock now maps to 409 chapter_workflow_busy, writes
+    nothing, and the retry after the lock frees succeeds."""
+    monkeypatch.setattr(sp_router, "LOCK_TIMEOUT_MS", 250)
+    async with db_factory() as s:
+        sp = await _seed_packet(s, {"suggested_fidelity_requirements": [_REQ]})
+        await s.commit()
+        chapter_id, sp_id = sp.chapter_id, sp.id
+
+    async with db_factory() as holder:
+        await acquire_chapter_workflow_lock(holder, chapter_id, timeout_ms=None)
+
+        resp = await app_client.post(f"/scene-packets/{sp_id}/fidelity/accept", json={})
+        assert resp.status_code == 409
+        assert resp.json()["detail"]["reason"] == "chapter_workflow_busy"
+
+        async with db_factory() as probe:  # nothing was written on the busy path
+            body = (await probe.get(ScenePacket, sp_id)).body
+            assert body.get("suggested_fidelity_requirements") == [_REQ]  # suggestion still un-promoted
+
+        await holder.rollback()
+
+    retry = await app_client.post(f"/scene-packets/{sp_id}/fidelity/accept", json={})
+    assert retry.status_code == 200, retry.text
 
 
 # --- scene fidelity status ------------------------------------------------------------------------

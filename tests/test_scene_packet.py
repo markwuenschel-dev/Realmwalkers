@@ -14,6 +14,7 @@ from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import select
 
 from dominion.api.routers import scene_packets as sp_router
+from dominion.shared.chapter_lock import acquire_chapter_workflow_lock
 from dominion.shared.config import settings
 from dominion.shared.enums import ScenePacketApprovalSource, ScenePacketStatus, ScenePacketVerdict
 from dominion.shared.models import (
@@ -364,6 +365,87 @@ async def test_update_body_flips_to_proposed_and_reconciles_beats(db_factory):
         # Reconcile EFFECT: the beat of the now-proposed packet is pruned.
         remaining = (await s.execute(select(Beat).where(Beat.chapter_id == ch.id))).scalars().all()
         assert remaining == []
+
+
+# --- chapter workflow lock coverage ----------------------------------------------------------------
+# `rederive_beats` and `mark_scene_packets_stale` used to commit with no serialization at all — the
+# same bug class `update_scene_packet` fixed for itself (ADR-0028 Q15/Q16). Both now run under
+# `run_under_chapter_workflow`, mirroring that route's own lock + reload-under-lock discipline.
+
+
+async def _seed_approved_packet(s) -> tuple[uuid.UUID, uuid.UUID]:
+    book, ch = await _seed_book_chapter(s)
+    cp = await _approved_chapter_packet(s, book, ch, [_seed(str(uuid.uuid4()))])
+    sp, _beat = await _approved_scene_packet_with_beat(s, book, ch, cp)
+    await s.commit()
+    return ch.id, sp.id
+
+
+async def test_rederive_beats_maps_chapter_workflow_busy_to_409(app_client, db_factory, monkeypatch):
+    """Q16: when the per-chapter workflow lock is held, the beats/derive escape hatch maps
+    `ChapterWorkflowBusy` to 409 chapter_workflow_busy, and the retry after the lock frees succeeds."""
+    monkeypatch.setattr(sp_router, "LOCK_TIMEOUT_MS", 250)  # keep the busy wait short
+    async with db_factory() as s:
+        chapter_id, _sp_id = await _seed_approved_packet(s)
+
+    async with db_factory() as holder:
+        await acquire_chapter_workflow_lock(holder, chapter_id, timeout_ms=None)  # hold the lock
+
+        resp = await app_client.post(f"/chapters/{chapter_id}/beats/derive")
+        assert resp.status_code == 409
+        assert resp.json()["detail"]["reason"] == "chapter_workflow_busy"
+
+        await holder.rollback()  # release the advisory lock
+
+    retry = await app_client.post(f"/chapters/{chapter_id}/beats/derive")
+    assert retry.status_code == 200, retry.text
+
+
+async def test_mark_stale_maps_chapter_workflow_busy_to_409(app_client, db_factory, monkeypatch):
+    """Q16: when the per-chapter workflow lock is held, mark-stale maps `ChapterWorkflowBusy` to 409
+    chapter_workflow_busy, writes nothing, and the retry after the lock frees succeeds."""
+    monkeypatch.setattr(sp_router, "LOCK_TIMEOUT_MS", 250)
+    async with db_factory() as s:
+        chapter_id, sp_id = await _seed_approved_packet(s)
+
+    async with db_factory() as holder:
+        await acquire_chapter_workflow_lock(holder, chapter_id, timeout_ms=None)
+
+        resp = await app_client.post(f"/chapters/{chapter_id}/scene-packets/mark-stale")
+        assert resp.status_code == 409
+        assert resp.json()["detail"]["reason"] == "chapter_workflow_busy"
+
+        async with db_factory() as probe:  # nothing was written on the busy path
+            assert (await probe.get(ScenePacket, sp_id)).status == ScenePacketStatus.APPROVED
+
+        await holder.rollback()
+
+    retry = await app_client.post(f"/chapters/{chapter_id}/scene-packets/mark-stale")
+    assert retry.status_code == 200, retry.text
+
+
+async def test_mark_stale_rereads_a_concurrently_blocked_packet_under_lock(db_factory):
+    """Pins the populate_existing lesson (A1b, already proven for `update_scene_packet` in
+    tests/test_approval_blocker.py::test_preloaded_approver_rereads_blocker_under_lock) for THIS route
+    too: a caller who pre-loaded the packet before a DIFFERENT session moved it to BLOCKED must, on
+    locking, see the freshly-committed BLOCKED status and spare it (mark-stale's own BLOCKED exception)
+    — never mark it stale off the stale pre-lock copy still sitting in its identity map. A vacuous
+    reload (no `populate_existing`) would silently keep serving the pre-lock APPROVED and flip it."""
+    async with db_factory() as setup:
+        chapter_id, sp_id = await _seed_approved_packet(setup)
+
+    async with db_factory() as s1, db_factory() as s2:
+        preloaded = await s1.get(ScenePacket, sp_id)  # stale-able pre-lock copy
+        assert preloaded.status == ScenePacketStatus.APPROVED
+
+        other = await s2.get(ScenePacket, sp_id)
+        other.status = ScenePacketStatus.BLOCKED
+        await s2.commit()
+
+        await sp_router.mark_scene_packets_stale(chapter_id, s1)
+
+    async with db_factory() as s3:
+        assert (await s3.get(ScenePacket, sp_id)).status == ScenePacketStatus.BLOCKED  # spared, not STALE
 
 
 async def _proposed_scene_packet(s, book, ch, cp, *, verdict, warnings) -> ScenePacket:
