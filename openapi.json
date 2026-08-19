@@ -2641,7 +2641,7 @@
           "scene-packets"
         ],
         "summary": "Rederive Beats",
-        "description": "Reconcile beats with the CURRENT approved scene packets: upsert one beat per approved packet\nand prune orphans (legacy beat-first rows, beats of no-longer-approved packets). The escape hatch\nfor a gate stuck on 'N approved beats are not linked' when every packet is already approved \u2014 no\napproval state changes, so it is safe to run any time. Returns fresh readiness.",
+        "description": "Reconcile beats with the CURRENT approved scene packets: upsert one beat per approved packet\nand prune orphans (legacy beat-first rows, beats of no-longer-approved packets). The escape hatch\nfor a gate stuck on 'N approved beats are not linked' when every packet is already approved \u2014 no\napproval state changes, so it is safe to run any time.\n\nRuns under the chapter workflow lock (ADR-0028): it reads the CURRENT approved set and writes the\nBeat projection from it, so it must serialize against every other scene-packet mutation on this\nchapter (approve, edit, mark-stale, fidelity) \u2014 previously this ran with no serialization at all,\nso it could read a set that a concurrent locked mutation was about to change and commit a beat\nprojection that was already stale by the time it landed. A lock collision maps to 409\nchapter_workflow_busy (Q16). Returns fresh readiness.",
         "operationId": "rederive_beats_chapters__chapter_id__beats_derive_post",
         "parameters": [
           {
@@ -3177,7 +3177,7 @@
           "scene-packets"
         ],
         "summary": "Mark Scene Packets Stale",
-        "description": "Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed.",
+        "description": "Mark scene packets stale (optionally a subset) so they block new draft jobs until refreshed.\n\nRuns under the chapter workflow lock (ADR-0028): dropping a packet out of the approved set is the\nsame authority-changing move `update_scene_packet` makes (and this route can drop several at once),\nso it must serialize against every other scene-packet mutation on this chapter \u2014 previously this ran\nwith no serialization at all. Rows are (re)loaded `with_for_update` + `populate_existing` INSIDE the\nlock (protocol step 3): nothing here is decided from a pre-lock read, and `populate_existing` matters\nfor a same-session caller who already holds a pre-lock copy in the identity map \u2014 without it the\nreload silently returns that stale copy instead of the row this lock actually protects. A lock\ncollision maps to 409 chapter_workflow_busy (Q16).",
         "operationId": "mark_scene_packets_stale_chapters__chapter_id__scene_packets_mark_stale_post",
         "parameters": [
           {
