@@ -277,6 +277,38 @@ async def escalate_issue(issue_id: uuid.UUID, session: SessionDep, body: IssueDe
     return await _decide_issue(issue_id, "escalate", body, session)
 
 
+@router.post("/issues/{issue_id}/verify", response_model=IssueOut)
+async def verify_issue(
+    issue_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None, force: bool = False
+) -> IssueOut:
+    """THE human act that clears a manual-grant hold (#285).
+
+    A model may nominate and report evidence; it may never clear, verify, grant, or approve. This is the
+    other half of that rule — without a human path the withdrawal would simply strand every hold.
+
+    `force=true` rules without evaluator evidence (the human inspected it themselves). It is not a
+    bypass of anything: this route IS the human authority, and forcing only skips the check that an
+    evaluator has already said something.
+    """
+    try:
+        issue = await production.human_verify_issue(
+            session,
+            issue_id=issue_id,
+            decided_by=(body.decided_by if body and body.decided_by else "human"),
+            reason=(body.reason if body else None),
+            force=force,
+        )
+    except production.NominationEvidenceMissing as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"reason": "no_verification_nomination", "message": f"{exc} Nothing was changed."},
+        ) from exc
+    except ValueError as exc:
+        raise _raise_for_value_error(exc) from exc
+    await session.commit()
+    return IssueOut.model_validate(issue)
+
+
 @router.post("/issues/{issue_id}/mark-false-positive", response_model=IssueOut)
 async def mark_issue_false_positive(
     issue_id: uuid.UUID, session: SessionDep, body: IssueDecisionIn | None = None
@@ -406,6 +438,20 @@ async def verify_repair_task(
 ) -> RepairVerificationOut:
     try:
         verification = await production.verify_repair_task(session, task_id)
+    except production.ManualVerificationRequired as exc:
+        # #285: a typed 409 rather than a 500 or a silent success. The same refusal the core method
+        # raises — the route does not get its own, weaker, copy of the rule.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "manual_verification_required",
+                "message": (
+                    "This repair task needs an explicit human grant before it can be cleared, so no "
+                    "automated verifier was run. Review the evidence and verify it yourself. "
+                    "Nothing was changed."
+                ),
+            },
+        ) from exc
     except ValueError as exc:
         raise _raise_for_value_error(exc) from exc
     await session.commit()

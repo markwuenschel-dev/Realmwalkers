@@ -2354,6 +2354,11 @@ class RepairVerificationOut(_ORM):
 class IssueDecisionIn(BaseModel):
     reason: str | None = None
     merged_into_issue_id: uuid.UUID | None = None
+    # Who is recording this decision. AUDIT PROVENANCE, not authenticated identity — this API is
+    # unauthenticated by standing decision (C10), so the field supports review and accountability without
+    # claiming an identity assurance the system does not have (#285). Defaults to "human" on the verify
+    # route, which is the only route that mints an IssueDecisionKind.VERIFY.
+    decided_by: str | None = None
 
 
 class ProductionRunStartIn(BaseModel):

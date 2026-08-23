@@ -324,6 +324,12 @@ async def _sweep_one_run(session, run_id, cfg: SweeperConfig) -> list[dict[str, 
                     # only after scheduling the revision). Was keyed off human_approved_at, which
                     # autonomous apply no longer stamps (ADR-0031 D16) — key off the real applied signal.
                     RepairTask.status == RepairTaskStatus.RUNNING,
+                    # #285 requirement 4: manual-grant work is EXCLUDED FROM THE QUERY, not refused after
+                    # it is fetched. If the sweeper reaches such a task at all it mints a verification
+                    # nomination on every tick, so the only way to prevent nomination spam is for it to
+                    # create no nomination at all. Clearing this work is a human act; the sweeper is a
+                    # ceiling authorizer and it is never its business, at any ceiling.
+                    RepairTask.authorization_requirement == AuthorizationRequirement.CEILING_GATED.value,
                 )
             )
         )

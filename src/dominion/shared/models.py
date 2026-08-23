@@ -1139,16 +1139,44 @@ class Issue(Base):
 
 
 class IssueDecision(Base):
-    """Decision history for one issue."""
+    """Append-only decision history for one issue.
+
+    Provenance for an authority-shaped event lives HERE, never in `Issue.payload_json` (#285). A JSONB
+    blob on the issue is mutable, overwritable, carries no evidence identity and no uniqueness key — so a
+    nomination stashed there fails idempotency and leaves the provenance rewritable by the next writer.
+    """
 
     __tablename__ = "issue_decisions"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     issue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("issues.id"))
+    #: Who decided. For a VERIFICATION_NOMINATED row this names the evaluator; it is provenance, NOT
+    #: authority, and no reader may map an unknown value onto human authority.
     decided_by: Mapped[str] = mapped_column(Text)
     decision: Mapped[str] = mapped_column(Text)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     agent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_runs.id"), nullable=True)
+    #: DIRECT evidence identity for the claim this row records — the report artifact + clause, or the
+    #: repair attempt, that the nomination rests on. Carried as columns rather than JSONB so the
+    #: uniqueness constraint below can key on it and a re-run cannot mint a second nomination for the
+    #: same evidence. NULL on the pre-#285 decision kinds, which carry no evidence identity.
+    evidence_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # Idempotency for nominations: one row per (issue, decision kind, direct evidence identity). A
+        # re-evaluation of the same report produces the same key and collides instead of spamming the
+        # issue's history. Partial, so the five legacy decision kinds (which carry no evidence) are
+        # untouched and a human may still record more than one of them.
+        Index(
+            "uq_issue_decision_evidence",
+            "issue_id",
+            "decision",
+            "evidence_id",
+            unique=True,
+            postgresql_where=text("evidence_id IS NOT NULL"),
+        ),
+    )
 
 
 class RepairTask(Base):

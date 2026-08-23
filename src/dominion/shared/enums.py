@@ -384,6 +384,15 @@ class IssueDecisionKind(StrEnum):
     ESCALATE = "escalate"
     MARK_FALSE_POSITIVE = "mark_false_positive"
     DEFER = "defer"
+    #: A model (or a deterministic evaluator) says an issue LOOKS remediated, and records the evidence for
+    #: that claim. It is a NOMINATION and nothing more: #223 R3 Fork 2 ruled that a model may nominate,
+    #: report evidence, and propose, and may never mint, clear, supersede, or verify. Persisting the claim
+    #: as an append-only decision row — rather than mutating the issue's status — is what keeps the
+    #: evidence available to the human without granting it authority (#285).
+    VERIFICATION_NOMINATED = "verification_nominated"
+    #: The human act that actually clears a manual-grant hold. Only ever written by an explicit human
+    #: verify; never by an evaluator, a sweeper, or the disappearance of a complaint.
+    VERIFY = "verify"
 
 
 class RepairAuthorityLevel(StrEnum):

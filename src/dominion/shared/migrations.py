@@ -51,6 +51,11 @@ _COLUMN_ADDS: tuple[str, ...] = (
     "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS finding_signature TEXT",
     "ALTER TABLE critiques ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now()",
     # Retrieval provenance kept on the packet so the Desk can show what canon it was built from.
+    # #285: direct evidence identity on an issue decision, so a VERIFICATION_NOMINATED row names the
+    # artifact/attempt its claim rests on and can be deduplicated. Nullable — the five legacy decision
+    # kinds carry no evidence.
+    "ALTER TABLE issue_decisions ADD COLUMN IF NOT EXISTS evidence_kind TEXT",
+    "ALTER TABLE issue_decisions ADD COLUMN IF NOT EXISTS evidence_id TEXT",
     "ALTER TABLE scene_packets ADD COLUMN IF NOT EXISTS sources JSONB",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS doc_path TEXT",
     "ALTER TABLE canon_entities ADD COLUMN IF NOT EXISTS heading_path TEXT",
@@ -322,6 +327,11 @@ _EXTRA_DDL: tuple[str, ...] = (
     """CREATE INDEX IF NOT EXISTS ix_scene_fidelity_critique_draft_chrono
        ON critiques (reviewer, draft_attempt_id, created_at)
        WHERE reviewer = 'scene_fidelity'""",
+    # #285 nomination idempotency: one nomination per (issue, kind, evidence). Partial so the legacy
+    # evidence-less decision kinds are unconstrained — a human may record several of those.
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_issue_decision_evidence
+       ON issue_decisions (issue_id, decision, evidence_id)
+       WHERE evidence_id IS NOT NULL""",
     "CREATE INDEX IF NOT EXISTS ix_scene_packets_chapter_no ON scene_packets (chapter_id, scene_no)",
     "CREATE INDEX IF NOT EXISTS ix_chapter_packets_chapter_id ON chapter_packets (chapter_id)",
     # ---- #261 amendment mode: the single-authority invariant as a DATABASE guarantee --------------- #
