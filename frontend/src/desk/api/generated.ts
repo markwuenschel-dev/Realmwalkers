@@ -1526,6 +1526,33 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/issues/{issue_id}/verify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Verify Issue
+     * @description THE human act that clears a manual-grant hold (#285).
+     *
+     *     A model may nominate and report evidence; it may never clear, verify, grant, or approve. This is the
+     *     other half of that rule — without a human path the withdrawal would simply strand every hold.
+     *
+     *     `force=true` rules without evaluator evidence (the human inspected it themselves). It is not a
+     *     bypass of anything: this route IS the human authority, and forcing only skips the check that an
+     *     evaluator has already said something.
+     */
+    post: operations["verify_issue_issues__issue_id__verify_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/issues/{issue_id}/mark-false-positive": {
     parameters: {
       query?: never;
@@ -5721,6 +5748,8 @@ export interface components {
       reason?: string | null;
       /** Merged Into Issue Id */
       merged_into_issue_id?: string | null;
+      /** Decided By */
+      decided_by?: string | null;
     };
     /** IssueDecisionOut */
     IssueDecisionOut: {
@@ -11865,6 +11894,43 @@ export interface operations {
   escalate_issue_issues__issue_id__escalate_post: {
     parameters: {
       query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  verify_issue_issues__issue_id__verify_post: {
+    parameters: {
+      query?: {
+        force?: boolean;
+      };
       header?: never;
       path: {
         issue_id: string;

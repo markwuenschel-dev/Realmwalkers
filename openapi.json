@@ -4259,6 +4259,77 @@
         }
       }
     },
+    "/issues/{issue_id}/verify": {
+      "post": {
+        "tags": [
+          "production"
+        ],
+        "summary": "Verify Issue",
+        "description": "THE human act that clears a manual-grant hold (#285).\n\nA model may nominate and report evidence; it may never clear, verify, grant, or approve. This is the\nother half of that rule \u2014 without a human path the withdrawal would simply strand every hold.\n\n`force=true` rules without evaluator evidence (the human inspected it themselves). It is not a\nbypass of anything: this route IS the human authority, and forcing only skips the check that an\nevaluator has already said something.",
+        "operationId": "verify_issue_issues__issue_id__verify_post",
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Issue Id"
+            }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/IssueDecisionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/issues/{issue_id}/mark-false-positive": {
       "post": {
         "tags": [
@@ -14858,6 +14929,17 @@
               }
             ],
             "title": "Merged Into Issue Id"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
           }
         },
         "type": "object",
