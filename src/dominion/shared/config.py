@@ -278,6 +278,10 @@ class Settings(BaseSettings):
     # ceiling sized against smaller inputs re-blocking honest work. Sized from the observed maximum with
     # headroom. Per this file's own standing guidance, if cost matters more than contract richness, trim
     # the schema (less output) rather than lowering this.
+    # NOTE the name undersells the reach: besides the per-scene derive (scene_packet/derive.py:634) this
+    # is also the hard ceiling for CHAPTER-packet propose, propose-from-evidence, and amendment authoring,
+    # via packet/__init__.py:_propose_budget (called at packet/__init__.py:581,712 and
+    # packet/amendment_author.py:611). Changing it moves all four paths, not just one scene.
     scene_token_hard_budget: int = 120_000
     scene_time_budget_s: int = 300
     # The gate-1 plan-call runs synchronously inside the POST /runs request, so an unbounded LLM
