@@ -319,3 +319,57 @@ async def test_an_open_human_hold_reports_human_action_required_over_the_api(app
     assert body["state"] == ChapterAutonomyState.HUMAN_ACTION_REQUIRED.value
     assert body["may_proceed_unattended"] is False, "a driver must never be told it may proceed here"
     assert body["next_human_action"] and len(body["next_human_action"]) > 20
+    # Assert the REASON, not just the state. An open issue alone also produces HUMAN_ACTION_REQUIRED,
+    # so a state-only assertion passes even when the reader counts zero human-grant holds — which is
+    # exactly what the mutation matrix caught. The reason is what proves the hold was seen.
+    assert "may never verify" in body["reason"], "the hold must be reported as a human-grant hold"
+    assert body["diagnostics"].get("holds_awaiting_human_verification") == 1
+
+
+async def test_unresolved_open_questions_on_the_authority_packet_block_at_runtime(app_client, db_factory):
+    """The reader must consult the APPROVED packet's open questions through #277's canonical gate.
+
+    Read from the authority packet specifically, not the newest one: `_latest` semantics would return a
+    proposed amendment while the approved predecessor still governs, and asking the amendment about open
+    questions answers a different question.
+    """
+    from dominion.shared.enums import PacketStatus
+    from dominion.shared.models import Book, Chapter, ChapterPacket, Scene
+    from dominion.workers.packet import open_questions as oq
+
+    async with db_factory() as s:
+        book = Book(title="Dominion Realm")
+        s.add(book)
+        await s.flush()
+        ch = Chapter(book_id=book.id, chapter_no=1, pov="Marcus")
+        s.add(ch)
+        await s.flush()
+        s.add(
+            Scene(
+                chapter_id=ch.id,
+                scene_no=1,
+                version=1,
+                status="pending_review",
+                word_count=6,
+                prose="She turned toward the window.",
+                prose_source="agent",
+            )
+        )
+        s.add(
+            ChapterPacket(
+                book_id=book.id,
+                chapter_id=ch.id,
+                status=PacketStatus.APPROVED,
+                confidence="green",
+                body={"scene_seeds": []},
+                open_questions=oq.normalize({"items": ["who hired the courier?", "is Serra recognized?"]}, mint=True),
+            )
+        )
+        await s.commit()
+        chapter_id = ch.id
+
+    body = (await app_client.get(f"/chapters/{chapter_id}/autonomy")).json()
+    assert body["state"] == ChapterAutonomyState.HUMAN_ACTION_REQUIRED.value
+    assert "2 open question" in body["reason"]
+    assert "resolution and source" in body["next_human_action"]
+    assert body["diagnostics"].get("unresolved_open_questions") == 2
