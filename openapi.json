@@ -1298,7 +1298,7 @@
           "chapters"
         ],
         "summary": "Approve Beats",
-        "description": "Approve beats only \u2014 does not queue draft jobs under contract-first drafting.",
+        "description": "Approve beats only \u2014 does not queue draft jobs under contract-first drafting.\n\n#283 C1. This route used to write `BeatStatus.APPROVED` across every beat in the chapter with NO\npermit and NO lock, committing immediately. Its only checks were \"beats exist\" and \"these ids belong\nto this chapter\" \u2014 neither of which is an authorization. The sharpest evidence that this was a live\nbypass rather than a theoretical one: ninety lines below, `redraft_scene` refuses when no approved\nbeat exists. The ungated route was the workaround for the gate it bypassed.\n\nNow: the chapter workflow lock is held, the permit is evaluated INSIDE it on the post-lock read, and\nevaluation and write share one transaction. That ordering is the whole point \u2014 a permit checked\nbefore the lock is a permit checked against state another writer is free to change before the write\nlands.",
         "operationId": "approve_beats_chapters__chapter_id__beats_approve_post",
         "parameters": [
           {
