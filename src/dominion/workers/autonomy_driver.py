@@ -41,7 +41,7 @@ from dominion.workers.autonomy_status import ChapterAutonomyState, ChapterAutono
 
 log = structlog.get_logger()
 
-__all__ = ["AutonomyDriver", "ChapterAction", "DriverStop", "DriverTick"]
+__all__ = ["AutonomyDriver", "ChapterAction", "DriverRun", "DriverStop", "DriverTick"]
 
 #: Belt-and-braces ceiling on one unattended run. Deliberately small: a chapter that needs more than
 #: this many machine actions without a human touching it is not converging, and continuing would burn
@@ -64,6 +64,10 @@ class DriverStop(str):
 
 
 STOP_BLOCKED = DriverStop("blocked")
+#: The loop ended because the chapter reached REVIEW_READY. NOT a block: the machine finished and
+#: handed off. Reporting this as "blocked" would tell an operator to go fix something when the only
+#: thing left is the author reading their own draft.
+STOP_REVIEW_READY = DriverStop("review_ready")
 STOP_NOTHING_TO_DO = DriverStop("nothing_to_do")
 STOP_MAX_TICKS = DriverStop("max_ticks")
 
@@ -181,7 +185,11 @@ class AutonomyDriver:
             tick = await self.tick(session, chapter_id)
             run.ticks.append(tick)
             if tick.state is not ChapterAutonomyState.AUTONOMY_READY:
-                run.stopped_because = STOP_BLOCKED
+                # REVIEW_READY is a HAND-OFF, not a block. Collapsing the two would send an operator to
+                # diagnose a chapter whose only remaining step is the author reading it.
+                run.stopped_because = (
+                    STOP_REVIEW_READY if tick.state is ChapterAutonomyState.REVIEW_READY else STOP_BLOCKED
+                )
                 break
             if not tick.acted:
                 run.stopped_because = STOP_NOTHING_TO_DO
