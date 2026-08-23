@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from dominion.shared.enums import (
     BeatStatus,
+    DraftStage,
     GateMode,
     JobKind,
     JobStatus,
@@ -18,7 +19,7 @@ from dominion.shared.enums import (
     SceneStatus,
     Severity,
 )
-from dominion.shared.models import Beat, Book, Chapter, Critique, Job, Run
+from dominion.shared.models import Beat, Book, Chapter, Critique, DraftAttempt, Job, Run
 from dominion.workers import pipeline
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.reviewers.base import Flag
@@ -170,3 +171,113 @@ async def test_non_budget_reviewer_error_lands_a_flag_not_a_failure(db_factory, 
         crash_flag = next(c for c in crits if c.reviewer == "continuity")
         assert crash_flag.severity == Severity.WARN and "reviewer bug" in crash_flag.note
         assert any(c.reviewer == "pacing" for c in crits)
+
+
+class _CitingReviewer:
+    """Returns one supported citation, one fabricated one, and one finding that cites nothing.
+
+    The supported quote is sliced from the prose it is actually handed, so the test holds regardless
+    of what enrichment/length/rendering did to the drafted spine before review.
+    """
+
+    name = "voice"
+
+    def __init__(self) -> None:
+        self.seen_prose = ""
+
+    async def review(self, prose: str, ctx: object) -> list[Flag]:
+        self.seen_prose = prose
+        real = prose[:14]
+        return [
+            Flag(reviewer=self.name, severity=Severity.INFO, note="grounded", payload={"quote": real}),
+            Flag(
+                reviewer=self.name,
+                severity=Severity.WARN,
+                note="fabricated",
+                payload={"quote": "a dragon landed on the balcony and roared"},
+            ),
+            Flag(reviewer=self.name, severity=Severity.INFO, note="no citation offered", payload=None),
+        ]
+
+
+async def test_unsupported_citation_is_dropped_at_the_persistence_funnel(db_factory, monkeypatch):
+    """A reviewer that quotes prose the scene does not contain has fabricated its evidence; that
+    finding must never reach the author's panel. A finding that quotes nothing is a legitimate shape
+    and must survive — the guard judges citations that were MADE, it does not require one."""
+
+    async def fake_draft(self, prose, ctx):
+        return "She turned toward the window, and the rain came down hard."
+
+    monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
+    reviewer = _CitingReviewer()
+    monkeypatch.setattr(pipeline, "reviewers_for", lambda tags: [reviewer])
+
+    async with db_factory() as s:
+        job = await _setup_draft_job(s)
+        await s.commit()
+        scene = await pipeline.generate_one_scene(s, job)
+        await s.commit()
+
+        crits = (
+            (await s.execute(select(Critique).where(Critique.scene_id == scene.id).order_by(Critique.id)))
+            .scalars()
+            .all()
+        )
+        notes = [c.note for c in crits]
+        assert "fabricated" not in notes, "a finding citing prose the scene never contained was persisted"
+        assert "grounded" in notes, "a correctly-cited finding must survive the guard"
+        assert "no citation offered" in notes, "a finding that cites nothing is legitimate, not unsupported"
+
+        # The counter has a persisted reader, so the fabrication rate is answerable from the database.
+        attempt = (
+            (
+                await s.execute(
+                    select(DraftAttempt).where(
+                        DraftAttempt.scene_id == scene.id,
+                        DraftAttempt.stage == DraftStage.FINAL_RENDERED,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        assert attempt is not None
+        assert (attempt.metadata_json or {}).get("unsupported_citations_dropped") == 1
+
+
+async def test_guard_records_zero_when_every_citation_holds(db_factory, monkeypatch):
+    """Recorded unconditionally, including 0 — an absent key means the guard did not run, which is a
+    different fact from 'nothing was dropped', and a rate needs the denominator."""
+
+    async def fake_draft(self, prose, ctx):
+        return "She turned toward the window, and the rain came down hard."
+
+    class _Grounded:
+        name = "voice"
+
+        async def review(self, prose: str, ctx: object) -> list[Flag]:
+            return [Flag(reviewer=self.name, severity=Severity.INFO, note="ok", payload={"quote": prose[:10]})]
+
+    monkeypatch.setattr(drafter_mod.Drafter, "run", fake_draft)
+    monkeypatch.setattr(pipeline, "reviewers_for", lambda tags: [_Grounded()])
+
+    async with db_factory() as s:
+        job = await _setup_draft_job(s)
+        await s.commit()
+        scene = await pipeline.generate_one_scene(s, job)
+        await s.commit()
+
+        attempt = (
+            (
+                await s.execute(
+                    select(DraftAttempt).where(
+                        DraftAttempt.scene_id == scene.id,
+                        DraftAttempt.stage == DraftStage.FINAL_RENDERED,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        assert attempt is not None
+        assert (attempt.metadata_json or {}).get("unsupported_citations_dropped") == 0

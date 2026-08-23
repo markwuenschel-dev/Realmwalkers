@@ -23,6 +23,7 @@ from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context import assemble_context
 from dominion.workers.length import guard as length_guard
 from dominion.workers.llm import find_rate_limit
+from dominion.workers.reviewers.base import cited_quote, quote_is_supported
 from dominion.workers.router import passes_for, reviewers_for
 from dominion.workers.specialists.base import PassError
 from dominion.workers.specialists.drafter import drafter
@@ -248,6 +249,10 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
     if agent_auto_run("review_model") and not budget_exceeded:
         reviewers = reviewers_for(ctx.tags)
         progress.set_phase(jid, "reviewing")
+        # Findings dropped by the unsupported-citation guard below. Counted so the rate is measurable:
+        # a reviewer whose citations stop landing is a prompt or model regression, and that is only
+        # visible if something counts it.
+        unsupported_citations = 0
 
         def _reviewer_label(reviewer: Any) -> str:
             return getattr(reviewer, "name", type(reviewer).__name__)
@@ -289,6 +294,29 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                 )
             else:
                 for flag in result:
+                    # Unsupported-citation guard. A reviewer that quotes a passage this scene does not
+                    # contain has fabricated its evidence, and the finding resting on it was never
+                    # right — it costs the author a read and resolves to nothing. Such a flag is not
+                    # persisted; it is logged and counted so a reviewer's fabrication rate stays
+                    # visible instead of being laundered into the panel as a real finding.
+                    #
+                    # Deliberately NARROW: this only judges a citation the reviewer actually offered.
+                    # A flag that quotes nothing (a pacing note about the scene as a whole) is a
+                    # legitimate shape and passes through untouched — no evidence requirement is
+                    # invented here, and nothing that was not already built on a fabrication is lost.
+                    quote = cited_quote(flag)
+                    if quote is not None and not quote_is_supported(quote, prose):
+                        unsupported_citations += 1
+                        log.info(
+                            "reviewer.unsupported_citation",
+                            scene_id=str(scene.id),
+                            scene_version=scene.version,
+                            reviewer=flag.reviewer,
+                            severity=str(flag.severity),
+                            rejected_quote=quote[:200],
+                            note=flag.note[:200],
+                        )
+                        continue
                     session.add(
                         Critique(
                             scene_id=scene.id,
@@ -300,6 +328,24 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
                             payload=flag.payload,
                         )
                     )
+
+        # The counter's reader. Persisted on the final attempt (JSONB, no migration) rather than only
+        # logged, so the fabrication rate is QUERYABLE per draft — "how many findings did this reviewer
+        # set invent?" has to be answerable from the database, or the guard cannot be shown to work.
+        # Written unconditionally whenever reviewers ran, including 0, so a rate can be computed: an
+        # absent key means the guard did not run, which is a different fact from "nothing was dropped".
+        if final_attempt is not None:
+            final_attempt.metadata_json = {
+                **(final_attempt.metadata_json or {}),
+                "unsupported_citations_dropped": unsupported_citations,
+            }
+        if unsupported_citations:
+            log.warning(
+                "reviewer.unsupported_citations_dropped",
+                scene_id=str(scene.id),
+                scene_version=scene.version,
+                count=unsupported_citations,
+            )
 
     # 5) finalize: a budget-exceeded scene is flagged and leaves the prior version intact; otherwise a
     # revision supersedes its parent (DESIGN §10, §3).
