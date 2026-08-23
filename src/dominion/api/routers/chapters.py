@@ -26,11 +26,12 @@ from dominion.shared.db import SessionFactory
 from dominion.shared.enums import (
     BeatStatus,
     ChapterStatus,
+    PacketStatus,
     ScenePacketApprovalSource,
     ScenePacketStatus,
     SceneStatus,
 )
-from dominion.shared.models import Beat, Chapter, Scene, ScenePacket, Summary
+from dominion.shared.models import Beat, Chapter, ChapterPacket, Scene, ScenePacket, Summary
 from dominion.shared.schemas import (
     ApproveBeatsIn,
     BeatCreateIn,
@@ -54,6 +55,7 @@ from dominion.workers.job_scheduler import (
     schedule_undrafted_beats,
 )
 from dominion.workers.memory import summaries
+from dominion.workers.packet import approval_policy as packet_approval
 from dominion.workers.scene_packet import approval_policy as sp_approval
 from dominion.workers.scene_packet import approve_scene_packet as _approve_scene_packet
 from dominion.workers.scene_packet import blockers as _blockers
@@ -239,36 +241,110 @@ async def create_beat(chapter_id: uuid.UUID, body: BeatCreateIn, session: Sessio
     return beat
 
 
+async def _beat_approval_refusal(session: SessionDep, chapter_id: uuid.UUID) -> dict[str, str] | None:
+    """THE permit for approving beats (#283 C1). Evaluated under the chapter lock, never before it.
+
+    An approved Beat is a DRAFTING PREREQUISITE, read as one in five places
+    (`draft_queue.py:364`, `job_scheduler.py:138`, `draft_readiness.py:416`,
+    `context/resolve.py:57`, `tools/draft_audit.py:66`). Approving beats therefore authorizes the
+    machine to start writing prose under this chapter's contract — so the contract must actually HOLD
+    authority first.
+
+    The permit is exactly #277's gate, consulted through its canonical reader rather than re-derived: a
+    chapter whose approved contract still carries unresolved open questions has not settled the
+    questions the drafting agents would be writing against, and authorizing drafting under it is the
+    thing that gate exists to prevent.
+
+    Scoped deliberately narrow. It does NOT refuse for open issues or an incomplete draft — those are
+    review-surface concerns, and blocking beat approval on them would stall ordinary authoring for
+    reasons unrelated to authority. Returns a refusal body, or None to permit.
+    """
+    authority = (
+        await session.execute(
+            select(ChapterPacket)
+            .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED.value)
+            .order_by(ChapterPacket.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if authority is None:
+        return None  # no contract to contradict; beat-first authoring is out of scope for this permit
+    unresolved = packet_approval.open_question_items(authority)
+    if not unresolved:
+        return None
+    return {
+        "reason": "chapter_contract_has_open_questions",
+        "message": (
+            f"This chapter's approved contract still has {len(unresolved)} unresolved open question(s), "
+            "so it does not hold authority yet — and approving beats authorizes the machine to start "
+            "drafting against that contract. Rule every question (each ruling needs a non-empty "
+            "resolution and source), then approve the beats. Nothing was changed."
+        ),
+    }
+
+
 @router.post("/{chapter_id}/beats/approve")
 async def approve_beats(
     chapter_id: uuid.UUID, session: SessionDep, body: ApproveBeatsIn | None = None
 ) -> dict[str, object]:
-    """Approve beats only — does not queue draft jobs under contract-first drafting."""
-    chapter = await session.get(Chapter, chapter_id)
-    if chapter is None:
-        raise HTTPException(status_code=404, detail="chapter not found")
+    """Approve beats only — does not queue draft jobs under contract-first drafting.
 
-    beats = (
-        (await session.execute(select(Beat).where(Beat.chapter_id == chapter_id).order_by(Beat.scene_no)))
-        .scalars()
-        .all()
-    )
-    if not beats:
-        raise HTTPException(status_code=400, detail="no beats to approve for this chapter")
+    #283 C1. This route used to write `BeatStatus.APPROVED` across every beat in the chapter with NO
+    permit and NO lock, committing immediately. Its only checks were "beats exist" and "these ids belong
+    to this chapter" — neither of which is an authorization. The sharpest evidence that this was a live
+    bypass rather than a theoretical one: ninety lines below, `redraft_scene` refuses when no approved
+    beat exists. The ungated route was the workaround for the gate it bypassed.
 
-    selected = set(body.beat_ids) if body and body.beat_ids else None
-    to_approve = [b for b in beats if selected is None or b.id in selected]
-    if not to_approve:
-        raise HTTPException(status_code=400, detail="none of the given beat_ids belong to this chapter")
+    Now: the chapter workflow lock is held, the permit is evaluated INSIDE it on the post-lock read, and
+    evaluation and write share one transaction. That ordering is the whole point — a permit checked
+    before the lock is a permit checked against state another writer is free to change before the write
+    lands.
+    """
 
-    for beat in to_approve:
-        beat.status = BeatStatus.APPROVED
-    await session.commit()
-    return {
-        "chapter_id": str(chapter_id),
-        "approved": len(to_approve),
-        "message": "ScenePackets must be approved before drafting. Use Draft Chapter.",
-    }
+    async def _body() -> dict[str, object]:
+        # Read AFTER the lock. `populate_existing` is load-bearing: `session.get` alone would hand back
+        # an identity-mapped pre-lock copy, and every check below would evaluate against stale state.
+        chapter = await session.get(Chapter, chapter_id, populate_existing=True)
+        if chapter is None:
+            raise HTTPException(status_code=404, detail="chapter not found")
+
+        beats = (
+            (
+                await session.execute(
+                    select(Beat)
+                    .where(Beat.chapter_id == chapter_id)
+                    .order_by(Beat.scene_no)
+                    .execution_options(populate_existing=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not beats:
+            raise HTTPException(status_code=400, detail="no beats to approve for this chapter")
+
+        selected = set(body.beat_ids) if body and body.beat_ids else None
+        to_approve = [b for b in beats if selected is None or b.id in selected]
+        if not to_approve:
+            raise HTTPException(status_code=400, detail="none of the given beat_ids belong to this chapter")
+
+        if refusal := await _beat_approval_refusal(session, chapter_id):
+            raise HTTPException(status_code=409, detail=refusal)
+
+        for beat in to_approve:
+            beat.status = BeatStatus.APPROVED
+        return {
+            "chapter_id": str(chapter_id),
+            "approved": len(to_approve),
+            "message": "ScenePackets must be approved before drafting. Use Draft Chapter.",
+        }
+
+    try:
+        # The wrapper owns the commit boundary and rolls back on refusal, so a 409 raised inside `_body`
+        # leaves NOTHING written — which is what makes "nothing was changed" true rather than hopeful.
+        return await run_under_chapter_workflow(session, chapter_id, _body, timeout_ms=LOCK_TIMEOUT_MS)
+    except ChapterWorkflowBusy as exc:
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL) from exc
 
 
 @router.post("/{chapter_id}/scenes", response_model=SceneOut)
