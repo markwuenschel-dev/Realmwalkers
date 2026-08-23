@@ -2351,6 +2351,23 @@ class RepairVerificationOut(_ORM):
     created_at: datetime
 
 
+class ChapterAutonomyOut(BaseModel):
+    """A chapter's autonomy state, with the human-facing account of it.
+
+    Four states, one precedence, exactly one applies: operational_blocked > human_action_required >
+    review_ready > autonomy_ready. `next_human_action` is ALWAYS present on a blocked state and always
+    absent otherwise — enforced at construction, so a client can branch on it without a null dance.
+    """
+
+    chapter_id: uuid.UUID
+    state: str  # operational_blocked | human_action_required | review_ready | autonomy_ready
+    reason: str
+    next_human_action: str | None = None
+    #: True only for `autonomy_ready`. The ONE predicate an unattended driver may act on.
+    may_proceed_unattended: bool = False
+    diagnostics: dict[str, Any] = {}
+
+
 class IssueDecisionIn(BaseModel):
     reason: str | None = None
     merged_into_issue_id: uuid.UUID | None = None

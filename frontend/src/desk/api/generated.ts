@@ -574,6 +574,35 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/chapters/{chapter_id}/autonomy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Chapter Autonomy
+     * @description Whether anything can proceed on this chapter right now, and if not, who has to act.
+     *
+     *     This is the runtime home of REVIEW_READY. Before it, the whole answer was an inline boolean in
+     *     `production_sequence` (`ready_for_human = not open_issues and not missing_scene_nos and not
+     *     qa_block`) that carried no reason, no next action, and could not tell an author who must read a
+     *     draft from an operator whose provider is down.
+     *
+     *     The unattended driver reads THIS, not its own re-derivation — which is what keeps the authority
+     *     foundation (#277's open-questions gate, #285's verification predicate) in front of the loop rather
+     *     than beside it.
+     */
+    get: operations["chapter_autonomy_chapters__chapter_id__autonomy_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/books/{book_id}/parts": {
     parameters: {
       query?: never;
@@ -4587,6 +4616,39 @@ export interface components {
        * @default 0
        */
       protected_manual: number;
+    };
+    /**
+     * ChapterAutonomyOut
+     * @description A chapter's autonomy state, with the human-facing account of it.
+     *
+     *     Four states, one precedence, exactly one applies: operational_blocked > human_action_required >
+     *     review_ready > autonomy_ready. `next_human_action` is ALWAYS present on a blocked state and always
+     *     absent otherwise — enforced at construction, so a client can branch on it without a null dance.
+     */
+    ChapterAutonomyOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** State */
+      state: string;
+      /** Reason */
+      reason: string;
+      /** Next Human Action */
+      next_human_action?: string | null;
+      /**
+       * May Proceed Unattended
+       * @default false
+       */
+      may_proceed_unattended: boolean;
+      /**
+       * Diagnostics
+       * @default {}
+       */
+      diagnostics: {
+        [key: string]: unknown;
+      };
     };
     /**
      * ChapterCreateIn
@@ -10061,6 +10123,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DraftScheduleOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  chapter_autonomy_chapters__chapter_id__autonomy_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterAutonomyOut"];
         };
       };
       /** @description Validation Error */

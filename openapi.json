@@ -1506,6 +1506,50 @@
         }
       }
     },
+    "/chapters/{chapter_id}/autonomy": {
+      "get": {
+        "tags": [
+          "chapters"
+        ],
+        "summary": "Chapter Autonomy",
+        "description": "Whether anything can proceed on this chapter right now, and if not, who has to act.\n\nThis is the runtime home of REVIEW_READY. Before it, the whole answer was an inline boolean in\n`production_sequence` (`ready_for_human = not open_issues and not missing_scene_nos and not\nqa_block`) that carried no reason, no next action, and could not tell an author who must read a\ndraft from an operator whose provider is down.\n\nThe unattended driver reads THIS, not its own re-derivation \u2014 which is what keeps the authority\nfoundation (#277's open-questions gate, #285's verification predicate) in front of the loop rather\nthan beside it.",
+        "operationId": "chapter_autonomy_chapters__chapter_id__autonomy_get",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Chapter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterAutonomyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/books/{book_id}/parts": {
       "get": {
         "tags": [
@@ -12651,6 +12695,53 @@
         "type": "object",
         "title": "CanonRetireOut",
         "description": "Result of a soft retire (status -> 'retired'); retired rows drop out of RAG + `?status=active`."
+      },
+      "ChapterAutonomyOut": {
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chapter Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "next_human_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Human Action"
+          },
+          "may_proceed_unattended": {
+            "type": "boolean",
+            "title": "May Proceed Unattended",
+            "default": false
+          },
+          "diagnostics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Diagnostics",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_id",
+          "state",
+          "reason"
+        ],
+        "title": "ChapterAutonomyOut",
+        "description": "A chapter's autonomy state, with the human-facing account of it.\n\nFour states, one precedence, exactly one applies: operational_blocked > human_action_required >\nreview_ready > autonomy_ready. `next_human_action` is ALWAYS present on a blocked state and always\nabsent otherwise \u2014 enforced at construction, so a client can branch on it without a null dance."
       },
       "ChapterCreateIn": {
         "properties": {

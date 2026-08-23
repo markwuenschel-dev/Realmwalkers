@@ -35,6 +35,7 @@ from dominion.shared.schemas import (
     ApproveBeatsIn,
     BeatCreateIn,
     BeatOut,
+    ChapterAutonomyOut,
     ChapterCreateIn,
     ChapterOut,
     ChapterUpdateIn,
@@ -44,7 +45,7 @@ from dominion.shared.schemas import (
     RedraftIn,
     SceneOut,
 )
-from dominion.workers import background_work, planner, telemetry, telemetry_db
+from dominion.workers import autonomy_reader, background_work, planner, telemetry, telemetry_db
 from dominion.workers.draft_queue import DraftScheduleResult, schedule_contract_first_draft_jobs
 from dominion.workers.draft_readiness import blocker_out, compute_draft_readiness
 from dominion.workers.job_scheduler import (
@@ -534,3 +535,30 @@ async def draft_chapter(chapter_id: uuid.UUID, session: SessionDep) -> DraftSche
         chapter.status = ChapterStatus.DRAFTING
     await session.commit()
     return out
+
+
+@router.get("/{chapter_id}/autonomy", response_model=ChapterAutonomyOut)
+async def chapter_autonomy(chapter_id: uuid.UUID, session: SessionDep) -> ChapterAutonomyOut:
+    """Whether anything can proceed on this chapter right now, and if not, who has to act.
+
+    This is the runtime home of REVIEW_READY. Before it, the whole answer was an inline boolean in
+    `production_sequence` (`ready_for_human = not open_issues and not missing_scene_nos and not
+    qa_block`) that carried no reason, no next action, and could not tell an author who must read a
+    draft from an operator whose provider is down.
+
+    The unattended driver reads THIS, not its own re-derivation — which is what keeps the authority
+    foundation (#277's open-questions gate, #285's verification predicate) in front of the loop rather
+    than beside it.
+    """
+    chapter = await session.get(Chapter, chapter_id)
+    if chapter is None:
+        raise HTTPException(status_code=404, detail="chapter not found")
+    status = await autonomy_reader.chapter_autonomy_status(session, chapter_id)
+    return ChapterAutonomyOut(
+        chapter_id=chapter_id,
+        state=status.state.value,
+        reason=status.reason,
+        next_human_action=status.next_human_action,
+        may_proceed_unattended=status.may_proceed_unattended,
+        diagnostics=status.diagnostics,
+    )
