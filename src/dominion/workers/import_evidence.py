@@ -38,6 +38,13 @@ LEDGER_SECTIONS: tuple[str, ...] = (
 )
 
 
+# Marker key written onto a ledger item whose character span failed validation. The item keeps its
+# content and loses its (fabricated) anchor; this records why, so a quarantined fact is auditable
+# rather than either silently dropped or silently trusted. Deliberately NOT a LEDGER_SECTION — it
+# lives on the ITEM, so the ledger's top-level shape is unchanged for every existing consumer.
+SPAN_QUARANTINE_KEY = "span_quarantined"
+
+
 class EvidenceExtractionError(Exception):
     """The extractor could not produce a valid ledger (bad/unparseable model output, exhausted retries,
     or span validation failure). The adoption worker treats this as a per-scene failure and retries the
@@ -61,13 +68,51 @@ class SceneSource:
     context_note: str | None = None
 
 
+def _settings() -> Any:
+    """Lazy settings accessor. The module deliberately avoids a top-level config/LLM import so it stays
+    importable (and FakeImportEvidenceExtractor usable) without the heavy stack — but the envelope below
+    must still come from configuration, not from literals duplicated here. Reading it in a
+    `default_factory` gets both: a light module import, and one operator-tunable source of truth."""
+    from dominion.shared.config import settings
+
+    return settings
+
+
+def default_work_token_budget() -> int:
+    """The per-call WORK ceiling (weighted input + output) for one extraction call.
+
+    Derived, never a literal. `TokenBudget` charges input AND output against one ceiling and raises
+    AFTER a successful, already-paid provider call, so a ceiling below what the chunker guarantees to
+    send is not a budget — it is a guaranteed loss. The previous literal 4000 sat below the ~6000 input
+    tokens a full 24k-char chunk produced, so every scene over ~14k chars paid for its call and then
+    died on BudgetExceeded (which is not an EvidenceExtractionError, so it escaped this seam's declared
+    error contract entirely). Deriving it from the same input gate and output allowance the call actually
+    uses makes that arithmetically impossible while keeping the ceiling genuinely binding: a call that
+    burns materially more than its estimated input still trips it.
+    """
+    s = _settings()
+    return s.import_evidence_prompt_budget + s.import_evidence_max_tokens
+
+
 @dataclass
 class ExtractionBudget:
-    """Per-scene extraction budget. `max_chars_per_chunk` triggers deterministic chunk+merge for an
-    oversized scene (never raw-text truncation); `max_tokens` bounds a single model call."""
+    """Per-scene extraction size envelope, defaulted from configuration (see `Settings`'s
+    import-evidence block, whose validator enforces that these values cohere).
 
-    max_tokens: int = 4000
-    max_chars_per_chunk: int = 24000
+    - `max_chars_per_chunk` triggers deterministic chunk+merge for an oversized scene (never raw-text
+      truncation) and is the one knob that sets per-call input cost;
+    - `max_tokens` is the per-call WORK ceiling charged by `TokenBudget` (input + output);
+    - `max_scene_chars` is the HARD ceiling refused before any provider traffic;
+    - `max_chunks` caps the fan-out if the chunker itself misbehaves;
+    - `max_quarantine_ratio` is how much span quarantine a ledger may carry before the extraction is
+      treated as a failure rather than a partially-anchored success.
+    """
+
+    max_tokens: int = field(default_factory=default_work_token_budget)
+    max_chars_per_chunk: int = field(default_factory=lambda: _settings().import_evidence_max_chars_per_chunk)
+    max_chunks: int = field(default_factory=lambda: _settings().import_evidence_max_chunks)
+    max_scene_chars: int = field(default_factory=lambda: _settings().import_evidence_max_scene_chars)
+    max_quarantine_ratio: float = field(default_factory=lambda: _settings().import_evidence_max_quarantine_ratio)
 
 
 @dataclass(frozen=True)
@@ -97,36 +142,124 @@ class ValidatedEvidence:
     token_usage: int | None = None
 
 
-def validate_ledger(ledger: dict[str, Any], prose_len: int) -> dict[str, Any]:
+def _span_violation(span: Any, prose_len: int) -> str | None:
+    """Why `span` is not a usable anchor into prose of `prose_len` chars, or None if it is fine.
+
+    Returned as a human-readable reason rather than a bool so a quarantined item carries an explanation
+    the author (and an operator reading the persisted ledger) can act on. `bool` is excluded explicitly
+    because it is an `int` subclass in Python, and `[True, False]` is not an anchor.
+    """
+    if not isinstance(span, (list, tuple)):
+        return f"span is {type(span).__name__}, expected a 2-element list"
+    if len(span) != 2:
+        return f"span has {len(span)} elements, expected 2"
+    if not all(isinstance(n, int) and not isinstance(n, bool) for n in span):
+        return "span members are not both integers"
+    start, end = span
+    if not (0 <= start <= end <= prose_len):
+        return f"span [{start}, {end}] is not within [0, {prose_len}]"
+    return None
+
+
+def quarantined_span_count(ledger: dict[str, Any]) -> int:
+    """How many items in a normalized ledger carry a quarantined span. Instrumentation seam: an import
+    whose quarantine count is climbing is a prompt or model regression, and that is only visible if
+    something counts it."""
+    total = 0
+    for section in LEDGER_SECTIONS:
+        for item in ledger.get(section) or []:
+            if isinstance(item, dict) and item.get(SPAN_QUARANTINE_KEY) is not None:
+                total += 1
+    return total
+
+
+def validate_ledger(
+    ledger: dict[str, Any],
+    prose_len: int,
+    *,
+    max_quarantine_ratio: float | None = None,
+) -> dict[str, Any]:
     """Structural + span validation shared by the real adapter and the fake.
 
     - every LEDGER_SECTION key is present (missing → filled with an empty list / None, so the author
       sees an explicit "nothing here" rather than a KeyError);
-    - any `span` on an item is a 2-int [start, end] within [0, prose_len]; out-of-range spans raise,
-      because a fabricated anchor breaks the "traceable to the snapshot" guarantee.
+    - any `span` on an item must be a 2-int [start, end] within [0, prose_len].
 
-    Returns the normalized ledger. Raises EvidenceExtractionError on an unfixable violation.
+    A bad span is QUARANTINED, not fatal. One fabricated anchor used to raise and kill the whole scene's
+    extraction — discarding a dozen good facts, then re-running the identical call under the worker's
+    retry policy to get the identical result. So the offending item is KEPT with its content intact, its
+    fabricated `span` replaced by None, and a `span_quarantined` marker recording the reason and the
+    rejected span. Nothing is silently dropped, and nothing untraceable is silently trusted.
+
+    The quarantine is BOUNDED, because "quarantine everything" is its own failure mode: past
+    `max_quarantine_ratio` of the span-bearing items (default from
+    `settings.import_evidence_max_quarantine_ratio`) the model has not anchored its evidence at all, and
+    that must fail closed so retry/escalation runs instead of persisting an unanchored ledger.
+
+    Deterministic: sections are walked in `LEDGER_SECTIONS` order, items keep their input order, and
+    quarantining is idempotent — re-validating an already-quarantined ledger (which the chunk merge
+    does) counts the same items and never resurrects a rejected span.
+
+    Returns the normalized ledger. Raises EvidenceExtractionError on a non-object ledger, or when the
+    quarantine ratio is over the limit.
     """
     if not isinstance(ledger, dict):
         raise EvidenceExtractionError("ledger is not an object")
     normalized: dict[str, Any] = {}
+    span_bearing = 0
+    quarantined = 0
     for section in LEDGER_SECTIONS:
         value = ledger.get(section)
         if section in ("pov", "setting", "entry_state", "exit_state"):
             normalized[section] = value if isinstance(value, str) or value is None else str(value)
             continue
         items = value if isinstance(value, list) else ([] if value is None else [value])
+        kept: list[Any] = []
         for item in items:
-            if isinstance(item, dict) and "span" in item and item["span"] is not None:
-                span = item["span"]
-                if (
-                    not isinstance(span, (list, tuple))
-                    or len(span) != 2
-                    or not all(isinstance(n, int) for n in span)
-                    or not (0 <= span[0] <= span[1] <= prose_len)
-                ):
-                    raise EvidenceExtractionError(f"{section} item has an out-of-range span {span!r}")
-        normalized[section] = items
+            if not isinstance(item, dict):
+                kept.append(item)
+                continue
+            if item.get(SPAN_QUARANTINE_KEY) is not None:
+                # Already quarantined by an upstream pass (the per-chunk validation before a merge).
+                # Count it toward the ratio, but never re-derive it and never resurrect the rejected span.
+                span_bearing += 1
+                quarantined += 1
+                kept.append(item)
+                continue
+            span = item.get("span")
+            if "span" not in item or span is None:
+                kept.append(item)  # an anchorless item is a legitimate shape, not a violation
+                continue
+            span_bearing += 1
+            reason = _span_violation(span, prose_len)
+            if reason is None:
+                kept.append(item)
+                continue
+            quarantined += 1
+            kept.append(
+                {
+                    **item,
+                    "span": None,
+                    SPAN_QUARANTINE_KEY: {
+                        "section": section,
+                        "reason": reason,
+                        "rejected_span": list(span) if isinstance(span, (list, tuple)) else span,
+                    },
+                }
+            )
+        normalized[section] = kept
+    if quarantined:
+        limit = (
+            max_quarantine_ratio
+            if max_quarantine_ratio is not None
+            else _settings().import_evidence_max_quarantine_ratio
+        )
+        ratio = quarantined / span_bearing
+        if ratio > limit:
+            raise EvidenceExtractionError(
+                f"span quarantine ratio {quarantined}/{span_bearing} = {ratio:.2f} exceeds the "
+                f"{limit:.2f} limit — the extraction did not anchor its evidence to the prose"
+            )
     return normalized
 
 
@@ -161,6 +294,9 @@ class FakeImportEvidenceExtractor:
         self.calls: list[uuid.UUID] = []
 
     async def extract_scene(self, source: SceneSource, budget: ExtractionBudget) -> ValidatedEvidence:
+        # Checked before `calls` is recorded: an over-ceiling scene is refused, not attempted, and the
+        # fake must model that or a test could not tell a refusal from a silent success.
+        assert_scene_within_ceiling(source, budget)
         self.calls.append(source.scene_id)
         remaining = self._fail_remaining.get(source.scene_id, 0)
         if remaining > 0:
@@ -169,7 +305,7 @@ class FakeImportEvidenceExtractor:
         ledger = self._by_scene_id.get(source.scene_id) or self._by_scene_no.get(source.scene_no)
         if ledger is None:
             ledger = {"events": [{"summary": f"scene {source.scene_no}", "span": [0, min(len(source.prose), 1)]}]}
-        normalized = validate_ledger(dict(ledger), len(source.prose))
+        normalized = validate_ledger(dict(ledger), len(source.prose), max_quarantine_ratio=budget.max_quarantine_ratio)
         # Scripted chunks get deterministic, monotonic, non-overlapping synthetic windows so the persist
         # oracle can assert interval integrity + order without a real chunker run (that is covered by
         # _deterministic_chunks' own tests). Stride 1000, half-width → gaps, never overlaps.
@@ -179,17 +315,43 @@ class FakeImportEvidenceExtractor:
                 chunk_index=i,
                 char_offset=i * 1000,
                 char_end=i * 1000 + 500,
-                ledger=validate_ledger(dict(c), len(source.prose)),
+                ledger=validate_ledger(dict(c), len(source.prose), max_quarantine_ratio=budget.max_quarantine_ratio),
             )
             for i, c in enumerate(scripted)
         ]
         return ValidatedEvidence(ledger=normalized, chunks=chunks, token_usage=0)
 
 
-def _deterministic_chunks(prose: str, max_chars: int) -> list[tuple[int, str]]:
+def assert_scene_within_ceiling(source: SceneSource, budget: ExtractionBudget) -> None:
+    """Refuse an over-ceiling scene BEFORE any provider traffic.
+
+    A snapshot past `max_scene_chars` is not a scene — it is a chapter or a whole manuscript pasted into
+    one row. Extracting it would fan out into a long series of paid calls and produce a merged ledger
+    with tens of thousands of items that no author can read, and the failure would only surface after the
+    money was spent. So the size check happens here, first, with a message that names the concrete next
+    human action (re-split the import). Honoured by BOTH adapters, so a test using the deterministic fake
+    proves the same guarantee the production adapter gives.
+    """
+    prose_chars = len(source.prose)
+    if prose_chars > budget.max_scene_chars:
+        raise EvidenceExtractionError(
+            f"scene {source.scene_no} prose is {prose_chars} chars, over the "
+            f"{budget.max_scene_chars}-char hard ceiling for a single scene — re-split the import so "
+            "each snapshot is one scene. No provider call was made."
+        )
+
+
+def _deterministic_chunks(prose: str, max_chars: int, *, max_chunks: int | None = None) -> list[tuple[int, str]]:
     """Split oversized prose into (char_offset, text) chunks at paragraph boundaries where possible,
     deterministically (no overlap, no truncation). Every character lands in exactly one chunk, so the
-    union merge reconstructs the whole scene's evidence."""
+    union merge reconstructs the whole scene's evidence.
+
+    `max_chunks` caps the fan-out. Boundary-seeking can cut as early as `max_chars // 2`, so the chunk
+    count is not simply `ceil(len / max_chars)` — it can be up to twice that. The cap is therefore
+    checked against chunks as they are produced (stopping the walk immediately) rather than derived from
+    the length up front. `assert_scene_within_ceiling` is the guard expected to fire in practice; this
+    one exists so that a bug in the boundary-seeking above can never become unbounded provider spend.
+    """
     if len(prose) <= max_chars:
         return [(0, prose)]
     chunks: list[tuple[int, str]] = []
@@ -205,11 +367,22 @@ def _deterministic_chunks(prose: str, max_chars: int) -> list[tuple[int, str]]:
                     end = cut + len(sep)
                     break
         chunks.append((start, prose[start:end]))
+        if max_chunks is not None and len(chunks) > max_chunks:
+            raise EvidenceExtractionError(
+                f"chunking {n} chars at {max_chars} chars/chunk exceeded the {max_chunks}-chunk cap — "
+                "refusing to fan out further. Lower the scene size or raise "
+                "DOMINION_IMPORT_EVIDENCE_MAX_CHUNKS."
+            )
         start = end
     return chunks
 
 
-def _merge_chunk_ledgers(chunk_ledgers: list[tuple[int, dict[str, Any]]], prose_len: int) -> dict[str, Any]:
+def _merge_chunk_ledgers(
+    chunk_ledgers: list[tuple[int, dict[str, Any]]],
+    prose_len: int,
+    *,
+    max_quarantine_ratio: float | None = None,
+) -> dict[str, Any]:
     """Bounded, deterministic union of per-chunk ledgers. List sections concatenate with spans shifted
     back into whole-scene coordinates; scalar sections take entry_state from the first chunk, exit_state
     from the last, and the first non-empty pov/setting. Never a raw-text merge."""
@@ -240,7 +413,10 @@ def _merge_chunk_ledgers(chunk_ledgers: list[tuple[int, dict[str, Any]]], prose_
                     ):
                         item = {**item, "span": [item["span"][0] + offset, item["span"][1] + offset]}
                     merged[section].append(item)
-    return validate_ledger(merged, prose_len)
+    # Re-validated in WHOLE-SCENE coordinates. Items quarantined per chunk arrive with span=None and
+    # their marker intact, so they pass through the shift untouched and are counted once more here —
+    # the ratio is therefore judged against the whole scene, not chunk by chunk.
+    return validate_ledger(merged, prose_len, max_quarantine_ratio=max_quarantine_ratio)
 
 
 class LlmImportEvidenceExtractor:
@@ -254,10 +430,14 @@ class LlmImportEvidenceExtractor:
     """
 
     async def extract_scene(self, source: SceneSource, budget: ExtractionBudget) -> ValidatedEvidence:
-        chunks = _deterministic_chunks(source.prose, budget.max_chars_per_chunk)
+        assert_scene_within_ceiling(source, budget)
+        chunks = _deterministic_chunks(source.prose, budget.max_chars_per_chunk, max_chunks=budget.max_chunks)
         if len(chunks) == 1:
             ledger, usage = await self._extract_one(source, source.prose, budget)
-            return ValidatedEvidence(ledger=validate_ledger(ledger, len(source.prose)), token_usage=usage)
+            return ValidatedEvidence(
+                ledger=validate_ledger(ledger, len(source.prose), max_quarantine_ratio=budget.max_quarantine_ratio),
+                token_usage=usage,
+            )
 
         evidence_chunks: list[EvidenceChunk] = []
         total_usage = 0
@@ -268,11 +448,15 @@ class LlmImportEvidenceExtractor:
                     chunk_index=i,
                     char_offset=offset,
                     char_end=offset + len(text),
-                    ledger=validate_ledger(ledger, len(text)),
+                    ledger=validate_ledger(ledger, len(text), max_quarantine_ratio=budget.max_quarantine_ratio),
                 )
             )
             total_usage += usage or 0
-        merged = _merge_chunk_ledgers([(c.char_offset, c.ledger) for c in evidence_chunks], len(source.prose))
+        merged = _merge_chunk_ledgers(
+            [(c.char_offset, c.ledger) for c in evidence_chunks],
+            len(source.prose),
+            max_quarantine_ratio=budget.max_quarantine_ratio,
+        )
         return ValidatedEvidence(ledger=merged, chunks=evidence_chunks, token_usage=total_usage)
 
     async def _extract_one(

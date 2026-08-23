@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from math import ceil
 from pathlib import Path
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -93,7 +94,36 @@ class Settings(BaseSettings):
     # workflow unexpectedly affect another. Escalates to a stronger model on unparseable output.
     import_evidence_model: str = "gpt-5.6-luna"
     import_evidence_fallback_model: str = "gpt-5.6-terra"
-    import_evidence_max_tokens: int = 4000
+    # OUTPUT allowance for ONE extraction call. A real scene's span-anchored ledger is long: 13 sections,
+    # each item carrying a quote and a span. MEASURED on the first real chapter runs: at 4000 the model's
+    # JSON was cut off EXACTLY at the cap for an ordinary chapter scene — unparseable by construction —
+    # and the escalation retried under the same cap and truncated identically, so Book 1 chapters 1 and 2
+    # both failed adoption outright. Observed real output was ~3.5-4k+ for a single 24k-char chunk; with
+    # the chunk size now halved below, 12k of headroom makes truncation-at-the-cap arithmetically remote.
+    # Shrink the chunk before shrinking this — a truncated body is a call paid for and thrown away.
+    import_evidence_max_tokens: int = 12000
+    # --- Import-evidence size envelope (the single operator knob is the chunk size) -------------------
+    # An oversized scene is split into deterministic chunks (workers/import_evidence._deterministic_chunks)
+    # and each chunk is extracted in one call, so THIS is the value that sets per-call input cost. The
+    # other two import-evidence budgets below are derived from it so the three can never drift apart:
+    # a call that passes the input gate must always be affordable under the work ceiling.
+    #   12k chars ~= 3k estimated input tokens (llm.estimate_tokens is ceil(len/4)).
+    import_evidence_max_chars_per_chunk: int = 12_000
+    # Defense-in-depth cap on how many chunks one scene may fan out into. import_evidence_max_scene_chars
+    # is the guard that actually fires (it refuses BEFORE any provider call); this one only trips if the
+    # chunker itself misbehaves, and exists so a chunker bug can never become unbounded provider spend.
+    import_evidence_max_chunks: int = 12
+    # HARD ceiling on the prose of a single scene, checked before any provider traffic. A scene past this
+    # is not a scene — it is a whole chapter or manuscript pasted into one snapshot — and extracting it
+    # would burn a long series of calls to produce a ledger nobody can use. Refuse deterministically and
+    # let the operator re-split the import. Sized at 10 full chunks; observed real scenes are 16-27k chars.
+    import_evidence_max_scene_chars: int = 120_000
+    # Fraction of an extracted ledger's span-bearing items that may be span-quarantined before the whole
+    # extraction is treated as a failure. A handful of fabricated anchors is normal model noise and is
+    # quarantined per item (the item is kept, its bad span dropped). But a model that anchors NOTHING
+    # correctly has not done the job — that must fail closed so the retry/escalation path can run,
+    # instead of silently persisting a ledger with no traceable evidence.
+    import_evidence_max_quarantine_ratio: float = 0.25
     # Manual QA re-run (POST /scene-packets/{id}/qa) runs one Author-free QA pass against the current
     # body. It is a single bounded call, so it gets its own soft/hard work budget separate from a full
     # derive — a tiny soft overage shouldn't discard a usable verdict, but a runaway call must still stop.
@@ -241,7 +271,14 @@ class Settings(BaseSettings):
     # that finishes a handful of tokens over it (the recurring `60043 > 60000`) produced valid output —
     # discarding it just re-runs the same work. So the soft target only WARNS; work is blocked only past
     # this hard ceiling. Sized with headroom over the soft target so genuine overruns still fail closed.
-    scene_token_hard_budget: int = 75_000
+    # Raised 75k -> 120k after the first REAL chapters were driven. On Book 1 chapters 1-3 (2-3k-word
+    # scenes against a live 2,441-entity canon index) Author+QA measured 83,322 / 85,751 / 90,057 and
+    # 90,513 tokens — every one over 75k, so EVERY scene contract failed closed as BLOCKED and no real
+    # chapter could get past contract derivation. Same shape as the 40k->60k resize recorded above: a
+    # ceiling sized against smaller inputs re-blocking honest work. Sized from the observed maximum with
+    # headroom. Per this file's own standing guidance, if cost matters more than contract richness, trim
+    # the schema (less output) rather than lowering this.
+    scene_token_hard_budget: int = 120_000
     scene_time_budget_s: int = 300
     # The gate-1 plan-call runs synchronously inside the POST /runs request, so an unbounded LLM
     # call leaves the browser spinning forever. Bound it: on timeout the request fails cleanly
@@ -284,9 +321,17 @@ class Settings(BaseSettings):
     # its budget fails locally with PromptBudgetExceeded ("prompt_budget_exceeded") BEFORE any provider
     # call — an oversized context must never burn TPM just to get refused mid-generation.
     scene_packet_author_prompt_budget: int = 32_000
-    # Import-evidence input ceiling. An oversized SCENE is chunked deterministically before extraction
-    # (workers/import_evidence._deterministic_chunks), so a single extraction call stays under this.
-    import_evidence_prompt_budget: int = 32_000
+    # Import-evidence INPUT ceiling, in estimated tokens. An oversized SCENE is chunked deterministically
+    # before extraction (workers/import_evidence._deterministic_chunks), so a single extraction call
+    # carries one chunk plus the system prompt and the optional context note. Derived from
+    # import_evidence_max_chars_per_chunk so it actually BINDS: at 32k it sat ~10x above anything the
+    # chunker could ever produce, so the gate could not fire and an oversized context_note would sail
+    # through to a provider call the work ceiling could not pay for.
+    #   ceil(12_000/4) = 3_000 chunk tokens, x1.25 for the estimator running low against a real
+    #   tokenizer (llm_token_counting_estimate_fallback_multiplier), + 2_000 for system prompt + note.
+    # The per-call WORK ceiling is then this + import_evidence_max_tokens, computed in
+    # workers/import_evidence.default_work_token_budget — never a literal, so the three cannot drift.
+    import_evidence_prompt_budget: int = 5_750
     # QA parity with the author: its prefix is the chapter packet (minus derived/audit sections — see
     # scene_packet.qa.build_prefix), and a legitimately rich chapter packet plus the scene body was
     # observed to overflow the old 24k guard even after the prefix slimming.
@@ -309,6 +354,41 @@ class Settings(BaseSettings):
     # the API cross-origin and no CORS origins are needed by default. Set DOMINION_CORS_ORIGINS
     # (comma-separated) only if something hits the API directly from another origin.
     cors_origins: str = ""
+
+    @model_validator(mode="after")
+    def _import_evidence_envelope_is_coherent(self) -> Settings:
+        """The import-evidence size envelope must hold together, or extraction is broken by construction.
+
+        Two invariants, both learned from a live defect: the extractor's per-call work ceiling was 4_000
+        tokens while the chunker guaranteed ~6_000 input tokens per call, so every scene over ~14k chars
+        paid for a successful provider call and then died on BudgetExceeded. Enforced here rather than in
+        a test because the values are operator-overridable via DOMINION_* env vars, and a test cannot see
+        the operator's environment. Fail at boot, not per scene mid-import.
+        """
+        chunk_input_tokens = ceil(self.import_evidence_max_chars_per_chunk / 4)  # mirrors llm.estimate_tokens
+        if chunk_input_tokens > self.import_evidence_prompt_budget:
+            raise ValueError(
+                "import-evidence budgets are incoherent: one full chunk estimates at "
+                f"{chunk_input_tokens} input tokens (import_evidence_max_chars_per_chunk="
+                f"{self.import_evidence_max_chars_per_chunk}) but import_evidence_prompt_budget is "
+                f"{self.import_evidence_prompt_budget} — every chunked extraction call would be refused "
+                "at the prompt gate. Raise the prompt budget or lower the chunk size."
+            )
+        span = self.import_evidence_max_chars_per_chunk * self.import_evidence_max_chunks
+        if self.import_evidence_max_scene_chars > span:
+            raise ValueError(
+                "import-evidence budgets are incoherent: import_evidence_max_scene_chars="
+                f"{self.import_evidence_max_scene_chars} exceeds what the chunk cap can carry "
+                f"({self.import_evidence_max_chars_per_chunk} x {self.import_evidence_max_chunks} = {span})"
+                " — a scene under the hard ceiling would still be refused by the chunk cap, after the "
+                "chunker had already run. Raise import_evidence_max_chunks or lower the scene ceiling."
+            )
+        if not 0.0 <= self.import_evidence_max_quarantine_ratio <= 1.0:
+            raise ValueError(
+                "import_evidence_max_quarantine_ratio must be a fraction in [0.0, 1.0], got "
+                f"{self.import_evidence_max_quarantine_ratio}"
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:
