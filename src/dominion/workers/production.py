@@ -566,6 +566,13 @@ async def apply_repair_task(
     )
 
 
+#: Re-exported so the API layer catches ONE exception type rather than reaching into the internal
+#: module. `workers.production` is the seam the routers import (#285).
+ManualVerificationRequired = production_repair.ManualVerificationRequired
+NominationEvidenceMissing = production_repair.NominationEvidenceMissing
+human_verify_issue = production_repair.human_verify_issue
+
+
 async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> RepairVerification:
 
     return await production_repair.verify_repair_task(session, task_id)

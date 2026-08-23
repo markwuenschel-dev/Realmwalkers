@@ -14,8 +14,19 @@ from conftest import seed_scene_packet
 from sqlalchemy import select
 from test_scene_fidelity_evaluator import _body, _clause, _req, _runner
 
-from dominion.shared.enums import IssueStatus, RepairAuthorityLevel, RepairTaskStatus
-from dominion.shared.models import Beat, Book, Chapter, Critique, DraftAttempt, Issue, ProductionRun, RepairTask, Scene
+from dominion.shared.enums import IssueDecisionKind, IssueStatus, RepairAuthorityLevel, RepairTaskStatus
+from dominion.shared.models import (
+    Beat,
+    Book,
+    Chapter,
+    Critique,
+    DraftAttempt,
+    Issue,
+    IssueDecision,
+    ProductionRun,
+    RepairTask,
+    Scene,
+)
 from dominion.workers import production_fidelity
 from dominion.workers.scene_fidelity.evaluator import evaluate_scene_fidelity
 from dominion.workers.scene_fidelity.models import EvidenceAnchor
@@ -117,7 +128,16 @@ async def test_stale_report_is_a_hold_and_creates_no_issue(db_factory) -> None:
         assert await _issues(s, run) == []
 
 
-async def test_current_satisfied_verifies_a_prior_issue(db_factory) -> None:
+async def test_current_satisfied_NOMINATES_but_never_verifies_a_human_required_issue(db_factory) -> None:
+    """#285 child A. This test used to assert `issue.status == VERIFIED` — it WAS the defect.
+
+    `ev.result` is copied verbatim from the adapter's model output, and `evidence_valid` beside it only
+    proves the quote the model chose really occurs at the offsets it named, not that it satisfies the
+    clause. So a model returning `satisfied` plus any exact substring closed a human-required hold.
+
+    The evaluator may still say it. The claim is now an append-only nomination carrying the report
+    artifact and clause it rests on; the hold stays open until a human verifies it.
+    """
     async with db_factory() as s:
         run, scene, sp, da = await _setup(s)
         await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
@@ -138,7 +158,24 @@ async def test_current_satisfied_verifies_a_prior_issue(db_factory) -> None:
         )
         await production_fidelity.triage_scene_fidelity_for_production(s, run=run)
         await s.refresh(issue)
-        assert issue.status == IssueStatus.VERIFIED.value
+        assert issue.status != IssueStatus.VERIFIED.value, (
+            "a model-asserted SATISFIED result must NOT clear a human-required hold"
+        )
+        nominations = (
+            (
+                await s.execute(
+                    select(IssueDecision).where(
+                        IssueDecision.issue_id == issue.id,
+                        IssueDecision.decision == IssueDecisionKind.VERIFICATION_NOMINATED.value,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(nominations) == 1, "but the evaluator's claim IS recorded, with its evidence"
+        assert nominations[0].decided_by == "scene_fidelity_evaluator"
+        assert nominations[0].evidence_id, "the nomination names the report artifact + clause it rests on"
 
 
 async def test_operational_hold_does_not_clear_a_prior_issue(db_factory) -> None:

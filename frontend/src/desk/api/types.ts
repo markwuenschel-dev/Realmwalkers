@@ -372,10 +372,23 @@ export interface PacketBody {
   adjudication_notes?: string;
 }
 
+/** One open question. `item_id` is server-minted (#277); clients never invent it. `legacy` marks a
+ *  pre-#277 item read without an id — it cannot be ruled until a write mints it one. */
+export interface OpenQuestionItem {
+  item_id?: string;
+  text: string;
+  legacy?: boolean;
+}
+
+/** A ruling. It clears its question only when `item_id` matches AND `resolution` and `source` are both
+ *  non-empty AND the server recorded an `at`. Legacy entries carry `q` instead of `item_id` and are
+ *  readable history that can never clear anything. */
 export interface ResolvedQuestion {
-  q: string;
+  item_id?: string;
+  q?: string;
   resolution: string;
-  at: string;
+  source?: string;
+  at?: string;
 }
 
 export interface QaIssue {
@@ -432,7 +445,7 @@ export type PacketOut = Omit<
 > & {
   body: PacketBody;
   qa_warnings: PacketWarnings | null;
-  open_questions: { items?: string[]; resolved?: ResolvedQuestion[] } | null;
+  open_questions: { items?: OpenQuestionItem[]; resolved?: ResolvedQuestion[] } | null;
   blocked_reason?: string | null;
   blocker_source?: string | null;
   blocker_kind?: string | null;
@@ -445,7 +458,7 @@ export type PacketOut = Omit<
 
 export type PacketUpdateIn = Omit<S["PacketUpdateIn"], "body" | "open_questions"> & {
   body?: PacketBody | null;
-  open_questions?: { items?: string[]; resolved?: ResolvedQuestion[] } | null;
+  open_questions?: { items?: OpenQuestionItem[]; resolved?: ResolvedQuestion[] } | null;
 };
 
 export interface SceneWordBudget {

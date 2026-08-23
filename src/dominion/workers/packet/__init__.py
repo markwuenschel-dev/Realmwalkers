@@ -40,6 +40,7 @@ from dominion.workers.memory import canon_rag
 from dominion.workers.packet import approval_policy, canon_conflict, master
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import evidence as evidence_mod
+from dominion.workers.packet import open_questions as open_questions_policy
 from dominion.workers.packet import qa as qa_mod
 from dominion.workers.packet.surface_contract import build_surface_contract
 from dominion.workers.packet.validation import evaluate_chapter_packet_internal
@@ -398,14 +399,13 @@ async def _qa_and_persist(
     # (approval_policy), so a conflict-laden packet is still a proposed contract that a human must clear —
     # it does not fail the adoption closed (Q14). De-duplicated, append-only, order-preserving.
     if extra_open_questions:
-        existing_items = list(packet["chapter_contract"]["open_questions"]["items"])
-        seen = set(existing_items)
-        for question in extra_open_questions:
-            if question and question not in seen:
-                existing_items.append(question)
-                seen.add(question)
-        packet["chapter_contract"]["open_questions"]["items"] = existing_items
-        packet["open_questions"] = list(existing_items)
+        # Each appended question is MINTED an item_id (#277). Appending a bare string here would create a
+        # question that can never be ruled, because the clearance predicate binds by id and nothing else.
+        folded = open_questions_policy.append_open_questions(
+            packet["chapter_contract"]["open_questions"], extra_open_questions
+        )
+        packet["chapter_contract"]["open_questions"] = folded
+        packet["open_questions"] = master.open_question_texts(folded)
 
     # Structural canary on the canonical body. Blockers here are the true-blocker list only (e.g. no
     # scene seed carries a usable scene_job); fixable gaps ride along as repair tasks.

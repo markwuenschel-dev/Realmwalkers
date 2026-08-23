@@ -493,6 +493,17 @@ export interface paths {
     /**
      * Approve Beats
      * @description Approve beats only — does not queue draft jobs under contract-first drafting.
+     *
+     *     #283 C1. This route used to write `BeatStatus.APPROVED` across every beat in the chapter with NO
+     *     permit and NO lock, committing immediately. Its only checks were "beats exist" and "these ids belong
+     *     to this chapter" — neither of which is an authorization. The sharpest evidence that this was a live
+     *     bypass rather than a theoretical one: ninety lines below, `redraft_scene` refuses when no approved
+     *     beat exists. The ungated route was the workaround for the gate it bypassed.
+     *
+     *     Now: the chapter workflow lock is held, the permit is evaluated INSIDE it on the post-lock read, and
+     *     evaluation and write share one transaction. That ordering is the whole point — a permit checked
+     *     before the lock is a permit checked against state another writer is free to change before the write
+     *     lands.
      */
     post: operations["approve_beats_chapters__chapter_id__beats_approve_post"];
     delete?: never;
@@ -568,6 +579,35 @@ export interface paths {
      * @description Queue draft jobs for approved beats with validated ScenePackets — canonical contract-first entry.
      */
     post: operations["draft_chapter_chapters__chapter_id__draft_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/chapters/{chapter_id}/autonomy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Chapter Autonomy
+     * @description Whether anything can proceed on this chapter right now, and if not, who has to act.
+     *
+     *     This is the runtime home of REVIEW_READY. Before it, the whole answer was an inline boolean in
+     *     `production_sequence` (`ready_for_human = not open_issues and not missing_scene_nos and not
+     *     qa_block`) that carried no reason, no next action, and could not tell an author who must read a
+     *     draft from an operator whose provider is down.
+     *
+     *     The unattended driver reads THIS, not its own re-derivation — which is what keeps the authority
+     *     foundation (#277's open-questions gate, #285's verification predicate) in front of the loop rather
+     *     than beside it.
+     */
+    get: operations["chapter_autonomy_chapters__chapter_id__autonomy_get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1520,6 +1560,33 @@ export interface paths {
     put?: never;
     /** Escalate Issue */
     post: operations["escalate_issue_issues__issue_id__escalate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/issues/{issue_id}/verify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Verify Issue
+     * @description THE human act that clears a manual-grant hold (#285).
+     *
+     *     A model may nominate and report evidence; it may never clear, verify, grant, or approve. This is the
+     *     other half of that rule — without a human path the withdrawal would simply strand every hold.
+     *
+     *     `force=true` rules without evaluator evidence (the human inspected it themselves). It is not a
+     *     bypass of anything: this route IS the human authority, and forcing only skips the check that an
+     *     evaluator has already said something.
+     */
+    post: operations["verify_issue_issues__issue_id__verify_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -4562,6 +4629,39 @@ export interface components {
       protected_manual: number;
     };
     /**
+     * ChapterAutonomyOut
+     * @description A chapter's autonomy state, with the human-facing account of it.
+     *
+     *     Four states, one precedence, exactly one applies: operational_blocked > human_action_required >
+     *     review_ready > autonomy_ready. `next_human_action` is ALWAYS present on a blocked state and always
+     *     absent otherwise — enforced at construction, so a client can branch on it without a null dance.
+     */
+    ChapterAutonomyOut: {
+      /**
+       * Chapter Id
+       * Format: uuid
+       */
+      chapter_id: string;
+      /** State */
+      state: string;
+      /** Reason */
+      reason: string;
+      /** Next Human Action */
+      next_human_action?: string | null;
+      /**
+       * May Proceed Unattended
+       * @default false
+       */
+      may_proceed_unattended: boolean;
+      /**
+       * Diagnostics
+       * @default {}
+       */
+      diagnostics: {
+        [key: string]: unknown;
+      };
+    };
+    /**
      * ChapterCreateIn
      * @description POST body to create/update a chapter's POV + outline, with no LLM beat-proposal call — the
      *     contract-first entry point (create the chapter, then POST its /packet to author the chapter
@@ -5721,6 +5821,8 @@ export interface components {
       reason?: string | null;
       /** Merged Into Issue Id */
       merged_into_issue_id?: string | null;
+      /** Decided By */
+      decided_by?: string | null;
     };
     /** IssueDecisionOut */
     IssueDecisionOut: {
@@ -6342,6 +6444,8 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+      /** Open Questions Token */
+      open_questions_token?: string | null;
       /**
        * Can Approve
        * @default false
@@ -6422,6 +6526,8 @@ export interface components {
       } | null;
       /** Confidence */
       confidence?: string | null;
+      /** Expected Open Questions Token */
+      expected_open_questions_token?: string | null;
     };
     /** ParsedChapterOut */
     ParsedChapterOut: {
@@ -10041,6 +10147,37 @@ export interface operations {
       };
     };
   };
+  chapter_autonomy_chapters__chapter_id__autonomy_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        chapter_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChapterAutonomyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_parts_books__book_id__parts_get: {
     parameters: {
       query?: never;
@@ -11861,6 +11998,43 @@ export interface operations {
   escalate_issue_issues__issue_id__escalate_post: {
     parameters: {
       query?: never;
+      header?: never;
+      path: {
+        issue_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["IssueDecisionIn"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IssueOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  verify_issue_issues__issue_id__verify_post: {
+    parameters: {
+      query?: {
+        force?: boolean;
+      };
       header?: never;
       path: {
         issue_id: string;

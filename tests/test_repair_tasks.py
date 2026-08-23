@@ -14,7 +14,9 @@ import pytest
 from sqlalchemy import select
 
 from dominion.shared.enums import (
+    AuthorizationRequirement,
     BeatStatus,
+    IssueDecisionKind,
     IssueStatus,
     JobKind,
     RepairAuthorityLevel,
@@ -27,6 +29,7 @@ from dominion.shared.models import (
     Book,
     Chapter,
     Issue,
+    IssueDecision,
     Job,
     ProductionRun,
     RepairAttempt,
@@ -275,3 +278,72 @@ async def test_fanout_verify_accepts_when_every_scene_revised_clean(db_factory):
         for issue in issues:
             await s.refresh(issue)
             assert issue.status == IssueStatus.VERIFIED
+
+
+async def test_critique_silence_nominates_but_never_verifies_a_manual_grant_linked_issue(db_factory):
+    """#285 child B, in the case that actually reaches the per-issue check.
+
+    `resolved` is "the task's issues that no CURRENT critique matches" — the ABSENCE of a complaint. A
+    reviewer returns nothing for many reasons that are not remediation (terse model, shifted wording, a
+    changed critique id, a soft-failed call), and the chapter-scoped path said so outright:
+    `must_change_ok = True  # addressed via critique disappearance for the originating issues`.
+
+    The simple case is already refused at the entry point, so this is the MIXED case: the task being
+    verified is ceiling-gated, but its issues are also linked to a manual-grant task. Verifying them off
+    the ceiling-gated sibling would let one task launder the other's authority requirement.
+    """
+    async with db_factory() as s:
+        _book, chapter, run, scenes = await _seed(s)
+        task, issues = await _chapter_task(s, run, scenes)
+        assert task.authorization_requirement == AuthorizationRequirement.CEILING_GATED.value
+
+        # A manual-grant sibling over the SAME issues — the author-controlled repair for the same defect.
+        sibling = RepairTask(
+            production_run_id=run.id,
+            chapter_id=run.chapter_id,
+            repair_kind="fidelity",
+            authority_level=RepairAuthorityLevel.HUMAN_REQUIRED,
+            authorization_requirement=AuthorizationRequirement.MANUAL_GRANT.value,
+            status=RepairTaskStatus.WAITING_FOR_HUMAN,
+            issue_ids=[str(i.id) for i in issues],
+            instructions="author-controlled repair for the same defect",
+        )
+        s.add(sibling)
+        await s.flush()
+
+        await production.apply_repair_task(s, task.id, autonomous=False, human_approved=True)
+        for scene in scenes:  # revisions land clean: no critique matches any issue any more
+            s.add(
+                Scene(
+                    chapter_id=chapter.id,
+                    scene_no=scene.scene_no,
+                    version=2,
+                    status="pending_review",
+                    word_count=42,
+                    prose=f"Scene {scene.scene_no} revised. Each beat stays in its owning scene.",
+                    prose_source="agent",
+                )
+            )
+        await s.flush()
+
+        await production.verify_repair_task(s, task.id)
+
+        for issue in issues:
+            await s.refresh(issue)
+            assert issue.status != IssueStatus.VERIFIED, (
+                "critique silence must not clear an issue that a manual-grant task also holds"
+            )
+            nominations = (
+                (
+                    await s.execute(
+                        select(IssueDecision).where(
+                            IssueDecision.issue_id == issue.id,
+                            IssueDecision.decision == IssueDecisionKind.VERIFICATION_NOMINATED.value,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(nominations) == 1, "the verifier's claim IS recorded, with its evidence"
+            assert nominations[0].decided_by == "repair_verifier"

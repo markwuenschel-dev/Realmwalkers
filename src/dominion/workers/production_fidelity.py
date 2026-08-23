@@ -18,6 +18,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared import verification_authority
 from dominion.shared.enums import (
     ArtifactType,
     IssueStatus,
@@ -227,14 +228,68 @@ async def _materialize_fidelity_issue(
     return issue
 
 
-async def _verify_satisfied_clauses(session: AsyncSession, *, scene: Scene, report: SceneFidelityReport) -> None:
-    """A prior open fidelity Issue is VERIFIED only by a CURRENT satisfied evaluation of its hard clause
-    with positive evidence — never by the mere absence of a complaint (ADR 0020/0022)."""
+async def _verify_satisfied_clauses(
+    session: AsyncSession, *, scene: Scene, report: SceneFidelityReport, report_artifact_id: uuid.UUID
+) -> None:
+    """Record what a CURRENT satisfied evaluation claims about each open fidelity Issue (#285).
+
+    This function used to set `IssueStatus.VERIFIED` outright, under a docstring saying verification was
+    "never by the mere absence of a complaint". That was literally true and materially false: it was
+    verification by the mere PRESENCE of a model claim. `ev.result` is copied verbatim from the adapter's
+    model output (`scene_fidelity/evaluator.py:183`), and while `ev.evidence_valid` beside it IS
+    deterministic — span-in-range plus exact quote match — it only proves the quote the model chose really
+    occurs at the offsets it named. It does not prove the quote SATISFIES the clause. So a model returning
+    `satisfied` plus any exact substring of the prose closed a human-required hold.
+
+    What the model may still do is unchanged and complete: it nominates, with its evidence recorded as an
+    append-only `IssueDecision` naming the immutable report artifact and clause the claim rests on. The
+    issue's status is untouched, so the hold stays active and keeps counting toward the readiness gate at
+    `production_sequence.py:904-913` — which is what stops both children shortening the count that gates
+    publication.
+
+    Ceiling-gated work still auto-verifies. Only work whose Authorization Requirement demands an explicit
+    human grant is withheld, and an issue whose requirement cannot be determined is treated as demanding
+    one (unknown provenance is not human provenance).
+    """
     satisfied = {
         ev.clause_id for ev in report.clause_evaluations if ev.result == ClauseResult.SATISFIED and ev.evidence_valid
     }
-    for clause_id in satisfied:
-        for issue in await _open_fidelity_issues_for_clause(session, scene_id=scene.id, clause_id=clause_id):
+    if not satisfied:
+        return
+
+    by_clause: dict[str, list[Issue]] = {}
+    for clause_id in sorted(satisfied):
+        by_clause[clause_id] = await _open_fidelity_issues_for_clause(session, scene_id=scene.id, clause_id=clause_id)
+    every_issue = [issue for issues in by_clause.values() for issue in issues]
+    if not every_issue:
+        return
+
+    # ONE query for the whole set: the linked repair tasks whose Authorization Requirement decides whether
+    # a human must clear each issue. Per issue would be an N+1 over every scene of every chapter.
+    tasks_by_issue = await verification_authority.manual_grant_task_ids_for_issues(
+        session, [issue.id for issue in every_issue]
+    )
+
+    for clause_id, issues in by_clause.items():
+        for issue in issues:
+            linked = tasks_by_issue.get(str(issue.id), [])
+            if verification_authority.demands_human_verification(linked):
+                await verification_authority.nominate_verification(
+                    session,
+                    issue_id=issue.id,
+                    decided_by="scene_fidelity_evaluator",
+                    evidence_kind=verification_authority.EVIDENCE_KIND_FIDELITY_CLAUSE,
+                    # DIRECT evidence identity: the immutable report artifact plus the clause. A
+                    # re-evaluation of the same report collides on the uniqueness key rather than
+                    # appending a second identical nomination.
+                    evidence_id=f"{report_artifact_id}:{clause_id}",
+                    reason=(
+                        f"evaluator reported clause {clause_id} SATISFIED with a quote that validated "
+                        "against the prose. This is a nomination, not a verification: a human grant is "
+                        "required to clear this hold."
+                    ),
+                )
+                continue
             issue.status = IssueStatus.VERIFIED.value
 
 
@@ -280,7 +335,7 @@ async def triage_scene_fidelity_for_production(session: AsyncSession, *, run: Pr
                     f"scene {scene_no}: clause {evaluation.clause_id} incomplete ({evaluation.result.value})"
                 )
 
-        await _verify_satisfied_clauses(session, scene=scene, report=report)
+        await _verify_satisfied_clauses(session, scene=scene, report=report, report_artifact_id=report_artifact.id)
 
         for projection in project_report_to_critiques(report, source_artifact_id=report_artifact.id):
             critique, _created = await _persist_fidelity_critique(

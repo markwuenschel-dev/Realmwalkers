@@ -7,6 +7,7 @@ regenerated compat mirrors, and is idempotent (to_master_packet ∘ to_master_pa
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from dominion.workers.packet.master import (
@@ -83,8 +84,13 @@ def test_legacy_body_normalizes_to_canonical():
     assert contract["spine"] == "The hunt closes in."
     assert contract["locks"]["timeline_locks"] == ["Chapter spans one night"]
     assert contract["claims"] == out["claims"]
-    assert contract["open_questions"] == {"items": ["who hired the courier?"], "resolved": []}
-    # legacy open_questions mirror stays the author-shape string list
+    # #277: items carry a server-minted item_id so a ruling binds to a QUESTION, never to an array
+    # position. The legacy top-level mirror stays a flat string list — `scene_packet/author.py:126`
+    # renders it with `str(i).strip()`, and it is what makes D6's rollback claim true.
+    items = contract["open_questions"]["items"]
+    assert [i["text"] for i in items] == ["who hired the courier?"]
+    assert all(uuid.UUID(i["item_id"]) for i in items)  # server-minted, parseable
+    assert contract["open_questions"]["resolved"] == []
     assert out["open_questions"] == ["who hired the courier?"]
     # every seed gains the visible_character_evidence slot
     assert out["scene_seeds"][0]["visible_character_evidence"] == []
@@ -97,13 +103,18 @@ def test_legacy_body_normalizes_to_canonical():
 def test_reader_folds_sibling_open_questions_column():
     column = {"items": ["is Serra recognized?"], "resolved": [{"q": "who hired the courier?", "a": "The Broker"}]}
     out = to_master_packet(_legacy_body(), column)
-    assert out["chapter_contract"]["open_questions"]["items"] == ["is Serra recognized?"]
+    assert [i["text"] for i in out["chapter_contract"]["open_questions"]["items"]] == ["is Serra recognized?"]
+    # A legacy resolved entry (no item_id) is preserved VERBATIM as readable history — D4/D5. It can
+    # never clear anything, because nothing establishes which question it ruled.
     assert out["chapter_contract"]["open_questions"]["resolved"] == column["resolved"]
     assert out["open_questions"] == ["is Serra recognized?"]
-    # helper reads the same fold without full normalization
-    assert master_open_questions(_legacy_body(), column)["items"] == ["is Serra recognized?"]
+    # The READ helper must not mint: D4/D5 forbids inventing an id on read, so a legacy item comes back
+    # marked `legacy` and unbound — which is what makes it fail closed until a human re-rules it.
+    read = master_open_questions(_legacy_body(), column)
+    assert [i["text"] for i in read["items"]] == ["is Serra recognized?"]
+    assert all("item_id" not in i and i["legacy"] for i in read["items"])
     # legacy fallback: no column -> the author's list
-    assert master_open_questions(_legacy_body())["items"] == ["who hired the courier?"]
+    assert [i["text"] for i in master_open_questions(_legacy_body())["items"]] == ["who hired the courier?"]
 
 
 def test_round_trip_is_idempotent():

@@ -31,6 +31,7 @@ import type {
   PacketRisk,
   PacketSceneSeed,
   ResolvedQuestion,
+  OpenQuestionItem,
 } from "../api/types";
 import type { ExportKind } from "../lib/docx";
 import { chapterLabel, chapterLabelShort } from "../manuscript/labels";
@@ -317,8 +318,16 @@ export default function PacketsScreen() {
     setBatchOpen(false);
   };
 
-  const openItems = (packet?.open_questions?.items ?? []).filter(Boolean);
+  // EVERY item on the packet, and the subset still awaiting a ruling. A write must send `allItems`
+  // (items are cleared by a ruling, never by deletion), while the panel lists only what is still open.
+  const allItems = (packet?.open_questions?.items ?? []).filter(Boolean);
   const resolvedItems = packet?.open_questions?.resolved ?? [];
+  const ruledIds = new Set(
+    resolvedItems
+      .filter((r) => r.item_id && r.resolution?.trim() && r.source?.trim() && r.at)
+      .map((r) => r.item_id as string),
+  );
+  const openItems = allItems.filter((i) => !i.item_id || !ruledIds.has(i.item_id));
   // Approval is the SERVER's gate: repair/warn issues never disable it locally (approve-with-repairs
   // — the repairs still gate final export). Only `blocked` packets refuse approval.
   const canApprove = packet?.can_approve ?? false;
@@ -347,32 +356,43 @@ export default function PacketsScreen() {
     downloadBlob(`chapter_${chapter.chapter_no}_packet.json`, packetJson, "application/json");
   };
 
-  // Resolve a question WITH the human's ruling: drop it from `items`, append it to `resolved` so the
-  // adjudication is recorded (not just cleared). Both lists are sent together — the server replaces the
-  // whole open_questions object, and the approve gate only counts `items`.
+  // Resolve a question WITH the human's ruling (#277). The question STAYS in `items` — it is cleared by
+  // a ruling bound to its server-minted `item_id`, never by being deleted. Dropping the item used to be
+  // as good as answering it, which is the defect this ticket closed.
+  //
+  // `expected_open_questions_token` is the state the client actually read. The server recomputes it
+  // under a row lock: absent -> 422, stale -> 409 and NOTHING is changed. That matters because this is a
+  // whole-object read-modify-write from a possibly-stale snapshot, and losing an ITEM would grant
+  // approval on a question nobody ruled.
   const resolveQuestion = (idx: number, resolution: string) => {
     if (!packet || !chapterId) return;
-    const items = openItems.filter((_, i) => i !== idx);
+    const target = openItems[idx];
+    if (!target?.item_id) return; // a legacy item must be re-minted by a write before it can be ruled
     const entry: ResolvedQuestion = {
-      q: openItems[idx],
+      item_id: target.item_id,
       resolution: resolution.trim(),
-      at: new Date().toISOString(),
+      source: "author",
     };
     void run("resolve", () =>
       api.updatePacket(chapterId, {
-        open_questions: { items, resolved: [...resolvedItems, entry] },
+        open_questions: { items: allItems, resolved: [...resolvedItems, entry] },
+        expected_open_questions_token: packet.open_questions_token ?? undefined,
       }),
     );
   };
 
-  // Undo a ruling: move it back into `items` (re-gating approval) and drop it from `resolved`.
+  // Undo a ruling: drop the ruling. The question was never removed, so clearing its ruling re-gates
+  // approval on its own.
   const unresolveQuestion = (idx: number) => {
     if (!packet || !chapterId) return;
     const entry = resolvedItems[idx];
     if (!entry) return;
     const resolved = resolvedItems.filter((_, i) => i !== idx);
     void run("resolve", () =>
-      api.updatePacket(chapterId, { open_questions: { items: [...openItems, entry.q], resolved } }),
+      api.updatePacket(chapterId, {
+        open_questions: { items: allItems, resolved },
+        expected_open_questions_token: packet.open_questions_token ?? undefined,
+      }),
     );
   };
 
@@ -757,6 +777,7 @@ export default function PacketsScreen() {
       {!loading && packet && !editing && (
         <PacketView
           packet={packet}
+          allItems={allItems}
           openItems={openItems}
           resolvedItems={resolvedItems}
           resolving={busy === "resolve"}
@@ -842,6 +863,7 @@ export default function PacketsScreen() {
 
 function PacketView({
   packet,
+  allItems,
   openItems,
   resolvedItems,
   resolving,
@@ -849,7 +871,10 @@ function PacketView({
   onUnresolve,
 }: {
   packet: PacketOut;
-  openItems: string[];
+  // EVERY item, so the resolved panel can still name the question a ruling cleared — `openItems` holds
+  // only the unruled subset, so a ruled question is by definition absent from it.
+  allItems: OpenQuestionItem[];
+  openItems: OpenQuestionItem[];
   resolvedItems: ResolvedQuestion[];
   resolving: boolean;
   onResolve: (i: number, resolution: string) => void;
@@ -907,8 +932,8 @@ function PacketView({
           <div style={css("display:flex;flex-direction:column;gap:14px")}>
             {openItems.map((q, i) => (
               <QuestionResolver
-                key={i}
-                question={q}
+                key={q.item_id ?? i}
+                question={q.text}
                 disabled={resolving}
                 onResolve={(text) => onResolve(i, text)}
               />
@@ -934,7 +959,9 @@ function PacketView({
                 )}
               >
                 <div style={css("min-width:0;flex:1")}>
-                  <div style={css("font-size:12.5px;color:var(--dim);line-height:1.45")}>{r.q}</div>
+                  <div style={css("font-size:12.5px;color:var(--dim);line-height:1.45")}>
+                    {r.q ?? allItems.find((i) => i.item_id === r.item_id)?.text ?? r.item_id}
+                  </div>
                   <div
                     style={css("font-size:13px;color:var(--ink);line-height:1.45;margin-top:3px")}
                   >

@@ -17,7 +17,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared import repair_budget
+from dominion.shared import repair_budget, verification_authority
 from dominion.shared.authorization import (
     DEFAULT_AUTHORIZATION_CEILING,
     authorize_repair,
@@ -1029,12 +1029,56 @@ async def _finalize_repair_verification(
         status=AgentRunStatus.COMPLETED,
         payload={"repair_verification_id": str(verification.id), "verdict": str(verdict)},
     )
-    for issue in resolved:
+    # #285 child B — VERIFICATION BY SILENCE is withdrawn.
+    #
+    # `resolved` is "the task's issues that no CURRENT critique matches". That is the absence of a
+    # complaint, and a reviewer returns nothing for many reasons that are not remediation: the model was
+    # terse, the wording shifted, a critique id changed, or the call soft-failed. All of those were
+    # indistinguishable from a genuine repair, and the code said so outright at the chapter-scoped call
+    # site: `must_change_ok = True  # addressed via critique disappearance for the originating issues`.
+    #
+    # A model may still SAY the issue looks fixed. That claim is now persisted as an append-only
+    # nomination naming the repair attempt it rests on, and the issue stays open — so it keeps counting in
+    # the readiness set at `production_sequence.py:904-913` instead of shortening the count that gates
+    # publication. Ceiling-gated work is unaffected and still auto-verifies.
+    manual_by_issue = await verification_authority.manual_grant_task_ids_for_issues(
+        session, [issue.id for issue in resolved]
+    )
+    human_required_issues = [
+        issue
+        for issue in resolved
+        if verification_authority.demands_human_verification(manual_by_issue.get(str(issue.id), []))
+    ]
+    auto_verifiable = [issue for issue in resolved if issue not in human_required_issues]
+    for issue in auto_verifiable:
         issue.status = IssueStatus.VERIFIED
+    for issue in human_required_issues:
+        await verification_authority.nominate_verification(
+            session,
+            issue_id=issue.id,
+            decided_by="repair_verifier",
+            evidence_kind=verification_authority.EVIDENCE_KIND_REPAIR_ATTEMPT,
+            # DIRECT evidence identity: the attempt this verification hangs off. A re-verification of the
+            # same attempt collides on the uniqueness key instead of appending a duplicate claim.
+            evidence_id=f"{repair_attempt_id}:{issue.id}",
+            reason=(
+                "no current critique matched this issue after the repair attempt. That is the ABSENCE of "
+                "a complaint, not evidence of remediation — a human grant is required to clear this hold."
+            ),
+        )
     for issue in remaining:
         issue.status = IssueStatus.ACCEPTED
     if verdict == RepairVerificationVerdict.ACCEPT:
-        task.status = RepairTaskStatus.VERIFIED
+        # A manual-grant task is not cleared by an accepted verdict either: the verdict rests on the same
+        # critique-disappearance signal. It parks for the human instead, which is the state the Desk
+        # already renders and the sweeper already refuses to claim.
+        task.status = (
+            RepairTaskStatus.WAITING_FOR_HUMAN
+            if verification_authority.requirements_demand_human_verification([task.authorization_requirement])
+            else RepairTaskStatus.VERIFIED
+        )
+        if task.status == RepairTaskStatus.WAITING_FOR_HUMAN:
+            run.status = ProductionRunStatus.WAITING_FOR_HUMAN
     elif verdict == RepairVerificationVerdict.ESCALATE_TO_HUMAN:
         task.status = RepairTaskStatus.WAITING_FOR_HUMAN
         run.status = ProductionRunStatus.WAITING_FOR_HUMAN
@@ -1194,10 +1238,113 @@ async def _verify_chapter_scoped_repair(
     )
 
 
+class NominationEvidenceMissing(Exception):
+    """A human tried to verify a hold that carries no recorded evaluator nomination.
+
+    Not a hard bar on human authority — a human may always clear a hold they have inspected themselves,
+    via `force=True`. It exists so the ORDINARY path cannot silently become "click verify on anything":
+    the default asks the human to confirm they are ruling without evaluator evidence, rather than
+    implying evidence exists.
+    """
+
+
+async def human_verify_issue(
+    session: AsyncSession,
+    *,
+    issue_id: uuid.UUID,
+    decided_by: str,
+    reason: str | None = None,
+    force: bool = False,
+) -> Issue:
+    """THE human act that clears a manual-grant hold (#285). Never reachable by a model.
+
+    One atomic transaction, with row locks over the issue AND every linked task, because evidence may
+    persist without clearance but clearance may never partially apply. Order:
+
+      1. lock the issue (`with_for_update`, `populate_existing` — a `session.get` alone hands back the
+         identity-mapped pre-lock copy and every check below would read stale state);
+      2. revalidate that a nomination still exists, unless the human explicitly overrides;
+      3. lock and reconcile EVERY linked manual-grant task — not just one, and not only on an ACCEPT
+         verdict, which is how the rejected WIP left siblings stranded;
+      4. record the human VERIFY decision, then flip the issue.
+
+    `decided_by` is recorded as provenance. It is NOT an identity assurance: this API is unauthenticated
+    by standing decision (C10). What the row proves is that the transition came through the human path,
+    which is exactly the thing a model can no longer do.
+    """
+    issue = await session.get(Issue, issue_id, populate_existing=True, with_for_update=True)
+    if issue is None:
+        raise ValueError("issue not found")
+
+    if not force:
+        nomination = (
+            await session.execute(
+                select(IssueDecision.id).where(
+                    IssueDecision.issue_id == issue_id,
+                    IssueDecision.decision == IssueDecisionKind.VERIFICATION_NOMINATED.value,
+                )
+            )
+        ).first()
+        if nomination is None:
+            raise NominationEvidenceMissing(
+                f"issue {issue_id} carries no verification nomination. Nothing has reported evidence that "
+                "it is remediated. Re-send with force=true to rule on it without evaluator evidence."
+            )
+
+    linked = (
+        (
+            await session.execute(
+                select(RepairTask)
+                .where(RepairTask.issue_ids.contains([str(issue_id)]))
+                .with_for_update()
+                .order_by(RepairTask.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    session.add(
+        IssueDecision(
+            issue_id=issue_id,
+            decided_by=decided_by,
+            decision=IssueDecisionKind.VERIFY.value,
+            reason=reason,
+        )
+    )
+    issue.status = IssueStatus.VERIFIED.value
+    # EVERY linked manual-grant task, not just the one the human happened to be looking at. A task left
+    # WAITING_FOR_HUMAN after its only issue was cleared is a hold nobody can see and nobody can clear.
+    for task in linked:
+        if task.status in (RepairTaskStatus.WAITING_FOR_HUMAN, RepairTaskStatus.RUNNING):
+            task.status = RepairTaskStatus.VERIFIED
+        task.human_approved_at = task.human_approved_at or datetime.now(UTC)
+    await session.flush()
+    return issue
+
+
+class ManualVerificationRequired(Exception):
+    """This task's Authorization Requirement demands an explicit human grant, so no automated verifier
+    may run against it (#285). Raised BEFORE any evaluator work — backpressure, not a late refusal: an
+    evaluator that runs and is then ignored has still spent a provider call and still minted a claim."""
+
+    def __init__(self, task_id: uuid.UUID, requirement: str) -> None:
+        self.task_id, self.requirement = task_id, requirement
+        super().__init__(
+            f"repair task {task_id} has authorization_requirement={requirement!r} and needs an explicit "
+            "human grant; an automated verifier may not clear it. Nothing was changed."
+        )
+
+
 async def verify_repair_task(session: AsyncSession, task_id: uuid.UUID) -> RepairVerification:
     task = await session.get(RepairTask, task_id)
     if task is None:
         raise ValueError("repair task not found")
+    # BEFORE the evaluator, before the run lookup, before anything is written. Unknown requirements fail
+    # closed here too — `requirements_demand_human_verification` treats anything it does not recognize as
+    # demanding a human, because unknown provenance is not human provenance.
+    if verification_authority.requirements_demand_human_verification([task.authorization_requirement]):
+        raise ManualVerificationRequired(task_id, str(task.authorization_requirement))
     run = await session.get(ProductionRun, task.production_run_id)
     if run is None:
         raise ValueError("production run not found")

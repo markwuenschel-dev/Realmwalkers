@@ -20,6 +20,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import dominion.shared.adoption_entry as adoption_entry_mod
+import dominion.shared.verification_authority as verification_authority_mod
 import dominion.workers.evidence_store as evidence_store_mod
 import dominion.workers.sweeper as sweeper_mod
 
@@ -31,7 +32,7 @@ _ORM_ROW_NAMES = {"task", "run", "scene", "adoption"}
 # Every module that legitimately opens a savepoint. Each is scanned by the greenlet check below; the
 # confinement test fails the moment `begin_nested` appears in a module NOT listed here — so a new
 # savepoint can't dodge the scan. Add a module here ONLY together with wiring it into the scan.
-_GUARDED_MODULES = (sweeper_mod, evidence_store_mod, adoption_entry_mod)
+_GUARDED_MODULES = (sweeper_mod, evidence_store_mod, adoption_entry_mod, verification_authority_mod)
 
 
 def _savepoint_functions(source: str) -> Iterator[ast.AsyncFunctionDef | ast.FunctionDef]:

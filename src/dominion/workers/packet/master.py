@@ -46,6 +46,7 @@ from typing import Any
 
 from dominion.shared.severity import issue_gates
 from dominion.shared.text_match import as_str_list
+from dominion.workers.packet import open_questions as open_questions_policy
 from dominion.workers.packet.validation import leading_roster_name
 
 SCHEMA_VERSION = 1
@@ -74,22 +75,45 @@ def _str_or_none(value: Any) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
-def _normalize_open_questions(param: Any, src: dict[str, Any]) -> dict[str, Any]:
-    """{items: [str], resolved: [...]} from (in priority order): the explicit param (the sibling column
-    / API payload — writers keep it in sync, and for legacy rows it is the adjudicated state), the
-    canonical body section, then the legacy author list at body.open_questions."""
+def _normalize_open_questions(param: Any, src: dict[str, Any], *, mint: bool = True) -> dict[str, Any]:
+    """THE open-questions choke point: `{items: [{item_id, text}], resolved: [...]}` from (in priority
+    order) the explicit param (the sibling column / API payload — writers keep it in sync, and for legacy
+    rows it is the adjudicated state), the canonical body section, then the legacy author list at
+    body.open_questions.
+
+    `mint=True` (the default, and what every WRITE path uses) mints a server `item_id` for any item that
+    lacks one and server-stamps ruling times. `mint=False` is for read projections, where D4/D5 forbids
+    inventing an id: an id that changed on every render would bind a ruling to nothing.
+
+    Shape validation lives in `open_questions.normalize` and raises `OpenQuestionsInvalid` rather than
+    coercing — a malformed `items` value used to be silently read as `[]`, which is precisely how a
+    single `PUT` of `{"items": "x"}` opened chapter approval.
+    """
     contract = src.get("chapter_contract")
     body_section = contract.get("open_questions") if isinstance(contract, dict) else None
     for candidate in (param, body_section):
-        if isinstance(candidate, dict):
-            resolved = candidate.get("resolved")
-            return {
-                "items": as_str_list(candidate.get("items")),
-                "resolved": resolved if isinstance(resolved, list) else [],
-            }
-        if isinstance(candidate, list):
-            return {"items": as_str_list(candidate), "resolved": []}
-    return {"items": as_str_list(src.get("open_questions")), "resolved": []}
+        if isinstance(candidate, (dict, list)):
+            return open_questions_policy.normalize(candidate, mint=mint)
+    return open_questions_policy.normalize(src.get("open_questions"), mint=mint)
+
+
+def open_question_texts(normalized: dict[str, Any]) -> list[str]:
+    """The legacy flat text mirror of `items[]`.
+
+    Load-bearing for D6's rollback claim: old code reads `open_questions["items"]` and blocks on any
+    non-empty list, so the COLUMN may carry dicts safely — but the top-level body mirror is consumed by
+    `scene_packet/author.py:126` as `str(i).strip()`, which would render dict reprs into the drafting
+    prompt. So the mirror stays flat text while the column carries the bound shape.
+    """
+    out: list[str] = []
+    for item in normalized.get("items") or []:
+        if isinstance(item, dict):
+            text = str(item.get("text") or "").strip()
+        else:
+            text = str(item).strip()
+        if text:
+            out.append(text)
+    return out
 
 
 def _cast_entry(*, name: str, presence: str, raw: str | None, prev: dict[str, Any]) -> dict[str, Any]:
@@ -230,7 +254,7 @@ def to_master_packet(
         "claims": [claim for claim in out["claims"] if isinstance(claim, dict)],
         "open_questions": oq,
     }
-    out["open_questions"] = list(oq["items"])  # legacy mirror (author-shape string list)
+    out["open_questions"] = open_question_texts(oq)  # legacy mirror (author-shape string list)
 
     out["qa"] = _normalize_qa(src.get("qa"))
     return out
@@ -240,7 +264,9 @@ def master_open_questions(body: Any, column: Any = None) -> dict[str, Any]:
     """The canonical open-questions dict ({items, resolved}) for a packet, folding in the sibling
     column when provided (the column wins — writers keep it in sync for canonical rows, and for legacy
     rows it is the adjudicated state)."""
-    return _normalize_open_questions(column, body if isinstance(body, dict) else {})
+    # READ projection: mint=False. D4/D5 forbids minting an id ephemerally on read — a legacy item is
+    # marked `legacy` and left unbound, which fails closed until a human re-rules it through a write.
+    return _normalize_open_questions(column, body if isinstance(body, dict) else {}, mint=False)
 
 
 def with_open_questions(body: Any, open_questions: Any) -> Any:
@@ -251,7 +277,7 @@ def with_open_questions(body: Any, open_questions: Any) -> Any:
         return body
     oq = _normalize_open_questions(open_questions, {})
     contract = {**body["chapter_contract"], "open_questions": oq}
-    return {**body, "chapter_contract": contract, "open_questions": list(oq["items"])}
+    return {**body, "chapter_contract": contract, "open_questions": open_question_texts(oq)}
 
 
 def drafter_view(body: Any) -> dict[str, Any]:

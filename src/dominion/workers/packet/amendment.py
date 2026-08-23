@@ -58,6 +58,7 @@ from dominion.shared.enums import (
 )
 from dominion.shared.models import Chapter, ChapterPacket, ImportAdoption, ScenePacket
 from dominion.shared.prose_fingerprint import chapter_scene_rows, chapter_source_fingerprint
+from dominion.workers.packet import approval_policy as packet_approval
 
 log = structlog.get_logger()
 
@@ -152,8 +153,19 @@ REASON_AMENDMENT_ALREADY_OPEN = "amendment_already_open"
 #: Not an eligibility verdict token — a transition refusal. Raised when the approve target is not
 #: `proposed` (a BLOCKED diagnostic row or a SUPERSEDED historical one).
 REASON_NOT_PROPOSED = "packet_not_proposed"
+#: Also a transition refusal, not an eligibility verdict (#277 clause A). Raised when the packet taking
+#: authority still carries unresolved open questions. It lives HERE, at the shared seam, rather than at a
+#: route: chapter authority can be granted through two routes and only `POST .../packet/approve` consulted
+#: the gate, so an amendment — the very path that GENERATES open questions, at
+#: `amendment_author.py:471-479` — could take authority with every question unresolved.
+REASON_OPEN_QUESTIONS_UNRESOLVED = "open_questions_unresolved"
 
 REFUSAL_MESSAGES: dict[str, str] = {
+    REASON_OPEN_QUESTIONS_UNRESOLVED: (
+        "This chapter contract still has unresolved open questions, so it cannot take authority. Rule "
+        "every question — each ruling needs a non-empty resolution and source — then approve again. "
+        "Nothing was changed."
+    ),
     REASON_NO_APPROVED_PACKET: (
         "This chapter has no approved contract, so there is nothing to amend. Adopt an initial contract "
         "first (Start contract adoption) — amendment is copy-on-write FROM an approved packet."
@@ -431,6 +443,25 @@ async def apply_authority_locked(
             f"chapter packet {packet_id} is {packet.status!r}, not proposed — only a proposed packet may "
             "become the chapter's authority. A blocked packet is retained as diagnostic evidence and a "
             "superseded one is history; neither may be approved.",
+        )
+
+    # (1c) THE open-questions gate (#277 clause A). Enforced HERE, at the shared authority seam, so both
+    # approval routes are covered by construction. Ordinary approve pre-checks the same predicate at
+    # `packets.py:323`; the amendment route had NO gated path at all — `packets.py:305-321` deliberately
+    # refuses an amendment on the ordinary route and directs the caller to the ungated one. So the comment
+    # at `amendment_author.py:471-479` claiming "any open-question item blocks APPROVAL" was false on the
+    # exact route that mints those items.
+    #
+    # Placed BEFORE every mutation and before the predecessor is even loaded: a refusal here must leave the
+    # amendment `proposed` and the predecessor `approved`, not merely return a 409 after a flush.
+    #
+    # Reached ONLY through the canonical predicate. This function must never inspect `open_questions`
+    # itself — that is both the fork-3b seam guard's rule and the reason a second reader is how the two
+    # routes drifted apart in the first place.
+    if refusal := packet_approval.can_approve(packet):
+        raise AmendmentNotEligible(
+            REASON_OPEN_QUESTIONS_UNRESOLVED,
+            f"chapter packet {packet_id} cannot take authority: {refusal.detail}",
         )
 
     # (2) The drift gate. Recomputed HERE, under the lock, from the same membership query the amendment

@@ -566,6 +566,11 @@ class PacketOut(_ORM):
     body: dict[str, Any] = {}
     open_questions: dict[str, Any] | None = None
     created_at: datetime
+    # Server-computed digest of the canonical normalized open_questions value (#277 clause B). Echo it
+    # back as `expected_open_questions_token` on any write that supplies `open_questions`. Computed on
+    # read, never stored — a persisted digest drifts from the JSONB the moment one is written without
+    # the other, which is the exact divergence class this ticket exists to eliminate.
+    open_questions_token: str | None = None
     can_approve: bool = False
     # Why can_approve is what it is — the UI must always have a reason to show, not just a grey button.
     approval_state: str = "approvable"  # approvable | already_approved | blocked | open_questions
@@ -637,6 +642,17 @@ class PacketUpdateIn(BaseModel):
     body: dict[str, Any] | None = None
     open_questions: dict[str, Any] | None = None
     confidence: str | None = None  # green | yellow | red
+    # The open-questions state token the client last read, an optimistic-concurrency token (#277 clause
+    # B) — the same shape as DecisionIn.expected_prose_hash above. REQUIRED whenever `open_questions` is
+    # supplied: absent is a 422, stale is a 409, and neither changes anything.
+    #
+    # It exists because the resolve path is a whole-object read-modify-write from a client snapshot: the
+    # Desk re-sends the complete items[] and resolved[] rebuilt from possibly-stale component state, the
+    # server blind-assigns, and the per-chapter advisory lock serializes COMMITS rather than snapshots.
+    # Under fail-closed semantics that asymmetry matters — losing a RULING is safe (the item stays open),
+    # but losing an ITEM grants approval. A body-only edit needs no token: that branch derives open
+    # questions from the row itself and cannot erase.
+    expected_open_questions_token: str | None = None
 
 
 class PacketProposeOut(BaseModel):
@@ -2335,9 +2351,31 @@ class RepairVerificationOut(_ORM):
     created_at: datetime
 
 
+class ChapterAutonomyOut(BaseModel):
+    """A chapter's autonomy state, with the human-facing account of it.
+
+    Four states, one precedence, exactly one applies: operational_blocked > human_action_required >
+    review_ready > autonomy_ready. `next_human_action` is ALWAYS present on a blocked state and always
+    absent otherwise — enforced at construction, so a client can branch on it without a null dance.
+    """
+
+    chapter_id: uuid.UUID
+    state: str  # operational_blocked | human_action_required | review_ready | autonomy_ready
+    reason: str
+    next_human_action: str | None = None
+    #: True only for `autonomy_ready`. The ONE predicate an unattended driver may act on.
+    may_proceed_unattended: bool = False
+    diagnostics: dict[str, Any] = {}
+
+
 class IssueDecisionIn(BaseModel):
     reason: str | None = None
     merged_into_issue_id: uuid.UUID | None = None
+    # Who is recording this decision. AUDIT PROVENANCE, not authenticated identity — this API is
+    # unauthenticated by standing decision (C10), so the field supports review and accountability without
+    # claiming an identity assurance the system does not have (#285). Defaults to "human" on the verify
+    # route, which is the only route that mints an IssueDecisionKind.VERIFY.
+    decided_by: str | None = None
 
 
 class ProductionRunStartIn(BaseModel):

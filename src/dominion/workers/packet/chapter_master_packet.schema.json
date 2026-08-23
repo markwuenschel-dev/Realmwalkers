@@ -44,10 +44,21 @@
         },
         "open_questions": {
           "type": "object",
-          "description": "IN-BODY source of truth for open questions. items = unresolved (each blocks approval until adjudicated); resolved = author rulings ({q, a}-shaped entries) that downstream QA must treat as settled fact.",
+          "description": "IN-BODY source of truth for open questions (#277). items = unresolved questions, each carrying a server-minted item_id; a question is CLEARED only by a resolved entry that matches its item_id and carries a non-empty resolution, a non-empty source, and a server-recorded timestamp. Positional and text matching are prohibited. Legacy entries without an item_id are readable history and never clear anything. item_id is a TEMPORARY JSONB binding key with no reuse or lineage meaning; it is deleted when #292 retires this column.",
           "required": ["items"],
           "properties": {
-            "items": { "type": "array", "items": { "type": "string" } },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "item_id": { "type": "string", "description": "Server-minted UUID. Clients never supply it. Absent on a legacy item read without minting, which fails closed." },
+                  "text": { "type": "string" },
+                  "legacy": { "type": "boolean", "description": "Read-time marker: this item predates id binding and cannot be ruled until a write mints it an id." }
+                }
+              }
+            },
             "resolved": { "type": "array" }
           }
         }

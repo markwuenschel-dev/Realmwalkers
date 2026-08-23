@@ -133,7 +133,13 @@ async def test_update_under_held_chapter_lock_is_409_and_writes_nothing(app_clie
 
         await holder.rollback()
 
-    retry = await app_client.put(f"/chapters/{chapter_id}/packet", json={"open_questions": {"items": []}})
+    # #277 clause B: a write that changes open questions must echo the token it read (absent -> 422).
+    # Fetch it first, then retry — which is also the real Desk flow now.
+    token = (await app_client.get(f"/chapters/{chapter_id}/packet")).json()["open_questions_token"]
+    retry = await app_client.put(
+        f"/chapters/{chapter_id}/packet",
+        json={"open_questions": {"items": [], "resolved": []}, "expected_open_questions_token": token},
+    )
     assert retry.status_code == 200, retry.text
 
 
