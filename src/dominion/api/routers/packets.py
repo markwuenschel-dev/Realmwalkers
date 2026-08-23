@@ -9,6 +9,7 @@ questions still outstanding, cannot be approved. (Later phases block drafting un
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -37,6 +38,7 @@ from dominion.workers import background_work, progress
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.packet import amendment, master
 from dominion.workers.packet import approval_policy as packet_approval
+from dominion.workers.packet import open_questions as open_questions_policy
 from dominion.workers.packet.surface_contract import build_surface_contract
 from dominion.workers.packet.validation import evaluate_chapter_packet_internal
 from dominion.workers.scene_packet import staleness as packet_staleness
@@ -189,6 +191,79 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
     row = await _latest(session, chapter_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+
+    # ---- #277 clause B: compare-and-set on open_questions, BEFORE any mutation -------------------
+    # The resolve path is a whole-object read-modify-write from a client snapshot, and the per-chapter
+    # advisory lock serializes COMMITS, not snapshots. Under fail-closed semantics that asymmetry is not
+    # symmetric in cost: losing a RULING is safe (the item stays open), but losing an ITEM grants
+    # approval. So a write that supplies open_questions must prove which state it was computed against.
+    normalized_oq: dict[str, Any] | None = None
+    if body.open_questions is not None:
+        # A REAL row lock. `_latest` passes populate_existing but no `with_for_update`, so without this
+        # the compare-and-set could read a snapshot another transaction is already rewriting. House
+        # pattern: `scene_packet/blockers.py:98-105`.
+        row = await session.get(ChapterPacket, row.id, populate_existing=True, with_for_update=True)
+        if row is None:  # pragma: no cover - the row was read moments ago in this transaction
+            raise HTTPException(status_code=404, detail="no packet for this chapter yet")
+        current_token = packet_approval.open_questions_state_token(row)
+        supplied = (body.expected_open_questions_token or "").strip()
+        try:
+            # NOT timestamp-stripped: this value is compared against `current_token`, which is computed
+            # from the stored row WITH its server timestamps. Stripping here would guarantee a mismatch
+            # for any row that already carries a ruling, and the idempotent-replay branch below could
+            # never fire. A client that fakes an `at` only makes its own request match the state that
+            # already exists, which is precisely the no-op case.
+            submitted = open_questions_policy.normalize(body.open_questions, mint=False)
+        except open_questions_policy.OpenQuestionsInvalid as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"reason": "open_questions_malformed", "message": f"{exc} Nothing was changed."},
+            ) from exc
+        if not supplied:
+            # 422 for absent, 409 for stale — the same split `revision_taxonomy.py:96-97,108-109`
+            # already ruled for `expected_prose_hash`, reused rather than reinvented.
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "reason": "open_questions_token_required",
+                    "message": (
+                        "A write that changes open questions must echo the `open_questions_token` it read, "
+                        "so the server can prove the ruling applies to the state it is replacing. "
+                        "Refetch the packet and retry. Nothing was changed."
+                    ),
+                },
+            )
+        if supplied != current_token:
+            if open_questions_policy.state_token(submitted) == current_token:
+                # Idempotent replay: the token is stale, but the submitted value IS the current state, so
+                # this request already succeeded and is being delivered twice. A no-op 200 is correct —
+                # rejecting it would make a safe retry look like a conflict.
+                return row
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "reason": "open_questions_stale",
+                    "message": (
+                        "Someone else changed this chapter's open questions after you loaded them, so this "
+                        "write was refused rather than applied on top of state you never saw — it could "
+                        "have erased a question you did not know about. NOTHING WAS CHANGED. Refetch and "
+                        "check whether your ruling already landed."
+                    ),
+                },
+            )
+        try:
+            stored = open_questions_policy.normalize(row.open_questions, mint=False)
+            normalized_oq = open_questions_policy.normalize(
+                open_questions_policy.strip_client_timestamps(body.open_questions),
+                mint=True,
+                previous=open_questions_policy.stored_ruling_times(stored),
+            )
+        except open_questions_policy.OpenQuestionsInvalid as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"reason": "open_questions_malformed", "message": f"{exc} Nothing was changed."},
+            ) from exc
+
     body_changed = False
     if body.body is not None:
         # Stamp ids on any seeds the human added so they stay linkable once derived; existing ids are
@@ -201,7 +276,7 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
         internal = evaluate_chapter_packet_internal(new_body)
         canonical = master.to_master_packet(
             internal.normalized_body,
-            open_questions=body.open_questions if body.open_questions is not None else row.open_questions,
+            open_questions=normalized_oq if normalized_oq is not None else row.open_questions,
             book_id=row.book_id,
             chapter_id=row.chapter_id,
             status=row.status,
@@ -222,11 +297,14 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
         body_changed = canonical != row.body
         row.body = canonical
         row.open_questions = canonical["chapter_contract"]["open_questions"]
-    elif body.open_questions is not None:
-        row.open_questions = body.open_questions
-        # Keep the body's canonical section in sync (no-op for legacy bodies — the column stays their
-        # adjudicated source until the next body edit / propose canonicalizes them).
-        row.body = master.with_open_questions(row.body, body.open_questions)
+    elif normalized_oq is not None:
+        # THE D7 REPAIR. This used to be `row.open_questions = body.open_questions` — a raw assignment
+        # that skipped the normalizer entirely, so a single PUT of `{"open_questions": {"items": "x"}}`
+        # made the gate's `isinstance` check fall through to `[]` and OPENED chapter approval, while the
+        # body mirror still held the real state. Both write paths now persist ONE normalized value,
+        # derived once above, to the column AND the body mirror in the same transaction.
+        row.open_questions = normalized_oq
+        row.body = master.with_open_questions(row.body, normalized_oq)
     if body.confidence is not None:
         try:
             row.confidence = PacketConfidence(body.confidence.strip().lower())

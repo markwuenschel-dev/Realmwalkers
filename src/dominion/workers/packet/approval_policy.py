@@ -9,6 +9,7 @@ from dominion.shared.models import ChapterPacket
 from dominion.shared.schemas import PacketOut
 from dominion.workers.approval_projection import ApprovalPolicy, project
 from dominion.workers.gates import GateRefusal
+from dominion.workers.packet import open_questions as open_questions_policy
 
 _CONF_ORDER = {PacketConfidence.GREEN: 0, PacketConfidence.YELLOW: 1, PacketConfidence.RED: 2}
 _VERDICT_FLOOR = {
@@ -36,9 +37,23 @@ def _author_open_questions(packet: dict[str, Any]) -> list[str]:
 
 
 def open_question_items(packet: ChapterPacket) -> list[object]:
-    oq = packet.open_questions or {}
-    items = oq.get("items") if isinstance(oq, dict) else None
-    return items if isinstance(items, list) else []
+    """THE canonical open-questions gate reader (#277). The only place this column becomes a gate
+    decision — enforced by `tests/test_issue223_fork3b_authorization_seam_guard.py`.
+
+    Returns the items that are still UNRESOLVED, not every item. Before #277 this returned the raw
+    `items[]` and `resolved[]` was never consulted at all, so emptying the list cleared the gate whether
+    or not anything had been ruled — and a malformed value (`{"items": "x"}`) fell through the
+    `isinstance` check to `[]` and OPENED approval.
+
+    Fails closed on both counts now: a malformed value raises inside `normalize`, which is caught here
+    and reported as a single un-clearable blocking item rather than an empty list, because a gate that
+    cannot parse its own state must never read as "nothing to resolve".
+    """
+    try:
+        normalized = open_questions_policy.normalize(packet.open_questions, mint=False)
+    except open_questions_policy.OpenQuestionsInvalid as exc:
+        return [{"text": f"open questions are malformed and cannot be evaluated: {exc}", "legacy": True}]
+    return list(open_questions_policy.unresolved_items(normalized))
 
 
 def _warnings(packet: ChapterPacket) -> dict[str, Any]:
@@ -162,6 +177,19 @@ def status_from_qa(packet_body: dict[str, Any], qa: dict[str, Any]) -> tuple[Pac
     return conf, PacketStatus.PROPOSED
 
 
+def open_questions_state_token(packet: ChapterPacket) -> str:
+    """The expected-state token a client must echo back when it writes `open_questions` (clause B).
+
+    Computed on read, never stored: a persisted digest drifts from the JSONB it describes the moment one
+    writer updates either without the other. A malformed value still yields a stable token, so a client
+    holding a broken row can still be told its write is stale rather than getting a 500."""
+    try:
+        normalized = open_questions_policy.normalize(packet.open_questions, mint=False)
+    except open_questions_policy.OpenQuestionsInvalid:
+        normalized = {"items": [], "resolved": [], "malformed": True}
+    return open_questions_policy.state_token(normalized)
+
+
 def enrich_packet_out(row: ChapterPacket) -> PacketOut:
     pr = project(row, _POLICY)
     out = PacketOut.model_validate(row)
@@ -171,6 +199,7 @@ def enrich_packet_out(row: ChapterPacket) -> PacketOut:
             "approval_state": pr.state,
             "approval_blockers": pr.display_reasons,
             "blocked_reason": pr.blocked_reason,
+            "open_questions_token": open_questions_state_token(row),
             **pr.extras,
         }
     )

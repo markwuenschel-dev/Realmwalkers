@@ -16278,6 +16278,17 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "open_questions_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Questions Token"
+          },
           "can_approve": {
             "type": "boolean",
             "title": "Can Approve",
@@ -16555,6 +16566,17 @@
               }
             ],
             "title": "Confidence"
+          },
+          "expected_open_questions_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Open Questions Token"
           }
         },
         "type": "object",

@@ -82,17 +82,31 @@ def format_conflict(conflict: ManuscriptCanonConflict) -> str:
     return f"{MARKER} {json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}"
 
 
+def question_text(item: Any) -> str:
+    """The question text of an `open_questions["items"]` entry, in either shape.
+
+    #277 gave items a server-minted id, so an entry is `{"item_id", "text"}` rather than a bare string.
+    Both decoders below take the text through here so an encoded conflict stays decodable across that
+    change — silently returning False for every dict would have made conflict provenance disappear
+    rather than error, which is the failure mode the item-shape migration most needed to avoid.
+    """
+    if isinstance(item, str):
+        return item.strip()
+    if isinstance(item, dict):
+        value = item.get("text")
+        return value.strip() if isinstance(value, str) else ""
+    return ""
+
+
 def is_conflict_question(item: Any) -> bool:
-    """True if `item` is an encoded `manuscript_canon_conflict` string (a cheap marker check)."""
-    return isinstance(item, str) and item.strip().startswith(MARKER)
+    """True if `item` is an encoded `manuscript_canon_conflict` question (a cheap marker check)."""
+    return question_text(item).startswith(MARKER)
 
 
 def parse_conflict(item: Any) -> ManuscriptCanonConflict | None:
     """Decode an encoded conflict back to a `ManuscriptCanonConflict`, or None if `item` is not one
     (an ordinary human question, a malformed payload, or the wrong type). Never raises."""
-    if not isinstance(item, str):
-        return None
-    text = item.strip()
+    text = question_text(item)
     if not text.startswith(MARKER):
         return None
     try:

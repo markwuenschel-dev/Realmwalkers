@@ -6342,6 +6342,8 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+      /** Open Questions Token */
+      open_questions_token?: string | null;
       /**
        * Can Approve
        * @default false
@@ -6422,6 +6424,8 @@ export interface components {
       } | null;
       /** Confidence */
       confidence?: string | null;
+      /** Expected Open Questions Token */
+      expected_open_questions_token?: string | null;
     };
     /** ParsedChapterOut */
     ParsedChapterOut: {

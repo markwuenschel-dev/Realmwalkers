@@ -19,7 +19,7 @@ from sqlalchemy import select
 
 from dominion.shared import claim_precedence
 from dominion.shared.enums import ClaimSource, PacketStatus, PacketVerdict
-from dominion.shared.manuscript_conflict import is_conflict_question, parse_conflict
+from dominion.shared.manuscript_conflict import is_conflict_question, parse_conflict, question_text
 from dominion.shared.models import Book, Chapter, ChapterPacket
 from dominion.workers import packet as packet_pipeline
 from dominion.workers.packet import approval_policy
@@ -288,7 +288,9 @@ async def test_unanchorable_conflict_stays_proposed_with_a_plain_block_question(
         assert row.status == PacketStatus.PROPOSED
         items = (row.open_questions or {}).get("items", [])
         assert not any(is_conflict_question(q) for q in items)  # not encodable (no canon fingerprint)
-        assert any("manuscript-vs-canon conflict" in q for q in items)  # but surfaced as a block
+        # #277: items carry {item_id, text}, so read the text through the canonical helper rather than
+        # substring-testing the entry (which would silently test dict KEYS and always be False).
+        assert any("manuscript-vs-canon conflict" in question_text(q) for q in items)
         assert approval_policy.can_approve(row) is not None
 
 

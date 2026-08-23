@@ -100,7 +100,7 @@ async def test_propose_persists_canonical_master_packet(db_factory, monkeypatch)
         assert body["characters_present"] == ["Marcus (POV)"]
         # contract section groups job/locks/claims/open_questions; the sibling column is the derived sync
         assert body["chapter_contract"]["job"] == "Marcus intercepts the rogue courier"
-        assert body["chapter_contract"]["open_questions"]["items"] == ["who hired the courier?"]
+        assert [i["text"] for i in body["chapter_contract"]["open_questions"]["items"]] == ["who hired the courier?"]
         assert row.open_questions == body["chapter_contract"]["open_questions"]
         # scene_seeds exist exactly once (raw); the projection lives only under _surface_contract
         assert isinstance(body["_surface_contract"], dict)
@@ -243,7 +243,24 @@ async def test_open_questions_block_approval_until_resolved(db_factory, monkeypa
             await packets.approve_packet(chapter_id, s)
         assert exc.value.status_code == 409
 
-        await packets.update_packet(chapter_id, PacketUpdateIn(open_questions={"items": []}), s)
+        # #277: this used to clear the gate with `{"items": []}` and no ruling at all — deleting the
+        # question was as good as answering it. Now the question must be RULED: a resolved entry bound
+        # by item_id, carrying a non-empty resolution and source.
+        current = await packets.get_packet(chapter_id, s)
+        item = current.open_questions["items"][0]
+        await packets.update_packet(
+            chapter_id,
+            PacketUpdateIn(
+                open_questions={
+                    "items": current.open_questions["items"],
+                    "resolved": [
+                        {"item_id": item["item_id"], "resolution": "Mara hired the courier.", "source": "author"}
+                    ],
+                },
+                expected_open_questions_token=current.open_questions_token,
+            ),
+            s,
+        )
         approved = await packets.approve_packet(chapter_id, s)
         assert approved.status == PacketStatus.APPROVED
 

@@ -68,6 +68,7 @@ from dominion.workers import telemetry, telemetry_db
 from dominion.workers.packet import amendment, approval_policy, canon_conflict, master
 from dominion.workers.packet import author as author_mod
 from dominion.workers.packet import evidence as evidence_mod
+from dominion.workers.packet import open_questions as open_questions_policy
 from dominion.workers.packet import qa as qa_mod
 from dominion.workers.packet.surface_contract import build_surface_contract
 from dominion.workers.packet.validation import evaluate_chapter_packet_internal
@@ -469,14 +470,14 @@ async def _qa_and_persist_amendment(
     # adoption (Q14), which is the review gate a superseding contract must clear. De-duplicated,
     # append-only, order-preserving — the approved packet's own unresolved questions carry over first.
     if extra_open_questions:
-        items = list(body["chapter_contract"]["open_questions"]["items"])
-        seen = set(items)
-        for question in extra_open_questions:
-            if question and question not in seen:
-                items.append(question)
-                seen.add(question)
-        body["chapter_contract"]["open_questions"]["items"] = items
-        body["open_questions"] = list(items)
+        # Minted ids (#277). THIS is the path that generates manuscript-vs-canon conflict questions, and
+        # the comment above once claimed they block APPROVAL — which was false on this very route until
+        # the gate moved to the shared authority seam. They block it now, so they must also be rulable.
+        folded = open_questions_policy.append_open_questions(
+            body["chapter_contract"]["open_questions"], extra_open_questions
+        )
+        body["chapter_contract"]["open_questions"] = folded
+        body["open_questions"] = master.open_question_texts(folded)
 
     # (3) Structural canary on the canonical body — true blockers only (e.g. no seed carries a usable
     # scene_job); fixable gaps ride along as repair tasks.
