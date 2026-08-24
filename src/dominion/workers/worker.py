@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import os
 import traceback
+import uuid
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -60,20 +61,31 @@ def classify_job_failure(exc: BaseException, loc: str = "") -> tuple[str, str | 
     return f"{type(exc).__name__}: {exc}{loc}"[:2000], None
 
 
-async def recover_stale_jobs(session: AsyncSession, *, ttl_s: int = job_policy.LEASE_TTL_S) -> int:
-    """Return expired RUNNING jobs to QUEUED so they stop masquerading as live drafts (#284)."""
+async def recover_stale_jobs(
+    session: AsyncSession, *, ttl_s: int = job_policy.LEASE_TTL_S, chapter_id: uuid.UUID | None = None
+) -> int:
+    """Return expired RUNNING jobs to QUEUED so they stop masquerading as live drafts (#284).
+
+    `chapter_id` scopes the sweep for the same reason `claim_one_job` takes it: `run_once` reports a
+    recovery as work done, so an unscoped sweep would let a corpse in a DIFFERENT chapter be counted
+    as progress on the one the caller asked about.
+    """
     result = cast(
         CursorResult[Any],
         await session.execute(
             update(Job)
-            .where(job_policy.expired_running_clause(ttl_s=ttl_s), Job.book_id.is_not(None))
+            .where(
+                job_policy.expired_running_clause(ttl_s=ttl_s),
+                Job.book_id.is_not(None),
+                *([Job.chapter_id == chapter_id] if chapter_id is not None else []),
+            )
             .values(status=JobStatus.QUEUED, claimed_by=None, claimed_at=None)
         ),
     )
     return int(result.rowcount or 0)
 
 
-async def claim_one_job(session: AsyncSession) -> Job | None:
+async def claim_one_job(session: AsyncSession, *, chapter_id: uuid.UUID | None = None) -> Job | None:
     """Atomically claim the oldest claimable job (FOR UPDATE SKIP LOCKED makes parallel workers safe).
 
     The `book_id IS NOT NULL` guard is the execution-seam half of the ownership invariant (ADR 0027):
@@ -83,12 +95,21 @@ async def claim_one_job(session: AsyncSession) -> Job | None:
     `book_id` stays executable.
 
     Claimable is QUEUED, or RUNNING whose lease has expired (#284). Expired RUNNING is recovered to
-    QUEUED first by `recover_stale_jobs`; the OR here is the drain-without-reboot half."""
+    QUEUED first by `recover_stale_jobs`; the OR here is the drain-without-reboot half.
+
+    `chapter_id` narrows the candidate set to ONE chapter. Without it this claims the globally oldest
+    job, which is right for the shared worker and wrong for any caller that reports per-chapter
+    progress: an unattended chapter loop that drains the global queue would spend its tick drafting a
+    different chapter and then truthfully report "a job ran", which the operator reads as progress on
+    the chapter they asked about. The filter sits in the WHERE, beside the ownership guard, so an
+    out-of-scope row is never a candidate and cannot head-of-line-block the ORDER BY.
+    """
     stmt = (
         select(Job)
         .where(
             Job.book_id.is_not(None),
             or_(Job.status.in_(job_policy.CLAIMABLE), job_policy.expired_running_clause()),
+            *([Job.chapter_id == chapter_id] if chapter_id is not None else []),
         )
         .order_by(Job.created_at)
         .limit(1)
@@ -109,10 +130,19 @@ async def claim_one_job(session: AsyncSession) -> Job | None:
     return job
 
 
-async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFactory) -> bool:
+async def run_once(
+    session_factory: async_sessionmaker[AsyncSession] = SessionFactory,
+    *,
+    chapter_id: uuid.UUID | None = None,
+) -> bool:
     """Process a single job. Returns False if the queue is empty. Wall-clock bounded.
 
     session_factory is injectable so tests can drive the worker against a test database.
+
+    `chapter_id` scopes the claim to one chapter (see `claim_one_job`). Everything else — the pause
+    switch, stale-job recovery, failure classification, lease timeout, rate-limit run-parking — is
+    deliberately unchanged, because reimplementing that error handling in a caller is how a second,
+    weaker execution path gets built by accident.
     """
     async with session_factory() as session:
         await agent_ops.apply_model_overrides(session)
@@ -122,14 +152,14 @@ async def run_once(session_factory: async_sessionmaker[AsyncSession] = SessionFa
         if await background_work.load_queue_paused(session):
             await session.commit()
             return False
-        recovered = await recover_stale_jobs(session)
+        recovered = await recover_stale_jobs(session, chapter_id=chapter_id)
         if recovered:
             # Expire corpses this tick; claim them on the next. Claiming here would run generate
             # on a fixture/job with no packet and re-raise, leaving the operator path untested
             # (#284 test_RED_stranded_running_job_does_not_masquerade_as_active).
             await session.commit()
             return True
-        job = await claim_one_job(session)
+        job = await claim_one_job(session, chapter_id=chapter_id)
         if job is None:
             await session.commit()
             return False
