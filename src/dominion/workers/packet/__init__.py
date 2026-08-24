@@ -204,6 +204,13 @@ def _blocked_row(
     recovery_actions: list[str] | None = None,
     blocker_diagnostics: dict[str, Any] | None = None,
 ) -> ChapterPacket:
+    # A blocked row is newly authored state, not historical data. It must receive durable server-minted
+    # bindings just like the successful proposal path; persisting model-produced raw strings here would
+    # create a fresh ``legacy`` packet that could only be acted on by a later Prepare call. This factory
+    # also feeds amendment fail-closed rows, keeping both creation paths on one rule.
+    normalized_open_questions = open_questions_policy.normalize(
+        open_questions if open_questions is not None else {"items": []}, mint=True
+    )
     qa_warnings: dict[str, Any] = {"residual_risks": [], "blocked_reason": reason}
     if blocker_source:
         qa_warnings["blocker_source"] = blocker_source
@@ -229,7 +236,7 @@ def _blocked_row(
         qa_verdict=PacketVerdict.BLOCK_DRAFTING,
         qa_warnings=qa_warnings,
         body=body or {"blocked_reason": reason},
-        open_questions=open_questions if open_questions is not None else {"items": []},
+        open_questions=normalized_open_questions,
     )
 
 

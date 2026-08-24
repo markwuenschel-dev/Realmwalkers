@@ -39,6 +39,7 @@ from dominion.api.routers import packets
 from dominion.shared.enums import ImportAdoptionMode, PacketStatus
 from dominion.shared.models import Book, Chapter, ChapterPacket
 from dominion.shared.schemas import PacketUpdateIn
+from dominion.workers import packet as packet_pipeline
 from dominion.workers.packet import amendment, master
 from dominion.workers.packet import approval_policy as packet_approval
 from dominion.workers.packet import open_questions as oq
@@ -124,6 +125,26 @@ def test_client_supplied_item_id_for_a_new_item_is_not_honoured_as_identity():
     server_id = minted["items"][0]["item_id"]
     assert uuid.UUID(server_id)  # a valid UUID alone does not make the client its issuer
     assert server_id != client_id
+
+
+def test_new_blocked_packet_rows_mint_open_question_bindings():
+    """D1/D7 support: a newly persisted blocked row is not grandfathered legacy data.
+
+    The shared factory serves both initial and amendment fail-closed paths. A model-produced question
+    must receive a server binding there, otherwise a fresh row would require the legacy-only Prepare
+    transition before a human could record a ruling.
+    """
+    row = packet_pipeline._blocked_row(
+        book_id=uuid.uuid4(),
+        chapter_id=uuid.uuid4(),
+        reason="deterministic validation failed",
+        open_questions={"items": ["who opened the gate?"]},
+    )
+
+    item = row.open_questions["items"][0]
+    assert uuid.UUID(item["item_id"])
+    assert item["text"] == "who opened the gate?"
+    assert oq.unresolved_items(oq.normalize(row.open_questions, mint=False)) == [item]
 
 
 def test_untrusted_write_keeps_only_the_exact_existing_item_identity():
