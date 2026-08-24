@@ -27,6 +27,7 @@ owner ruling, because the contract's completion criteria cite them individually.
 from __future__ import annotations
 
 import ast
+import copy
 import inspect
 import pathlib
 import uuid
@@ -47,7 +48,13 @@ from dominion.workers.packet import open_questions as oq
 # =================================================================================================
 
 
-async def _seed_packet(s, *, open_questions: dict | None = None, status=PacketStatus.PROPOSED) -> ChapterPacket:
+async def _seed_packet(
+    s,
+    *,
+    open_questions: dict | None = None,
+    body: dict | None = None,
+    status=PacketStatus.PROPOSED,
+) -> ChapterPacket:
     book = Book(title="Dominion Realm")
     s.add(book)
     await s.flush()
@@ -59,7 +66,7 @@ async def _seed_packet(s, *, open_questions: dict | None = None, status=PacketSt
         chapter_id=ch.id,
         status=status,
         confidence="green",
-        body={"scene_seeds": []},
+        body=body if body is not None else {"scene_seeds": []},
         open_questions=open_questions if open_questions is not None else {"items": [], "resolved": []},
     )
     s.add(cp)
@@ -527,36 +534,71 @@ async def test_raw_items_payload_cannot_make_approval_appear_clear(db_factory):
 
 
 async def test_both_write_paths_persist_one_normalized_value(db_factory):
-    """9. The question-only path and the body-edit path must agree — one normalized value, written to
-    the column AND the body mirror in the same transaction."""
-    async with db_factory() as s:
-        cp = await _seed_packet(s, open_questions=oq.normalize({"items": ["question one"]}, mint=True))
-        await s.commit()
-        chapter_id, cp_id = cp.chapter_id, cp.id
-        current = await packets.get_packet(chapter_id, s)
-        item_id = current.open_questions["items"][0]["item_id"]
+    """9. Both routes persist the exact stored state to the column and canonical body mirror.
 
-        await packets.update_packet(
-            chapter_id,
+    This is deliberately a direct JSONB assertion. Calling ``master_open_questions(body, column)`` here
+    would make the column win during the assertion and conceal a body-mirror divergence — the exact hollow
+    test this replaces.
+    """
+    initial = oq.normalize({"items": ["question one"]}, mint=True)
+    canonical_body = master.to_master_packet({"scene_seeds": []}, initial, open_questions_mint=False)
+    async with db_factory() as s:
+        question_only_packet = await _seed_packet(
+            s,
+            open_questions=copy.deepcopy(initial),
+            body=copy.deepcopy(canonical_body),
+        )
+        body_edit_packet = await _seed_packet(
+            s,
+            open_questions=copy.deepcopy(initial),
+            body=copy.deepcopy(canonical_body),
+        )
+        await s.commit()
+        question_chapter_id, question_packet_id = question_only_packet.chapter_id, question_only_packet.id
+        body_chapter_id, body_packet_id = body_edit_packet.chapter_id, body_edit_packet.id
+        question_current = await packets.get_packet(question_chapter_id, s)
+        body_current = await packets.get_packet(body_chapter_id, s)
+        item_id = question_current.open_questions["items"][0]["item_id"]
+
+        question_updated = await packets.update_packet(
+            question_chapter_id,
             PacketUpdateIn(
-                open_questions={"items": current.open_questions["items"], "resolved": [_ruling(item_id)]},
-                expected_open_questions_token=current.open_questions_token,
+                open_questions={
+                    "items": question_current.open_questions["items"],
+                    "resolved": [_ruling(item_id)],
+                },
+                expected_open_questions_token=question_current.open_questions_token,
+            ),
+            s,
+        )
+        body_expected = copy.deepcopy(body_current.open_questions)
+        await packets.update_packet(
+            body_chapter_id,
+            PacketUpdateIn(
+                body={
+                    "scene_seeds": [],
+                    "open_questions": {"items": [], "resolved": []},
+                    "chapter_contract": {"open_questions": {"items": [], "resolved": []}},
+                }
             ),
             s,
         )
         await s.commit()
 
     async with db_factory() as s2:
-        row = await s2.get(ChapterPacket, cp_id)
-        column = row.open_questions
-        mirror = master.master_open_questions(row.body, row.open_questions)
-        assert column["items"] == mirror["items"], "column and body mirror carry the SAME normalized items"
-        assert oq.cleared_item_ids(column) == {item_id}
-        assert oq.unresolved_items(column) == []
-        # every item is id-bound; nothing survived as a bare string
-        assert all(isinstance(i, dict) and i.get("item_id") for i in column["items"])
-        # the ruling carries a SERVER timestamp, not a client one
-        assert column["resolved"][0]["at"], "the server records the ruling time"
+        question_row = await s2.get(ChapterPacket, question_packet_id)
+        assert question_row.open_questions == question_updated.open_questions
+        assert question_row.body["chapter_contract"]["open_questions"] == question_updated.open_questions
+        assert question_row.body["open_questions"] == ["question one"]
+        assert oq.cleared_item_ids(question_row.open_questions) == {item_id}
+        assert oq.unresolved_items(question_row.open_questions) == []
+        assert question_row.open_questions["resolved"][0]["at"], "the server records the ruling time"
+
+        body_row = await s2.get(ChapterPacket, body_packet_id)
+        assert body_row.open_questions == body_expected
+        assert body_row.body["chapter_contract"]["open_questions"] == body_expected
+        assert body_row.body["open_questions"] == ["question one"]
+        assert packet_approval.can_approve(body_row) is not None
 
 
 # =================================================================================================
