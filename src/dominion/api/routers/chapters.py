@@ -26,12 +26,11 @@ from dominion.shared.db import SessionFactory
 from dominion.shared.enums import (
     BeatStatus,
     ChapterStatus,
-    PacketStatus,
     ScenePacketApprovalSource,
     ScenePacketStatus,
     SceneStatus,
 )
-from dominion.shared.models import Beat, Chapter, ChapterPacket, Scene, ScenePacket, Summary
+from dominion.shared.models import Beat, Chapter, Scene, ScenePacket, Summary
 from dominion.shared.schemas import (
     ApproveBeatsIn,
     BeatCreateIn,
@@ -55,7 +54,7 @@ from dominion.workers.job_scheduler import (
     schedule_undrafted_beats,
 )
 from dominion.workers.memory import summaries
-from dominion.workers.packet import approval_policy as packet_approval
+from dominion.workers.packet import contract_permit
 from dominion.workers.scene_packet import approval_policy as sp_approval
 from dominion.workers.scene_packet import approve_scene_packet as _approve_scene_packet
 from dominion.workers.scene_packet import blockers as _blockers
@@ -259,28 +258,16 @@ async def _beat_approval_refusal(session: SessionDep, chapter_id: uuid.UUID) -> 
     review-surface concerns, and blocking beat approval on them would stall ordinary authoring for
     reasons unrelated to authority. Returns a refusal body, or None to permit.
     """
-    authority = (
-        await session.execute(
-            select(ChapterPacket)
-            .where(ChapterPacket.chapter_id == chapter_id, ChapterPacket.status == PacketStatus.APPROVED.value)
-            .order_by(ChapterPacket.created_at.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    if authority is None:
-        return None  # no contract to contradict; beat-first authoring is out of scope for this permit
-    unresolved = packet_approval.open_question_items(authority)
-    if not unresolved:
-        return None
-    return {
-        "reason": "chapter_contract_has_open_questions",
-        "message": (
-            f"This chapter's approved contract still has {len(unresolved)} unresolved open question(s), "
+    return await contract_permit.approved_contract_refusal(
+        session,
+        chapter_id,
+        message=lambda n: (
+            f"This chapter's approved contract still has {n} unresolved open question(s), "
             "so it does not hold authority yet — and approving beats authorizes the machine to start "
             "drafting against that contract. Rule every question (each ruling needs a non-empty "
             "resolution and source), then approve the beats. Nothing was changed."
         ),
-    }
+    )
 
 
 @router.post("/{chapter_id}/beats/approve")

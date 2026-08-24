@@ -80,11 +80,11 @@ EXPECTED: dict[str, tuple[int, str, str]] = {
     ),
     "api/routers/reviews.py": (
         1,
-        OPEN,
-        "#283 C2 — editorial scene approval. It HOLDS the chapter lock but consults no packet, no "
-        "blocker and no adjudication; `first_approval` above it is an idempotence check, not a gate. "
-        "This is the one place a human blesses prose as canonical, and it does not ask whether the "
-        "contract that produced the prose is still approved. AWAITING AN OWNER SCOPE RULING.",
+        GATED,
+        "#283 C2 — CLOSED. Editorial scene approval now evaluates the shared approved-contract permit "
+        "(`workers/packet/contract_permit.py`) under the held chapter lock, before any mutation, and "
+        "refuses 409 while the chapter's approved contract carries unresolved open questions. It "
+        "refuses on RE-approval too: blessing the prose is the act, not the status transition.",
     ),
     "api/routers/scenes.py": (
         1,
@@ -97,10 +97,12 @@ EXPECTED: dict[str, tuple[int, str, str]] = {
     ),
     "workers/memory/seed.py": (
         2,
-        OPEN,
-        "#283 C3 — the dominion-seed CLI lands scenes APPROVED with no lock and no evaluator, as an "
-        "assignment AND a constructor. An APPROVED scene is a prior-scene input to the staleness hash, "
-        "so seeding silently shifts scene-packet staleness downstream. AWAITING AN OWNER SCOPE RULING.",
+        HUMAN,
+        "#283 C3 — CLOSED as HUMAN. The dominion-seed CLI imports prose the author already wrote "
+        "(prose_source='human'), so the operator running it IS the authority for it; the defect was "
+        "that it took NO lock, letting an APPROVED write — a prior-scene input to the staleness hash — "
+        "interleave with a concurrent approval on the same chapter. It now acquires the per-chapter "
+        "workflow advisory lock before the write, as an assignment AND a constructor.",
     ),
     "workers/packet/amendment.py": (
         1,
@@ -255,9 +257,9 @@ def test_the_gated_and_human_paths_outnumber_the_open_ones():
     assert len(governed) > len(open_files), (
         f"more ungoverned routes than governed ones: OPEN={open_files} governed={governed}"
     )
-    assert len(open_files) == 3, (
-        f"the OPEN set changed: {open_files}. Three FILES remain (seed.py holds two of the writes): "
-        "#283 C2 editorial approval, #283 C3 the seed CLI, and scene revert — which is NOT one of "
-        "#283's C1-C5 and was found by this scan. Update this number ONLY when one is genuinely closed "
-        "or a new one is genuinely found."
+    assert len(open_files) == 1, (
+        f"the OPEN set changed: {open_files}. ONE file remains: `api/routers/scenes.py` revert_scene, "
+        "which is NOT one of #283's C1-C5 and was found by this scan, and whose docstring argues that "
+        "reverting IS the human's decision — so it needs an owner RULING, not a patch. #283 C2 and C3 "
+        "were closed together. Update this number ONLY when one is genuinely closed or genuinely found."
     )
