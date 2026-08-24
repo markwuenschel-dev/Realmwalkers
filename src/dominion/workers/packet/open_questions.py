@@ -39,6 +39,7 @@ portability semantics, it is not an Adjudication observation key, and it is dele
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import uuid
 from datetime import UTC, datetime
@@ -47,10 +48,14 @@ from typing import Any
 from dominion.workers.scene_packet.hash import canonical_json
 
 __all__ = [
+    "OpenQuestionsItemMembershipMismatch",
     "OpenQuestionsInvalid",
+    "OpenQuestionsLegacyServerOwned",
+    "apply_client_update",
     "append_open_questions",
     "cleared_item_ids",
     "normalize",
+    "prepare_legacy_items",
     "state_token",
     "stored_ruling_times",
     "strip_client_timestamps",
@@ -64,6 +69,22 @@ class OpenQuestionsInvalid(ValueError):
     D2 is explicit that the normalizer must not silently repair an attempted new ruling: a blank
     ``resolution`` quietly turned into a stored empty string is a clearance rationale that nobody wrote,
     and it would clear the gate exactly as well as a real one.
+    """
+
+
+class OpenQuestionsLegacyServerOwned(OpenQuestionsInvalid):
+    """A client tried to write a no-id legacy item or historical resolution.
+
+    Legacy values have no safe client-visible identity. They are therefore readable but server-owned until
+    the explicit Prepare transition mints stable ids while holding the packet row lock.
+    """
+
+
+class OpenQuestionsItemMembershipMismatch(OpenQuestionsInvalid):
+    """A client omitted, duplicated, edited, or invented an item identity.
+
+    Ordinary writes may record or remove rulings only. They cannot add, remove, rename, or reorder the
+    authority-bearing question inventory.
     """
 
 
@@ -81,32 +102,65 @@ def _is_ruling_attempt(entry: dict[str, Any]) -> bool:
     return "item_id" in entry
 
 
-def _normalize_item(raw: Any, *, mint: bool) -> dict[str, Any] | None:
+def _mint_item_id(used_item_ids: set[str]) -> str:
+    """Return a fresh server identity that does not collide with this normalized list."""
+    while True:
+        item_id = str(uuid.uuid4())
+        if item_id not in used_item_ids:
+            return item_id
+
+
+def _normalize_item(
+    raw: Any,
+    *,
+    mint: bool,
+    prior_item_text_by_id: dict[str, str] | None,
+    used_item_ids: set[str],
+) -> dict[str, Any] | None:
     """One entry of ``items[]`` in canonical ``{item_id, text}`` shape.
 
-    A legacy item arrives as a bare string with no identity. On a WRITE it is minted an id, which is how a
-    legacy question becomes rulable at all. On a READ it is left unbound and marked ``legacy`` — D4/D5
-    forbids minting ephemerally on read, because an id that changes every time the row is rendered would
-    bind a ruling to nothing.
+    A legacy item arrives as a bare string with no identity. Trusted packet construction and the explicit
+    Prepare transition may mint an id; ordinary client writes never do. On a READ it is left unbound and
+    marked ``legacy`` — D4/D5 forbids minting ephemerally on read, because an id that changes every time
+    the row is rendered would bind a ruling to nothing.
     """
     if isinstance(raw, str):
         text = raw.strip()
         if not text:
             return None
-        return {"item_id": str(uuid.uuid4()), "text": text} if mint else {"text": text, "legacy": True}
+        if not mint:
+            return {"text": text, "legacy": True}
+        item_id = _mint_item_id(used_item_ids)
+        used_item_ids.add(item_id)
+        return {"item_id": item_id, "text": text}
     if not isinstance(raw, dict):
         return None
     text = _text(raw.get("text")) or _text(raw.get("q"))
     if not text:
         return None
     item_id = _text(raw.get("item_id"))
-    if item_id:
+    if not mint:
+        return {"item_id": item_id, "text": text} if item_id else {"text": text, "legacy": True}
+
+    # An untrusted API write may retain only an identity already stored for the exact same question. A
+    # client-chosen UUID for a new question is not an identity: accepting it would let that request submit
+    # both a question and its matching ruling, defeating the server-minted binding contract. Trusted
+    # internal writers leave ``prior_item_text_by_id`` as None because they construct canonical packets,
+    # not client authority input.
+    if (
+        item_id
+        and (prior_item_text_by_id is None or prior_item_text_by_id.get(item_id) == text)
+        and item_id not in used_item_ids
+    ):
+        used_item_ids.add(item_id)
         return {"item_id": item_id, "text": text}
+
+    # Delete-and-re-add of identical text, text edits, duplicate client ids, and client-supplied ids for
+    # new questions all become a NEW authority event. An old ruling therefore cannot silently clear them.
     if mint:
-        # Clients may not supply an id for a new item; the server mints it. Delete-and-re-add of identical
-        # text therefore produces a NEW id and requires a NEW ruling — re-raising a question is a fresh
-        # authority event, not a resurrection of the old one.
-        return {"item_id": str(uuid.uuid4()), "text": text}
+        minted_item_id = _mint_item_id(used_item_ids)
+        used_item_ids.add(minted_item_id)
+        return {"item_id": minted_item_id, "text": text}
     return {"text": text, "legacy": True}
 
 
@@ -129,8 +183,8 @@ def _normalize_resolved(
             "a ruling must carry a non-empty item_id, resolution, and source; got "
             f"item_id={raw.get('item_id')!r} resolution={raw.get('resolution')!r} source={raw.get('source')!r}"
         )
-    # THE SERVER RECORDS THE RULING TIME (D2). The write path strips any client-supplied `at` before
-    # calling this, so an `at` still present here came from the stored row (re-normalizing an already
+    # THE SERVER RECORDS THE RULING TIME (D2). `apply_client_update` strips every client-supplied `at`
+    # before calling this, so an `at` still present here came from the stored row (re-normalizing an already
     # canonical value) and is preserved — which is what makes normalization idempotent, and therefore
     # what makes clause B's state token stable across an identical resubmission.
     at = _text(raw.get("at"))
@@ -168,11 +222,18 @@ def strip_client_timestamps(value: Any) -> Any:
     return {**value, "resolved": cleaned}
 
 
-def normalize(value: Any, *, mint: bool, previous: dict[tuple[str, str, str], str] | None = None) -> dict[str, Any]:
-    """The canonical ``{items, resolved}`` shape. THE choke point — every write path funnels here.
+def normalize(
+    value: Any,
+    *,
+    mint: bool,
+    previous: dict[tuple[str, str, str], str] | None = None,
+    prior_items: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """The canonical ``{items, resolved}`` shape for trusted construction and read projection.
 
-    ``mint=True`` on write paths (ids are minted, ruling times are server-stamped); ``mint=False`` on read
-    projections, where an id must never be invented.
+    ``mint=True`` mints ids and stamps rulings for trusted construction or Prepare. ``mint=False`` projects
+    reads, where an id must never be invented. Untrusted updates use ``apply_client_update`` instead; its
+    exact id-set containment forbids text/position matching and client-side inventory changes.
 
     Raises ``OpenQuestionsInvalid`` when an attempted ruling is malformed. A malformed ``items`` value —
     the D7 bypass, where ``{"items": "x"}`` made the old gate read ``[]`` and open approval — is likewise
@@ -198,14 +259,130 @@ def normalize(value: Any, *, mint: bool, previous: dict[tuple[str, str, str], st
     if not isinstance(raw_resolved, list):
         raise OpenQuestionsInvalid(f"open_questions.resolved must be a list, got {type(raw_resolved).__name__}")
 
+    prior_item_text_by_id: dict[str, str] | None = None
+    if prior_items is not None:
+        prior_item_text_by_id = {}
+        for prior in prior_items:
+            prior_item_id = _text(prior.get("item_id"))
+            prior_text = _text(prior.get("text"))
+            if prior_item_id and prior_text:
+                prior_item_text_by_id.setdefault(prior_item_id, prior_text)
+
     now = datetime.now(UTC).isoformat()
-    items = [item for item in (_normalize_item(raw, mint=mint) for raw in raw_items) if item is not None]
+    used_item_ids: set[str] = set()
+    items = [
+        item
+        for item in (
+            _normalize_item(
+                raw,
+                mint=mint,
+                prior_item_text_by_id=prior_item_text_by_id,
+                used_item_ids=used_item_ids,
+            )
+            for raw in raw_items
+        )
+        if item is not None
+    ]
     resolved = [
         entry
         for entry in (_normalize_resolved(raw, now=now, previous=previous) for raw in raw_resolved)
         if entry is not None
     ]
     return {"items": items, "resolved": resolved}
+
+
+def apply_client_update(stored_value: Any, submitted_value: Any) -> dict[str, Any]:
+    """Apply an ordinary Desk ruling update without granting the client item authority.
+
+    The returned value preserves stored item ordering and every unbound legacy value. A client supplies
+    exactly the existing id-bound items and any current id-bound rulings; it cannot introduce a question,
+    omit an existing one, alter question text, or manufacture legacy history. This deliberately makes the
+    module the one authority choke point for every untrusted packet update.
+    """
+    stored = normalize(stored_value, mint=False)
+    if not isinstance(submitted_value, dict):
+        raise OpenQuestionsInvalid("open_questions must be an object")
+
+    raw_items = submitted_value.get("items")
+    raw_resolved = submitted_value.get("resolved")
+    if not isinstance(raw_items, list):
+        raise OpenQuestionsInvalid("open_questions.items must be a list")
+    if raw_resolved is None:
+        raw_resolved = []
+    if not isinstance(raw_resolved, list):
+        raise OpenQuestionsInvalid("open_questions.resolved must be a list")
+
+    stored_items_by_id: dict[str, dict[str, Any]] = {}
+    for stored_item in stored["items"]:
+        item_id = _text(stored_item.get("item_id"))
+        if item_id:
+            stored_items_by_id[item_id] = stored_item
+
+    submitted_item_ids: set[str] = set()
+    for raw_item in raw_items:
+        if not isinstance(raw_item, dict):
+            raise OpenQuestionsLegacyServerOwned("clients cannot submit unbound legacy question items")
+        item_id = _text(raw_item.get("item_id"))
+        if not item_id:
+            raise OpenQuestionsLegacyServerOwned("clients cannot submit unbound legacy question items")
+        text = _text(raw_item.get("text")) or _text(raw_item.get("q"))
+        stored_item = stored_items_by_id.get(item_id)
+        if stored_item is None or text != _text(stored_item.get("text")):
+            raise OpenQuestionsItemMembershipMismatch("each submitted question must be an exact existing id-bound item")
+        if item_id in submitted_item_ids:
+            raise OpenQuestionsItemMembershipMismatch("each id-bound item may appear only once")
+        submitted_item_ids.add(item_id)
+
+    if submitted_item_ids != set(stored_items_by_id):
+        raise OpenQuestionsItemMembershipMismatch("an ordinary update must retain every existing id-bound question")
+
+    previous = stored_ruling_times(stored)
+    now = datetime.now(UTC).isoformat()
+    bound_resolved: list[dict[str, Any]] = []
+    resolved_item_ids: set[str] = set()
+    for raw_entry in raw_resolved:
+        if not isinstance(raw_entry, dict) or not _is_ruling_attempt(raw_entry):
+            raise OpenQuestionsLegacyServerOwned("clients cannot submit unbound historical rulings")
+        item_id = _text(raw_entry.get("item_id"))
+        if item_id not in stored_items_by_id:
+            raise OpenQuestionsItemMembershipMismatch("a ruling must name an existing id-bound question")
+        if item_id in resolved_item_ids:
+            raise OpenQuestionsItemMembershipMismatch("a question may have at most one current ruling")
+        resolved_item_ids.add(item_id)
+        normalized_entry = _normalize_resolved(
+            {key: value for key, value in raw_entry.items() if key != "at"},
+            now=now,
+            previous=previous,
+        )
+        if normalized_entry is None:  # pragma: no cover - guarded by the dict/item_id checks above
+            raise OpenQuestionsInvalid("a ruling entry is required")
+        bound_resolved.append(normalized_entry)
+
+    legacy_resolved = [
+        copy.deepcopy(entry)
+        for entry in stored["resolved"]
+        if isinstance(entry, dict) and not _is_ruling_attempt(entry)
+    ]
+    # Preserve the stored raw item representation and its human reading order. In particular, a bare
+    # legacy string must not be silently rewritten to an object merely because somebody ruled on another
+    # id-bound question in the same packet.
+    raw_stored_items = stored_value.get("items") if isinstance(stored_value, dict) else None
+    if not isinstance(raw_stored_items, list):  # normalize() above already rejects malformed non-lists.
+        raise OpenQuestionsInvalid("stored open_questions.items must be a list")
+    return {"items": copy.deepcopy(raw_stored_items), "resolved": [*legacy_resolved, *bound_resolved]}
+
+
+def prepare_legacy_items(stored_value: Any) -> dict[str, Any]:
+    """Mint ids for every stored legacy item in one server-owned, row-locked transition.
+
+    This function receives no client item or ruling payload. It is idempotent once all items are bound and
+    preserves legacy resolutions as readable non-authoritative history, so approval remains blocked until
+    the author records fresh id-bound rulings.
+    """
+    stored = normalize(stored_value, mint=False)
+    if not any(not _text(item.get("item_id")) for item in stored["items"]):
+        return copy.deepcopy(stored_value) if isinstance(stored_value, dict) else stored
+    return normalize(stored_value, mint=True, previous=stored_ruling_times(stored))
 
 
 def cleared_item_ids(normalized: dict[str, Any]) -> set[str]:
@@ -224,7 +401,8 @@ def unresolved_items(normalized: dict[str, Any]) -> list[dict[str, Any]]:
     """Items that still block approval — the gate's actual input.
 
     An item with no ``item_id`` (a legacy one, read without minting) is ALWAYS unresolved: nothing can
-    bind a ruling to it, so it fails closed until a human re-rules it through a write path.
+    bind a ruling to it, so it fails closed until Prepare mints a durable id and a human records a fresh
+    id-bound ruling.
     """
     cleared = cleared_item_ids(normalized)
     open_items: list[dict[str, Any]] = []

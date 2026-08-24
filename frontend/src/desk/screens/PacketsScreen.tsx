@@ -318,16 +318,20 @@ export default function PacketsScreen() {
     setBatchOpen(false);
   };
 
-  // EVERY item on the packet, and the subset still awaiting a ruling. A write must send `allItems`
-  // (items are cleared by a ruling, never by deletion), while the panel lists only what is still open.
+  // The server owns the question inventory. Ordinary client writes echo only already-bound ids; legacy
+  // items remain readable but are converted by the content-free batch Prepare transition, never by a
+  // client re-submitting their text.
   const allItems = (packet?.open_questions?.items ?? []).filter(Boolean);
   const resolvedItems = packet?.open_questions?.resolved ?? [];
+  const boundItems = allItems.filter((item) => Boolean(item.item_id));
+  const legacyItems = allItems.filter((item) => !item.item_id);
+  const boundResolvedItems = resolvedItems.filter((entry) => Boolean(entry.item_id));
   const ruledIds = new Set(
     resolvedItems
       .filter((r) => r.item_id && r.resolution?.trim() && r.source?.trim() && r.at)
       .map((r) => r.item_id as string),
   );
-  const openItems = allItems.filter((i) => !i.item_id || !ruledIds.has(i.item_id));
+  const openItems = boundItems.filter((item) => !ruledIds.has(item.item_id as string));
   // Approval is the SERVER's gate: repair/warn issues never disable it locally (approve-with-repairs
   // — the repairs still gate final export). Only `blocked` packets refuse approval.
   const canApprove = packet?.can_approve ?? false;
@@ -367,7 +371,7 @@ export default function PacketsScreen() {
   const resolveQuestion = (idx: number, resolution: string) => {
     if (!packet || !chapterId) return;
     const target = openItems[idx];
-    if (!target?.item_id) return; // a legacy item must be re-minted by a write before it can be ruled
+    if (!target?.item_id) return;
     const entry: ResolvedQuestion = {
       item_id: target.item_id,
       resolution: resolution.trim(),
@@ -375,7 +379,20 @@ export default function PacketsScreen() {
     };
     void run("resolve", () =>
       api.updatePacket(chapterId, {
-        open_questions: { items: allItems, resolved: [...resolvedItems, entry] },
+        open_questions: { items: boundItems, resolved: [...boundResolvedItems, entry] },
+        expected_open_questions_token: packet.open_questions_token ?? undefined,
+      }),
+    );
+  };
+
+  // A legacy item has no client-safe identity, so preparation is intentionally all-or-nothing. The server
+  // reads and mints every historical item under its row lock; this request sends neither item text nor a
+  // ruling and the resulting ids remain blocked until explicitly resolved.
+  const prepareLegacyQuestions = () => {
+    if (!packet || !chapterId || legacyItems.length === 0) return;
+    void run("prepare", () =>
+      api.updatePacket(chapterId, {
+        prepare_legacy_open_questions: true,
         expected_open_questions_token: packet.open_questions_token ?? undefined,
       }),
     );
@@ -385,12 +402,12 @@ export default function PacketsScreen() {
   // approval on its own.
   const unresolveQuestion = (idx: number) => {
     if (!packet || !chapterId) return;
-    const entry = resolvedItems[idx];
-    if (!entry) return;
-    const resolved = resolvedItems.filter((_, i) => i !== idx);
+    const entry = boundResolvedItems[idx];
+    if (!entry?.item_id) return;
+    const resolved = boundResolvedItems.filter((_, i) => i !== idx);
     void run("resolve", () =>
       api.updatePacket(chapterId, {
-        open_questions: { items: allItems, resolved },
+        open_questions: { items: boundItems, resolved },
         expected_open_questions_token: packet.open_questions_token ?? undefined,
       }),
     );
@@ -778,10 +795,12 @@ export default function PacketsScreen() {
         <PacketView
           packet={packet}
           allItems={allItems}
+          legacyItems={legacyItems}
           openItems={openItems}
           resolvedItems={resolvedItems}
-          resolving={busy === "resolve"}
+          resolving={busy === "resolve" || busy === "prepare"}
           onResolve={resolveQuestion}
+          onPrepareLegacy={prepareLegacyQuestions}
           onUnresolve={unresolveQuestion}
         />
       )}
@@ -864,20 +883,24 @@ export default function PacketsScreen() {
 function PacketView({
   packet,
   allItems,
+  legacyItems,
   openItems,
   resolvedItems,
   resolving,
   onResolve,
+  onPrepareLegacy,
   onUnresolve,
 }: {
   packet: PacketOut;
   // EVERY item, so the resolved panel can still name the question a ruling cleared — `openItems` holds
   // only the unruled subset, so a ruled question is by definition absent from it.
   allItems: OpenQuestionItem[];
+  legacyItems: OpenQuestionItem[];
   openItems: OpenQuestionItem[];
   resolvedItems: ResolvedQuestion[];
   resolving: boolean;
   onResolve: (i: number, resolution: string) => void;
+  onPrepareLegacy: () => void;
   onUnresolve: (i: number) => void;
 }) {
   const b: PacketBody = packet.body ?? {};
@@ -927,8 +950,11 @@ function PacketView({
         </Panel>
       )}
 
-      {openItems.length > 0 && (
-        <Panel accentVar="--warn" title={`Open questions · ${openItems.length}`}>
+      {(openItems.length > 0 || legacyItems.length > 0) && (
+        <Panel
+          accentVar="--warn"
+          title={`Open questions · ${openItems.length + legacyItems.length}`}
+        >
           <div style={css("display:flex;flex-direction:column;gap:14px")}>
             {openItems.map((q, i) => (
               <QuestionResolver
@@ -938,6 +964,27 @@ function PacketView({
                 onResolve={(text) => onResolve(i, text)}
               />
             ))}
+            {legacyItems.length > 0 && (
+              <div style={css("display:flex;flex-direction:column;gap:8px")}>
+                {legacyItems.map((question, i) => (
+                  <span
+                    key={`${question.text}-${i}`}
+                    style={css("font-size:13px;color:var(--ink);line-height:1.45")}
+                  >
+                    {question.text}
+                  </span>
+                ))}
+                <span style={css("font-size:12px;color:var(--dim);line-height:1.45")}>
+                  Historical questions have no secure identity. Prepare all historical questions to
+                  mint server-owned ids, then record fresh rulings for each.
+                </span>
+                <div>
+                  <Button variant="primary" onClick={onPrepareLegacy} disabled={resolving}>
+                    Prepare historical questions
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <div
             style={css("font-size:11.5px;color:var(--dim);margin-top:11px;font-family:var(--mono)")}
@@ -974,7 +1021,7 @@ function PacketView({
                     )}
                   </div>
                 </div>
-                <Button size="sm" onClick={() => onUnresolve(i)} disabled={resolving}>
+                <Button size="sm" onClick={() => onUnresolve(i)} disabled={resolving || !r.item_id}>
                   Unresolve
                 </Button>
               </div>

@@ -641,10 +641,15 @@ class PacketUpdateIn(BaseModel):
 
     body: dict[str, Any] | None = None
     open_questions: dict[str, Any] | None = None
+    # Legacy question text is readable but has no identity the client may safely select. Prepare is a
+    # content-free, server-owned batch transition that mints ids for every legacy item under the packet
+    # row lock; it preserves historical resolutions and cannot clear the approval hold.
+    prepare_legacy_open_questions: bool = False
     confidence: str | None = None  # green | yellow | red
     # The open-questions state token the client last read, an optimistic-concurrency token (#277 clause
-    # B) — the same shape as DecisionIn.expected_prose_hash above. REQUIRED whenever `open_questions` is
-    # supplied: absent is a 422, stale is a 409, and neither changes anything.
+    # B) — the same shape as DecisionIn.expected_prose_hash above. REQUIRED whenever `open_questions` or
+    # `prepare_legacy_open_questions` is supplied: absent is a 422, stale is a 409, and neither changes
+    # anything.
     #
     # It exists because the resolve path is a whole-object read-modify-write from a client snapshot: the
     # Desk re-sends the complete items[] and resolved[] rebuilt from possibly-stale component state, the

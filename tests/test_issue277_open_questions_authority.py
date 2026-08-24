@@ -106,23 +106,65 @@ def test_item_id_is_server_minted_and_binding_is_never_positional():
 
 def test_client_supplied_item_id_for_a_new_item_is_not_honoured_as_identity():
     """D1 support: clients may not mint. A supplied id is kept only when it is already the item's id."""
-    minted = oq.normalize({"items": ["q"], "resolved": []}, mint=True)
+    client_id = str(uuid.uuid4())
+
+    minted = oq.normalize(
+        {"items": [{"item_id": client_id, "text": "q"}], "resolved": []},
+        mint=True,
+        prior_items=[],
+    )
+
     server_id = minted["items"][0]["item_id"]
-    assert uuid.UUID(server_id)  # not something a client chose
+    assert uuid.UUID(server_id)  # a valid UUID alone does not make the client its issuer
+    assert server_id != client_id
 
 
-def test_delete_and_readd_identical_text_requires_a_new_ruling():
-    """2. Re-raising a question is a NEW authority event, not a resurrection of the old ruling."""
-    original = oq.normalize({"items": ["is Serra recognized?"], "resolved": []}, mint=True)
-    old_id = original["items"][0]["item_id"]
-    ruled = oq.normalize({"items": original["items"], "resolved": [_ruling(old_id)]}, mint=True)
-    assert oq.unresolved_items(ruled) == []
+def test_untrusted_write_keeps_only_the_exact_existing_item_identity():
+    """A valid re-submit preserves its id; an edited or duplicate client id is a new question."""
+    stored = oq.normalize({"items": ["who opened the gate?"], "resolved": []}, mint=True)
+    stored_id = stored["items"][0]["item_id"]
 
-    # Delete it (empty items), keeping the ruling as history; then re-add the IDENTICAL text.
-    readded = oq.normalize({"items": ["is Serra recognized?"], "resolved": ruled["resolved"]}, mint=True)
-    new_id = readded["items"][0]["item_id"]
-    assert new_id != old_id, "identical text must not inherit the retired question's identity"
-    assert len(oq.unresolved_items(readded)) == 1, "the old ruling must not clear the re-raised question"
+    replayed = oq.normalize({"items": stored["items"], "resolved": []}, mint=True, prior_items=stored["items"])
+    assert replayed["items"][0]["item_id"] == stored_id
+
+    edited = oq.normalize(
+        {"items": [{"item_id": stored_id, "text": "who locked the gate?"}], "resolved": []},
+        mint=True,
+        prior_items=stored["items"],
+    )
+    assert edited["items"][0]["item_id"] != stored_id
+
+
+async def test_delete_and_readd_identical_text_requires_a_new_ruling(db_factory):
+    """2. A Desk client cannot delete a question, even as a prelude to re-adding identical text.
+
+    The historic delete-and-re-add proof required an unsafe membership match for legacy rows. Under the
+    final contract question inventory is server-owned: omission is a typed 422, so a past ruling cannot be
+    resurrected and a client cannot create a new authority event by rewriting the list.
+    """
+    async with db_factory() as s:
+        cp = await _seed_packet(s, open_questions=oq.normalize({"items": ["is Serra recognized?"]}, mint=True))
+        await s.commit()
+        chapter_id, packet_id = cp.chapter_id, cp.id
+        current = await packets.get_packet(chapter_id, s)
+
+        with pytest.raises(HTTPException) as exc:
+            await packets.update_packet(
+                chapter_id,
+                PacketUpdateIn(
+                    open_questions={"items": [], "resolved": []},
+                    expected_open_questions_token=current.open_questions_token,
+                ),
+                s,
+            )
+
+        assert exc.value.status_code == 422
+        assert exc.value.detail["reason"] == "open_questions_item_membership"
+
+    async with db_factory() as s2:
+        row = await s2.get(ChapterPacket, packet_id)
+        assert row.open_questions["items"] == current.open_questions["items"]
+        assert packet_approval.can_approve(row) is not None
 
 
 # =================================================================================================
@@ -214,6 +256,210 @@ def test_legacy_rows_are_readable_history_and_never_clear():
     # A legacy ITEM read without minting is explicitly marked and carries no id (D4/D5: never mint on read).
     assert read["items"][0]["legacy"] is True
     assert "item_id" not in read["items"][0]
+
+
+async def test_packet_get_projects_legacy_questions_as_readable_unbound_objects(db_factory):
+    """A legacy row is readable through the public API without inventing an authority identity.
+
+    The Desk receives objects, not bare strings, so it can show the historical question and the server
+    remains the only place that may later mint an id through the explicit Prepare transition.
+    """
+    legacy_resolution = {"q": "who hired the courier?", "a": "The Broker", "at": "2026-01-01T00:00:00Z"}
+    async with db_factory() as s:
+        cp = await _seed_packet(
+            s,
+            open_questions={"items": ["who hired the courier?"], "resolved": [legacy_resolution]},
+        )
+        await s.commit()
+        chapter_id = cp.chapter_id
+
+        out = await packets.get_packet(chapter_id, s)
+
+    assert out.open_questions == {
+        "items": [{"text": "who hired the courier?", "legacy": True}],
+        "resolved": [legacy_resolution],
+    }
+    assert out.can_approve is False
+
+
+async def test_client_cannot_submit_a_legacy_item_for_minting(db_factory):
+    """Ordinary writes cannot convert readable legacy history into a clearance identity.
+
+    The old Desk echoes whole snapshots. Accepting this otherwise harmless-looking payload would let any
+    body edit turn a historical question into a new id-bound question through the client path. Prepare
+    owns that conversion under the row lock instead.
+    """
+    async with db_factory() as s:
+        cp = await _seed_packet(s, open_questions={"items": ["who hired the courier?"], "resolved": []})
+        await s.commit()
+        chapter_id, packet_id = cp.chapter_id, cp.id
+        current = await packets.get_packet(chapter_id, s)
+
+        with pytest.raises(HTTPException) as exc:
+            await packets.update_packet(
+                chapter_id,
+                PacketUpdateIn(
+                    open_questions=current.open_questions,
+                    expected_open_questions_token=current.open_questions_token,
+                ),
+                s,
+            )
+
+        assert exc.value.status_code == 422
+        assert exc.value.detail["reason"] == "open_questions_legacy_server_owned"
+
+    async with db_factory() as s2:
+        row = await s2.get(ChapterPacket, packet_id)
+        assert row.open_questions == {"items": ["who hired the courier?"], "resolved": []}
+        assert packet_approval.can_approve(row) is not None
+
+
+async def test_client_cannot_inject_unbound_historical_resolution_entries(db_factory):
+    """No-id resolution entries are stored history only, never an untrusted API input.
+
+    Retaining arbitrary client dicts here would make the Desk display invented audit history and allow the
+    JSONB column to grow without a governing identity. Existing stored legacy entries remain readable.
+    """
+    async with db_factory() as s:
+        cp = await _seed_packet(s, open_questions=oq.normalize({"items": ["who hired the courier?"]}, mint=True))
+        await s.commit()
+        chapter_id, packet_id = cp.chapter_id, cp.id
+        current = await packets.get_packet(chapter_id, s)
+
+        with pytest.raises(HTTPException) as exc:
+            await packets.update_packet(
+                chapter_id,
+                PacketUpdateIn(
+                    open_questions={
+                        "items": current.open_questions["items"],
+                        "resolved": [
+                            {
+                                "q": "who hired the courier?",
+                                "resolution": "fabricated historical ruling",
+                                "source": "client",
+                            }
+                        ],
+                    },
+                    expected_open_questions_token=current.open_questions_token,
+                ),
+                s,
+            )
+
+        assert exc.value.status_code == 422
+        assert exc.value.detail["reason"] == "open_questions_legacy_server_owned"
+
+    async with db_factory() as s2:
+        row = await s2.get(ChapterPacket, packet_id)
+        assert row.open_questions["resolved"] == []
+        assert packet_approval.can_approve(row) is not None
+
+
+async def test_body_only_put_cannot_mint_or_clear_open_questions_from_nested_body(db_factory):
+    """The body-only compatibility path must not become a second question-authority ingress.
+
+    A nullable legacy column used to make the master-packet fallback consume an attacker-controlled nested
+    body value. The route must instead derive the question projection solely from the locked column.
+    """
+    attacker_item_id = str(uuid.uuid4())
+    attacker_timestamp = "1999-01-01T00:00:00Z"
+    async with db_factory() as s:
+        cp = await _seed_packet(s)
+        cp.open_questions = None
+        await s.commit()
+        chapter_id, packet_id = cp.chapter_id, cp.id
+
+        await packets.update_packet(
+            chapter_id,
+            PacketUpdateIn(
+                body={
+                    "scene_seeds": [],
+                    "open_questions": {
+                        "items": [{"item_id": attacker_item_id, "text": "client-controlled question"}],
+                        "resolved": [
+                            {
+                                "item_id": attacker_item_id,
+                                "resolution": "client-controlled clearance",
+                                "source": "client",
+                                "at": attacker_timestamp,
+                            }
+                        ],
+                    },
+                }
+            ),
+            s,
+        )
+        await s.commit()
+
+    async with db_factory() as s2:
+        row = await s2.get(ChapterPacket, packet_id)
+        assert row.open_questions == {"items": [], "resolved": []}
+        canonical = master.master_open_questions(row.body, row.open_questions)
+        assert canonical == {"items": [], "resolved": []}
+        assert attacker_item_id not in str(row.body)
+        assert attacker_timestamp not in str(row.body)
+
+
+async def test_body_only_put_fails_closed_for_a_scalar_legacy_question_column(db_factory):
+    """A malformed scalar column is never repaired from an untrusted nested body fallback."""
+    async with db_factory() as s:
+        cp = await _seed_packet(s)
+        cp.open_questions = "legacy scalar"
+        await s.commit()
+        chapter_id, packet_id = cp.chapter_id, cp.id
+
+        with pytest.raises(HTTPException) as exc:
+            await packets.update_packet(
+                chapter_id,
+                PacketUpdateIn(body={"scene_seeds": [], "open_questions": {"items": [], "resolved": []}}),
+                s,
+            )
+
+        assert exc.value.status_code == 422
+        assert exc.value.detail["reason"] == "open_questions_malformed"
+
+    async with db_factory() as s2:
+        row = await s2.get(ChapterPacket, packet_id)
+        assert row.open_questions == "legacy scalar"
+
+
+async def test_prepare_legacy_questions_mints_all_items_but_preserves_the_hold(db_factory):
+    """Prepare is the only server-owned transition from unbound history to rulable questions.
+
+    It is batch-shaped because a legacy item has no identity the client can safely select one at a time.
+    Historical resolutions remain history; only a later fresh id-bound ruling can clear the hold.
+    """
+    legacy_resolution = {"q": "who hired the courier?", "a": "The Broker", "at": "2026-01-01T00:00:00Z"}
+    async with db_factory() as s:
+        cp = await _seed_packet(
+            s,
+            open_questions={
+                "items": ["who hired the courier?", "where did the seal come from?"],
+                "resolved": [legacy_resolution],
+            },
+        )
+        await s.commit()
+        chapter_id, packet_id = cp.chapter_id, cp.id
+        current = await packets.get_packet(chapter_id, s)
+
+        prepared = await packets.update_packet(
+            chapter_id,
+            PacketUpdateIn(
+                prepare_legacy_open_questions=True,
+                expected_open_questions_token=current.open_questions_token,
+            ),
+            s,
+        )
+        await s.commit()
+
+    assert all(uuid.UUID(item["item_id"]) for item in prepared.open_questions["items"])
+    assert prepared.open_questions["resolved"] == [legacy_resolution]
+    assert prepared.can_approve is False
+
+    async with db_factory() as s2:
+        row = await s2.get(ChapterPacket, packet_id)
+        assert all(isinstance(item, dict) and item.get("item_id") for item in row.open_questions["items"])
+        assert row.open_questions["resolved"] == [legacy_resolution]
+        assert packet_approval.can_approve(row) is not None
 
 
 # =================================================================================================
@@ -424,19 +670,16 @@ async def test_stale_open_questions_write_is_409_and_erases_nothing(db_factory):
         stale_view = await packets.get_packet(chapter_id, s)
         stale_token = stale_view.open_questions_token
 
-        # A SECOND writer adds a question the caller has never seen.
-        second = await packets.update_packet(
-            chapter_id,
-            PacketUpdateIn(
-                open_questions={
-                    "items": [*stale_view.open_questions["items"], {"text": "question two, added meanwhile"}],
-                    "resolved": [],
-                },
-                expected_open_questions_token=stale_token,
-            ),
-            s,
-        )
+        # A trusted authoring path adds a question the caller has never seen. Ordinary Desk updates may
+        # not add questions at all — that restriction is why a stale client snapshot cannot erase this
+        # new server-minted identity.
+        row = await s.get(ChapterPacket, cp_id, populate_existing=True, with_for_update=True)
+        assert row is not None
+        second_open_questions = oq.append_open_questions(row.open_questions, ["question two, added meanwhile"])
+        row.open_questions = second_open_questions
+        row.body = master.with_open_questions(row.body, second_open_questions)
         await s.commit()
+        second = await packets.get_packet(chapter_id, s)
         assert len(second.open_questions["items"]) == 2
 
         # The caller now writes back the world as THEY saw it — one item. Applied blindly this erases

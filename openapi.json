@@ -16729,6 +16729,11 @@
             ],
             "title": "Open Questions"
           },
+          "prepare_legacy_open_questions": {
+            "type": "boolean",
+            "title": "Prepare Legacy Open Questions",
+            "default": false
+          },
           "confidence": {
             "anyOf": [
               {

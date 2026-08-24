@@ -456,9 +456,12 @@ export type PacketOut = Omit<
   amendment_scope?: AmendmentScope | null;
 };
 
-export type PacketUpdateIn = Omit<S["PacketUpdateIn"], "body" | "open_questions"> & {
+// `openapi-typescript` currently renders a Pydantic defaulted boolean as required. Preserve the API's
+// actual optional-on-the-wire contract while narrowing its JSONB question payload for the Desk.
+export type PacketUpdateIn = Omit<S["PacketUpdateIn"], "body" | "open_questions" | "prepare_legacy_open_questions"> & {
   body?: PacketBody | null;
   open_questions?: { items?: OpenQuestionItem[]; resolved?: ResolvedQuestion[] } | null;
+  prepare_legacy_open_questions?: boolean;
 };
 
 export interface SceneWordBudget {

@@ -6524,6 +6524,11 @@ export interface components {
       open_questions?: {
         [key: string]: unknown;
       } | null;
+      /**
+       * Prepare Legacy Open Questions
+       * @default false
+       */
+      prepare_legacy_open_questions: boolean;
       /** Confidence */
       confidence?: string | null;
       /** Expected Open Questions Token */

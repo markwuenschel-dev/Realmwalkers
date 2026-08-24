@@ -81,9 +81,9 @@ def _normalize_open_questions(param: Any, src: dict[str, Any], *, mint: bool = T
     rows it is the adjudicated state), the canonical body section, then the legacy author list at
     body.open_questions.
 
-    `mint=True` (the default, and what every WRITE path uses) mints a server `item_id` for any item that
-    lacks one and server-stamps ruling times. `mint=False` is for read projections, where D4/D5 forbids
-    inventing an id: an id that changed on every render would bind a ruling to nothing.
+    `mint=True` is reserved for trusted packet construction, where a newly generated question enters the
+    server-owned inventory. `mint=False` is for read projections and already-authoritative packet updates,
+    where D4/D5 forbids inventing an id: an id that changed on every render would bind a ruling to nothing.
 
     Shape validation lives in `open_questions.normalize` and raises `OpenQuestionsInvalid` rather than
     coercing — a malformed `items` value used to be silently read as `[]`, which is precisely how a
@@ -202,6 +202,7 @@ def to_master_packet(
     body: Any,
     open_questions: Any = None,
     *,
+    open_questions_mint: bool = True,
     book_id: Any = None,
     chapter_id: Any = None,
     chapter_no: int | None = None,
@@ -211,11 +212,12 @@ def to_master_packet(
     """Tolerant reader: legacy AuthorPacketInternal OR canonical body -> the canonical
     chapter_master_packet shape. Pure (no DB, no clock) and idempotent.
 
-    `open_questions` is the sibling-column value (or an API payload) to fold into
+    `open_questions` is the sibling-column value to fold into
     chapter_contract.open_questions; when None the body's own value (canonical section, else the legacy
-    author list) is used. The identity kwargs stamp ids/lifecycle when the caller knows them; existing
-    body values are preserved otherwise. Unknown keys pass through untouched (internal planning fields
-    are never dropped)."""
+    author list) is used. `open_questions_mint=False` preserves the supplied authoritative state and is
+    required for untrusted body edits. The identity kwargs stamp ids/lifecycle when the caller knows them;
+    existing body values are preserved otherwise. Unknown keys pass through untouched (internal planning
+    fields are never dropped)."""
     src: dict[str, Any] = body if isinstance(body, dict) else {}
     out = dict(src)
     out["schema_version"] = SCHEMA_VERSION
@@ -247,7 +249,7 @@ def to_master_packet(
     claims = src.get("claims")
     out["claims"] = claims if isinstance(claims, list) else []
 
-    oq = _normalize_open_questions(open_questions, src)
+    oq = _normalize_open_questions(open_questions, src, mint=open_questions_mint)
     out["chapter_contract"] = {
         **{canonical: _str_or_none(src.get(legacy)) for canonical, legacy in _CONTRACT_TEXT_FIELDS},
         "locks": {key: as_str_list(src.get(key)) for key in _LOCK_KEYS},
@@ -275,7 +277,9 @@ def with_open_questions(body: Any, open_questions: Any) -> Any:
     and the column remains their adjudicated source until then."""
     if not (isinstance(body, dict) and isinstance(body.get("chapter_contract"), dict)):
         return body
-    oq = _normalize_open_questions(open_questions, {})
+    # The payload was already produced by the authoritative mutation path. Re-normalizing it with
+    # `mint=True` would turn a retained legacy read projection into a new client-triggered identity.
+    oq = _normalize_open_questions(open_questions, {}, mint=False)
     contract = {**body["chapter_contract"], "open_questions": oq}
     return {**body, "chapter_contract": contract, "open_questions": open_question_texts(oq)}
 

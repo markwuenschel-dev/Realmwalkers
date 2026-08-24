@@ -198,7 +198,7 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
     # symmetric in cost: losing a RULING is safe (the item stays open), but losing an ITEM grants
     # approval. So a write that supplies open_questions must prove which state it was computed against.
     normalized_oq: dict[str, Any] | None = None
-    if body.open_questions is not None:
+    if body.open_questions is not None or body.prepare_legacy_open_questions:
         # A REAL row lock. `_latest` passes populate_existing but no `with_for_update`, so without this
         # the compare-and-set could read a snapshot another transaction is already rewriting. House
         # pattern: `scene_packet/blockers.py:98-105`.
@@ -207,18 +207,6 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
             raise HTTPException(status_code=404, detail="no packet for this chapter yet")
         current_token = packet_approval.open_questions_state_token(row)
         supplied = (body.expected_open_questions_token or "").strip()
-        try:
-            # NOT timestamp-stripped: this value is compared against `current_token`, which is computed
-            # from the stored row WITH its server timestamps. Stripping here would guarantee a mismatch
-            # for any row that already carries a ruling, and the idempotent-replay branch below could
-            # never fire. A client that fakes an `at` only makes its own request match the state that
-            # already exists, which is precisely the no-op case.
-            submitted = open_questions_policy.normalize(body.open_questions, mint=False)
-        except open_questions_policy.OpenQuestionsInvalid as exc:
-            raise HTTPException(
-                status_code=422,
-                detail={"reason": "open_questions_malformed", "message": f"{exc} Nothing was changed."},
-            ) from exc
         if not supplied:
             # 422 for absent, 409 for stale — the same split `revision_taxonomy.py:96-97,108-109`
             # already ruled for `expected_prose_hash`, reused rather than reinvented.
@@ -233,8 +221,58 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
                     ),
                 },
             )
+
+        if body.prepare_legacy_open_questions and body.open_questions is not None:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "reason": "open_questions_prepare_payload_conflict",
+                    "message": "Prepare accepts no client question payload. Nothing was changed.",
+                },
+            )
+
+        def _submitted_open_questions() -> dict[str, Any]:
+            if body.prepare_legacy_open_questions:
+                # Prepare is intentionally content-free: it reads every unbound item from the locked row
+                # and mints identities in one batch, without accepting a client-selected legacy question.
+                return open_questions_policy.prepare_legacy_items(row.open_questions)
+            # The untrusted interface may adjudicate only existing id-bound items. This is deliberately
+            # not generic `normalize(..., mint=True)`: that helper remains for trusted construction.
+            return open_questions_policy.apply_client_update(row.open_questions, body.open_questions)
+
+        def _unprocessable_open_questions(exc: open_questions_policy.OpenQuestionsInvalid) -> HTTPException:
+            if isinstance(exc, open_questions_policy.OpenQuestionsLegacyServerOwned):
+                return HTTPException(
+                    status_code=422,
+                    detail={
+                        "reason": "open_questions_legacy_server_owned",
+                        "message": f"{exc} Use Prepare to make historical questions rulable. Nothing was changed.",
+                    },
+                )
+            if isinstance(exc, open_questions_policy.OpenQuestionsItemMembershipMismatch):
+                return HTTPException(
+                    status_code=422,
+                    detail={"reason": "open_questions_item_membership", "message": f"{exc} Nothing was changed."},
+                )
+            return HTTPException(
+                status_code=422,
+                detail={"reason": "open_questions_malformed", "message": f"{exc} Nothing was changed."},
+            )
+
         if supplied != current_token:
-            if open_questions_policy.state_token(submitted) == current_token:
+            # A stale update is refused before its payload-specific validation. Otherwise a concurrent
+            # server append would turn the caller's perfectly ordinary old snapshot into a misleading
+            # 422 membership error instead of the required retryable 409. We still parse enough to
+            # recognize an idempotent replay of the state already committed.
+            try:
+                submitted = _submitted_open_questions()
+            except open_questions_policy.OpenQuestionsInvalid:
+                submitted = None
+            if (
+                submitted is not None
+                and open_questions_policy.state_token(open_questions_policy.normalize(submitted, mint=False))
+                == current_token
+            ):
                 # Idempotent replay: the token is stale, but the submitted value IS the current state, so
                 # this request already succeeded and is being delivered twice. A no-op 200 is correct —
                 # rejecting it would make a safe retry look like a conflict.
@@ -252,20 +290,25 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
                 },
             )
         try:
-            stored = open_questions_policy.normalize(row.open_questions, mint=False)
-            normalized_oq = open_questions_policy.normalize(
-                open_questions_policy.strip_client_timestamps(body.open_questions),
-                mint=True,
-                previous=open_questions_policy.stored_ruling_times(stored),
-            )
+            normalized_oq = _submitted_open_questions()
         except open_questions_policy.OpenQuestionsInvalid as exc:
-            raise HTTPException(
-                status_code=422,
-                detail={"reason": "open_questions_malformed", "message": f"{exc} Nothing was changed."},
-            ) from exc
+            raise _unprocessable_open_questions(exc) from exc
 
     body_changed = False
     if body.body is not None:
+        # A body edit may never source question authority from its nested JSON. Even on nullable/scalar
+        # legacy rows we pass an explicit stored projection, preventing `to_master_packet` from falling
+        # through to attacker-controlled `body.open_questions` and minting a question plus a clearance.
+        try:
+            stored_body_open_questions = open_questions_policy.normalize(row.open_questions, mint=False)
+        except open_questions_policy.OpenQuestionsInvalid as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "reason": "open_questions_malformed",
+                    "message": f"stored open questions are malformed: {exc}. Nothing was changed.",
+                },
+            ) from exc
         # Stamp ids on any seeds the human added so they stay linkable once derived; existing ids are
         # preserved (reassign, not in-place mutate, so SQLAlchemy flags the JSONB change).
         new_body = body.body
@@ -276,7 +319,8 @@ async def _update_packet_locked(session: SessionDep, chapter_id: uuid.UUID, body
         internal = evaluate_chapter_packet_internal(new_body)
         canonical = master.to_master_packet(
             internal.normalized_body,
-            open_questions=normalized_oq if normalized_oq is not None else row.open_questions,
+            open_questions=normalized_oq if normalized_oq is not None else stored_body_open_questions,
+            open_questions_mint=False,
             book_id=row.book_id,
             chapter_id=row.chapter_id,
             status=row.status,

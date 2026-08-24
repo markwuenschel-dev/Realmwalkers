@@ -193,8 +193,13 @@ def open_questions_state_token(packet: ChapterPacket) -> str:
 def enrich_packet_out(row: ChapterPacket) -> PacketOut:
     pr = project(row, _POLICY)
     out = PacketOut.model_validate(row)
+    # Read projection only: legacy strings become readable ``{text, legacy: true}`` objects but never
+    # receive an id here. A rendered id that was not durably written would bind a later ruling to
+    # nothing. The explicit Prepare transition is the sole legacy-to-bound conversion.
+    open_questions = open_questions_policy.normalize(row.open_questions, mint=False)
     return out.model_copy(
         update={
+            "open_questions": open_questions,
             "can_approve": pr.state == "approvable",
             "approval_state": pr.state,
             "approval_blockers": pr.display_reasons,

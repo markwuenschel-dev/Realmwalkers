@@ -149,6 +149,40 @@ beforeEach(() => {
   vi.mocked(api.approveAmendment).mockReset();
 });
 
+describe("PacketsScreen legacy question recovery", () => {
+  const LEGACY_QUESTION_PACKET = {
+    ...REPAIR_PACKET,
+    open_questions: {
+      items: [{ text: "Who authorized the crossing?", legacy: true }],
+      resolved: [],
+    },
+    open_questions_token: "legacy-open-questions-token",
+    can_approve: false,
+    approval_state: "open_questions",
+    approval_blockers: ["resolve the packet's open questions first"],
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.packet).mockReset().mockResolvedValue(LEGACY_QUESTION_PACKET);
+    vi.mocked(api.packetStatus).mockReset().mockResolvedValue({ running: false });
+    vi.mocked(api.updatePacket).mockReset().mockResolvedValue(LEGACY_QUESTION_PACKET);
+  });
+
+  it("prepares all legacy questions without submitting their text from the client", async () => {
+    render(<PacketsScreen />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Prepare historical questions" }));
+
+    await waitFor(() =>
+      expect(api.updatePacket).toHaveBeenCalledWith("c1", {
+        prepare_legacy_open_questions: true,
+        expected_open_questions_token: "legacy-open-questions-token",
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "Resolve" })).toBeNull();
+  });
+});
+
 describe("PacketsScreen batch generate", () => {
   beforeEach(() => {
     vi.mocked(api.packet).mockReset().mockRejectedValue(new Error("404"));
