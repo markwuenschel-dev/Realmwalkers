@@ -80,6 +80,9 @@ async def _live_run(chapter_id: uuid.UUID, *, max_ticks: int) -> int:
         )
         run = await driver.run_chapter(session, chapter_id)
 
+    # `final_status` and `funnel` are Optional on DriverRun and the driver's own `as_dict` guards
+    # them the same way. A run that stopped before its first status read has neither, and printing
+    # "None" for a funnel would read as "zero scenes approved" — which is a different claim.
     final = run.final_status
     funnel = run.funnel
     print(f"chapter    {chapter_id}")
@@ -88,19 +91,25 @@ async def _live_run(chapter_id: uuid.UUID, *, max_ticks: int) -> int:
     for i, tick in enumerate(run.ticks, 1):
         did = tick.action or ("acted" if tick.acted else "—")
         print(f"  {i:>3}. [{tick.state.value}] {did}")
-    print(f"final      {final.state.value}")
-    if final.reason:
-        print(f"reason     {final.reason}")
-    if final.next_human_action:
-        print(f"you must   {final.next_human_action}")
-    print(
-        f"funnel     {funnel.scenes_approved}/{funnel.scenes_total} scenes approved · "
-        f"{funnel.interventions} interventions · {funnel.revisions} revisions · "
-        f"{funnel.provider_calls} provider calls "
-        f"({funnel.provider_input_tokens} in / {funnel.provider_output_tokens} out)"
-    )
-    if funnel.failure_reasons:
-        print(f"failures   {funnel.failure_reasons}")
+    if final is None:
+        print("final      (the run ended before a status was read)")
+    else:
+        print(f"final      {final.state.value}")
+        if final.reason:
+            print(f"reason     {final.reason}")
+        if final.next_human_action:
+            print(f"you must   {final.next_human_action}")
+    if funnel is None:
+        print("funnel     (not measured)")
+    else:
+        print(
+            f"funnel     {funnel.scenes_approved}/{funnel.scenes_total} scenes approved · "
+            f"{funnel.interventions} interventions · {funnel.revisions} revisions · "
+            f"{funnel.provider_calls} provider calls "
+            f"({funnel.provider_input_tokens} in / {funnel.provider_output_tokens} out)"
+        )
+        if funnel.failure_reasons:
+            print(f"failures   {funnel.failure_reasons}")
     if run.stopped_because == STOP_MAX_TICKS:
         print()
         print("HIT THE TICK CEILING. This is NOT convergence — the loop was still finding work when it")
