@@ -63,6 +63,7 @@ from dominion.shared.schemas import (
 from dominion.workers import activity
 from dominion.workers.job_scheduler import schedule_next_after_approval
 from dominion.workers.memory import knowledge, ledger, summaries
+from dominion.workers.packet import contract_permit
 from dominion.workers.revision import (
     _accept_revision_request_locked,
     _cancel_active_requests_for_scene_locked,
@@ -156,6 +157,24 @@ async def accept_scene_approval(
         scene = await session.get(Scene, scene_id)  # first materialization, UNDER the held lock
         if scene is None:  # raced delete between locate and lock
             raise HTTPException(status_code=404, detail="scene not found")
+
+        # THE PERMIT (#283 C2), evaluated under the held lock and BEFORE any mutation. This is the one
+        # place a human blesses prose as canonical, and it used to consult nothing: the `first_approval`
+        # check below is idempotence, not a gate. Approving prose written under a contract whose open
+        # questions are still unresolved is precisely what #277's gate exists to prevent — so ask the
+        # same reader the packet's own approval asks, rather than re-deriving a second opinion here.
+        # Refuses on RE-approval too: the transition is not the act, blessing the prose is.
+        if refusal := await contract_permit.approved_contract_refusal(
+            session,
+            chapter_id,
+            message=lambda n: (
+                f"This chapter's approved contract still has {n} unresolved open question(s), so it does "
+                "not hold authority yet — and approving a scene blesses its prose as canonical under that "
+                "contract. Rule every question on the packet (each ruling needs a non-empty resolution and "
+                "source), then approve the scene. Nothing was changed."
+            ),
+        ):
+            raise HTTPException(status_code=409, detail=refusal)
 
         # Re-approval must NOT re-run the one-shot side effects (relative ledger deltas would double-count;
         # auto-advance could re-enqueue). They fire only on the first pending -> approved cross.

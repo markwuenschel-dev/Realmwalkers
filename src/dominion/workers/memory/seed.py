@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.shared import agent_ops
+from dominion.shared.chapter_lock import acquire_chapter_workflow_lock
 from dominion.shared.chapter_order import chapter_position
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
@@ -157,6 +158,17 @@ async def seed_manuscript(
                 f"ch{chapter_no}: existing chapter POV {chapter.pov!r} != {path.name}'s {pov!r}; "
                 f"kept {chapter.pov!r} — the per-POV summary keys on it. Align the chapter or the file."
             )
+        # #283 C3. Seeding lands scenes at APPROVED — a real authority write, and it used to take no
+        # lock at all, so it could interleave with a concurrent approval or revision on the same chapter
+        # and it shifts scene-packet staleness downstream through the approved-scene hash. The advisory
+        # lock is transaction-scoped, so taking it here serializes this CLI against every other chapter
+        # mutation and releases on the seed transaction's commit. Re-taking it per scene is harmless:
+        # the same transaction already holds it.
+        #
+        # The APPROVED status itself is NOT gated on a contract, and that is deliberate: this command
+        # imports prose the author already wrote, so the human running it IS the authority. What was
+        # missing was serialization and visibility, not permission.
+        await acquire_chapter_workflow_lock(session, chapter.id)
         scene, created = await _upsert_seed_scene(session, chapter_id=chapter.id, scene_no=scene_no, prose=prose)
         seeded.append((chapter_no, scene_no, scene))
         (report.imported if created else report.updated).append(f"ch{chapter_no}.s{scene_no} {title!r} ({chapter.pov})")
