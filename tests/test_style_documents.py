@@ -145,3 +145,59 @@ def test_the_real_style_tree_pushes_if_present():
     slugs = {slug for slug, _src, _content in docs}
     assert "style/forbidden_drift" in slugs
     assert all(content.strip() for _s, _p, content in docs), "an empty style document would push a blank row"
+
+
+# =================================================================================================
+# CRLF — the bug that shipped
+# =================================================================================================
+
+
+async def test_crlf_content_in_the_database_still_parses(db_factory):
+    """The failure this file did not catch the first time, and the reason it did not.
+
+    The first real push went through Windows text-mode stdout, which turned every newline into CRLF
+    inside the dollar-quoted literal. 34,689 characters landed in the database intact-looking — and
+    `scope_forbidden_drift` matched **zero** patterns, because its block regex anchors on a closing
+    backtick followed by "\n". No error. No warning. The document loaded and the drafter ran
+    unconstrained.
+
+    Every earlier test here built its fixture in Python with LF, so none of them could see it. This one
+    stores exactly what the shell produced.
+    """
+    from dominion.workers.context.forbidden_drift import scope_forbidden_drift
+
+    lf = "# Drift\n\n### 1. Thing  ·  `[PROSE]`\n\n**Correction:** Do the other thing.\n"
+    crlf = lf.replace("\n", "\r\n")
+
+    async with db_factory() as s:
+        s.add(StyleDocument(slug="style/crlf_probe", content=crlf, source_path="pushed-from-windows"))
+        await s.commit()
+
+    async with db_factory() as s2:
+        got = await load_style_document(s2, "series/style/crlf_probe.md")
+
+    assert got is not None
+    assert "\r" not in got, "carriage returns survived into the loaded document"
+    scoped = scope_forbidden_drift(got, pov="Marcus", present=["Marcus"], signals="")
+    assert "Do the other thing." in scoped, "CRLF content loaded but scoped to nothing — the shipped bug"
+
+
+def test_emitted_sql_contains_no_carriage_returns():
+    """Guards the emitter end. `--sql` writes bytes precisely so the shell cannot translate them."""
+    sql = push_style.emit_sql([("style/x", "series/style/x.md", "line one\nline two\n")])
+    assert "\r" not in sql, "the emitter produced CRLF; it will corrupt every structured reader"
+
+
+async def test_disk_content_is_normalised_too(tmp_path, db_factory):
+    """A CRLF file in the working tree is the same trap by a different route — a repo cloned with
+    `core.autocrlf=true` produces exactly this on Windows."""
+    crlf = chr(13) + chr(10)
+    body = crlf.join(["# Drift", "", "### 1. Thing  ·  `[PROSE]`", "", "**Correction:** Do it.", ""])
+    doc = tmp_path / "forbidden_drift.md"
+    doc.write_bytes(body.encode("utf-8"))
+
+    async with db_factory() as s:
+        got = await load_style_document(s, str(doc))
+
+    assert got is not None, "the disk fallback did not find the file"
+    assert chr(13) not in got, "carriage returns survived the disk fallback"

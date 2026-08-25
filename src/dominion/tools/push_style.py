@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 from pathlib import Path
 
 from sqlalchemy import select
@@ -98,7 +99,12 @@ async def _run(args: argparse.Namespace) -> None:
         return
 
     if args.sql:
-        print(emit_sql(docs), end="")
+        # Bytes, not print(). Windows text-mode stdout translates every newline into CRLF, and those
+        # carriage returns ride inside the dollar-quoted literal straight into the database. Every
+        # structured reader downstream anchors on "\n", so the document loads and then matches nothing:
+        # no error, no warning, just guidance that silently stops applying. That is precisely how the
+        # first push shipped 34,689 characters of drift patterns that scoped to zero patterns.
+        sys.stdout.buffer.write(emit_sql(docs).encode("utf-8"))
         return
 
     async with SessionFactory() as session:
