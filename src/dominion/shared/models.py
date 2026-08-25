@@ -954,6 +954,31 @@ class ModelOverride(Base):
     model: Mapped[str] = mapped_column(Text)
 
 
+class StyleDocument(Base):
+    """A style or canon document, served from Postgres rather than from disk.
+
+    The style guides (`forbidden_drift.md`, `voice_guide.md`, …) live under `series/`, which is
+    gitignored by deliberate policy — creative content does not go to GitHub or the deploy box. Deploy
+    is a `git pull`, so those files can never reach the server, and anything that reads them from disk
+    is silently inert in production while working perfectly on the author's machine.
+
+    This is the seam that fixes that. Content is pushed into the database (the same place the canon RAG
+    index already lives), and the context loaders read here first and fall back to disk. The file on the
+    author's machine stays the thing he edits; this is the copy the deployed drafter actually sees.
+
+    Keyed by slug (`style/forbidden_drift`), not by book: these govern the series, not one volume.
+    """
+
+    __tablename__ = "style_documents"
+    slug: Mapped[str] = mapped_column(Text, primary_key=True)
+    content: Mapped[str] = mapped_column(Text)
+    #: Source path this content came from, for provenance when it disagrees with the author's disk copy.
+    source_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AgentPolicyOverride(Base):
     """Per-agent fallback/escalation policy persisted from the Agent Operations panel."""
 
