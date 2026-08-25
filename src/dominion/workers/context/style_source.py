@@ -48,6 +48,18 @@ def slug_for(path: str) -> str:
     return "/".join(parts)
 
 
+def normalise_newlines(text: str) -> str:
+    """Line endings to LF, whatever the content crossed to get here.
+
+    Content reaches `style_documents` through a push that may have travelled a Windows shell, and every
+    structured reader downstream anchors on "\n" — `forbidden_drift`'s block regex matches a closing
+    backtick followed by a newline. One stray carriage return makes that match nothing, and it does not
+    fail: the document loads, the scoper returns empty, the drafter runs unconstrained, and the logs are
+    clean. Normalising on read means no caller has to know where the bytes came from.
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def read_from_disk(path: str) -> str | None:
     """Read a style document from the working tree. None when absent — which is the normal state on
     the deploy box, not an error."""
@@ -70,7 +82,7 @@ async def load_style_document(session: AsyncSession, path: str) -> str | None:
     slug = slug_for(path)
     row = (await session.execute(select(StyleDocument).where(StyleDocument.slug == slug))).scalar_one_or_none()
     if row is not None and row.content.strip():
-        return row.content
+        return normalise_newlines(row.content)
 
     on_disk = read_from_disk(path)
     if on_disk is not None and on_disk.strip():
@@ -79,7 +91,7 @@ async def load_style_document(session: AsyncSession, path: str) -> str | None:
             # saying once, because the same code path in production would mean the drafter is running
             # unconstrained.
             log.debug("style.disk_fallback", slug=slug, path=path)
-        return on_disk
+        return normalise_newlines(on_disk)
 
     if slug not in _warned:
         _warned.add(slug)
