@@ -31,6 +31,8 @@ class SceneContext:
     target_words: int | None = None
     exemplars: list[str] = field(default_factory=list)
     dialogue_rules: str | None = None
+    #: Named drift patterns, scoped to the families this scene can actually violate.
+    forbidden_drift: str | None = None
     canon: list[str] = field(default_factory=list)
     pov_summary: str | None = None
     ledger: dict[str, dict[str, Any]] = field(default_factory=dict)

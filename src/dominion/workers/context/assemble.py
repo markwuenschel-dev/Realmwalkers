@@ -9,6 +9,7 @@ from dominion.workers.budget import TokenBudget
 from dominion.workers.context.contracts import load_scene_packet_fields
 from dominion.workers.context.dialogue_rules import load_dialogue_rules
 from dominion.workers.context.draft_memory import build_draft_memory
+from dominion.workers.context.forbidden_drift import load_forbidden_drift
 from dominion.workers.context.resolve import resolve_job
 from dominion.workers.context.revision import load_revision_state
 from dominion.workers.context.types import RevisionState, SceneContext, ScenePacketRequiredError
@@ -47,6 +48,13 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         budget=TokenBudget(max_tokens=job.token_budget),
         target_words=beat.target_words,
         dialogue_rules=load_dialogue_rules([pov, *(beat.characters_present or [])]),
+        # Scoped by family: the physical signal comes from the beat's own tags and text, so a scene
+        # that never moves a body does not carry the choreography patterns into its prompt.
+        forbidden_drift=load_forbidden_drift(
+            pov=pov,
+            present=[pov, *(beat.characters_present or [])],
+            signals=" ".join([*(beat.tags or []), beat.beat_text or ""]),
+        ),
         exemplars=memory.exemplars,
         canon=memory.canon,
         pov_summary=memory.pov_summary,

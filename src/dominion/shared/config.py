@@ -236,6 +236,10 @@ class Settings(BaseSettings):
     # project root (falling back to CWD). dialogue_rules.md is authoritative for ALL dialogue —
     # it wins over the per-POV voice spec where they disagree (see drafter._voice_system).
     dialogue_rules_path: str = "series/style/dialogue_rules.md"
+    # The named drift patterns (`forbidden_drift.md`). Loaded per draft and SCOPED by family tag — the
+    # whole file is ~475 lines and injecting it unconditionally would cost more than it corrects, on a
+    # pipeline where contract derivation is already the majority of spend.
+    forbidden_drift_path: str = "series/style/forbidden_drift.md"
 
     # Post-split monorepo ingest source dirs (series/canon + book1/manuscript). Centralized here so the
     # worker CLIs (canon_rag.py, seed.py) read one source of truth instead of duplicating the literal

@@ -67,6 +67,17 @@ def _voice_system(ctx: SceneContext) -> str:
             "formatted, or differentiated between characters, follow THESE rules:\n"
             f"{ctx.dialogue_rules}"
         )
+    if ctx.forbidden_drift:
+        # LAST, and deliberately so. These are prohibitions; read before the positive voice guidance
+        # they compete with it, read after they bound it. Already scoped by
+        # `context/forbidden_drift.py` to the families this scene can actually violate, so every line
+        # here is a way THIS scene can go wrong — which is what keeps the model reading the block
+        # instead of skimming it.
+        system += (
+            "\n\nDRIFT PATTERNS — DO NOT WRITE THESE. Where a stylistic instinct would produce one of "
+            "these, take the plainer option. They constrain the voice guidance above.\n"
+            f"{ctx.forbidden_drift}"
+        )
     return system
 
 
