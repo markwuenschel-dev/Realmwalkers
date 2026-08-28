@@ -100,9 +100,7 @@ async def test_push_is_idempotent_and_reports_what_changed(db_factory, tmp_path)
     assert "updated" in third[0]
 
     async with db_factory() as s4:
-        row = (
-            await s4.execute(select(StyleDocument).where(StyleDocument.slug == "style/push_probe"))
-        ).scalar_one()
+        row = (await s4.execute(select(StyleDocument).where(StyleDocument.slug == "style/push_probe"))).scalar_one()
         assert row.content == DOC_B
 
 
