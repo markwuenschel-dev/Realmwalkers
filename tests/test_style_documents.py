@@ -79,7 +79,9 @@ async def test_an_empty_database_row_falls_through_to_disk(db_factory, tmp_path)
 
 
 async def test_push_is_idempotent_and_reports_what_changed(db_factory, tmp_path):
-    docs = [("style/forbidden_drift", "series/style/forbidden_drift.md", DOC_A)]
+    # A slug `db_factory` does NOT seed: the two REQUIRED documents are pre-created so the readiness
+    # gate sees a provisioned environment, and pushing one of those could never report "added".
+    docs = [("style/push_probe", "series/style/push_probe.md", DOC_A)]
 
     async with db_factory() as s:
         first = await push_style.push(s, docs, dry_run=False)
@@ -91,7 +93,7 @@ async def test_push_is_idempotent_and_reports_what_changed(db_factory, tmp_path)
         await s2.commit()
     assert "unchanged" in again[0], "an unchanged push reported a write"
 
-    changed = [("style/forbidden_drift", "series/style/forbidden_drift.md", DOC_B)]
+    changed = [("style/push_probe", "series/style/push_probe.md", DOC_B)]
     async with db_factory() as s3:
         third = await push_style.push(s3, changed, dry_run=False)
         await s3.commit()
@@ -99,7 +101,7 @@ async def test_push_is_idempotent_and_reports_what_changed(db_factory, tmp_path)
 
     async with db_factory() as s4:
         row = (
-            await s4.execute(select(StyleDocument).where(StyleDocument.slug == "style/forbidden_drift"))
+            await s4.execute(select(StyleDocument).where(StyleDocument.slug == "style/push_probe"))
         ).scalar_one()
         assert row.content == DOC_B
 
