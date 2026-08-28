@@ -1,4 +1,4 @@
-"""Inject endpoint tests — lane selection, chaining, and partial failure. No DB, no network.
+"""Inject endpoint tests — lane selection, chaining, and partial failure. No network.
 
 The endpoint's own job is narrow: turn a lane SELECTION into a chain of passes, run them in the
 pipeline's canonical order, and report honestly on what ran. So these stub each lane's `run()` and
@@ -20,6 +20,34 @@ from dominion.api.routers.enrich import EnrichIn, enrich
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.router import DRAFT_PASSES
 from dominion.workers.specialists.base import PassError
+
+
+class _NoStyleRowsSession:
+    """The one DB read `enrich` makes is the dialogue rules (`style_documents`). These tests are about
+    lane wiring, not style resolution — that is pinned in test_dialogue_rules.py — so this stands in
+    for a database with no pushed rows, which sends `load_style_document` to its disk fallback and,
+    under a tmp-free test run, to None. Lane behaviour must not depend on the rules being present."""
+
+    async def execute(self, *_args, **_kwargs):
+        class _Result:
+            @staticmethod
+            def scalar_one_or_none():
+                return None
+
+            @staticmethod
+            def scalars():
+                class _S:
+                    @staticmethod
+                    def all():
+                        return []
+
+                return _S()
+
+        return _Result()
+
+
+def _session():
+    return _NoStyleRowsSession()
 
 
 def _stub_lanes(monkeypatch, failures: dict[str, BaseException] | None = None) -> list[str]:
@@ -48,7 +76,7 @@ def _stub_lanes(monkeypatch, failures: dict[str, BaseException] | None = None) -
 
 async def test_no_selection_runs_every_lane_chained_in_canonical_order(monkeypatch):
     calls = _stub_lanes(monkeypatch)
-    out = await enrich(EnrichIn(prose="scene", lanes=None))
+    out = await enrich(EnrichIn(prose="scene", lanes=None), _session())
 
     assert calls == ["combat", "sensory", "dialogue"]
     assert out.lanes_run == ["combat", "sensory", "dialogue"]
@@ -61,14 +89,14 @@ async def test_no_selection_runs_every_lane_chained_in_canonical_order(monkeypat
 async def test_empty_list_is_the_same_as_no_selection(monkeypatch):
     """The panel sends [] for "nothing picked" — it must mean all lanes, not zero lanes."""
     _stub_lanes(monkeypatch)
-    out = await enrich(EnrichIn(prose="scene", lanes=[]))
+    out = await enrich(EnrichIn(prose="scene", lanes=[]), _session())
     assert out.lanes_run == ["combat", "sensory", "dialogue"]
 
 
 async def test_requested_order_does_not_change_run_order(monkeypatch):
     """Selection is a SET. Clicking dialogue first must not run it against un-sharpened choreography."""
     calls = _stub_lanes(monkeypatch)
-    out = await enrich(EnrichIn(prose="scene", lanes=["dialogue", "combat"]))
+    out = await enrich(EnrichIn(prose="scene", lanes=["dialogue", "combat"]), _session())
 
     assert calls == ["combat", "dialogue"]
     assert out.lanes_run == ["combat", "dialogue"]
@@ -77,7 +105,7 @@ async def test_requested_order_does_not_change_run_order(monkeypatch):
 
 async def test_a_subset_runs_only_what_was_asked_for(monkeypatch):
     calls = _stub_lanes(monkeypatch)
-    out = await enrich(EnrichIn(prose="scene", lanes=["sensory"]))
+    out = await enrich(EnrichIn(prose="scene", lanes=["sensory"]), _session())
 
     assert calls == ["sensory"]
     assert out.lanes_run == ["sensory"]
@@ -86,14 +114,14 @@ async def test_a_subset_runs_only_what_was_asked_for(monkeypatch):
 
 async def test_duplicate_lanes_run_once(monkeypatch):
     calls = _stub_lanes(monkeypatch)
-    await enrich(EnrichIn(prose="scene", lanes=["combat", "combat"]))
+    await enrich(EnrichIn(prose="scene", lanes=["combat", "combat"]), _session())
     assert calls == ["combat"]
 
 
 async def test_failed_lane_keeps_the_lanes_that_succeeded(monkeypatch):
     """The decision: a mid-chain failure never throws away real prose the author already paid for."""
     calls = _stub_lanes(monkeypatch, failures={"sensory": PassError("sensory pass returned empty output")})
-    out = await enrich(EnrichIn(prose="scene", lanes=None))
+    out = await enrich(EnrichIn(prose="scene", lanes=None), _session())
 
     assert calls == ["combat", "sensory", "dialogue"]  # a soft failure does not abort the chain
     assert out.lanes_run == ["combat", "dialogue"]
@@ -110,7 +138,7 @@ async def test_every_lane_failing_is_a_502_not_your_own_prose_back(monkeypatch):
         failures={name: PassError(f"{name} boom") for name in DRAFT_PASSES},
     )
     with pytest.raises(HTTPException) as exc:
-        await enrich(EnrichIn(prose="scene", lanes=None))
+        await enrich(EnrichIn(prose="scene", lanes=None), _session())
 
     assert exc.value.status_code == 502
     assert "combat boom" in exc.value.detail
@@ -119,7 +147,7 @@ async def test_every_lane_failing_is_a_502_not_your_own_prose_back(monkeypatch):
 async def test_budget_exhaustion_stops_the_chain(monkeypatch):
     """The budget is shared across the chain: once gone, later lanes cannot succeed — don't bill for them."""
     calls = _stub_lanes(monkeypatch, failures={"sensory": BudgetExceeded("out of tokens")})
-    out = await enrich(EnrichIn(prose="scene", lanes=None))
+    out = await enrich(EnrichIn(prose="scene", lanes=None), _session())
 
     assert calls == ["combat", "sensory"]  # dialogue never attempted
     assert out.lanes_run == ["combat"]
@@ -130,7 +158,7 @@ async def test_budget_exhaustion_stops_the_chain(monkeypatch):
 async def test_unknown_lane_is_rejected(monkeypatch):
     _stub_lanes(monkeypatch)
     with pytest.raises(HTTPException) as exc:
-        await enrich(EnrichIn(prose="scene", lanes=["combat", "telepathy"]))
+        await enrich(EnrichIn(prose="scene", lanes=["combat", "telepathy"]), _session())
 
     assert exc.value.status_code == 422
     assert "telepathy" in exc.value.detail

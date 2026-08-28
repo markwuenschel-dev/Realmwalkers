@@ -23,6 +23,7 @@ from dominion.shared.models import Beat, Chapter, ChapterPacket, ChapterSequence
 from dominion.shared.schemas import DraftQueueBlockerOut, DraftReadinessOut, StructuralBlockerOut
 from dominion.shared.text_match import collect_strings, get_dotted
 from dominion.workers.budget_reconciliation import check_sequence_budget_consistency
+from dominion.workers.context.style_source import missing_required_style_documents
 from dominion.workers.draft_queue import DraftQueueBlocker, resolve_approved_scene_packet_for_beat_prefetched
 
 
@@ -307,6 +308,9 @@ class DraftGateInputs:
     draftable_scenes: int = 0
     missing_scene_drafts: tuple[int, ...] = ()
     provider_rate_limited: bool = False
+    # Slugs of required style documents in neither Postgres nor disk. Deterministic (a table lookup
+    # plus a stat), so it satisfies the #278 invariant above: no LLM decides it.
+    missing_style_documents: tuple[str, ...] = ()
 
 
 def resolve_draft_gate(g: DraftGateInputs) -> tuple[bool, str | None]:
@@ -317,6 +321,18 @@ def resolve_draft_gate(g: DraftGateInputs) -> tuple[bool, str | None]:
 
     Deterministic end to end (#278): every branch below reads a count derived from persisted contract
     state, never from a model's judgement."""
+    # 0. Style guidance — an ENVIRONMENT fault, checked before any contract gate because it invalidates
+    # every draft regardless of how good the contracts are. `series/` is gitignored, so on the deploy
+    # box these documents exist only in `style_documents`; when they are absent the drafter still runs
+    # and still returns prose, just with the constraint block silently omitted. That failure is
+    # indistinguishable from success at every other surface, which is exactly why it must fail closed
+    # here rather than warn into a log nobody queries.
+    if g.missing_style_documents:
+        return False, (
+            f"Required style document(s) not found in Postgres or on disk: "
+            f"{', '.join(g.missing_style_documents)} — drafting would run without that guidance. "
+            "Push them with `python -m dominion.tools.push_style`."
+        )
     # 1. Chapter packet — nothing downstream exists without the approved macro contract.
     if not g.chapter_packet_approved:
         return False, "Chapter packet is not approved yet — approve it first."
@@ -392,6 +408,10 @@ class ReadinessRows:
     sp_required_failed: int
     budget_sequence: ChapterSequence | None  # latest by updated_at, any status (lane-3 budget check)
     cp_sequence: ChapterSequence | None  # latest non-stale sequence scoped to cp (structural gates)
+    # Required style documents present in neither Postgres nor disk. Book-scoped, not chapter-scoped
+    # (style governs the series), so the book overview fetches it once and hands every chapter the
+    # same tuple. Defaulted so a caller that predates this gate keeps working.
+    missing_style_documents: tuple[str, ...] = ()
 
 
 def derive_draft_readiness(rows: ReadinessRows) -> DraftReadinessOut:
@@ -543,6 +563,7 @@ def derive_draft_readiness(rows: ReadinessRows) -> DraftReadinessOut:
             draftable_scenes=draftable_scenes,
             missing_scene_drafts=tuple(missing_prose),
             provider_rate_limited=len(rate_limited_sp) > 0,
+            missing_style_documents=rows.missing_style_documents,
         )
     )
 
@@ -706,6 +727,7 @@ async def compute_draft_readiness(session: AsyncSession, chapter_id: uuid.UUID) 
             sp_required_failed=int(sp_required_failed),
             budget_sequence=budget_sequence,
             cp_sequence=cp_sequence,
+            missing_style_documents=await missing_required_style_documents(session),
         )
     )
 
@@ -717,6 +739,10 @@ async def fetch_book_readiness_rows(session: AsyncSession, book_id: uuid.UUID) -
     chapter_ids = list((await session.execute(select(Chapter.id).where(Chapter.book_id == book_id))).scalars().all())
     if not chapter_ids:
         return {}
+
+    # Once for the book: style documents are series-scoped, so resolving them per chapter would be N
+    # identical lookups for one answer every chapter shares.
+    missing_style = await missing_required_style_documents(session)
 
     cp_by_chapter: dict[uuid.UUID, ChapterPacket] = {}
     cp_rows = (
@@ -818,6 +844,8 @@ async def fetch_book_readiness_rows(session: AsyncSession, book_id: uuid.UUID) -
             sp_required_failed=sp_required_failed[cid],
             budget_sequence=budget_sequence,
             cp_sequence=cp_sequence,
+            # One lookup for the whole book — style documents are series-scoped, not per chapter.
+            missing_style_documents=missing_style,
         )
     return out
 

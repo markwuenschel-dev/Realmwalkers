@@ -36,6 +36,9 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
     # Effective POV = the beat's per-scene override, else the chapter POV. resolved.profile is already
     # the effective POV's profile (resolve_job loads it that way), so the scene drafts in that voice.
     pov = effective_pov(beat, resolved.chapter)
+    # Both style inputs resolve Postgres-first through the same loader: `series/` is gitignored, so a
+    # disk-only read is silently inert on the deploy box while working perfectly locally.
+    dialogue_rules = await load_dialogue_rules(session, [pov, *(beat.characters_present or [])])
     drift_source = await load_style_document(session, settings.forbidden_drift_path)
     drift = (
         scope_forbidden_drift(
@@ -61,11 +64,9 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
         voice_spec=resolved.profile.voice_spec if resolved.profile else None,
         budget=TokenBudget(max_tokens=job.token_budget),
         target_words=beat.target_words,
-        dialogue_rules=load_dialogue_rules([pov, *(beat.characters_present or [])]),
-        # Resolved from Postgres first, disk second — `series/` is gitignored, so a disk-only read is
-        # silently inert on the deploy box while working locally. Scoped by family: the physical signal
-        # comes from the beat's own tags and text, so a scene that never moves a body does not carry
-        # the choreography patterns into its prompt.
+        dialogue_rules=dialogue_rules,
+        # Scoped by family: the physical signal comes from the beat's own tags and text, so a scene
+        # that never moves a body does not carry the choreography patterns into its prompt.
         forbidden_drift=drift,
         exemplars=memory.exemplars,
         canon=memory.canon,

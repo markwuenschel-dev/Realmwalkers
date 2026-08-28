@@ -403,3 +403,49 @@ def test_one_fact_exposed_in_two_fields_reports_both_once_each():
     }
     out = canon_contract_leak_blockers(packets=[(1, body)], chapter_forbidden=[])
     assert len(out) == 2, [b.message for b in out]
+
+
+# --- gate 0: style guidance (environment fault) ----------------------------------------------------
+# `series/` is gitignored and deploy is a `git pull`, so on the box these documents exist only in
+# `style_documents`. When they are absent the drafter still runs and still returns prose, with the
+# constraint block silently omitted — indistinguishable from success at every other surface. Observed
+# in production 2026-08-28: dialogue rules missing, drafts continuing, one unstructured print.
+
+
+def test_missing_style_documents_blocks_an_otherwise_ready_chapter():
+    """Every contract gate passes; drafting must still refuse."""
+    g = dataclasses.replace(_READY, missing_style_documents=("style/dialogue_rules",))
+    can, reason = resolve_draft_gate(g)
+    assert can is False
+    assert reason is not None
+    assert "style/dialogue_rules" in reason
+    assert "push_style" in reason, "the reason must name the fix, not just the fault"
+
+
+def test_style_gate_precedes_the_chapter_packet_gate():
+    """Ordering is the point: an unapproved packet is a normal next step, a missing style document is a
+    broken deployment. Reporting the packet first would send the author to fix the wrong thing."""
+    g = dataclasses.replace(
+        _READY,
+        chapter_packet_approved=False,
+        missing_style_documents=("style/forbidden_drift",),
+    )
+    can, reason = resolve_draft_gate(g)
+    assert can is False
+    assert reason is not None
+    assert "style/forbidden_drift" in reason
+    assert "Chapter packet" not in reason
+
+
+def test_both_missing_documents_are_named():
+    g = dataclasses.replace(_READY, missing_style_documents=("style/dialogue_rules", "style/forbidden_drift"))
+    _, reason = resolve_draft_gate(g)
+    assert reason is not None
+    assert "style/dialogue_rules" in reason and "style/forbidden_drift" in reason
+
+
+def test_present_style_documents_do_not_block():
+    """The default and the healthy state — an empty tuple must never trip the gate."""
+    can, reason = resolve_draft_gate(_READY)
+    assert can is True and reason is None
+    assert _READY.missing_style_documents == ()

@@ -73,6 +73,36 @@ def read_from_disk(path: str) -> str | None:
     return None
 
 
+def required_style_document_paths() -> tuple[str, ...]:
+    """The style documents a draft is not allowed to run without.
+
+    Scoped deliberately to the two that reach the drafter's prompt — `forbidden_drift` via
+    `assemble.py` and `dialogue_rules` via `load_dialogue_rules`. The other slugs in the table
+    (`voice_guide`, `prose_contract`, …) have no consuming code, so requiring them would block
+    drafting on documents whose absence changes nothing about the generated prose.
+    """
+    from dominion.shared.config import settings
+
+    return (settings.forbidden_drift_path, settings.dialogue_rules_path)
+
+
+async def missing_required_style_documents(session: AsyncSession) -> tuple[str, ...]:
+    """Slugs of the required style documents present in NEITHER Postgres nor disk.
+
+    This is the fail-closed half of the fix. Reading Postgres first stops the deploy box drafting
+    against nothing; this stops it drafting *silently* against nothing, by turning the absence into a
+    blocker the Desk renders instead of a warning nobody queries. Returns slugs (not paths) because
+    the slug is what `push_style` writes and what the operator must go create.
+    """
+    wanted = {slug_for(p): p for p in required_style_document_paths()}
+    rows = (await session.execute(select(StyleDocument).where(StyleDocument.slug.in_(wanted)))).scalars().all()
+    present = {r.slug for r in rows if r.content and r.content.strip()}
+    missing = [
+        slug for slug, path in wanted.items() if slug not in present and not ((d := read_from_disk(path)) and d.strip())
+    ]
+    return tuple(sorted(missing))
+
+
 async def load_style_document(session: AsyncSession, path: str) -> str | None:
     """The content of the style document at `path`: database first, disk second, None if neither.
 

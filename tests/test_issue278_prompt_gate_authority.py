@@ -187,6 +187,10 @@ def test_draft_gate_inputs_carry_no_model_derived_field():
         "draftable_scenes",
         "missing_scene_drafts",
         "provider_rate_limited",
+        # Slugs of required style documents present in neither `style_documents` nor disk. A primary-key
+        # lookup plus a `read_text` — no model judgement anywhere in its derivation, so it satisfies the
+        # invariant this test exists to hold. Added deliberately, which is the point of the allowlist.
+        "missing_style_documents",
     }
     actual = {f.name for f in dataclasses.fields(DraftGateInputs)}
     assert actual == deterministic, f"unexpected draft-gate input fields: {actual ^ deterministic}"

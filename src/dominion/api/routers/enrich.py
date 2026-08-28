@@ -3,8 +3,12 @@
 The enrichment passes take a plain string (`run_enrichment(prose, ctx, ...)`), so none of the
 contract-first machinery applies: packets, beats, and approval exist to tell the DRAFTER what to
 write from scratch. Injected prose is already written. This router is that seam, and deliberately
-touches no table — nothing persists, so there is no adoption, fingerprint, or staleness to reason
+WRITES no table — nothing persists, so there is no adoption, fingerprint, or staleness to reason
 about. Landing the result as a scene is a separate, later decision.
+
+It does take a session, for one read: the dialogue rules. They live in `style_documents` because
+`series/` never reaches the deploy box, and the dialogue lane without its rules is the lane with the
+one thing that defines it removed — the same silent production failure the drafting path had.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import uuid
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from dominion.api.deps import SessionDep
 from dominion.shared.config import settings
 from dominion.workers.budget import BudgetExceeded, TokenBudget
 from dominion.workers.context.dialogue_rules import load_dialogue_rules
@@ -72,7 +77,7 @@ async def lanes() -> dict[str, list[str]]:
 
 
 @router.post("/enrich", response_model=EnrichOut)
-async def enrich(body: EnrichIn) -> EnrichOut:
+async def enrich(body: EnrichIn, session: SessionDep) -> EnrichOut:
     requested = body.lanes or _ALL_LANES
     unknown = [lane for lane in requested if lane not in DRAFT_PASSES]
     if unknown:
@@ -91,7 +96,7 @@ async def enrich(body: EnrichIn) -> EnrichOut:
     # carries no cast list, so any roster we could build here would be a guess that silently discards
     # real rules. An empty roster short-circuits scoping and loads the full ruleset — the only honest
     # option when the cast is unknown.
-    dialogue_rules = load_dialogue_rules([])
+    dialogue_rules = await load_dialogue_rules(session, [])
 
     # The minimum context an enrichment pass reads: pov, beat_text, dialogue_rules, budget. The ids
     # are structural (never read here) and the rest of SceneContext serves the drafter/reviewers.

@@ -201,3 +201,79 @@ async def test_disk_content_is_normalised_too(tmp_path, db_factory):
 
     assert got is not None, "the disk fallback did not find the file"
     assert chr(13) not in got, "carriage returns survived the disk fallback"
+
+
+# --- the fail-closed half ---------------------------------------------------------------------
+# Resolving from Postgres stops the box drafting against nothing. This stops it drafting SILENTLY
+# against nothing: the absence becomes a blocker the Desk renders, not a warning nobody queries.
+
+
+async def test_required_documents_present_in_the_database_report_nothing_missing(db_factory, tmp_path, monkeypatch):
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        s.add(StyleDocument(slug=slug_for(str(drift)), content=DOC_A, source_path="pushed"))
+        s.add(StyleDocument(slug=slug_for(str(dialogue)), content=DOC_A, source_path="pushed"))
+        await s.commit()
+
+    async with db_factory() as s2:
+        assert await missing_required_style_documents(s2) == ()
+
+
+async def test_a_required_document_in_neither_source_is_reported(db_factory, tmp_path, monkeypatch):
+    """The deploy box's actual state on 2026-08-28: drift pushed, dialogue rules not."""
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"  # never written, never pushed
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        s.add(StyleDocument(slug=slug_for(str(drift)), content=DOC_A, source_path="pushed"))
+        await s.commit()
+
+    async with db_factory() as s2:
+        assert await missing_required_style_documents(s2) == (slug_for(str(dialogue)),)
+
+
+async def test_a_document_present_only_on_disk_satisfies_the_requirement(db_factory, tmp_path, monkeypatch):
+    """Local development must not be blocked by a gate written for the deploy box."""
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"
+    drift.write_text(DOC_A, encoding="utf-8")
+    dialogue.write_text(DOC_A, encoding="utf-8")
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        assert await missing_required_style_documents(s) == ()
+
+
+async def test_a_blank_pushed_row_counts_as_missing(db_factory, tmp_path, monkeypatch):
+    """A failed push is not permission to draft unconstrained — same rule the loader applies."""
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        s.add(StyleDocument(slug=slug_for(str(drift)), content="   \n", source_path="pushed"))
+        s.add(StyleDocument(slug=slug_for(str(dialogue)), content=DOC_A, source_path="pushed"))
+        await s.commit()
+
+    async with db_factory() as s2:
+        assert await missing_required_style_documents(s2) == (slug_for(str(drift)),)
