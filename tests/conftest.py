@@ -59,6 +59,7 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
 from dominion.shared.config import settings as _app_settings  # noqa: E402
 from dominion.shared.migrations import apply_lightweight_migrations  # noqa: E402
 from dominion.shared.models import Base  # noqa: E402
+from dominion.workers.context.style_source import slug_for as _slug_for  # noqa: E402
 
 # Fail closed if Settings still bound a real gateway key (env_file beat us somehow).
 _gw = (_app_settings.litellm_virtual_key or "").strip()
@@ -226,6 +227,26 @@ async def db_factory():
     engine = create_async_engine(_TEST_URL)
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {_TABLES_SQL} RESTART IDENTITY CASCADE"))
+        # A test database is a PROVISIONED environment, and the required style documents are part of
+        # provisioning exactly as the schema is. `resolve_draft_gate`'s first gate refuses to draft when
+        # `forbidden_drift`/`dialogue_rules` are in neither Postgres nor disk — correct on a fresh box,
+        # but without this seed it fires for every chapter in CI (where `series/` is gitignored and so
+        # absent) and masks the contract gate each readiness test is actually asserting. Seeding here
+        # rather than per-test keeps that failure from re-appearing the next time a readiness test is
+        # written. Tests that need a document ABSENT point `settings.*_path` at a tmp file, which
+        # derives a different slug and is unaffected by these rows.
+        await conn.execute(
+            text(
+                "INSERT INTO style_documents (slug, content, source_path) VALUES "
+                "(:drift_slug, :body, 'conftest'), (:dialogue_slug, :body, 'conftest') "
+                "ON CONFLICT (slug) DO NOTHING"
+            ),
+            {
+                "drift_slug": _slug_for(_app_settings.forbidden_drift_path),
+                "dialogue_slug": _slug_for(_app_settings.dialogue_rules_path),
+                "body": "## Seeded by conftest\n\nProvisioning stand-in; content is not asserted on.\n",
+            },
+        )
 
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     try:

@@ -111,7 +111,11 @@ async def test_dry_run_writes_nothing(db_factory):
         await s.commit()
     assert "would add" in report[0]
     async with db_factory() as s2:
-        assert (await s2.execute(select(StyleDocument))).scalars().first() is None, "a dry run wrote a row"
+        # Scoped to the slug this push named, not to the table being empty: `db_factory` seeds the two
+        # REQUIRED style documents so the readiness gate sees a provisioned environment, so "no rows at
+        # all" no longer means "the dry run wrote nothing".
+        got = (await s2.execute(select(StyleDocument).where(StyleDocument.slug == "style/x"))).scalar_one_or_none()
+        assert got is None, "a dry run wrote a row"
 
 
 def test_sql_mode_survives_markdown_punctuation():
