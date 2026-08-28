@@ -79,7 +79,9 @@ async def test_an_empty_database_row_falls_through_to_disk(db_factory, tmp_path)
 
 
 async def test_push_is_idempotent_and_reports_what_changed(db_factory, tmp_path):
-    docs = [("style/forbidden_drift", "series/style/forbidden_drift.md", DOC_A)]
+    # A slug `db_factory` does NOT seed: the two REQUIRED documents are pre-created so the readiness
+    # gate sees a provisioned environment, and pushing one of those could never report "added".
+    docs = [("style/push_probe", "series/style/push_probe.md", DOC_A)]
 
     async with db_factory() as s:
         first = await push_style.push(s, docs, dry_run=False)
@@ -91,16 +93,14 @@ async def test_push_is_idempotent_and_reports_what_changed(db_factory, tmp_path)
         await s2.commit()
     assert "unchanged" in again[0], "an unchanged push reported a write"
 
-    changed = [("style/forbidden_drift", "series/style/forbidden_drift.md", DOC_B)]
+    changed = [("style/push_probe", "series/style/push_probe.md", DOC_B)]
     async with db_factory() as s3:
         third = await push_style.push(s3, changed, dry_run=False)
         await s3.commit()
     assert "updated" in third[0]
 
     async with db_factory() as s4:
-        row = (
-            await s4.execute(select(StyleDocument).where(StyleDocument.slug == "style/forbidden_drift"))
-        ).scalar_one()
+        row = (await s4.execute(select(StyleDocument).where(StyleDocument.slug == "style/push_probe"))).scalar_one()
         assert row.content == DOC_B
 
 
@@ -111,7 +111,11 @@ async def test_dry_run_writes_nothing(db_factory):
         await s.commit()
     assert "would add" in report[0]
     async with db_factory() as s2:
-        assert (await s2.execute(select(StyleDocument))).scalars().first() is None, "a dry run wrote a row"
+        # Scoped to the slug this push named, not to the table being empty: `db_factory` seeds the two
+        # REQUIRED style documents so the readiness gate sees a provisioned environment, so "no rows at
+        # all" no longer means "the dry run wrote nothing".
+        got = (await s2.execute(select(StyleDocument).where(StyleDocument.slug == "style/x"))).scalar_one_or_none()
+        assert got is None, "a dry run wrote a row"
 
 
 def test_sql_mode_survives_markdown_punctuation():
@@ -201,3 +205,79 @@ async def test_disk_content_is_normalised_too(tmp_path, db_factory):
 
     assert got is not None, "the disk fallback did not find the file"
     assert chr(13) not in got, "carriage returns survived the disk fallback"
+
+
+# --- the fail-closed half ---------------------------------------------------------------------
+# Resolving from Postgres stops the box drafting against nothing. This stops it drafting SILENTLY
+# against nothing: the absence becomes a blocker the Desk renders, not a warning nobody queries.
+
+
+async def test_required_documents_present_in_the_database_report_nothing_missing(db_factory, tmp_path, monkeypatch):
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        s.add(StyleDocument(slug=slug_for(str(drift)), content=DOC_A, source_path="pushed"))
+        s.add(StyleDocument(slug=slug_for(str(dialogue)), content=DOC_A, source_path="pushed"))
+        await s.commit()
+
+    async with db_factory() as s2:
+        assert await missing_required_style_documents(s2) == ()
+
+
+async def test_a_required_document_in_neither_source_is_reported(db_factory, tmp_path, monkeypatch):
+    """The deploy box's actual state on 2026-08-28: drift pushed, dialogue rules not."""
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"  # never written, never pushed
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        s.add(StyleDocument(slug=slug_for(str(drift)), content=DOC_A, source_path="pushed"))
+        await s.commit()
+
+    async with db_factory() as s2:
+        assert await missing_required_style_documents(s2) == (slug_for(str(dialogue)),)
+
+
+async def test_a_document_present_only_on_disk_satisfies_the_requirement(db_factory, tmp_path, monkeypatch):
+    """Local development must not be blocked by a gate written for the deploy box."""
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"
+    drift.write_text(DOC_A, encoding="utf-8")
+    dialogue.write_text(DOC_A, encoding="utf-8")
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        assert await missing_required_style_documents(s) == ()
+
+
+async def test_a_blank_pushed_row_counts_as_missing(db_factory, tmp_path, monkeypatch):
+    """A failed push is not permission to draft unconstrained — same rule the loader applies."""
+    from dominion.shared.config import settings
+    from dominion.workers.context.style_source import missing_required_style_documents
+
+    drift = tmp_path / "forbidden_drift.md"
+    dialogue = tmp_path / "dialogue_rules.md"
+    monkeypatch.setattr(settings, "forbidden_drift_path", str(drift))
+    monkeypatch.setattr(settings, "dialogue_rules_path", str(dialogue))
+
+    async with db_factory() as s:
+        s.add(StyleDocument(slug=slug_for(str(drift)), content="   \n", source_path="pushed"))
+        s.add(StyleDocument(slug=slug_for(str(dialogue)), content=DOC_A, source_path="pushed"))
+        await s.commit()
+
+    async with db_factory() as s2:
+        assert await missing_required_style_documents(s2) == (slug_for(str(drift)),)

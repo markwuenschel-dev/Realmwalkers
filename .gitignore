@@ -27,6 +27,10 @@ logs/
 # .cursor/skills/ is tracked (Cursor slash menu reads it; gitignored paths are invisible to Cursor).
 # After updating .agents/skills/: pwsh scripts/sync-cursor-skills.ps1 then commit .cursor/skills/
 .claude/skills/
+# per-project agent state: session receipts, incident audits, and pg_dump snapshots of production.
+# Those dumps contain the manuscript, so this MUST stay ignored — the same rule as `series/` below,
+# and the one a `git add -A` would otherwise break silently.
+.claude/projects/
 # author's local working notes — scratch, never tracked
 author notes/
 # creative content — manuscript, canon, planning, style — managed OUTSIDE the code repo.
