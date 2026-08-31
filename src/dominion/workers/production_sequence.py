@@ -1,9 +1,9 @@
 """Production run sequence and assembly lane.
 
 The sequence lane. ``api.routers.production`` does not import this module; it reaches these
-operations through ``dominion.workers.production``, which re-exports nine of them — seven the
-router calls, plus ``update_timeline_after_scene`` and ``mark_run_provider_rate_limited``, whose
-callers are ``pipeline`` and ``worker``. Tests and sibling worker modules import it by name.
+operations through ``dominion.workers.production``, which re-exports the ones it calls. Two of
+the re-exports here are not for that router at all: ``update_timeline_after_scene`` is called by
+``pipeline`` and ``mark_run_provider_rate_limited`` by ``worker``. Tests and sibling worker modules import it by name.
 It owns chapter sequence derivation, chapter assembly, draft-run timeline, and draft queueing
 for missing sequence scenes.
 """

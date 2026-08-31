@@ -40,7 +40,7 @@ from dominion.shared.schemas import (
 )
 
 # `production` owns the ProductionRun lifecycle and is the seam this router uses for the sequence and
-# repair lanes — neither is imported here. The other four are imported directly on purpose:
+# repair lanes — neither is imported here. The others are imported directly on purpose:
 # production_fidelity owns the author-gated SceneFidelity repair-preview surface (ADR-0017), a distinct
 # human-controlled lane, and production_support.update_run_summary is a standalone summary refresh.
 # tests/test_production_import.py pins clean imports for production and production_fidelity, and the

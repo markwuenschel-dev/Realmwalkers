@@ -1,8 +1,9 @@
 """Production-run repair orchestration lane.
 
 The repair lane. ``api.routers.production`` does not import this module; it reaches these
-operations through ``dominion.workers.production``, which re-exports the seven the router calls
-plus this module's exception types (#285). Tests and sibling worker modules import it by name.
+operations through ``dominion.workers.production``, which re-exports the ones it calls —
+including ``human_verify_issue`` — and this module's exception types, which it catches without
+importing the lane (#285). Tests and sibling worker modules import it by name.
 It owns issue triage, issue decisions, repair task creation, repair application, verification,
 rejection, and rollback.
 """
