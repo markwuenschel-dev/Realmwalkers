@@ -39,11 +39,12 @@ from dominion.shared.schemas import (
     SceneOut,
 )
 
-# `production` owns the ProductionRun lifecycle; the others are sibling lanes imported by name, which is
-# the intended shape rather than a bypass. production_fidelity owns the author-gated SceneFidelity
-# repair-preview surface (ADR-0017), a distinct human-controlled lane; production_support.update_run_summary
-# is a standalone summary refresh. All are acyclic lane APIs and production never imports them back
-# (tests/test_production_import.py pins the acyclic graph).
+# `production` owns the ProductionRun lifecycle and is the seam this router uses for the sequence and
+# repair lanes — neither is imported here. The other four are imported directly on purpose:
+# production_fidelity owns the author-gated SceneFidelity repair-preview surface (ADR-0017), a distinct
+# human-controlled lane, and production_support.update_run_summary is a standalone summary refresh.
+# tests/test_production_import.py pins clean imports for production and production_fidelity, and the
+# one-way production_repair -> production_fidelity seam.
 from dominion.workers import background_work, production, production_delete, production_fidelity, production_support
 
 router = APIRouter(tags=["production"])
