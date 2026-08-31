@@ -76,9 +76,11 @@ def test_production_re_exports_no_private_names():
 def test_deleted_passthrough_shims_stay_deleted():
     """PROD-FACADE: the module owns the ProductionRun lifecycle; it does not front its lanes.
 
-    Every name below was a single-expression delegation that no production code reached through
-    this module -- some had no caller at all, some were called only by this module itself, and the
-    rest were held up only by tests importing them from here. They now live where they are defined.
+    Every name below was reachable through this module and is not any more. Most had no caller
+    outside it: some had none at all, some only this module itself, some only tests importing them
+    from here. One did have a production caller -- pipeline.py reached a private helper through
+    this module, which is precisely why it should not have been re-exported. They now live where
+    they are defined.
     Resurrecting one re-creates the indirection without re-creating a reason for it."""
     import dominion.workers.production as production
 
@@ -95,6 +97,7 @@ def test_deleted_passthrough_shims_stay_deleted():
         "ensure_draft_run_timeline",
         "_scene_packet_map",
         "_latest_scene_map",
+        # called by this module and by tests
         "assemble_run",
         # reached only from tests, which now import production_sequence
         "latest_draft_timeline",
