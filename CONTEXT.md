@@ -9,7 +9,7 @@ An editorial pass over one chapter that assembles scene prose into a final chapt
 _Avoid_: pipeline, batch, release run
 
 **Production Run Lifecycle Owner**:
-`dominion.workers.production` — owns the ProductionRun lifecycle itself: create, inspect, triage, repair, verify, finalize, approve. It is not a facade over its lanes and does not re-export them; `production_sequence`, `production_repair`, `production_fidelity`, `production_support` and `production_delete` are collaborators that callers import directly by name.
+`dominion.workers.production` — owns the ProductionRun lifecycle itself (create, inspect, triage, repair, verify, finalize, approve) and is the seam the HTTP layer imports for the sequence and repair lanes: nothing outside `workers/` imports `production_sequence` or `production_repair`, so this module re-exports the lane operations the routers call, plus `production_repair`'s exception types so the API catches one type (#285). It does **not** re-export operations nothing reaches through it, and it re-exports no private (underscore) names. `production_delete`, `production_fidelity` and `production_support` are imported directly by the router and are not fronted here.
 _Avoid_: production run facade, lane router, production service, workflow API
 
 **SceneFidelity Report**:

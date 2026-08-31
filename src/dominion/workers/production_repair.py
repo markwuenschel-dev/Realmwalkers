@@ -1,8 +1,9 @@
 """Production-run repair orchestration lane.
 
-A collaborator of ``dominion.workers.production``, not something hidden behind it. It owns
-issue triage, issue decisions, repair task creation, repair application, verification,
-rejection, and rollback; callers that need those import this module by name.
+The repair lane behind ``dominion.workers.production``, which re-exports the operations the
+routers call and this module's exception types (#285). Nothing outside ``workers/`` imports
+this module directly. It owns issue triage, issue decisions, repair task creation, repair
+application, verification, rejection, and rollback.
 """
 
 from __future__ import annotations

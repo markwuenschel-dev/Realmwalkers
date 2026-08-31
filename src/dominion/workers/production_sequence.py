@@ -1,7 +1,8 @@
 """Production run sequence and assembly lane.
 
-A collaborator of ``dominion.workers.production``, not something hidden behind it: callers
-import this module by name. It owns chapter sequence derivation, chapter assembly, draft-run
+The sequence lane behind ``dominion.workers.production``, which re-exports the operations the
+routers call. Nothing outside ``workers/`` imports this module directly, though tests and
+sibling worker modules do. It owns chapter sequence derivation, chapter assembly, draft-run
 timeline, and draft queueing for missing sequence scenes.
 """
 

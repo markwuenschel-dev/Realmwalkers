@@ -1,4 +1,4 @@
-"""Scene entry/exit chaining contract (workers/production.py chain_scene_entry_states).
+"""Scene entry/exit chaining contract (workers/production_sequence.py chain_scene_entry_states).
 
 The Ch1 failure (tests/fixtures/ch1_bad_run/): every scene in the derived ChapterSequence carried
 the identical global entry_state despite depends_on 1→2→3 and independent_draft_allowed=false, so
