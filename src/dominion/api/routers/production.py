@@ -39,11 +39,11 @@ from dominion.shared.schemas import (
     SceneOut,
 )
 
-# `production` is the run-orchestration facade. `production_fidelity` and `production_support` are called
-# directly on purpose (not a facade bypass): production_fidelity owns the author-gated SceneFidelity
-# repair-preview surface (ADR-0017) — a distinct human-controlled lane the facade deliberately does not
-# re-export — and production_support.update_run_summary is a standalone summary refresh. Both are acyclic
-# lane APIs; the facade never imports them back (tests/test_production_import.py pins the acyclic graph).
+# `production` owns the ProductionRun lifecycle; the others are sibling lanes imported by name, which is
+# the intended shape rather than a bypass. production_fidelity owns the author-gated SceneFidelity
+# repair-preview surface (ADR-0017), a distinct human-controlled lane; production_support.update_run_summary
+# is a standalone summary refresh. All are acyclic lane APIs and production never imports them back
+# (tests/test_production_import.py pins the acyclic graph).
 from dominion.workers import background_work, production, production_delete, production_fidelity, production_support
 
 router = APIRouter(tags=["production"])

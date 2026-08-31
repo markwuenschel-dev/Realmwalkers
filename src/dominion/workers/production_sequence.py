@@ -1,8 +1,8 @@
 """Production run sequence and assembly lane.
 
-This module is implementation detail behind ``dominion.workers.production``. The public
-production-run facade stays in ``production.py``; this file owns chapter sequence derivation,
-chapter assembly, draft-run timeline, and draft queueing for missing sequence scenes.
+A collaborator of ``dominion.workers.production``, not something hidden behind it: callers
+import this module by name. It owns chapter sequence derivation, chapter assembly, draft-run
+timeline, and draft queueing for missing sequence scenes.
 """
 
 from __future__ import annotations

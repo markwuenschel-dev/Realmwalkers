@@ -59,23 +59,51 @@ def test_production_repair_does_not_import_production_fidelity():
     )
 
 
-def test_facade_carries_no_dead_passthrough_shims():
-    """PROD-FACADE: the facade must not carry zero-caller pass-through shims. The deleted ones stay
-    deleted; the live wrappers (real callers: derive_contract_classification internally, the rest via
-    tests) stay. This pins the deletion so a future 'complete the re-export surface' refactor can't
-    silently resurrect the ceremony the deletion test rejected."""
+def test_production_re_exports_no_private_names():
+    """PROD-FACADE: an underscore name must not be reachable through this module.
+
+    Three private helpers used to be re-exported here, and the reason was never accidental:
+    pipeline.py called `prod._block_production_on_timeline_failure` across a module boundary,
+    so the private-name convention was being defeated by design. Nothing enforced it -- ruff
+    selects only E/F/I/UP/B, and the check this test replaces was a hardcoded five-name
+    allow-list that could not see a new one. This is the rule, not a list."""
     import dominion.workers.production as production
 
-    dead = ("_int_or_none", "_roster_name_tokens", "_contract_item")
-    for name in dead:
-        assert not hasattr(production, name), f"dead facade shim {name!r} reappeared"
+    leaked = [n for n in dir(production) if n.startswith("_") and not n.startswith("__")]
+    assert not leaked, f"private name(s) reachable through the production module: {leaked}"
 
-    live = (
+
+def test_deleted_passthrough_shims_stay_deleted():
+    """PROD-FACADE: the module owns the ProductionRun lifecycle; it does not front its lanes.
+
+    Every name below was a single-expression delegation that no production code reached through
+    this module -- some had no caller at all, some were called only by this module itself, and the
+    rest were held up only by tests importing them from here. They now live where they are defined.
+    Resurrecting one re-creates the indirection without re-creating a reason for it."""
+    import dominion.workers.production as production
+
+    deleted = (
+        # removed earlier, kept pinned
+        "_int_or_none",
+        "_roster_name_tokens",
+        "_contract_item",
+        # no caller anywhere
+        "triage_scene_fidelity_for_production",
+        # called only by this module; callers now name production_sequence
         "derive_contract_classification",
-        "run_chapter_draft_qa",
-        "chain_scene_entry_states",
+        "ensure_chapter_sequence",
+        "ensure_draft_run_timeline",
+        "_scene_packet_map",
+        "_latest_scene_map",
+        "assemble_run",
+        # reached only from tests, which now import production_sequence
+        "latest_draft_timeline",
         "derive_chapter_sequence",
+        "chain_scene_entry_states",
+        "run_chapter_draft_qa",
         "evaluate_chapter_sequence",
+        # re-exported so pipeline.py could reach a private helper; it names the owner now
+        "_block_production_on_timeline_failure",
     )
-    for name in live:
-        assert hasattr(production, name), f"live facade wrapper {name!r} was removed"
+    for name in deleted:
+        assert not hasattr(production, name), f"deleted facade shim {name!r} reappeared"

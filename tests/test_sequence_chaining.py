@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from dominion.workers.production import (
+from dominion.workers.production_sequence import (
     chain_scene_entry_states,
     derive_chapter_sequence,
     evaluate_chapter_sequence,

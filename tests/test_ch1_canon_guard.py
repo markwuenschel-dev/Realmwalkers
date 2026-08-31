@@ -167,7 +167,7 @@ def test_packet_without_prohibition_does_not_flag_same_prose(packet):
 
 
 def test_chapter_draft_qa_blocks_on_the_leak(packet):
-    from dominion.workers.production import run_chapter_draft_qa
+    from dominion.workers.production_sequence import run_chapter_draft_qa
 
     rows = [{"scene_no": 1, "prose": LEAK_PROSE, "word_count": len(LEAK_PROSE.split()), "scene_function": "duel"}]
     qa = run_chapter_draft_qa(
@@ -179,7 +179,7 @@ def test_chapter_draft_qa_blocks_on_the_leak(packet):
 
 
 def test_chapter_draft_qa_without_prohibition_does_not_block(packet):
-    from dominion.workers.production import run_chapter_draft_qa
+    from dominion.workers.production_sequence import run_chapter_draft_qa
 
     later = _packet_permitting_eyes(packet)
     rows = [{"scene_no": 1, "prose": LEAK_PROSE, "word_count": len(LEAK_PROSE.split()), "scene_function": "duel"}]

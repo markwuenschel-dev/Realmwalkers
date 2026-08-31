@@ -8,9 +8,9 @@ Realmwalkers is a contract-first novel-writing system where author-approved stor
 An editorial pass over one chapter that assembles scene prose into a final chapter candidate, records QA findings, and tracks repair work until the author approves or stops it.
 _Avoid_: pipeline, batch, release run
 
-**Production Run Facade**:
-The single public production-run module interface used by routers, background workers, and tests to create, inspect, triage, repair, assemble, and approve a Production Run.
-_Avoid_: lane router, production service, workflow API
+**Production Run Lifecycle Owner**:
+`dominion.workers.production` — owns the ProductionRun lifecycle itself: create, inspect, triage, repair, verify, finalize, approve. It is not a facade over its lanes and does not re-export them; `production_sequence`, `production_repair`, `production_fidelity`, `production_support` and `production_delete` are collaborators that callers import directly by name.
+_Avoid_: production run facade, lane router, production service, workflow API
 
 **SceneFidelity Report**:
 An immutable evaluation artifact that records how one exact Draft Attempt preserved or lost the declared ScenePacket fidelity requirements.

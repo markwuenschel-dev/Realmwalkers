@@ -1,6 +1,6 @@
 """Shared persistence primitives for production-run lanes.
 
-This module is intentionally lower-level than the public production facade. It owns reusable
+This module is intentionally lower-level than the run lifecycle owner. It owns reusable
 event, artifact, issue, agent-run, hashing, and summary helpers used by production lane modules.
 It does not own higher-level run lifecycle, sequence, repair, read-model, or finalization behavior.
 """

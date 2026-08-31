@@ -1,8 +1,8 @@
 """Production-run repair orchestration lane.
 
-This module is implementation detail behind ``dominion.workers.production``. It owns issue
-triage, issue decisions, repair task creation, repair application, verification, rejection, and
-rollback while the public Production Run Facade keeps the external method surface stable.
+A collaborator of ``dominion.workers.production``, not something hidden behind it. It owns
+issue triage, issue decisions, repair task creation, repair application, verification,
+rejection, and rollback; callers that need those import this module by name.
 """
 
 from __future__ import annotations
