@@ -1,8 +1,9 @@
-"""Load the named drift patterns from disk and scope them to the scene actually being drafted.
+"""Scope the named drift patterns to the scene actually being drafted.
 
 `forbidden_drift.md` is the project's diagnostic ontology — twenty-four named ways the prose can leave
 its lane, each tagged with one or two family tags. This module turns that document into a drafting
-constraint instead of a thing a human reads afterwards.
+constraint instead of a thing a human reads afterwards. The document itself arrives as an argument,
+resolved by `style_source.load_style_document`; nothing here touches the filesystem.
 
 WARNING SIGNS ARE DIAGNOSTIC. CORRECTIONS ARE GENERATIVE. That distinction is the whole design. A
 warning sign ("neighboring sentences competing to be quotable") tells a reader how to *recognize* a
@@ -35,20 +36,16 @@ Plus a narrowing pass: a pattern whose TITLE names characters loads only when on
 page. Titles rather than bodies, deliberately — nearly every entry mentions Marcus somewhere in its
 prose, so body-matching would keep everything.
 
-FAIL SOFT, ALWAYS. A missing or unparseable file warns once and returns None. Drift guidance improves
-prose; its absence must never fail a draft. Same contract `dialogue_rules.py` holds.
+FAIL SOFT, ALWAYS. Drift guidance improves prose; its absence must never fail a draft. Resolution and
+its absence-handling belong to `style_source.load_style_document`, which reads Postgres before disk
+because `series/` is gitignored and never reaches the deploy box. Same contract `dialogue_rules.py`
+holds.
 """
 
 from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from pathlib import Path
-
-from dominion.shared.config import settings
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
-_warned = False
 
 DRAFT = "draft"
 AUDIT = "audit"
@@ -136,23 +133,3 @@ def scope_forbidden_drift(text: str, *, pov: str, present: Iterable[str], signal
         "failure.\n\n"
     )
     return head + joiner.join(kept)
-
-
-def load_forbidden_drift(*, pov: str, present: Iterable[str], signals: str = "", mode: str = DRAFT) -> str | None:
-    """Read the drift patterns fresh for each draft and scope them to the scene. None when absent."""
-    global _warned
-    configured = Path(settings.forbidden_drift_path)
-    candidates = [configured] if configured.is_absolute() else [_PROJECT_ROOT / configured, Path.cwd() / configured]
-    for path in candidates:
-        try:
-            raw = path.read_text(encoding="utf-8")
-        except (FileNotFoundError, NotADirectoryError):
-            continue
-        return scope_forbidden_drift(raw, pov=pov, present=present, signals=signals, mode=mode) or None
-    if not _warned:
-        print(
-            f"[context] drift patterns not found at {settings.forbidden_drift_path!r}; drafts will run without them",
-            flush=True,
-        )
-        _warned = True
-    return None
