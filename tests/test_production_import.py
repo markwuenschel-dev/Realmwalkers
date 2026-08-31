@@ -74,7 +74,7 @@ def test_production_re_exports_no_private_names():
 
 
 def test_deleted_passthrough_shims_stay_deleted():
-    """PROD-FACADE: the module owns the ProductionRun lifecycle; it does not front its lanes.
+    """PROD-FACADE: the module re-exports what its callers reach through it, and nothing else.
 
     Every name below was reachable through this module and is not any more. Most had no caller
     outside it: some had none at all, some only this module itself, some only tests importing them
