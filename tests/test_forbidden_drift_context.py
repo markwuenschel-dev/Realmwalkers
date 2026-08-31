@@ -19,12 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from dominion.workers.context.forbidden_drift import (
-    AUDIT,
-    DRAFT,
-    load_forbidden_drift,
-    scope_forbidden_drift,
-)
+from dominion.workers.context.forbidden_drift import AUDIT, DRAFT, scope_forbidden_drift
 
 # A miniature of the real file's shape: tagged headings, warning signs, a Correction line.
 DOC = """# Forbidden Drift
@@ -206,13 +201,10 @@ def test_the_recurrence_rule_travels_with_the_patterns():
     assert "RECURRENCE" in out
 
 
-def test_a_missing_file_is_not_fatal(monkeypatch):
-    """Drift guidance improves prose; its absence must never fail a draft."""
-    from dominion.shared.config import settings
-
-    monkeypatch.setattr(settings, "forbidden_drift_path", "series/style/does_not_exist.md")
-    monkeypatch.setattr("dominion.workers.context.forbidden_drift._warned", True)  # keep the run quiet
-    assert load_forbidden_drift(pov="Marcus", present=["Marcus"]) is None
+# The 'absence must never fail a draft' contract for drift patterns is no longer this module's to
+# hold: resolution moved to style_source.load_style_document, and
+# tests/test_style_documents.py::test_neither_source_returns_none_and_does_not_raise covers the case
+# where the patterns are in neither Postgres nor on disk.
 
 
 def test_the_real_file_parses_and_every_pattern_is_reachable():

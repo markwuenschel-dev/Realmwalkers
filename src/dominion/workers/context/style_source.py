@@ -3,9 +3,9 @@
 THE PROBLEM THIS EXISTS TO FIX. The style guides live under `series/`, which is gitignored by
 deliberate policy — creative content does not go to GitHub or the deploy box. Deploy is a `git pull`.
 So every loader that reads a style guide from disk works perfectly on the author's machine and is
-**silently inert in production**: `load_forbidden_drift` returns None, the drafter runs without the
-constraint, and nothing anywhere reports a problem. That is the worst shape a failure can take — it
-looks identical to working.
+**silently inert in production**: the read returns None, the drafter runs without the constraint,
+and nothing anywhere reports a problem. That is the worst shape a failure can take — it looks
+identical to working.
 
 Reading the database first closes it. Postgres is already where the canon RAG index lives, it is
 already per-environment, and content can be pushed into it without a file ever landing on the box.
