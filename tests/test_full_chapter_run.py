@@ -56,7 +56,7 @@ from dominion.shared.models import (
     Scene,
     ScenePacket,
 )
-from dominion.workers import llm, pipeline, production, run_stages, worker
+from dominion.workers import llm, pipeline, production, production_sequence, run_stages, worker
 from dominion.workers.budget import Usage
 
 SCENE_COUNT = 3
@@ -258,7 +258,7 @@ async def test_full_chapter_run_drives_scenes_in_order_and_gates_assembly(db_fac
         assert all((sc.prose or "").strip() for sc in scenes)
 
         # INVARIANT 4 — the live timeline accumulated one entry per scene and tracks the last one.
-        timeline = await production.latest_draft_timeline(s, run_id)
+        timeline = await production_sequence.latest_draft_timeline(s, run_id)
         assert timeline is not None
         assert timeline.current_scene_no == SCENE_COUNT
         drafted_with_prose = [d for d in (timeline.drafted_scenes or []) if d.get("scene_id")]
@@ -267,7 +267,7 @@ async def test_full_chapter_run_drives_scenes_in_order_and_gates_assembly(db_fac
     # --- assemble the now-complete chapter ---------------------------------------------------------
     async with db_factory() as s:
         run = await s.get(ProductionRun, run_id)
-        await production.assemble_run(s, run)
+        await production_sequence.assemble_run(s, run)
         await s.commit()
 
     # INVARIANT 1b — with all prose present the assembly gate OPENS: chapter_draft + chapter_draft_qa
@@ -337,7 +337,7 @@ async def _seed_create_drive_assemble(db_factory, monkeypatch) -> uuid.UUID:
 
     async with db_factory() as s:
         run = await s.get(ProductionRun, run_id)
-        await production.assemble_run(s, run)
+        await production_sequence.assemble_run(s, run)
         await s.commit()
 
     return run_id

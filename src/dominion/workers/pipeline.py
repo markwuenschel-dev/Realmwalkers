@@ -166,9 +166,9 @@ async def generate_one_scene(session: AsyncSession, job: Job) -> Scene:
             await prod.update_timeline_after_scene(session, production_run_id, scene)
         except Exception as exc:
             try:
-                from dominion.workers import production as prod
+                from dominion.workers import production_sequence
 
-                await prod._block_production_on_timeline_failure(session, production_run_id, str(exc))
+                await production_sequence._block_production_on_timeline_failure(session, production_run_id, str(exc))
             except Exception:
                 # last resort - do not let timeline bug destroy the draft
                 pass

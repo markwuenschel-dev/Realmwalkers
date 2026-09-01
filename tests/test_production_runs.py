@@ -210,7 +210,7 @@ def _draft_rows(*prose: str) -> list[dict]:
 
 
 def test_present_character_not_visible_is_repair_finding():
-    from dominion.workers.production import run_chapter_draft_qa
+    from dominion.workers.production_sequence import run_chapter_draft_qa
 
     packet_body = {"characters_present": ["Marcus Vye (POV)", "Serra Hawthorne (masked)", "The Broker"]}
     prose = "Marcus circled the scrim. Across the sand, Serra kept her visor down. Nobody mentioned brokers' guilds."
@@ -229,7 +229,7 @@ def test_present_character_not_visible_is_repair_finding():
 
 
 def test_all_present_characters_visible_passes():
-    from dominion.workers.production import run_chapter_draft_qa
+    from dominion.workers.production_sequence import run_chapter_draft_qa
 
     packet_body = {"characters_present": ["Marcus Vye"]}
     prose = "Marcus won."
@@ -239,7 +239,7 @@ def test_all_present_characters_visible_passes():
 
 
 def test_draft_qa_block_findings_carry_block_facts():
-    from dominion.workers.production import run_chapter_draft_qa
+    from dominion.workers.production_sequence import run_chapter_draft_qa
 
     rows = [
         {"scene_no": 1, "prose": "One.", "word_count": 1, "scene_function": "dup"},

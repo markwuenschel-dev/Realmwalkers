@@ -1,8 +1,11 @@
 """Production run sequence and assembly lane.
 
-This module is implementation detail behind ``dominion.workers.production``. The public
-production-run facade stays in ``production.py``; this file owns chapter sequence derivation,
-chapter assembly, draft-run timeline, and draft queueing for missing sequence scenes.
+The sequence lane. ``api.routers.production`` does not import this module; it reaches these
+operations through ``dominion.workers.production``, which re-exports the ones it calls. Two of
+the re-exports here are not for that router at all: ``update_timeline_after_scene`` is called by
+``pipeline`` and ``mark_run_provider_rate_limited`` by ``worker``. Tests and sibling worker modules import it by name.
+It owns chapter sequence derivation, chapter assembly, draft-run timeline, and draft queueing
+for missing sequence scenes.
 """
 
 from __future__ import annotations

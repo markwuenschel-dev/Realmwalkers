@@ -1,7 +1,8 @@
 """Production-facing SceneFidelity reconciliation lane.
 
-This module is implementation detail behind ``dominion.workers.production`` (production triage) and the
-``api.routers.production`` author surface (repair previews). It owns the SceneFidelity *production*
+This module is imported by name from both ``dominion.workers.production`` (production triage)
+and the ``api.routers.production`` author surface (repair previews); it is not re-exported
+through the former. It owns the SceneFidelity *production*
 lifecycle: materializing CURRENT, repair-eligible fidelity findings into run-owned Issues + HUMAN_REQUIRED
 RepairTasks (Lane 5), and the author-controlled repair-preview lifecycle (Lane 6) that turns an accepted
 preview into a new author-visible Scene revision. The pure evaluation package (``scene_fidelity/``) stays

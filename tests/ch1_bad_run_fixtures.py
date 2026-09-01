@@ -289,11 +289,11 @@ def call_detector(
 
 
 # Lane 1: entry-state chaining post-pass. Module path is not pinned — probe the
-# plausible homes (sequence derivation lives in dominion.workers.production today;
+# plausible homes (sequence derivation lives in dominion.workers.production_sequence today;
 # scene_packet.derive is the coordinator-suggested landing spot).
 LANE1_MODULES = (
     "dominion.workers.scene_packet.derive",
-    "dominion.workers.production",
+    "dominion.workers.production_sequence",
     "dominion.workers.sequence_chaining",
     "dominion.workers.scene_packet.chaining",
     "dominion.workers.packet.sequence_chaining",

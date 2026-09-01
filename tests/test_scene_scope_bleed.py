@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from dominion.workers import scene_scope
-from dominion.workers.production import run_chapter_draft_qa
+from dominion.workers.production_sequence import run_chapter_draft_qa
 from dominion.workers.scene_scope import (
     DUPLICATE_IRREVERSIBLE_BEAT,
     SCENE_SCOPE_BLEED,

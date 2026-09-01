@@ -11,7 +11,7 @@ Two tiers:
 
 * Lane acceptance tests import the lane-owned modules directly
   (dominion.workers.scene_scope / budget_reconciliation / canon_guards, and lane
-  1's chaining post-pass dominion.workers.production.chain_scene_entry_states).
+  1's chaining post-pass dominion.workers.production_sequence.chain_scene_entry_states).
   All four lanes have landed, so a missing module/symbol now ERRORS loudly — it
   never self-skips. Callable names for lanes 2-4 are still resolved through the
   adapters in tests/ch1_bad_run_fixtures.py, where a landed module with an
@@ -173,9 +173,9 @@ class TestLane1EntryStateChaining:
         all declare independent_draft_allowed=false)."""
         # Lane 1 has landed: pin directly to the real post-pass. A rename/removal
         # now ERRORS on import instead of silently skipping this acceptance test.
-        from dominion.workers.production import chain_scene_entry_states
+        from dominion.workers.production_sequence import chain_scene_entry_states
 
-        name = "dominion.workers.production.chain_scene_entry_states"
+        name = "dominion.workers.production_sequence.chain_scene_entry_states"
         body = chain_scene_entry_states(copy.deepcopy(fx.sequence_body()))
         scenes = sorted(body["scenes"], key=lambda s: int(s["scene_no"]))
         assert len(scenes) == fx.SCENE_COUNT
@@ -198,7 +198,7 @@ class TestLane1EntryStateChaining:
         returning), so re-deriving from the REAL chapter packet body must yield
         chained entry states. If derivation regresses to emitting the bug, this
         FAILS loudly — it no longer self-skips."""
-        from dominion.workers.production import derive_chapter_sequence
+        from dominion.workers.production_sequence import derive_chapter_sequence
 
         derived = derive_chapter_sequence(fx.chapter_packet_body())
         scenes = sorted(derived["scenes"], key=lambda s: int(s["scene_no"]))

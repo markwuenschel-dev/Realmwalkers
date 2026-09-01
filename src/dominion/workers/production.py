@@ -25,7 +25,6 @@ from dominion.shared.models import (
     Artifact,
     ArtifactDependency,
     Chapter,
-    ChapterPacket,
     ChapterSequence,
     Critique,
     DraftRunTimeline,
@@ -36,7 +35,6 @@ from dominion.shared.models import (
     RepairTask,
     RepairVerification,
     Scene,
-    ScenePacket,
 )
 from dominion.shared.severity import is_blocking
 
@@ -56,68 +54,11 @@ async def latest_chapter_sequence(session: AsyncSession, chapter_id: uuid.UUID) 
     return await production_sequence.latest_chapter_sequence(session, chapter_id)
 
 
-async def latest_draft_timeline(session: AsyncSession, production_run_id: uuid.UUID) -> DraftRunTimeline | None:
-
-    return await production_sequence.latest_draft_timeline(session, production_run_id)
-
-
-def derive_contract_classification(
-    packet_body: dict[str, Any], open_questions: dict[str, Any] | None
-) -> dict[str, Any]:
-
-    return production_sequence.derive_contract_classification(packet_body, open_questions)
-
-
-def derive_chapter_sequence(packet_body: dict[str, Any]) -> dict[str, Any]:
-
-    return production_sequence.derive_chapter_sequence(packet_body)
-
-
-def chain_scene_entry_states(body: dict[str, Any]) -> dict[str, Any]:
-
-    return production_sequence.chain_scene_entry_states(body)
-
-
-def run_chapter_draft_qa(
-    sequence_body: dict[str, Any] | None,
-    scene_rows: list[dict[str, Any]],
-    full_prose: str,
-    packet_body: dict[str, Any] | None = None,
-    open_questions: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-
-    return production_sequence.run_chapter_draft_qa(sequence_body, scene_rows, full_prose, packet_body, open_questions)
-
-
-def evaluate_chapter_sequence(body: dict[str, Any]) -> dict[str, Any]:
-    return production_sequence.evaluate_chapter_sequence(body)
-
-
-async def ensure_chapter_sequence(session: AsyncSession, packet: ChapterPacket) -> ChapterSequence:
-
-    return await production_sequence.ensure_chapter_sequence(session, packet)
-
-
-async def _latest_scene_map(session: AsyncSession, chapter_id: uuid.UUID) -> dict[int, Scene]:
-
-    return await production_sequence._latest_scene_map(session, chapter_id)
-
-
-async def _scene_packet_map(session: AsyncSession, chapter_id: uuid.UUID) -> dict[int, ScenePacket]:
-
-    return await production_sequence._scene_packet_map(session, chapter_id)
-
-
-async def assemble_run(session: AsyncSession, run: ProductionRun) -> None:
-
-    return await production_sequence.assemble_run(session, run)
-
-
 async def assemble_and_summarize(session: AsyncSession, run: ProductionRun) -> None:
-    """Assemble the run's final chapter candidate, then refresh its production summary — one facade
-    workflow so callers stop having to know the two-step (assemble -> update_run_summary) ordering
-    (PROD-FACADE). `update_run_summary` stays a standalone op for the many places that refresh the
-    summary without assembling."""
+    """Assemble the run's final chapter candidate, then refresh its production summary — one
+    workflow so callers stop having to know the two-step (assemble -> update_run_summary) ordering.
+    `update_run_summary` stays a standalone op for the many places that refresh the summary without
+    assembling."""
     await production_sequence.assemble_run(session, run)
     await support.update_run_summary(session, run)
 
@@ -127,23 +68,11 @@ async def queue_draft_jobs_for_missing_sequence_scenes(session: AsyncSession, ru
     return await production_sequence.queue_draft_jobs_for_missing_sequence_scenes(session, run)
 
 
-async def ensure_draft_run_timeline(session: AsyncSession, run: ProductionRun) -> DraftRunTimeline:
-
-    return await production_sequence.ensure_draft_run_timeline(session, run)
-
-
 async def update_timeline_after_scene(
     session: AsyncSession, production_run_id: uuid.UUID | None, scene: Scene
 ) -> DraftRunTimeline | None:
 
     return await production_sequence.update_timeline_after_scene(session, production_run_id, scene)
-
-
-async def _block_production_on_timeline_failure(
-    session: AsyncSession, production_run_id: uuid.UUID, error: str
-) -> None:
-
-    return await production_sequence._block_production_on_timeline_failure(session, production_run_id, error)
 
 
 async def mark_run_provider_rate_limited(
@@ -214,7 +143,7 @@ async def create_production_run(
         stage="contract_classification",
         input_artifact_ids=[str(packet_artifact.id)],
     )
-    contract_body = derive_contract_classification(packet.body or {}, packet.open_questions)
+    contract_body = production_sequence.derive_contract_classification(packet.body or {}, packet.open_questions)
     contract_artifact = await support.create_artifact(
         session,
         run=run,
@@ -247,7 +176,7 @@ async def create_production_run(
         stage="chapter_sequence",
         input_artifact_ids=[str(packet_artifact.id), str(contract_artifact.id)],
     )
-    sequence = await ensure_chapter_sequence(session, packet)
+    sequence = await production_sequence.ensure_chapter_sequence(session, packet)
     sequence_artifact = await support.create_artifact(
         session,
         run=run,
@@ -270,9 +199,9 @@ async def create_production_run(
     support.finish_agent_run(planner, status=AgentRunStatus.COMPLETED, output_artifact_ids=[str(sequence_artifact.id)])
 
     # Initialize the active DraftRunTimeline (live memory) right after sequence.
-    await ensure_draft_run_timeline(session, run)
+    await production_sequence.ensure_draft_run_timeline(session, run)
 
-    scene_packets = await _scene_packet_map(session, chapter_id)
+    scene_packets = await production_sequence._scene_packet_map(session, chapter_id)
     scene_packet_artifacts: dict[int, Artifact] = {}
     seq_body = sequence.body or {} if sequence else {}
     seq_by_no = {int(s.get("scene_no") or 0): s for s in (seq_body.get("scenes") or []) if isinstance(s, dict)}
@@ -308,7 +237,7 @@ async def create_production_run(
             dependencies=[(sequence_artifact.id, "source", sequence_artifact.content_hash)],
         )
 
-    latest_scenes = await _latest_scene_map(session, chapter_id)
+    latest_scenes = await production_sequence._latest_scene_map(session, chapter_id)
     scene_artifacts: dict[int, Artifact] = {}
     review_artifacts: dict[int, Artifact] = {}
     issues: list[Issue] = []
@@ -490,7 +419,7 @@ async def create_production_run(
         payload={"issue_count": len(issues)},
     )
 
-    await assemble_run(session, run)
+    await production_sequence.assemble_run(session, run)
     if auto_triage:
         await production_repair.triage_production_run(session, run.id)
         # SceneFidelity triage: materialize CURRENT repair-eligible fidelity findings into run-owned
@@ -536,11 +465,6 @@ async def list_book_production_runs(session: AsyncSession, book_id: uuid.UUID) -
 async def triage_production_run(session: AsyncSession, run_id: uuid.UUID) -> ProductionRun:
 
     return await production_repair.triage_production_run(session, run_id)
-
-
-async def triage_scene_fidelity_for_production(session: AsyncSession, *, run: ProductionRun):
-    """Facade seam for SceneFidelity production triage (ADR 0018) — see production_fidelity."""
-    return await production_fidelity.triage_scene_fidelity_for_production(session, run=run)
 
 
 async def apply_repair_task(
@@ -841,7 +765,7 @@ async def latest_chapter_draft_qa(session: AsyncSession, run_id: uuid.UUID) -> A
 async def run_final_qa(session: AsyncSession, run_id: uuid.UUID) -> Artifact:
     detail = await production_run_detail(session, run_id)
     run = detail["run"]
-    await assemble_run(session, run)
+    await production_sequence.assemble_run(session, run)
     qa_artifact = await latest_chapter_draft_qa(session, run_id)
     if qa_artifact is None:
         # L6: assembly refused (structured event recorded) — surface the parked stage, not a dump.
