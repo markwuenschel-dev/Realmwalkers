@@ -76,11 +76,12 @@ def test_production_re_exports_no_private_names():
 def test_deleted_passthrough_shims_stay_deleted():
     """PROD-FACADE: the module re-exports what its callers reach through it, and nothing else.
 
-    Every name below was reachable through this module and is not any more. Most had no caller
-    outside it: some had none at all, some only this module itself, some only tests importing them
-    from here. One did have a production caller -- pipeline.py reached a private helper through
-    this module, which is precisely why it should not have been re-exported. They now live where
-    they are defined.
+    Every name below except the first three was reachable through this module and is not any
+    more; those three went earlier and stay pinned so a later pass cannot quietly restore them.
+    Most of the rest had no caller outside it: some had none at all, some only this module
+    itself, some only tests importing them from here. One did have a production caller --
+    pipeline.py reached a private helper through this module, which is precisely why it should
+    not have been re-exported. They now live where they are defined.
     Resurrecting one re-creates the indirection without re-creating a reason for it."""
     import dominion.workers.production as production
 
