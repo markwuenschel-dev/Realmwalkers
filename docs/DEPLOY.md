@@ -27,11 +27,17 @@ This repo only provides the `Dockerfile` that Compose builds.
   both the `edge` (↔ Caddy) and `data` (↔ Postgres) networks. Only Caddy publishes ports (80/443); the app
   is never directly exposed.
 - **Database** — the shared `postgres` service is `pgvector/pgvector:pg16`. Compose injects
-  `DOMINION_DATABASE_URL=postgresql+asyncpg://app:<pw>@postgres:5432/realmwalkers` (private, internal-only —
-  `config.py` reads `DOMINION_DATABASE_URL`, falling back to a bare `DATABASE_URL`). The `realmwalkers`
-  database and its `vector` extension are created **once** by `infra/initdb/01-create-databases.sh` on the
-  first boot of an empty Postgres volume; this repo's `scripts/init_db.py` then creates the tables on
-  **every** container boot (idempotent — it's the Dockerfile's `CMD`).
+  `DOMINION_DATABASE_URL=postgresql+asyncpg://app:<pw>@postgres:5432/realmwalkers_book1` (private,
+  internal-only — `config.py` reads `DOMINION_DATABASE_URL`, falling back to a bare `DATABASE_URL`).
+  **The database is `realmwalkers_book1`.** Name it explicitly whenever you `psql` on the box —
+  `infra/docker-compose.yml` is the source of truth for it. This repo's `scripts/init_db.py` creates the
+  `vector` extension and all tables on **every** container boot (idempotent — it's the Dockerfile's
+  `CMD`), so the schema self-heals; only the database itself has to pre-exist.
+  - The database itself is created **once**, on the first boot of an empty Postgres volume, by
+    `infra/initdb/01-create-databases.sh` — which creates `realmwalkers_book1` and enables `vector` on
+    it. Because that script runs only on an empty volume, a name that disagrees with
+    `DOMINION_DATABASE_URL` is invisible on an existing box and only surfaces on a fresh standup, where
+    the app comes up against a database that does not exist. **Change both places together.**
 - **Secrets** — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc. live in `infra/env/realmwalkers.env` on the box
   (gitignored). `DOMINION_DATABASE_URL` and `PORT` are injected by Compose — do **not** set them there.
   `OPENAI_API_KEY` / `XAI_API_KEY` are **required** to pick an OpenAI (`gpt-*`) or Grok (`grok-*`) model in
@@ -63,8 +69,16 @@ Only `realmwalkers` rebuilds; Postgres, Caddy, and the other apps stay up. Roll 
 - **Drafting** runs as a background task in the web service (the browser-driven `/jobs/draft-next` drain),
   so no separate worker service is required. The container is `restart: unless-stopped` and the box stays
   warm, so background drafts finish.
-- **A fresh box starts with an empty `realmwalkers` db** — scenes/books are **not** copied up automatically.
-  To migrate existing data: `pg_dump` the old source and restore into the `postgres` container's
-  `realmwalkers` db.
+- **A fresh box starts with an empty `realmwalkers_book1` db** — scenes/books are **not** copied up
+  automatically. To migrate existing data: `pg_dump` the old source and restore into the `postgres`
+  container's `realmwalkers_book1` db.
+- **Push the style documents, or drafting refuses to run.** `series/` is gitignored and excluded from the
+  image, so on the box the style guidance exists only in the `style_documents` table. `python -m
+  dominion.tools.push_style` writes them there. Two of them — `forbidden_drift` and `dialogue_rules` —
+  are a fail-closed draft gate (`workers/context/style_source.py`): without them `can_draft` is false and
+  the Desk's Draft button stays disabled, because a draft generated without its guidance looks identical
+  to a good one at every other surface. The Edit desk's audit reads those plus `prose_clarity_rules`,
+  `prose_contract` and `voice_guide`, and returns 503 when none are present. This is a **data** step, not
+  a code step: a deploy alone never carries it.
 - **Cost:** a flat EC2 bill (t4g.small) shared across all four apps on the box, plus your own Anthropic API
   usage — no per-service or egress metering.

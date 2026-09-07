@@ -47,7 +47,7 @@ stops — no separate worker service, and nothing resident between approvals.
 
 | Repo | Contents | Deploy |
 |---|---|---|
-| `Realmwalkers` (this monorepo) | `frontend/` (Next.js BFF + Writers' Desk), `src/dominion/` (`api/` FastAPI, `workers/` Python, `shared/` schema + Pydantic models used by both), `series/` + `book1/` (authored canon) | one service in the shared-box Docker Compose stack, built from the `Dockerfile` (Next standalone + FastAPI in a single container), behind Caddy; Postgres → shared `pgvector/pgvector` container, private `realmwalkers` db (persistent volume, internal Docker network only) |
+| `Realmwalkers` (this monorepo) | `frontend/` (Next.js BFF + Writers' Desk), `src/dominion/` (`api/` FastAPI, `workers/` Python, `shared/` schema + Pydantic models used by both), `series/` + `book1/` (authored canon) | one service in the shared-box Docker Compose stack, built from the `Dockerfile` (Next standalone + FastAPI in a single container), behind Caddy; Postgres → shared `pgvector/pgvector` container, private `realmwalkers_book1` db (persistent volume, internal Docker network only) |
 
 `api/` and `workers/` co-locate deliberately: they share one Postgres schema and one set of Python models, so there's nothing to keep in sync across languages. There is no separate frontend host and no separate worker box — one container, one URL (see [`DEPLOY.md`](DEPLOY.md)).
 

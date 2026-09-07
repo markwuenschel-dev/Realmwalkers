@@ -76,10 +76,17 @@ def read_from_disk(path: str) -> str | None:
 def required_style_document_paths() -> tuple[str, ...]:
     """The style documents a draft is not allowed to run without.
 
-    Scoped deliberately to the two that reach the drafter's prompt — `forbidden_drift` via
+    Scoped deliberately to the two that reach the DRAFTER's prompt — `forbidden_drift` via
     `assemble.py` and `dialogue_rules` via `load_dialogue_rules`. The other slugs in the table
-    (`voice_guide`, `prose_contract`, …) have no consuming code, so requiring them would block
+    (`voice_guide`, `prose_contract`, `prose_clarity_rules`, …) do not, so requiring them would block
     drafting on documents whose absence changes nothing about the generated prose.
+
+    Those other slugs are no longer unread: `workers/reviewers/style_audit.py` judges finished prose
+    against them for the Edit desk. That does not belong in this tuple. This gate is fail-closed
+    because a draft running without its guidance is indistinguishable from a good one at every other
+    surface; an audit is author-invoked and reports `standards_loaded`/`standards_missing` in its own
+    response, so a missing document there is visible on the page rather than silent. Gate what runs
+    unattended, not what the author asked for and can see the shape of.
     """
     from dominion.shared.config import settings
 
