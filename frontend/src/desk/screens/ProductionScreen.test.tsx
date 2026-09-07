@@ -54,6 +54,10 @@ vi.mock("../api/client", () => ({
     startProductionRun: vi.fn(),
     triageProductionRun: vi.fn(),
     assembleProductionRun: vi.fn(),
+    cancelProductionRun: vi.fn(),
+    resumeProductionRun: vi.fn(),
+    finalQaProductionRun: vi.fn(),
+    approveFinalChapter: vi.fn(),
     applyRepairTask: vi.fn(),
     approveApplyRepairTask: vi.fn(),
     applyAllRepairTasks: vi.fn(),
@@ -265,6 +269,26 @@ describe("ProductionScreen", () => {
       repair_task_count: 1,
       latest_verification: null,
     });
+    vi.mocked(api.cancelProductionRun)
+      .mockReset()
+      .mockResolvedValue({ ...RUN, status: "cancelled" });
+    vi.mocked(api.resumeProductionRun)
+      .mockReset()
+      .mockResolvedValue({ ...RUN, status: "running" });
+    vi.mocked(api.finalQaProductionRun)
+      .mockReset()
+      .mockResolvedValue({
+        id: "qa-1",
+        artifact_type: "chapter_draft_qa",
+        body: { verdict: "pass" },
+        version: 3,
+        status: "active",
+        content_hash: "qa",
+        created_at: "2026-07-02T10:00:00Z",
+      });
+    vi.mocked(api.approveFinalChapter)
+      .mockReset()
+      .mockResolvedValue({ ...RUN, status: "completed" });
     vi.mocked(api.applyRepairTask).mockReset().mockResolvedValue(DETAIL.repair_tasks[0]);
     vi.mocked(api.approveApplyRepairTask).mockReset().mockResolvedValue(DETAIL.repair_tasks[0]);
     vi.mocked(api.applyAllRepairTasks).mockReset().mockResolvedValue({
@@ -726,5 +750,125 @@ describe("ProductionScreen", () => {
     const notice = await screen.findByTestId("production-notice");
     expect(notice.textContent).toContain("Re-triaged");
     expect(notice.textContent).toContain("1 deferred");
+  });
+
+  // --- run lifecycle -------------------------------------------------------------------------------
+  // These four verbs are the only way a run ENDS. The disabled conditions are load-bearing: `cancel`
+  // and `resume` have NO server-side status guard, so the button state is the only thing stopping a
+  // resumed COMPLETED run from re-entering the sweeper's eligible set.
+
+  const withRunStatus = (status: string) => {
+    const run = { ...RUN, status };
+    vi.mocked(api.productionRuns).mockResolvedValue([run]);
+    vi.mocked(api.productionRun).mockResolvedValue({ ...DETAIL, run });
+  };
+
+  it("cancels a run after the author confirms", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel run" }));
+    await waitFor(() => expect(api.cancelProductionRun).toHaveBeenCalledWith("run-1"));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("cancelled");
+    confirm.mockRestore();
+  });
+
+  it("does not cancel when the author declines the confirm", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel run" }));
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    expect(api.cancelProductionRun).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it("resumes a blocked run and says the sweeper will be slow to pick it up", async () => {
+    // Resume kicks nothing — the sweeper's interval and stale window are both 120s. Without this
+    // sentence a resumed run looks broken for minutes.
+    withRunStatus("blocked");
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume run" }));
+    await waitFor(() => expect(api.resumeProductionRun).toHaveBeenCalledWith("run-1"));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("Re-triage");
+  });
+
+  it("will not resume a completed run", async () => {
+    // THE guard test. The server would happily put a signed-off chapter back to running.
+    withRunStatus("completed");
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    expect(screen.getByRole("button", { name: "Resume run" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel run" })).toBeDisabled();
+  });
+
+  it("runs final QA and names the report version", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Final QA" }));
+    await waitFor(() => expect(api.finalQaProductionRun).toHaveBeenCalledWith("run-1"));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("v3");
+  });
+
+  it("surfaces a refused assembly verbatim instead of a generic failure", async () => {
+    vi.mocked(api.finalQaProductionRun).mockRejectedValue(
+      new Error(
+        "chapter QA unavailable: assembly refused, run is parked in 'waiting_for_scene_drafts'",
+      ),
+    );
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Final QA" }));
+    expect(await screen.findByText(/assembly refused, run is parked in/)).toBeTruthy();
+  });
+
+  it("approves the final chapter when one exists", async () => {
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Approve final" }));
+    await waitFor(() => expect(api.approveFinalChapter).toHaveBeenCalledWith("run-1"));
+    const notice = await screen.findByTestId("production-notice");
+    expect(notice.textContent).toContain("approved");
+    confirm.mockRestore();
+  });
+
+  it("cannot approve when there is no final chapter artifact", async () => {
+    vi.mocked(api.productionRun).mockResolvedValue({
+      ...DETAIL,
+      artifacts: DETAIL.artifacts.filter((a) => a.artifact_type !== "final_chapter"),
+    });
+    render(<ProductionScreen />);
+    await screen.findByText("Draft prose.");
+
+    const button = screen.getByRole("button", { name: "Approve final" });
+    expect(button).toBeDisabled();
+    expect(button.getAttribute("title")).toContain("run Final QA first");
+  });
+
+  it("cannot re-approve an already approved final chapter", async () => {
+    vi.mocked(api.productionRun).mockResolvedValue({
+      ...DETAIL,
+      artifacts: DETAIL.artifacts.map((a) =>
+        a.artifact_type === "final_chapter"
+          ? { ...a, body: { ...a.body, final_chapter_status: "approved_by_human" } }
+          : a,
+      ),
+    });
+    render(<ProductionScreen />);
+    await screen.findByText("Final chapter prose.");
+
+    expect(screen.getByRole("button", { name: "Final approved" })).toBeDisabled();
   });
 });

@@ -5,6 +5,7 @@ import type {
   AmendmentEligibilityOut,
   AnnotationIn,
   AnnotationOut,
+  ArtifactOut,
   BeatOut,
   BookIn,
   BookOut,
@@ -472,6 +473,24 @@ export const api = {
     http<ProductionRunActionOut>(`/production-runs/${runId}/triage`, { method: "POST" }),
   assembleProductionRun: (runId: string) =>
     http<ProductionRunActionOut>(`/production-runs/${runId}/assemble`, { method: "POST" }),
+  // --- run lifecycle: the four verbs that let a run END --------------------------------------------
+  // Stops the run. Drafted scenes and artifacts are kept, and the server does NOT check status first,
+  // so cancelling a terminal run just re-stamps it — harmless, but the Desk hides the button there.
+  cancelProductionRun: (runId: string) =>
+    http<ProductionRunOut>(`/production-runs/${runId}/cancel`, { method: "POST" }),
+  // Puts the run back to running/repairing. Kicks nothing: progress comes from the sweeper, whose
+  // interval and stale window are both 120s, so a resumed run idles ~2-4 min before it moves.
+  resumeProductionRun: (runId: string) =>
+    http<ProductionRunOut>(`/production-runs/${runId}/resume`, { method: "POST" }),
+  // Runs a full assemble, not a read: it can mint the final_chapter artifact and complete the run.
+  // Returns the chapter_draft_qa artifact the Run QA panel already renders.
+  finalQaProductionRun: (runId: string) =>
+    http<ArtifactOut>(`/production-runs/${runId}/final-qa`, { method: "POST" }),
+  // Stamps the final chapter approved_by_human and completes the run. 409s until a final_chapter
+  // artifact exists. NOTE: the server enforces no authorization here — no permit, no auth, no DB
+  // CHECK; that literal string is the only marker that a human decided. Do not read this as a gate.
+  approveFinalChapter: (runId: string) =>
+    http<ProductionRunOut>(`/production-runs/${runId}/approve-final`, { method: "POST" }),
   // Per-chapter pipeline facts for the Chapters command center — one request for the whole book.
   chaptersOverview: (bookId: string) =>
     http<ChapterPipelineOut[]>(`/books/${bookId}/chapters/overview`),
