@@ -73,6 +73,11 @@ function statusTone(status: string): string {
     case "blocked":
     case "rejected":
       return "var(--bad)";
+    // Terminal, but NOT a failure — a cancelled run is one the author stopped on purpose. Listed
+    // explicitly rather than left to fall through, so nobody later "fixes" the fall-through by
+    // folding it in with failed/blocked and paints a deliberate decision red.
+    case "cancelled":
+      return "var(--dim)";
     default:
       return "var(--dim)";
   }
@@ -93,6 +98,9 @@ function statusChipTone(status: string): ChipTone {
     case "blocked":
     case "rejected":
       return "bad";
+    // See statusTone: cancelled is terminal-but-not-a-failure and must never share the red bucket.
+    case "cancelled":
+      return "neutral";
     default:
       return "neutral";
   }
@@ -502,6 +510,10 @@ export default function ProductionScreen() {
   // Info-toned outcome line (never an error): triage is a deterministic no-op when no issue is still
   // `proposed`, which used to read as "the button did nothing". Cleared on any run/chapter switch.
   const [notice, setNotice] = useState<string | null>(null);
+  // Whether the Run QA report is expanded. Controlled (rather than a bare <details>) for one reason:
+  // after Final QA succeeds the author should land on the report they just paid for, instead of a
+  // collapsed row they have to find and open.
+  const [qaOpen, setQaOpen] = useState(false);
   // First runs-list arrival — the screen's "first data render" moment for tab-load timing.
   const [runsLoaded, setRunsLoaded] = useState(false);
   // Mirror of `runs` for effects that need the latest rows without re-arming on every list refresh.
@@ -842,6 +854,95 @@ export default function ProductionScreen() {
       );
     });
   };
+  // --- run lifecycle -------------------------------------------------------------------------------
+  // The four verbs that let a run END. Every one goes through `runAction`, which already routes a
+  // thrown ApiError into the error banner — so the server's own 409 text ("final chapter is not
+  // ready", "chapter QA unavailable: assembly refused, run is parked in '<stage>'") reaches the
+  // author verbatim and none of these handlers parses status codes.
+  //
+  // The disabled conditions below are the ONLY thing stopping a nonsensical call: `cancel` and
+  // `resume` do not check run status server-side, so `resume` on a COMPLETED run would put a
+  // signed-off chapter back into the sweeper's eligible set (sweeper.py:70-75). That guard lives
+  // here and nowhere else — it stops this UI, not the API.
+  const onCancelRun = () => {
+    if (!detail) return;
+    const id8 = detail.run.id.slice(0, 8);
+    if (
+      !window.confirm(
+        `Cancel run ${id8} (${detail.run.status})? Drafted scenes and artifacts are kept; you can ` +
+          `resume it later.`,
+      )
+    )
+      return;
+    setNotice(null);
+    void runAction("cancel", () => api.cancelProductionRun(detail.run.id), {
+      reloadRuns: true,
+      refresh: "slim",
+    }).then((out) => {
+      if (out) setNotice(`Run ${id8} cancelled.`);
+    });
+  };
+
+  const onResumeRun = () => {
+    if (!detail) return;
+    const id8 = detail.run.id.slice(0, 8);
+    setNotice(null);
+    void runAction("resume", () => api.resumeProductionRun(detail.run.id), {
+      reloadRuns: true,
+      refresh: "slim",
+    }).then((out) => {
+      if (!out) return;
+      // Resume kicks nothing — it sets status and returns. Progress comes from the sweeper, whose
+      // interval and stale window are both 120s, so the run sits still for minutes and looks dead.
+      // Saying so is the difference between "working" and "broken" from the author's chair.
+      setNotice(
+        `Run ${id8} resumed as ${out.status}. The sweeper picks it up within ~2-4 min — press ` +
+          `Re-triage to drive it now.`,
+      );
+    });
+  };
+
+  const onFinalQa = () => {
+    if (!detail) return;
+    setNotice(null);
+    // Full refresh, NOT slim: this runs a whole assemble_run, which can mint the final_chapter
+    // artifact and flip the run to completed. A slim refresh keeps the cached artifacts and would
+    // leave the screen saying there is no final chapter immediately after creating one.
+    void runAction("final-qa", () => api.finalQaProductionRun(detail.run.id), {
+      reloadRuns: true,
+    }).then((out) => {
+      if (!out) return;
+      setQaOpen(true);
+      setNotice(`Chapter QA v${out.version} written — see Run QA below.`);
+    });
+  };
+
+  const onApproveFinal = () => {
+    if (!detail) return;
+    const id8 = detail.run.id.slice(0, 8);
+    if (
+      !window.confirm(
+        "Approve this final chapter? It stamps the artifact approved_by_human and completes the run.",
+      )
+    )
+      return;
+    setNotice(null);
+    void runAction("approve-final", () => api.approveFinalChapter(detail.run.id), {
+      reloadRuns: true,
+      refresh: "slim",
+    }).then((out) => {
+      if (out) setNotice(`Final chapter approved — run ${id8} completed.`);
+    });
+  };
+
+  const runStatus = headerRun?.status ?? "";
+  const finalApproved = finalArtifact?.body.final_chapter_status === "approved_by_human";
+  const cancelDisabled = busy != null || runStatus === "cancelled" || runStatus === "completed";
+  const resumeDisabled =
+    busy != null || ["queued", "running", "repairing", "completed"].includes(runStatus);
+  const finalQaDisabled = busy != null || runStatus === "cancelled";
+  const approveDisabled = busy != null || finalArtifact == null || finalApproved;
+
   const sequenceScenes = Array.isArray(detail?.chapter_sequence?.body?.scenes)
     ? detail?.chapter_sequence?.body?.scenes
     : [];
@@ -1142,6 +1243,65 @@ export default function ProductionScreen() {
               >
                 {busy === "assemble" ? "Assembling…" : "Refresh assembly"}
               </Button>
+              <Button
+                size="sm"
+                disabled={cancelDisabled}
+                title={
+                  runStatus === "cancelled"
+                    ? "This run is already cancelled."
+                    : runStatus === "completed"
+                      ? "This run is completed — delete it instead if you want it gone."
+                      : "Stop this run. Drafted scenes and artifacts are kept."
+                }
+                onClick={onCancelRun}
+              >
+                {busy === "cancel" ? "Cancelling…" : "Cancel run"}
+              </Button>
+              <Button
+                size="sm"
+                disabled={resumeDisabled}
+                title={
+                  runStatus === "completed"
+                    ? "This run is completed — start a new run rather than reopening a signed-off chapter."
+                    : ["queued", "running", "repairing"].includes(runStatus)
+                      ? `This run is already ${runStatus}.`
+                      : "Put this run back to work. The sweeper picks it up within ~2-4 min."
+                }
+                onClick={onResumeRun}
+              >
+                {busy === "resume" ? "Resuming…" : "Resume run"}
+              </Button>
+              <Button
+                size="sm"
+                disabled={finalQaDisabled}
+                title={
+                  runStatus === "cancelled"
+                    ? "Resume the run before asking for chapter QA."
+                    : "Assemble the chapter and write its QA report. Slow — this is a full assembly, not a read."
+                }
+                onClick={onFinalQa}
+              >
+                {busy === "final-qa" ? "Running QA…" : "Final QA"}
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={approveDisabled}
+                title={
+                  finalApproved
+                    ? "This final chapter is already approved."
+                    : finalArtifact == null
+                      ? "No final chapter artifact yet — run Final QA first."
+                      : "Stamp the final chapter approved and complete the run."
+                }
+                onClick={onApproveFinal}
+              >
+                {busy === "approve-final"
+                  ? "Approving…"
+                  : finalApproved
+                    ? "Final approved"
+                    : "Approve final"}
+              </Button>
               <Button size="sm" onClick={() => setJsonOpen((v) => !v)}>
                 {jsonOpen ? "Hide run JSON" : "Run JSON"}
               </Button>
@@ -1404,7 +1564,11 @@ export default function ProductionScreen() {
                     <StatusBreakdown summary={detail?.run.summary_json} />
                   </div>
                   {qaArtifact && (
-                    <details style={css("margin-top:12px")}>
+                    <details
+                      style={css("margin-top:12px")}
+                      open={qaOpen}
+                      onToggle={(e) => setQaOpen((e.currentTarget as HTMLDetailsElement).open)}
+                    >
                       <summary
                         style={css(
                           "cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--dim)",
