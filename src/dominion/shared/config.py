@@ -240,6 +240,23 @@ class Settings(BaseSettings):
     # whole file is ~475 lines and injecting it unconditionally would cost more than it corrects, on a
     # pipeline where contract derivation is already the majority of spend.
     forbidden_drift_path: str = "series/style/forbidden_drift.md"
+    # The style-audit standard: the three documents that judge FINISHED prose rather than steer
+    # generation. Until the audit reviewer existed they were pushed into `style_documents` by
+    # `push_style` and read by nothing (style_source.required_style_document_paths still scopes the
+    # fail-closed check to the two the DRAFTER consumes, which is correct — an audit is optional, a
+    # draft running unguided is not). `prose_clarity_rules.md` carries R1-R14 and The One Test, each
+    # rule ending in a literal "Critic check:" line; `prose_contract.md` carries the 11 clauses plus
+    # the Never/Always quick reference; `voice_guide.md` carries register and POV discipline.
+    prose_clarity_rules_path: str = "series/style/prose_clarity_rules.md"
+    prose_contract_path: str = "series/style/prose_contract.md"
+    voice_guide_path: str = "series/style/voice_guide.md"
+    # Audit model. Separate from review_model so tightening the audit never silently re-prices the
+    # per-scene reviewer fleet that runs on every draft.
+    style_audit_model: str = "gpt-5.6-luna"
+    style_audit_fallback_model: str = "gpt-5.6-terra"
+    # A pasted passage is author-sized, not scene-sized, and the audit makes ONE call. This ceiling is
+    # what stops a whole chapter pasted in one go from becoming a single enormous request.
+    style_audit_token_budget: int = 90_000
 
     # Post-split monorepo ingest source dirs (series/canon + book1/manuscript). Centralized here so the
     # worker CLIs (canon_rag.py, seed.py) read one source of truth instead of duplicating the literal

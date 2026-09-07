@@ -77,6 +77,32 @@ def test_gate_2_structural_blocker_message_passes_through_verbatim():
     assert reason == "Budgets disagree — rebalance."
 
 
+def test_gate_2_scene_count_mismatch_is_advisory_and_does_not_block():
+    """The sequence's `target_scene_count` is an ESTIMATE (`round(target_words / 1200)`), not an
+    authored number, so it disagreeing with the packet's seed list is a planning note — never a
+    refusal. Book 1 lost chapters 1, 2 and 3 to exactly this (11-vs-3, 7-vs-3, 6-vs-3), each planned
+    count reproducing `round(target_words / 1200)` from an author who seeded fewer, longer scenes."""
+    advisory = StructuralBlockerOut(
+        kind="sequence_scene_count_mismatch",
+        message="The chapter sequence plans 11 scenes but the chapter packet seeds 3 — align the plan.",
+        planned_scene_count=11,
+        seed_count=3,
+    )
+    assert resolve_draft_gate(ready(structural_blockers=(advisory,))) == (True, None)
+
+
+def test_gate_2_real_structural_fault_still_blocks_when_an_advisory_precedes_it():
+    """Filtering must not degrade to "first blocker wins": a genuine fault sitting behind an advisory
+    one in the tuple still has to be the reported reason."""
+    advisory = StructuralBlockerOut(
+        kind="sequence_scene_count_mismatch", message="Plan 11 vs 3 seeds — align the plan."
+    )
+    real = StructuralBlockerOut(kind="sequence_budget_mismatch", message="Budgets disagree — rebalance.")
+    can, reason = resolve_draft_gate(ready(structural_blockers=(advisory, real)))
+    assert can is False
+    assert reason == "Budgets disagree — rebalance."
+
+
 def test_gate_3_no_scene_packets_derived():
     can, reason = resolve_draft_gate(ready(scene_packets_derived=0, scene_packets_approved=0))
     assert can is False

@@ -5,6 +5,7 @@ export type Screen =
   | "scene"
   | "inbox"
   | "enrich"
+  | "edit"
   | "chapters"
   | "production"
   | "pipeline"

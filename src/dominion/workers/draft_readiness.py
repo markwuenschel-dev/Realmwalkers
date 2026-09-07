@@ -313,6 +313,11 @@ class DraftGateInputs:
     missing_style_documents: tuple[str, ...] = ()
 
 
+# Structural blocker kinds that are REPORTED but never refuse a draft. See gate 2 in
+# `resolve_draft_gate` for why the scene-count mismatch belongs here and the budget mismatch does not.
+ADVISORY_STRUCTURAL_KINDS: frozenset[str] = frozenset({"sequence_scene_count_mismatch"})
+
+
 def resolve_draft_gate(g: DraftGateInputs) -> tuple[bool, str | None]:
     """(can_draft, disabled_reason) — mutually consistent by construction: exactly one of
     `can_draft=True` / `disabled_reason is not None` holds. The reason names the FIRST failing gate
@@ -338,8 +343,26 @@ def resolve_draft_gate(g: DraftGateInputs) -> tuple[bool, str | None]:
         return False, "Chapter packet is not approved yet — approve it first."
     # 2. Sequence/budget + structural contract faults — arithmetic/scoping errors that guarantee a
     # bad chapter before any prose is generated.
-    if g.structural_blockers:
-        return False, g.structural_blockers[0].message
+    #
+    # `sequence_scene_count_mismatch` is deliberately NOT one of them. The sequence's
+    # `target_scene_count` is an ESTIMATE — `round(target_words / 1200)` at production_sequence.py:338
+    # whenever the packet body carries no explicit count — while the seed list is the AUTHORED
+    # contract. A guess disagreeing with the contract is a planning note, not a draft-safety fault,
+    # and gating on it stopped every chapter whose author seeded fewer, longer scenes than the
+    # 1200-word average assumes (book 1: chapters 1, 2 and 3 blocked at 11-vs-3, 7-vs-3 and 6-vs-3,
+    # each planned count exactly `round(target_words / 1200)`). `sequence_budget_mismatch` stays
+    # blocking: it compares two AUTHORED word budgets, with no estimate anywhere in it.
+    #
+    # WHAT THE AUTHOR ACTUALLY SEES: the blocker is still emitted and still returned in
+    # `structural_blockers`, but the Desk does not render it once this gate passes — both
+    # `ScenePacketsPanel.tsx:476` (the blocker list and the one-click "Align plan to N seeded scenes"
+    # button) and `ChaptersScreen.tsx:942` (the gate disclosure) are gated on `!can_draft`. So for a
+    # chapter whose ONLY fault is this mismatch, the advisory and its one-click fix disappear from the
+    # UI. That is the accepted trade for not blocking drafting on an estimate; surfacing an advisory
+    # that no longer gates anything needs a panel that does not exist yet, and is not this change.
+    blocking = [b for b in g.structural_blockers if b.kind not in ADVISORY_STRUCTURAL_KINDS]
+    if blocking:
+        return False, blocking[0].message
     # 3. Scene packets — coverage, then staleness, then QA verdicts (contract axis before QA axis).
     if g.scene_packets_approved == 0:
         return False, (

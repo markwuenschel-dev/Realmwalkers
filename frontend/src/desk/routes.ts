@@ -36,6 +36,18 @@ export const DESK_ROUTES: readonly DeskRoute[] = [
     nav: true,
   },
   {
+    id: "edit",
+    label: "Edit",
+    paletteLabel: "Edit · audit prose against your style rules",
+    href: "/edit",
+    // "a" for audit: "e" belongs to Inject, and the chord set is already positional rather than
+    // mnemonic (Production is "r", Canon is "d").
+    key: "a",
+    shortcut: "G A",
+    icon: "⚑",
+    nav: true,
+  },
+  {
     id: "scene",
     label: "Scene",
     paletteLabel: "Open Scene · review queue",

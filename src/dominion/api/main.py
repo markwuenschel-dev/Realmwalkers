@@ -35,6 +35,7 @@ from dominion.api.routers import (
     runs,
     scene_packets,
     scenes,
+    style_review,
     telemetry,
     threads,
     volumes,
@@ -265,4 +266,5 @@ app.include_router(settings_router.router)
 app.include_router(docs.router)
 app.include_router(manuscript.router)
 app.include_router(enrich.router)
+app.include_router(style_review.router)
 app.include_router(adoption.router)

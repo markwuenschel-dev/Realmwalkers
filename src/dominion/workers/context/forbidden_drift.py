@@ -77,6 +77,21 @@ _TAG_RE = re.compile(r"\[([A-Z]+)\]")
 _CORRECTION_RE = re.compile(r"^\*\*Correction:\*\*\s*(?P<text>.+?)(?=\n\n|\Z)", re.MULTILINE | re.DOTALL)
 
 
+def cast_present_in(text: str) -> set[str]:
+    """The `_CAST` names that actually appear in `text`, lowercased.
+
+    For a SCENE the roster comes from the beat, which states the cast outright. A passage pasted into
+    the Edit desk carries no roster, and the alternatives are both wrong: an empty roster silently
+    drops every RELATIONSHIP and CANON pattern (the families that catch Serra Flattening and
+    Healer-Trope Death), while asserting the full cast loads patterns about characters who are not on
+    the page. Reading the names off the prose is neither — it is deterministic, and it is the same
+    evidence a human would use. A name in narration and a name in dialogue count alike: both put the
+    character in the passage's frame, which is what the family gate is asking about.
+    """
+    lowered = text.lower()
+    return {name for name in _CAST if re.search(rf"\b{re.escape(name)}\b", lowered)}
+
+
 def _families_for_scene(*, present: set[str], pov: str, signals: str) -> set[str]:
     """Which families this scene can actually violate."""
     families = set(ALWAYS_ON)

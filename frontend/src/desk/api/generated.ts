@@ -3303,6 +3303,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/style-review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Style Review */
+    post: operations["style_review_style_review_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/chapters/{chapter_id}/adoption/start": {
     parameters: {
       query?: never;
@@ -8677,6 +8694,62 @@ export interface components {
       planned_scene_count?: number | null;
       /** Seed Count */
       seed_count?: number | null;
+    };
+    /** StyleReviewIn */
+    StyleReviewIn: {
+      /** Prose */
+      prose: string;
+      /** Pov */
+      pov?: string | null;
+    };
+    /** StyleReviewOut */
+    StyleReviewOut: {
+      /** Suggestions */
+      suggestions: components["schemas"]["StyleSuggestionOut"][];
+      /** Standards Loaded */
+      standards_loaded: string[];
+      /** Standards Missing */
+      standards_missing: string[];
+      /** Drift Scope Characters */
+      drift_scope_characters: string[];
+      /** Fabricated Dropped */
+      fabricated_dropped: number;
+      /** Telemetry Recorded */
+      telemetry_recorded: boolean;
+      /** Model */
+      model: string;
+      /** Source Chars */
+      source_chars: number;
+      /** Tokens Used */
+      tokens_used: number;
+    };
+    /**
+     * StyleSuggestionOut
+     * @description One rule-cited suggestion, shaped as the `Suggestion` row the Desk already knows how to render.
+     *
+     *     Named `StyleSuggestionOut`, not `SuggestionOut`: `shared/schemas.py` already exports a
+     *     `SuggestionOut` for the human markup API, and two Pydantic classes sharing a name make FastAPI
+     *     fully-qualify BOTH in the OpenAPI components. That silently renames the existing schema, and
+     *     `types.ts`'s `S["SuggestionOut"]` stops resolving — a frontend build failure whose cause is
+     *     nowhere near the file that caused it.
+     *
+     *     `quote` anchors by substring — matching `prose.ts` `tokenize`, which finds markers with `indexOf`
+     *     rather than character offsets. Returning offsets instead would need new client machinery for no
+     *     gain, and would break the moment the author edited a character ahead of the span.
+     */
+    StyleSuggestionOut: {
+      /** Rule */
+      rule: string;
+      /** Rule Source */
+      rule_source: string;
+      /** Severity */
+      severity: string;
+      /** Quote */
+      quote: string;
+      /** New Text */
+      new_text: string | null;
+      /** Why */
+      why: string;
     };
     /** SuggestionDecisionIn */
     SuggestionDecisionIn: {
@@ -15197,6 +15270,39 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["EnrichOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  style_review_style_review_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StyleReviewIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StyleReviewOut"];
         };
       };
       /** @description Validation Error */

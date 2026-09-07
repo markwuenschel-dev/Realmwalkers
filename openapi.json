@@ -9395,6 +9395,47 @@
         }
       }
     },
+    "/style-review": {
+      "post": {
+        "tags": [
+          "style-review"
+        ],
+        "summary": "Style Review",
+        "operationId": "style_review_style_review_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StyleReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleReviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chapters/{chapter_id}/adoption/start": {
       "post": {
         "tags": [
@@ -21326,6 +21367,142 @@
         ],
         "title": "StructuralBlockerOut",
         "description": "A deterministic chapter-structure fault detected from the approved contracts alone (no prose,\nno LLM): `kind` is one of sequence_scene_count_mismatch | sequence_budget_mismatch |\nscene_scope_bleed | duplicate_irreversible_beat | canon_contract_leak; `message` is one human\nsentence naming the fault and the fix. The scene-count kind carries the machine fields the\none-click \"Align plan to N seeded scenes\" action needs."
+      },
+      "StyleReviewIn": {
+        "properties": {
+          "prose": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prose"
+          },
+          "pov": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pov"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prose"
+        ],
+        "title": "StyleReviewIn"
+      },
+      "StyleReviewOut": {
+        "properties": {
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/StyleSuggestionOut"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "standards_loaded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Standards Loaded"
+          },
+          "standards_missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Standards Missing"
+          },
+          "drift_scope_characters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Drift Scope Characters"
+          },
+          "fabricated_dropped": {
+            "type": "integer",
+            "title": "Fabricated Dropped"
+          },
+          "telemetry_recorded": {
+            "type": "boolean",
+            "title": "Telemetry Recorded"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "source_chars": {
+            "type": "integer",
+            "title": "Source Chars"
+          },
+          "tokens_used": {
+            "type": "integer",
+            "title": "Tokens Used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "suggestions",
+          "standards_loaded",
+          "standards_missing",
+          "drift_scope_characters",
+          "fabricated_dropped",
+          "telemetry_recorded",
+          "model",
+          "source_chars",
+          "tokens_used"
+        ],
+        "title": "StyleReviewOut"
+      },
+      "StyleSuggestionOut": {
+        "properties": {
+          "rule": {
+            "type": "string",
+            "title": "Rule"
+          },
+          "rule_source": {
+            "type": "string",
+            "title": "Rule Source"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "new_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Text"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule",
+          "rule_source",
+          "severity",
+          "quote",
+          "new_text",
+          "why"
+        ],
+        "title": "StyleSuggestionOut",
+        "description": "One rule-cited suggestion, shaped as the `Suggestion` row the Desk already knows how to render.\n\nNamed `StyleSuggestionOut`, not `SuggestionOut`: `shared/schemas.py` already exports a\n`SuggestionOut` for the human markup API, and two Pydantic classes sharing a name make FastAPI\nfully-qualify BOTH in the OpenAPI components. That silently renames the existing schema, and\n`types.ts`'s `S[\"SuggestionOut\"]` stops resolving \u2014 a frontend build failure whose cause is\nnowhere near the file that caused it.\n\n`quote` anchors by substring \u2014 matching `prose.ts` `tokenize`, which finds markers with `indexOf`\nrather than character offsets. Returning offsets instead would need new client machinery for no\ngain, and would break the moment the author edited a character ahead of the span."
       },
       "SuggestionDecisionIn": {
         "properties": {

@@ -8,6 +8,11 @@ orchestrator collects a `TelemetrySink` during a run (calls made inside `call_co
 Every instrumented unit of work (one chapter derive, one scene draft, one beat proposal, one summary
 regeneration) shares a single book/chapter, so those ids are passed once for the whole sink; the
 per-call dimensions (stage, scene_no, seed_id, model, tokens) ride on each CallRecord.
+
+`book_id` is optional because not every instrumented unit of work belongs to a book. The Edit desk's
+style audit runs on prose pasted straight into the browser — deliberately outside any chapter — and
+requiring a book there would mean inventing an association, which corrupts per-book attribution far
+worse than a null does. `LlmCall.book_id` has always been nullable; only this signature insisted.
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ def persist_sink(
     sink: TelemetrySink,
     *,
     run_id: uuid.UUID | None,
-    book_id: uuid.UUID,
+    book_id: uuid.UUID | None,
     chapter_id: uuid.UUID | None = None,
     production_run_id: uuid.UUID | None = None,
     job_kind: str | None = None,

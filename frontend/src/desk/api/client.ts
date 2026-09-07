@@ -13,6 +13,8 @@ import type {
   CanonBulkDeleteOut,
   EnrichIn,
   EnrichOut,
+  StyleReviewIn,
+  StyleReviewOut,
   CanonCleanupIn,
   CanonCleanupPreviewOut,
   CanonEntityIn,
@@ -176,6 +178,13 @@ export const api = {
   // nothing — the result is text handed back for the author to read and take.
   enrich: (body: EnrichIn) =>
     http<EnrichOut>("/enrich", { method: "POST", body: JSON.stringify(body) }),
+
+  // --- edit: audit author-written prose against the style rules ------------------------------------
+  // Stateless like `enrich`, and for the same reason — but the direction is reversed. Enrich returns
+  // rewritten prose; this returns suggestions the author accepts or rejects one at a time, so the
+  // text on the page is only ever changed by a person.
+  styleReview: (body: StyleReviewIn) =>
+    http<StyleReviewOut>("/style-review", { method: "POST", body: JSON.stringify(body) }),
 
   // --- review inbox -------------------------------------------------------------------------------
   pending: () => http<SceneOut[]>("/scenes/pending"),

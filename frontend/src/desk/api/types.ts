@@ -592,3 +592,8 @@ export type PipelineCompletedOut = S["PipelineCompletedOut"];
 export type PipelineStatusOut = S["PipelineStatusOut"];
 export type EnrichIn = S["EnrichIn"];
 export type EnrichOut = S["EnrichOut"];
+export type StyleReviewIn = S["StyleReviewIn"];
+export type StyleReviewOut = S["StyleReviewOut"];
+// Named for the schema it mirrors, not for the screen: `SuggestionOut` is already taken by the
+// human markup API, and the backend class is deliberately `StyleSuggestionOut` for that reason.
+export type StyleSuggestion = S["StyleSuggestionOut"];

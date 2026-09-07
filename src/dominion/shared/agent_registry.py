@@ -77,6 +77,8 @@ FALLBACK_ATTR: dict[str, str] = {
     "scene_fidelity_model": "scene_fidelity_fallback_model",
     # Import Adoption per-scene evidence extraction (ADR 0028).
     "import_evidence_model": "import_evidence_fallback_model",
+    # Style audit over author-pasted prose (the Edit desk).
+    "style_audit_model": "style_audit_fallback_model",
 }
 
 STRUCTURAL_ESCALATION_TRIGGERS: tuple[str, ...] = ("truncated", "unparseable")
@@ -187,6 +189,27 @@ AGENTS: tuple[AgentDefinition, ...] = (
         default_fallback_tier="sonnet",
         never_fallback_tiers=("haiku",),
         estimate=AgentEstimate(cost_band="low", speed_band="fast", typical_calls_per_chapter=60),
+    ),
+    AgentDefinition(
+        setting_key="style_audit_model",
+        label="Style audit",
+        description="Judges author-pasted prose against prose_clarity_rules / forbidden_drift / prose_contract",
+        stages=("style_audit",),
+        contract=AgentContract(
+            inputs=("author prose", "style rule documents"),
+            outputs=("rule-cited suggestions",),
+            context_load="Passage + scoped rule documents",
+            uses_memory=False,
+            writes_artifacts=False,
+        ),
+        # Author-invoked, advisory, and stateless: it writes no table and nothing downstream reads its
+        # output, so it cannot block anything. Every suggestion is accepted or rejected by hand.
+        permissions=AgentPermissions(can_block_downstream=False, can_write_summaries=False),
+        default_primary_tier="sonnet",
+        default_fallback_tier="haiku",
+        never_fallback_tiers=(),
+        # One call per invocation, and only when the author asks — never per chapter on its own.
+        estimate=AgentEstimate(cost_band="low", speed_band="slow", typical_calls_per_chapter=0),
     ),
     AgentDefinition(
         setting_key="enrich_model",
