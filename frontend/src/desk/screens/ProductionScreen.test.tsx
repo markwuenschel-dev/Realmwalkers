@@ -857,6 +857,40 @@ describe("ProductionScreen", () => {
     expect(button.getAttribute("title")).toContain("run Final QA first");
   });
 
+  it("ignores a run detail that arrives after the author has selected a different run", async () => {
+    // Selecting another run (or switching chapters, which reselects) issues back-to-back detail
+    // loads. The slower one used to win by landing last, and `headerRun` prefers `detail.run` — so
+    // the header, and every lifecycle button's disabled state, described a run the author had left.
+    const RUN2 = { ...RUN, id: "run-2", status: "cancelled", current_stage: "cancelled" };
+    const DETAIL2 = {
+      ...DETAIL,
+      run: RUN2,
+      artifacts: DETAIL.artifacts.map((a) =>
+        a.artifact_type === "final_chapter" ? { ...a, body: { prose: "Run two prose." } } : a,
+      ),
+    };
+    vi.mocked(api.productionRuns).mockResolvedValue([RUN, RUN2]);
+
+    // Hold run-1's detail open so it can resolve *after* run-2 has been selected and painted.
+    let releaseRunOne: (value: typeof DETAIL) => void = () => {};
+    const runOnePending = new Promise<typeof DETAIL>((resolve) => {
+      releaseRunOne = resolve;
+    });
+    vi.mocked(api.productionRun).mockImplementation((id: string) =>
+      id === "run-1" ? runOnePending : Promise.resolve(DETAIL2),
+    );
+
+    render(<ProductionScreen />);
+    fireEvent.click(await screen.findByText("run-2"));
+    expect(await screen.findByText("Run two prose.")).toBeInTheDocument();
+
+    releaseRunOne(DETAIL); // the abandoned request finally lands
+    await waitFor(() => expect(api.productionRun).toHaveBeenCalledWith("run-2"));
+    // run-2 still owns the screen; run-1's prose never paints over it.
+    expect(screen.getByText("Run two prose.")).toBeInTheDocument();
+    expect(screen.queryByText("Final chapter prose.")).not.toBeInTheDocument();
+  });
+
   it("cannot re-approve an already approved final chapter", async () => {
     vi.mocked(api.productionRun).mockResolvedValue({
       ...DETAIL,

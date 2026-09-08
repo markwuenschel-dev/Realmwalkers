@@ -765,9 +765,16 @@ async def latest_chapter_draft_qa(session: AsyncSession, run_id: uuid.UUID) -> A
 async def run_final_qa(session: AsyncSession, run_id: uuid.UUID) -> Artifact:
     detail = await production_run_detail(session, run_id)
     run = detail["run"]
+    # Which QA report existed BEFORE this call, so a refusal can't be reported as a success. Presence
+    # alone is not evidence that this call did anything: a run that has assembled before already has a
+    # chapter_draft_qa, so a later refusal would still find one and return it with a stale version the
+    # caller reads as "QA v28 written". `assemble_run` writes a NEW chapter_draft_qa unconditionally on
+    # every pass it completes (production_sequence.py, after the L6 gate), so identity is exact —
+    # same artifact back means the gate refused, and refusal is the only way that happens.
+    before = await latest_chapter_draft_qa(session, run_id)
     await production_sequence.assemble_run(session, run)
     qa_artifact = await latest_chapter_draft_qa(session, run_id)
-    if qa_artifact is None:
+    if qa_artifact is None or (before is not None and qa_artifact.id == before.id):
         # L6: assembly refused (structured event recorded) — surface the parked stage, not a dump.
         raise ValueError(f"chapter QA unavailable: assembly refused, run is parked in {run.current_stage!r}")
     return qa_artifact
