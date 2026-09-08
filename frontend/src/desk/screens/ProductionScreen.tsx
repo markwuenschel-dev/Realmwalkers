@@ -519,13 +519,23 @@ export default function ProductionScreen() {
   // Mirror of `runs` for effects that need the latest rows without re-arming on every list refresh.
   const runsRef = useRef<ProductionRunOut[]>([]);
 
+  // The run whose detail we most recently asked for. `refreshDetailSlim` already refuses to paint a
+  // response for a run it is no longer showing; this gives `loadDetail` the same guard.
+  const detailTargetRef = useRef<string | null>(null);
+
   const loadDetail = useCallback(async (targetRunId: string | null) => {
+    detailTargetRef.current = targetRunId;
     if (!targetRunId) {
       setDetail(null);
       return;
     }
     const out = await api.productionRun(targetRunId);
-    runDetailCache.set(targetRunId, out);
+    runDetailCache.set(targetRunId, out); // cache regardless — the payload is valid, just possibly late
+    // Out-of-order arrival: a chapter switch fires back-to-back detail loads, and the slower one used
+    // to win simply by landing last. That is not a cosmetic stale number — `headerRun` prefers
+    // `detail.run`, so every lifecycle button (Cancel / Resume / Final QA / Approve final) would read
+    // its enabled state, and act, on a run from the chapter the author just left.
+    if (detailTargetRef.current !== targetRunId) return;
     setDetail(out);
   }, []);
 
@@ -630,6 +640,16 @@ export default function ProductionScreen() {
     }
     if (chapterId === null && orderedChapters.length) setChapterId(orderedChapters[0].id);
   }, [chapterId, orderedChapters, searchParams]);
+
+  // A chapter switch invalidates the previous chapter's selection outright, and must drop it BEFORE
+  // the new list is fetched — declared above the loader so it runs first. `headerRun` falls back to
+  // `detail.run`, which is only replaced once the next fetch lands, so without this the header (and
+  // the lifecycle buttons that read its status) keeps rendering the run from the chapter just left
+  // for the whole round trip. Blank for one beat beats wrong: `loadRuns` re-selects on arrival.
+  useEffect(() => {
+    setDetail(null);
+    setRunId(null);
+  }, [chapterId]);
 
   useEffect(() => {
     if (!chapterId) return;
