@@ -46,6 +46,7 @@ const mockData: {
   clearFailed: () => void;
   manuscript: {
     chapters: {
+      id: string;
       chapter_no: number;
       title: string | null;
       pov: string;
@@ -268,6 +269,7 @@ describe("PacketsScreen exports", () => {
     mockData.manuscript = {
       chapters: [
         {
+          id: "c1", // matched by chapter id, not chapter_no
           chapter_no: 1,
           title: "The Start",
           pov: "Soren",
@@ -286,6 +288,7 @@ describe("PacketsScreen exports", () => {
     mockData.manuscript = {
       chapters: [
         {
+          id: "c1", // matched by chapter id, not chapter_no
           chapter_no: 1,
           title: "The Start",
           pov: "Soren",

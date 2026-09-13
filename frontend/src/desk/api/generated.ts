@@ -377,7 +377,7 @@ export interface paths {
      * Create Chapter
      * @description Create/update a chapter's POV + outline with NO LLM beat-proposal call — the contract-first
      *     entry point (create the chapter, then POST its /packet to author the chapter packet). Upserts
-     *     by (book_id, chapter_no), same shape as the legacy gate-1 upsert in runs.py's _propose_chapter,
+     *     by (book_id, chapter_no) among plain chapters, same shape as the legacy gate-1 upsert in runs.py,
      *     minus the beat-authoring call. A best-effort title is still generated (same bounded, never-raising
      *     planner.propose_chapter_title call the old flow used), so chapters created this way aren't left
      *     untitled.
@@ -404,9 +404,14 @@ export interface paths {
     head?: never;
     /**
      * Update Chapter
-     * @description Edit a chapter's authored fields (title, structural kind, epigraph). Only provided fields are
-     *     applied, so the author can rename the plan-call's proposed title, mark a prologue/interlude/epilogue,
-     *     or add an epigraph at any time without re-running the planner.
+     * @description Edit a chapter's authored fields (title, structural kind, section type, epigraph, display number).
+     *     Only provided fields are applied, so the author can rename the plan-call's proposed title, mark a
+     *     prologue/interlude/epilogue, or add an epigraph at any time without re-running the planner.
+     *
+     *     The display number follows the kind. A numberless kind carries no `chapter_no`, so choosing one clears
+     *     it: a leftover number would let a later "plan Chapter N" upsert onto the section. Turning a numberless
+     *     section back into a plain chapter needs a number (422 without one), and that number must not already
+     *     belong to another plain chapter in the book (409).
      */
     patch: operations["update_chapter_chapters__chapter_id__patch"];
     trace?: never;
@@ -4699,8 +4704,9 @@ export interface components {
     };
     /**
      * ChapterKind
-     * @description Reader-facing structural role of a chapter. Display-only — ordering stays by chapter_no; only
-     *     the heading/label changes (a `chapter` renders "Chapter N", the rest render their own label).
+     * @description Reader-facing structural role of a chapter. It picks the heading/label (a `chapter` renders
+     *     "Chapter N", the rest render their own label) and the reading-order band; the sort key itself is
+     *     `Chapter.position` (shared/chapter_order.py). Only a plain `chapter` carries a `chapter_no`.
      * @enum {string}
      */
     ChapterKind: "chapter" | "prologue" | "interlude" | "epilogue" | "front_matter" | "back_matter";
@@ -5068,9 +5074,10 @@ export interface components {
     };
     /**
      * ChapterUpdateIn
-     * @description PATCH body to edit a chapter's authored fields (title, structural kind, epigraph). Only
-     *     provided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) — send `epigraph: null` to
-     *     clear it. `kind` is validated against ChapterKind.
+     * @description PATCH body to edit a chapter's authored fields (title, structural kind, section type, epigraph,
+     *     display number). Only provided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) — send
+     *     `epigraph: null` to clear it. `kind` is validated against ChapterKind. The number follows the kind:
+     *     choosing a numberless kind clears `chapter_no`, and making a section a plain chapter requires one.
      */
     ChapterUpdateIn: {
       /** Title */
@@ -5080,6 +5087,8 @@ export interface components {
       section_type?: string | null;
       /** Epigraph */
       epigraph?: string | null;
+      /** Chapter No */
+      chapter_no?: number | null;
     };
     /**
      * CharacterStateIn
@@ -6154,6 +6163,8 @@ export interface components {
     };
     /** ManuscriptChapter */
     ManuscriptChapter: {
+      /** Id */
+      id?: string | null;
       /** Position */
       position?: number | null;
       /** Chapter No */

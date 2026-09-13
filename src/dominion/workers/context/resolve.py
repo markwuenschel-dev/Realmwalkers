@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dominion.shared.enums import BeatStatus
+from dominion.shared.enums import BeatStatus, ChapterKind
 from dominion.shared.models import Beat, Chapter, Job, PovProfile
 from dominion.workers.context.types import ResolvedJob
 from dominion.workers.pov import effective_pov
@@ -28,7 +28,11 @@ async def resolve_job(session: AsyncSession, job: Job) -> ResolvedJob:
             (
                 await session.execute(
                     select(Chapter)
-                    .where(Chapter.book_id == book_id, Chapter.chapter_no == job.chapter_no)
+                    .where(
+                        Chapter.book_id == book_id,
+                        Chapter.kind == ChapterKind.CHAPTER,  # a numberless section never owns a number
+                        Chapter.chapter_no == job.chapter_no,
+                    )
                     .order_by(Chapter.id)
                 )
             )

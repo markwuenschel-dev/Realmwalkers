@@ -34,7 +34,7 @@ import type {
   OpenQuestionItem,
 } from "../api/types";
 import type { ExportKind } from "../lib/docx";
-import { chapterLabel, chapterLabelShort } from "../manuscript/labels";
+import { chapterFileStem, chapterLabel, chapterLabelShort } from "../manuscript/labels";
 
 // The Packet review panel (contract-first drafting, Phase 1). Per chapter, it runs the Packet Author
 // + Packet QA agents, then shows the proposed chapter knowledge packet for the human to adjudicate
@@ -357,7 +357,8 @@ export default function PacketsScreen() {
   );
   const downloadPacketJson = () => {
     if (!packet || !chapter) return;
-    downloadBlob(`chapter_${chapter.chapter_no}_packet.json`, packetJson, "application/json");
+    const packetStem = chapterFileStem({ kind: chapter.kind, chapter_no: chapter.chapter_no });
+    downloadBlob(`${packetStem}_packet.json`, packetJson, "application/json");
   };
 
   // Resolve a question WITH the human's ruling (#277). The question STAYS in `items` — it is cleared by
@@ -422,7 +423,7 @@ export default function PacketsScreen() {
   // A packet is pre-prose planning JSON — nothing to export until the chapter has approved, drafted
   // scenes. data.manuscript is already the approved compile, so find this chapter's slice of it.
   const manuscriptChapter =
-    data.manuscript?.chapters.find((mc) => mc.chapter_no === chapter?.chapter_no) ?? null;
+    (chapter && data.manuscript?.chapters.find((mc) => mc.id === chapter.id)) ?? null;
   const chapterHasProse = !!manuscriptChapter?.scenes.some((s) => (s.prose ?? "").trim());
 
   const exportChapterAs = async (kind: ExportKind) => {
@@ -433,7 +434,7 @@ export default function PacketsScreen() {
       const { exportAndSave } = await import("../manuscript/exportActions");
       const title = `${chapterLabel(chapter)}${chapter.title ? `: ${chapter.title}` : ""}`;
       const ms = exp.buildManuscriptFrom(title, [manuscriptChapter]);
-      const stem = `chapter_${chapter.chapter_no}${chapter.title ? `_${chapter.title}` : ""}`;
+      const stem = chapterFileStem(chapter);
       if (kind === "md") {
         await exportAndSave(ms, { preset: "editorial_review", filenameStem: stem, override: true });
       } else if (kind === "docx") {
@@ -766,8 +767,10 @@ export default function PacketsScreen() {
           >
             <div style={css("margin-bottom:10px")}>
               <span style={css("font-family:var(--mono);font-size:11px;color:var(--dim)")}>
-                chapter_{chapter?.chapter_no}_packet.json — the exact body the drafting agents
-                receive.
+                {chapter
+                  ? chapterFileStem({ kind: chapter.kind, chapter_no: chapter.chapter_no })
+                  : "chapter"}
+                _packet.json — the exact body the drafting agents receive.
               </span>
             </div>
             <pre

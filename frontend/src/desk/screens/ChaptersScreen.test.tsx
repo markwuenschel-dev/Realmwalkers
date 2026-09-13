@@ -104,6 +104,94 @@ vi.mock("../api/data", () => ({
   useDeskData: () => mockData,
 }));
 
+describe("ChaptersScreen numberless sections", () => {
+  const PROLOGUE = {
+    id: "ch-pro",
+    chapter_no: null,
+    kind: "prologue",
+    title: "Ashes",
+    pov: "Mara",
+    status: "planned",
+    position: 1_100_000,
+  };
+
+  function kindSelect(value: string): HTMLSelectElement {
+    const el = screen
+      .getAllByRole("combobox")
+      .find((s) => (s as HTMLSelectElement).value === value);
+    if (!el) throw new Error(`no kind select showing ${value}`);
+    return el as HTMLSelectElement;
+  }
+
+  beforeEach(() => {
+    mockData = {
+      ...baseData(),
+      chapters: [PROLOGUE, CH1],
+    } as unknown as ReturnType<typeof baseData>;
+    vi.mocked(api.chaptersOverview).mockReset().mockResolvedValue([]);
+  });
+
+  it("offers a numberless section's export by matching its id, not a chapter number", async () => {
+    mockData = {
+      ...mockData,
+      manuscript: {
+        chapters: [
+          {
+            id: "ch-pro",
+            chapter_no: null,
+            kind: "prologue",
+            pov: "Mara",
+            scenes: [{ scene_no: 1, prose: "Before the first chapter." }],
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof baseData>;
+    render(<ChaptersScreen />);
+
+    expect(
+      await screen.findAllByTitle("Export Prologue — same format the Manuscript tab uses"),
+    ).toHaveLength(3);
+  });
+
+  it("asks for a number before turning a numberless section into a chapter", async () => {
+    const prompt = vi.spyOn(window, "prompt").mockReturnValue("7");
+    render(<ChaptersScreen />);
+    await screen.findAllByRole("combobox");
+
+    fireEvent.change(kindSelect("prologue"), { target: { value: "chapter" } });
+
+    expect(prompt).toHaveBeenCalledTimes(1);
+    expect(mockData.updateChapter).toHaveBeenCalledWith("ch-pro", {
+      kind: "chapter",
+      chapter_no: 7,
+    });
+    prompt.mockRestore();
+  });
+
+  it("saves nothing when the number prompt is cancelled", async () => {
+    const prompt = vi.spyOn(window, "prompt").mockReturnValue(null);
+    render(<ChaptersScreen />);
+    await screen.findAllByRole("combobox");
+
+    fireEvent.change(kindSelect("prologue"), { target: { value: "chapter" } });
+
+    expect(mockData.updateChapter).not.toHaveBeenCalled();
+    prompt.mockRestore();
+  });
+
+  it("marks a numbered chapter as a prologue without asking for anything", async () => {
+    const prompt = vi.spyOn(window, "prompt");
+    render(<ChaptersScreen />);
+    await screen.findAllByRole("combobox");
+
+    fireEvent.change(kindSelect("chapter"), { target: { value: "prologue" } });
+
+    expect(prompt).not.toHaveBeenCalled();
+    expect(mockData.updateChapter).toHaveBeenCalledWith("ch-1", { kind: "prologue" });
+    prompt.mockRestore();
+  });
+});
+
 describe("ChaptersScreen pipeline command center", () => {
   beforeEach(() => {
     mockData = baseData();

@@ -3,8 +3,8 @@
 // This is what stops Reader DOCX, Shunn DOCX, and Markdown from drifting on how a Prologue or a Part is
 // titled (the bug this whole foundation exists to kill: Shunn/Markdown used to hard-code "CHAPTER N").
 
-/** Reader-facing structural role of a chapter — mirrors the backend `ChapterKind` enum. Display-only:
- *  ordering always keys off `chapter_no`, only the label changes. */
+/** Reader-facing structural role of a chapter — mirrors the backend `ChapterKind` enum. It picks the label
+ *  and the reading-order band; ordering keys off `position`, and only a plain chapter has a `chapter_no`. */
 export type ChapterKind =
   | "chapter"
   | "prologue"
@@ -145,6 +145,18 @@ export function chapterLabelShort(ch: {
     return ch.chapter_no != null ? `Ch ${ch.chapter_no}` : "Ch";
   }
   return KIND_SHORT[kind as Exclude<ChapterKind, "chapter">];
+}
+
+/** Filename stem for a single-chapter download: "chapter_3" / "prologue" / "front_matter", plus
+ *  "_<title>" when titled. Built from `chapterLabel`, never a raw `chapter_no`, so a numberless section
+ *  can't come out as "chapter_null"; a numbered chapter keeps the old `chapter_N[_title]` stem exactly. */
+export function chapterFileStem(ch: {
+  kind?: string | null;
+  chapter_no?: number | null;
+  title?: string | null;
+}): string {
+  const base = chapterLabel(ch).toLowerCase().replace(/\s+/g, "_");
+  return ch.title ? `${base}_${ch.title}` : base;
 }
 
 /** Display names for the AUTHORED front/back-matter section types — the ones you write prose for, so

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chapterFileStem,
   chapterLabel,
   chapterLabelShort,
   isKnownChapterKind,
@@ -82,6 +83,21 @@ describe("chapterLabelShort", () => {
     expect(chapterLabelShort({ kind: "sidebar", chapter_no: 7 })).toBe("Ch 7");
     expect(chapterLabelShort({ kind: null, chapter_no: 8 })).toBe("Ch 8");
     expect(chapterLabelShort({ kind: "chapter", chapter_no: null })).toBe("Ch");
+  });
+});
+
+describe("chapterFileStem", () => {
+  it("keeps the chapter_N[_title] stem for a numbered chapter", () => {
+    expect(chapterFileStem({ kind: "chapter", chapter_no: 3, title: "The Lobby" })).toBe(
+      "chapter_3_The Lobby",
+    );
+    expect(chapterFileStem({ kind: "chapter", chapter_no: 10 })).toBe("chapter_10");
+  });
+  it("names a numberless section by its kind, never chapter_null", () => {
+    expect(chapterFileStem({ kind: "prologue", chapter_no: null, title: "Ashes" })).toBe(
+      "prologue_Ashes",
+    );
+    expect(chapterFileStem({ kind: "front_matter", chapter_no: null })).toBe("front_matter");
   });
 });
 
