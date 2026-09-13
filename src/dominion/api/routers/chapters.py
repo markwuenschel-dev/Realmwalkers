@@ -7,11 +7,13 @@ queued only via contract-first scheduling after approved ScenePackets exist.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from dominion.api.deps import SessionDep
 from dominion.shared.chapter_lock import (
@@ -25,6 +27,7 @@ from dominion.shared.chapter_order import chapter_position
 from dominion.shared.db import SessionFactory
 from dominion.shared.enums import (
     BeatStatus,
+    ChapterKind,
     ChapterStatus,
     ScenePacketApprovalSource,
     ScenePacketStatus,
@@ -106,13 +109,19 @@ async def list_chapters(book_id: uuid.UUID, session: SessionDep) -> list[Chapter
 async def create_chapter(body: ChapterCreateIn, session: SessionDep) -> Chapter:
     """Create/update a chapter's POV + outline with NO LLM beat-proposal call — the contract-first
     entry point (create the chapter, then POST its /packet to author the chapter packet). Upserts
-    by (book_id, chapter_no), same shape as the legacy gate-1 upsert in runs.py's _propose_chapter,
+    by (book_id, chapter_no) among plain chapters, same shape as the legacy gate-1 upsert in runs.py,
     minus the beat-authoring call. A best-effort title is still generated (same bounded, never-raising
     planner.propose_chapter_title call the old flow used), so chapters created this way aren't left
     untitled."""
+    # Only a plain chapter can own the number: a numberless section (prologue/epilogue/…) is never matched,
+    # so planning "Chapter N" can't land on one and overwrite its POV, outline and status.
     chapter = (
         await session.execute(
-            select(Chapter).where(Chapter.book_id == body.book_id, Chapter.chapter_no == body.chapter_no)
+            select(Chapter).where(
+                Chapter.book_id == body.book_id,
+                Chapter.kind == ChapterKind.CHAPTER,
+                Chapter.chapter_no == body.chapter_no,
+            )
         )
     ).scalar_one_or_none()
     if chapter is None:
@@ -161,26 +170,69 @@ async def create_chapter(body: ChapterCreateIn, session: SessionDep) -> Chapter:
 
 @router.patch("/{chapter_id}", response_model=ChapterOut)
 async def update_chapter(chapter_id: uuid.UUID, body: ChapterUpdateIn, session: SessionDep) -> Chapter:
-    """Edit a chapter's authored fields (title, structural kind, epigraph). Only provided fields are
-    applied, so the author can rename the plan-call's proposed title, mark a prologue/interlude/epilogue,
-    or add an epigraph at any time without re-running the planner."""
+    """Edit a chapter's authored fields (title, structural kind, section type, epigraph, display number).
+    Only provided fields are applied, so the author can rename the plan-call's proposed title, mark a
+    prologue/interlude/epilogue, or add an epigraph at any time without re-running the planner.
+
+    The display number follows the kind. A numberless kind carries no `chapter_no`, so choosing one clears
+    it: a leftover number would let a later "plan Chapter N" upsert onto the section. Turning a numberless
+    section back into a plain chapter needs a number (422 without one), and that number must not already
+    belong to another plain chapter in the book (409)."""
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None:
         raise HTTPException(status_code=404, detail="chapter not found")
     # mode="json" so a ChapterKind value serializes to its plain string before hitting the Text column.
     fields = body.model_dump(exclude_unset=True, mode="json")
+    if "kind" in fields and fields["kind"] is None:
+        raise HTTPException(status_code=422, detail="kind cannot be cleared; pick one of the chapter kinds")
+    # The number a chapter is leaving doubles as its numberless tiebreak, so a chapter turned prologue lands
+    # exactly where the position scheme already put it (seq = its old chapter_no) instead of tying at 0.
+    seq = chapter.chapter_no or 0
+    if "kind" in fields or "chapter_no" in fields:
+        fields["chapter_no"] = await _chapter_no_for_update(session, chapter, fields)
     for key, value in fields.items():
         setattr(chapter, key, value)
-    # Changing the structural kind OR the section type moves the chapter's reading-order slot (chapter →
-    # prologue makes it lead; tagging a front-matter chapter "copyright" vs "table_of_contents" orders it
-    # among its siblings), so recompute the sort key from the shared helper. `seq` uses the row's own
-    # chapter_no as a stable per-book tiebreak for numberless kinds. chapter_no stays as-is (display-only).
-    if "kind" in fields or "section_type" in fields:
+    # Changing the structural kind, the section type or the number moves the chapter's reading-order slot
+    # (chapter → prologue makes it lead; tagging a front-matter chapter "copyright" vs "table_of_contents"
+    # orders it among its siblings), so recompute the sort key from the shared helper.
+    if fields.keys() & {"kind", "section_type", "chapter_no"}:
         chapter.position = chapter_position(
-            chapter.kind, chapter.chapter_no, seq=chapter.chapter_no or 0, section_type=chapter.section_type
+            chapter.kind, chapter.chapter_no, seq=seq, section_type=chapter.section_type
         )
     await session.commit()
     return chapter
+
+
+async def _chapter_no_for_update(session: AsyncSession, chapter: Chapter, fields: dict[str, Any]) -> int | None:
+    """The display number a PATCH leaves the chapter with: None for a numberless kind, otherwise a number
+    that no other plain chapter in the same book carries."""
+    kind = fields.get("kind", chapter.kind)
+    if kind != ChapterKind.CHAPTER:
+        if fields.get("chapter_no") is not None:
+            raise HTTPException(
+                status_code=422, detail=f"a {kind} has no chapter number; set its kind to 'chapter' to number it"
+            )
+        return None
+    number = fields.get("chapter_no", chapter.chapter_no)
+    if number is None:
+        raise HTTPException(status_code=422, detail="a plain chapter needs a number; send chapter_no with it")
+    # Re-saving a plain chapter's own number is not a collision; only a new number or a new kind is checked.
+    if number != chapter.chapter_no or chapter.kind != ChapterKind.CHAPTER:
+        clash = (
+            await session.execute(
+                select(Chapter.id)
+                .where(
+                    Chapter.book_id == chapter.book_id,
+                    Chapter.kind == ChapterKind.CHAPTER,
+                    Chapter.chapter_no == number,
+                    Chapter.id != chapter.id,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if clash is not None:
+            raise HTTPException(status_code=409, detail=f"Chapter {number} already exists in this book")
+    return number
 
 
 @router.get("/{chapter_id}/beats", response_model=list[BeatOut])

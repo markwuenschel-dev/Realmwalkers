@@ -458,9 +458,10 @@ class ChapterOut(_ORM):
 
 
 class ChapterUpdateIn(BaseModel):
-    """PATCH body to edit a chapter's authored fields (title, structural kind, epigraph). Only
-    provided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) — send `epigraph: null` to
-    clear it. `kind` is validated against ChapterKind."""
+    """PATCH body to edit a chapter's authored fields (title, structural kind, section type, epigraph,
+    display number). Only provided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) — send
+    `epigraph: null` to clear it. `kind` is validated against ChapterKind. The number follows the kind:
+    choosing a numberless kind clears `chapter_no`, and making a section a plain chapter requires one."""
 
     title: str | None = None
     kind: ChapterKind | None = None
@@ -468,6 +469,9 @@ class ChapterUpdateIn(BaseModel):
     # applies only fields present in the request body — model_dump(exclude_unset=True)).
     section_type: str | None = None
     epigraph: str | None = None
+    # Display number, valid only for a plain chapter. Required when turning a numberless section into a
+    # chapter (422 without it); refused with 409 when another plain chapter in the book already has it.
+    chapter_no: int | None = None
 
 
 class ChapterCreateIn(BaseModel):
@@ -1056,6 +1060,10 @@ class ManuscriptScene(BaseModel):
 
 
 class ManuscriptChapter(BaseModel):
+    # Chapter identity. A single-chapter export finds its slice of the manuscript by this, never by
+    # `chapter_no`, which a numberless section doesn't have. The manuscript endpoint always sets it; it is
+    # optional only so callers and fixtures that build a ManuscriptChapter without it still validate.
+    id: uuid.UUID | None = None
     # Reading-order sort key — the spine builder orders chapters by this alone (see manuscript/spine.ts).
     position: int | None = None
     chapter_no: int | None = None  # DISPLAY number; NULL for a numberless kind (labels off `kind`)

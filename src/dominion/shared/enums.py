@@ -22,8 +22,9 @@ class ChapterStatus(StrEnum):
 
 
 class ChapterKind(StrEnum):
-    """Reader-facing structural role of a chapter. Display-only — ordering stays by chapter_no; only
-    the heading/label changes (a `chapter` renders "Chapter N", the rest render their own label)."""
+    """Reader-facing structural role of a chapter. It picks the heading/label (a `chapter` renders
+    "Chapter N", the rest render their own label) and the reading-order band; the sort key itself is
+    `Chapter.position` (shared/chapter_order.py). Only a plain `chapter` carries a `chapter_no`."""
 
     CHAPTER = "chapter"
     PROLOGUE = "prologue"

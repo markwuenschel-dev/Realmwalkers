@@ -134,6 +134,7 @@ async def manuscript(book_id: uuid.UUID, session: SessionDep) -> ManuscriptOut:
             rendered_part_ids.add(chapter.part_id)
         out_chapters.append(
             ManuscriptChapter(
+                id=chapter.id,
                 position=chapter.position,
                 chapter_no=chapter.chapter_no,
                 title=chapter.title,

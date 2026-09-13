@@ -35,7 +35,7 @@ from dominion.shared.chapter_lock import acquire_chapter_workflow_lock
 from dominion.shared.chapter_order import chapter_position
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
-from dominion.shared.enums import ChapterStatus, SceneStatus
+from dominion.shared.enums import ChapterKind, ChapterStatus, SceneStatus
 from dominion.shared.models import Book, Chapter, Scene
 from dominion.workers.memory import canon_rag, summaries
 
@@ -196,8 +196,13 @@ async def _get_or_create_book(session: AsyncSession, title: str) -> Book:
 
 
 async def _get_or_create_chapter(session: AsyncSession, *, book_id: object, chapter_no: int, pov: str) -> Chapter:
+    # Only a plain chapter can own the number — a numberless section (prologue/epilogue/…) is never matched.
     chapter = (
-        await session.execute(select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no))
+        await session.execute(
+            select(Chapter).where(
+                Chapter.book_id == book_id, Chapter.kind == ChapterKind.CHAPTER, Chapter.chapter_no == chapter_no
+            )
+        )
     ).scalar_one_or_none()
     if chapter is None:
         chapter = Chapter(

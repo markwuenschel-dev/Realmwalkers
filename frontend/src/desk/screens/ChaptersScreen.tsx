@@ -28,6 +28,8 @@ import type {
 } from "../api/types";
 import {
   CHAPTER_KIND_OPTIONS,
+  chapterFileStem,
+  chapterLabel,
   chapterLabelShort,
   partLabel,
   SECTION_TYPES,
@@ -230,20 +232,19 @@ export default function ChaptersScreen() {
     id: string;
     kind: ExportKind;
   } | null>(null);
-  const manuscriptChapterFor = (chapterNo: number | null | undefined): ManuscriptChapter | null =>
-    chapterNo == null
-      ? null
-      : (data.manuscript?.chapters.find((mc) => mc.chapter_no === chapterNo) ?? null);
+  // Match by chapter id, never chapter_no: a numberless section (a prologue) has no number to match on.
+  const manuscriptChapterFor = (c: ChapterOut): ManuscriptChapter | null =>
+    data.manuscript?.chapters.find((mc) => mc.id === c.id) ?? null;
   const exportChapter = async (c: ChapterOut, kind: ExportKind) => {
-    const mc = manuscriptChapterFor(c.chapter_no);
+    const mc = manuscriptChapterFor(c);
     if (!mc) return;
     setExportingChapter({ id: c.id, kind });
     try {
       const exp = await import("../lib/docx");
       const { exportAndSave } = await import("../manuscript/exportActions");
-      const title = `Chapter ${c.chapter_no}${c.title ? `: ${c.title}` : ""}`;
+      const title = `${chapterLabel(c)}${c.title ? `: ${c.title}` : ""}`;
       const ms = exp.buildManuscriptFrom(title, [mc]);
-      const stem = `chapter_${c.chapter_no}${c.title ? `_${c.title}` : ""}`;
+      const stem = chapterFileStem(c);
       if (kind === "md") {
         await exportAndSave(ms, { preset: "editorial_review", filenameStem: stem, override: true });
       } else if (kind === "docx") {
@@ -637,7 +638,7 @@ export default function ChaptersScreen() {
                     <div style={css("margin-top:8px")}>
                       <ChapterExportLinks
                         chapter={c}
-                        manuscriptChapter={manuscriptChapterFor(c.chapter_no)}
+                        manuscriptChapter={manuscriptChapterFor(c)}
                         busy={exportingChapter?.id === c.id ? exportingChapter.kind : null}
                         onExport={(kind) => void exportChapter(c, kind)}
                       />
@@ -959,7 +960,8 @@ function Row({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
 
 // Per-chapter structural metadata: reader-facing kind (Prologue/Interlude/…) + an optional epigraph.
 // Kind saves immediately on select; the epigraph saves on blur. Each PATCHes only its changed field,
-// so neither re-runs the planner nor touches prose. Display-only downstream — ordering stays chapter_no.
+// so neither re-runs the planner nor touches prose. The server moves the chapter's `position` with its
+// kind and clears the number for a numberless kind, so making a section a plain chapter asks for one.
 function ChapterMetaControls({
   chapter,
   parts,
@@ -981,6 +983,19 @@ function ChapterMetaControls({
     setEditingEpigraph(false);
   };
 
+  // A numberless section has no number to fall back on, so becoming a plain chapter needs one. Cancelling
+  // or entering a non-number saves nothing, and the controlled select snaps back to the current kind.
+  const chooseKind = (kind: NonNullable<ChapterUpdateIn["kind"]>) => {
+    if (kind !== "chapter" || chapter.chapter_no != null) {
+      onSave({ kind });
+      return;
+    }
+    const raw = window.prompt("Chapter number for this section:")?.trim();
+    const chapterNo = Number(raw);
+    if (!raw || !Number.isInteger(chapterNo) || chapterNo < 1) return;
+    onSave({ kind, chapter_no: chapterNo });
+  };
+
   return (
     <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px")}>
       <label
@@ -991,7 +1006,7 @@ function ChapterMetaControls({
         kind
         <select
           value={chapter.kind ?? "chapter"}
-          onChange={(e) => onSave({ kind: e.target.value as ChapterUpdateIn["kind"] })}
+          onChange={(e) => chooseKind(e.target.value as NonNullable<ChapterUpdateIn["kind"]>)}
           style={css(
             "background:var(--bg3);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11.5px;font-family:var(--ui);cursor:pointer",
           )}
@@ -1104,7 +1119,7 @@ function ChapterExportLinks({
     <span
       key={kind}
       onClick={() => onExport(kind)}
-      title={`Export Chapter ${chapter.chapter_no} — same format the Manuscript tab uses`}
+      title={`Export ${chapterLabel(chapter)} — same format the Manuscript tab uses`}
       style={css(
         `font-family:var(--mono);font-size:11px;color:var(--dim);cursor:pointer;opacity:${busy ? 0.6 : 1}`,
       )}

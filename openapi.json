@@ -959,7 +959,7 @@
           "chapters"
         ],
         "summary": "Create Chapter",
-        "description": "Create/update a chapter's POV + outline with NO LLM beat-proposal call \u2014 the contract-first\nentry point (create the chapter, then POST its /packet to author the chapter packet). Upserts\nby (book_id, chapter_no), same shape as the legacy gate-1 upsert in runs.py's _propose_chapter,\nminus the beat-authoring call. A best-effort title is still generated (same bounded, never-raising\nplanner.propose_chapter_title call the old flow used), so chapters created this way aren't left\nuntitled.",
+        "description": "Create/update a chapter's POV + outline with NO LLM beat-proposal call \u2014 the contract-first\nentry point (create the chapter, then POST its /packet to author the chapter packet). Upserts\nby (book_id, chapter_no) among plain chapters, same shape as the legacy gate-1 upsert in runs.py,\nminus the beat-authoring call. A best-effort title is still generated (same bounded, never-raising\nplanner.propose_chapter_title call the old flow used), so chapters created this way aren't left\nuntitled.",
         "operationId": "create_chapter_chapters_post",
         "requestBody": {
           "required": true,
@@ -1001,7 +1001,7 @@
           "chapters"
         ],
         "summary": "Update Chapter",
-        "description": "Edit a chapter's authored fields (title, structural kind, epigraph). Only provided fields are\napplied, so the author can rename the plan-call's proposed title, mark a prologue/interlude/epilogue,\nor add an epigraph at any time without re-running the planner.",
+        "description": "Edit a chapter's authored fields (title, structural kind, section type, epigraph, display number).\nOnly provided fields are applied, so the author can rename the plan-call's proposed title, mark a\nprologue/interlude/epilogue, or add an epigraph at any time without re-running the planner.\n\nThe display number follows the kind. A numberless kind carries no `chapter_no`, so choosing one clears\nit: a leftover number would let a later \"plan Chapter N\" upsert onto the section. Turning a numberless\nsection back into a plain chapter needs a number (422 without one), and that number must not already\nbelong to another plain chapter in the book (409).",
         "operationId": "update_chapter_chapters__chapter_id__patch",
         "parameters": [
           {
@@ -12825,7 +12825,7 @@
           "back_matter"
         ],
         "title": "ChapterKind",
-        "description": "Reader-facing structural role of a chapter. Display-only \u2014 ordering stays by chapter_no; only\nthe heading/label changes (a `chapter` renders \"Chapter N\", the rest render their own label)."
+        "description": "Reader-facing structural role of a chapter. It picks the heading/label (a `chapter` renders\n\"Chapter N\", the rest render their own label) and the reading-order band; the sort key itself is\n`Chapter.position` (shared/chapter_order.py). Only a plain `chapter` carries a `chapter_no`."
       },
       "ChapterOut": {
         "properties": {
@@ -13576,11 +13576,22 @@
               }
             ],
             "title": "Epigraph"
+          },
+          "chapter_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter No"
           }
         },
         "type": "object",
         "title": "ChapterUpdateIn",
-        "description": "PATCH body to edit a chapter's authored fields (title, structural kind, epigraph). Only\nprovided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) \u2014 send `epigraph: null` to\nclear it. `kind` is validated against ChapterKind."
+        "description": "PATCH body to edit a chapter's authored fields (title, structural kind, section type, epigraph,\ndisplay number). Only provided fields are applied (mirrors BeatUpdateIn / ThreadUpdateIn) \u2014 send\n`epigraph: null` to clear it. `kind` is validated against ChapterKind. The number follows the kind:\nchoosing a numberless kind clears `chapter_no`, and making a section a plain chapter requires one."
       },
       "CharacterStateIn": {
         "properties": {
@@ -15831,6 +15842,18 @@
       },
       "ManuscriptChapter": {
         "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
           "position": {
             "anyOf": [
               {

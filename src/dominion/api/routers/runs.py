@@ -18,7 +18,7 @@ from sqlalchemy import delete, select
 from dominion.api.deps import SessionDep
 from dominion.shared.chapter_order import chapter_position
 from dominion.shared.config import settings
-from dominion.shared.enums import BeatStatus, ChapterStatus, RunStatus
+from dominion.shared.enums import BeatStatus, ChapterKind, ChapterStatus, RunStatus
 from dominion.shared.models import Beat, Chapter, Run, Summary
 from dominion.shared.schemas import (
     BatchChapterResultOut,
@@ -49,9 +49,14 @@ async def _propose_chapter(
     PROPOSED beats with the new proposal; returns (chapter, beats). Telemetry for both planner calls
     is persisted under this run. Does NOT commit — the caller owns the transaction.
     """
-    # Upsert the chapter: this run owns its POV + outline; mark it as having beats proposed.
+    # Upsert the chapter: this run owns its POV + outline; mark it as having beats proposed. Only a plain
+    # chapter can own the number — a numberless section (prologue/epilogue/…) is never matched by it.
     chapter = (
-        await session.execute(select(Chapter).where(Chapter.book_id == book_id, Chapter.chapter_no == chapter_no))
+        await session.execute(
+            select(Chapter).where(
+                Chapter.book_id == book_id, Chapter.kind == ChapterKind.CHAPTER, Chapter.chapter_no == chapter_no
+            )
+        )
     ).scalar_one_or_none()
     if chapter is None:
         chapter = Chapter(
