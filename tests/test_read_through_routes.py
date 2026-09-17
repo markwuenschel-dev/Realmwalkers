@@ -15,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from sqlalchemy import func, select, text, update
+from sqlalchemy import event, func, select, text, update
 
 from dominion.api.routers import read_throughs as router_mod
 from dominion.shared.config import settings
@@ -866,25 +866,37 @@ async def test_post_runs_to_completion(app_client, db_factory, monkeypatch):
 async def test_post_releases_db_connection_before_background_run(app_client, db_factory, monkeypatch):
     """FastAPI closes the request's session only after the response, and Starlette runs BackgroundTasks
     inside the response, so the session outlives the whole run. A transaction the POST left open would sit
-    idle in transaction on a pooled connection across every model call."""
+    idle in transaction on a pooled connection across every model call.
+
+    The probe looks only at connections this test's engine handed out, the engine behind the request
+    session. Other tests leave connections idle in transaction on engines of their own, and those say
+    nothing about this route; counting them failed CI with 28 strays."""
+    engine = db_factory.kw["bind"]
+    pids: set[int] = set()
     seen: list[list[str]] = []
+
+    def record_pid(dbapi_connection, _record, _proxy) -> None:
+        pids.add(dbapi_connection.driver_connection.get_server_pid())
 
     async def probe_run_read_through(read_through_id: uuid.UUID, *, session_factory=None) -> None:
         async with db_factory() as s:
             idle = (
                 await s.execute(
                     text(
-                        "SELECT query FROM pg_stat_activity WHERE datname = current_database() "
-                        "AND state = 'idle in transaction' AND pid <> pg_backend_pid()"
-                    )
+                        "SELECT query FROM pg_stat_activity WHERE state = 'idle in transaction' "
+                        "AND pid = ANY(:pids) AND pid <> pg_backend_pid()"
+                    ),
+                    {"pids": sorted(pids)},
                 )
             ).scalars()
             seen.append(list(idle))
 
+    event.listen(engine.sync_engine, "checkout", record_pid)
     monkeypatch.setattr(run_mod, "run_read_through", probe_run_read_through)
     book_id = await _book(db_factory)
 
     resp = await app_client.post(f"/books/{book_id}/read-throughs", json=_body([("One", CHAPTER_ONE)]))
 
     assert resp.status_code == 200, resp.text
+    assert pids, "the checkout listener never fired, so the probe could not have seen the request's connection"
     assert seen == [[]], f"connections idle in transaction when the background run started: {seen}"
