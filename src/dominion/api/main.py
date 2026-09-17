@@ -31,6 +31,7 @@ from dominion.api.routers import (
     parts,
     pipeline,
     production,
+    read_throughs,
     reviews,
     runs,
     scene_packets,
@@ -212,6 +213,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:  # noqa: BLE001 — never block boot on the integrity probe
         log.warning("integrity.boot_probe_failed", error=str(exc))
 
+    # Interrupt read-throughs whose owner died with the last process (ADR 0035). The in-process task does
+    # not survive a restart, so an expired lease would otherwise read as "running" until someone polled
+    # it. Only EXPIRED ownership is touched; a live lease is never interrupted.
+    try:
+        from dominion.workers.read_through.run import recover_read_throughs
+
+        async with SessionFactory() as session:
+            recovered = await recover_read_throughs(session)
+            await session.commit()
+        log.info("read_through.boot_recovery", recovered=recovered)
+    except Exception as exc:  # noqa: BLE001 — never block boot on recovery
+        log.warning("read_through.boot_recovery_failed", error=str(exc))
+
     # Start the autonomous self-repair + retention loop (workers/sweeper.py). One in-process background
     # task; it gates its own work behind the autonomy + queue-pause switches and single-flights each
     # tick. Cancelled on shutdown so a redeploy doesn't leave an orphan loop behind.
@@ -268,3 +282,4 @@ app.include_router(manuscript.router)
 app.include_router(enrich.router)
 app.include_router(style_review.router)
 app.include_router(adoption.router)
+app.include_router(read_throughs.router)

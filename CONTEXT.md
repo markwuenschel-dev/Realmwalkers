@@ -246,3 +246,15 @@ _Avoid_: quarantined, autonomy held, paused, failed, blocked
 **Approval Blocker** _(live — ADR-0031 D14 / A1c)_:
 A durable, scene-scoped record that an unresolved scene-level open question is holding approval of a ScenePacket, carrying an explicit lifecycle and resolution state. The shared domain approval operation approves a scene or derives its beats only when that scene has no active Approval Blocker; approval is never a resolution — closing one requires an explicit rationale and source. Raised from two sources: a `manual_command` route, and `canon_conflict` — raised automatically by the derive path when scene QA reports a canon-conflict finding, which is what makes the hold reachable without a human having already spotted the problem. Blocker state is never embedded in ScenePacket `body` and never live-read from `ChapterPacket.open_questions` (chapter-tier questions are not scene-scoped).
 _Avoid_: open_questions column, packet-body flag, derived chapter question, chapter open question
+
+**Read-through** _(live — ADR-0035)_:
+One paid, server-side reading of chapter text the author supplies (uploaded or pasted), kept as an immutable snapshot, that returns editor's notes for each chapter plus cross-chapter notes for the set. It reads only its own snapshot — never `scenes` or a scene version — and writes only its own notes: it approves, rewrites and applies nothing. It runs whether or not the queue is paused. The Desk screen is labelled **Notes**.
+_Avoid_: editorial review (a manuscript export preset), editorial pass (a Production Run), style audit, Final QA, manuscript review
+
+**Read-through note** _(live — ADR-0035)_:
+One ranked recommendation from a Read-through — category, priority, observation, recommendation — about one chapter snapshot, or about several chapters when it is a cross-chapter (book) note. It recommends and never rewrites. Its status (`open | done | dismissed`) records only what the author did with it; it changes no prose and gates nothing.
+_Avoid_: finding, Issue, Critique, Suggestion, flag
+
+**Read-through Anchor** _(live — ADR-0035)_:
+Where a Read-through note points in its chapter snapshot: the quoted text plus the span(s) the server located — UTF-16 offsets and the exact source text — by matching on a folded projection while the stored text stays unnormalized. It is `located` (one placement), `ambiguous` (several; every candidate kept and shown, none chosen) or `unlocated`. An `evidence` anchor supports the note; a `location` anchor only marks where the note applies and proves no absence. The Desk renders the stored span and never searches again.
+_Avoid_: Fidelity Evidence Anchor (grounds a SceneFidelity finding in scene prose), highlight, first match, quote search

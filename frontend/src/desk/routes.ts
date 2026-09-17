@@ -48,6 +48,16 @@ export const DESK_ROUTES: readonly DeskRoute[] = [
     nav: true,
   },
   {
+    id: "notes",
+    label: "Notes",
+    paletteLabel: "Notes · read-through of your chapters",
+    href: "/notes",
+    key: "n",
+    shortcut: "G N",
+    icon: "❝",
+    nav: true,
+  },
+  {
     id: "scene",
     label: "Scene",
     paletteLabel: "Open Scene · review queue",

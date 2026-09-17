@@ -24,7 +24,17 @@ from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from dominion.shared import enums
-from dominion.shared.models import Base, Critique, ProductionRun, RepairTask, Scene, ScenePacket
+from dominion.shared.models import (
+    Base,
+    Critique,
+    ProductionRun,
+    ReadThrough,
+    ReadThroughChapter,
+    ReadThroughNote,
+    RepairTask,
+    Scene,
+    ScenePacket,
+)
 
 
 class EnumValueError(ValueError):
@@ -43,6 +53,15 @@ ENUM_COLUMNS: dict[tuple[type[Base], str], frozenset[str]] = {
     (ProductionRun, "status"): _values(enums.ProductionRunStatus),
     (RepairTask, "status"): _values(enums.RepairTaskStatus),
     (RepairTask, "authority_level"): _values(enums.RepairAuthorityLevel),
+    # Read-through (ADR 0035) — new tables, so there is no legacy vocabulary to scrub first.
+    (ReadThrough, "status"): _values(enums.ReadThroughStatus),
+    (ReadThrough, "book_pass_status"): _values(enums.ReadThroughBookPassStatus),
+    (ReadThrough, "book_input_mode"): _values(enums.ReadThroughBookInputMode),
+    (ReadThroughChapter, "status"): _values(enums.ReadThroughChapterStatus),
+    (ReadThroughNote, "category"): _values(enums.ReadThroughNoteCategory),
+    (ReadThroughNote, "priority"): _values(enums.ReadThroughNotePriority),
+    (ReadThroughNote, "anchor_role"): _values(enums.ReadThroughAnchorRole),
+    (ReadThroughNote, "status"): _values(enums.ReadThroughNoteStatus),
 }
 
 # Enum-valued columns deliberately NOT yet validated, each with a reason. Recording them here (rather

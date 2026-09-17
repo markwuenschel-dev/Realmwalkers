@@ -721,3 +721,86 @@ class ForwardEffect(StrEnum):
     ADOPTION_CREATED = "adoption_created"
     ADOPTION_PROMOTED = "adoption_promoted"
     ADOPTION_JOINED = "adoption_joined"
+
+
+# --- Read-through (ADR 0035): an editor's notes on author-supplied chapter snapshots ----------------
+
+
+class ReadThroughStatus(StrEnum):
+    """A read-through run's lifecycle. QUEUED: admitted and committed, not yet claimed by a worker.
+    RUNNING: owned (owner_token + unexpired lease). STOPPING: the author asked to stop; the owner finishes
+    or cancels its in-flight call and reaches STOPPED. SUCCEEDED / PARTIAL (some chapter failed or was
+    skipped) / FAILED (no chapter done, or a run-level failure) are terminal. INTERRUPTED: ownership
+    expired (restart, crash) or the run never started within the admission deadline."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    SUCCEEDED = "succeeded"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    INTERRUPTED = "interrupted"
+
+
+# The states that hold the per-book slot (`uq_read_throughs_active_book`) and count against the
+# all-books admission bound. Everything else is terminal.
+READ_THROUGH_ACTIVE_STATUSES: tuple[str, ...] = (
+    ReadThroughStatus.QUEUED.value,
+    ReadThroughStatus.RUNNING.value,
+    ReadThroughStatus.STOPPING.value,
+)
+
+
+class ReadThroughChapterStatus(StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    SKIPPED = "skipped"  # never attempted: the run stopped, hit a deadline, or exhausted its allowance
+
+
+class ReadThroughBookPassStatus(StrEnum):
+    PENDING = "pending"
+    DONE = "done"
+    SKIPPED = "skipped"  # fewer than two chapters finished, so there is nothing cross-chapter to read
+    FAILED = "failed"
+    NOT_RUN = "not_run"  # the run stopped or was cut off before the book pass could start
+
+
+class ReadThroughBookInputMode(StrEnum):
+    """What the book pass actually read. DIGESTS means summaries, never the manuscript — notes from that
+    mode cannot establish that something is absent from the text, and the Desk labels them so."""
+
+    FULL_TEXT = "full_text"
+    DIGESTS = "digests"
+
+
+class ReadThroughNoteCategory(StrEnum):
+    STRUCTURE = "structure"
+    PACING = "pacing"
+    CHARACTER = "character"
+    CONTINUITY = "continuity"
+    SETUP_PAYOFF = "setup_payoff"
+    CLARITY = "clarity"
+    OTHER = "other"
+
+
+class ReadThroughNotePriority(StrEnum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class ReadThroughAnchorRole(StrEnum):
+    """EVIDENCE: the quoted passage shows the problem. LOCATION: the quote marks WHERE the concern
+    applies (e.g. where a reader needs context) — it locates, it does not prove absence."""
+
+    EVIDENCE = "evidence"
+    LOCATION = "location"
+
+
+class ReadThroughNoteStatus(StrEnum):
+    OPEN = "open"
+    DONE = "done"
+    DISMISSED = "dismissed"

@@ -152,6 +152,8 @@ def policy_for_setting(setting_key: str) -> EscalationPolicy:
         "scene_packet_qa_model": 5000,
         "packet_author_model": 16000,
         "packet_qa_model": 3000,
+        # A truncated read-through chapter/book response retries with at least the book pass's allowance.
+        "read_through_model": 24000,
     }
     return EscalationPolicy(
         never_fallback_tiers=runtime.never_fallback_tiers or frozenset(agent.never_fallback_tiers),

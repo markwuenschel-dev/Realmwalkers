@@ -79,6 +79,8 @@ FALLBACK_ATTR: dict[str, str] = {
     "import_evidence_model": "import_evidence_fallback_model",
     # Style audit over author-pasted prose (the Edit desk).
     "style_audit_model": "style_audit_fallback_model",
+    # Read-through over author-supplied chapter snapshots (ADR 0035).
+    "read_through_model": "read_through_fallback_model",
 }
 
 STRUCTURAL_ESCALATION_TRIGGERS: tuple[str, ...] = ("truncated", "unparseable")
@@ -210,6 +212,27 @@ AGENTS: tuple[AgentDefinition, ...] = (
         never_fallback_tiers=(),
         # One call per invocation, and only when the author asks — never per chapter on its own.
         estimate=AgentEstimate(cost_band="low", speed_band="slow", typical_calls_per_chapter=0),
+    ),
+    AgentDefinition(
+        setting_key="read_through_model",
+        label="Read-through",
+        description="Reads author-supplied chapters and writes developmental notes per chapter and across the book",
+        stages=("read_through_chapter", "read_through_book"),
+        contract=AgentContract(
+            inputs=("author chapter snapshots", "voice guide snapshot"),
+            outputs=("anchored chapter notes", "chapter digests", "cross-chapter notes"),
+            context_load="One full chapter per call; the book pass reads full text when it fits, else digests",
+            uses_memory=False,
+            writes_artifacts=True,
+        ),
+        # Author-invoked and advisory: it reads only its own snapshots and writes only its own notes, so
+        # nothing downstream (drafting, approval, production) consumes it or can be blocked by it.
+        permissions=AgentPermissions(can_block_downstream=False, can_write_summaries=False),
+        default_primary_tier="haiku",
+        default_fallback_tier="sonnet",
+        never_fallback_tiers=(),
+        # Only when the author asks — never per chapter on its own.
+        estimate=AgentEstimate(cost_band="medium", speed_band="slow", typical_calls_per_chapter=0),
     ),
     AgentDefinition(
         setting_key="enrich_model",

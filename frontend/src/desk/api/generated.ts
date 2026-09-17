@@ -3441,6 +3441,121 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/books/{book_id}/read-throughs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Read Throughs
+     * @description This book's read-throughs, newest first, with how many chapters each has finished.
+     */
+    get: operations["list_read_throughs_books__book_id__read_throughs_get"];
+    put?: never;
+    /**
+     * Create Read Through
+     * @description Start a read-through of the supplied chapters. The text is stored exactly as sent and read in
+     *     the background; poll the status route. Sending the same `client_request_id` with the same chapters
+     *     returns the run already started. 422 names a chapter that is empty or too long; 409 when this book
+     *     already has a read-through running or too many are running overall.
+     */
+    post: operations["create_read_through_books__book_id__read_throughs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/read-throughs/{read_through_id}/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read Through Status
+     * @description Progress of one read-through: its state, chapter counts, the chapter being read, and what it
+     *     has spent. No chapter text or notes.
+     */
+    get: operations["read_through_status_read_throughs__read_through_id__status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/read-throughs/{read_through_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Read Through
+     * @description One read-through in full: every chapter with the text that was read, and every note. Notes that
+     *     span chapters come first, then each chapter's notes in chapter order.
+     */
+    get: operations["get_read_through_read_throughs__read_through_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Read Through
+     * @description Delete a finished read-through with its chapter text and notes. 409 while it is still running.
+     */
+    delete: operations["delete_read_through_read_throughs__read_through_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/read-throughs/{read_through_id}/stop": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Stop Read Through
+     * @description Stop a read-through. One that has not started stops at once and reads nothing; one that is
+     *     reading stops after cancelling its current call (a request already sent to the model may still be
+     *     billed). 409 if it has already finished.
+     */
+    post: operations["stop_read_through_read_throughs__read_through_id__stop_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/read-through-notes/{note_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update Read Through Note
+     * @description Mark a note open, done or dismissed.
+     */
+    patch: operations["update_read_through_note_read_through_notes__note_id__patch"];
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7385,6 +7500,286 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /** ReadThroughAnchorOut */
+    ReadThroughAnchorOut: {
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** State */
+      state: string;
+      /** Text Quoted */
+      text_quoted: string;
+      /**
+       * Segments
+       * @default []
+       */
+      segments: components["schemas"]["ReadThroughSegmentOut"][];
+      /**
+       * Candidates
+       * @default []
+       */
+      candidates: components["schemas"]["ReadThroughSegmentOut"][][];
+      /**
+       * Candidate Count
+       * @default 0
+       */
+      candidate_count: number;
+    };
+    /** ReadThroughChapterIn */
+    ReadThroughChapterIn: {
+      /** Label */
+      label: string;
+      /** Text */
+      text: string;
+    };
+    /** ReadThroughChapterOut */
+    ReadThroughChapterOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Position */
+      position: number;
+      /** Label */
+      label: string;
+      /** Text */
+      text: string;
+      /** Word Count */
+      word_count: number;
+      /** Status */
+      status: string;
+      /** Digest */
+      digest?: {
+        [key: string]: unknown;
+      } | null;
+      /** Notes Dropped */
+      notes_dropped: number;
+      /** Notes Capped */
+      notes_capped: boolean;
+      /** Model Used */
+      model_used?: string | null;
+      /** Attempts */
+      attempts: number;
+      /** Error */
+      error?: string | null;
+    };
+    /**
+     * ReadThroughCreateIn
+     * @description Start a read-through. `client_request_id` is minted by the Desk per composition: re-sending the same
+     *     id with the same chapters returns the existing run (a lost response never pays twice); the same id with
+     *     different chapters is a 409.
+     */
+    ReadThroughCreateIn: {
+      /** Client Request Id */
+      client_request_id: string;
+      /** Title */
+      title?: string | null;
+      /** Chapters */
+      chapters: components["schemas"]["ReadThroughChapterIn"][];
+    };
+    /** ReadThroughDeleteOut */
+    ReadThroughDeleteOut: {
+      /**
+       * Deleted
+       * Format: uuid
+       */
+      deleted: string;
+    };
+    /** ReadThroughNoteOut */
+    ReadThroughNoteOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Read Through Id
+       * Format: uuid
+       */
+      read_through_id: string;
+      /** Chapter Id */
+      chapter_id?: string | null;
+      /** Position */
+      position: number;
+      /** Category */
+      category: string;
+      /** Priority */
+      priority: string;
+      /** Title */
+      title: string;
+      /** Observation */
+      observation: string;
+      /** Recommendation */
+      recommendation: string;
+      /** Anchor Role */
+      anchor_role: string;
+      /** Anchors */
+      anchors: components["schemas"]["ReadThroughAnchorOut"][];
+      /** Scope Chapter Ids */
+      scope_chapter_ids: string[];
+      /** Status */
+      status: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** ReadThroughNotePatchIn */
+    ReadThroughNotePatchIn: {
+      /** Status */
+      status: string;
+    };
+    /** ReadThroughOut */
+    ReadThroughOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Title */
+      title: string;
+      /** Status */
+      status: string;
+      /** Error */
+      error?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Started At */
+      started_at?: string | null;
+      /** Finished At */
+      finished_at?: string | null;
+      /**
+       * Deadline At
+       * Format: date-time
+       */
+      deadline_at: string;
+      /** Settings Snapshot */
+      settings_snapshot: {
+        [key: string]: unknown;
+      };
+      /** Voice Guide Used */
+      voice_guide_used: boolean;
+      /** Attempt Allowance */
+      attempt_allowance: number;
+      /** Attempts Used */
+      attempts_used: number;
+      /** Tokens Charged */
+      tokens_charged: number;
+      /** Accounting Gap */
+      accounting_gap: boolean;
+      /** Stop Requested */
+      stop_requested: boolean;
+      /** Book Pass Status */
+      book_pass_status: string;
+      /** Book Pass Error */
+      book_pass_error?: string | null;
+      /** Book Input Mode */
+      book_input_mode?: string | null;
+      /** Book Chapter Ids */
+      book_chapter_ids: string[];
+      /** Book Model Used */
+      book_model_used?: string | null;
+      /** Chapters */
+      chapters: components["schemas"]["ReadThroughChapterOut"][];
+      /** Notes */
+      notes: components["schemas"]["ReadThroughNoteOut"][];
+    };
+    /** ReadThroughSegmentOut */
+    ReadThroughSegmentOut: {
+      /** Start */
+      start: number;
+      /** End */
+      end: number;
+      /** Text */
+      text: string;
+    };
+    /**
+     * ReadThroughStatusOut
+     * @description The slim poll body — no chapter text, no notes.
+     */
+    ReadThroughStatusOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Status */
+      status: string;
+      /** Chapters Total */
+      chapters_total: number;
+      /** Chapters Done */
+      chapters_done: number;
+      /** Chapters Failed */
+      chapters_failed: number;
+      /** Chapters Skipped */
+      chapters_skipped: number;
+      /** Current Label */
+      current_label?: string | null;
+      /** Attempts Used */
+      attempts_used: number;
+      /** Attempt Allowance */
+      attempt_allowance: number;
+      /** Tokens Charged */
+      tokens_charged: number;
+      /** Book Pass Status */
+      book_pass_status: string;
+      /** Book Input Mode */
+      book_input_mode?: string | null;
+      /** Stop Requested */
+      stop_requested: boolean;
+      /** Error */
+      error?: string | null;
+    };
+    /** ReadThroughSummaryOut */
+    ReadThroughSummaryOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Book Id
+       * Format: uuid
+       */
+      book_id: string;
+      /** Title */
+      title: string;
+      /** Status */
+      status: string;
+      /** Chapters Total */
+      chapters_total: number;
+      /** Chapters Done */
+      chapters_done: number;
+      /** Book Pass Status */
+      book_pass_status: string;
+      /** Book Input Mode */
+      book_input_mode?: string | null;
+      /** Error */
+      error?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Started At */
+      started_at?: string | null;
+      /** Finished At */
+      finished_at?: string | null;
     };
     /**
      * ReauthorIn
@@ -15442,6 +15837,231 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ImportAdoptionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_read_throughs_books__book_id__read_throughs_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughSummaryOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_read_through_books__book_id__read_throughs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        book_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReadThroughCreateIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughSummaryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  read_through_status_read_throughs__read_through_id__status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        read_through_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughStatusOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_read_through_read_throughs__read_through_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        read_through_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_read_through_read_throughs__read_through_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        read_through_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughDeleteOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  stop_read_through_read_throughs__read_through_id__stop_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        read_through_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughStatusOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_read_through_note_read_through_notes__note_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        note_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReadThroughNotePatchIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughNoteOut"];
         };
       };
       /** @description Validation Error */

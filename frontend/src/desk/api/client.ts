@@ -82,6 +82,13 @@ import type {
   ProductionRunOut,
   ChapterPipelineOut,
   PipelineStatusOut,
+  ReadThroughCreateIn,
+  ReadThroughDeleteOut,
+  ReadThroughNoteOut,
+  ReadThroughNotePatchIn,
+  ReadThroughOut,
+  ReadThroughStatusOut,
+  ReadThroughSummaryOut,
   RedraftIn,
   RetryFailedOut,
   RepairApplyAllOut,
@@ -186,6 +193,32 @@ export const api = {
   // text on the page is only ever changed by a person.
   styleReview: (body: StyleReviewIn) =>
     http<StyleReviewOut>("/style-review", { method: "POST", body: JSON.stringify(body) }),
+
+  // --- notes: a read-through of chapters the author supplies (ADR 0035) ----------------------------
+  // Unlike Edit, this persists: the run is saved server-side and works in the background, so the Desk
+  // polls `readThroughStatus` (slim) and loads the full `readThrough` only once it is terminal.
+  // `client_request_id` makes the POST idempotent: the same id + same chapters returns the existing
+  // run, so a retry after a lost response never starts (or pays for) a second one. 409 = conflict or
+  // busy; 422 names the chapters over a limit.
+  startReadThrough: (bookId: string, body: ReadThroughCreateIn) =>
+    http<ReadThroughSummaryOut>(`/books/${bookId}/read-throughs`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  readThroughs: (bookId: string) => http<ReadThroughSummaryOut[]>(`/books/${bookId}/read-throughs`),
+  readThroughStatus: (id: string) => http<ReadThroughStatusOut>(`/read-throughs/${id}/status`),
+  readThrough: (id: string) => http<ReadThroughOut>(`/read-throughs/${id}`),
+  // A request already sent to the model may still be billed; finished chapters are kept.
+  stopReadThrough: (id: string) =>
+    http<ReadThroughStatusOut>(`/read-throughs/${id}/stop`, { method: "POST" }),
+  patchReadThroughNote: (noteId: string, body: ReadThroughNotePatchIn) =>
+    http<ReadThroughNoteOut>(`/read-through-notes/${noteId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  // 409 unless the run is terminal.
+  deleteReadThrough: (id: string) =>
+    http<ReadThroughDeleteOut>(`/read-throughs/${id}`, { method: "DELETE" }),
 
   // --- review inbox -------------------------------------------------------------------------------
   pending: () => http<SceneOut[]>("/scenes/pending"),

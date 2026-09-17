@@ -597,3 +597,18 @@ export type StyleReviewOut = S["StyleReviewOut"];
 // Named for the schema it mirrors, not for the screen: `SuggestionOut` is already taken by the
 // human markup API, and the backend class is deliberately `StyleSuggestionOut` for that reason.
 export type StyleSuggestion = S["StyleSuggestionOut"];
+
+// --- read-through: an editor's notes on chapters the author supplies (ADR 0035) --------------------
+// Anchor offsets (`ReadThroughSegmentOut.start/end`) are UTF-16 code units into the chapter snapshot
+// text — the same unit as a JS string index — so the Desk slices them directly, never re-searches.
+export type ReadThroughCreateIn = S["ReadThroughCreateIn"];
+export type ReadThroughChapterIn = S["ReadThroughChapterIn"];
+export type ReadThroughSummaryOut = S["ReadThroughSummaryOut"];
+export type ReadThroughStatusOut = S["ReadThroughStatusOut"];
+export type ReadThroughOut = S["ReadThroughOut"];
+export type ReadThroughChapterOut = S["ReadThroughChapterOut"];
+export type ReadThroughNoteOut = S["ReadThroughNoteOut"];
+export type ReadThroughAnchorOut = S["ReadThroughAnchorOut"];
+export type ReadThroughSegmentOut = S["ReadThroughSegmentOut"];
+export type ReadThroughNotePatchIn = S["ReadThroughNotePatchIn"];
+export type ReadThroughDeleteOut = S["ReadThroughDeleteOut"];

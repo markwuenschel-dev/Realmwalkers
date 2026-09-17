@@ -258,6 +258,28 @@ class Settings(BaseSettings):
     # what stops a whole chapter pasted in one go from becoming a single enormous request.
     style_audit_token_budget: int = 90_000
 
+    # Read-through (ADR 0035): developmental notes on author-supplied chapter snapshots, one call per
+    # chapter plus one cross-chapter pass. Every value below is INITIAL policy, judged on the first live
+    # reading — change them here or via DOMINION_ env, not in the worker. The attempt allowance and the
+    # run-token ceiling are cumulative across a run; each call still gets its own work budget so a paid
+    # response is never discarded (llm.py raises BudgetExceeded AFTER the call).
+    read_through_model: str = "gpt-5.6-luna"
+    read_through_fallback_model: str = "gpt-5.6-terra"
+    read_through_max_chapters: int = 30
+    read_through_max_chapter_chars: int = 160_000
+    read_through_chapter_input_budget: int = 60_000  # estimated input tokens, refused before the call
+    read_through_chapter_max_tokens: int = 16_000  # gpt-5* spends reasoning from this allowance too
+    read_through_book_input_budget: int = 110_000  # above this the book pass reads digests, not full text
+    read_through_book_max_tokens: int = 24_000
+    read_through_max_active: int = 2  # active runs across ALL books (the per-book bound is a unique index)
+    read_through_admission_deadline_s: int = 120  # a queued run nobody claimed by then is interrupted
+    read_through_lease_ttl_s: int = 90  # the owner renews every ttl/3 while it waits on the provider
+    read_through_call_deadline_s: int = 900  # one attempt, including model-slot wait and retries
+    read_through_run_deadline_s: int = 10_800
+    read_through_attempts_per_chapter: int = 2  # primary + fallback
+    read_through_book_attempts: int = 2
+    read_through_run_token_ceiling: int = 600_000
+
     # Post-split monorepo ingest source dirs (series/canon + book1/manuscript). Centralized here so the
     # worker CLIs (canon_rag.py, seed.py) read one source of truth instead of duplicating the literal
     # paths in each argparse default — a folder rename now changes one place. Relative paths resolve

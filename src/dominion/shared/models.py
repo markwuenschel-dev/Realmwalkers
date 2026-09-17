@@ -1335,3 +1335,109 @@ class DraftRunTimeline(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ReadThrough(Base):
+    """One read-through run over author-supplied chapter snapshots (ADR 0035). Not a scene version, not a
+    job: it reads `read_through_chapters.text`, never `scenes`, and writes only its own notes.
+
+    Results survive a restart; the in-process task that produces them does not. Ownership is an
+    `owner_token` plus an expiring `lease_expires_at` the owner renews while it awaits the provider, and
+    every result write is conditioned on both — so recovery only ever interrupts EXPIRED ownership.
+    `client_request_id` + `payload_sha256` make submission retry-safe: a lost POST response replays to
+    the same run instead of paying for a second one. The settings and voice guide are snapshotted at
+    admission, so estimation and every later chapter build their prompts from identical inputs."""
+
+    __tablename__ = "read_throughs"
+    __table_args__ = (
+        UniqueConstraint("book_id", "client_request_id", name="uq_read_throughs_book_request"),
+        # One active run per book. The all-books bound is enforced at admission under an advisory lock.
+        Index(
+            "uq_read_throughs_active_book",
+            "book_id",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running', 'stopping')"),
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("books.id"))
+    title: Mapped[str] = mapped_column(Text)
+    client_request_id: Mapped[str] = mapped_column(Text)
+    payload_sha256: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="queued")  # see enums.ReadThroughStatus
+    owner_token: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    stop_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deadline_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # {models, limits, prompt_version} as admitted — the worker reads THIS, never live settings.
+    settings_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    voice_guide_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)  # NULL = no guide loaded
+    attempt_allowance: Mapped[int] = mapped_column(Integer)
+    attempts_used: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_charged: Mapped[int] = mapped_column(Integer, default=0)
+    # A telemetry flush failed somewhere in this run: its spend is not fully in llm_calls.
+    accounting_gap: Mapped[bool] = mapped_column(Boolean, default=False)
+    book_pass_status: Mapped[str] = mapped_column(Text, default="pending")  # see enums.ReadThroughBookPassStatus
+    book_pass_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    book_input_mode: Mapped[str | None] = mapped_column(Text, nullable=True)  # see enums.ReadThroughBookInputMode
+    book_chapter_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)  # snapshot chapter ids the book pass read
+    book_model_used: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ReadThroughChapter(Base):
+    """One immutable chapter snapshot inside a read-through. `text` is exactly what the author supplied —
+    never normalized; anchors index into it in UTF-16 code units."""
+
+    __tablename__ = "read_through_chapters"
+    __table_args__ = (UniqueConstraint("read_through_id", "position", name="uq_read_through_chapters_position"),)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    read_through_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("read_throughs.id", ondelete="CASCADE"))
+    position: Mapped[int] = mapped_column(Integer)
+    label: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)
+    word_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(Text, default="pending")  # see enums.ReadThroughChapterStatus
+    digest: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    notes_dropped: Mapped[int] = mapped_column(Integer, default=0)  # notes with no locatable anchor
+    notes_capped: Mapped[bool] = mapped_column(Boolean, default=False)  # the model had more than it could return
+    model_used: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ReadThroughNote(Base):
+    """An editorial note. `chapter_id` NULL = a cross-chapter (book) note, scoped by `scope_chapter_ids`.
+    `anchors` is a list of {chapter_id, state, text_quoted, segments[{start,end,text}], candidates[[...]],
+    candidate_count} located by the server — the Desk renders these spans and never re-searches."""
+
+    __tablename__ = "read_through_notes"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    read_through_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("read_throughs.id", ondelete="CASCADE"))
+    chapter_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("read_through_chapters.id", ondelete="CASCADE"), nullable=True
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    category: Mapped[str] = mapped_column(Text)  # see enums.ReadThroughNoteCategory
+    priority: Mapped[str] = mapped_column(Text)  # see enums.ReadThroughNotePriority
+    title: Mapped[str] = mapped_column(Text)
+    observation: Mapped[str] = mapped_column(Text)
+    recommendation: Mapped[str] = mapped_column(Text)
+    anchor_role: Mapped[str] = mapped_column(Text, default="evidence")  # see enums.ReadThroughAnchorRole
+    anchors: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    scope_chapter_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(Text, default="open")  # see enums.ReadThroughNoteStatus
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
